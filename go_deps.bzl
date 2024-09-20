@@ -8,6 +8,12 @@ load("@bazel_gazelle//:deps.bzl", "go_repository")
 
 def go_deps():
     go_repository(
+        name = "at_zgo_zcache_v2",
+        importpath = "zgo.at/zcache/v2",
+        sum = "h1:USo+ubK+R4vtjw4viGzTe/zjXyPw6R7SK/RL3epBBxs=",
+        version = "v2.1.0",
+    )
+    go_repository(
         name = "co_honnef_go_tools",
         importpath = "honnef.co/go/tools",
         sum = "h1:YGD4H+SuIOOqsyoLOpZDWcieM28W47/zRO7f+9V3nvo=",

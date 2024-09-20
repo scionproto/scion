@@ -86,7 +86,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*R
 	conn, err := r.Network.OpenRaw(ctx, u)
 	if err != nil {
 		ext.Error.Set(span, true)
-		return nil, serrors.Wrap(errRegistration, err)
+		return nil, serrors.JoinNoStack(errRegistration, err)
 	}
 	cancelF := ctxconn.CloseConnOnDone(ctx, conn)
 	defer func() {
@@ -161,7 +161,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 			return nil, ctx.Err()
 		default:
 		}
-		return nil, serrors.Wrap(errWrite, err)
+		return nil, serrors.JoinNoStack(errWrite, err)
 	}
 
 	var replyPacket snet.Packet
@@ -172,16 +172,17 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 			return nil, ctx.Err()
 		default:
 		}
-		return nil, serrors.Wrap(errRead, err)
+		return nil, serrors.JoinNoStack(errRead, err)
 	}
 	udp, ok := replyPacket.Payload.(snet.UDPPayload)
 	if !ok {
-		return nil, serrors.WithCtx(errUnsupportedPld,
+		return nil, serrors.JoinNoStack(errUnsupportedPld, nil,
 			"type", common.TypeOf(replyPacket.Payload))
+
 	}
 	var reply Reply
 	if err := reply.Unmarshal(udp.Payload); err != nil {
-		return nil, serrors.Wrap(errDecode, err)
+		return nil, serrors.JoinNoStack(errDecode, err)
 	}
 
 	rpath, ok := replyPacket.Path.(snet.RawPath)
@@ -190,7 +191,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	}
 	replyPath, err := snet.DefaultReplyPather{}.ReplyPath(rpath)
 	if err != nil {
-		return nil, serrors.WrapStr("creating reply path", err)
+		return nil, serrors.Wrap("creating reply path", err)
 	}
 	reply.ReturnPath = &path{
 		dataplane:   replyPath,

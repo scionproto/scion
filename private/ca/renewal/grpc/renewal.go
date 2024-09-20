@@ -104,11 +104,11 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 func extractChain(raw []byte) ([]*x509.Certificate, error) {
 	ci, err := protocol.ParseContentInfo(raw)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing ContentInfo", err)
+		return nil, serrors.Wrap("parsing ContentInfo", err)
 	}
 	sd, err := ci.SignedDataContent()
 	if err != nil {
-		return nil, serrors.WrapStr("parsing SignedData", err)
+		return nil, serrors.Wrap("parsing SignedData", err)
 	}
 	return renewal.ExtractChain(sd)
 }

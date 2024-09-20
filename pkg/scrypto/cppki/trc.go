@@ -105,40 +105,42 @@ type TRC struct {
 // update restrictions.
 func (trc *TRC) Validate() error {
 	if trc.Version != 1 {
-		return serrors.WithCtx(ErrInvalidTRCVersion, "expected", 1, "actual", trc.Version)
+		return serrors.JoinNoStack(ErrInvalidTRCVersion, nil, "expected", 1, "actual", trc.Version)
 	}
 	if err := trc.ID.Validate(); err != nil {
-		return serrors.Wrap(ErrInvalidID, err)
+		return serrors.JoinNoStack(ErrInvalidID, err)
 	}
 	if err := trc.Validity.Validate(); err != nil {
 		return err
 	}
 	if trc.ID.IsBase() && trc.GracePeriod != 0 {
-		return serrors.WithCtx(ErrGracePeriodNonZero, "grace_period", trc.GracePeriod)
+		return serrors.JoinNoStack(ErrGracePeriodNonZero, nil, "grace_period", trc.GracePeriod)
 	}
 	if trc.ID.IsBase() && len(trc.Votes) != 0 {
-		return serrors.WithCtx(ErrVotesOnBaseTRC, "votes", len(trc.Votes))
+		return serrors.JoinNoStack(ErrVotesOnBaseTRC, nil, "votes", len(trc.Votes))
 	}
 	if trc.Quorum == 0 || trc.Quorum > 255 {
-		return serrors.WithCtx(ErrInvalidQuorumSize, "voting_quorum", trc.Quorum)
+		return serrors.JoinNoStack(ErrInvalidQuorumSize, nil, "voting_quorum", trc.Quorum)
 	}
 	if err := validateASSequence(trc.CoreASes); err != nil {
-		return serrors.WithCtx(err, "field", "coreASes")
+		return serrors.WrapNoStack("error", err, "field", "coreASes")
 	}
 	if err := validateASSequence(trc.AuthoritativeASes); err != nil {
-		return serrors.WithCtx(err, "field", "authoritativeASes")
+		return serrors.WrapNoStack("error", err, "field", "authoritativeASes")
 	}
 	cl, err := classifyCerts(trc.Certificates)
 	if err != nil {
 		return err
 	}
 	if len(cl.Sensitive) < trc.Quorum {
-		return serrors.WithCtx(ErrNotEnoughVoters,
+		return serrors.JoinNoStack(ErrNotEnoughVoters, nil,
 			"sensitive_voters", len(cl.Sensitive), "quorum", trc.Quorum)
+
 	}
 	if len(cl.Regular) < trc.Quorum {
-		return serrors.WithCtx(ErrNotEnoughVoters,
+		return serrors.JoinNoStack(ErrNotEnoughVoters, nil,
 			"regular_voters", len(cl.Regular), "quorum", trc.Quorum)
+
 	}
 	// Check all certificates for this ISD.
 	for i, cert := range trc.Certificates {
@@ -147,10 +149,15 @@ func (trc *TRC) Validate() error {
 			return err
 		}
 		if ia != nil && ia.ISD() != trc.ID.ISD {
-			return serrors.WithCtx(ErrCertForOtherISD, "subject", cert.Subject, "index", i)
+			return serrors.JoinNoStack(ErrCertForOtherISD, nil, "subject", cert.Subject, "index", i)
 		}
 		if !(Validity{NotBefore: cert.NotBefore, NotAfter: cert.NotAfter}).Covers(trc.Validity) {
-			return serrors.WithCtx(ErrTRCValidityNotCovered, "subject", cert.Subject, "index", i)
+			return serrors.JoinNoStack(ErrTRCValidityNotCovered, nil,
+				"cert.subject", cert.Subject,
+				"cert.index", i,
+				"cert.validity", Validity{NotBefore: cert.NotBefore, NotAfter: cert.NotAfter},
+				"trc.validity", trc.Validity,
+			)
 		}
 	}
 	// Check that issuer-SN pair is unique.
@@ -161,7 +168,7 @@ func (trc *TRC) Validate() error {
 				continue
 			}
 			if equalName(a.Issuer, b.Issuer) {
-				return serrors.WithCtx(ErrDuplicate, "indices", []int{i, j})
+				return serrors.JoinNoStack(ErrDuplicate, nil, "indices", []int{i, j})
 			}
 		}
 	}
@@ -271,11 +278,11 @@ func (trc *TRC) ValidateUpdate(predecessor *TRC) (Update, error) {
 	}
 	predCerts, err := classifyCerts(predecessor.Certificates)
 	if err != nil {
-		return Update{}, serrors.WrapStr("classifying certificates in predecessor", err)
+		return Update{}, serrors.Wrap("classifying certificates in predecessor", err)
 	}
 	thisCerts, err := classifyCerts(trc.Certificates)
 	if err != nil {
-		return Update{}, serrors.WrapStr("classifying certificates", err)
+		return Update{}, serrors.Wrap("classifying certificates", err)
 	}
 
 	// All votes in a regular update must be cast with a regular voting
@@ -284,7 +291,7 @@ func (trc *TRC) ValidateUpdate(predecessor *TRC) (Update, error) {
 	if _, ok := predCerts.Regular[trc.Votes[0]]; !ok {
 		votes, err := trc.validateSensitive(predCerts)
 		if err != nil {
-			return Update{}, serrors.WrapStr("validating sensitive update", err)
+			return Update{}, serrors.Wrap("validating sensitive update", err)
 		}
 		return Update{
 			Type:      SensitiveUpdate,
@@ -294,7 +301,7 @@ func (trc *TRC) ValidateUpdate(predecessor *TRC) (Update, error) {
 	}
 	votes, acks, err := trc.validateRegular(predecessor, predCerts, thisCerts)
 	if err != nil {
-		return Update{}, serrors.WrapStr("validating regular update", err)
+		return Update{}, serrors.Wrap("validating regular update", err)
 	}
 	return Update{
 		Type:                RegularUpdate,
@@ -323,10 +330,10 @@ func (trc *TRC) validateRegular(predecessor *TRC, predCerts, thisCerts classifie
 		return nil, nil, serrors.New("quorum changed", "predecessor", p, "this", n)
 	}
 	if err := equalASes(predecessor.CoreASes, trc.CoreASes); err != nil {
-		return nil, nil, serrors.WrapStr("core ASes changed", err)
+		return nil, nil, serrors.Wrap("core ASes changed", err)
 	}
 	if err := equalASes(predecessor.AuthoritativeASes, trc.AuthoritativeASes); err != nil {
-		return nil, nil, serrors.WrapStr("authoritative ASes changed", err)
+		return nil, nil, serrors.Wrap("authoritative ASes changed", err)
 	}
 
 	// Check all sensitive voting certificates are unchanged.
@@ -432,7 +439,7 @@ func classifyCerts(certs []*x509.Certificate) (classified, error) {
 	for i, cert := range certs {
 		ct, err := ValidateCert(cert)
 		if err != nil {
-			return classified{}, serrors.WithCtx(ErrUnclassifiedCertificate, "index", i)
+			return classified{}, serrors.JoinNoStack(ErrUnclassifiedCertificate, nil, "index", i)
 		}
 		switch ct {
 		case Sensitive:
@@ -442,7 +449,8 @@ func classifyCerts(certs []*x509.Certificate) (classified, error) {
 		case Root:
 			c.Root[i] = cert
 		default:
-			return classified{}, serrors.WithCtx(ErrInvalidCertType, "cert_type", ct, "index", i)
+			return classified{}, serrors.JoinNoStack(ErrInvalidCertType, nil,
+				"cert_type", ct, "index", i)
 		}
 	}
 	return c, nil
@@ -501,7 +509,7 @@ func validateASSequence(ases []addr.AS) error {
 		}
 		for j := i + 1; j < len(ases); j++ {
 			if as == ases[j] {
-				return serrors.WithCtx(ErrDuplicateAS, "as", as)
+				return serrors.JoinNoStack(ErrDuplicateAS, nil, "as", as)
 			}
 		}
 	}
@@ -518,7 +526,7 @@ func uniqueSubject(certs map[int]*x509.Certificate) error {
 		for j := i + 1; j < len(l); j++ {
 			b := l[j]
 			if equalName(a.Subject, b.Subject) {
-				return serrors.WithCtx(ErrDuplicate, "indices", []int{idx[i], idx[j]})
+				return serrors.JoinNoStack(ErrDuplicate, nil, "indices", []int{idx[i], idx[j]})
 			}
 		}
 	}

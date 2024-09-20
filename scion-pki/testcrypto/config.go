@@ -38,11 +38,11 @@ type topo struct {
 func loadTopo(file string) (topo, error) {
 	raw, err := os.ReadFile(file)
 	if err != nil {
-		return topo{}, serrors.WrapStr("failed to load topofile", err, "file", file)
+		return topo{}, serrors.Wrap("failed to load topofile", err, "file", file)
 	}
 	var t topo
 	if err := yaml.Unmarshal(raw, &t); err != nil {
-		return topo{}, serrors.WrapStr("failed to parse topofile", err, "file", file)
+		return topo{}, serrors.Wrap("failed to parse topofile", err, "file", file)
 	}
 	for ia, v := range t.ASes {
 		if v.Issuing {

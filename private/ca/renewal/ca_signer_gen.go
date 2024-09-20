@@ -188,7 +188,7 @@ func (l LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) 
 	certs, err := l.CertProvider.CACerts(ctx)
 	if err != nil {
 		l.incCASigner("err_certs")
-		return cppki.CAPolicy{}, serrors.WrapStr("loading CA certificates", err)
+		return cppki.CAPolicy{}, serrors.Wrap("loading CA certificates", err)
 	}
 	if len(certs) == 0 {
 		l.incCASigner("err_certs")
@@ -243,22 +243,22 @@ type CACertLoader struct {
 // an active TRC.
 func (l CACertLoader) CACerts(ctx context.Context) ([]*x509.Certificate, error) {
 	if _, err := os.Stat(l.Dir); err != nil {
-		return nil, serrors.WithCtx(err, "dir", l.Dir)
+		return nil, serrors.Wrap("stating directory", err, "dir", l.Dir)
 	}
 	files, err := filepath.Glob(fmt.Sprintf("%s/*.crt", l.Dir))
 	if err != nil {
-		return nil, serrors.WithCtx(err, "dir", l.Dir)
+		return nil, serrors.Wrap("searching for certificates", err, "dir", l.Dir)
 	}
 
 	trcs, err := activeTRCs(ctx, l.DB, l.IA.ISD())
 	if err != nil {
-		return nil, serrors.WrapStr("looking for active TRCs", err, "isd", l.IA.ISD())
+		return nil, serrors.Wrap("looking for active TRCs", err, "isd", l.IA.ISD())
 	}
 	rootPool := x509.NewCertPool()
 	for _, trc := range trcs {
 		certs, err := trc.TRC.RootCerts()
 		if err != nil {
-			return nil, serrors.WrapStr("extracting root certs", err, "trc", trc.TRC.ID)
+			return nil, serrors.Wrap("extracting root certs", err, "trc", trc.TRC.ID)
 		}
 		for _, cert := range certs {
 			rootPool.AddCert(cert)

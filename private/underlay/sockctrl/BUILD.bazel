@@ -4,9 +4,55 @@ go_library(
     name = "go_default_library",
     srcs = [
         "sockctrl.go",
+        "sockctrl_windows.go",
         "sockopt.go",
+        "sockopt_windows.go",
     ],
     importpath = "github.com/scionproto/scion/private/underlay/sockctrl",
     visibility = ["//visibility:public"],
-    deps = ["//pkg/private/serrors:go_default_library"],
+    deps = select({
+        "@io_bazel_rules_go//go/platform:aix": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:android": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:dragonfly": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:freebsd": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:illumos": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:ios": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:js": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:linux": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:netbsd": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:openbsd": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:plan9": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:solaris": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:windows": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
 )

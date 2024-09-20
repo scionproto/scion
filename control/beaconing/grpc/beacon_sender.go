@@ -50,7 +50,7 @@ func (f *BeaconSenderFactory) NewSender(
 	}
 	conn, err := f.Dialer.Dial(ctx, addr)
 	if err != nil {
-		return nil, serrors.WrapStr("dialing gRPC conn", err)
+		return nil, serrors.Wrap("dialing gRPC conn", err)
 	}
 	return &BeaconSender{
 		Conn: conn,

@@ -313,14 +313,14 @@ func (s *Session) validateParameters() error {
 	}
 	desiredMinTxInterval, err := durationToBFDInterval(s.DesiredMinTxInterval)
 	if err != nil {
-		return serrors.WrapStr("bad desired minimum transmission interval", err)
+		return serrors.Wrap("bad desired minimum transmission interval", err)
 	}
 	if desiredMinTxInterval == 0 {
 		return serrors.New("desired minimum transmission interval must be > 0")
 	}
 	requiredMinRxInterval, err := durationToBFDInterval(s.RequiredMinRxInterval)
 	if err != nil {
-		return serrors.WrapStr("bad required minimum receive interval", err)
+		return serrors.Wrap("bad required minimum receive interval", err)
 	}
 	if requiredMinRxInterval == 0 {
 		return serrors.New("required minimum receive interval must be > 0")

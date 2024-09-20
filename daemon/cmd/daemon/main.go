@@ -90,7 +90,7 @@ func realMain(ctx context.Context) error {
 		Metrics:   loaderMetrics(),
 	})
 	if err != nil {
-		return serrors.WrapStr("creating topology loader", err)
+		return serrors.Wrap("creating topology loader", err)
 	}
 	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -100,14 +100,14 @@ func realMain(ctx context.Context) error {
 
 	closer, err := daemon.InitTracer(globalCfg.Tracing, globalCfg.General.ID)
 	if err != nil {
-		return serrors.WrapStr("initializing tracer", err)
+		return serrors.Wrap("initializing tracer", err)
 	}
 	defer closer.Close()
 
 	revCache := storage.NewRevocationStorage()
 	pathDB, err := storage.NewPathStorage(globalCfg.PathDB)
 	if err != nil {
-		return serrors.WrapStr("initializing path storage", err)
+		return serrors.Wrap("initializing path storage", err)
 	}
 	pathDB = pathstoragemetrics.WrapDB(pathDB, pathstoragemetrics.Config{
 		Driver: string(storage.BackendSqlite),
@@ -136,7 +136,7 @@ func realMain(ctx context.Context) error {
 
 	trustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
 	if err != nil {
-		return serrors.WrapStr("initializing trust database", err)
+		return serrors.Wrap("initializing trust database", err)
 	}
 	defer trustDB.Close()
 	trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
@@ -151,7 +151,7 @@ func realMain(ctx context.Context) error {
 	})
 	engine, err := daemon.TrustEngine(globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer)
 	if err != nil {
-		return serrors.WrapStr("creating trust engine", err)
+		return serrors.Wrap("creating trust engine", err)
 	}
 	engine.Inspector = trust.CachingInspector{
 		Inspector:          engine.Inspector,
@@ -159,10 +159,13 @@ func realMain(ctx context.Context) error {
 		CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
 		MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
 	}
-	trcLoader := periodic.Start(periodic.Func{
+	trcLoader := trust.TRCLoader{
+		Dir: filepath.Join(globalCfg.General.ConfigDir, "certs"),
+		DB:  trustDB,
+	}
+	trcLoaderTask := periodic.Start(periodic.Func{
 		Task: func(ctx context.Context) {
-			trcDirs := filepath.Join(globalCfg.General.ConfigDir, "certs")
-			res, err := trust.LoadTRCs(ctx, trcDirs, trustDB)
+			res, err := trcLoader.Load(ctx)
 			if err != nil {
 				log.SafeInfo(log.FromCtx(ctx), "TRC loading failed", "err", err)
 			}
@@ -172,13 +175,13 @@ func realMain(ctx context.Context) error {
 		},
 		TaskName: "daemon_trc_loader",
 	}, 10*time.Second, 10*time.Second)
-	defer trcLoader.Stop()
+	defer trcLoaderTask.Stop()
 
 	var drkeyClientEngine *sd_drkey.ClientEngine
 	if globalCfg.DRKeyLevel2DB.Connection != "" {
 		backend, err := storage.NewDRKeyLevel2Storage(globalCfg.DRKeyLevel2DB)
 		if err != nil {
-			return serrors.WrapStr("creating level2 DRKey DB", err)
+			return serrors.Wrap("creating level2 DRKey DB", err)
 		}
 		counter := metrics.NewPromCounter(
 			promauto.NewCounterVec(
@@ -222,12 +225,12 @@ func realMain(ctx context.Context) error {
 	listen := daemon.APIAddress(globalCfg.SD.Address)
 	listener, err := net.Listen("tcp", listen)
 	if err != nil {
-		return serrors.WrapStr("listening", err)
+		return serrors.Wrap("listening", err)
 	}
 
 	hpGroups, err := hiddenpath.LoadHiddenPathGroups(globalCfg.SD.HiddenPathGroups)
 	if err != nil {
-		return serrors.WrapStr("loading hidden path groups", err)
+		return serrors.Wrap("loading hidden path groups", err)
 	}
 	var requester segfetcher.RPC = &segfetchergrpc.Requester{
 		Dialer: dialer,
@@ -287,7 +290,7 @@ func realMain(ctx context.Context) error {
 	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := server.Serve(listener); err != nil {
-			return serrors.WrapStr("serving gRPC API", err, "addr", listen)
+			return serrors.Wrap("serving gRPC API", err, "addr", listen)
 		}
 		return nil
 	})
@@ -321,7 +324,7 @@ func realMain(ctx context.Context) error {
 			defer log.HandlePanic()
 			err := mgmtServer.ListenAndServe()
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return serrors.WrapStr("serving service management API", err)
+				return serrors.Wrap("serving service management API", err)
 			}
 			return nil
 		})
@@ -336,7 +339,7 @@ func realMain(ctx context.Context) error {
 		"topology":  service.NewTopologyStatusPage(topo),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
-		return serrors.WrapStr("registering status pages", err)
+		return serrors.Wrap("registering status pages", err)
 	}
 
 	g.Go(func() error {

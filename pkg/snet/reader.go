@@ -80,7 +80,7 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	}
 	replyPath, err := c.replyPather.ReplyPath(rpath)
 	if err != nil {
-		return 0, nil, serrors.WrapStr("creating reply path", err)
+		return 0, nil, serrors.Wrap("creating reply path", err)
 	}
 
 	udp, ok := pkt.Payload.(UDPPayload)

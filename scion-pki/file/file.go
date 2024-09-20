@@ -91,7 +91,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode, opts ...Option) e
 		return os.WriteFile(filename, data, perm)
 	}
 	if err != nil {
-		return serrors.WrapStr("reading stat information", err)
+		return serrors.Wrap("reading stat information", err)
 	}
 	if info.IsDir() {
 		return serrors.New("file is a directory")
@@ -102,11 +102,11 @@ func WriteFile(filename string, data []byte, perm os.FileMode, opts ...Option) e
 		ext := filepath.Ext(filename)
 		backup := strings.TrimSuffix(filename, ext) + "." + options.backupPattern + ext
 		if err := os.Rename(filename, backup); err != nil {
-			return serrors.WrapStr("backing up file", err)
+			return serrors.Wrap("backing up file", err)
 		}
 	case options.force:
 		if err := os.Remove(filename); err != nil {
-			return serrors.WrapStr("removing existing file", err)
+			return serrors.Wrap("removing existing file", err)
 		}
 	default:
 		return os.ErrExist

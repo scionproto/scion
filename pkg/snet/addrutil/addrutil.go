@@ -81,7 +81,7 @@ func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error
 	}
 	path, err := snetpath.NewSCIONFromDecoded(dec)
 	if err != nil {
-		return nil, serrors.WrapStr("serializing path", err)
+		return nil, serrors.Wrap("serializing path", err)
 	}
 	ifID := dec.HopFields[0].ConsIngress
 	nextHop := p.NextHopper.UnderlayNextHop(ifID)

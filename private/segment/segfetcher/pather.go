@@ -60,7 +60,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 
 	logger := log.FromCtx(ctx)
 	if dst.ISD() == 0 {
-		return nil, serrors.WithCtx(ErrBadDst, "dst", dst)
+		return nil, serrors.JoinNoStack(ErrBadDst, nil, "dst", dst)
 	}
 	src := p.IA
 	if dst.Equal(src) {
@@ -133,21 +133,22 @@ func (p *Pather) filterRevoked(ctx context.Context,
 
 	logger := log.FromCtx(ctx)
 	var newPaths []combinator.Path
+	debugOn := logger.Enabled(log.DebugLevel)
 	revokedInterfaces := make(map[snet.PathInterface]struct{})
 	for _, path := range paths {
 		revoked := false
 		for _, iface := range path.Metadata.Interfaces {
 			// cache automatically expires outdated revocations every second,
 			// so a cache hit implies revocation is still active.
-			revs, err := p.RevCache.Get(ctx, revcache.SingleKey(iface.IA, iface.ID))
+			rev, err := p.RevCache.Get(ctx, revcache.NewKey(iface.IA, iface.ID))
 			if err != nil {
 				logger.Error("Failed to get revocation", "err", err)
 				// continue, the client might still get some usable paths like this.
 			}
-			if len(revs) > 0 {
+			if rev != nil && debugOn {
 				revokedInterfaces[snet.PathInterface{IA: iface.IA, ID: iface.ID}] = struct{}{}
 			}
-			revoked = revoked || len(revs) > 0
+			revoked = revoked || rev != nil
 		}
 		if !revoked {
 			newPaths = append(newPaths, path)

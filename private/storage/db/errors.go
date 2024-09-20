@@ -33,26 +33,26 @@ var (
 )
 
 func NewTxError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
-	return serrors.Wrap(ErrTx, err,
+	return serrors.JoinNoStack(ErrTx, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewInputDataError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
-	return serrors.Wrap(ErrInvalidInputData, err,
+	return serrors.JoinNoStack(ErrInvalidInputData, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewDataError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
-	return serrors.Wrap(ErrDataInvalid, err,
+	return serrors.JoinNoStack(ErrDataInvalid, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewReadError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
-	return serrors.Wrap(ErrReadFailed, err,
+	return serrors.JoinNoStack(ErrReadFailed, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }
 
 func NewWriteError(msg common.ErrMsg, err error, logCtx ...interface{}) error {
-	return serrors.Wrap(ErrWriteFailed, err,
+	return serrors.JoinNoStack(ErrWriteFailed, err,
 		append([]interface{}{"detailMsg", msg}, logCtx...)...)
 }

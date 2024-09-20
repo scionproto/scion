@@ -75,7 +75,7 @@ func (d *ProbeDispatcher) dispatch(conn net.PacketConn, raw []byte, addr net.Add
 		}
 		packed, err := proto.Marshal(reply)
 		if err != nil {
-			return serrors.WrapStr("packing probe response", err, "session_id", c.Probe.SessionId)
+			return serrors.Wrap("packing probe response", err, "session_id", c.Probe.SessionId)
 		}
 		_, err = conn.WriteTo(packed, addr)
 		return err

@@ -205,7 +205,7 @@ func (p *pinger) Ping(
 		defer wg.Done()
 		for i := uint16(0); i < p.attempts; i++ {
 			if err := p.send(remote, dPath, nextHop); err != nil {
-				errSend <- serrors.WrapStr("sending", err)
+				errSend <- serrors.Wrap("sending", err)
 				return
 			}
 			select {
@@ -306,7 +306,7 @@ func (p *pinger) drain(ctx context.Context) {
 			if err := p.conn.ReadFrom(&pkt, &ov); err != nil && p.errHandler != nil {
 				// Rate limit the error reports.
 				if now := time.Now(); now.Sub(last) > 500*time.Millisecond {
-					p.errHandler(serrors.WrapStr("reading packet", err))
+					p.errHandler(serrors.Wrap("reading packet", err))
 					last = now
 				}
 			}

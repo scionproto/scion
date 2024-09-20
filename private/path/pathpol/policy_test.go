@@ -24,8 +24,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 )
@@ -648,7 +648,7 @@ func (p PathProvider) GetPaths(src, dst addr.IA) []snet.Path {
 			ia := p.g.GetParent(ifID)
 			pathIntfs = append(pathIntfs, snet.PathInterface{
 				IA: ia,
-				ID: common.IfIDType(ifID),
+				ID: iface.ID(ifID),
 			})
 		}
 		var srcIA, dstIA addr.IA

@@ -208,7 +208,7 @@ func (cfg *Metrics) ServePrometheus(ctx context.Context) error {
 	}()
 	err := server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return serrors.WrapStr("serving prometheus metrics", err)
+		return serrors.Wrap("serving prometheus metrics", err)
 	}
 	return nil
 }

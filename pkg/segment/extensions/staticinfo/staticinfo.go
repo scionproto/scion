@@ -21,8 +21,8 @@ package staticinfo
 import (
 	"time"
 
-	"github.com/scionproto/scion/pkg/private/common"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 // Extension is the internal repesentation of the StaticInfoExtension path
@@ -39,20 +39,20 @@ type Extension struct {
 // LatencyInfo is the internal repesentation of `latency` in the
 // StaticInfoExtension.
 type LatencyInfo struct {
-	Intra map[common.IfIDType]time.Duration
-	Inter map[common.IfIDType]time.Duration
+	Intra map[iface.ID]time.Duration
+	Inter map[iface.ID]time.Duration
 }
 
 // BandwidthInfo is the internal repesentation of `bandwidth` in the
 // StaticInfoExtension.
 type BandwidthInfo struct {
-	Intra map[common.IfIDType]uint64
-	Inter map[common.IfIDType]uint64
+	Intra map[iface.ID]uint64
+	Inter map[iface.ID]uint64
 }
 
 // GeoInfo is the internal repesentation of `geo` in the
 // StaticInfoExtension.
-type GeoInfo map[common.IfIDType]GeoCoordinates
+type GeoInfo map[iface.ID]GeoCoordinates
 
 // GeoCoordinates is the internal repesentation of the GeoCoordinates in the
 // StaticInfoExtension.
@@ -76,11 +76,11 @@ const (
 
 // LinkTypeInfo is the internal representation of `link_type` in the
 // StaticInfoExtension.
-type LinkTypeInfo map[common.IfIDType]LinkType
+type LinkTypeInfo map[iface.ID]LinkType
 
 // InternalHopsInfo is the internal representation of `internal_hops` in the
 // StaticInfoExtension.
-type InternalHopsInfo map[common.IfIDType]uint32
+type InternalHopsInfo map[iface.ID]uint32
 
 // FromPB creates the staticinfo Extension from the protobuf representation.
 func FromPB(pb *cppb.StaticInfoExtension) *Extension {
@@ -101,13 +101,13 @@ func latencyInfoFromPB(pb *cppb.LatencyInfo) LatencyInfo {
 	if pb == nil || len(pb.Intra) == 0 && len(pb.Inter) == 0 {
 		return LatencyInfo{}
 	}
-	intra := make(map[common.IfIDType]time.Duration, len(pb.Intra))
+	intra := make(map[iface.ID]time.Duration, len(pb.Intra))
 	for ifID, v := range pb.Intra {
-		intra[common.IfIDType(ifID)] = time.Duration(v) * time.Microsecond
+		intra[iface.ID(ifID)] = time.Duration(v) * time.Microsecond
 	}
-	inter := make(map[common.IfIDType]time.Duration, len(pb.Inter))
+	inter := make(map[iface.ID]time.Duration, len(pb.Inter))
 	for ifID, v := range pb.Inter {
-		inter[common.IfIDType(ifID)] = time.Duration(v) * time.Microsecond
+		inter[iface.ID(ifID)] = time.Duration(v) * time.Microsecond
 	}
 	return LatencyInfo{
 		Intra: intra,
@@ -119,13 +119,13 @@ func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) BandwidthInfo {
 	if pb == nil || len(pb.Intra) == 0 && len(pb.Inter) == 0 {
 		return BandwidthInfo{}
 	}
-	intra := make(map[common.IfIDType]uint64, len(pb.Intra))
+	intra := make(map[iface.ID]uint64, len(pb.Intra))
 	for ifID, v := range pb.Intra {
-		intra[common.IfIDType(ifID)] = v
+		intra[iface.ID(ifID)] = v
 	}
-	inter := make(map[common.IfIDType]uint64, len(pb.Inter))
+	inter := make(map[iface.ID]uint64, len(pb.Inter))
 	for ifID, v := range pb.Inter {
-		inter[common.IfIDType(ifID)] = v
+		inter[iface.ID(ifID)] = v
 	}
 	return BandwidthInfo{
 		Intra: intra,
@@ -139,7 +139,7 @@ func geoInfoFromPB(pb map[uint64]*cppb.GeoCoordinates) GeoInfo {
 	}
 	gi := make(GeoInfo, len(pb))
 	for ifID, v := range pb {
-		gi[common.IfIDType(ifID)] = GeoCoordinates{
+		gi[iface.ID(ifID)] = GeoCoordinates{
 			Latitude:  v.Latitude,
 			Longitude: v.Longitude,
 			Address:   v.Address,
@@ -167,7 +167,7 @@ func linkTypeInfoFromPB(pb map[uint64]cppb.LinkType) LinkTypeInfo {
 		default:
 			continue
 		}
-		lti[common.IfIDType(ifID)] = v
+		lti[iface.ID(ifID)] = v
 	}
 	return lti
 }
@@ -178,7 +178,7 @@ func internalHopsInfoFromPB(pb map[uint64]uint32) InternalHopsInfo {
 	}
 	ihi := make(InternalHopsInfo, len(pb))
 	for ifID, v := range pb {
-		ihi[common.IfIDType(ifID)] = v
+		ihi[iface.ID(ifID)] = v
 	}
 	return ihi
 }

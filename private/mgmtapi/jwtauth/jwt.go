@@ -86,7 +86,7 @@ type httpTransport struct {
 func (t *httpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	token, err := t.TokenSource.Token()
 	if err != nil {
-		return nil, serrors.WrapStr("computing bearer token", err)
+		return nil, serrors.Wrap("computing bearer token", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token.String())
@@ -129,7 +129,7 @@ func (s *JWTTokenSource) Token() (*Token, error) {
 	}
 	key, err := s.Generator()
 	if err != nil {
-		return nil, serrors.WrapStr("generating key", err)
+		return nil, serrors.Wrap("generating key", err)
 	}
 	if len(key) < 256/8 {
 		return nil, serrors.New("refusing to sign, key must be at least 256 bits long",
@@ -158,7 +158,7 @@ func (s *JWTTokenSource) Token() (*Token, error) {
 
 	b, err := jwt.Sign(token, jwa.HS256, key)
 	if err != nil {
-		return nil, serrors.WrapStr("signing token", err)
+		return nil, serrors.Wrap("signing token", err)
 	}
 
 	return &Token{
@@ -260,5 +260,5 @@ type KeyFunc func() ([]byte, error)
 
 func jwtSetError(claim string, err error) error {
 	s := fmt.Sprintf("setting %v claim", claim)
-	return serrors.WrapStr(s, err)
+	return serrors.Wrap(s, err)
 }

@@ -37,7 +37,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
@@ -45,6 +44,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/extensions/staticinfo"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
@@ -329,7 +329,7 @@ func (g *Graph) beacon(ifIDs []uint16, addStaticInfo bool) *seg.PathSegment {
 			asEntry.Extensions.StaticInfo = generateStaticInfo(g, currIA, inIF, outIF)
 		}
 		if err := segment.AddASEntry(context.Background(), asEntry, g.signers[currIA]); err != nil {
-			panic(serrors.WrapStr("adding AS entry", err))
+			panic(serrors.Wrap("adding AS entry", err))
 		}
 		inIF = remoteOutIF
 		currIA = g.parents[remoteOutIF]
@@ -603,55 +603,55 @@ func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF uint16) *staticinfo.Ex
 
 	latency := staticinfo.LatencyInfo{}
 	if outIF != 0 {
-		latency.Intra = make(map[common.IfIDType]time.Duration)
-		latency.Inter = make(map[common.IfIDType]time.Duration)
+		latency.Intra = make(map[iface.ID]time.Duration)
+		latency.Inter = make(map[iface.ID]time.Duration)
 		for ifID := range as.IfIDs {
 			if ifID != outIF {
 				// Note: the test graph does not distinguish between parent/child or
 				// core interfaces.
 				// Otherwise, we could skip the parent interfaces and half of the
 				// sibling interfaces here.
-				latency.Intra[common.IfIDType(ifID)] = g.Latency(ifID, outIF)
+				latency.Intra[iface.ID(ifID)] = g.Latency(ifID, outIF)
 			}
 			if ifID == outIF || g.isPeer[ifID] {
-				latency.Inter[common.IfIDType(ifID)] = g.Latency(ifID, g.links[ifID])
+				latency.Inter[iface.ID(ifID)] = g.Latency(ifID, g.links[ifID])
 			}
 		}
 	}
 
 	bandwidth := staticinfo.BandwidthInfo{}
 	if outIF != 0 {
-		bandwidth.Intra = make(map[common.IfIDType]uint64)
-		bandwidth.Inter = make(map[common.IfIDType]uint64)
+		bandwidth.Intra = make(map[iface.ID]uint64)
+		bandwidth.Inter = make(map[iface.ID]uint64)
 		for ifID := range as.IfIDs {
 			if ifID != outIF {
-				bandwidth.Intra[common.IfIDType(ifID)] = g.Bandwidth(ifID, outIF)
+				bandwidth.Intra[iface.ID(ifID)] = g.Bandwidth(ifID, outIF)
 			}
 			if ifID == outIF || g.isPeer[ifID] {
-				bandwidth.Inter[common.IfIDType(ifID)] = g.Bandwidth(ifID, g.links[ifID])
+				bandwidth.Inter[iface.ID(ifID)] = g.Bandwidth(ifID, g.links[ifID])
 			}
 		}
 	}
 
 	geo := make(staticinfo.GeoInfo)
 	for ifID := range as.IfIDs {
-		geo[common.IfIDType(ifID)] = g.GeoCoordinates(ifID)
+		geo[iface.ID(ifID)] = g.GeoCoordinates(ifID)
 	}
 
 	linkType := make(staticinfo.LinkTypeInfo)
 	for ifID := range as.IfIDs {
-		linkType[common.IfIDType(ifID)] = g.LinkType(ifID, g.links[ifID])
+		linkType[iface.ID(ifID)] = g.LinkType(ifID, g.links[ifID])
 	}
 
 	var internalHops staticinfo.InternalHopsInfo
 	if outIF != 0 {
-		internalHops = make(map[common.IfIDType]uint32)
+		internalHops = make(map[iface.ID]uint32)
 		if inIF != 0 {
-			internalHops[common.IfIDType(inIF)] = g.InternalHops(inIF, outIF)
+			internalHops[iface.ID(inIF)] = g.InternalHops(inIF, outIF)
 		}
 		for ifID := range as.IfIDs {
 			if ifID != outIF && ifID != inIF {
-				internalHops[common.IfIDType(ifID)] = g.InternalHops(ifID, outIF)
+				internalHops[iface.ID(ifID)] = g.InternalHops(ifID, outIF)
 			}
 		}
 	}

@@ -58,7 +58,7 @@ redirected to a file because the raw characters might mess up the terminal.
 			}
 			if flags.out != "" {
 				if err := file.CheckDirExists(filepath.Dir(flags.out)); err != nil {
-					return serrors.WrapStr("checking that output directory exists", err)
+					return serrors.Wrap("checking that output directory exists", err)
 				}
 			}
 			cmd.SilenceUsage = true
@@ -66,7 +66,7 @@ redirected to a file because the raw characters might mess up the terminal.
 			filename := args[0]
 			raw, err := os.ReadFile(filename)
 			if err != nil {
-				return serrors.WrapStr("reading file", err)
+				return serrors.Wrap("reading file", err)
 			}
 
 			var output []byte
@@ -101,7 +101,7 @@ redirected to a file because the raw characters might mess up the terminal.
 
 			err = file.WriteFile(flags.out, output, 0644, file.WithForce(flags.force))
 			if err != nil {
-				return serrors.WrapStr("writing to output file", err)
+				return serrors.Wrap("writing to output file", err)
 			}
 			fmt.Printf("Transformation successfully written to %q\n", flags.out)
 			return nil

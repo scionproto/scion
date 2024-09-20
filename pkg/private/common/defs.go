@@ -15,11 +15,7 @@
 
 package common
 
-import (
-	"reflect"
-	"strconv"
-	"strings"
-)
+import "reflect"
 
 const (
 	MinMTU = 1280
@@ -31,31 +27,6 @@ const (
 	TimeFmt      = "2006-01-02 15:04:05.000000-0700"
 	TimeFmtSecs  = "2006-01-02 15:04:05-0700"
 )
-
-// IfIDType is the type for interface IDs.
-//
-// Deprecated: with version 2 of the SCION header, there is no interface ID type anymore.
-// Use the appropriate type depending on the path type.
-type IfIDType uint64
-
-func (ifID IfIDType) String() string {
-	return strconv.FormatUint(uint64(ifID), 10)
-}
-
-// UnmarshalJSON unmarshals the JSON data into the IfID.
-func (ifID *IfIDType) UnmarshalJSON(data []byte) error {
-	return ifID.UnmarshalText(data)
-}
-
-// UnmarshalText unmarshals the text into the IfID.
-func (ifID *IfIDType) UnmarshalText(text []byte) error {
-	i, err := strconv.ParseUint(strings.ReplaceAll(string(text), "\"", ""), 10, 64)
-	if err != nil {
-		return err
-	}
-	*ifID = IfIDType(i)
-	return nil
-}
 
 func TypeOf(v interface{}) string {
 	t := reflect.TypeOf(v)

@@ -45,7 +45,7 @@ var (
 func SerializeHostHostInput(input []byte, host addr.Host) (int, error) {
 	typ, raw, err := slayers.PackAddr(host)
 	if err != nil {
-		return 0, serrors.WrapStr("packing host address", err)
+		return 0, serrors.Wrap("packing host address", err)
 	}
 	l := len(raw)
 

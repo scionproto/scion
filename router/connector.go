@@ -20,8 +20,8 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
@@ -53,7 +53,7 @@ func (c *Connector) CreateIACtx(ia addr.IA) error {
 	defer c.mtx.Unlock()
 	log.Debug("CreateIACtx", "isd_as", ia)
 	if !c.ia.IsZero() {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
+		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", ia)
 	}
 	c.ia = ia
 	return c.DataPlane.SetIA(ia)
@@ -65,7 +65,7 @@ func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 	defer c.mtx.Unlock()
 	log.Debug("Adding internal interface", "isd_as", ia, "local", local)
 	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
+		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", ia)
 	}
 	connection, err := conn.New(local, netip.AddrPort{},
 		&conn.Config{ReceiveBufferSize: c.ReceiveBufferSize, SendBufferSize: c.SendBufferSize})
@@ -80,7 +80,7 @@ func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 }
 
 // AddExternalInterface adds a link between the local and remote address.
-func (c *Connector) AddExternalInterface(localIfID common.IfIDType, link control.LinkInfo,
+func (c *Connector) AddExternalInterface(localIfID iface.ID, link control.LinkInfo,
 	owned bool) error {
 
 	c.mtx.Lock()
@@ -95,13 +95,13 @@ func (c *Connector) AddExternalInterface(localIfID common.IfIDType, link control
 		"dataplane_bfd_enabled", !c.BFD.Disable)
 
 	if !c.ia.Equal(link.Local.IA) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", link.Local.IA)
+		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", link.Local.IA)
 	}
 	if err := c.DataPlane.AddLinkType(intf, link.LinkTo); err != nil {
-		return serrors.WrapStr("adding link type", err, "if_id", localIfID)
+		return serrors.Wrap("adding link type", err, "if_id", localIfID)
 	}
 	if err := c.DataPlane.AddNeighborIA(intf, link.Remote.IA); err != nil {
-		return serrors.WrapStr("adding neighboring IA", err, "if_id", localIfID)
+		return serrors.Wrap("adding neighboring IA", err, "if_id", localIfID)
 	}
 
 	link.BFD = c.applyBFDDefaults(link.BFD)
@@ -146,7 +146,7 @@ func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
 	defer c.mtx.Unlock()
 	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", a)
+		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", a)
 	}
 	return c.DataPlane.AddSvc(svc, a)
 }
@@ -157,7 +157,7 @@ func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
 	defer c.mtx.Unlock()
 	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", a)
+		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", a)
 	}
 	return c.DataPlane.DelSvc(svc, a)
 }
@@ -168,7 +168,7 @@ func (c *Connector) SetKey(ia addr.IA, index int, key []byte) error {
 	defer c.mtx.Unlock()
 	log.Debug("Setting key", "isd_as", ia, "index", index)
 	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
+		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", ia)
 	}
 	if index != 0 {
 		return serrors.New("currently only index 0 key is supported")

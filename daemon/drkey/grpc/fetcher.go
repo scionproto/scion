@@ -37,19 +37,19 @@ func (f *Fetcher) ASHostKey(
 
 	conn, err := f.Dialer.Dial(ctx, &snet.SVCAddr{SVC: addr.SvcCS})
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("dialing", err)
+		return drkey.ASHostKey{}, serrors.Wrap("dialing", err)
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
 	protoReq := asHostMetaToProtoRequest(meta)
 	rep, err := client.DRKeyASHost(ctx, protoReq)
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("requesting AS-HOST key", err)
+		return drkey.ASHostKey{}, serrors.Wrap("requesting AS-HOST key", err)
 	}
 
 	key, err := getASHostKeyFromReply(rep, meta)
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("obtaining AS-HOST key from reply", err)
+		return drkey.ASHostKey{}, serrors.Wrap("obtaining AS-HOST key from reply", err)
 	}
 
 	return key, nil
@@ -62,19 +62,19 @@ func (f *Fetcher) HostASKey(
 
 	conn, err := f.Dialer.Dial(ctx, &snet.SVCAddr{SVC: addr.SvcCS})
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("dialing", err)
+		return drkey.HostASKey{}, serrors.Wrap("dialing", err)
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
 	protoReq := hostASMetaToProtoRequest(meta)
 	rep, err := client.DRKeyHostAS(ctx, protoReq)
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("requesting HOST-AS key", err)
+		return drkey.HostASKey{}, serrors.Wrap("requesting HOST-AS key", err)
 	}
 
 	key, err := getHostASKeyFromReply(rep, meta)
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("obtaining HOST-AS key from reply", err)
+		return drkey.HostASKey{}, serrors.Wrap("obtaining HOST-AS key from reply", err)
 	}
 
 	return key, nil
@@ -87,19 +87,19 @@ func (f *Fetcher) HostHostKey(
 
 	conn, err := f.Dialer.Dial(ctx, &snet.SVCAddr{SVC: addr.SvcCS})
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("dialing", err)
+		return drkey.HostHostKey{}, serrors.Wrap("dialing", err)
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
 	protoReq := hostHostMetaToProtoRequest(meta)
 	rep, err := client.DRKeyHostHost(ctx, protoReq)
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("requesting Host-Host key", err)
+		return drkey.HostHostKey{}, serrors.Wrap("requesting Host-Host key", err)
 	}
 
 	key, err := getHostHostKeyFromReply(rep, meta)
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("obtaining Host-Host key from reply", err)
+		return drkey.HostHostKey{}, serrors.Wrap("obtaining Host-Host key from reply", err)
 	}
 
 	return key, nil

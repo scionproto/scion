@@ -166,7 +166,7 @@ func (s server) handlePing(conn *snet.Conn) error {
 	rawPld := make([]byte, common.MaxMTU)
 	n, clientAddr, err := readFrom(conn, rawPld)
 	if err != nil {
-		return serrors.WrapStr("reading packet", err)
+		return serrors.Wrap("reading packet", err)
 	}
 
 	var pld Ping
@@ -181,7 +181,7 @@ func (s server) handlePing(conn *snet.Conn) error {
 		bytes.NewReader(pld.Trace),
 	)
 	if err != nil {
-		return serrors.WrapStr("extracting trace information", err)
+		return serrors.Wrap("extracting trace information", err)
 	}
 	span, _ := opentracing.StartSpanFromContext(
 		context.Background(),
@@ -208,11 +208,11 @@ func (s server) handlePing(conn *snet.Conn) error {
 		Trace:   pld.Trace,
 	})
 	if err != nil {
-		return withTag(serrors.WrapStr("packing pong", err))
+		return withTag(serrors.Wrap("packing pong", err))
 	}
 	// Send pong
 	if _, err := conn.WriteTo(raw, clientUDPAddr); err != nil {
-		return withTag(serrors.WrapStr("sending reply", err))
+		return withTag(serrors.Wrap("sending reply", err))
 	}
 	log.Info("Sent pong to", "client", clientUDPAddr)
 	return nil
@@ -298,15 +298,15 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) (func(), error
 		Trace:   tracing.IDFromCtx(ctx),
 	})
 	if err != nil {
-		return nil, serrors.WrapStr("packing ping", err)
+		return nil, serrors.Wrap("packing ping", err)
 	}
 	log.FromCtx(ctx).Info("Dialing", "remote", remote)
 	c.conn, err = c.network.Dial(ctx, "udp", integration.Local.Host, &remote)
 	if err != nil {
-		return nil, serrors.WrapStr("dialing conn", err)
+		return nil, serrors.Wrap("dialing conn", err)
 	}
 	if err := c.conn.SetWriteDeadline(getDeadline(ctx)); err != nil {
-		return nil, serrors.WrapStr("setting write deadline", err)
+		return nil, serrors.Wrap("setting write deadline", err)
 	}
 	log.Info("sending ping", "attempt", n, "remote", c.conn.RemoteAddr())
 	if _, err := c.conn.Write(rawPing); err != nil {
@@ -335,7 +335,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
 		daemon.PathReqFlags{Refresh: n != 0})
 	if err != nil {
-		return nil, withTag(serrors.WrapStr("requesting paths", err))
+		return nil, withTag(serrors.Wrap("requesting paths", err))
 	}
 	// If all paths had an error, let's try them again.
 	if len(paths) <= len(c.errorPaths) {
@@ -377,17 +377,17 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 
 func (c *client) pong(ctx context.Context) error {
 	if err := c.conn.SetReadDeadline(getDeadline(ctx)); err != nil {
-		return serrors.WrapStr("setting read deadline", err)
+		return serrors.Wrap("setting read deadline", err)
 	}
 	rawPld := make([]byte, common.MaxMTU)
 	n, serverAddr, err := readFrom(c.conn, rawPld)
 	if err != nil {
-		return serrors.WrapStr("reading packet", err)
+		return serrors.Wrap("reading packet", err)
 	}
 
 	var pld Pong
 	if err := json.Unmarshal(rawPld[:n], &pld); err != nil {
-		return serrors.WrapStr("unpacking pong", err, "data", string(rawPld))
+		return serrors.Wrap("unpacking pong", err, "data", string(rawPld))
 	}
 
 	expected := Pong{
@@ -417,8 +417,8 @@ func readFrom(conn *snet.Conn, pld []byte) (int, net.Addr, error) {
 	if !(errors.As(err, &opErr) && opErr.RevInfo() != nil) {
 		return n, remoteAddr, err
 	}
-	return n, remoteAddr, serrors.WithCtx(err,
+	return n, remoteAddr, serrors.WrapNoStack("error", err,
 		"isd_as", opErr.RevInfo().IA(),
-		"interface", opErr.RevInfo().IfID,
-	)
+		"interface", opErr.RevInfo().IfID)
+
 }

@@ -52,21 +52,21 @@ func (d Discoverer) Gateways(ctx context.Context) ([]control.Gateway, error) {
 	client := dpb.NewDiscoveryServiceClient(conn)
 	rep, err := client.Gateways(ctx, &dpb.GatewaysRequest{}, grpc.RetryProfile...)
 	if err != nil {
-		return nil, serrors.WrapStr("receiving gateways", err)
+		return nil, serrors.Wrap("receiving gateways", err)
 	}
 	gateways := make([]control.Gateway, 0, len(rep.Gateways))
 	for _, pb := range rep.Gateways {
 		ctrl, err := net.ResolveUDPAddr("udp", pb.ControlAddress)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing control address", err)
+			return nil, serrors.Wrap("parsing control address", err)
 		}
 		data, err := net.ResolveUDPAddr("udp", pb.DataAddress)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing data address", err)
+			return nil, serrors.Wrap("parsing data address", err)
 		}
 		probe, err := net.ResolveUDPAddr("udp", pb.ProbeAddress)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing probe address", err)
+			return nil, serrors.Wrap("parsing probe address", err)
 		}
 		gateways = append(gateways, control.Gateway{
 			Control:    ctrl,

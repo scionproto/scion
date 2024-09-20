@@ -64,8 +64,9 @@ func ParseGroupID(s string) (GroupID, error) {
 	}
 	suffix, err := strconv.ParseUint(parts[1], 16, 16)
 	if err != nil {
-		return GroupID{}, serrors.WrapStr("invalid group id suffix", err,
+		return GroupID{}, serrors.Wrap("invalid group id suffix", err,
 			"suffix", parts[1], "group_id", s)
+
 	}
 
 	return GroupID{
@@ -154,7 +155,7 @@ func (g Groups) Validate() error {
 func (g Groups) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	yg := &registrationPolicyInfo{}
 	if err := unmarshal(&yg); err != nil {
-		return serrors.WrapStr("unmarshaling YAML", err)
+		return serrors.Wrap("unmarshaling YAML", err)
 	}
 	if len(yg.Groups) == 0 {
 		return nil
@@ -184,14 +185,14 @@ func LoadHiddenPathGroups(location string) (Groups, error) {
 	}
 	c, err := config.LoadResource(location)
 	if err != nil {
-		return nil, serrors.WithCtx(err, "location", location)
+		return nil, serrors.Wrap("reading", err, "location", location)
 	}
 	defer c.Close()
 	if err := yaml.NewDecoder(c).Decode(&ret); err != nil {
-		return nil, serrors.WrapStr("parsing", err, "location", location)
+		return nil, serrors.Wrap("parsing", err, "location", location)
 	}
 	if err := ret.Validate(); err != nil {
-		return nil, serrors.WrapStr("validating", err, "file", c)
+		return nil, serrors.Wrap("validating", err, "file", c)
 	}
 	return ret, nil
 }
@@ -224,23 +225,23 @@ func parseGroups(groups map[string]*groupInfo) (Groups, error) {
 	for rawID, rawGroup := range groups {
 		id, err := ParseGroupID(rawID)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing group ID", err)
+			return nil, serrors.Wrap("parsing group ID", err)
 		}
 		owner, err := addr.ParseIA(rawGroup.Owner)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing owner", err, "group_id", id)
+			return nil, serrors.Wrap("parsing owner", err, "group_id", id)
 		}
 		writers, err := stringsToIASet(rawGroup.Writers)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing writer", err)
+			return nil, serrors.Wrap("parsing writer", err)
 		}
 		readers, err := stringsToIASet(rawGroup.Readers)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing readers", err)
+			return nil, serrors.Wrap("parsing readers", err)
 		}
 		registries, err := stringsToIASet(rawGroup.Registries)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing registries", err)
+			return nil, serrors.Wrap("parsing registries", err)
 		}
 		result[id] = &Group{
 			ID:         id,

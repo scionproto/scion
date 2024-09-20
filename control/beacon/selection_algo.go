@@ -14,11 +14,19 @@
 
 package beacon
 
-import "math"
+import (
+	"context"
+	"math"
+
+	"github.com/patrickmn/go-cache"
+
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/private/segment/segverifier"
+)
 
 type selectionAlgorithm interface {
 	// SelectBeacons selects the `n` best beacons from the provided slice of beacons.
-	SelectBeacons(beacons []Beacon, resultSize int) []Beacon
+	SelectBeacons(ctx context.Context, beacons []Beacon, resultSize int) []Beacon
 }
 
 // baseAlgo implements a very simple selection algorithm that optimizes for
@@ -30,7 +38,7 @@ type baseAlgo struct{}
 // beacons. The last beacon is either the most diverse beacon from the remaining
 // beacons, if the diversity exceeds what has already been served. Or the
 // shortest remaining beacon, otherwise.
-func (a baseAlgo) SelectBeacons(beacons []Beacon, resultSize int) []Beacon {
+func (a baseAlgo) SelectBeacons(_ context.Context, beacons []Beacon, resultSize int) []Beacon {
 	if len(beacons) <= resultSize {
 		return beacons
 	}
@@ -68,4 +76,44 @@ func (baseAlgo) selectMostDiverse(beacons []Beacon, best Beacon) (Beacon, int) {
 		}
 	}
 	return diverse, maxDiversity
+}
+
+type chainsAvailableAlgo struct {
+	verifier     chainChecker
+	logThrottled *cache.Cache
+}
+
+func newChainsAvailableAlgo(engine ChainProvider) chainsAvailableAlgo {
+	return chainsAvailableAlgo{
+		verifier: chainChecker{
+			Engine: engine,
+			Cache:  cache.New(defaultCacheHitExpiration, defaultCacheHitExpiration),
+		},
+		logThrottled: cache.New(defaultCacheHitExpiration, defaultCacheHitExpiration),
+	}
+}
+
+func (a chainsAvailableAlgo) SelectBeacons(
+	ctx context.Context,
+	beacons []Beacon,
+	resultSize int,
+) []Beacon {
+	withChain := make([]Beacon, 0, len(beacons))
+	for _, b := range beacons {
+		err := segverifier.VerifySegment(ctx, a.verifier, nil, b.Segment)
+		if err == nil {
+			withChain = append(withChain, b)
+			continue
+		}
+
+		id := b.Segment.GetLoggingID()
+		if _, ok := a.logThrottled.Get(id); !ok {
+			log.FromCtx(ctx).Info("Ignoring beacon due to missing crypto material",
+				"id", id,
+				"err", err,
+			)
+			a.logThrottled.Set(id, struct{}{}, cache.DefaultExpiration)
+		}
+	}
+	return baseAlgo{}.SelectBeacons(ctx, withChain, resultSize)
 }

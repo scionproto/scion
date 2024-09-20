@@ -29,7 +29,7 @@ func requestToChainQuery(req *cppb.ChainsRequest) (trust.ChainQuery, error) {
 	var validity cppki.Validity
 	if req.AtLeastValidUntil != nil {
 		if err := req.AtLeastValidUntil.CheckValid(); err != nil {
-			return trust.ChainQuery{}, serrors.WrapStr("validating at_least_valid_until", err)
+			return trust.ChainQuery{}, serrors.Wrap("validating at_least_valid_until", err)
 		}
 		validity.NotAfter = req.AtLeastValidUntil.AsTime()
 
@@ -43,7 +43,7 @@ func requestToChainQuery(req *cppb.ChainsRequest) (trust.ChainQuery, error) {
 	}
 	if req.AtLeastValidSince != nil {
 		if err := req.AtLeastValidSince.CheckValid(); err != nil {
-			return trust.ChainQuery{}, serrors.WrapStr("validating at_least_valid_since", err)
+			return trust.ChainQuery{}, serrors.Wrap("validating at_least_valid_since", err)
 		}
 		validity.NotBefore = req.AtLeastValidSince.AsTime()
 	}
@@ -64,6 +64,14 @@ func requestToTRCQuery(req *cppb.TRCRequest) (cppki.TRCID, error) {
 		ISD:    addr.ISD(req.Isd),
 		Base:   scrypto.Version(req.Base),
 		Serial: scrypto.Version(req.Serial),
+	}
+	// If the query is for the latest version don't validate the ID fully, only
+	// the ISD ID.
+	if id.Base.IsLatest() && id.Serial.IsLatest() {
+		if id.ISD == 0 {
+			return cppki.TRCID{}, cppki.ErrWildcardISD
+		}
+		return id, nil
 	}
 	if err := id.Validate(); err != nil {
 		return cppki.TRCID{}, err

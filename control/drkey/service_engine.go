@@ -97,11 +97,11 @@ func (s *ServiceEngine) DeriveLevel1(meta drkey.Level1Meta) (drkey.Level1Key, er
 		Validity: meta.Validity,
 	})
 	if err != nil {
-		return drkey.Level1Key{}, serrors.WrapStr("getting secret value", err)
+		return drkey.Level1Key{}, serrors.Wrap("getting secret value", err)
 	}
 	key, err := deriveLevel1(meta, sv)
 	if err != nil {
-		return drkey.Level1Key{}, serrors.WrapStr("deriving level 1 key", err)
+		return drkey.Level1Key{}, serrors.Wrap("deriving level 1 key", err)
 	}
 	return key, nil
 }
@@ -117,7 +117,7 @@ func (s *ServiceEngine) DeriveASHost(
 
 	level1Key, err := s.obtainLevel1Key(ctx, meta.ProtoId, meta.Validity, meta.SrcIA, meta.DstIA)
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("getting  level1 key", err)
+		return drkey.ASHostKey{}, serrors.Wrap("getting  level1 key", err)
 	}
 
 	var deriver interface {
@@ -152,7 +152,7 @@ func (s *ServiceEngine) DeriveHostAS(
 
 	level1Key, err := s.obtainLevel1Key(ctx, meta.ProtoId, meta.Validity, meta.SrcIA, meta.DstIA)
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("getting  level1 key", err)
+		return drkey.HostASKey{}, serrors.Wrap("getting  level1 key", err)
 	}
 
 	var deriver interface {
@@ -195,7 +195,7 @@ func (s *ServiceEngine) DeriveHostHost(
 
 	hostASKey, err := s.DeriveHostAS(ctx, hostASMeta)
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("computing intermediate Host-AS key", err)
+		return drkey.HostHostKey{}, serrors.Wrap("computing intermediate Host-AS key", err)
 	}
 
 	var deriver interface {
@@ -255,18 +255,18 @@ func (s *ServiceEngine) getLevel1Key(
 		return k, nil
 	}
 	if err != drkey.ErrKeyNotFound {
-		return drkey.Level1Key{}, serrors.WrapStr("retrieving key from DB", err)
+		return drkey.Level1Key{}, serrors.Wrap("retrieving key from DB", err)
 	}
 
 	// get it from another server.
 	remoteKey, err := s.Fetcher.Level1(ctx, meta)
 	if err != nil {
-		return drkey.Level1Key{}, serrors.WrapStr("obtaining level 1 key from CS", err)
+		return drkey.Level1Key{}, serrors.Wrap("obtaining level 1 key from CS", err)
 	}
 	// keep it in our DB.
 	err = s.DB.InsertLevel1Key(ctx, remoteKey)
 	if err != nil {
-		return drkey.Level1Key{}, serrors.WrapStr("storing obtained key in DB", err)
+		return drkey.Level1Key{}, serrors.Wrap("storing obtained key in DB", err)
 	}
 	return remoteKey, nil
 }
@@ -297,7 +297,7 @@ type fromPrefetcher struct{}
 func deriveLevel1(meta drkey.Level1Meta, sv drkey.SecretValue) (drkey.Level1Key, error) {
 	key, err := specific.Deriver{}.DeriveLevel1(meta.DstIA, sv.Key)
 	if err != nil {
-		return drkey.Level1Key{}, serrors.WrapStr("computing level1 raw key", err)
+		return drkey.Level1Key{}, serrors.Wrap("computing level1 raw key", err)
 	}
 	return drkey.Level1Key{
 		Epoch:   sv.Epoch,

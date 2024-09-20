@@ -198,11 +198,11 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 
 			conn, err := sn.OpenRaw(ctx, &net.UDPAddr{IP: localIP.AsSlice()})
 			if err != nil {
-				return serrors.WrapStr("creating packet conn", err, "local", localIP)
+				return serrors.Wrap("creating packet conn", err, "local", localIP)
 			}
 			defer conn.Close()
 			if err := conn.SetDeadline(deadline); err != nil {
-				return serrors.WrapStr("setting deadline", err)
+				return serrors.Wrap("setting deadline", err)
 			}
 
 			// Send probe for each path.
@@ -214,7 +214,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 
 				scionAlertPath, err := setAlertFlag(originalPath)
 				if err != nil {
-					return serrors.WrapStr("setting alert flag", err)
+					return serrors.Wrap("setting alert flag", err)
 				}
 				var alertPath snet.DataplanePath
 				if o.epic {
@@ -266,7 +266,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 					if errors.Is(err, os.ErrDeadlineExceeded) {
 						break
 					}
-					return serrors.WrapStr("waiting for probe reply", err, "local", localIP)
+					return serrors.Wrap("waiting for probe reply", err, "local", localIP)
 				}
 			}
 			return nil
@@ -288,7 +288,7 @@ func (p Prober) resolveLocalIP(target *net.UDPAddr) (net.IP, error) {
 	}
 	localIP, err := addrutil.ResolveLocal(target.IP)
 	if err != nil {
-		return nil, serrors.WrapStr("resolving local IP", err)
+		return nil, serrors.Wrap("resolving local IP", err)
 	}
 	return localIP, nil
 }
@@ -311,7 +311,7 @@ func (h *scmpHandler) Handle(pkt *snet.Packet) error {
 	}
 	replyPath, err := snet.DefaultReplyPather{}.ReplyPath(path)
 	if err != nil {
-		return serrors.WrapStr("creating reply path", err)
+		return serrors.Wrap("creating reply path", err)
 	}
 	rawReplyPath, ok := replyPath.(snet.RawReplyPath)
 	if !ok {
@@ -321,7 +321,7 @@ func (h *scmpHandler) Handle(pkt *snet.Packet) error {
 		Raw: make([]byte, rawReplyPath.Path.Len()),
 	}
 	if err := rawReplyPath.Path.SerializeTo(scionReplyPath.Raw); err != nil {
-		return serrors.WrapStr("serialization failed", err)
+		return serrors.Wrap("serialization failed", err)
 	}
 	status, err := h.toStatus(pkt)
 	if err != nil {
@@ -367,7 +367,7 @@ func (h *scmpHandler) toStatus(pkt *snet.Packet) (Status, error) {
 func setAlertFlag(original snetpath.SCION) (snetpath.SCION, error) {
 	var decoded scion.Decoded
 	if err := decoded.DecodeFromBytes(original.Raw); err != nil {
-		return snetpath.SCION{}, serrors.WrapStr("decoding path", err)
+		return snetpath.SCION{}, serrors.Wrap("decoding path", err)
 	}
 	if len(decoded.InfoFields) > 0 {
 		info := decoded.InfoFields[len(decoded.InfoFields)-1]

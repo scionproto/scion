@@ -45,6 +45,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
 // Time formats used
@@ -154,6 +156,8 @@ func printName(names []pkix.AttributeTypeAndValue, buf *bytes.Buffer) []string {
 			values = append(values, fmt.Sprintf("DC=%s", name.Value))
 		} else if oid.Equal(oidUserID) {
 			values = append(values, fmt.Sprintf("UID=%s", name.Value))
+		} else if oid.Equal(cppki.OIDNameIA) {
+			values = append(values, fmt.Sprintf("ISD-AS=%s", name.Value))
 		} else {
 			values = append(values, fmt.Sprintf("UnknownOID=%s", name.Type.String()))
 		}
@@ -628,7 +632,16 @@ func certificateText(cert *x509.Certificate) (string, error) {
 						}
 					}
 					for _, oid := range cert.UnknownExtKeyUsage {
-						list = append(list, oid.String())
+						switch {
+						case oid.Equal(cppki.OIDExtKeyUsageSensitive):
+							list = append(list, "Sensitive Voting")
+						case oid.Equal(cppki.OIDExtKeyUsageRegular):
+							list = append(list, "Regular Voting")
+						case oid.Equal(cppki.OIDExtKeyUsageRoot):
+							list = append(list, "CPPKI Root")
+						default:
+							list = append(list, oid.String())
+						}
 					}
 					if len(list) > 0 {
 						buf.WriteString(fmt.Sprintf("%16s%s", "", list[0]))

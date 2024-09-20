@@ -67,23 +67,23 @@ func DecodeTRC(raw []byte) (TRC, error) {
 	}
 	certs, err := decodeCertificates(a.Certificates)
 	if err != nil {
-		return TRC{}, serrors.WrapStr("error parsing certificates", err)
+		return TRC{}, serrors.Wrap("error parsing certificates", err)
 	}
 	cores, err := decodeASes(a.CoreASes)
 	if err != nil {
-		return TRC{}, serrors.WrapStr("error parsing core ASes", err)
+		return TRC{}, serrors.Wrap("error parsing core ASes", err)
 	}
 	auths, err := decodeASes(a.AuthoritativeASes)
 	if err != nil {
-		return TRC{}, serrors.WrapStr("error parsing authoritative ASes", err)
+		return TRC{}, serrors.Wrap("error parsing authoritative ASes", err)
 	}
 	id, err := decodeID(a.ID)
 	if err != nil {
-		return TRC{}, serrors.WrapStr("error decoding ID", err)
+		return TRC{}, serrors.Wrap("error decoding ID", err)
 	}
 	validity, err := decodeValidity(a.Validity)
 	if err != nil {
-		return TRC{}, serrors.WrapStr("invalid validity", err)
+		return TRC{}, serrors.Wrap("invalid validity", err)
 	}
 	pld := TRC{
 		Raw:               raw,
@@ -178,7 +178,7 @@ func decodeCertificates(rawCerts []asn1.RawValue) ([]*x509.Certificate, error) {
 	for i, raw := range rawCerts {
 		cert, err := x509.ParseCertificate(raw.FullBytes)
 		if err != nil {
-			return nil, serrors.WrapStr("error decoding certificate", err, "index", i)
+			return nil, serrors.Wrap("error decoding certificate", err, "index", i)
 		}
 		certs = append(certs, cert)
 	}
@@ -202,10 +202,10 @@ func decodeASes(rawASes []string) ([]addr.AS, error) {
 	for _, rawAs := range rawASes {
 		as, err := addr.ParseAS(rawAs)
 		if err != nil {
-			return nil, serrors.WrapStr("error parsing AS", err, "input", rawAs)
+			return nil, serrors.Wrap("error parsing AS", err, "input", rawAs)
 		}
 		if as == 0 {
-			return nil, serrors.WrapStr("wildcard AS", err)
+			return nil, serrors.Wrap("wildcard AS", err)
 		}
 		ases = append(ases, as)
 	}

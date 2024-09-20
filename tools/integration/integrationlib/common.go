@@ -59,7 +59,7 @@ var (
 func Setup() error {
 	err := addFlags()
 	if err != nil {
-		return serrors.WrapStr("adding flags", err)
+		return serrors.Wrap("adding flags", err)
 	}
 	validateFlags()
 	return nil
@@ -68,7 +68,7 @@ func Setup() error {
 func addFlags() error {
 	err := envFlags.LoadExternalVars()
 	if err != nil {
-		return serrors.WrapStr("reading scion environment", err)
+		return serrors.Wrap("reading scion environment", err)
 	}
 	// TODO(JordiSubira): Make this flag optional and consider the same case as Unspecified
 	// if it isn't explicitly set.

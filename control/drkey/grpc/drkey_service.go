@@ -73,12 +73,12 @@ func (d *Server) DRKeyLevel1(
 	}
 	dstIA, err := d.validateClientCertificate(peer)
 	if err != nil {
-		return nil, serrors.WrapStr("retrieving info from certificate", err)
+		return nil, serrors.Wrap("retrieving info from certificate", err)
 	}
 
 	lvl1Meta, err := getMeta(req.ProtocolId, req.ValTime, d.LocalIA, dstIA)
 	if err != nil {
-		return nil, serrors.WrapStr("invalid DRKey Level1 request", err)
+		return nil, serrors.Wrap("invalid DRKey Level1 request", err)
 	}
 
 	// validate requested ProtoID is specific
@@ -89,7 +89,7 @@ func (d *Server) DRKeyLevel1(
 
 	lvl1Key, err := d.Engine.DeriveLevel1(lvl1Meta)
 	if err != nil {
-		return nil, serrors.WrapStr("deriving level 1 key", err)
+		return nil, serrors.Wrap("deriving level 1 key", err)
 	}
 	resp := keyToLevel1Resp(lvl1Key)
 	return resp, nil
@@ -112,15 +112,15 @@ func (d *Server) DRKeyIntraLevel1(
 
 	meta, err := getMeta(req.ProtocolId, req.ValTime, addr.IA(req.SrcIa), addr.IA(req.DstIa))
 	if err != nil {
-		return nil, serrors.WrapStr("parsing AS-AS request", err)
+		return nil, serrors.Wrap("parsing AS-AS request", err)
 	}
 	if err := d.validateAllowedHost(meta.ProtoId, peer.Addr); err != nil {
-		return nil, serrors.WrapStr("validating AS-AS request", err)
+		return nil, serrors.Wrap("validating AS-AS request", err)
 	}
 
 	lvl1Key, err := d.Engine.GetLevel1Key(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("getting AS-AS host key", err)
+		return nil, serrors.Wrap("getting AS-AS host key", err)
 	}
 
 	resp := keyToASASResp(lvl1Key)
@@ -140,15 +140,15 @@ func (d *Server) DRKeyASHost(
 
 	meta, err := requestToASHostMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing DRKey AS-Host request", err)
+		return nil, serrors.Wrap("parsing DRKey AS-Host request", err)
 	}
 	if err := validateASHostReq(meta, d.LocalIA, peer.Addr); err != nil {
-		return nil, serrors.WrapStr("validating AS-Host request", err)
+		return nil, serrors.Wrap("validating AS-Host request", err)
 	}
 
 	asHostKey, err := d.Engine.DeriveASHost(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("deriving AS-Host request", err)
+		return nil, serrors.Wrap("deriving AS-Host request", err)
 	}
 
 	resp := keyToASHostResp(asHostKey)
@@ -168,14 +168,14 @@ func (d *Server) DRKeyHostAS(
 
 	meta, err := requestToHostASMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing Host-AS request", err)
+		return nil, serrors.Wrap("parsing Host-AS request", err)
 	}
 	if err := validateHostASReq(meta, d.LocalIA, peer.Addr); err != nil {
-		return nil, serrors.WrapStr("validating Host-AS request", err)
+		return nil, serrors.Wrap("validating Host-AS request", err)
 	}
 	key, err := d.Engine.DeriveHostAS(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("deriving Host-AS request", err)
+		return nil, serrors.Wrap("deriving Host-AS request", err)
 	}
 
 	resp := keyToHostASResp(key)
@@ -195,15 +195,15 @@ func (d *Server) DRKeyHostHost(
 
 	meta, err := requestToHostHostMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing Host-Host request", err)
+		return nil, serrors.Wrap("parsing Host-Host request", err)
 	}
 	if err := validateHostHostReq(meta, d.LocalIA, peer.Addr); err != nil {
-		return nil, serrors.WrapStr("validating Host-Host request", err)
+		return nil, serrors.Wrap("validating Host-Host request", err)
 	}
 
 	key, err := d.Engine.DeriveHostHost(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("deriving Host-Host request", err)
+		return nil, serrors.Wrap("deriving Host-Host request", err)
 	}
 
 	resp := keyToHostHostResp(key)
@@ -223,14 +223,14 @@ func (d *Server) DRKeySecretValue(
 
 	meta, err := secretRequestToMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing Host-Host request", err)
+		return nil, serrors.Wrap("parsing Host-Host request", err)
 	}
 	if err := d.validateAllowedHost(meta.ProtoId, peer.Addr); err != nil {
-		return nil, serrors.WrapStr("validating SV request", err)
+		return nil, serrors.Wrap("validating SV request", err)
 	}
 	sv, err := d.Engine.GetSecretValue(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("getting SV from persistence", err)
+		return nil, serrors.Wrap("getting SV from persistence", err)
 	}
 	resp := secretToProtoResp(sv)
 	return resp, nil
@@ -251,7 +251,7 @@ func (d *Server) validateClientCertificate(peer *peer.Peer) (addr.IA, error) {
 	}
 	certIA, err := d.ClientCertificateVerifier.VerifyParsedClientCertificate(chain)
 	if err != nil {
-		return 0, serrors.WrapStr("invalid certificate", err)
+		return 0, serrors.Wrap("invalid certificate", err)
 	}
 	return certIA, nil
 }
@@ -366,7 +366,7 @@ func getMeta(protoId drkeypb.Protocol, ts *timestamppb.Timestamp, srcIA,
 	dstIA addr.IA) (drkey.Level1Meta, error) {
 	err := ts.CheckValid()
 	if err != nil {
-		return drkey.Level1Meta{}, serrors.WrapStr("invalid valTime from pb req", err)
+		return drkey.Level1Meta{}, serrors.Wrap("invalid valTime from pb req", err)
 	}
 	return drkey.Level1Meta{
 		Validity: ts.AsTime(),

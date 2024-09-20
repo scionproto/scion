@@ -20,7 +20,7 @@
       "interfaces": {
         "1": {
           "underlay": {
-            "local": ":50014",
+            "local": "scion01:50014",
             "remote": "scion04:50014"
           },
           "isd_as": "42-ffaa:1:4",
@@ -29,7 +29,7 @@
         },
         "2": {
           "underlay": {
-            "local": ":50012",
+            "local": "scion01:50012",
             "remote": "scion02:50012"
           },
           "isd_as": "42-ffaa:1:2",
@@ -38,7 +38,7 @@
         },
         "3": {
           "underlay": {
-            "local": ":50013",
+            "local": "scion01:50013",
             "remote": "scion03:50013"
           },
           "isd_as": "42-ffaa:1:3",

@@ -54,6 +54,7 @@ require (
 	google.golang.org/protobuf v1.34.1
 	gopkg.in/yaml.v2 v2.4.0
 	modernc.org/sqlite v1.29.9
+	zgo.at/zcache/v2 v2.1.0
 )
 
 require (
@@ -127,4 +128,4 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-go 1.21.10
+go 1.22.7

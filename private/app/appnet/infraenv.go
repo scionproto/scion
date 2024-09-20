@@ -111,7 +111,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 
 	listener, err := quic.Listen(server, serverTLSConfig, nil)
 	if err != nil {
-		return nil, serrors.WrapStr("listening QUIC/SCION", err)
+		return nil, serrors.Wrap("listening QUIC/SCION", err)
 	}
 
 	insecureClientTLSConfig := &tls.Config{
@@ -152,7 +152,7 @@ func GenerateTLSConfig() (*tls.Config, error) {
 	serialLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serial, err := rand.Int(rand.Reader, serialLimit)
 	if err != nil {
-		return nil, serrors.WrapStr("creating random serial number", err)
+		return nil, serrors.Wrap("creating random serial number", err)
 	}
 
 	template := x509.Certificate{
@@ -217,7 +217,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 
 	svcResolutionReply, err := reply.Marshal()
 	if err != nil {
-		return nil, nil, serrors.WrapStr("building SVC resolution reply", err)
+		return nil, nil, serrors.Wrap("building SVC resolution reply", err)
 	}
 
 	serverNet := &snet.SCIONNetwork{
@@ -230,7 +230,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 	pconn, err := serverNet.OpenRaw(context.Background(), nc.Public)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("creating server raw PacketConn", err)
+		return nil, nil, serrors.Wrap("creating server raw PacketConn", err)
 	}
 	resolvedPacketConn := &svc.ResolverPacketConn{
 		PacketConn: pconn,
@@ -244,7 +244,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 	server, err := snet.NewCookedConn(resolvedPacketConn, nc.Topology)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("creating server connection", err)
+		return nil, nil, serrors.Wrap("creating server connection", err)
 	}
 
 	clientNet := &snet.SCIONNetwork{
@@ -264,7 +264,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 	client, err := clientNet.Listen(context.Background(), "udp", clientAddr)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("creating client connection", err)
+		return nil, nil, serrors.Wrap("creating client connection", err)
 	}
 	return client, server, nil
 }
@@ -295,7 +295,7 @@ func NewRouter(localIA addr.IA, sd env.Daemon) (snet.Router, error) {
 		select {
 		case <-ticker.C:
 		case <-timer.C:
-			return nil, serrors.WrapStr("Timed out during initial daemon connect", err)
+			return nil, serrors.Wrap("Timed out during initial daemon connect", err)
 		}
 	}
 	return router, nil

@@ -146,7 +146,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 
 	var idxPath scion.Decoded
 	if err := idxPath.DecodeFromBytes(scionPath.Raw); err != nil {
-		return t.stats, serrors.WrapStr("decoding path", err)
+		return t.stats, serrors.Wrap("decoding path", err)
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -166,7 +166,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 		if i != 0 && !prevXover {
 			u, err := t.probeHop(ctx, hf, !info.ConsDir)
 			if err != nil {
-				return t.stats, serrors.WrapStr("probing hop", err, "hop_index", i)
+				return t.stats, serrors.Wrap("probing hop", err, "hop_index", i)
 			}
 			if t.updateHandler != nil && !u.empty() {
 				t.updateHandler(u)
@@ -183,7 +183,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 		if i < len(idxPath.HopFields)-1 && !xover {
 			u, err := t.probeHop(ctx, hf, info.ConsDir)
 			if err != nil {
-				return t.stats, serrors.WrapStr("probing hop", err, "hop_index", i)
+				return t.stats, serrors.Wrap("probing hop", err, "hop_index", i)
 			}
 			if t.updateHandler != nil && !u.empty() {
 				t.updateHandler(u)
@@ -191,7 +191,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 		}
 		if i < len(idxPath.HopFields)-1 {
 			if err := idxPath.IncPath(); err != nil {
-				return t.stats, serrors.WrapStr("incrementing path", err)
+				return t.stats, serrors.Wrap("incrementing path", err)
 			}
 		}
 		prevXover = xover
@@ -202,7 +202,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (Update, error) {
 	var decoded scion.Decoded
 	if err := decoded.DecodeFromBytes(t.path.Dataplane().(path.SCION).Raw); err != nil {
-		return Update{}, serrors.WrapStr("decoding path", err)
+		return Update{}, serrors.Wrap("decoding path", err)
 	}
 
 	hf := &decoded.HopFields[hfIdx]
@@ -214,7 +214,7 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 
 	scionAlertPath, err := path.NewSCIONFromDecoded(decoded)
 	if err != nil {
-		return Update{}, serrors.WrapStr("setting alert flag", err)
+		return Update{}, serrors.Wrap("setting alert flag", err)
 	}
 
 	var alertPath snet.DataplanePath
@@ -249,7 +249,7 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 		sendTs := time.Now()
 		t.stats.Sent++
 		if err := t.conn.WriteTo(pkt, t.nextHop); err != nil {
-			return u, serrors.WrapStr("writing", err)
+			return u, serrors.Wrap("writing", err)
 		}
 		select {
 		case <-time.After(t.timeout):
@@ -293,7 +293,7 @@ func (t tracerouter) drain(ctx context.Context) {
 			if err := t.conn.ReadFrom(&pkt, &ov); err != nil && t.errHandler != nil {
 				// Rate limit the error reports.
 				if now := time.Now(); now.Sub(last) > 500*time.Millisecond {
-					t.errHandler(serrors.WrapStr("reading packet", err))
+					t.errHandler(serrors.Wrap("reading packet", err))
 					last = now
 				}
 			}

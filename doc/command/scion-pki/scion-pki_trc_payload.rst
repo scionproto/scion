@@ -50,4 +50,5 @@ SEE ALSO
 ~~~~~~~~
 
 * :ref:`scion-pki trc <scion-pki_trc>` 	 - Manage TRCs for the SCION control plane PKI
+* :ref:`scion-pki trc payload dummy <scion-pki_trc_payload_dummy>` 	 - Generate dummy TRC payload
 

@@ -16,11 +16,13 @@ package trcs
 
 import (
 	"crypto/x509"
+	_ "embed"
 	"encoding/pem"
 	"fmt"
 	"os"
 	"sort"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -60,7 +62,7 @@ To inspect the created asn.1 file you can use the openssl tool::
 			cmd.SilenceUsage = true
 			cfg, err := conf.LoadTRC(flags.tmpl)
 			if err != nil {
-				return serrors.WrapStr("failed to load template file", err)
+				return serrors.Wrap("failed to load template file", err)
 			}
 
 			pred, err := loadPredecessor(cfg.SerialVersion == cfg.BaseVersion, flags.pred)
@@ -68,20 +70,20 @@ To inspect the created asn.1 file you can use the openssl tool::
 				return err
 			}
 			prepareCfg(&cfg, pred)
-			trc, err := CreatePayload(cfg)
+			trc, err := CreatePayload(cfg, pred)
 			if err != nil {
-				return serrors.WrapStr("failed to marshal TRC", err)
+				return serrors.Wrap("failed to marshal TRC", err)
 			}
 			if pred != nil {
 				update, err := trc.ValidateUpdate(pred)
 				if err != nil {
-					return serrors.WrapStr("validating update", err)
+					return serrors.Wrap("validating update", err)
 				}
 				printUpdate(update)
 			}
 			raw, err := trc.Encode()
 			if err != nil {
-				return serrors.WrapStr("encoding payload", err)
+				return serrors.Wrap("encoding payload", err)
 			}
 			if flags.format == "pem" {
 				raw = pem.EncodeToMemory(&pem.Block{
@@ -91,7 +93,7 @@ To inspect the created asn.1 file you can use the openssl tool::
 			}
 			err = os.WriteFile(flags.out, raw, 0644)
 			if err != nil {
-				return serrors.WrapStr("failed to write file", err, "file", flags.out)
+				return serrors.Wrap("failed to write file", err, "file", flags.out)
 			}
 			fmt.Printf("Successfully created payload at %s\n", flags.out)
 			return nil
@@ -103,6 +105,49 @@ To inspect the created asn.1 file you can use the openssl tool::
 	cmd.MarkFlagRequired("template")
 	cmd.Flags().StringVarP(&flags.pred, "predecessor", "p", "", "Predecessor TRC")
 	cmd.Flags().StringVar(&flags.format, "format", "der", "Output format (der|pem)")
+
+	joined := command.Join(pather, cmd)
+	cmd.AddCommand(
+		newPayloadDummy(joined),
+	)
+
+	return cmd
+}
+
+//go:embed testdata/admin/ISD1-B1-S1.pld.der
+var dummyPayload []byte
+
+func newPayloadDummy(_ command.Pather) *cobra.Command {
+	var flags struct {
+		format string
+	}
+
+	cmd := &cobra.Command{
+		Use:   "dummy",
+		Short: "Generate dummy TRC payload",
+		Long: `'dummy' creates a dummy TRC payload.
+
+The output of this command can be used to test that you have access to the necessary
+cryptographic material. This is especially useful when preparing for a TRC signing
+ceremony.
+`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if flags.format == "pem" {
+				raw := pem.EncodeToMemory(&pem.Block{
+					Type:  "TRC PAYLOAD",
+					Bytes: dummyPayload,
+				})
+				_, err := fmt.Fprint(cmd.OutOrStdout(), string(raw))
+				return err
+			}
+			if isatty.IsTerminal(os.Stdout.Fd()) {
+				return fmt.Errorf("refusing to write DER encoded bytes to tty")
+			}
+			_, err := fmt.Fprint(cmd.OutOrStdout(), string(dummyPayload))
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&flags.format, "format", "pem", "Output format (der|pem)")
 	return cmd
 }
 
@@ -120,7 +165,7 @@ func loadPredecessor(base bool, pred string) (*cppki.TRC, error) {
 	}
 	trc, err := DecodeFromFile(pred)
 	if err != nil {
-		return nil, serrors.WrapStr("loading predecessor TRC", err, "file", pred)
+		return nil, serrors.Wrap("loading predecessor TRC", err, "file", pred)
 	}
 	fmt.Println("Generating payload for TRC update.")
 	return &trc.TRC, nil

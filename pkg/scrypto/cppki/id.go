@@ -83,7 +83,7 @@ func (id TRCID) Validate() error {
 		return ErrWildcardISD
 	}
 	if id.Base > id.Serial {
-		return serrors.WithCtx(ErrSerialBeforeBase, "serial", id.Serial, "base", id.Base)
+		return serrors.JoinNoStack(ErrSerialBeforeBase, nil, "serial", id.Serial, "base", id.Base)
 	}
 	// Serial != 0 is implied by this, and the check above.
 	if id.Base == 0 {

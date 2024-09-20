@@ -161,15 +161,15 @@ func (h *DelegatingHandler) parseChain(rep api.RenewalResponse) ([]*x509.Certifi
 func (h *DelegatingHandler) parseChainJSON(rep api.CertificateChain) ([]*x509.Certificate, error) {
 	as, err := x509.ParseCertificate(rep.AsCertificate)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing AS certificate", err)
+		return nil, serrors.Wrap("parsing AS certificate", err)
 	}
 	ca, err := x509.ParseCertificate(rep.CaCertificate)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing CA certificate", err)
+		return nil, serrors.Wrap("parsing CA certificate", err)
 	}
 	chain := []*x509.Certificate{as, ca}
 	if err := cppki.ValidateChain(chain); err != nil {
-		return nil, serrors.WrapStr("validating certificate chain", err)
+		return nil, serrors.Wrap("validating certificate chain", err)
 	}
 	return chain, nil
 }
