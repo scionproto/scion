@@ -77,7 +77,7 @@ type AS uint64
 // ParseAS parses an AS from a decimal (in the case of the 32bit BGP AS number
 // space) or ipv6-style hex (in the case of SCION-only AS numbers) string.
 func ParseAS(as string) (AS, error) {
-	return parseAS(as, ":")
+	return ParseASSep(as, ":")
 }
 
 // MustParseAS parses s and returns the corresponding addr.AS object. It panics
@@ -90,7 +90,7 @@ func MustParseAS(s string) AS {
 	return as
 }
 
-func parseAS(as string, sep string) (AS, error) {
+func ParseASSep(as string, sep string) (AS, error) {
 	parts := strings.Split(as, sep)
 	if len(parts) == 1 {
 		// Must be a BGP AS, parse as 32-bit decimal number

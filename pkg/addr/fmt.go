@@ -65,7 +65,7 @@ func ParseFormattedAS(as string, opts ...FormatOption) (AS, error) {
 		}
 		as = trimmed
 	}
-	return parseAS(as, o.separator)
+	return ParseASSep(as, o.separator)
 }
 
 // FormatIA formats the ISD-AS.
