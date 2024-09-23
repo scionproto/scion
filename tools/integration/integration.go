@@ -218,7 +218,8 @@ func generateAllSrcDst(hostAddr HostAddr, unique bool) []IAPair {
 
 type HostAddr func(ia addr.IA) *snet.UDPAddr
 
-// CSAddr reads the CS host Addr from the topology for the specified IA.
+// CSAddr reads the tester host Addr from the topology for the specified IA.
+// If the address cannot be found, the CS address is returned.
 var CSAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 	if a := loadAddr(ia); a != nil {
 		return a
