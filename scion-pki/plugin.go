@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich
+// Copyright 2024 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package combinator
+package scionpki
 
-var (
-	FilterDuplicates = filterDuplicates
-	Fingerprint      = fingerprint
-	NewHashState     = newHashState
+import (
+	"fmt"
+	"os"
+	"os/exec"
 )
+
+func LookKms() (string, error) {
+	path, err := exec.LookPath("step-kms-plugin")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "step-kms-plugin not found in PATH\n"+
+			"Install it from https://github.com/smallstep/step-kms-plugin",
+		)
+		return "", err
+	}
+	return path, nil
+}

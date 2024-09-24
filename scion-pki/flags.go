@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich
+// Copyright 2024 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package combinator
+package scionpki
 
-var (
-	FilterDuplicates = filterDuplicates
-	Fingerprint      = fingerprint
-	NewHashState     = newHashState
-)
+import "github.com/spf13/pflag"
+
+func BindFlagKms(flags *pflag.FlagSet, kms *string) {
+	flags.StringVar(kms, "kms", "",
+		"The uri to configure a Cloud KMS or an HSM.",
+	)
+}
+
+func BindFlagKmsCA(flags *pflag.FlagSet, kms *string) {
+	flags.StringVar(kms, "ca-kms", "",
+		"The uri to configure a Cloud KMS or an HSM used for signing the certificate.",
+	)
+}

@@ -36,6 +36,7 @@ Options
 ::
 
   -h, --help               help for private
+      --kms string         The uri to configure a Cloud KMS or an HSM.
       --separator string   The separator between file names (default "\n")
 
 SEE ALSO
