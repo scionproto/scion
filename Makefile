@@ -79,7 +79,7 @@ protobuf:
 	rm -f pkg/proto/*/*.pb.go
 	cp -r bazel-bin/pkg/proto/*/go_default_library_/github.com/scionproto/scion/pkg/proto/* pkg/proto
 	cp -r bazel-bin/pkg/proto/*/*/go_default_library_/github.com/scionproto/scion/pkg/proto/* pkg/proto
-	chmod 0644 pkg/proto/*/*.pb.go
+	chmod 0644 pkg/proto/*/*.pb.go pkg/proto/*/*/*.pb.go
 
 mocks:
 	tools/gomocks.py
@@ -142,7 +142,7 @@ lint-protobuf: lint-protobuf-buf
 
 lint-protobuf-buf:
 	$(info ==> $@)
-	@tools/quiet bazel run --config=quiet @buf_bin//file:buf -- check lint
+	@tools/quiet bazel run --config=quiet @buf//:buf -- lint $(PWD) --path $(PWD)/proto
 
 lint-openapi: lint-openapi-spectral
 
