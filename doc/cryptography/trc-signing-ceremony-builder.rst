@@ -642,6 +642,12 @@ TRC Signing Ceremony - Script Builder
     </div>
     </template>
 
+    <div class="bg-blue-100 mx-auto border border-blue-300 shadow-md rounded-lg p-4 mb-4">
+        Check that you are in the correct working directory, if you are using
+        relative paths, or environment variables containing relative paths.
+        We recommend using absolute paths where possible.
+    </div>
+
 
     <!-- Preparation Phase -->
     <template x-if="createAny && !skipPreparation"><div class="bg-white mx-auto border border-gray-300 shadow-md rounded-lg p-8 mb-8 print:p-0 print:border-0 print:shadow-none print:pt-8 print:break-before-page">
@@ -856,7 +862,7 @@ TRC Signing Ceremony - Script Builder
 
         <template x-if="form.exchange.type === 'tar'"><div>
             <h3>1. Unpack TRC Payload</h3>
-            <div class="highlight"><pre><div>tar -xf <span x-text=trcId></span>.pld.der -C <span x-text="form.paths.workingDir"></span></div></pre></div>
+            <div class="highlight"><pre><div>tar -xf <span x-text=trcId></span>.pld.tar -C <span x-text="form.paths.workingDir"></span></div></pre></div>
         </div></template>
 
         <div>
