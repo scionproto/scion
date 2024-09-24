@@ -16,10 +16,11 @@ package combinator
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -193,9 +194,9 @@ func (g *dmg) AddEdge(src, dst vertex, segment *inputSegment, e *edge) {
 }
 
 // GetPaths returns all the paths from src to dst, sorted according to weight.
-func (g *dmg) GetPaths(src, dst vertex) pathSolutionList {
-	var solutions pathSolutionList
-	queue := pathSolutionList{&pathSolution{currentVertex: src}}
+func (g *dmg) GetPaths(src, dst vertex) []*pathSolution {
+	var solutions []*pathSolution
+	queue := []*pathSolution{{currentVertex: src}}
 	for len(queue) > 0 {
 		currentPathSolution := queue[0]
 		queue = queue[1:]
@@ -234,7 +235,29 @@ func (g *dmg) GetPaths(src, dst vertex) pathSolutionList {
 			}
 		}
 	}
-	sort.Sort(solutions)
+	slices.SortFunc(solutions, func(a, b *pathSolution) int {
+		d := cmp.Or(
+			cmp.Compare(a.cost, b.cost),
+			cmp.Compare(len(a.edges), len(b.edges)),
+		)
+		if d != 0 {
+			return d
+		}
+		trailA, trailB := a.edges, b.edges
+		for ka := range trailA {
+			idA := trailA[ka].segment.ID()
+			idB := trailB[ka].segment.ID()
+			d := cmp.Or(
+				bytes.Compare(idA, idB),
+				cmp.Compare(trailA[ka].edge.Shortcut, trailB[ka].edge.Shortcut),
+				cmp.Compare(trailA[ka].edge.Peer, trailB[ka].edge.Peer),
+			)
+			if d != 0 {
+				return d
+			}
+		}
+		return 0
+	})
 	return solutions
 }
 
@@ -247,11 +270,19 @@ func (g *dmg) GetPaths(src, dst vertex) pathSolutionList {
 type inputSegment struct {
 	*seg.PathSegment
 	Type proto.PathSegType
+	id   []byte
 }
 
 // IsDownSeg returns true if the segment is a DownSegment.
 func (s *inputSegment) IsDownSeg() bool {
 	return s.Type == proto.PathSegType_down
+}
+
+func (s *inputSegment) ID() []byte {
+	if s.id == nil {
+		s.id = s.PathSegment.ID()
+	}
+	return s.id
 }
 
 // Vertex is a union-like type for the AS vertices and Peering link vertices in
@@ -310,7 +341,7 @@ type pathSolution struct {
 
 // Path builds the forwarding path with metadata by extracting it from a path
 // between source and destination in the DMG.
-func (solution *pathSolution) Path() Path {
+func (solution *pathSolution) Path(hashState hashState) Path {
 	mtu := ^uint16(0)
 	var segments segmentList
 	var epicPathAuths [][]byte
@@ -427,7 +458,8 @@ func (solution *pathSolution) Path() Path {
 			InternalHops: staticInfo.InternalHops,
 			Notes:        staticInfo.Notes,
 		},
-		Weight: solution.cost,
+		Weight:      solution.cost,
+		Fingerprint: fingerprint(interfaces, hashState),
 	}
 
 	if authPHVF, authLHVF, ok := isEpicAvailable(epicPathAuths); ok {
@@ -529,50 +561,6 @@ func calculateBeta(se *solutionEdge) uint16 {
 		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC[:])
 	}
 	return beta
-}
-
-// PathSolutionList is a sort.Interface implementation for a slice of solutions.
-type pathSolutionList []*pathSolution
-
-func (sl pathSolutionList) Len() int {
-	return len(sl)
-}
-
-// Less sorts according to the following priority list:
-//   - total path cost (number of hops)
-//   - number of segments
-//   - segmentIDs
-//   - shortcut index
-//   - peer entry index
-func (sl pathSolutionList) Less(i, j int) bool {
-	if sl[i].cost != sl[j].cost {
-		return sl[i].cost < sl[j].cost
-	}
-
-	trailI, trailJ := sl[i].edges, sl[j].edges
-	if len(trailI) != len(trailJ) {
-		return len(trailI) < len(trailJ)
-	}
-
-	for ki := range trailI {
-		idI := trailI[ki].segment.ID()
-		idJ := trailJ[ki].segment.ID()
-		idcmp := bytes.Compare(idI, idJ)
-		if idcmp != 0 {
-			return idcmp == -1
-		}
-		if trailI[ki].edge.Shortcut != trailJ[ki].edge.Shortcut {
-			return trailI[ki].edge.Shortcut < trailJ[ki].edge.Shortcut
-		}
-		if trailI[ki].edge.Peer != trailJ[ki].edge.Peer {
-			return trailI[ki].edge.Peer < trailJ[ki].edge.Peer
-		}
-	}
-	return false
-}
-
-func (sl pathSolutionList) Swap(i, j int) {
-	sl[i], sl[j] = sl[j], sl[i]
 }
 
 // solutionEdge contains a graph edge and additional metadata required during

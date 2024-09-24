@@ -44,9 +44,6 @@ func NoRevokedHopIntf(ctx context.Context, revCache RevCache,
 			if err != nil || rev != nil {
 				return false, err
 			}
-			if rev != nil {
-				return false, nil
-			}
 		}
 	}
 	return true, nil
