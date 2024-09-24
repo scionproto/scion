@@ -104,7 +104,7 @@ func (s *kmsSigner) Public() crypto.PublicKey {
 }
 
 // Sign implements crypto.Signer using the `step-kms-plugin`.
-func (s *kmsSigner) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+func (s *kmsSigner) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	args := []string{"sign", "--format", "base64"}
 	if s.kms != "" {
 		args = append(args, "--kms", s.kms)
@@ -134,7 +134,7 @@ func (s *kmsSigner) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) (si
 	}
 	go func() {
 		defer stdin.Close()
-		stdin.Write(digest)
+		_, _ = stdin.Write(digest)
 	}()
 	out, err := cmd.Output()
 	if err != nil {

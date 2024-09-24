@@ -23,7 +23,9 @@ import (
 func LookKms() (string, error) {
 	path, err := exec.LookPath("step-kms-plugin")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "step-kms-plugin not found in PATH\nInstall it from https://github.com/smallstep/step-kms-plugin")
+		fmt.Fprintln(os.Stderr, "step-kms-plugin not found in PATH\n"+
+			"Install it from https://github.com/smallstep/step-kms-plugin",
+		)
 		return "", err
 	}
 	return path, nil

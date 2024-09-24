@@ -22,8 +22,9 @@ import (
 	"text/template"
 	"unicode"
 
-	scionpki "github.com/scionproto/scion/scion-pki"
 	"github.com/spf13/cobra"
+
+	scionpki "github.com/scionproto/scion/scion-pki"
 )
 
 func newKms(_ CommandPather) *cobra.Command {
