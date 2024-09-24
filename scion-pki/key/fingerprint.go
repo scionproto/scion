@@ -106,6 +106,10 @@ func loadPublicKey(filename string) (crypto.PublicKey, error) {
 	if err != nil {
 		return nil, serrors.Wrap("reading input file", err)
 	}
+	return loadPublicKeyPem(raw)
+}
+
+func loadPublicKeyPem(raw []byte) (crypto.PublicKey, error) {
 	block, _ := pem.Decode(raw)
 	if block == nil {
 		return nil, serrors.New("parsing input failed")

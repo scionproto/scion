@@ -3,6 +3,7 @@ load("//tools/lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "cryptoutil.go",
         "fingerprint.go",
         "key.go",
         "match.go",
@@ -17,6 +18,7 @@ go_library(
         "//pkg/scrypto:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
         "//private/app/command:go_default_library",
+        "//scion-pki:go_default_library",
         "//scion-pki/encoding:go_default_library",
         "//scion-pki/file:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
