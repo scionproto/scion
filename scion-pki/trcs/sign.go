@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cms/protocol"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
+	scionpki "github.com/scionproto/scion/scion-pki"
 	"github.com/scionproto/scion/scion-pki/key"
 )
 
@@ -38,6 +39,7 @@ func newSign(pather command.Pather) *cobra.Command {
 	var flags struct {
 		out    string
 		outDir string
+		kms    string
 	}
 
 	cmd := &cobra.Command{
@@ -59,11 +61,14 @@ naming pattern::
 
 An alternative name can be specified with the \--out flag.
 
+If 'dummy' is provided as the payload file, a dummy TRC payload is signed. This is useful for
+testing access to the necessary cryptographic material, especially in preparation for
+a TRC signing ceremony.
 `,
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
-			return RunSign(args[0], args[1], args[2], flags.out, flags.outDir)
+			return RunSign(args[0], args[1], args[2], flags.kms, flags.out, flags.outDir)
 		},
 	}
 
@@ -72,13 +77,20 @@ An alternative name can be specified with the \--out flag.
 	)
 	cmd.Flags().StringVar(&flags.outDir, "out-dir", ".", "Output directory. "+
 		"If --out is set, --out-dir is ignored.")
-
+	scionpki.BindFlagKms(cmd.Flags(), &flags.kms)
 	return cmd
 }
 
-func RunSign(pld, certfile, keyfile, out, outDir string) error {
+func RunSign(pld, certfile, keyName, kms, out, outDir string) error {
+	dummy := pld == "dummy"
+
 	// Read TRC payload
-	rawPld, err := os.ReadFile(pld)
+	rawPld, err := func() ([]byte, error) {
+		if !dummy {
+			return os.ReadFile(pld)
+		}
+		return dummyPayload, nil
+	}()
 	if err != nil {
 		return serrors.Wrap("error loading payload", err)
 	}
@@ -87,7 +99,7 @@ func RunSign(pld, certfile, keyfile, out, outDir string) error {
 		rawPld = pldBlock.Bytes
 	}
 	// Load signing key
-	priv, err := key.LoadPrivateKey(keyfile)
+	priv, err := key.LoadPrivateKey(kms, keyName)
 	if err != nil {
 		return err
 	}
@@ -133,7 +145,12 @@ func RunSign(pld, certfile, keyfile, out, outDir string) error {
 	if err := os.WriteFile(fname, signed, 0644); err != nil {
 		return serrors.Wrap("error writing signed TRC paylod", err)
 	}
-	fmt.Printf("Successfully signed TRC payload at %s\n", out)
+
+	if !dummy {
+		fmt.Printf("Successfully signed TRC payload at %s\n", out)
+	} else {
+		fmt.Println("Successfully signed dummy TRC payload")
+	}
 	return nil
 }
 

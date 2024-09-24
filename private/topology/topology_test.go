@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	jsontopo "github.com/scionproto/scion/private/topology/json"
 )
 
@@ -58,10 +58,10 @@ func TestBRs(t *testing.T) {
 
 	brs := map[string]BRInfo{
 		"br1-ff00:0:311-1": {
-			IfIDs: []common.IfIDType{1, 3, 8},
+			IfIDs: []iface.ID{1, 3, 8},
 		},
 		"br1-ff00:0:311-2": {
-			IfIDs: []common.IfIDType{11},
+			IfIDs: []iface.ID{11},
 		},
 	}
 
@@ -312,10 +312,10 @@ func TestBRsCoreAS(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/core.json")
 	brCases := []struct {
 		name       string
-		interfaces []common.IfIDType
+		interfaces []iface.ID
 	}{
-		{name: "borderrouter6-ff00:0:362-1", interfaces: []common.IfIDType{91}},
-		{name: "borderrouter6-ff00:0:362-9", interfaces: []common.IfIDType{32}},
+		{name: "borderrouter6-ff00:0:362-1", interfaces: []iface.ID{91}},
+		{name: "borderrouter6-ff00:0:362-9", interfaces: []iface.ID{32}},
 	}
 	for _, test := range brCases {
 		t.Run(test.name, func(t *testing.T) {

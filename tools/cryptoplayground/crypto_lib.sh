@@ -91,8 +91,8 @@ in_docker() {
         -e ENDDATE=$ENDDATE \
         -e TRCID=$TRCID \
         -e PREDID=$PREDID \
-        emberstack/openssl \
-        sh -c "set -e && . /scripts/crypto_lib.sh && $@"
+        nginx:1.27.1 \
+        sh -c "set -ex && . /scripts/crypto_lib.sh && $@"
 }
 
 ######################
@@ -106,8 +106,8 @@ PAYLOAD_CONF_SAMPLE=$(cat <<-END
 {{.VotingQuorum}}      = 2
 {{.CoreASes}}          = ["ff00:0:110", "ff00:0:111"]
 {{.AuthoritativeASes}} = ["ff00:0:110", "ff00:0:111"]
-{{.NotBefore}}         = 1593000000  # Seconds since UNIX Epoch
-{{.Validity}}          = "365d"
+{{.NotBefore}}         = "2020-06-24T14:00:00+02:00"  # RFC3339
+{{.NotAfter}}          = "2021-06-24T14:00:00+02:00"
 {{.CertFiles}} = [
     "bern/sensitive-voting.crt",
     "bern/regular-voting.crt",
@@ -136,7 +136,7 @@ no_trust_reset     = false
 
 [validity]
 not_before = {{.NotBefore}}
-validity   = {{.Validity}}
+not_after   = {{.NotAfter}}
 EOF
 # LITERALINCLUDE payload_conf END
 }
@@ -151,8 +151,8 @@ SENSITIVE_PAYLOAD_CONF_SAMPLE=$(cat <<-END
 {{.Votes}}             = [0, 3, 5]
 {{.CoreASes}}          = ["ff00:0:110", "ff00:0:111"]
 {{.AuthoritativeASes}} = ["ff00:0:110", "ff00:0:111"]
-{{.NotBefore}}         = 1621857600  # Seconds since UNIX Epoch
-{{.Validity}}          = "365d"
+{{.NotBefore}}         = "2021-05-24T14:00:00+02:00"  # RFC3339
+{{.NotAfter}}          = "2022-05-24T14:00:00+02:00"
 {{.CertFiles}} = [
     "bern/sensitive-voting.crt",
     "bern/regular-voting.crt",
@@ -183,7 +183,7 @@ no_trust_reset     = false
 
 [validity]
 not_before = {{.NotBefore}}
-validity   = {{.Validity}}
+not_after   = {{.NotAfter}}
 EOF
 # LITERALINCLUDE sensitive_payload_conf END
 }
@@ -237,6 +237,23 @@ EOF
 # LITERALINCLUDE basic_conf END
 }
 
+basic_conf_scion_pki() {
+# LITERALINCLUDE basic_conf_scion_pki START
+cat << EOF > subject.tmpl
+{
+    "country": "{{.Country}}",
+    "state": "{{.State}}",
+    "locality": "{{.Location}}",
+    "organization": "{{.Organization}}",
+    "organizational_unit": "{{.OrganizationalUnit}}",
+    "isd_as": "{{.ISDAS}}"
+}
+EOF
+
+export ORG="{{.ShortOrg}}"
+# LITERALINCLUDE basic_conf_scion_pki END
+}
+
 prepare_ca() {
 # LITERALINCLUDE prepare_ca START
     mkdir -p database
@@ -266,6 +283,12 @@ EOF
 # LITERALINCLUDE sensitive_conf END
 }
 
+sensitive_cn() {
+# LITERALINCLUDE sensitive_cn START
+export CN_SENSITIVE="$ORG High Security Voting Certificate"
+# LITERALINCLUDE sensitive_cn END
+}
+
 regular_conf() {
 # LITERALINCLUDE regular_conf START
 cat << EOF > regular-voting.cnf
@@ -285,6 +308,12 @@ default_days = 365
 .include basic.cnf
 EOF
 # LITERALINCLUDE regular_conf END
+}
+
+regular_cn() {
+# LITERALINCLUDE regular_cn START
+export CN_REGULAR="$ORG Regular Voting Certificate"
+# LITERALINCLUDE regular_cn END
 }
 
 root_conf() {
@@ -308,6 +337,12 @@ default_days = 365
 .include basic.cnf
 EOF
 # LITERALINCLUDE root_conf END
+}
+
+root_cn() {
+# LITERALINCLUDE root_cn START
+export CN_ROOT="$ORG High Security Root Certificate"
+# LITERALINCLUDE root_cn END
 }
 
 ca_conf() {
@@ -390,7 +425,44 @@ gen_sensitive() {
         -startdate $STARTDATE -enddate $ENDDATE -preserveDN \
         -notext -batch -utf8 -out sensitive-voting.crt
 # LITERALINCLUDE gen_sensitive END
+# LITERALINCLUDE gen_sensitive_dummy START
+    openssl cms -sign -in dummy.pld.der -inform der \
+        -signer $PUBDIR/sensitive-voting.crt \
+        -inkey $KEYDIR/sensitive-voting.key \
+        -nodetach -nocerts -nosmimecap -binary -outform der \
+        > $TRCID.sensitive.dummy.trc
+
+    openssl cms -verify -in $TRCID.sensitive.dummy.trc -inform der \
+        -certfile $PUBDIR/sensitive-voting.crt \
+        -CAfile $PUBDIR/sensitive-voting.crt \
+        -purpose any -no_check_time \
+        > /dev/null
+# LITERALINCLUDE gen_sensitive_dummy END
 }
+
+gen_sensitive_scion_pki() {
+# LITERALINCLUDE gen_sensitive_scion_pki START
+    # Uncomment and set the appropriate values:
+    #
+    # STARTDATE="2020-06-24T14:00:00+02:00"
+    # ENDDATE="2021-06-24T14:00:00+02:00"
+
+    scion-pki certificate create \
+        --profile sensitive-voting \
+        --not-before $STARTDATE \
+        --not-after $ENDDATE \
+        --common-name "$CN_SENSITIVE" \
+        subject.tmpl \
+        sensitive-voting.crt \
+        $KEYDIR/sensitive-voting.key
+# LITERALINCLUDE gen_sensitive_scion_pki END
+# LITERALINCLUDE gen_sensitive_scion_pki_dummy START
+    scion-pki trc sign dummy \
+        sensitive-voting.crt \
+        $KEYDIR/sensitive-voting.key
+# LITERALINCLUDE gen_sensitive_scion_pki_dummy START
+}
+
 
 check_sensitive() {
 # LITERALINCLUDE check_sensitive START
@@ -435,6 +507,42 @@ gen_regular() {
         -startdate $STARTDATE -enddate $ENDDATE -preserveDN \
         -notext -batch -utf8 -out regular-voting.crt
 # LITERALINCLUDE gen_regular END
+# LITERALINCLUDE gen_regular_dummy START
+    openssl cms -sign -in dummy.pld.der -inform der \
+        -signer $PUBDIR/regular-voting.crt \
+        -inkey $KEYDIR/regular-voting.key \
+        -nodetach -nocerts -nosmimecap -binary -outform der \
+        > $TRCID.regular.dummy.trc
+
+    openssl cms -verify -in $TRCID.regular.dummy.trc -inform der \
+        -certfile $PUBDIR/regular-voting.crt \
+        -CAfile $PUBDIR/regular-voting.crt \
+        -purpose any -no_check_time \
+        > /dev/null
+# LITERALINCLUDE gen_regular_dummy END
+}
+
+gen_regular_scion_pki() {
+# LITERALINCLUDE gen_regular_scion_pki START
+    # Uncomment and set the appropriate values:
+    #
+    # STARTDATE="2020-06-24T14:00:00+02:00"
+    # ENDDATE="2021-06-24T14:00:00+02:00"
+
+    scion-pki certificate create \
+        --profile regular-voting \
+        --not-before $STARTDATE \
+        --not-after $ENDDATE \
+        --common-name "$CN_REGULAR" \
+        subject.tmpl \
+        regular-voting.crt \
+        $KEYDIR/regular-voting.key
+# LITERALINCLUDE gen_regular_scion_pki END
+# LITERALINCLUDE gen_regular_scion_pki_dummy START
+    scion-pki trc sign dummy \
+        regular-voting.crt \
+        $KEYDIR/regular-voting.key
+# LITERALINCLUDE gen_regular_scion_pki_dummy START
 }
 
 check_regular() {
@@ -480,6 +588,43 @@ gen_root() {
         -startdate $STARTDATE -enddate $ENDDATE -preserveDN \
         -notext -batch -utf8 -out cp-root.crt
 # LITERALINCLUDE gen_root END
+# LITERALINCLUDE gen_root_dummy START
+    openssl cms -sign -in dummy.pld.der -inform der \
+        -signer $PUBDIR/cp-root.crt \
+        -inkey $KEYDIR/cp-root.key \
+        -nodetach -nocerts -nosmimecap -binary -outform der \
+        > $TRCID.root.dummy.trc
+
+    openssl cms -verify -in $TRCID.root.dummy.trc -inform der \
+        -certfile $PUBDIR/cp-root.crt \
+        -CAfile $PUBDIR/cp-root.crt \
+        -purpose any -no_check_time \
+        > /dev/null
+# LITERALINCLUDE gen_root_dummy END
+}
+
+
+gen_root_scion_pki() {
+# LITERALINCLUDE gen_root_scion_pki START
+    # Uncomment and set the appropriate values:
+    #
+    # STARTDATE="2020-06-24T14:00:00+02:00"
+    # ENDDATE="2021-06-24T14:00:00+02:00"
+
+    scion-pki certificate create \
+        --profile cp-root \
+        --not-before $STARTDATE \
+        --not-after $ENDDATE \
+        --common-name "$CN_ROOT" \
+        subject.tmpl \
+        cp-root.crt \
+        $KEYDIR/cp-root.key
+# LITERALINCLUDE gen_root_scion_pki END
+# LITERALINCLUDE gen_root_scion_pki_dummy START
+    scion-pki trc sign dummy \
+        cp-root.crt \
+        $KEYDIR/cp-root.key
+# LITERALINCLUDE gen_root_scion_pki_dummy START
 }
 
 check_root() {
@@ -527,6 +672,26 @@ gen_ca() {
 # LITERALINCLUDE gen_ca END
 }
 
+gen_ca_scion_pki() {
+# LITERALINCLUDE gen_ca_scion_pki START
+    # Uncomment and set the appropriate values:
+    #
+    # STARTDATE="2020-06-24T14:00:00+02:00"
+    # ENDDATE="2020-07-01T14:00:00+02:00"
+
+    scion-pki certificate create \
+        --ca cp-root.crt \
+        --ca-key $KEYDIR/cp-root.key \
+        --not-before $STARTDATE \
+        --not-after $ENDDATE \
+        --common-name "$ORG Secure CA Certificate" \
+        --profile cp-ca \
+        subject.tmpl \
+        cp-ca.crt \
+        $KEYDIR/cp-ca.key
+# LITERALINCLUDE gen_ca_scion_pki END
+}
+
 check_ca() {
 # LITERALINCLUDE check_ca START
     openssl x509 -in cp-ca.crt -noout -dates
@@ -567,6 +732,33 @@ gen_as_ca_steps() {
         -startdate $STARTDATE -enddate $ENDDATE -preserveDN \
         -notext -batch -utf8 -out cp-as.crt
 # LITERALINCLUDE gen_as_ca_steps END
+}
+
+gen_as_scion_pki() {
+# LITERALINCLUDE gen_as_scion_pki_as_steps START
+    scion-pki certificate create \
+        --profile cp-as \
+        --common-name "$ORG AS Certificate" \
+        --csr \
+        subject.tmpl \
+        cp-as.csr \
+        $KEYDIR/cp-as.key
+# LITERALINCLUDE gen_as_scion_pki_as_steps END
+# LITERALINCLUDE gen_as_scion_pki_ca_steps START
+    # Uncomment and set the appropriate values:
+    #
+    # STARTDATE="2020-06-24T14:00:00+02:00"
+    # ENDDATE="2020-06-27T14:00:00+02:00"
+
+    scion-pki certificate sign \
+        --bundle \
+        --ca cp-ca.crt \
+        --ca-key $KEYDIR/cp-ca.key \
+        --not-before $STARTDATE \
+        --not-after $ENDDATE \
+        cp-as.csr \
+        > chain.pem
+# LITERALINCLUDE gen_as_scion_pki_ca_steps END
 }
 
 check_as() {
@@ -618,6 +810,19 @@ sign_payload() {
 # LITERALINCLUDE sign_payload END
 }
 
+sign_payload_scion_pki() {
+# LITERALINCLUDE sign_payload_scion_pki START
+    scion-pki trc sign $TRCID.pld.der \
+        $PUBDIR/regular-voting.crt \
+        $KEYDIR/regular-voting.key \
+        -o $TRCID.regular.trc
+    scion-pki trc sign $TRCID.pld.der \
+        $PUBDIR/sensitive-voting.crt \
+        $KEYDIR/sensitive-voting.key \
+        -o $TRCID.sensitive.trc
+# LITERALINCLUDE sign_payload_scion_pki END
+}
+
 sensitive_vote() {
 # LITERALINCLUDE sensitive_vote START
     openssl cms -sign -in $TRCID.pld.der -inform der \
@@ -628,6 +833,15 @@ sensitive_vote() {
 # LITERALINCLUDE sensitive_vote END
 }
 
+sensitive_vote_scion_pki() {
+# LITERALINCLUDE sensitive_vote_scion_pki START
+    scion-pki trc sign $TRCID.pld.der \
+        $PUBDIR/$PREDID/sensitive-voting.crt \
+        $KEYDIR/$PREDID/sensitive-voting.key \
+        -o $TRCID.sensitive.vote.trc
+# LITERALINCLUDE sensitive_vote_scion_pki END
+}
+
 regular_vote() {
 # LITERALINCLUDE regular_vote START
     openssl cms -sign -in $TRCID.pld.der -inform der \
@@ -636,6 +850,13 @@ regular_vote() {
         -nodetach -nocerts -nosmimecap -binary -outform der \
         > $TRCID.regular.vote.trc
 # LITERALINCLUDE regular_vote END
+}
+
+check_signed_payload_scion_pki() {
+# LITERALINCLUDE check_signed_payload_scion_pki START
+    scion-pki trc inspect $TRCID.regular.trc
+    scion-pki trc inspect $TRCID.sensitive.trc
+# LITERALINCLUDE check_signed_payload_scion_pki END
 }
 
 check_signed_payload() {
@@ -679,6 +900,12 @@ check_sensitive_vote() {
         -purpose any -no_check_time \
         > /dev/null
 # LITERALINCLUDE check_sensitive_vote END
+}
+
+check_sensitive_vote_scion_pki() {
+# LITERALINCLUDE check_sensitive_vote_scion_pki START
+    scion-pki trc inspect $TRCID.sensitive.vote.trc
+# LITERALINCLUDE check_sensitive_vote_scion_pki END
 }
 
 check_regular_vote() {
@@ -744,6 +971,12 @@ display_payload() {
 # LITERALINCLUDE display_payload END
 }
 
+display_payload_scion_pki() {
+# LITERALINCLUDE display_payload_scion_pki START
+    scion-pki trc inspect $TRCID.pld.der
+# LITERALINCLUDE display_payload_scion_pki END
+}
+
 display_signatures() {
 # LITERALINCLUDE display_signatures START
     openssl pkcs7 -in $TRCID.trc -inform der -print -noout
@@ -757,3 +990,11 @@ display_signatures() {
     # -noout:  do not display the encoded structure.
 # LITERALINCLUDE display_signatures END
 }
+
+display_signatures_scion_pki() {
+# LITERALINCLUDE display_signatures_scion_pki START
+    scion-pki trc inspect $TRCID.trc
+# LITERALINCLUDE display_signatures_scion_pki END
+}
+
+

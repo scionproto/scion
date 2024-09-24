@@ -313,7 +313,7 @@ func createTRCs(cfg config) error {
 			BaseVersion:   1,
 			VotingQuorum:  uint8(len(voters[isd])/2 + 1),
 			Validity: conf.Validity{
-				NotBefore: uint32(cfg.now.UTC().Unix()),
+				NotBefore: conf.Time(cfg.now.UTC()),
 				Validity:  util.DurWrap{Duration: 450 * 24 * time.Hour},
 			},
 			CoreASes:          cores[isd],
@@ -321,7 +321,7 @@ func createTRCs(cfg config) error {
 			CertificateFiles:  certFiles[isd],
 		}
 		sort.Strings(trcConf.CertificateFiles)
-		trc, err := trcs.CreatePayload(trcConf)
+		trc, err := trcs.CreatePayload(trcConf, nil)
 		if err != nil {
 			return serrors.Wrap("creating TRC payload", err, "isd", isd)
 		}
@@ -366,12 +366,11 @@ func createTRCs(cfg config) error {
 }
 
 func loadVoterInfo(voter addr.IA, votingDir string) (*voterInfo, error) {
-	sensitiveKey, err := key.LoadPrivateKey(
-		filepath.Join(votingDir, "sensitive-voting.key"))
+	sensitiveKey, err := key.LoadPrivateKey("", filepath.Join(votingDir, "sensitive-voting.key"))
 	if err != nil {
 		return nil, serrors.Wrap("loading sensitive key", err)
 	}
-	regularKey, err := key.LoadPrivateKey(filepath.Join(votingDir, "regular-voting.key"))
+	regularKey, err := key.LoadPrivateKey("", filepath.Join(votingDir, "regular-voting.key"))
 	if err != nil {
 		return nil, serrors.Wrap("loading regular key", err)
 	}

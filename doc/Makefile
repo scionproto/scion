@@ -13,6 +13,7 @@ SPHINX_AUTOBUILD ?= bazel run //doc:sphinx-autobuild --
 SPHINXOPTS    ?= -W --keep-going # treat warnings as errors, but process all files when an error occurs
 SOURCEDIR     = $(abspath .)
 BUILDDIR      = $(abspath ./_build)
+HOST 		 ?= localhost
 
 # Build docs with Sphinx using the "make mode" option.
 # Explicitly list the main build targets so they auto-complete in shells.
@@ -30,7 +31,7 @@ html latex latexpdf linkcheck help:
 # Note: most options are forwarded as-is to sphinx, but --keep-going is not understood and we explicitly drop it.
 .PHONY: autobuild
 autobuild:
-	$(SPHINX_AUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(filter-out --keep-going,$(SPHINXOPTS))
+	$(SPHINX_AUTOBUILD) "--host=$(HOST)" "$(SOURCEDIR)" "$(BUILDDIR)"  $(filter-out --keep-going,$(SPHINXOPTS)) 
 
 .PHONY: clean
 clean:

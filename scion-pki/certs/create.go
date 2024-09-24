@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/app/flag"
+	scionpki "github.com/scionproto/scion/scion-pki"
 	"github.com/scionproto/scion/scion-pki/file"
 	"github.com/scionproto/scion/scion-pki/key"
 )
@@ -125,7 +126,9 @@ func newCreateCmd(pather command.Pather) *cobra.Command {
 		notAfter    flag.Time
 		ca          string
 		caKey       string
+		caKms       string
 		existingKey string
+		kms         string
 		curve       string
 		bundle      bool
 		force       bool
@@ -193,7 +196,7 @@ A valid example for a JSON formatted template::
 		Args: cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 2 && flags.existingKey == "" {
-				return serrors.New("positional key file is required")
+				return serrors.New("the positional key file is required")
 			}
 			ct, err := parseCertType(flags.profile)
 			if err != nil {
@@ -202,6 +205,9 @@ A valid example for a JSON formatted template::
 			subject, err := createSubject(args[0], flags.commonName)
 			if err != nil {
 				return serrors.Wrap("creating subject", err)
+			}
+			if flags.existingKey == "" && flags.kms != "" {
+				return serrors.New("the kms flag is only allowed with an existing key")
 			}
 
 			// Only check that the flags are set appropriately here.
@@ -220,10 +226,10 @@ A valid example for a JSON formatted template::
 
 			cmd.SilenceUsage = true
 
-			var privKey key.PrivateKey
+			var privKey crypto.Signer
 			var encodedKey []byte
 			if flags.existingKey != "" {
-				if privKey, err = key.LoadPrivateKey(flags.existingKey); err != nil {
+				if privKey, err = key.LoadPrivateKey(flags.kms, flags.existingKey); err != nil {
 					return serrors.Wrap("loading existing private key", err)
 				}
 			} else {
@@ -234,10 +240,15 @@ A valid example for a JSON formatted template::
 					return serrors.Wrap("encoding fresh private key", err)
 				}
 			}
+			if !key.IsX509Signer(privKey) {
+				return serrors.New("the private key cannot be used in X.509 certificates",
+					"type", fmt.Sprintf("%T", privKey),
+				)
+			}
 
 			var caCertRaw []byte
 			var caCert *x509.Certificate
-			var caKey key.PrivateKey
+			var caKey crypto.Signer
 			if loadCA {
 				if caCertRaw, err = os.ReadFile(flags.ca); err != nil {
 					return serrors.Wrap("read CA certificate", err)
@@ -245,7 +256,7 @@ A valid example for a JSON formatted template::
 				if caCert, err = parseCertificate(caCertRaw); err != nil {
 					return serrors.Wrap("parsing CA certificate", err)
 				}
-				if caKey, err = key.LoadPrivateKey(flags.caKey); err != nil {
+				if caKey, err = key.LoadPrivateKey(flags.caKms, flags.caKey); err != nil {
 					return serrors.Wrap("loading CA private key", err)
 				}
 			}
@@ -272,6 +283,12 @@ A valid example for a JSON formatted template::
 				}
 				fmt.Printf("CSR successfully written to %q\n", csrFile)
 			} else {
+				if !key.IsX509Signer(caKey) {
+					return serrors.New("the CA key cannot be used to create X.509 certificates",
+						"type", fmt.Sprintf("%T", caKey),
+					)
+				}
+
 				cert, err := CreateCertificate(CertParams{
 					Type:      ct,
 					Subject:   subject,
@@ -359,7 +376,8 @@ offset from the current time.`,
 	cmd.Flags().BoolVar(&flags.force, "force", false,
 		"Force overwritting existing files",
 	)
-
+	scionpki.BindFlagKmsCA(cmd.Flags(), &flags.caKms)
+	scionpki.BindFlagKms(cmd.Flags(), &flags.kms)
 	return cmd
 }
 

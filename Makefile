@@ -86,6 +86,7 @@ mocks:
 
 gazelle: go_deps.bzl
 	bazel run //:gazelle --verbose_failures --config=quiet
+	./tools/buildrill/go_integration_test_sync
 
 licenses:
 	tools/licenses.sh

@@ -43,6 +43,7 @@ go_library(
         "//private/svc:go_default_library",
         "//private/tracing:go_default_library",
         "//private/trust:go_default_library",
+        "//scion-pki:go_default_library",
         "//scion-pki/encoding:go_default_library",
         "//scion-pki/file:go_default_library",
         "//scion-pki/key:go_default_library",

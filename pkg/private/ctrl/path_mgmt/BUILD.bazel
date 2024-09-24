@@ -7,9 +7,9 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/addr:go_default_library",
-        "//pkg/private/common:go_default_library",
         "//pkg/private/ctrl/path_mgmt/proto:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",
+        "//pkg/segment/iface:go_default_library",
     ],
 )

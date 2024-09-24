@@ -43,7 +43,8 @@ The ideas and concepts behind SCION.
   :doc:`SCION <overview>` |
   :doc:`Control Plane <control-plane>` |
   :doc:`Data Plane <data-plane>` |
-  SCION End Hosts
+  SCION End Hosts |
+  `Applications <https://docs.scion.org/projects/scion-applications/en/latest>`_
 
 
 Reference Manuals
@@ -69,6 +70,7 @@ implementation <https://github.com/scionproto/scion>`_.
    command/scion-pki/scion-pki
 
    snet API <https://pkg.go.dev/github.com/scionproto/scion/pkg/snet>
+   Applications <https://docs.scion.org/projects/scion-applications/en/latest>
 
 * **For operators of SCION end hosts**:
   :doc:`manuals/install` |
@@ -90,6 +92,10 @@ implementation <https://github.com/scionproto/scion>`_.
 .. TODO
    snet documentation should be a good starting point for using SCION as an application library.
    For this, the package documentation needs to be streamlined a bit...
+
+* **For users of SCION applications**:
+  `Applications <https://docs.scion.org/projects/scion-applications/en/latest>`_
+
 
 Guides and Tutorials
 ^^^^^^^^^^^^^^^^^^^^

@@ -153,7 +153,11 @@ func (trc *TRC) Validate() error {
 		}
 		if !(Validity{NotBefore: cert.NotBefore, NotAfter: cert.NotAfter}).Covers(trc.Validity) {
 			return serrors.JoinNoStack(ErrTRCValidityNotCovered, nil,
-				"subject", cert.Subject, "index", i)
+				"cert.subject", cert.Subject,
+				"cert.index", i,
+				"cert.validity", Validity{NotBefore: cert.NotBefore, NotAfter: cert.NotAfter},
+				"trc.validity", trc.Validity,
+			)
 		}
 	}
 	// Check that issuer-SN pair is unique.

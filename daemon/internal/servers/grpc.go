@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/prom"
@@ -39,6 +38,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/util"
 	pb_daemon "github.com/scionproto/scion/pkg/proto/daemon"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/revcache"
@@ -337,7 +337,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 
 	revInfo := &path_mgmt.RevInfo{
 		RawIsdas:     addr.IA(req.IsdAs),
-		IfID:         common.IfIDType(req.Id),
+		IfID:         iface.ID(req.Id),
 		LinkType:     proto.LinkType_core,
 		RawTTL:       10,
 		RawTimestamp: util.TimeToSecs(time.Now()),

@@ -17,8 +17,8 @@ package revcache
 import (
 	"context"
 
-	"github.com/scionproto/scion/pkg/private/common"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/storage/cleaner"
 )
 
@@ -37,15 +37,12 @@ func NoRevokedHopIntf(ctx context.Context, revCache RevCache,
 	for _, asEntry := range s.ASEntries {
 		hop := asEntry.HopEntry.HopField
 		for _, key := range [2]Key{
-			{IA: asEntry.Local, IfID: common.IfIDType(hop.ConsIngress)},
-			{IA: asEntry.Local, IfID: common.IfIDType(hop.ConsEgress)},
+			{IA: asEntry.Local, IfID: iface.ID(hop.ConsIngress)},
+			{IA: asEntry.Local, IfID: iface.ID(hop.ConsEgress)},
 		} {
 			rev, err := revCache.Get(ctx, key)
 			if err != nil || rev != nil {
 				return false, err
-			}
-			if rev != nil {
-				return false, nil
 			}
 		}
 	}

@@ -17,6 +17,7 @@ package conf
 import (
 	"crypto/x509"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -51,17 +52,37 @@ func LoadTRC(file string) (TRC, error) {
 	if err := config.LoadFile(file, &cfg); err != nil {
 		return TRC{}, serrors.Wrap("unable to load TRC config from file", err, "file", file)
 	}
+	if err := cfg.Validity.Validate(); err != nil {
+		return TRC{}, serrors.Wrap("validating 'validity' section", err)
+	}
 	cfg.relPath = filepath.Dir(file)
 	return cfg, nil
 }
 
 // Certificates returns the specified certificates.
-func (cfg *TRC) Certificates() ([]*x509.Certificate, error) {
+func (cfg *TRC) Certificates(pred *cppki.TRC) ([]*x509.Certificate, error) {
 	if len(cfg.CertificateFiles) == 0 {
 		return nil, serrors.New("no cert_files specified")
 	}
+
 	certs := make([]*x509.Certificate, 0, len(cfg.CertificateFiles))
 	for _, certFile := range cfg.CertificateFiles {
+
+		if raw, ok := strings.CutPrefix(certFile, "predecessor:"); ok {
+			if pred == nil {
+				return nil, serrors.New("predecessor certificate requested on base TRC")
+			}
+			idx, err := strconv.Atoi(raw)
+			if err != nil {
+				return nil, serrors.Wrap("parsing predecessor index", err, "input", raw)
+			}
+			if idx < 0 || idx >= len(pred.Certificates) {
+				return nil, serrors.New("predecessor index out of bounds", "index", idx)
+			}
+			certs = append(certs, pred.Certificates[idx])
+			continue
+		}
+
 		if !strings.HasPrefix(certFile, "/") {
 			certFile = filepath.Join(cfg.relPath, certFile)
 		}

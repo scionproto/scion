@@ -19,6 +19,23 @@ sh_test(
 )
 
 sh_test(
+    name = "trc_ceremony_scion_pki_test",
+    srcs = ["trc_ceremony.sh"],
+    data = [
+        ":crypto_lib.sh",
+        "//scion-pki/cmd/scion-pki",
+    ],
+    env = {
+        "SCION_PKI_BIN": "$(location //scion-pki/cmd/scion-pki)",
+        "USE_SCION_PKI_SIGN": "1",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)
+
+sh_test(
     name = "trc_ceremony_sensitive_test",
     srcs = ["trc_ceremony_sensitive.sh"],
     data = [
@@ -28,6 +45,24 @@ sh_test(
     ],
     env = {
         "SCION_PKI_BIN": "$(location //scion-pki/cmd/scion-pki)",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)
+
+sh_test(
+    name = "trc_ceremony_sensitive_scion_pki_test",
+    srcs = ["trc_ceremony_sensitive.sh"],
+    data = [
+        "trc_ceremony.sh",
+        ":crypto_lib.sh",
+        "//scion-pki/cmd/scion-pki",
+    ],
+    env = {
+        "SCION_PKI_BIN": "$(location //scion-pki/cmd/scion-pki)",
+        "USE_SCION_PKI_SIGN": "1",
     },
     tags = [
         "exclusive",
