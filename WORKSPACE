@@ -180,6 +180,7 @@ oci_pull(
     repository = "library/debian",
 )
 
+# Debian packaging
 http_archive(
     name = "rules_debian_packages",
     sha256 = "0ae3b332f9d894e57693ce900769d2bd1b693e1f5ea1d9cdd82fa4479c93bcc8",
@@ -203,6 +204,14 @@ debian_packages_repository(
 load("@tester_debian10_packages//:packages.bzl", tester_debian_packages_install_deps = "install_deps")
 
 tester_debian_packages_install_deps()
+
+# RPM packaging
+load("@rules_pkg//toolchains/rpm:rpmbuild_configure.bzl", "find_system_rpmbuild")
+
+find_system_rpmbuild(
+    name = "rules_pkg_rpmbuild",
+    verbose = False,
+)
 
 # protobuf/gRPC
 http_archive(
