@@ -31,6 +31,12 @@ dist-openwrt-testing:
 	@ mkdir -p installables
 	@ cd installables ; ln -sfv ../bazel-out/*/bin/dist/*.ipk .
 
+dist-rpm:
+	bazel build //dist:rpm_all $(BFLAGS)
+	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
+	@ mkdir -p installables
+	@ cd installables ; ln -sfv ../bazel-out/*/bin/dist/*.rpm .
+
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the
 # sources for the code generation.

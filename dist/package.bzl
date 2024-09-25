@@ -49,8 +49,10 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
     The caller needs to set:
     - package: the name of the package (e.g. scion-router)
     - description: one-liner
-    - version/versoin_file: One can use the label ":git_version"
+    - version/version_file: One can use the label ":git_version"
     and any of the optional control directives.
+
+    The version string gets edited to meet rpm requirements: dashes are replaced with ^.
     """
 
     kwargs.setdefault("url", SCION_PKG_HOMEPAGE)

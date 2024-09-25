@@ -9,6 +9,9 @@ DEB_PLATFORMS = [
     "@io_bazel_rules_go//go/toolchain:linux_386",
     "@io_bazel_rules_go//go/toolchain:linux_arm",
 ]
+RPM_PLATFORMS = [
+    "@io_bazel_rules_go//go/toolchain:linux_amd64",
+]
 
 # TODO(jice@scion.org):
 # For now only a single openwrt platform can be in this list. If we allow several, they get
@@ -37,17 +40,6 @@ git_version(
     name = "git_version",
     tags = ["manual"],
     visibility = ["@openwrt_x86_64_SDK//:__subpackages__"],
-)
-
-scion_pkg_rpm(
-    name = "router_rpm",
-    description = "SCION inter-domain network architecture border router",
-    executables = {
-        "//router/cmd/router:router": "scion-router",
-    },
-    package = "scion-router",
-    systemds = ["systemd/scion-router@.service"],
-    version_file = ":git_version",
 )
 
 scion_pkg_deb(
@@ -230,5 +222,114 @@ multiplatform_filegroup(
         "testconfig_ipk",
     ],
     target_platforms = OPENWRT_PLATFORMS,
+    visibility = ["//dist:__subpackages__"],
+)
+
+scion_pkg_rpm(
+    name = "router_rpm",
+    description = "SCION inter-domain network architecture border router",
+    executables = {
+        "//router/cmd/router:router": "scion-router",
+    },
+    package = "scion-router",
+    systemds = ["systemd/scion-router@.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_rpm(
+    name = "control_rpm",
+    configs = [],
+    # depends = [
+    #     "adduser",
+    #     "scion-dispatcher",
+    # ],
+    description = "SCION inter-domain network architecture control service",
+    executables = {
+        "//control/cmd/control:control": "scion-control",
+    },
+    package = "scion-control",
+    systemds = ["systemd/scion-control@.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_rpm(
+    name = "dispatcher_rpm",
+    configs = ["conffiles/dispatcher.toml"],
+    # depends = [
+    #     "adduser",
+    # ],
+    description = "SCION dispatcher",
+    executables = {
+        "//dispatcher/cmd/dispatcher:dispatcher": "scion-dispatcher",
+    },
+    package = "scion-dispatcher",
+    # postinst = "debian/scion.postinst",
+    systemds = ["systemd/scion-dispatcher.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_rpm(
+    name = "daemon_rpm",
+    configs = ["conffiles/daemon.toml"],
+    # depends = [
+    #     "adduser",
+    # ],
+    description = "SCION daemon",
+    executables = {
+        "//daemon/cmd/daemon:daemon": "scion-daemon",
+    },
+    package = "scion-daemon",
+    # postinst = "debian/scion.postinst",
+    systemds = ["systemd/scion-daemon.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_rpm(
+    name = "gateway_rpm",
+    configs = [
+        "conffiles/gateway.json",
+        "conffiles/gateway.toml",
+    ],
+    # depends = [
+    #     "adduser",
+    #     "scion-dispatcher",
+    #     "scion-daemon",
+    # ],
+    description = "SCION-IP Gateway",
+    executables = {
+        "//gateway/cmd/gateway:gateway": "scion-ip-gateway",
+    },
+    package = "scion-ip-gateway",
+    systemds = ["systemd/scion-ip-gateway.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_rpm(
+    name = "tools_rpm",
+    # depends = [
+    #     "adduser",
+    #     "scion-dispatcher",
+    #     "scion-daemon",
+    # ],
+    description = "SCION tools",
+    executables = {
+        "//scion/cmd/scion:scion": "scion",
+        "//scion-pki/cmd/scion-pki:scion-pki": "scion-pki",
+    },
+    package = "scion-tools",
+    version_file = ":git_version",
+)
+
+multiplatform_filegroup(
+    name = "rpm",
+    srcs = [
+        "control_rpm",
+        "daemon_rpm",
+        "dispatcher_rpm",
+        "gateway_rpm",
+        "router_rpm",
+        "tools_rpm",
+    ],
+    target_platforms = RPM_PLATFORMS,
     visibility = ["//dist:__subpackages__"],
 )
