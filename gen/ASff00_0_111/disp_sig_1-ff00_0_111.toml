@@ -1,0 +1,12 @@
+[dispatcher]
+id = "disp_sig_1-ff00_0_111"
+local_udp_forwarding = true
+
+[metrics]
+
+[features]
+
+[api]
+
+[log.console]
+level = "debug"

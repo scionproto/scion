@@ -1,0 +1,16 @@
+[dispatcher]
+id = "disp_cs1-ff00_0_111-1"
+local_udp_forwarding = true
+
+[metrics]
+
+[features]
+
+[api]
+
+[dispatcher.service_addresses]
+"1-ff00:0:111,CS" = "172.20.0.27:30252"
+"1-ff00:0:111,DS" = "172.20.0.27:30252"
+
+[log.console]
+level = "debug"

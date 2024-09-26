@@ -1,0 +1,28 @@
+[general]
+id = "cs1-ff00_0_112-1"
+config_dir = "/etc/scion"
+
+[trust_db]
+connection = "/share/cache/cs1-ff00_0_112-1.trust.db"
+
+[beacon_db]
+connection = "/share/cache/cs1-ff00_0_112-1.beacon.db"
+
+[path_db]
+connection = "/share/cache/cs1-ff00_0_112-1.path.db"
+
+[tracing]
+enabled = true
+debug = true
+agent = "172.17.0.1:6831"
+
+[metrics]
+prometheus = "[fd00:f00d:cafe::7f00:13]:30452"
+
+[api]
+addr = "[fd00:f00d:cafe::7f00:13]:31152"
+
+[features]
+
+[log.console]
+level = "debug"

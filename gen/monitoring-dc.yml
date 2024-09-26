@@ -1,0 +1,24 @@
+name: monitoring
+services:
+  jaeger:
+    environment:
+    - SPAN_STORAGE_TYPE=badger
+    - BADGER_EPHEMERAL=false
+    - BADGER_DIRECTORY_VALUE=/badger/data
+    - BADGER_DIRECTORY_KEY=/badger/key
+    image: jaegertracing/all-in-one:1.22.0
+    ports:
+    - 6831:6831/udp
+    - 16686:16686
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/traces:/badger:rw
+  prometheus:
+    command:
+    - --config.file
+    - /prom-config/prometheus.yml
+    image: prom/prometheus:v2.47.2
+    network_mode: host
+    volumes:
+    - /home/ubuntu/scion/gen:/prom-config:ro
+version: '2.4'

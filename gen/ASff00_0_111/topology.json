@@ -1,0 +1,33 @@
+{
+  "attributes": [],
+  "isd_as": "1-ff00:0:111",
+  "mtu": 1472,
+  "test_dispatcher": true,
+  "dispatched_ports": "31000-32767",
+  "control_service": {
+    "cs1-ff00_0_111-1": {
+      "addr": "172.20.0.27:30252"
+    }
+  },
+  "discovery_service": {
+    "cs1-ff00_0_111-1": {
+      "addr": "172.20.0.27:30252"
+    }
+  },
+  "border_routers": {
+    "br1-ff00_0_111-1": {
+      "internal_addr": "172.20.0.26:30042",
+      "interfaces": {
+        "41": {
+          "underlay": {
+            "local": "172.20.0.3:50000",
+            "remote": "172.20.0.2:50000"
+          },
+          "isd_as": "1-ff00:0:110",
+          "link_to": "parent",
+          "mtu": 1280
+        }
+      }
+    }
+  }
+}

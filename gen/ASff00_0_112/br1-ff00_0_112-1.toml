@@ -1,0 +1,14 @@
+[general]
+id = "br1-ff00_0_112-1"
+config_dir = "/etc/scion"
+
+[metrics]
+prometheus = "[fd00:f00d:cafe::7f00:12]:30442"
+
+[features]
+
+[api]
+addr = "[fd00:f00d:cafe::7f00:12]:31142"
+
+[log.console]
+level = "debug"
