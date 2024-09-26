@@ -227,6 +227,10 @@ multiplatform_filegroup(
 
 scion_pkg_rpm(
     name = "router_rpm",
+    depends = [
+        "/sbin/adduser",
+        "scion-dispatcher",
+    ],
     description = "SCION inter-domain network architecture border router",
     executables = {
         "//router/cmd/router:router": "scion-router",
@@ -239,10 +243,10 @@ scion_pkg_rpm(
 scion_pkg_rpm(
     name = "control_rpm",
     configs = [],
-    # depends = [
-    #     "adduser",
-    #     "scion-dispatcher",
-    # ],
+    depends = [
+        "/sbin/adduser",
+        "scion-dispatcher",
+    ],
     description = "SCION inter-domain network architecture control service",
     executables = {
         "//control/cmd/control:control": "scion-control",
@@ -255,9 +259,9 @@ scion_pkg_rpm(
 scion_pkg_rpm(
     name = "dispatcher_rpm",
     configs = ["conffiles/dispatcher.toml"],
-    # depends = [
-    #     "adduser",
-    # ],
+    depends = [
+        "/sbin/adduser",
+    ],
     description = "SCION dispatcher",
     executables = {
         "//dispatcher/cmd/dispatcher:dispatcher": "scion-dispatcher",
@@ -271,9 +275,9 @@ scion_pkg_rpm(
 scion_pkg_rpm(
     name = "daemon_rpm",
     configs = ["conffiles/daemon.toml"],
-    # depends = [
-    #     "adduser",
-    # ],
+    depends = [
+        "/sbin/adduser",
+    ],
     description = "SCION daemon",
     executables = {
         "//daemon/cmd/daemon:daemon": "scion-daemon",
@@ -290,11 +294,11 @@ scion_pkg_rpm(
         "conffiles/gateway.json",
         "conffiles/gateway.toml",
     ],
-    # depends = [
-    #     "adduser",
-    #     "scion-dispatcher",
-    #     "scion-daemon",
-    # ],
+    depends = [
+        "/sbin/adduser",
+        "scion-dispatcher",
+        "scion-daemon",
+    ],
     description = "SCION-IP Gateway",
     executables = {
         "//gateway/cmd/gateway:gateway": "scion-ip-gateway",
@@ -306,11 +310,11 @@ scion_pkg_rpm(
 
 scion_pkg_rpm(
     name = "tools_rpm",
-    # depends = [
-    #     "adduser",
-    #     "scion-dispatcher",
-    #     "scion-daemon",
-    # ],
+    depends = [
+        "/sbin/adduser",
+        "scion-dispatcher",
+        "scion-daemon",
+    ],
     description = "SCION tools",
     executables = {
         "//scion/cmd/scion:scion": "scion",

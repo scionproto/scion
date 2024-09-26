@@ -95,6 +95,13 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
                        cmd="echo \"%s\" | sed 's/-/^/g' > $@" % kwargs["version"])
         kwargs.pop("version")
 
+    # Use ethe same attributes as scion_pkg_deb, in view of may-be simplifying BUILD.bazel later.
+    deps = kwargs.get("depends")
+    if deps:
+        kwargs.pop("depends")
+    else:
+        deps = []
+
     pkg_rpm(
         name = name,
         summary = kwargs["description"],
@@ -105,6 +112,7 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
         package_name = package,
         release = "%autorelease",
         version_file = ":%s_version" % name,
+        requires = deps,
         **kwargs
     )
 
