@@ -102,6 +102,10 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
     else:
         deps = []
 
+    post = kwargs.get("postinst")
+    if post:
+        kwargs.pop("postinst")
+
     pkg_rpm(
         name = name,
         summary = kwargs["description"],
@@ -113,6 +117,7 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
         release = "%autorelease",
         version_file = ":%s_version" % name,
         requires = deps,
+        post_scriptlet_file = post,
         **kwargs
     )
 
