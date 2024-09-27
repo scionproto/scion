@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+# Create system user
+adduser --system --user-group --create-home --home /var/lib/scion scion
+
+# Create configuration directory
+mkdir /etc/scion/ >& /dev/null || true
+chown scion:scion /etc/scion/
+

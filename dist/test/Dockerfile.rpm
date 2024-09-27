@@ -1,0 +1,8 @@
+FROM fedora:40
+
+RUN dnf --assumeyes install systemd
+
+ENV container docker
+
+# Only "boot" a minimal system with journald and nothing else
+CMD ["/usr/lib/systemd/systemd", "--unit", "systemd-journald.service"]

@@ -3,56 +3,55 @@
 set -euo pipefail
 
 set -x
-if [ -n ${SCION_DEB_PACKAGES+x} ]; then
+if [ -n ${SCION_RPM_PACKAGES+x} ]; then
     # Invocation from bazel:
-    # SCION_DEB_PACKAGES is a space-separated list of filenames of (symlinks to) .deb packages.
+    # SCION_RPM_PACKAGES is a space-separated list of filenames of (symlinks to) .rpm packages.
     # Below we mount this stuff into a docker container, which won't work with symlinks.
     # Copy everything into a tmp directory.
     tmpdir="${TEST_TMPDIR?}"
-    cp ${SCION_DEB_PACKAGES} "${tmpdir}"
-    SCION_DEB_PACKAGES_DIR=$(realpath ${tmpdir})
+    cp ${SCION_RPM_PACKAGES} "${tmpdir}"
+    SCION_RPM_PACKAGES_DIR=$(realpath ${tmpdir})
 else
     SCION_ROOT=$(realpath $(dirname $0)/../../)
-    SCION_DEB_PACKAGES_DIR=${SCION_DEB_PACKAGES_DIR:-${SCION_ROOT}/deb}
+    SCION_RPM_PACKAGES_DIR=${SCION_RPM_PACKAGES_DIR:-${SCION_ROOT}/rpm}
 fi
 DEBUG=${DEBUG:-0}
 set +x
 
 function cleanup {
-    docker container rm -f debian-systemd || true
-    docker image rm --no-prune debian-systemd || true
+    docker container rm -f fedora-systemd || true
+    docker image rm --no-prune fedora-systemd || true
 }
 cleanup
 
-if [ "$DEBUG" == 0 ]; then  # if DEBUG: keep container debian-systemd running after test
+if [ "$DEBUG" == 0 ]; then  # if DEBUG: keep container fedora-systemd running after test
     trap cleanup EXIT
 fi
 
 # Note: specify absolute path to Dockerfile because docker will not follow bazel's symlinks.
 # Luckily we don't need anything else in this directory.
-docker build -t debian-systemd -f $(realpath dist/test/Dockerfile) dist/test
+docker build -t fedora-systemd -f $(realpath dist/test/Dockerfile.rpm) dist/test
 
 # Start container with systemd in PID 1.
 # Note: there are ways to avoid --privileged, but its unreliable and appears to depend on the host system
-docker run -d --rm --name debian-systemd -t \
+docker run -d --rm --name fedora-systemd -t \
     --tmpfs /tmp \
     --tmpfs /run \
     --tmpfs /run/lock \
     --tmpfs /run/shm \
-    -v $SCION_DEB_PACKAGES_DIR:/deb \
+    -v $SCION_RPM_PACKAGES_DIR:/rpm \
     --privileged \
-    debian-systemd:latest
+    fedora-systemd:latest
 
-docker exec -i debian-systemd /bin/bash <<'EOF'
+docker exec -i fedora-systemd /bin/bash <<'EOF'
     set -xeuo pipefail
-    arch=$(dpkg --print-architecture)
+    arch=$(arch)
 
-    # check that the deb files are all here (avoid cryptic error from apt-get)
-    stat /deb/scion-{router,control,dispatcher,daemon,ip-gateway,tools}_*_${arch}.deb > /dev/null
+    # check that the rpm files are all here (avoid cryptic error from rpm)
+    stat /rpm/scion-{router,control,dispatcher,daemon,ip-gateway,tools}_*_${arch}.rpm > /dev/null
 
     # router
-    apt-get install /deb/scion-router_*_${arch}.deb
-    ls -l /etc/scion
+    rpm -iv /rpm/scion-router_*_${arch}.rpm
     cat > /etc/scion/br-1.toml <<INNER_EOF
         [general]
         id = "br-1"
@@ -82,7 +81,7 @@ INNER_EOF
     systemctl status scion-router@br-1.service
 
     # dispatcher
-    apt-get install /deb/scion-dispatcher_*_${arch}.deb
+    rpm -i /rpm/scion-dispatcher_*_${arch}.rpm
     systemctl enable --now scion-dispatcher.service
     sleep 1
     systemctl status scion-dispatcher.service
@@ -91,7 +90,7 @@ INNER_EOF
     # tools
     # Install first so we can directly use them to generate some testcrypto
     # This has a depency on the daemon package
-    apt-get install /deb/scion-tools_*_${arch}.deb /deb/scion-daemon_*_${arch}.deb
+    rpm -i /rpm/scion-tools_*_${arch}.rpm /rpm/scion-daemon_*_${arch}.rpm
     pushd /tmp/
     scion-pki testcrypto --topo <(cat << INNER_EOF
 ASes:
@@ -105,7 +104,7 @@ INNER_EOF
     # ... (to be continued)
 
     # control
-    apt-get install /deb/scion-control*_${arch}.deb
+    rpm -i /rpm/scion-control*_${arch}.rpm
     cat > /etc/scion/cs-1.toml << INNER_EOF
         general.id = "cs-1"
         general.config_dir = "/etc/scion"
@@ -130,7 +129,7 @@ INNER_EOF
     systemctl stop scion-daemon.service scion-dispatcher.service
 
     # scion-ip-gateway
-    apt-get install /deb/scion-ip-gateway_*_${arch}.deb
+    rpm -i /rpm/scion-ip-gateway_*_${arch}.rpm
     systemctl start scion-ip-gateway.service
     sleep 1
     # Note: this starts even if the default sig.json is not a valid configuration

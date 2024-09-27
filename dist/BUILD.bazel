@@ -229,14 +229,13 @@ scion_pkg_rpm(
     name = "router_rpm",
     depends = [
         "/sbin/adduser",
-        "scion-dispatcher",
     ],
     description = "SCION inter-domain network architecture border router",
     executables = {
         "//router/cmd/router:router": "scion-router",
     },
     package = "scion-router",
-    postinst = "debian/scion.postinst",
+    postinst = "rpm/scion.postinst",
     systemds = ["systemd/scion-router@.service"],
     version_file = ":git_version",
 )
@@ -253,7 +252,6 @@ scion_pkg_rpm(
         "//control/cmd/control:control": "scion-control",
     },
     package = "scion-control",
-    postinst = "debian/scion.postinst",
     systemds = ["systemd/scion-control@.service"],
     version_file = ":git_version",
 )
@@ -269,7 +267,7 @@ scion_pkg_rpm(
         "//dispatcher/cmd/dispatcher:dispatcher": "scion-dispatcher",
     },
     package = "scion-dispatcher",
-    postinst = "debian/scion.postinst",
+    postinst = "rpm/scion.postinst",
     systemds = ["systemd/scion-dispatcher.service"],
     version_file = ":git_version",
 )
@@ -285,7 +283,7 @@ scion_pkg_rpm(
         "//daemon/cmd/daemon:daemon": "scion-daemon",
     },
     package = "scion-daemon",
-    postinst = "debian/scion.postinst",
+    postinst = "rpm/scion.postinst",
     systemds = ["systemd/scion-daemon.service"],
     version_file = ":git_version",
 )
@@ -306,7 +304,6 @@ scion_pkg_rpm(
         "//gateway/cmd/gateway:gateway": "scion-ip-gateway",
     },
     package = "scion-ip-gateway",
-    postinst = "debian/scion.postinst",
     systemds = ["systemd/scion-ip-gateway.service"],
     version_file = ":git_version",
 )
