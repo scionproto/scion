@@ -2,7 +2,7 @@ load("@rules_pkg//pkg:pkg.bzl", "pkg_deb", "pkg_tar")
 load("@rules_pkg//pkg:rpm.bzl", "pkg_rpm")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_pkg//pkg:providers.bzl", "PackageVariablesInfo")
-load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "pkg_attributes")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
 
 SCION_PKG_HOMEPAGE = "https://github.com/scionproto/scion"
 SCION_PKG_MAINTAINER = "SCION Contributors"
@@ -79,20 +79,31 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
 
     # Note that our "executables" parameter is a dictionary label->file_name; exactly what pkg_files
     # wants for its "renames" param.
-    pkg_files(name="%s_configs" % name, prefix="/etc/scion/", srcs=configs)
-    pkg_files(name="%s_systemds" % name, prefix="/lib/systemd/system/", srcs=systemds)
-    pkg_files(name="%s_execs" % name, prefix="/usr/bin/", srcs=executables.keys(),
-              attributes=pkg_attributes(mode = "0755"), renames=executables)
+    pkg_files(name = "%s_configs" % name, prefix = "/etc/scion/", srcs = configs)
+    pkg_files(name = "%s_systemds" % name, prefix = "/lib/systemd/system/", srcs = systemds)
+    pkg_files(
+        name = "%s_execs" % name,
+        prefix = "/usr/bin/",
+        srcs = executables.keys(),
+        attributes = pkg_attributes(mode = "0755"),
+        renames = executables,
+    )
 
     if kwargs.get("version_file"):
-        native.genrule(name="%s_version" % name,
-                       srcs=[kwargs["version_file"]], outs=["%s_version_file" % name],
-                       cmd="sed 's/-/^/g' < $< > $@")
+        native.genrule(
+            name = "%s_version" % name,
+            srcs = [kwargs["version_file"]],
+            outs = ["%s_version_file" % name],
+            cmd = "sed 's/-/^/g' < $< > $@",
+        )
         kwargs.pop("version_file")
     elif kwargs.get("version"):
-        native.genrule(name="%s_version" % name,
-                       srcs=[], outs=["%s_version_file" % name],
-                       cmd="echo \"%s\" | sed 's/-/^/g' > $@" % kwargs["version"])
+        native.genrule(
+            name = "%s_version" % name,
+            srcs = [],
+            outs = ["%s_version_file" % name],
+            cmd = "echo \"%s\" | sed 's/-/^/g' > $@" % kwargs["version"],
+        )
         kwargs.pop("version")
 
     # Use ethe same attributes as scion_pkg_deb, in view of may-be simplifying BUILD.bazel later.
