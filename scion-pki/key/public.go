@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/app/command"
+	scionpki "github.com/scionproto/scion/scion-pki"
 	"github.com/scionproto/scion/scion-pki/file"
 )
 
@@ -35,6 +36,7 @@ func NewPublicCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		out   string
 		force bool
+		kms   string
 	}
 	var cmd = &cobra.Command{
 		Use:   "public [flags] <private-key-file>",
@@ -50,7 +52,7 @@ By default, the public key is written to standard out.
 			cmd.SilenceUsage = true
 
 			filename := args[0]
-			priv, err := LoadPrivateKey(filename)
+			priv, err := LoadPrivateKey(flags.kms, filename)
 			if err != nil {
 				return err
 			}
@@ -89,36 +91,40 @@ By default, the public key is written to standard out.
 	cmd.Flags().BoolVar(&flags.force, "force", false,
 		"Force overwritting existing public key",
 	)
+	scionpki.BindFlagKms(cmd.Flags(), &flags.kms)
 	return cmd
 }
 
 // LoadPrivate key loads a private key from file.
-func LoadPrivateKey(filename string) (crypto.Signer, error) {
-	raw, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, serrors.Wrap("reading private key", err)
-	}
-	p, rest := pem.Decode(raw)
-	if p == nil {
-		return nil, serrors.New("parsing private key failed")
-	}
-	if len(rest) != 0 {
-		return nil, serrors.New("file must only contain private key")
-	}
-	if p.Type != "PRIVATE KEY" {
-		return nil, serrors.New("file does not contain a private key", "type", p.Type)
-	}
+func LoadPrivateKey(kms, name string) (crypto.Signer, error) {
+	if kms == "" {
+		raw, err := os.ReadFile(name)
+		if err != nil {
+			return nil, serrors.Wrap("reading private key", err)
+		}
+		p, rest := pem.Decode(raw)
+		if p == nil {
+			return nil, serrors.New("parsing private key failed")
+		}
+		if len(rest) != 0 {
+			return nil, serrors.New("file must only contain private key")
+		}
+		if p.Type != "PRIVATE KEY" {
+			return nil, serrors.New("file does not contain a private key", "type", p.Type)
+		}
 
-	key, err := x509.ParsePKCS8PrivateKey(p.Bytes)
-	if err != nil {
-		return nil, serrors.Wrap("parsing private key", err)
-	}
+		key, err := x509.ParsePKCS8PrivateKey(p.Bytes)
+		if err != nil {
+			return nil, serrors.Wrap("parsing private key", err)
+		}
 
-	priv, ok := key.(crypto.Signer)
-	if !ok {
-		return nil, serrors.New("cannot get public key from private key",
-			"type", fmt.Sprintf("%T", key),
-		)
+		priv, ok := key.(crypto.Signer)
+		if !ok {
+			return nil, serrors.New("cannot get public key from private key",
+				"type", fmt.Sprintf("%T", key),
+			)
+		}
+		return priv, nil
 	}
-	return priv, nil
+	return newKMSSigner(kms, name)
 }

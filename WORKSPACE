@@ -2,7 +2,7 @@ workspace(
     name = "com_github_scionproto_scion",
 )
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # linter rules
 http_archive(
@@ -46,6 +46,8 @@ aspect_bazel_lib_register_toolchains()
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
+    patch_args = ["-p0"],
+    patches = ["//patches:io_bazel_rules_go/import.patch"],
     sha256 = "af47f30e9cbd70ae34e49866e201b3f77069abb111183f2c0297e7e74ba6bbc0",
     urls = [
         "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.47.0/rules_go-v0.47.0.zip",
@@ -211,6 +213,15 @@ load("@rules_pkg//toolchains/rpm:rpmbuild_configure.bzl", "find_system_rpmbuild"
 find_system_rpmbuild(
     name = "rules_pkg_rpmbuild",
     verbose = False,
+
+# Buf CLI
+http_archive(
+    name = "buf",
+    build_file_content = "exports_files([\"buf\"])",
+    sha256 = "16253b6702dd447ef941b01c9c386a2ab7c8d20bbbc86a5efa5953270f6c9010",
+    strip_prefix = "buf/bin",
+    urls = ["https://github.com/bufbuild/buf/releases/download/v1.32.2/buf-Linux-x86_64.tar.gz"],
+
 )
 
 # protobuf/gRPC
@@ -242,16 +253,6 @@ http_archive(
     strip_prefix = "buildtools-6.3.3",
     urls = [
         "https://github.com/bazelbuild/buildtools/archive/refs/tags/6.3.3.tar.gz",
-    ],
-)
-
-http_file(
-    name = "buf_bin",
-    downloaded_file_path = "buf",
-    executable = True,
-    sha256 = "5faf15ed0a3cd4bd0919ba5fcb95334c1fd2ba32770df289d615138fa188d36a",
-    urls = [
-        "https://github.com/bufbuild/buf/releases/download/v0.20.5/buf-Linux-x86_64",
     ],
 )
 
