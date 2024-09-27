@@ -213,6 +213,7 @@ load("@rules_pkg//toolchains/rpm:rpmbuild_configure.bzl", "find_system_rpmbuild"
 find_system_rpmbuild(
     name = "rules_pkg_rpmbuild",
     verbose = False,
+)
 
 # Buf CLI
 http_archive(
