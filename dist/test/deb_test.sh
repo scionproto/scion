@@ -52,7 +52,6 @@ docker exec -i debian-systemd /bin/bash <<'EOF'
 
     # router
     apt-get install /deb/scion-router_*_${arch}.deb
-    ls -l /etc/scion
     cat > /etc/scion/br-1.toml <<INNER_EOF
         [general]
         id = "br-1"
