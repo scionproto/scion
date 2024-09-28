@@ -280,7 +280,7 @@ services:
   tester_1-ff00_0_111:
     depends_on:
     - disp_tester_1-ff00_0_111
-    entrypoint: sh tester.sh
+    command: sh -c "ip route del default && ip route add default via 192.168.123.2 && tail -f /dev/null"
     environment:
       SCION_DAEMON: 192.168.123.3:30255
       SCION_LOCAL_ADDR: 192.168.123.4
@@ -310,6 +310,7 @@ services:
     - /home/ubuntu/scion-testnet:/share/testnet:ro
     - /home/ubuntu/go1.23:/share/go:rw
   nat_1-ff00_0_111:
+    command: sh -c "apt update && apt install -y iptables && ip route del default && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o eth1 -j MASQUERADE && tail -f /dev/null"
     image: scion/tester:latest
     networks:
       scn_002:
