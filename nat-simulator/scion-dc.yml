@@ -1,0 +1,322 @@
+name: scion
+networks:
+  scn_000:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: scn_000
+    ipam:
+      config:
+      - subnet: 172.20.0.0/29
+  scn_001:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: scn_001
+    ipam:
+      config:
+      - subnet: 172.20.0.16/29
+  scn_002:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: scn_002
+    ipam:
+      config:
+      - subnet: 172.20.0.24/29
+  scn_003:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: scn_003
+    enable_ipv6: true
+    ipam:
+      config:
+      - subnet: fd00:f00d:cafe::7f00:8/125
+      - subnet: 172.20.0.8/29
+  scn_004:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: scn_004
+    enable_ipv6: true
+    ipam:
+      config:
+      - subnet: fd00:f00d:cafe::7f00:10/125
+      - subnet: 172.20.0.32/29
+  local_001:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: local_001
+    ipam:
+      config:
+      - subnet: 192.168.123.0/24
+services:
+  br1-ff00_0_110-1:
+    command:
+    - --config
+    - /etc/scion/br1-ff00_0_110-1.toml
+    image: scion/router:latest
+    networks:
+      scn_000:
+        ipv4_address: 172.20.0.2
+      scn_001:
+        ipv4_address: 172.20.0.18
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:ro
+  br1-ff00_0_110-2:
+    command:
+    - --config
+    - /etc/scion/br1-ff00_0_110-2.toml
+    image: scion/router:latest
+    networks:
+      scn_001:
+        ipv4_address: 172.20.0.19
+      scn_003:
+        ipv6_address: fd00:f00d:cafe::7f00:a
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:ro
+  br1-ff00_0_111-1:
+    command:
+    - --config
+    - /etc/scion/br1-ff00_0_111-1.toml
+    image: scion/router:latest
+    networks:
+      scn_000:
+        ipv4_address: 172.20.0.3
+      scn_002:
+        ipv4_address: 172.20.0.26
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_111:/etc/scion:ro
+  br1-ff00_0_112-1:
+    command:
+    - --config
+    - /etc/scion/br1-ff00_0_112-1.toml
+    image: scion/router:latest
+    networks:
+      scn_003:
+        ipv6_address: fd00:f00d:cafe::7f00:b
+      scn_004:
+        ipv6_address: fd00:f00d:cafe::7f00:12
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_112:/etc/scion:ro
+  cs1-ff00_0_110-1:
+    command:
+    - --config
+    - /etc/scion/cs1-ff00_0_110-1.toml
+    depends_on:
+    - disp_cs1-ff00_0_110-1
+    image: scion/control:latest
+    network_mode: service:disp_cs1-ff00_0_110-1
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen-cache:/share/cache:rw
+    - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:ro
+  cs1-ff00_0_111-1:
+    command:
+    - --config
+    - /etc/scion/cs1-ff00_0_111-1.toml
+    depends_on:
+    - disp_cs1-ff00_0_111-1
+    image: scion/control:latest
+    network_mode: service:disp_cs1-ff00_0_111-1
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen-cache:/share/cache:rw
+    - /home/ubuntu/scion/gen/ASff00_0_111:/etc/scion:ro
+  cs1-ff00_0_112-1:
+    command:
+    - --config
+    - /etc/scion/cs1-ff00_0_112-1.toml
+    depends_on:
+    - disp_cs1-ff00_0_112-1
+    image: scion/control:latest
+    network_mode: service:disp_cs1-ff00_0_112-1
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen-cache:/share/cache:rw
+    - /home/ubuntu/scion/gen/ASff00_0_112:/etc/scion:ro
+  disp_cs1-ff00_0_110-1:
+    command:
+    - --config
+    - /etc/scion/disp_cs1-ff00_0_110-1.toml
+    extra_hosts:
+    - jaeger:172.17.0.1
+    image: scion/dispatcher:latest
+    networks:
+      scn_001:
+        ipv4_address: 172.20.0.20
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:rw
+  disp_cs1-ff00_0_111-1:
+    command:
+    - --config
+    - /etc/scion/disp_cs1-ff00_0_111-1.toml
+    extra_hosts:
+    - jaeger:172.17.0.1
+    image: scion/dispatcher:latest
+    networks:
+      scn_002:
+        ipv4_address: 172.20.0.27
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_111:/etc/scion:rw
+  disp_cs1-ff00_0_112-1:
+    command:
+    - --config
+    - /etc/scion/disp_cs1-ff00_0_112-1.toml
+    extra_hosts:
+    - jaeger:172.17.0.1
+    image: scion/dispatcher:latest
+    networks:
+      scn_004:
+        ipv6_address: fd00:f00d:cafe::7f00:13
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_112:/etc/scion:rw
+  disp_tester_1-ff00_0_110:
+    command:
+    - --config
+    - /etc/scion/disp_tester_1-ff00_0_110.toml
+    extra_hosts:
+    - jaeger:172.17.0.1
+    image: scion/dispatcher:latest
+    networks:
+      scn_001:
+        ipv4_address: 172.20.0.22
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:rw
+  disp_tester_1-ff00_0_111:
+    command:
+    - --config
+    - /etc/scion/disp_tester_1-ff00_0_111.toml
+    extra_hosts:
+    - jaeger:172.17.0.1
+    image: scion/dispatcher:latest
+    networks:
+      local_001:
+        ipv4_address: 192.168.123.4
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_111:/etc/scion:rw
+  disp_tester_1-ff00_0_112:
+    command:
+    - --config
+    - /etc/scion/disp_tester_1-ff00_0_112.toml
+    extra_hosts:
+    - jaeger:172.17.0.1
+    image: scion/dispatcher:latest
+    networks:
+      scn_004:
+        ipv6_address: fd00:f00d:cafe::7f00:15
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen/ASff00_0_112:/etc/scion:rw
+  sd1-ff00_0_110:
+    command:
+    - --config
+    - /etc/scion/sd.toml
+    depends_on:
+    - disp_cs1-ff00_0_110-1
+    extra_hosts:
+    - jaeger:172.17.0.1
+    image: scion/daemon:latest
+    networks:
+      scn_001:
+        ipv4_address: 172.20.0.21
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen-cache:/share/cache:rw
+    - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:ro
+  sd1-ff00_0_111:
+    command:
+    - --config
+    - /etc/scion/sd.toml
+    depends_on:
+    - disp_cs1-ff00_0_111-1
+    extra_hosts:
+    - jaeger:172.17.0.1
+    image: scion/daemon:latest
+    networks:
+      local_001:
+        ipv4_address: 192.168.123.3
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen-cache:/share/cache:rw
+    - /home/ubuntu/scion/gen/ASff00_0_111:/etc/scion:ro
+  sd1-ff00_0_112:
+    command:
+    - --config
+    - /etc/scion/sd.toml
+    depends_on:
+    - disp_cs1-ff00_0_112-1
+    extra_hosts:
+    - jaeger:172.17.0.1
+    image: scion/daemon:latest
+    networks:
+      scn_004:
+        ipv6_address: fd00:f00d:cafe::7f00:14
+    user: 1000:1000
+    volumes:
+    - /home/ubuntu/scion/gen-cache:/share/cache:rw
+    - /home/ubuntu/scion/gen/ASff00_0_112:/etc/scion:ro
+  tester_1-ff00_0_110:
+    depends_on:
+    - disp_tester_1-ff00_0_110
+    entrypoint: sh tester.sh
+    environment:
+      SCION_DAEMON: 172.20.0.21:30255
+      SCION_LOCAL_ADDR: 172.20.0.22
+    image: scion/tester:latest
+    network_mode: service:disp_tester_1-ff00_0_110
+    privileged: true
+    volumes:
+    - /home/ubuntu/scion/logs:/share/logs:rw
+    - /home/ubuntu/scion/gen:/share/gen:rw
+    - /home/ubuntu/scion/gen-certs:/share/gen-certs:rw
+    - /home/ubuntu/scion-testnet:/share/testnet:ro
+    - /home/ubuntu/go1.23:/share/go:rw
+  tester_1-ff00_0_111:
+    depends_on:
+    - disp_tester_1-ff00_0_111
+    command: sh -c "ip route del default && ip route add default via 192.168.123.2 && tail -f /dev/null"
+    environment:
+      SCION_DAEMON: 192.168.123.3:30255
+      SCION_LOCAL_ADDR: 192.168.123.4
+    image: scion/tester:latest
+    network_mode: service:disp_tester_1-ff00_0_111
+    privileged: true
+    volumes:
+    - /home/ubuntu/scion/logs:/share/logs:rw
+    - /home/ubuntu/scion/gen:/share/gen:rw
+    - /home/ubuntu/scion/gen-certs:/share/gen-certs:rw
+    - /home/ubuntu/scion-testnet:/share/testnet:ro
+    - /home/ubuntu/go1.23:/share/go:rw
+  tester_1-ff00_0_112:
+    depends_on:
+    - disp_tester_1-ff00_0_112
+    entrypoint: sh tester.sh
+    environment:
+      SCION_DAEMON: '[fd00:f00d:cafe::7f00:14]:30255'
+      SCION_LOCAL_ADDR: fd00:f00d:cafe::7f00:15
+    image: scion/tester:latest
+    network_mode: service:disp_tester_1-ff00_0_112
+    privileged: true
+    volumes:
+    - /home/ubuntu/scion/logs:/share/logs:rw
+    - /home/ubuntu/scion/gen:/share/gen:rw
+    - /home/ubuntu/scion/gen-certs:/share/gen-certs:rw
+    - /home/ubuntu/scion-testnet:/share/testnet:ro
+    - /home/ubuntu/go1.23:/share/go:rw
+  nat_1-ff00_0_111:
+    command: sh -c "apt update && apt install -y iptables && ip route del default && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o eth1 -j MASQUERADE && tail -f /dev/null"
+    image: scion/tester:latest
+    networks:
+      scn_002:
+        ipv4_address: 172.20.0.28
+      local_001:
+        ipv4_address: 192.168.123.2
+    privileged: true
+version: '2.4'
+volumes: {}
