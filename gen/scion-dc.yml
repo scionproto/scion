@@ -316,5 +316,6 @@ services:
         ipv4_address: 172.20.0.28
       local_001:
         ipv4_address: 192.168.123.2
+    privileged: true
 version: '2.4'
 volumes: {}

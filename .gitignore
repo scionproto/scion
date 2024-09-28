@@ -11,7 +11,7 @@ Thumbs.db
 # SCION generated files #
 #########################
 /logs/
-/gen/
+#/gen/
 /genold/
 /gen-cache/
 /gen-data/
