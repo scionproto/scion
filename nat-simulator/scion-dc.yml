@@ -230,18 +230,20 @@ services:
     - /home/ubuntu/scion/gen-cache:/share/cache:rw
     - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:ro
   sd1-ff00_0_111:
-    command:
-    - --config
-    - /etc/scion/sd.toml
+    entrypoint: []
+    command: sh -c "ip route del default && ip route add default via 192.168.123.2 && /app/daemon --config /etc/scion/sd.toml && tail -f /dev/null"
     depends_on:
     - disp_cs1-ff00_0_111-1
-    extra_hosts:
-    - jaeger:172.17.0.1
+    - nat_1-ff00_0_111
+    #extra_hosts:
+    #- jaeger:172.17.0.1
     image: scion/daemon:latest
+    cap_add:
+      - NET_ADMIN
     networks:
       local_001:
         ipv4_address: 192.168.123.3
-    user: 1000:1000
+    #user: 1000:1000
     volumes:
     - /home/ubuntu/scion/gen-cache:/share/cache:rw
     - /home/ubuntu/scion/gen/ASff00_0_111:/etc/scion:ro
@@ -310,13 +312,14 @@ services:
     - /home/ubuntu/scion-testnet:/share/testnet:ro
     - /home/ubuntu/go1.23:/share/go:rw
   nat_1-ff00_0_111:
-    command: sh -c "apt update && apt install -y iptables && ip route del default && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o eth1 -j MASQUERADE && tail -f /dev/null"
+    command: sh -c "apt update && apt install -y iptables && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o eth1 -j MASQUERADE && tail -f /dev/null"
     image: scion/tester:latest
     networks:
       scn_002:
         ipv4_address: 172.20.0.28
       local_001:
         ipv4_address: 192.168.123.2
-    privileged: true
+    cap_add:
+    - NET_ADMIN
 version: '2.4'
 volumes: {}
