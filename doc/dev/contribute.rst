@@ -98,6 +98,7 @@ The current members of the TC Implementation are:
 * François Wirz (|span-github| `@FR4NK-W <https://github.com/FR4NK-W>`_, |span-slack| @frank)
 * Lukas Vogel (|span-github| `@lukedirtwalker <https://github.com/lukedirtwalker>`_, |span-slack| @luke)
 * Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
+* Jordi Subirà (|span-github| `@JordiSubira <https://github.com/JordiSubira>`_, |span-slack| @jordisubira)
 
 
 .. rubric:: Responsibilities and Tasks
@@ -157,7 +158,7 @@ Formal Process
 .. image:: fig/change-proposal-process.excalidraw.png
 
 :Creation: To open a proposal, the author submits a GitHub issue following the
-  proposal template.
+  `proposal` template.
 :Review: The proposal may receive feedback from the community, which should be
   incorporated by the author. Moreover, the assigned technical team triages the
   proposal and assigns one of its members to manage the process. The technical
@@ -167,29 +168,46 @@ Formal Process
   The technical team decides to **accept**, **postpone**, or **reject** the
   proposal based on the outcomes of the discussion and feedback from the
   community.
-:Design:
-  If the proposal has been accepted, the authors submit a design document and
-  submit it to the repository (:file-ref:`doc/dev/design`)
-  in the form of a pull request.
-  See :doc:`design/index` for details.
+:Initial Design:
+  If the proposal has been accepted, the authors complete an initial design document
+  and submit it to the repository (:file-ref:`doc/dev/design`)
+  in the form of a pull request. The design document has the status **WIP** and
+  is linked to the WIP section of :doc:`design/index`. Once that pull request is
+  approved and merged, the proposal issue is closed. A new issue (following the `Work Item`
+  template), owned by the design proponent, is open to track its evolution
+  towards its final form. The title of the issue may be of the form:
+  `<topic>: finalize design`.
+:Design Improvements:
+  Multiple revisions to the WIP document may be submitted and reviewed as PRs.
+  Participants may discuss any change required via the tracking issue.
 :Final review:
-  The design document will be reviewed by the assigned technical team. Since
-  all major points should already be agreed upon in the proposal review, this
-  final review is expected to be lightweight. After this review, the technical
-  team may start the final comment period, together with a proposition to
-  **merge**, **close**, or **postpone** the proposal.
+  Once the document reaches a form that appears consensual, the technical
+  team starts the final comment period, together with a proposition to
+  **accept**, **postpone**, or **reject** the design.
 
   The **final comment period** lasts **ten calendar days** and is advertised, such that
   stakeholders have a chance to lodge any final objections before a decision is
   reached. If no major comments are raised during the final comment period, the
-  proposed action (close, merge, or postpone) is accepted; otherwise, the
+  proposed action (accept, postpone, reject) is acted; otherwise, the
   proposal goes back to the review step and is discussed further.
+
+  Following the decision, the document's status is changed to one of **Active**, **Postponed**,
+  or **Rejected**, the design document is linked to the corresponding section of the index,
+  and the tracking issue is closed. If the design's new status is **Active**, a new tracking
+  issue is open for its implementation.
 :Implementation:
-  If the final comment period ends with the decision to merge the proposal, it
-  becomes active. The proposal can now be implemented (typically, but not
-  necessarily by the authors). The implementation is submitted as a pull
-  request. The implementation will be reviewed; acceptance of the proposal does
-  not automatically imply that its implementation will be accepted.
+  The design is implemented typically, but not necessarily, by the authors.
+  The implementation is submitted as one or more pull requests. The implementation will be
+  reviewed; acceptance of the design does not automatically imply that its implementation
+  will be accepted.
+
+  Once the implementation is deemed complete, the design document's status is changed to
+  **Complete**, it is linked to the corresponding section of the index, and the
+  implementation tracking issue is closed.
+
+  Should a decision be made to abandon or postpone the implementation, the design document's
+  status is changed to **Postponed**, **Outdated**, or **Rejected**; depending on the reason
+  for the decision.
 
 Learning resources
 ==================
