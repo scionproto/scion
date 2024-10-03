@@ -32,7 +32,7 @@ contribution process.
   creating new design documents where appropriate.
 
   During implementation the design may also become suspended (**Postponed**)
-  or abandonned (**Rejected** or **Outdated**).
+  or abandoned (**Rejected** or **Outdated**).
 
 - **Replacement**:
   If the implementation has changed so much that a design document is no longer

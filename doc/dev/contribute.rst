@@ -138,7 +138,7 @@ More **substantial changes** must be submitted as a **proposal**
 in the form of a GitHub issue, in order to create a consensus among the SCION community.
 Typical examples for substantial change proposals include:
 
-* Adding, changing, or removing compontents or functionality
+* Adding, changing, or removing components or functionality
 * Changing interfaces between components
 
 Proposals for changes to the SCION protocol (e.g., header format, processing
@@ -202,7 +202,7 @@ Formal Process
   will be accepted.
 
   Once the implementation is deemed complete, the design document's status is changed to
-  **Complete**, it is linked to the corresponding section of the index, and the
+  **Completed**, it is linked to the corresponding section of the index, and the
   implementation tracking issue is closed.
 
   Should a decision be made to abandon or postpone the implementation, the design document's

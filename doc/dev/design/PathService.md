@@ -1,7 +1,7 @@
 # Path Service
 
 * Author: Lukas Vogel, Sergiu Costea, Matthias Frei
-* Status: **outdated**
+* Status: **Outdated**
 
 ---
 ⚠️  **NOTE** ⚠️

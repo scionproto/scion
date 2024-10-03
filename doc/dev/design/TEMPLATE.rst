@@ -5,7 +5,7 @@
 - Author(s): [Author Name(s)]
 - Last updated: [Date (Year-Month-Day)]
 - Discussion at: :issue:`NNNN`
-- Status: [**WIP**, **Active**, **Postponed**, **Rejected**, **Outdated**]
+- Status: [**WIP**, **Active**, **Completed**, **Postponed**, **Rejected**, **Outdated**]
 
 Abstract
 ========
