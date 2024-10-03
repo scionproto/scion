@@ -158,7 +158,7 @@ Formal Process
 .. image:: fig/change-proposal-process.excalidraw.png
 
 :Creation: To open a proposal, the author submits a GitHub issue following the
-  `proposal` template.
+  ``proposal`` template.
 :Review: The proposal may receive feedback from the community, which should be
   incorporated by the author. Moreover, the assigned technical team triages the
   proposal and assigns one of its members to manage the process. The technical
@@ -173,10 +173,10 @@ Formal Process
   and submit it to the repository (:file-ref:`doc/dev/design`)
   in the form of a pull request. The design document has the status **WIP** and
   is linked to the WIP section of :doc:`design/index`. Once that pull request is
-  approved and merged, the proposal issue is closed. A new issue (following the `Work Item`
+  approved and merged, the proposal issue is closed. A new issue (following the ``Work Item``
   template), owned by the design proponent, is open to track its evolution
   towards its final form. The title of the issue may be of the form:
-  `<topic>: finalize design`.
+  ``<topic>: finalize design``.
 :Design Improvements:
   Multiple revisions to the WIP document may be submitted and reviewed as PRs.
   Participants may discuss any change required via the tracking issue.

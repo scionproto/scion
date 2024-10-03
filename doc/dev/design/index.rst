@@ -12,7 +12,7 @@ contribution process.
   While the design is still being discussed, it is in status **WIP** and linked in the
   section :ref:`design-docs-wip`. The document can be merged in this state as soon as the
   proposal is accepted, even if it still needs more work.
-  
+
   Once discussion on the design converges and the design document is finalized, its status
   becomes one of **Active**, **Postponed**, or **Rejected** and it is inserted to the corresponding
   section.
@@ -99,7 +99,7 @@ Rejected
 ========
 .. toctree::
    :maxdepth: 1
-      
+
 .. seealso::
 
    :ref:`change-proposal-process`
