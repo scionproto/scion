@@ -4,6 +4,7 @@ End hosts without dispatcher
 - Author: Matthias Frei.
   Originally proposed by Sergiu Costea.
 - Last updated: 2024-03-26
+- Status: **Active**
 - Discussion at: https://github.com/scionproto/scion/issues/3961
 
 Abstract

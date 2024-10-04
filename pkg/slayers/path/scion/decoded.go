@@ -64,7 +64,7 @@ func (s *Decoded) SerializeTo(b []byte) error {
 		return serrors.New("buffer too small to serialize path.", "expected", s.Len(),
 			"actual", len(b))
 	}
-	if err := s.PathMeta.SerializeTo(b[:MetaLen]); err != nil {
+	if err := s.PathMeta.SerializeTo(b); err != nil {
 		return err
 	}
 	offset := MetaLen

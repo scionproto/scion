@@ -41,11 +41,11 @@ func getASHostKeyFromReply(
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return drkey.ASHostKey{}, serrors.Wrap("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return drkey.ASHostKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{
@@ -87,11 +87,11 @@ func getHostASKeyFromReply(
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return drkey.HostASKey{}, serrors.Wrap("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return drkey.HostASKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{
@@ -133,11 +133,11 @@ func getHostHostKeyFromReply(
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return drkey.HostHostKey{}, serrors.Wrap("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return drkey.HostHostKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{

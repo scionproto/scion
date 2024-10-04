@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"strings"
 	"syscall"
@@ -84,21 +85,21 @@ On other errors, traceroute will exit with code 2.
 
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			remote, err := snet.ParseUDPAddr(args[0])
+			remote, err := addr.ParseAddr(args[0])
 			if err != nil {
-				return serrors.WrapStr("parsing remote", err)
+				return serrors.Wrap("parsing remote", err)
 			}
 			if err := app.SetupLog(flags.logLevel); err != nil {
-				return serrors.WrapStr("setting up logging", err)
+				return serrors.Wrap("setting up logging", err)
 			}
 			closer, err := setupTracer("traceroute", flags.tracer)
 			if err != nil {
-				return serrors.WrapStr("setting up tracing", err)
+				return serrors.Wrap("setting up tracing", err)
 			}
 			defer closer()
 			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
 			if err != nil {
-				return serrors.WrapStr("get formatting", err)
+				return serrors.Wrap("get formatting", err)
 			}
 			cmd.SilenceUsage = true
 
@@ -121,7 +122,7 @@ On other errors, traceroute will exit with code 2.
 			defer cancelF()
 			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
 			if err != nil {
-				return serrors.WrapStr("connecting to SCION Daemon", err)
+				return serrors.Wrap("connecting to SCION Daemon", err)
 			}
 			defer sd.Close()
 			info, err := app.QueryASInfo(traceCtx, sd)
@@ -139,21 +140,22 @@ On other errors, traceroute will exit with code 2.
 			if err != nil {
 				return err
 			}
-			remote.NextHop = path.UnderlayNextHop()
-			if remote.NextHop == nil {
-				remote.NextHop = &net.UDPAddr{
-					IP:   remote.Host.IP,
+			nextHop := path.UnderlayNextHop()
+			if nextHop == nil {
+				nextHop = &net.UDPAddr{
+					IP:   remote.Host.IP().AsSlice(),
 					Port: topology.EndhostPort,
+					Zone: remote.Host.IP().Zone(),
 				}
 			}
 
 			if localIP == nil {
-				target := remote.Host.IP
-				if remote.NextHop != nil {
-					target = remote.NextHop.IP
+				target := remote.Host.IP().AsSlice()
+				if nextHop != nil {
+					target = nextHop.IP
 				}
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
-					return serrors.WrapStr("resolving local address", err)
+					return serrors.Wrap("resolving local address", err)
 				}
 				printf("Resolved local address:\n  %s\n", localIP)
 			}
@@ -173,9 +175,13 @@ On other errors, traceroute will exit with code 2.
 			}
 
 			span.SetTag("src.host", localIP)
-			local := &snet.UDPAddr{
+			asNetipAddr, ok := netip.AddrFromSlice(localIP)
+			if !ok {
+				panic("Invalid Local IP address")
+			}
+			local := addr.Addr{
 				IA:   info.IA,
-				Host: &net.UDPAddr{IP: localIP},
+				Host: addr.HostIP(asNetipAddr),
 			}
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
 			var stats traceroute.Stats
@@ -183,6 +189,7 @@ On other errors, traceroute will exit with code 2.
 			cfg := traceroute.Config{
 				Topology:     sd,
 				Remote:       remote,
+				NextHop:      nextHop,
 				MTU:          path.Metadata().MTU,
 				Local:        local,
 				PathEntry:    path,
@@ -259,14 +266,14 @@ func fmtRemote(remote snet.SCIONAddress, intf uint64) string {
 
 func getHopInfo(u traceroute.Update, hop Hop) HopInfo {
 	if u.Remote == (snet.SCIONAddress{}) {
-		return HopInfo{IA: hop.IA, InterfaceID: uint16(hop.ID)}
+		return HopInfo{IA: hop.IA, InterfaceID: uint16(hop.ID)} // nolint - name from published API
 	}
 	RTTs := make([]durationMillis, 0, len(u.RTTs))
 	for _, rtt := range u.RTTs {
 		RTTs = append(RTTs, durationMillis(rtt))
 	}
 	return HopInfo{
-		InterfaceID:    uint16(u.Interface),
+		InterfaceID:    uint16(u.Interface), // nolint - name from published protobuf
 		IP:             u.Remote.Host.IP().String(),
 		IA:             u.Remote.IA,
 		RoundTripTimes: RTTs,

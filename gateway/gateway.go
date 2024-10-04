@@ -101,7 +101,7 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 	defer cancel()
 	conn, err := pcf.Network.Listen(ctx, "udp", pcf.Addr)
 	if err != nil {
-		return nil, serrors.WrapStr("creating packet conn", err)
+		return nil, serrors.Wrap("creating packet conn", err)
 	}
 	return conn, nil
 }
@@ -242,7 +242,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// *********************************************
 	localIA, err := g.Daemon.LocalIA(context.Background())
 	if err != nil {
-		return serrors.WrapStr("unable to learn local ISD-AS number", err)
+		return serrors.Wrap("unable to learn local ISD-AS number", err)
 	}
 	logger.Info("Learned local IA from SCION Daemon", "ia", localIA)
 
@@ -403,7 +403,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// Generate throwaway self-signed TLS certificates. These DO NOT PROVIDE ANY SECURITY.
 	ephemeralTLSConfig, err := infraenv.GenerateTLSConfig()
 	if err != nil {
-		return serrors.WrapStr("unable to generate TLS config", err)
+		return serrors.Wrap("unable to generate TLS config", err)
 	}
 
 	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
@@ -431,7 +431,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		&net.UDPAddr{IP: g.ControlClientIP},
 	)
 	if err != nil {
-		return serrors.WrapStr("unable to initialize client QUIC connection", err)
+		return serrors.Wrap("unable to initialize client QUIC connection", err)
 	}
 	logger.Info("QUIC client connection initialized",
 		"local_addr", clientConn.LocalAddr())
@@ -505,7 +505,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 						Network: scionNetwork,
 						LocalIP: g.ServiceDiscoveryClientIP,
 					},
-					SVCResolutionFraction: 1.337,
 				},
 			},
 		},
@@ -525,14 +524,14 @@ func (g *Gateway) Run(ctx context.Context) error {
 		g.ControlServerAddr,
 	)
 	if err != nil {
-		return serrors.WrapStr("unable to initialize server QUIC connection", err)
+		return serrors.Wrap("unable to initialize server QUIC connection", err)
 	}
 	logger.Info("QUIC server connection initialized",
 		"local_addr", serverConn.LocalAddr())
 
 	internalQUICServerListener, err := quic.Listen(serverConn, ephemeralTLSConfig, nil)
 	if err != nil {
-		return serrors.WrapStr("unable to initializer server QUIC listener", err)
+		return serrors.Wrap("unable to initializer server QUIC listener", err)
 	}
 	// Wrap in net.Listener for use with gRPC
 	quicServerListener := squic.NewConnListener(internalQUICServerListener)
@@ -572,7 +571,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	probeConn, err := scionNetwork.Listen(context.TODO(), "udp", g.ProbeServerAddr)
 	if err != nil {
-		return serrors.WrapStr("creating server probe conn", err)
+		return serrors.Wrap("creating server probe conn", err)
 	}
 	probeServer := controlgrpc.ProbeDispatcher{}
 	probeServerCtx, probeServerCancel := context.WithCancel(context.Background())
@@ -685,7 +684,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	if err := g.HTTPEndpoints.Register(g.HTTPServeMux, g.ID); err != nil {
-		return serrors.WrapStr("registering HTTP pages", err)
+		return serrors.Wrap("registering HTTP pages", err)
 	}
 	<-ctx.Done()
 	return nil
@@ -770,7 +769,7 @@ func StartIngress(ctx context.Context, scionNetwork *snet.SCIONNetwork, dataAddr
 		dataAddr,
 	)
 	if err != nil {
-		return serrors.WrapStr("creating ingress conn", err)
+		return serrors.Wrap("creating ingress conn", err)
 	}
 	ingressMetrics := CreateIngressMetrics(metrics)
 	ingressServer := &dataplane.IngressServer{
@@ -872,7 +871,7 @@ func (r *TunnelReader) GetDeviceOpenerWithAsyncReader(ctx context.Context) contr
 		logger := log.FromCtx(ctx)
 		handle, err := r.DeviceOpener.Open(ctx, ia)
 		if err != nil {
-			return nil, serrors.WrapStr("opening device", err)
+			return nil, serrors.Wrap("opening device", err)
 		}
 
 		forwarder := &dataplane.IPForwarder{

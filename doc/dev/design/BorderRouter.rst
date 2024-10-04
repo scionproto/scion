@@ -4,6 +4,7 @@ Border Router Performance Optimized Redesign
 
 - Author: Justin Rohrer
 - Last Updated: 2023-05-25
+- Status: **Completed**
 - Discussion at: `#4334 <https://github.com/scionproto/scion/issues/4334>`_
 
 Abstract

@@ -49,9 +49,19 @@ type ISD uint16
 func ParseISD(s string) (ISD, error) {
 	isd, err := strconv.ParseUint(s, 10, ISDBits)
 	if err != nil {
-		return 0, serrors.WrapStr("parsing ISD", err)
+		return 0, serrors.Wrap("parsing ISD", err)
 	}
 	return ISD(isd), nil
+}
+
+// MustParseISD parses s and returns the corresponding addr.ISD object. It panics
+// if s is not valid ISD representation.
+func MustParseISD(s string) ISD {
+	isd, err := ParseISD(s)
+	if err != nil {
+		panic(err)
+	}
+	return isd
 }
 
 func (isd ISD) String() string {
@@ -70,6 +80,16 @@ func ParseAS(as string) (AS, error) {
 	return parseAS(as, ":")
 }
 
+// MustParseAS parses s and returns the corresponding addr.AS object. It panics
+// if s is not valid AS representation.
+func MustParseAS(s string) AS {
+	as, err := ParseAS(s)
+	if err != nil {
+		panic(err)
+	}
+	return as
+}
+
 func parseAS(as string, sep string) (AS, error) {
 	parts := strings.Split(as, sep)
 	if len(parts) == 1 {
@@ -85,7 +105,7 @@ func parseAS(as string, sep string) (AS, error) {
 		parsed <<= asPartBits
 		v, err := strconv.ParseUint(parts[i], asPartBase, asPartBits)
 		if err != nil {
-			return 0, serrors.WrapStr("parsing AS part", err, "index", i, "value", as)
+			return 0, serrors.Wrap("parsing AS part", err, "index", i, "value", as)
 		}
 		parsed |= AS(v)
 	}
@@ -100,7 +120,7 @@ func parseAS(as string, sep string) (AS, error) {
 func asParseBGP(s string) (AS, error) {
 	as, err := strconv.ParseUint(s, 10, BGPASBits)
 	if err != nil {
-		return 0, serrors.WrapStr("parsing BGP AS", err)
+		return 0, serrors.Wrap("parsing BGP AS", err)
 	}
 	return AS(as), nil
 }
@@ -171,6 +191,16 @@ func ParseIA(ia string) (IA, error) {
 		return 0, err
 	}
 	return MustIAFrom(isd, as), nil
+}
+
+// MustParseIA parses s and returns the corresponding addr.IA object. It
+// panics if s is not a valid ISD-AS representation.
+func MustParseIA(s string) IA {
+	ia, err := ParseIA(s)
+	if err != nil {
+		panic(err)
+	}
+	return ia
 }
 
 func (ia IA) ISD() ISD {

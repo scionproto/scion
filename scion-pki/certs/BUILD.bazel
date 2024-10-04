@@ -43,6 +43,7 @@ go_library(
         "//private/svc:go_default_library",
         "//private/tracing:go_default_library",
         "//private/trust:go_default_library",
+        "//scion-pki:go_default_library",
         "//scion-pki/encoding:go_default_library",
         "//scion-pki/file:go_default_library",
         "//scion-pki/key:go_default_library",
@@ -67,6 +68,7 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
+        "//pkg/addr:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
         "//pkg/scrypto:go_default_library",

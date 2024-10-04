@@ -79,13 +79,14 @@ protobuf:
 	rm -f pkg/proto/*/*.pb.go
 	cp -r bazel-bin/pkg/proto/*/go_default_library_/github.com/scionproto/scion/pkg/proto/* pkg/proto
 	cp -r bazel-bin/pkg/proto/*/*/go_default_library_/github.com/scionproto/scion/pkg/proto/* pkg/proto
-	chmod 0644 pkg/proto/*/*.pb.go
+	chmod 0644 pkg/proto/*/*.pb.go pkg/proto/*/*/*.pb.go
 
 mocks:
 	tools/gomocks.py
 
 gazelle: go_deps.bzl
 	bazel run //:gazelle --verbose_failures --config=quiet
+	./tools/buildrill/go_integration_test_sync
 
 licenses:
 	tools/licenses.sh
@@ -115,12 +116,12 @@ lint-go-bazel:
 	$(info ==> $@)
 	@tools/quiet bazel test --config lint //...
 
-GO_BUILD_TAGS_ARG=$(shell bazel build --ui_event_filters=-stdout,-stderr --announce_rc --noshow_progress :dummy_setting 2>&1 | grep "'build' options" | sed -n "s/^.*--define gotags=\(\S*\).*/--build-tags \1/p" )
+GO_BUILD_TAGS_ARG=$(shell bazel info --ui_event_filters=-stdout,-stderr --announce_rc --noshow_progress 2>&1 | grep "'build' options" | sed -n "s/^.*--define gotags=\(\S*\).*/--build-tags \1/p" )
 
 lint-go-golangci:
 	$(info ==> $@)
 	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
-		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.54.2 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
+		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.60.3 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
 
 lint-go-semgrep:
 	$(info ==> $@)
@@ -141,7 +142,7 @@ lint-protobuf: lint-protobuf-buf
 
 lint-protobuf-buf:
 	$(info ==> $@)
-	@tools/quiet bazel run --config=quiet @buf_bin//file:buf -- check lint
+	@tools/quiet bazel run --config=quiet @buf//:buf -- lint $(PWD) --path $(PWD)/proto
 
 lint-openapi: lint-openapi-spectral
 

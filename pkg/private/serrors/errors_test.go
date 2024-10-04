@@ -69,10 +69,10 @@ func (e *testToTempErr) Unwrap() error {
 func TestIsTimeout(t *testing.T) {
 	err := serrors.New("no timeout")
 	assert.False(t, serrors.IsTimeout(err))
-	wrappedErr := serrors.WrapStr("timeout",
+	wrappedErr := serrors.Wrap("timeout",
 		&testToTempErr{msg: "to", timeout: true})
 	assert.True(t, serrors.IsTimeout(wrappedErr))
-	noTimeoutWrappingTimeout := serrors.WrapStr("notimeout", &testToTempErr{
+	noTimeoutWrappingTimeout := serrors.Wrap("notimeout", &testToTempErr{
 		msg:     "non timeout wraps timeout",
 		timeout: false,
 		cause:   &testToTempErr{msg: "timeout", timeout: true},
@@ -83,10 +83,10 @@ func TestIsTimeout(t *testing.T) {
 func TestIsTemporary(t *testing.T) {
 	err := serrors.New("not temp")
 	assert.False(t, serrors.IsTemporary(err))
-	wrappedErr := serrors.WrapStr("temp",
+	wrappedErr := serrors.Wrap("temp",
 		&testToTempErr{msg: "to", temporary: true})
 	assert.True(t, serrors.IsTemporary(wrappedErr))
-	noTempWrappingTemp := serrors.WrapStr("notemp", &testToTempErr{
+	noTempWrappingTemp := serrors.Wrap("notemp", &testToTempErr{
 		msg:       "non temp wraps temp",
 		temporary: false,
 		cause:     &testToTempErr{msg: "temp", temporary: true},
@@ -94,27 +94,27 @@ func TestIsTemporary(t *testing.T) {
 	assert.False(t, serrors.IsTemporary(noTempWrappingTemp))
 }
 
-func TestWithCtx(t *testing.T) {
+func TestWrapNoStack(t *testing.T) {
 	t.Run("Is", func(t *testing.T) {
 		err := serrors.New("simple err")
-		errWithCtx := serrors.WithCtx(err, "someCtx", "someValue")
+		errWithCtx := serrors.WrapNoStack("error", err, "someCtx", "someValue")
 		assert.ErrorIs(t, errWithCtx, err)
 		assert.ErrorIs(t, errWithCtx, errWithCtx)
 	})
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
-		errWithCtx := serrors.WithCtx(err, "someCtx", "someVal")
+		errWithCtx := serrors.WrapNoStack("error", err, "someCtx", "someVal")
 		var errAs *testErrType
 		require.True(t, errors.As(errWithCtx, &errAs))
 		assert.Equal(t, err, errAs)
 	})
 }
 
-func TestWrap(t *testing.T) {
+func TestJoinNostack(t *testing.T) {
 	t.Run("Is", func(t *testing.T) {
 		err := serrors.New("simple err")
 		msg := serrors.New("msg err")
-		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
+		wrappedErr := serrors.JoinNoStack(msg, err, "someCtx", "someValue")
 		assert.ErrorIs(t, wrappedErr, err)
 		assert.ErrorIs(t, wrappedErr, msg)
 		assert.ErrorIs(t, wrappedErr, wrappedErr)
@@ -122,7 +122,7 @@ func TestWrap(t *testing.T) {
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
 		msg := serrors.New("msg err")
-		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
+		wrappedErr := serrors.JoinNoStack(msg, err, "someCtx", "someValue")
 		var errAs *testErrType
 		require.True(t, errors.As(wrappedErr, &errAs))
 		assert.Equal(t, err, errAs)
@@ -134,14 +134,14 @@ func TestWrapStr(t *testing.T) {
 	t.Run("Is", func(t *testing.T) {
 		err := serrors.New("simple err")
 		msg := "msg"
-		wrappedErr := serrors.WrapStr(msg, err, "someCtx", "someValue")
+		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
 		assert.ErrorIs(t, wrappedErr, err)
 		assert.ErrorIs(t, wrappedErr, wrappedErr)
 	})
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
 		msg := "msg"
-		wrappedErr := serrors.WrapStr(msg, err, "someCtx", "someValue")
+		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
 		var errAs *testErrType
 		require.True(t, errors.As(wrappedErr, &errAs))
 		assert.Equal(t, err, errAs)
@@ -192,7 +192,7 @@ func TestEncoding(t *testing.T) {
 			goldenFileBase: "testdata/new-with-context",
 		},
 		"wrapped string": {
-			err: serrors.WrapStr(
+			err: serrors.Wrap(
 				"msg error",
 				serrors.New("msg cause"),
 				"k0", "v0",
@@ -201,7 +201,7 @@ func TestEncoding(t *testing.T) {
 			goldenFileBase: "testdata/wrapped-string",
 		},
 		"wrapped with context": {
-			err: serrors.WrapStr(
+			err: serrors.Wrap(
 				"msg error",
 				serrors.New("msg cause", "cause_ctx_key", "cause_ctx_val"),
 				"k0", "v0",
@@ -209,17 +209,20 @@ func TestEncoding(t *testing.T) {
 			),
 			goldenFileBase: "testdata/wrapped-with-string",
 		},
-		"wrapped error": {
-			err: serrors.Wrap(
+		"joined error no stack": {
+			err: serrors.JoinNoStack(
 				serrors.New("msg error"),
 				serrors.New("msg cause"),
 				"k0", "v0",
 				"k1", 1,
 			),
-			goldenFileBase: "testdata/wrapped-error",
+			goldenFileBase: "testdata/joined-error",
 		},
 		"error with context": {
-			err:            serrors.WithCtx(serrors.New("simple err"), "someCtx", "someValue"),
+			// First arg: a msg for the new error. Second arg a cause. Ctx of cause is preserved.
+			// When err is just Sentinel error (as in this test), JoinNoStack would be better.
+			err: serrors.WrapNoStack("error", serrors.New("simple err"), "someCtx", "someValue"),
+
 			goldenFileBase: "testdata/error-with-context",
 		},
 		"error list": {
@@ -281,39 +284,13 @@ func TestList(t *testing.T) {
 }
 
 func TestJoinNil(t *testing.T) {
-	assert.Nil(t, serrors.Join())
-	assert.Nil(t, serrors.Join(nil))
 	assert.Nil(t, serrors.Join(nil, nil))
-}
-
-func TestJoin(t *testing.T) {
-	err1 := serrors.New("err1")
-	err2 := serrors.New("err2")
-	for _, test := range []struct {
-		errs []error
-		want serrors.List
-	}{{
-		errs: []error{err1},
-		want: serrors.List{err1},
-	}, {
-		errs: []error{err1},
-		want: serrors.List{err1},
-	}, {
-		errs: []error{err1, err2},
-		want: serrors.List{err1, err2},
-	}, {
-		errs: []error{err1, nil, err2},
-		want: serrors.List{err1, err2},
-	}} {
-		got := serrors.Join(test.errs...)
-		assert.Equal(t, got, test.want)
-	}
 }
 
 func TestAtMostOneStacktrace(t *testing.T) {
 	err := errors.New("core")
 	for i := range [20]int{} {
-		err = serrors.WrapStr("wrap", err, "level", i)
+		err = serrors.Wrap("wrap", err, "level", i)
 	}
 
 	var b bytes.Buffer
@@ -352,38 +329,31 @@ func ExampleNew() {
 	// false
 }
 
-func ExampleWithCtx() {
-	// ErrBadL4 is an error defined at package scope.
-	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
-	addedCtx := serrors.WithCtx(ErrBadL4, "type", "SCTP")
-
-	fmt.Println(addedCtx)
-	// Output:
-	// Unsupported L4 protocol {type=SCTP}
-}
-
-func ExampleWrapStr() {
-	// ErrNoSpace is an error defined at package scope.
-	var ErrNoSpace = serrors.New("no space")
-	wrappedErr := serrors.WrapStr("wrap with more context", ErrNoSpace, "ctx", 1)
+func ExampleWrap() {
+	// ErrNoSpace is an error defined at package scope. It should be is an error from lower layers,
+	// with some context already attached.
+	var ErrNoSpace = serrors.New("no space", "dev", "sd0")
+	wrappedErr := serrors.Wrap("wrap with more context", ErrNoSpace, "ctx", 1)
 
 	fmt.Println(errors.Is(wrappedErr, ErrNoSpace))
 	fmt.Printf("\n%v", wrappedErr)
 	// Output:
 	// true
 	//
-	// wrap with more context {ctx=1}: no space
+	// wrap with more context {ctx=1}: no space {dev=sd0}
 }
 
-func ExampleWrap() {
-	// ErrNoSpace is an error defined at package scope.
-	var ErrNoSpace = serrors.New("no space")
-	// ErrDB is an error defined at package scope.
-	var ErrDB = serrors.New("db")
-	wrapped := serrors.Wrap(ErrDB, ErrNoSpace, "ctx", 1)
+func ExampleJoin() {
+	// ErrNoProgress is a sentinel error defined at package scope. cause is an error from a lower
+	// layer, based on ErrNoSpace, with an more specific message.
+	var cause = fmt.Errorf("sd0 unresponsive: %w", io.ErrNoProgress)
+	// ErrDB is a sentinel error defined at package scope in the upper layer.
+	var ErrDB = errors.New("db")
+	wrapped := serrors.Join(ErrDB, cause, "ctx", 1)
 
 	// Now we can identify specific errors:
-	fmt.Println(errors.Is(wrapped, ErrNoSpace))
+	fmt.Println(errors.Is(wrapped, io.ErrNoProgress))
+	fmt.Println(errors.Is(wrapped, cause))
 	// But we can also identify the broader error class ErrDB:
 	fmt.Println(errors.Is(wrapped, ErrDB))
 
@@ -391,8 +361,31 @@ func ExampleWrap() {
 	// Output:
 	// true
 	// true
+	// true
 	//
-	// db {ctx=1}: no space
+	// db {ctx=1}: sd0 unresponsive: multiple Read calls return no data or error
+}
+
+func ExampleWrapNoStack() {
+	// ErrBadL4 is a sentinel defined at package scope.
+	var ErrBadL4 = errors.New("Unsupported L4 protocol")
+	addedCtx := serrors.WrapNoStack("parsing packet", ErrBadL4, "type", "SCTP")
+
+	fmt.Println(addedCtx)
+	// Output:
+	// parsing packet {type=SCTP}: Unsupported L4 protocol
+}
+
+func ExampleJoinNoStack() {
+	// BrokenPacket is a sentinel error defined at package scope.
+	var brokenPacket = serrors.New("invalid packet")
+	// ErrBadL4 is a sentinel error defined at package scope.
+	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
+	addedCtx := serrors.JoinNoStack(brokenPacket, ErrBadL4, "type", "SCTP")
+
+	fmt.Println(addedCtx)
+	// Output:
+	// invalid packet {type=SCTP}: Unsupported L4 protocol
 }
 
 // sanitizeLog sanitizes the log output so that stack traces look the same on
@@ -410,4 +403,16 @@ func sanitizeLog(log []byte) []byte {
 		log = re.ReplaceAll(log, []byte(replacer.replace))
 	}
 	return log
+}
+
+func TestUncomparable(t *testing.T) {
+	t.Run("Is", func(t *testing.T) {
+		// We make two wrappers of uncomparable error objects. We could also create custom error
+		// types for the same result, but this is closer to our use cases.
+		errObject := serrors.Wrap("simple err", nil, "dummy", "context")
+		wrapperA := serrors.Join(errObject, nil, "dummy", "context")
+		wrapperB := serrors.Join(errObject, nil, "dummy", "context")
+		assert.NotErrorIs(t, wrapperA, wrapperB)
+		// no panic
+	})
 }

@@ -25,8 +25,8 @@ import (
 	"github.com/scionproto/scion/gateway/control"
 	"github.com/scionproto/scion/gateway/control/mock_control"
 	"github.com/scionproto/scion/gateway/routemgr"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
 func TestSingleDeviceManager(t *testing.T) {
@@ -34,7 +34,7 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 		m := routemgr.SingleDeviceManager{}
 
-		handle, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, handle)
 		assert.NotNil(t, err)
 	})
@@ -53,7 +53,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -74,9 +74,9 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle1, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle1, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
-		handle2, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:2"))
+		handle2, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:2"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -98,9 +98,9 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle1, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle1, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
-		handle2, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle2, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -122,7 +122,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, handle)
 		assert.NotNil(t, err)
 	})
@@ -141,7 +141,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close().Return(serrors.New("test error"))
@@ -162,7 +162,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -184,7 +184,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		t.Run("read", func(t *testing.T) {
@@ -236,7 +236,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -269,7 +269,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -311,7 +311,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -352,7 +352,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle1, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle1, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle1.EXPECT().Close()
@@ -361,7 +361,7 @@ func TestSingleDeviceManager(t *testing.T) {
 		mockDeviceHandle2 := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener.EXPECT().Open(gomock.Any(), gomock.Any()).Return(mockDeviceHandle2, nil)
 
-		handle2, err := m.Get(context.Background(), xtest.MustParseIA("1-ff00:0:1"))
+		handle2, err := m.Get(context.Background(), addr.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
 
 		mockDeviceHandle2.EXPECT().Close()
@@ -371,5 +371,5 @@ func TestSingleDeviceManager(t *testing.T) {
 
 func TestFixedTunnelName(t *testing.T) {
 	namer := routemgr.FixedTunnelName("foo")
-	assert.Equal(t, "foo", namer(xtest.MustParseIA("1-ff00:0:1")))
+	assert.Equal(t, "foo", namer(addr.MustParseIA("1-ff00:0:1")))
 }

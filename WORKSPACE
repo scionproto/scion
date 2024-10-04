@@ -2,7 +2,7 @@ workspace(
     name = "com_github_scionproto_scion",
 )
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # linter rules
 http_archive(
@@ -28,9 +28,9 @@ lint_setup({
 
 http_archive(
     name = "aspect_bazel_lib",
-    sha256 = "a185ccff9c1b8589c63f66d7eb908de15c5d6bb05562be5f46336c53e7a7326a",
-    strip_prefix = "bazel-lib-2.0.0-rc1",
-    url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.0.0-rc1/bazel-lib-v2.0.0-rc1.tar.gz",
+    sha256 = "714cf8ce95a198bab0a6a3adaffea99e929d2f01bf6d4a59a2e6d6af72b4818c",
+    strip_prefix = "bazel-lib-2.7.8",
+    url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.7.8/bazel-lib-v2.7.8.tar.gz",
 )
 
 load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains")
@@ -46,18 +46,22 @@ aspect_bazel_lib_register_toolchains()
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "91585017debb61982f7054c9688857a2ad1fd823fc3f9cb05048b0025c47d023",
+    patch_args = ["-p0"],
+    patches = ["//patches:io_bazel_rules_go/import.patch"],
+    sha256 = "af47f30e9cbd70ae34e49866e201b3f77069abb111183f2c0297e7e74ba6bbc0",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.47.0/rules_go-v0.47.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.47.0/rules_go-v0.47.0.zip",
     ],
 )
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
 
+go_rules_dependencies()
+
 go_register_toolchains(
     nogo = "@//:nogo",
-    version = "1.21.11",
+    version = "1.22.7",
 )
 
 # Gazelle
@@ -71,9 +75,6 @@ http_archive(
 )
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
-
-go_rules_dependencies()
-
 load("//:tool_deps.bzl", "tool_deps")
 
 tool_deps()
@@ -205,6 +206,15 @@ load("@tester_debian10_packages//:packages.bzl", tester_debian_packages_install_
 
 tester_debian_packages_install_deps()
 
+# Buf CLI
+http_archive(
+    name = "buf",
+    build_file_content = "exports_files([\"buf\"])",
+    sha256 = "16253b6702dd447ef941b01c9c386a2ab7c8d20bbbc86a5efa5953270f6c9010",
+    strip_prefix = "buf/bin",
+    urls = ["https://github.com/bufbuild/buf/releases/download/v1.32.2/buf-Linux-x86_64.tar.gz"],
+)
+
 # protobuf/gRPC
 http_archive(
     name = "rules_proto_grpc",
@@ -237,16 +247,6 @@ http_archive(
     ],
 )
 
-http_file(
-    name = "buf_bin",
-    downloaded_file_path = "buf",
-    executable = True,
-    sha256 = "5faf15ed0a3cd4bd0919ba5fcb95334c1fd2ba32770df289d615138fa188d36a",
-    urls = [
-        "https://github.com/bufbuild/buf/releases/download/v0.20.5/buf-Linux-x86_64",
-    ],
-)
-
 load("//tools/lint/python:deps.bzl", "python_lint_deps")
 
 python_lint_deps(python_interpreter)
@@ -257,27 +257,28 @@ install_python_lint_deps()
 
 http_archive(
     name = "aspect_rules_js",
-    sha256 = "a949d56fed8fa0a8dd82a0a660acc949253a05b2b0c52a07e4034e27f11218f6",
-    strip_prefix = "rules_js-1.33.1",
-    url = "https://github.com/aspect-build/rules_js/releases/download/v1.33.1/rules_js-v1.33.1.tar.gz",
+    sha256 = "a723815986f3dd8b2c58d0ea76fde0ed56eed65de3212df712e631e5fc7d8790",
+    strip_prefix = "rules_js-2.0.0-rc6",
+    url = "https://github.com/aspect-build/rules_js/releases/download/v2.0.0-rc6/rules_js-v2.0.0-rc6.tar.gz",
 )
 
 load("@aspect_rules_js//js:repositories.bzl", "rules_js_dependencies")
 
 rules_js_dependencies()
 
-load("@rules_nodejs//nodejs:repositories.bzl", "DEFAULT_NODE_VERSION", "nodejs_register_toolchains")
+load("@rules_nodejs//nodejs:repositories.bzl", "nodejs_register_toolchains")
 
 nodejs_register_toolchains(
     name = "nodejs",
-    node_version = DEFAULT_NODE_VERSION,
+    node_version = "16.19.0",  # use DEFAULT_NODE_VERSION from previous version rules_nodejs; the current version links against too new glibc
 )
 
-load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
+load("@aspect_rules_js//npm:repositories.bzl", "npm_translate_lock")
 
 npm_translate_lock(
     name = "npm",
     pnpm_lock = "@com_github_scionproto_scion//private/mgmtapi/tools:pnpm-lock.yaml",
+    pnpm_version = "9.4.0",
     verify_node_modules_ignored = "@com_github_scionproto_scion//:.bazelignore",
 )
 

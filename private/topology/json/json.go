@@ -24,9 +24,9 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 // Attribute indicates the capability of a primary AS.
@@ -93,8 +93,8 @@ type ServerInfo struct {
 
 // BRInfo contains Border Router specific information.
 type BRInfo struct {
-	InternalAddr string                           `json:"internal_addr"`
-	Interfaces   map[common.IFIDType]*BRInterface `json:"interfaces"`
+	InternalAddr string                    `json:"internal_addr"`
+	Interfaces   map[iface.ID]*BRInterface `json:"interfaces"`
 }
 
 // GatewayInfo contains SCION gateway information.
@@ -108,12 +108,12 @@ type GatewayInfo struct {
 // BRInterface contains the information for an data-plane BR socket that is external (i.e., facing
 // the neighboring AS).
 type BRInterface struct {
-	Underlay   Underlay        `json:"underlay,omitempty"`
-	IA         string          `json:"isd_as"`
-	LinkTo     string          `json:"link_to"`
-	MTU        int             `json:"mtu"`
-	BFD        *BFD            `json:"bfd,omitempty"`
-	RemoteIFID common.IFIDType `json:"remote_interface_id,omitempty"`
+	Underlay   Underlay `json:"underlay,omitempty"`
+	IA         string   `json:"isd_as"`
+	LinkTo     string   `json:"link_to"`
+	MTU        int      `json:"mtu"`
+	BFD        *BFD     `json:"bfd,omitempty"`
+	RemoteIfID iface.ID `json:"remote_interface_id,omitempty"`
 }
 
 // Underlay is the underlay information for a BR interface.
@@ -139,8 +139,8 @@ func (i ServerInfo) String() string {
 func (i BRInfo) String() string {
 	var s []string
 	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:", i.InternalAddr))
-	for ifid, intf := range i.Interfaces {
-		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
+	for ifID, intf := range i.Interfaces {
+		s = append(s, fmt.Sprintf("%d: %+v", ifID, intf))
 	}
 	return strings.Join(s, "\n")
 }
@@ -149,7 +149,7 @@ func (i BRInfo) String() string {
 func Load(b []byte) (*Topology, error) {
 	rt := &Topology{}
 	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, serrors.WrapStr("unable to parse topology from JSON", err)
+		return nil, serrors.Wrap("unable to parse topology from JSON", err)
 	}
 	return rt, nil
 }
@@ -158,7 +158,7 @@ func Load(b []byte) (*Topology, error) {
 func LoadFromFile(path string) (*Topology, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to open topology", err, "path", path)
+		return nil, serrors.Wrap("unable to open topology", err, "path", path)
 	}
 	return Load(b)
 }

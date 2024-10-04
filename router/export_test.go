@@ -19,8 +19,6 @@ import (
 	"net"
 	"net/netip"
 
-	"golang.org/x/net/ipv4"
-
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"
 )
@@ -38,18 +36,41 @@ func GetMetrics() *Metrics {
 
 var NewServices = newServices
 
-type ProcessResult struct {
-	processResult
+// Export the Packet struct so dataplane test can call ProcessPkt
+type Packet struct {
+	packet
 }
 
-var SlowPathRequired error = slowPathRequired
+type Disposition disposition
+
+const PDiscard = Disposition(pDiscard)
+
+func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
+	p := Packet{
+		packet: packet{
+			dstAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
+			srcAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
+			rawPacket: make([]byte, len(raw)),
+			ingress:   ingress,
+			egress:    egress,
+		},
+	}
+	if src != nil {
+		p.srcAddr = src
+	}
+	if dst != nil {
+		p.dstAddr = dst
+	}
+	copy(p.rawPacket, raw)
+	return &p
+}
 
 func NewDP(
 	external map[uint16]BatchConn,
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
-	internalNextHops map[uint16]*net.UDPAddr,
-	svc map[addr.SVC][]*net.UDPAddr,
+	internalNextHops map[uint16]netip.AddrPort,
+	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
 	key []byte) *DataPlane {
@@ -75,22 +96,18 @@ func NewDP(
 }
 
 func (d *DataPlane) FakeStart() {
-	d.running = true
+	d.setRunning()
 }
 
-func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, error) {
+func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
 
 	p := newPacketProcessor(d)
-	var srcAddr *net.UDPAddr
-	// for real packets received from ReadBatch this is always non-nil.
-	// Allow nil in test cases for brevity.
-	if m.Addr != nil {
-		srcAddr = m.Addr.(*net.UDPAddr)
-	}
-	result, err := p.processPkt(m.Buffers[0], srcAddr, ifID)
-	return ProcessResult{processResult: result}, err
+	disp := p.processPkt(&(pkt.packet))
+	// Erase trafficType; we don't set it in the expected results.
+	pkt.trafficType = ttOther
+	return Disposition(disp)
 }
 
-func ExtractServices(s *services) map[addr.SVC][]*net.UDPAddr {
+func ExtractServices(s *services) map[addr.SVC][]netip.AddrPort {
 	return s.m
 }

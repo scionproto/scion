@@ -80,7 +80,7 @@ func (l *Linux) publishToLinux(ctx context.Context, update control.RouteUpdate) 
 	logger := log.FromCtx(ctx)
 	handle, err := l.DeviceManager.Get(ctx, update.IA)
 	if err != nil {
-		return serrors.WrapStr("retrieving device for ISD-AS", err, "isd_as", update.IA)
+		return serrors.Wrap("retrieving device for ISD-AS", err, "isd_as", update.IA)
 	}
 	defer func() {
 		if err := handle.Close(); err != nil {

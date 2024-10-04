@@ -71,7 +71,7 @@ func RunVerify(files []string, anchor string, isd addr.ISD) error {
 	for _, name := range files {
 		dec, err := DecodeFromFile(name)
 		if err != nil {
-			return serrors.WrapStr("error decoding TRC", err, "file", name)
+			return serrors.Wrap("error decoding TRC", err, "file", name)
 		}
 		trcs = append(trcs, dec)
 	}
@@ -104,12 +104,12 @@ func RunVerify(files []string, anchor string, isd addr.ISD) error {
 		}
 	}
 	if err := verifyInitial(trcs[0], anchor); err != nil {
-		return serrors.WrapStr("verifying first TRC in update chain", err, "id", trcs[0].TRC.ID)
+		return serrors.Wrap("verifying first TRC in update chain", err, "id", trcs[0].TRC.ID)
 	}
 	fmt.Println("Verified TRC successfully:", trcs[0].TRC.ID)
 	for i := 1; i < len(trcs); i++ {
 		if err := trcs[i].Verify(&trcs[i-1].TRC); err != nil {
-			return serrors.WrapStr("verifying TRC update", err, "id", trcs[i].TRC.ID)
+			return serrors.Wrap("verifying TRC update", err, "id", trcs[i].TRC.ID)
 		}
 		fmt.Println("Verified TRC successfully:", trcs[i].TRC.ID)
 	}
@@ -120,20 +120,20 @@ func verifyInitial(trc cppki.SignedTRC, anchor string) error {
 	if !trc.TRC.ID.IsBase() {
 		a, err := DecodeFromFile(anchor)
 		if err != nil {
-			return serrors.WrapStr("loading TRC anchor", err, "anchor", anchor)
+			return serrors.Wrap("loading TRC anchor", err, "anchor", anchor)
 		}
 		return trc.Verify(&a.TRC)
 	}
 
 	if err := trc.Verify(nil); err != nil {
-		return serrors.WrapStr("verifying proof of possession", err)
+		return serrors.Wrap("verifying proof of possession", err)
 	}
 	certs, err := loadAnchorCerts(anchor)
 	if err != nil {
-		return serrors.WithCtx(err, "anchor", anchor)
+		return serrors.Wrap("loading anchor", err, "anchor", anchor)
 	}
 	if err := verifyBundle(trc, certs); err != nil {
-		return serrors.WrapStr("checking verifiable with bundled certificates", err)
+		return serrors.Wrap("checking verifiable with bundled certificates", err)
 	}
 	return nil
 }
@@ -153,7 +153,7 @@ func loadAnchorCerts(file string) ([]*x509.Certificate, error) {
 		return certs, nil
 	}
 	errs := serrors.List{trcErr, certErr}
-	return nil, serrors.WrapStr("anchor contents not supported", errs.ToError())
+	return nil, serrors.Wrap("anchor contents not supported", errs.ToError())
 }
 
 func verifyBundle(signed cppki.SignedTRC, certs []*x509.Certificate) error {
@@ -162,7 +162,7 @@ func verifyBundle(signed cppki.SignedTRC, certs []*x509.Certificate) error {
 	}
 	for i, si := range signed.SignerInfos {
 		if err := verifySignerInfo(si, signed.TRC.Raw, certs); err != nil {
-			return serrors.WithCtx(err, "index", i)
+			return serrors.WrapNoStack("verifying signer info", err, "index", i)
 		}
 	}
 	return nil
@@ -174,7 +174,7 @@ func verifySignerInfo(si protocol.SignerInfo, pld []byte, certs []*x509.Certific
 	}
 	siContentType, err := si.GetContentTypeAttribute()
 	if err != nil {
-		return serrors.WrapStr("error getting ContentType", err)
+		return serrors.Wrap("error getting ContentType", err)
 	}
 	if !siContentType.Equal(oid.ContentTypeData) {
 		return serrors.New("SignerInfo with invalid ContentType", "type", siContentType)
@@ -185,7 +185,7 @@ func verifySignerInfo(si protocol.SignerInfo, pld []byte, certs []*x509.Certific
 	}
 	attrDigest, err := si.GetMessageDigestAttribute()
 	if err != nil {
-		return serrors.WrapStr("SignerInfo with invalid message digest", err)
+		return serrors.Wrap("SignerInfo with invalid message digest", err)
 	}
 	actualDigest := hash.New()
 	actualDigest.Write(pld)
@@ -194,7 +194,7 @@ func verifySignerInfo(si protocol.SignerInfo, pld []byte, certs []*x509.Certific
 	}
 	input, err := si.SignedAttrs.MarshaledForVerifying()
 	if err != nil {
-		return serrors.WrapStr("error marshalling signature input", err)
+		return serrors.Wrap("error marshalling signature input", err)
 	}
 	// FIXME(roosd): this also finds certificates based on subject key id.
 	cert, err := si.FindCertificate(certs)

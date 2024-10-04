@@ -73,13 +73,13 @@ func realMain() int {
 		"-log.console", "debug",
 		"-attempts", strconv.Itoa(attempts),
 		"-timeout", timeout.String(),
-		"-local", integration.SrcAddrPattern + ":0",
-		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+		"-local", "[" + integration.SrcAddrPattern + "]:0",
+		"-remote", "[" + integration.DstAddrPattern + "]:" + integration.ServerPortReplace,
 		fmt.Sprintf("-epic=%t", epic),
 	}
 	serverArgs := []string{
 		"-mode", "server",
-		"-local", integration.DstAddrPattern + ":0",
+		"-local", "[" + integration.DstAddrPattern + "]:0",
 	}
 	if len(features) != 0 {
 		clientArgs = append(clientArgs, "--features", features)
@@ -181,10 +181,10 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		var ctr int
 		doneDir, err := filepath.Abs(filepath.Join(integration.LogDir(), "socks"))
 		if err != nil {
-			return serrors.WrapStr("determining abs path", err)
+			return serrors.Wrap("determining abs path", err)
 		}
 		if err := os.MkdirAll(doneDir, os.ModePerm); err != nil {
-			return serrors.WrapStr("creating socks directory", err)
+			return serrors.Wrap("creating socks directory", err)
 		}
 		// this is a bit of a hack, socket file names have a max length of 108
 		// and inside bazel tests we easily have longer paths, therefore we
@@ -192,13 +192,13 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		// file.
 		tmpDir, err := os.MkdirTemp("", "e2e_integration")
 		if err != nil {
-			return serrors.WrapStr("creating temp dir", err)
+			return serrors.Wrap("creating temp dir", err)
 		}
 		if err := os.Remove(tmpDir); err != nil {
-			return serrors.WrapStr("deleting temp dir", err)
+			return serrors.Wrap("deleting temp dir", err)
 		}
 		if err := os.Symlink(doneDir, tmpDir); err != nil {
-			return serrors.WrapStr("symlinking socks dir", err)
+			return serrors.Wrap("symlinking socks dir", err)
 		}
 		doneDir = tmpDir
 		defer os.Remove(doneDir)
@@ -210,7 +210,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
 		})
 		if err != nil {
-			return serrors.WrapStr("creating done listener", err)
+			return serrors.Wrap("creating done listener", err)
 		}
 		defer clean()
 
@@ -256,7 +256,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 					Tester:   tester,
 				})
 				if err != nil {
-					err = serrors.WithCtx(err, "file", relFile(logFile))
+					err = serrors.Wrap("running integration", err, "file", relFile(logFile))
 				}
 				clientResults <- err
 			}(src, dsts)
@@ -293,8 +293,8 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-log.console", "debug",
 			"-attempts", strconv.Itoa(attempts),
 			"-timeout", timeout.String(),
-			"-local", integration.SrcAddrPattern + ":0",
-			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+			"-local", "[" + integration.SrcAddrPattern + "]:0",
+			"-remote", "[" + integration.DstAddrPattern + "]:" + integration.ServerPortReplace,
 			fmt.Sprintf("-epic=%t", epic),
 		},
 	}

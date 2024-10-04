@@ -18,10 +18,8 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"encoding/asn1"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -73,7 +71,7 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 		var err error
 		ts, err = ptypes.TimestampProto(hdr.Timestamp)
 		if err != nil {
-			return nil, serrors.WrapStr("converting timestamp", err)
+			return nil, serrors.Wrap("converting timestamp", err)
 		}
 	}
 
@@ -86,7 +84,7 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 	}
 	rawHdr, err := proto.Marshal(inputHdr)
 	if err != nil {
-		return nil, serrors.WrapStr("packing header", err)
+		return nil, serrors.Wrap("packing header", err)
 	}
 	hdrAndBody := &cryptopb.HeaderAndBodyInternal{
 		Header: rawHdr,
@@ -94,7 +92,7 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 	}
 	rawHdrAndBody, err := proto.Marshal(hdrAndBody)
 	if err != nil {
-		return nil, serrors.WrapStr("packing signature input", err)
+		return nil, serrors.Wrap("packing signature input", err)
 	}
 	input, algo := computeSignatureInput(hdr.SignatureAlgorithm, rawHdrAndBody, associatedData...)
 	signature, err := signer.Sign(rand.Reader, input, algo)
@@ -116,7 +114,7 @@ func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
 	}
 	hdr, body, err := extractHeaderAndBody(signed)
 	if err != nil {
-		return nil, serrors.WrapStr("extracting header", err)
+		return nil, serrors.Wrap("extracting header", err)
 	}
 	if l := associatedDataLen(associatedData...); l != hdr.AssociatedDataLength {
 		return nil, serrors.New("header specifies a different associated data length",
@@ -131,21 +129,7 @@ func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
 
 	switch pub := key.(type) {
 	case *ecdsa.PublicKey:
-		type ecdsaSignature struct {
-			R, S *big.Int
-		}
-
-		// XXX(roosd): Copied from x509/x509.go:checkSignature.
-		var sig ecdsaSignature
-		if rest, err := asn1.Unmarshal(signed.Signature, &sig); err != nil {
-			return nil, err
-		} else if len(rest) != 0 {
-			return nil, serrors.New("trailing data after ECDSA signature")
-		}
-		if sig.R.Sign() <= 0 || sig.S.Sign() <= 0 {
-			return nil, errors.New("ECDSA signature contained zero or negative values")
-		}
-		if !ecdsa.Verify(pub, input, sig.R, sig.S) {
+		if !ecdsa.VerifyASN1(pub, input, signed.Signature) {
 			return nil, errors.New("ECDSA verification failure")
 		}
 	default:

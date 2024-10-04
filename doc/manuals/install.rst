@@ -12,6 +12,10 @@ Installation packages for Debian and derivatives are available for x86-64, arm64
 These packages can be found in the `latest release <https://github.com/scionproto/scion/releases/latest>`_.
 Packages for in-development versions can be found from the `latest nightly build <https://buildkite.com/scionproto/scion-nightly/builds/latest>`_.
 
+Download and unpack the tar.gz file containing the appropriate .deb packages.
+Install all packages with ``apt install ./scion-*.deb``, or install packages for components
+selectively, e.g. ``apt install ./scion-router_<version>_<arch>.deb``.
+
 .. warning::
 
    Tests are run only for x86-64. For the other platforms, we cross-compile and don't operate a
@@ -98,6 +102,70 @@ scion-tools
 
    In the meantime, the ``sample config`` subcommand (e.g. ``scion-daemon sample config``)
    describes the available configuration options.
+
+
+
+OpenWRT packages
+================
+
+Installation packages for OpenWRT are available for x86-64 (cross-building for other architectures
+should be feasible but has not yet been implemented).
+
+These packages can be found in the `latest release <https://github.com/scionproto/scion/releases/latest>`_.
+Packages for in-development versions can be found from the `latest nightly build <https://buildkite.com/scionproto/scion-nightly/builds/latest>`_.
+
+Download and unpack the tar.gz file containing the appropriate .ipk packages.
+Install all packages with ``opgk install ./scion-*.ipk``, or install packages for components
+selectively, e.g. ``opgk install ./scion-router_<version>_<arch>.ipk``.
+
+The packages include init scripts which start the SCION components as part of the OpenWRT boot process.
+See the `OpenWRT manual on managing services <https://openwrt.org/docs/guide-user/base-system/managing_services>`_.
+
+.. admonition:: Note
+
+   To save space on often storage constrained OpenWRT devices, the relatively large golang
+   binaries are installed as self-uncompressing, gzipped executables.
+
+Packages
+--------
+
+:doc:`scion-control <control>`
+   :Executable: ``/usr/bin/scion-control``
+   :Service: ``scion-control``
+   :Service Configuration File: ``/etc/scion/control.toml``
+
+:doc:`scion-router <router>`
+   :Executable: ``/usr/bin/scion-router``
+   :Service: ``scion-router``
+   :Service Configuration File: ``/etc/scion/router.toml``
+
+:doc:`scion-ip-gateway <gateway>`
+   :Executable: ``/usr/bin/scion-gateway``
+   :Service: ``scion-gateway``
+   :Service Configuration File: ``/etc/scion/gateway.toml``
+
+:doc:`scion-daemon <daemon>`
+   The scion-daemon and the scion-dispatcher together form the end host SCION stack.
+
+   :Executable: ``/usr/bin/scion-daemon``
+   :Service: ``scion-daemon``
+   :Service Configuration File: ``/etc/scion/daemon.toml``
+
+:doc:`scion-dispatcher <dispatcher>`
+   :Executable: ``/usr/bin/scion-dispatcher``
+   :Service: ``scion-dispatcher``
+   :Service Configuration File: ``/etc/scion/dispatcher.toml``
+
+scion-tools
+   The :doc:`scion </command/scion/scion>` and :doc:`scion-pki</command/scion-pki/scion-pki>`
+   command line tools.
+
+   :Executables: ``/usr/bin/scion``, ``/usr/bin/scion-pki``
+
+scion-persistdbs
+   Helper service to persist databases of ``scion-control`` and ``scion-daemon`` services from volatile storage before shutdown.
+   At runtime, databases are in volatile storage ``/var/lib/scion``.
+   For persistence, the files are moved to ``/usr/lib/scion``.
 
 
 Prebuilt Binaries

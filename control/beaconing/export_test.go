@@ -15,12 +15,12 @@
 package beaconing
 
 import (
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/segment/extensions/staticinfo"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/topology"
 )
 
-func (cfg StaticInfoCfg) TestGenerate(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) *staticinfo.Extension {
+func (cfg StaticInfoCfg) TestGenerate(ifType map[iface.ID]topology.LinkType,
+	ingress, egress iface.ID) *staticinfo.Extension {
 	return cfg.generate(ifType, ingress, egress)
 }

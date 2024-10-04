@@ -102,7 +102,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 				Enabled:                  !*(intf.Link.BFD.Disable),
 				RequiredMinimumReceive:   intf.Link.BFD.RequiredMinRxInterval.String(),
 			},
-			InterfaceId:       int(intf.InterfaceID),
+			InterfaceId:       int(intf.IfID), // nolint - name from published API.
 			InternalInterface: findInternalInterface(intf.Link.Local.IA),
 			Neighbor: InterfaceNeighbor{
 				Address: intf.Link.Remote.Addr.String(),
@@ -118,7 +118,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 
 	for _, intf := range siblingInterfaces {
 		siblingInterface := SiblingInterface{
-			InterfaceId:       int(intf.InterfaceID),
+			InterfaceId:       int(intf.IfID), // nolint - name from published API.
 			InternalInterface: intf.InternalInterface.String(),
 			Neighbor: SiblingNeighbor{
 				IsdAs: intf.NeighborIA.String(),

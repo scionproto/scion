@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
+	scionpki "github.com/scionproto/scion/scion-pki"
 )
 
 func newMatchCmd(pather command.Pather) *cobra.Command {
@@ -44,6 +45,7 @@ func newMatchCmd(pather command.Pather) *cobra.Command {
 func newMatchCertificate(pather command.Pather) *cobra.Command {
 	var flags struct {
 		separator string
+		kms       string
 	}
 	cmd := &cobra.Command{
 		Use:   "certificate <private-key> <certificate> [<certificate> ...]",
@@ -62,13 +64,13 @@ The output contains all certificates that authenticate the key.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			key, err := LoadPrivateKey(args[0])
+			key, err := LoadPrivateKey(flags.kms, args[0])
 			if err != nil {
 				return err
 			}
 			pub, err := x509.MarshalPKIXPublicKey(key.Public())
 			if err != nil {
-				return serrors.WrapStr("packing the public key", err)
+				return serrors.Wrap("packing the public key", err)
 			}
 
 			var certificates []string
@@ -91,17 +93,18 @@ The output contains all certificates that authenticate the key.
 		},
 	}
 	cmd.Flags().StringVar(&flags.separator, "separator", "\n", "The separator between file names")
+	scionpki.BindFlagKms(cmd.Flags(), &flags.kms)
 	return cmd
 }
 
 func loadPackedPublicFromCertificate(file string) ([]byte, error) {
 	certs, err := cppki.ReadPEMCerts(file)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing certificate", err)
+		return nil, serrors.Wrap("parsing certificate", err)
 	}
 	pub, err := x509.MarshalPKIXPublicKey(certs[0].PublicKey)
 	if err != nil {
-		return nil, serrors.WrapStr("packing the public key", err)
+		return nil, serrors.Wrap("packing the public key", err)
 	}
 	return pub, nil
 }

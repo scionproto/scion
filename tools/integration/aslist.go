@@ -35,12 +35,12 @@ type ASList struct {
 func LoadASList(fileName string) (*ASList, error) {
 	buffer, err := os.ReadFile(fileName)
 	if err != nil {
-		return nil, serrors.WrapStr("Unable to read from file", err, "name", fileName)
+		return nil, serrors.Wrap("Unable to read from file", err, "name", fileName)
 	}
 	var asList ASList
 	err = yaml.Unmarshal(buffer, &asList)
 	if err != nil {
-		return nil, serrors.WrapStr("Unable to parse YAML data", err)
+		return nil, serrors.Wrap("Unable to parse YAML data", err)
 	}
 	return &asList, nil
 }

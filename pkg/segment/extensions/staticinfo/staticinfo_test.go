@@ -20,8 +20,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/segment/extensions/staticinfo"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 func TestRoundtripStaticInfoExtension(t *testing.T) {
@@ -34,22 +34,22 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 		},
 		"latency": {
 			Latency: staticinfo.LatencyInfo{
-				Intra: map[common.IFIDType]time.Duration{
+				Intra: map[iface.ID]time.Duration{
 					10: 10 * time.Millisecond,
 					11: 11 * time.Millisecond,
 				},
-				Inter: map[common.IFIDType]time.Duration{
+				Inter: map[iface.ID]time.Duration{
 					11: 111 * time.Millisecond,
 				},
 			},
 		},
 		"bandwidth": {
 			Bandwidth: staticinfo.BandwidthInfo{
-				Intra: map[common.IFIDType]uint64{
+				Intra: map[iface.ID]uint64{
 					10: 1,              // 1Kbit/s
 					11: 10_000_000_000, // 10Tbit/s
 				},
-				Inter: map[common.IFIDType]uint64{
+				Inter: map[iface.ID]uint64{
 					11: 2_000_000,
 				},
 			},
@@ -71,7 +71,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 			},
 		},
 		"internal_hops": {
-			InternalHops: map[common.IFIDType]uint32{
+			InternalHops: map[iface.ID]uint32{
 				10: 2,
 				11: 3,
 			},

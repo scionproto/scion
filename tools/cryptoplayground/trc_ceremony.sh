@@ -8,13 +8,19 @@ export PLAYGROUND=$(realpath "${PLAYGROUND:-$SCION_ROOT/tools/cryptoplayground}"
 export SAFEDIR=${SAFEDIR:-$(mktemp -d)}
 export SCION_PKI_BIN=${SCION_PKI_BIN:-$SCION_ROOT/bin/scion-pki}
 export PATH="$(realpath $(dirname "$SCION_PKI_BIN")):$PATH"
+export USE_SCION_PKI_SIGN=${USE_SCION_PKI_SIGN:-}
 
 . $PLAYGROUND/crypto_lib.sh
 
-set -e
+set -ex
 
-STARTDATE="20200624120000Z"
-ENDDATE="20210624120000Z"
+if [ -z "$USE_SCION_PKI_SIGN" ]; then
+    STARTDATE="20200624120000Z"
+    ENDDATE="20210624120000Z"
+else
+    STARTDATE="2020-06-24T14:00:00+02:00"
+    ENDDATE="2021-06-24T14:00:00+02:00"
+fi
 TRCID="ISD1-B1-S1"
 
 echo "#####################"
@@ -36,26 +42,47 @@ do
     set_dirs
     # Generate configuration files
     navigate_pubdir
-    basic_conf && sensitive_conf && regular_conf && root_conf && ca_conf && as_conf
-    prepare_ca
-    sed -i \
-        -e 's/{{.Country}}/CH/g' \
-        -e "s/{{.State}}/$loc/g" \
-        -e "s/{{.Location}}/$loc/g" \
-        -e "s/{{.Organization}}/$loc/g" \
-        -e "s/{{.OrganizationalUnit}}/$loc InfoSec Squad/g" \
-        -e "s/{{.ISDAS}}/$IA/g" \
-        basic.cnf
-    for cnf in *.cnf
-    do
+
+    if [ -z "$USE_SCION_PKI_SIGN" ]; then
+        basic_conf && sensitive_conf && regular_conf && root_conf && ca_conf && as_conf
+        scion-pki trc payload dummy --format der > dummy.pld.der
+        prepare_ca
         sed -i \
-        -e "s/{{.ShortOrg}}/$loc/g" \
-        $cnf
-    done
-    # Generate certificates
-    in_docker 'navigate_pubdir && gen_sensitive && check_sensitive && gen_regular && check_regular && gen_root && check_root'
+            -e 's/{{.Country}}/CH/g' \
+            -e "s/{{.State}}/$loc/g" \
+            -e "s/{{.Location}}/$loc/g" \
+            -e "s/{{.Organization}}/$loc/g" \
+            -e "s/{{.OrganizationalUnit}}/$loc InfoSec Squad/g" \
+            -e "s/{{.ISDAS}}/$IA/g" \
+            basic.cnf
+        for cnf in *.cnf
+        do
+            sed -i \
+            -e "s/{{.ShortOrg}}/$loc/g" \
+            $cnf
+        done
+        # Generate certificates
+        in_docker 'navigate_pubdir && gen_sensitive && check_sensitive && gen_regular && check_regular && gen_root && check_root'
+    else
+        basic_conf_scion_pki
+        sed -i \
+            -e 's/{{.Country}}/CH/g' \
+            -e "s/{{.State}}/$loc/g" \
+            -e "s/{{.Location}}/$loc/g" \
+            -e "s/{{.Organization}}/$loc/g" \
+            -e "s/{{.OrganizationalUnit}}/$loc InfoSec Squad/g" \
+            -e "s/{{.ISDAS}}/$IA/g" \
+            subject.tmpl
+        export ORG=$loc
+        sensitive_cn && gen_sensitive_scion_pki
+        regular_cn && gen_regular_scion_pki
+        root_cn && gen_root_scion_pki
+    fi
     check_sensitive_type && check_regular_type && check_root_type
 done
+
+echo "Openssl version"
+in_docker "openssl version"
 
 echo "###########"
 echo "# Phase 1 #"
@@ -78,6 +105,13 @@ for cert in {bern,geneva,zürich}/*.crt; do
 done
 # LITERALINCLUDE display_validity END
 
+# LITERALINCLUDE display_validity_scion-pki START
+for cert in {bern,geneva,zürich}/*.crt; do
+    echo $cert
+    scion-pki certificate inspect $cert | grep Validity -A 2
+done
+# LITERALINCLUDE display_validity_scion-pki END
+
 # LITERALINCLUDE display_signature_algo START
 for cert in {bern,geneva,zürich}/*.crt; do
     echo $cert
@@ -85,6 +119,13 @@ for cert in {bern,geneva,zürich}/*.crt; do
     echo ""
 done
 # LITERALINCLUDE display_signature_algo END
+
+# LITERALINCLUDE display_signature_algo_scion-pki START
+for cert in {bern,geneva,zürich}/*.crt; do
+    echo $cert
+    scion-pki certificate inspect $cert | grep -m 1 "Signature Algorithm"
+done
+# LITERALINCLUDE display_signature_algo_scion-pki END
 
 # LITERALINCLUDE validate_certificate_type START
 for cert in {bern,geneva,zürich}/*.crt; do
@@ -140,8 +181,8 @@ sed -i \
     -e 's/{{.VotingQuorum}}/2/g' \
     -e 's/{{.CoreASes}}/["ff00:0:110", "ff00:0:111"]/g' \
     -e 's/{{.AuthoritativeASes}}/["ff00:0:110", "ff00:0:111"]/g' \
-    -e 's/{{.NotBefore}}/1593000000/g' \
-    -e 's/{{.Validity}}/"365d"/g' \
+    -e 's/{{.NotBefore}}/"2020-06-24T14:00:00+02:00"/g' \
+    -e 's/{{.NotAfter}}/"2021-06-24T14:00:00+02:00"/g' \
     -e "s/{{.CertFiles}}/[$files]/g" \
     $TRCID.toml
 
@@ -151,7 +192,7 @@ cat $TRCID.toml
 echo "-------------------------------"
 
 # LITERALINCLUDE create_payload START
-scion-pki trcs payload -t $TRCID.toml -o $TRCID.pld.der
+scion-pki trc payload -t $TRCID.toml -o $TRCID.pld.der
 # LITERALINCLUDE create_payload END
 
 echo "Phase 2: display payload digest"
@@ -176,7 +217,13 @@ do
     cd $SAFEDIR/$loc
     set_dirs
 
-    in_docker "cd /workdir && display_payload && sign_payload && check_signed_payload"
+    display_payload_scion_pki
+    if [ -z "$USE_SCION_PKI_SIGN" ]; then
+        in_docker "cd /workdir && display_payload && sign_payload && check_signed_payload"
+    else
+        sign_payload_scion_pki
+        check_signed_payload_scion_pki
+    fi
     cp $TRCID.{regular,sensitive}.trc $SAFEDIR/admin/$loc
 done
 
@@ -188,7 +235,7 @@ echo "Phase 4: combine TRC"
 cd $SAFEDIR/admin
 
 # LITERALINCLUDE combine_payload START
-scion-pki trcs combine -p $TRCID.pld.der \
+scion-pki trc combine -p $TRCID.pld.der \
     bern/$TRCID.sensitive.trc \
     bern/$TRCID.regular.trc \
     geneva/$TRCID.sensitive.trc \
@@ -199,7 +246,7 @@ scion-pki trcs combine -p $TRCID.pld.der \
 # LITERALINCLUDE combine_payload END
 
 # LITERALINCLUDE verify_payload START
-scion-pki trcs verify --anchor $TRCID.trc $TRCID.trc
+scion-pki trc verify --anchor $TRCID.trc $TRCID.trc
 # LITERALINCLUDE verify_payload END
 in_docker "cd /workdir && verify_trc"
 
@@ -238,14 +285,21 @@ do
     navigate_pubdir
 
     echo "Phase 5: $loc generate CA certificate"
-    in_docker "navigate_pubdir && gen_ca && check_ca"
-    check_ca_type
-
+    if [ -z "$USE_SCION_PKI_SIGN" ]; then
+        in_docker "navigate_pubdir && gen_ca && check_ca"
+        check_ca_type
+    else
+        gen_ca_scion_pki
+    fi
     echo "Phase 5: $loc generate AS certificate"
-    in_docker "navigate_pubdir && gen_as && check_as"
-    check_as_type
-    cat cp-as.crt cp-ca.crt > chain.pem
-    scion-pki certs verify --trc ../$TRCID.trc --currenttime 1593000000 chain.pem
+    if [ -z "$USE_SCION_PKI_SIGN" ]; then
+        in_docker "navigate_pubdir && gen_as && check_as"
+        check_as_type
+        cat cp-as.crt cp-ca.crt > chain.pem
+    else
+        gen_as_scion_pki
+    fi
+    scion-pki certificate verify --trc ../$TRCID.trc --currenttime 1593000000 chain.pem
 done
 
 echo "###########"

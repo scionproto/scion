@@ -8,10 +8,22 @@ load("@bazel_gazelle//:deps.bzl", "go_repository")
 
 def go_deps():
     go_repository(
+        name = "at_zgo_zcache_v2",
+        importpath = "zgo.at/zcache/v2",
+        sum = "h1:USo+ubK+R4vtjw4viGzTe/zjXyPw6R7SK/RL3epBBxs=",
+        version = "v2.1.0",
+    )
+    go_repository(
         name = "co_honnef_go_tools",
         importpath = "honnef.co/go/tools",
         sum = "h1:YGD4H+SuIOOqsyoLOpZDWcieM28W47/zRO7f+9V3nvo=",
         version = "v0.4.5",
+    )
+    go_repository(
+        name = "com_connectrpc_connect",
+        importpath = "connectrpc.com/connect",
+        sum = "h1:ybd6y+ls7GOlb7Bh5C8+ghA6SvCBajHwxssO2CGFjqE=",
+        version = "v1.16.2",
     )
     go_repository(
         name = "com_github_ajstarks_svgo",
@@ -560,12 +572,6 @@ def go_deps():
         version = "v0.0.0-20210719221736-1c9a4c676720",
     )
     go_repository(
-        name = "com_github_gopherjs_gopherjs",
-        importpath = "github.com/gopherjs/gopherjs",
-        sum = "h1:fQnZVsXk8uxXIStYb0N4bGk7jeyTalG/wsZjQ25dO0g=",
-        version = "v1.17.2",
-    )
-    go_repository(
         name = "com_github_gorilla_css",
         importpath = "github.com/gorilla/css",
         sum = "h1:BQqNyPTi50JCFMTw/b67hByjMVXZRwGha6wxVGkeihY=",
@@ -720,12 +726,6 @@ def go_deps():
         importpath = "github.com/json-iterator/go",
         sum = "h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=",
         version = "v1.1.12",
-    )
-    go_repository(
-        name = "com_github_jtolds_gls",
-        importpath = "github.com/jtolds/gls",
-        sum = "h1:xdiiI2gbIgH/gLH7ADydsJ1uDOEzR8yvV7C0MuV77Wo=",
-        version = "v4.20.0+incompatible",
     )
     go_repository(
         name = "com_github_juju_gnuflag",
@@ -1028,18 +1028,6 @@ def go_deps():
         version = "v0.1.9",
     )
     go_repository(
-        name = "com_github_neelance_astrewrite",
-        importpath = "github.com/neelance/astrewrite",
-        sum = "h1:D6paGObi5Wud7xg83MaEFyjxQB1W5bz5d0IFppr+ymk=",
-        version = "v0.0.0-20160511093645-99348263ae86",
-    )
-    go_repository(
-        name = "com_github_neelance_sourcemap",
-        importpath = "github.com/neelance/sourcemap",
-        sum = "h1:bY6ktFuJkt+ZXkX0RChQch2FtHpWQLVS8Qo1YasiIVk=",
-        version = "v0.0.0-20200213170602-2833bce08e4c",
-    )
-    go_repository(
         name = "com_github_niemeyer_pretty",
         importpath = "github.com/niemeyer/pretty",
         sum = "h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=",
@@ -1214,39 +1202,9 @@ def go_deps():
         version = "v0.0.0-20220729165902-8cddb4f5de06",
     )
     go_repository(
-        name = "com_github_shurcool_go",
-        importpath = "github.com/shurcooL/go",
-        sum = "h1:aSISeOcal5irEhJd1M+IrApc0PdcN7e7Aj4yuEnOrfQ=",
-        version = "v0.0.0-20200502201357-93f07166e636",
-    )
-    go_repository(
-        name = "com_github_shurcool_httpfs",
-        importpath = "github.com/shurcooL/httpfs",
-        sum = "h1:bUGsEnyNbVPw06Bs80sCeARAlK8lhwqGyi6UT8ymuGk=",
-        version = "v0.0.0-20190707220628-8d4bc4ba7749",
-    )
-    go_repository(
-        name = "com_github_shurcool_vfsgen",
-        importpath = "github.com/shurcooL/vfsgen",
-        sum = "h1:pXY9qYc/MP5zdvqWEUH6SjNiu7VhSjuVFTFiTcphaLU=",
-        version = "v0.0.0-20200824052919-0d455de96546",
-    )
-    go_repository(
         name = "com_github_sirupsen_logrus",
         importpath = "github.com/sirupsen/logrus",
         sum = "h1:dJKuHgqk1NNQlqoA6BTlM1Wf9DOH3NBjQyu0h9+AZZE=",
-        version = "v1.8.1",
-    )
-    go_repository(
-        name = "com_github_smarty_assertions",
-        importpath = "github.com/smarty/assertions",
-        sum = "h1:EvHNkdRA4QHMrn75NZSoUQ/mAUXAYWfatfB01yTCzfY=",
-        version = "v1.16.0",
-    )
-    go_repository(
-        name = "com_github_smartystreets_goconvey",
-        importpath = "github.com/smartystreets/goconvey",
-        sum = "h1:qGjIddxOk4grTu9JPOU31tVfq3cNdBlNa5sSznIX1xY=",
         version = "v1.8.1",
     )
     go_repository(

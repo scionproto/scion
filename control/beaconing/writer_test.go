@@ -37,12 +37,12 @@ import (
 	"github.com/scionproto/scion/control/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
@@ -316,7 +316,7 @@ func TestRegistrarRun(t *testing.T) {
 			func(_, _ interface{}) (<-chan beacon.Beacon, error) {
 				res := make(chan beacon.Beacon, 1)
 				b := testBeacon(g, []uint16{graph.If_120_X_111_B})
-				b.InIfId = 10
+				b.InIfID = 10
 				res <- b
 				close(res)
 				return res, nil
@@ -331,7 +331,7 @@ func testBeacon(g *graph.Graph, desc []uint16) beacon.Beacon {
 	bseg.ASEntries = bseg.ASEntries[:len(bseg.ASEntries)-1]
 
 	return beacon.Beacon{
-		InIfId:  asEntry.HopEntry.HopField.ConsIngress,
+		InIfID:  asEntry.HopEntry.HopField.ConsIngress,
 		Segment: bseg,
 	}
 }
@@ -377,7 +377,7 @@ type topoWrap struct {
 }
 
 func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
-	a, _ := w.Topo.UnderlayNextHop(common.IFIDType(id))
+	a, _ := w.Topo.UnderlayNextHop(iface.ID(id))
 	return a
 }
 
@@ -390,7 +390,7 @@ func interfaceInfos(topo topology.Topology) map[uint16]ifstate.InterfaceInfo {
 			IA:           info.IA,
 			LinkType:     info.LinkType,
 			InternalAddr: netip.MustParseAddrPort(info.InternalAddr.String()),
-			RemoteID:     uint16(info.RemoteIFID),
+			RemoteID:     uint16(info.RemoteIfID),
 			MTU:          uint16(info.MTU),
 		}
 	}

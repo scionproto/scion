@@ -73,19 +73,19 @@ The subject key ID is written to standard out.
 			if flags.fullKey {
 				marshaledKey, err := x509.MarshalPKIXPublicKey(pub)
 				if err != nil {
-					return serrors.WrapStr("full-key-digest", err)
+					return serrors.Wrap("full-key-digest", err)
 				}
 				cks := sha1.Sum(marshaledKey)
 				skid = cks[:]
 			} else {
 				skid, err = cppki.SubjectKeyID(pub)
 				if err != nil {
-					return serrors.WrapStr("computing subject key ID", err)
+					return serrors.Wrap("computing subject key ID", err)
 				}
 			}
 			output, err := encoding.EncodeBytes(skid, flags.format)
 			if err != nil {
-				return serrors.WrapStr("encoding subject key ID", err)
+				return serrors.Wrap("encoding subject key ID", err)
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), output)
 			return nil
@@ -104,8 +104,12 @@ The subject key ID is written to standard out.
 func loadPublicKey(filename string) (crypto.PublicKey, error) {
 	raw, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, serrors.WrapStr("reading input file", err)
+		return nil, serrors.Wrap("reading input file", err)
 	}
+	return loadPublicKeyPem(raw)
+}
+
+func loadPublicKeyPem(raw []byte) (crypto.PublicKey, error) {
 	block, _ := pem.Decode(raw)
 	if block == nil {
 		return nil, serrors.New("parsing input failed")
@@ -114,7 +118,7 @@ func loadPublicKey(filename string) (crypto.PublicKey, error) {
 	case "PRIVATE KEY":
 		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing private key", err)
+			return nil, serrors.Wrap("parsing private key", err)
 		}
 
 		pub, ok := key.(crypto.Signer)
@@ -127,13 +131,13 @@ func loadPublicKey(filename string) (crypto.PublicKey, error) {
 	case "PUBLIC KEY":
 		pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing public key", err)
+			return nil, serrors.Wrap("parsing public key", err)
 		}
 		return pub, nil
 	case "CERTIFICATE":
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing certificate", err)
+			return nil, serrors.Wrap("parsing certificate", err)
 		}
 		return cert.PublicKey, nil
 	default:

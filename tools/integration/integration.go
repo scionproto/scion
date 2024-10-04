@@ -218,7 +218,8 @@ func generateAllSrcDst(hostAddr HostAddr, unique bool) []IAPair {
 
 type HostAddr func(ia addr.IA) *snet.UDPAddr
 
-// CSAddr reads the CS host Addr from the topology for the specified IA.
+// CSAddr reads the tester host Addr from the topology for the specified IA.
+// If the address cannot be found, the CS address is returned.
 var CSAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 	if a := loadAddr(ia); a != nil {
 		return a
@@ -308,16 +309,16 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration,
 	defer cancel()
 	c, err := in.StartClient(ctx, pair.Src, pair.Dst)
 	if err != nil {
-		return serrors.WrapStr("starting client", err)
+		return serrors.Wrap("starting client", err)
 	}
 	if err = c.Wait(); err != nil {
-		return serrors.WrapStr("waiting for completion", err)
+		return serrors.Wrap("waiting for completion", err)
 	}
 	if checkOutput == nil {
 		return nil
 	}
 	if err := checkOutput(c.Output()); err != nil {
-		return serrors.WrapStr("checking output", err)
+		return serrors.Wrap("checking output", err)
 	}
 	return nil
 }

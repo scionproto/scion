@@ -11,6 +11,7 @@ SCION Cryptography
    trc-signing-ceremony-preparations
    trc-signing-ceremony-phases-base
    trc-signing-ceremony-phases-sensitive
+   trc-signing-ceremony-builder
    ca-operations
    interactions
    drkey

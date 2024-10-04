@@ -140,13 +140,13 @@ func (c *SCIONPacketConn) Close() error {
 
 func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 	if err := pkt.Serialize(); err != nil {
-		return serrors.WrapStr("serialize SCION packet", err)
+		return serrors.Wrap("serialize SCION packet", err)
 	}
 
 	// Send message
 	n, err := c.Conn.WriteTo(pkt.Bytes, ov)
 	if err != nil {
-		return serrors.WrapStr("Reliable socket write error", err)
+		return serrors.Wrap("Reliable socket write error", err)
 	}
 	metrics.CounterAdd(c.Metrics.WriteBytes, float64(n))
 	metrics.CounterInc(c.Metrics.WritePackets)
@@ -198,7 +198,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	n, remoteAddr, err := c.Conn.ReadFrom(pkt.Bytes)
 	if err != nil {
 		metrics.CounterInc(c.Metrics.UnderlayConnectionErrors)
-		return nil, serrors.WrapStr("reading underlay connection", err)
+		return nil, serrors.Wrap("reading underlay connection", err)
 	}
 	metrics.CounterAdd(c.Metrics.ReadBytes, float64(n))
 	metrics.CounterInc(c.Metrics.ReadPackets)
@@ -206,7 +206,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	pkt.Bytes = pkt.Bytes[:n]
 	if err := pkt.Decode(); err != nil {
 		metrics.CounterInc(c.Metrics.ParseErrors)
-		return nil, serrors.WrapStr("decoding packet", err)
+		return nil, serrors.Wrap("decoding packet", err)
 	}
 
 	udpRemoteAddr := remoteAddr.(*net.UDPAddr)
@@ -218,7 +218,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 		// *loopback:30041* `SCIONPacketConn.lastHop()` should yield the right next hop address.
 		lastHop, err = c.lastHop(pkt)
 		if err != nil {
-			return nil, serrors.WrapStr("extracting last hop based on packet path", err)
+			return nil, serrors.Wrap("extracting last hop based on packet path", err)
 		}
 	}
 	return lastHop, nil
@@ -282,11 +282,11 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
 			return nil, err
 		}
-		ifid := path.SecondHop.ConsIngress
+		ifID := path.SecondHop.ConsIngress
 		if !path.Info.ConsDir {
-			ifid = path.SecondHop.ConsEgress
+			ifID = path.SecondHop.ConsEgress
 		}
-		return c.interfaceMap.get(ifid)
+		return c.interfaceMap.get(ifID)
 	case epic.PathType:
 		var path epic.Path
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
@@ -300,11 +300,11 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if err != nil {
 			return nil, err
 		}
-		ifid := hf.ConsIngress
+		ifID := hf.ConsIngress
 		if !infoField.ConsDir {
-			ifid = hf.ConsEgress
+			ifID = hf.ConsEgress
 		}
-		return c.interfaceMap.get(ifid)
+		return c.interfaceMap.get(ifID)
 	case scion.PathType:
 		var path scion.Raw
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
@@ -318,11 +318,11 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if err != nil {
 			return nil, err
 		}
-		ifid := hf.ConsIngress
+		ifID := hf.ConsIngress
 		if !infoField.ConsDir {
-			ifid = hf.ConsEgress
+			ifID = hf.ConsEgress
 		}
-		return c.interfaceMap.get(ifid)
+		return c.interfaceMap.get(ifID)
 	default:
 		return nil, serrors.New("unknown path type", "type", rpath.PathType.String())
 	}

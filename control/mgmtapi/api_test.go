@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/control/mgmtapi/mock_mgmtapi"
 	cstrust "github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/control/trust/mock_trust"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -293,7 +294,7 @@ func TestAPI(t *testing.T) {
 				s.SetNowProvider(func() time.Time { return now })
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
 					[]trust.Signer{{
-						IA:        xtest.MustParseIA("1-ff00:0:110"),
+						IA:        addr.MustParseIA("1-ff00:0:110"),
 						Algorithm: signed.ECDSAWithSHA512,
 						Subject: pkix.Name{
 							Country:    []string{"CH"},
@@ -921,8 +922,8 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 					},
 					ASEntries: []seg.ASEntry{
 						{
-							Local: xtest.MustParseIA("1-ff00:0:110"),
-							Next:  xtest.MustParseIA("1-ff00:0:111"),
+							Local: addr.MustParseIA("1-ff00:0:110"),
+							Next:  addr.MustParseIA("1-ff00:0:111"),
 							HopEntry: seg.HopEntry{
 								HopField: seg.HopField{
 									ConsIngress: 0,
@@ -932,8 +933,8 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 							},
 						},
 						{
-							Local: xtest.MustParseIA("1-ff00:0:111"),
-							Next:  xtest.MustParseIA("1-ff00:0:112"),
+							Local: addr.MustParseIA("1-ff00:0:111"),
+							Next:  addr.MustParseIA("1-ff00:0:112"),
 							HopEntry: seg.HopEntry{
 								HopField: seg.HopField{
 									ConsIngress: 2,
@@ -944,7 +945,7 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 						},
 					},
 				},
-				InIfId: 2,
+				InIfID: 2,
 			},
 			Usage:       beaconlib.UsageUpReg | beaconlib.UsageDownReg,
 			LastUpdated: time.Date(2021, 1, 2, 8, 0, 0, 0, time.UTC),
@@ -957,8 +958,8 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 					},
 					ASEntries: []seg.ASEntry{
 						{
-							Local: xtest.MustParseIA("2-ff00:0:220"),
-							Next:  xtest.MustParseIA("3-ff00:0:330"),
+							Local: addr.MustParseIA("2-ff00:0:220"),
+							Next:  addr.MustParseIA("3-ff00:0:330"),
 							HopEntry: seg.HopEntry{
 								HopField: seg.HopField{
 									ConsIngress: 0,
@@ -967,8 +968,8 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 							},
 						},
 						{
-							Local: xtest.MustParseIA("3-ff00:0:330"),
-							Next:  xtest.MustParseIA("4-ff00:0:440"),
+							Local: addr.MustParseIA("3-ff00:0:330"),
+							Next:  addr.MustParseIA("4-ff00:0:440"),
 							HopEntry: seg.HopEntry{
 								HopField: seg.HopField{
 									ConsIngress: 6,
@@ -978,7 +979,7 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 						},
 					},
 				},
-				InIfId: 1,
+				InIfID: 1,
 			},
 			Usage:       beaconlib.UsageCoreReg,
 			LastUpdated: time.Date(2021, 2, 2, 8, 0, 0, 0, time.UTC),

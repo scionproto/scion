@@ -47,12 +47,12 @@ func (d Deriver) DeriveASHost(
 
 	host, err := addr.ParseHost(dstHost)
 	if err != nil {
-		return drkey.Key{}, serrors.WrapStr("parsing dst host", err)
+		return drkey.Key{}, serrors.Wrap("parsing dst host", err)
 	}
 	buf := make([]byte, 32)
 	l, err := d.serializeLevel2Input(buf, drkey.AsHost, host)
 	if err != nil {
-		return drkey.Key{}, serrors.WrapStr("serializing drkey level 2 input", err)
+		return drkey.Key{}, serrors.Wrap("serializing drkey level 2 input", err)
 	}
 	outKey, err := drkey.DeriveKey(buf[:l], key)
 	return outKey, err
@@ -62,12 +62,12 @@ func (d Deriver) DeriveASHost(
 func (p Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error) {
 	host, err := addr.ParseHost(srcHost)
 	if err != nil {
-		return drkey.Key{}, serrors.WrapStr("parsing src host", err)
+		return drkey.Key{}, serrors.Wrap("parsing src host", err)
 	}
 	buf := make([]byte, 32)
 	l, err := p.serializeLevel2Input(buf, drkey.HostAS, host)
 	if err != nil {
-		return drkey.Key{}, serrors.WrapStr("serializing drkey level 2 input", err)
+		return drkey.Key{}, serrors.Wrap("serializing drkey level 2 input", err)
 	}
 	outKey, err := drkey.DeriveKey(buf[:l], key)
 	return outKey, err
@@ -77,12 +77,12 @@ func (p Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error) 
 func (d Deriver) DeriveHostHost(dstHost string, key drkey.Key) (drkey.Key, error) {
 	host, err := addr.ParseHost(dstHost)
 	if err != nil {
-		return drkey.Key{}, serrors.WrapStr("deriving input H2H", err)
+		return drkey.Key{}, serrors.Wrap("deriving input H2H", err)
 	}
 	buf := make([]byte, 32)
 	l, err := drkey.SerializeHostHostInput(buf, host)
 	if err != nil {
-		return drkey.Key{}, serrors.WrapStr("serializing drkey host-host input", err)
+		return drkey.Key{}, serrors.Wrap("serializing drkey host-host input", err)
 	}
 	outKey, err := drkey.DeriveKey(buf[:l], key)
 	return outKey, err
@@ -99,7 +99,7 @@ func (d Deriver) serializeLevel2Input(
 
 	typ, raw, err := slayers.PackAddr(host)
 	if err != nil {
-		return 0, serrors.WrapStr("packing host address", err)
+		return 0, serrors.Wrap("packing host address", err)
 	}
 	l := len(raw)
 

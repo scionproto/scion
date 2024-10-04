@@ -113,7 +113,7 @@ func (s *DefaultExtender) Extend(
 
 	signers, err := s.SignerGen.Generate(ctx)
 	if err != nil {
-		return serrors.WrapStr("getting signer", err)
+		return serrors.Wrap("getting signer", err)
 	}
 	now := time.Now()
 	signer, err := trust.LastExpiring(signers, cppki.Validity{
@@ -121,7 +121,7 @@ func (s *DefaultExtender) Extend(
 		NotAfter:  now,
 	})
 	if err != nil {
-		return serrors.WrapStr("selecting signer", err)
+		return serrors.Wrap("selecting signer", err)
 	}
 	// Make sure the hop expiration time is not longer than the signer expiration time.
 	expTime := s.MaxExpTime()
@@ -131,7 +131,7 @@ func (s *DefaultExtender) Extend(
 		var err error
 		expTime, err = path.ExpTimeFromDuration(signerExp.Sub(ts))
 		if err != nil {
-			return serrors.WrapStr(
+			return serrors.Wrap(
 				"calculating expiry time from signer expiration time", err,
 				"signer_expiration", signerExp,
 			)
@@ -142,7 +142,7 @@ func (s *DefaultExtender) Extend(
 	hopBeta := extractBeta(pseg)
 	hopEntry, epicHopMac, err := s.createHopEntry(ingress, egress, expTime, ts, hopBeta)
 	if err != nil {
-		return serrors.WrapStr("creating hop entry", err)
+		return serrors.Wrap("creating hop entry", err)
 	}
 
 	// The peer hop fields chain to the main hop field, just like any child hop field.
@@ -234,7 +234,7 @@ func (s *DefaultExtender) createHopEntry(
 
 	remoteInMTU, err := s.remoteMTU(ingress)
 	if err != nil {
-		return seg.HopEntry{}, nil, serrors.WrapStr("checking remote ingress interface (mtu)", err,
+		return seg.HopEntry{}, nil, serrors.Wrap("checking remote ingress interface (mtu)", err,
 			"interfaces", ingress)
 	}
 	hopF, epicMac := s.createHopF(ingress, egress, expTime, ts, beta)
@@ -254,7 +254,7 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, expTime uint8,
 
 	remoteInIA, remoteInIfID, remoteInMTU, err := s.remoteInfo(ingress)
 	if err != nil {
-		return seg.PeerEntry{}, nil, serrors.WrapStr("checking remote ingress interface", err,
+		return seg.PeerEntry{}, nil, serrors.Wrap("checking remote ingress interface", err,
 			"ingress_interface", ingress)
 	}
 	hopF, epicMac := s.createHopF(ingress, egress, expTime, ts, beta)
@@ -298,13 +298,13 @@ func (s *DefaultExtender) remoteMTU(ifID uint16) (uint16, error) {
 	return topoInfo.MTU, nil
 }
 
-func (s *DefaultExtender) remoteInfo(ifid uint16) (
+func (s *DefaultExtender) remoteInfo(ifID uint16) (
 	addr.IA, uint16, uint16, error) {
 
-	if ifid == 0 {
+	if ifID == 0 {
 		return 0, 0, 0, nil
 	}
-	intf := s.Intfs.Get(ifid)
+	intf := s.Intfs.Get(ifID)
 	if intf == nil {
 		return 0, 0, 0, serrors.New("interface not found")
 	}

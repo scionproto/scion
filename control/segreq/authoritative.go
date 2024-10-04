@@ -58,11 +58,13 @@ func (a AuthoritativeLookup) classify(ctx context.Context,
 
 	switch {
 	case src != a.LocalIA:
-		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 			"src", src, "dst", dst, "reason", "src must be local AS")
+
 	case dst.ISD() == 0:
-		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 			"src", src, "dst", dst, "reason", "zero ISD dst")
+
 	case dst.ISD() == a.LocalIA.ISD():
 		dstCore, err := a.CoreChecker.IsCore(ctx, dst)
 		if err != nil {

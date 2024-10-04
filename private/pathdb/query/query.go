@@ -20,13 +20,13 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 type IntfSpec struct {
 	IA   addr.IA
-	IfID common.IFIDType
+	IfID iface.ID
 }
 
 type Params struct {

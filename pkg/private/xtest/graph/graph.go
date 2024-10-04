@@ -37,7 +37,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
@@ -45,23 +44,24 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/extensions/staticinfo"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
-// Graph implements a graph of ASes and IFIDs for testing purposes. IFIDs
+// Graph implements a graph of ASes and IfIDs for testing purposes. IfIDs
 // must be globally unique.
 //
 // Nodes are represented by ASes.
 //
-// Edges are represented by pairs of IFIDs.
+// Edges are represented by pairs of IfIDs.
 type Graph struct {
-	// maps IFIDs to the other IFID of the edge
+	// maps IfIDs to the other IfID of the edge
 	links map[uint16]uint16
-	// specifies whether an IFID is on a peering link
+	// specifies whether an IfID is on a peering link
 	isPeer map[uint16]bool
-	// maps IFIDs to the AS they belong to
+	// maps IfIDs to the AS they belong to
 	parents map[uint16]addr.IA
-	// maps ASes to a structure containing a slice of their IFIDs
+	// maps ASes to a structure containing a slice of their IfIDs
 	ases map[addr.IA]*AS
 
 	signers map[addr.IA]*Signer
@@ -89,7 +89,7 @@ func NewFromDescription(ctrl *gomock.Controller, desc *Description) *Graph {
 		graph.Add(node)
 	}
 	for _, edge := range desc.Edges {
-		graph.AddLink(edge.Xia, edge.Xifid, edge.Yia, edge.Yifid, edge.Peer)
+		graph.AddLink(edge.Xia, edge.XifID, edge.Yia, edge.YifID, edge.Peer)
 	}
 	return graph
 }
@@ -101,7 +101,7 @@ func (g *Graph) Add(ia string) {
 	defer g.lock.Unlock()
 	isdas := MustParseIA(ia)
 	g.ases[isdas] = &AS{
-		IFIDs: make(map[uint16]struct{}),
+		IfIDs: make(map[uint16]struct{}),
 	}
 	g.signers[isdas] = NewSigner(
 		WithIA(isdas),
@@ -121,10 +121,10 @@ func (g *Graph) GetSigner(ia string) *Signer {
 }
 
 // AddLink adds a new edge between the ASes described by xIA and yIA, with
-// xIFID in xIA and yIFID in yIA. If xIA or yIA are not valid string
+// xIfID in xIA and yIfID in yIA. If xIA or yIA are not valid string
 // representations of an ISD-AS, AddLink panics.
-func (g *Graph) AddLink(xIA string, xIFID uint16,
-	yIA string, yIFID uint16, peer bool) {
+func (g *Graph) AddLink(xIA string, xIfID uint16,
+	yIA string, yIfID uint16, peer bool) {
 
 	g.lock.Lock()
 	defer g.lock.Unlock()
@@ -136,45 +136,45 @@ func (g *Graph) AddLink(xIA string, xIFID uint16,
 	if _, ok := g.ases[y]; !ok {
 		panic(fmt.Sprintf("AS %s not in graph", yIA))
 	}
-	if _, ok := g.links[xIFID]; ok {
-		panic(fmt.Sprintf("IFID %d is not unique", xIFID))
+	if _, ok := g.links[xIfID]; ok {
+		panic(fmt.Sprintf("IfID %d is not unique", xIfID))
 	}
-	if _, ok := g.links[yIFID]; ok {
-		panic(fmt.Sprintf("IFID %d is not unique", yIFID))
+	if _, ok := g.links[yIfID]; ok {
+		panic(fmt.Sprintf("IfID %d is not unique", yIfID))
 	}
-	g.links[xIFID] = yIFID
-	g.links[yIFID] = xIFID
-	g.isPeer[xIFID] = peer
-	g.isPeer[yIFID] = peer
-	g.parents[xIFID] = x
-	g.parents[yIFID] = y
-	g.ases[x].IFIDs[xIFID] = struct{}{}
-	g.ases[y].IFIDs[yIFID] = struct{}{}
+	g.links[xIfID] = yIfID
+	g.links[yIfID] = xIfID
+	g.isPeer[xIfID] = peer
+	g.isPeer[yIfID] = peer
+	g.parents[xIfID] = x
+	g.parents[yIfID] = y
+	g.ases[x].IfIDs[xIfID] = struct{}{}
+	g.ases[y].IfIDs[yIfID] = struct{}{}
 }
 
-// RemoveLink deletes the edge containing ifid from the graph.
-func (g *Graph) RemoveLink(ifid uint16) {
+// RemoveLink deletes the edge containing ifID from the graph.
+func (g *Graph) RemoveLink(ifID uint16) {
 	g.lock.Lock()
 	defer g.lock.Unlock()
-	ia := g.parents[ifid]
-	neighborIFID := g.links[ifid]
-	neighborIA := g.parents[neighborIFID]
+	ia := g.parents[ifID]
+	neighborIfID := g.links[ifID]
+	neighborIA := g.parents[neighborIfID]
 
-	delete(g.links, ifid)
-	delete(g.links, neighborIFID)
-	delete(g.isPeer, ifid)
-	delete(g.isPeer, neighborIFID)
-	delete(g.parents, ifid)
-	delete(g.parents, neighborIFID)
-	g.ases[ia].Delete(ifid)
-	g.ases[neighborIA].Delete(neighborIFID)
+	delete(g.links, ifID)
+	delete(g.links, neighborIfID)
+	delete(g.isPeer, ifID)
+	delete(g.isPeer, neighborIfID)
+	delete(g.parents, ifID)
+	delete(g.parents, neighborIfID)
+	g.ases[ia].Delete(ifID)
+	g.ases[neighborIA].Delete(neighborIfID)
 }
 
-// GetParent returns the parent AS of ifid.
-func (g *Graph) GetParent(ifid uint16) addr.IA {
+// GetParent returns the parent AS of ifID.
+func (g *Graph) GetParent(ifID uint16) addr.IA {
 	g.lock.Lock()
 	defer g.lock.Unlock()
-	return g.parents[ifid]
+	return g.parents[ifID]
 }
 
 // GetPaths returns all the minimum-length paths. If xIA = yIA, a 1-length
@@ -215,15 +215,15 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]uint16 {
 		}
 
 		// Explore neighboring ASes, if not visited yet.
-		for ifid := range g.ases[curSolution.CurrentIA].IFIDs {
-			nextIFID := g.links[ifid]
-			nextIA := g.parents[nextIFID]
+		for ifID := range g.ases[curSolution.CurrentIA].IfIDs {
+			nextIfID := g.links[ifID]
+			nextIA := g.parents[nextIfID]
 			if curSolution.Visited(nextIA) {
 				continue
 			}
 			// Copy to avoid mutating the trails of other explorations.
 			nextTrail := curSolution.Copy()
-			nextTrail.Add(ifid, nextIFID, nextIA)
+			nextTrail.Add(ifID, nextIfID, nextIA)
 			nextTrail.CurrentIA = nextIA
 			queue = append(queue, nextTrail)
 		}
@@ -231,35 +231,35 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]uint16 {
 	return solution
 }
 
-// Beacon constructs path segments across a series of egress ifids. The parent
-// AS of the first IFID is the origin of the beacon, and the beacon propagates
-// down to the parent AS of the remote counterpart of the last IFID. The
+// Beacon constructs path segments across a series of egress ifIDs. The parent
+// AS of the first IfID is the origin of the beacon, and the beacon propagates
+// down to the parent AS of the remote counterpart of the last IfID. The
 // constructed segment includes peering links. The hop fields in the returned
 // segment do not contain valid MACs.
-func (g *Graph) Beacon(ifids []uint16) *seg.PathSegment {
-	return g.beacon(ifids, false)
+func (g *Graph) Beacon(ifIDs []uint16) *seg.PathSegment {
+	return g.beacon(ifIDs, false)
 }
 
-func (g *Graph) BeaconWithStaticInfo(ifids []uint16) *seg.PathSegment {
-	return g.beacon(ifids, true)
+func (g *Graph) BeaconWithStaticInfo(ifIDs []uint16) *seg.PathSegment {
+	return g.beacon(ifIDs, true)
 }
 
-// beacon constructs path segments across a series of egress ifids. The parent
-// AS of the first IFID is the origin of the beacon, and the beacon propagates
-// down to the parent AS of the remote counterpart of the last IFID. The
+// beacon constructs path segments across a series of egress ifIDs. The parent
+// AS of the first IfID is the origin of the beacon, and the beacon propagates
+// down to the parent AS of the remote counterpart of the last IfID. The
 // constructed segment includes peering links. The hop fields in the returned
 // segment do not contain valid MACs.
-func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
+func (g *Graph) beacon(ifIDs []uint16, addStaticInfo bool) *seg.PathSegment {
 	var inIF, outIF, remoteOutIF uint16
 	var currIA, outIA addr.IA
 
 	var segment *seg.PathSegment
-	if len(ifids) == 0 {
+	if len(ifIDs) == 0 {
 		return segment
 	}
 
-	if _, ok := g.parents[ifids[0]]; !ok {
-		panic(fmt.Sprintf("%d unknown ifid", ifids[0]))
+	if _, ok := g.parents[ifIDs[0]]; !ok {
+		panic(fmt.Sprintf("%d unknown ifID", ifIDs[0]))
 	}
 
 	segment, err := seg.CreateSegment(time.Now(), uint16(rand.Int()))
@@ -267,17 +267,17 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 		panic(err)
 	}
 
-	currIA = g.parents[ifids[0]]
-	for i := 0; i <= len(ifids); i++ {
+	currIA = g.parents[ifIDs[0]]
+	for i := 0; i <= len(ifIDs); i++ {
 		switch {
-		case i < len(ifids):
+		case i < len(ifIDs):
 			var ok bool
-			outIF = ifids[i]
+			outIF = ifIDs[i]
 			if remoteOutIF, ok = g.links[outIF]; !ok {
-				panic(fmt.Sprintf("%d unknown ifid", outIF))
+				panic(fmt.Sprintf("%d unknown ifID", outIF))
 			}
 			outIA = g.parents[remoteOutIF]
-		case i == len(ifids):
+		case i == len(ifIDs):
 			outIF = 0
 			remoteOutIF = 0
 			outIA = 0
@@ -302,14 +302,14 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 		as := g.ases[currIA]
 
 		// use int to avoid implementing sort.Interface
-		var ifids []int
-		for peeringLocalIF := range as.IFIDs {
-			ifids = append(ifids, int(peeringLocalIF))
+		var ifIDs []int
+		for peeringLocalIF := range as.IfIDs {
+			ifIDs = append(ifIDs, int(peeringLocalIF))
 		}
-		sort.Ints(ifids)
+		sort.Ints(ifIDs)
 
-		for _, intIFID := range ifids {
-			peeringLocalIF := uint16(intIFID)
+		for _, intIfID := range ifIDs {
+			peeringLocalIF := uint16(intIfID)
 			if g.isPeer[peeringLocalIF] {
 				peeringRemoteIF := g.links[peeringLocalIF]
 				asEntry.PeerEntries = append(asEntry.PeerEntries, seg.PeerEntry{
@@ -329,7 +329,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 			asEntry.Extensions.StaticInfo = generateStaticInfo(g, currIA, inIF, outIF)
 		}
 		if err := segment.AddASEntry(context.Background(), asEntry, g.signers[currIA]); err != nil {
-			panic(serrors.WrapStr("adding AS entry", err))
+			panic(serrors.Wrap("adding AS entry", err))
 		}
 		inIF = remoteOutIF
 		currIA = g.parents[remoteOutIF]
@@ -337,10 +337,10 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 	return segment
 }
 
-// DeleteInterface removes ifid from the graph without deleting its remote
-// counterpart. This is useful for testing IFID misconfigurations.
-func (g *Graph) DeleteInterface(ifid uint16) {
-	delete(g.links, ifid)
+// DeleteInterface removes ifID from the graph without deleting its remote
+// counterpart. This is useful for testing IfID misconfigurations.
+func (g *Graph) DeleteInterface(ifID uint16) {
+	delete(g.links, ifID)
 }
 
 // Latency returns an arbitrary test latency value between two interfaces. The
@@ -373,15 +373,15 @@ func (g *Graph) Bandwidth(a, b uint16) uint64 {
 }
 
 // GeoCoordinates returns an arbitrary test GeoCoordinate for the interface
-func (g *Graph) GeoCoordinates(ifid uint16) staticinfo.GeoCoordinates {
-	ia, ok := g.parents[ifid]
+func (g *Graph) GeoCoordinates(ifID uint16) staticinfo.GeoCoordinates {
+	ia, ok := g.parents[ifID]
 	if !ok {
 		panic("unknown interface")
 	}
 	return staticinfo.GeoCoordinates{
-		Latitude:  float32(ifid),
-		Longitude: float32(ifid),
-		Address:   fmt.Sprintf("Location %s#%d", ia, ifid),
+		Latitude:  float32(ifID),
+		Longitude: float32(ifID),
+		Address:   fmt.Sprintf("Location %s#%d", ia, ifID),
 	}
 }
 
@@ -478,8 +478,8 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 
 	id := &cppb.VerificationKeyID{
 		IsdAs:        uint64(s.IA),
-		TrcBase:      uint64(s.TRCID.Base),
-		TrcSerial:    uint64(s.TRCID.Serial),
+		TrcBase:      uint64(s.TRCID.Base),   // nolint - name from published protobuf
+		TrcSerial:    uint64(s.TRCID.Serial), // nolint - name from published protobuf
 		SubjectKeyId: skid,
 	}
 	rawID, err := proto.Marshal(id)
@@ -497,17 +497,17 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 	return signed.Sign(hdr, msg, s.PrivateKey, associatedData...)
 }
 
-// AS contains a list of all the IFIDs in an AS.
+// AS contains a list of all the IfIDs in an AS.
 type AS struct {
-	IFIDs map[uint16]struct{}
+	IfIDs map[uint16]struct{}
 }
 
-// Delete removes ifid from as.
-func (as *AS) Delete(ifid uint16) {
-	if _, ok := as.IFIDs[ifid]; !ok {
-		panic("ifid not found")
+// Delete removes ifID from as.
+func (as *AS) Delete(ifID uint16) {
+	if _, ok := as.IfIDs[ifID]; !ok {
+		panic("ifID not found")
 	}
-	delete(as.IFIDs, ifid)
+	delete(as.IfIDs, ifID)
 }
 
 // solution tracks the state of a candidate solution for the graph
@@ -517,7 +517,7 @@ type solution struct {
 	CurrentIA addr.IA
 	// whether the AS has already been visited by this path, to avoid loops
 	visited map[addr.IA]struct{}
-	// the trail of IFIDs
+	// the trail of IfIDs
 	trail []uint16
 }
 
@@ -547,10 +547,10 @@ func (s *solution) Visited(ia addr.IA) bool {
 	return ok
 }
 
-// Add appends localIFID and nextIFID to the trail, and advances to nextIA.
-func (s *solution) Add(localIFID, nextIFID uint16, nextIA addr.IA) {
+// Add appends localIfID and nextIfID to the trail, and advances to nextIA.
+func (s *solution) Add(localIfID, nextIfID uint16, nextIA addr.IA) {
 	s.visited[nextIA] = struct{}{}
-	s.trail = append(s.trail, localIFID, nextIFID)
+	s.trail = append(s.trail, localIfID, nextIfID)
 }
 
 func (s *solution) Len() int {
@@ -575,9 +575,9 @@ type Description struct {
 // EdgeDesc is used in Descriptions to describe the links between ASes.
 type EdgeDesc struct {
 	Xia   string
-	Xifid uint16
+	XifID uint16
 	Yia   string
-	Yifid uint16
+	YifID uint16
 	Peer  bool
 }
 
@@ -603,55 +603,55 @@ func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF uint16) *staticinfo.Ex
 
 	latency := staticinfo.LatencyInfo{}
 	if outIF != 0 {
-		latency.Intra = make(map[common.IFIDType]time.Duration)
-		latency.Inter = make(map[common.IFIDType]time.Duration)
-		for ifid := range as.IFIDs {
-			if ifid != outIF {
+		latency.Intra = make(map[iface.ID]time.Duration)
+		latency.Inter = make(map[iface.ID]time.Duration)
+		for ifID := range as.IfIDs {
+			if ifID != outIF {
 				// Note: the test graph does not distinguish between parent/child or
 				// core interfaces.
 				// Otherwise, we could skip the parent interfaces and half of the
 				// sibling interfaces here.
-				latency.Intra[common.IFIDType(ifid)] = g.Latency(ifid, outIF)
+				latency.Intra[iface.ID(ifID)] = g.Latency(ifID, outIF)
 			}
-			if ifid == outIF || g.isPeer[ifid] {
-				latency.Inter[common.IFIDType(ifid)] = g.Latency(ifid, g.links[ifid])
+			if ifID == outIF || g.isPeer[ifID] {
+				latency.Inter[iface.ID(ifID)] = g.Latency(ifID, g.links[ifID])
 			}
 		}
 	}
 
 	bandwidth := staticinfo.BandwidthInfo{}
 	if outIF != 0 {
-		bandwidth.Intra = make(map[common.IFIDType]uint64)
-		bandwidth.Inter = make(map[common.IFIDType]uint64)
-		for ifid := range as.IFIDs {
-			if ifid != outIF {
-				bandwidth.Intra[common.IFIDType(ifid)] = g.Bandwidth(ifid, outIF)
+		bandwidth.Intra = make(map[iface.ID]uint64)
+		bandwidth.Inter = make(map[iface.ID]uint64)
+		for ifID := range as.IfIDs {
+			if ifID != outIF {
+				bandwidth.Intra[iface.ID(ifID)] = g.Bandwidth(ifID, outIF)
 			}
-			if ifid == outIF || g.isPeer[ifid] {
-				bandwidth.Inter[common.IFIDType(ifid)] = g.Bandwidth(ifid, g.links[ifid])
+			if ifID == outIF || g.isPeer[ifID] {
+				bandwidth.Inter[iface.ID(ifID)] = g.Bandwidth(ifID, g.links[ifID])
 			}
 		}
 	}
 
 	geo := make(staticinfo.GeoInfo)
-	for ifid := range as.IFIDs {
-		geo[common.IFIDType(ifid)] = g.GeoCoordinates(ifid)
+	for ifID := range as.IfIDs {
+		geo[iface.ID(ifID)] = g.GeoCoordinates(ifID)
 	}
 
 	linkType := make(staticinfo.LinkTypeInfo)
-	for ifid := range as.IFIDs {
-		linkType[common.IFIDType(ifid)] = g.LinkType(ifid, g.links[ifid])
+	for ifID := range as.IfIDs {
+		linkType[iface.ID(ifID)] = g.LinkType(ifID, g.links[ifID])
 	}
 
 	var internalHops staticinfo.InternalHopsInfo
 	if outIF != 0 {
-		internalHops = make(map[common.IFIDType]uint32)
+		internalHops = make(map[iface.ID]uint32)
 		if inIF != 0 {
-			internalHops[common.IFIDType(inIF)] = g.InternalHops(inIF, outIF)
+			internalHops[iface.ID(inIF)] = g.InternalHops(inIF, outIF)
 		}
-		for ifid := range as.IFIDs {
-			if ifid != outIF && ifid != inIF {
-				internalHops[common.IFIDType(ifid)] = g.InternalHops(ifid, outIF)
+		for ifID := range as.IfIDs {
+			if ifID != outIF && ifID != inIF {
+				internalHops[iface.ID(ifID)] = g.InternalHops(ifID, outIF)
 			}
 		}
 	}

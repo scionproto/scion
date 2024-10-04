@@ -28,10 +28,10 @@ type DefaultReplyPather struct{}
 func (DefaultReplyPather) ReplyPath(rpath RawPath) (DataplanePath, error) {
 	p, err := path.NewPath(rpath.PathType)
 	if err != nil {
-		return nil, serrors.WrapStr("creating path", err, "type", rpath.PathType)
+		return nil, serrors.Wrap("creating path", err, "type", rpath.PathType)
 	}
 	if err := p.DecodeFromBytes(rpath.Raw); err != nil {
-		return nil, serrors.WrapStr("decoding path", err)
+		return nil, serrors.Wrap("decoding path", err)
 	}
 
 	// By default, reversing an EPIC path means getting a reversed SCION path.
@@ -41,7 +41,7 @@ func (DefaultReplyPather) ReplyPath(rpath RawPath) (DataplanePath, error) {
 
 	reversed, err := p.Reverse()
 	if err != nil {
-		return nil, serrors.WrapStr("reversing path", err)
+		return nil, serrors.Wrap("reversing path", err)
 	}
 	return RawReplyPath{
 		Path: reversed,

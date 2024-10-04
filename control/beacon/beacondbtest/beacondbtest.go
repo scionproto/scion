@@ -24,9 +24,9 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
@@ -318,13 +318,13 @@ func CheckResults(t *testing.T, results []beacon.Beacon, expectedBeacons []beaco
 			}
 			assert.Equal(t, expected, actual)
 		}
-		assert.Equal(t, expected.InIfId, res.InIfId, "InIfId %d should match", i)
+		assert.Equal(t, expected.InIfID, res.InIfID, "InIfID %d should match", i)
 	}
 }
 
 func InsertBeacon(t *testing.T, db beacon.DB, ases []IfInfo,
-	inIfId uint16, infoTS uint32, allowed beacon.Usage) beacon.Beacon {
-	b, _ := AllocBeacon(t, ases, inIfId, infoTS)
+	inIfID uint16, infoTS uint32, allowed beacon.Usage) beacon.Beacon {
+	b, _ := AllocBeacon(t, ases, inIfID, infoTS)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	_, err := db.InsertBeacon(ctx, b, allowed)
@@ -334,21 +334,21 @@ func InsertBeacon(t *testing.T, db beacon.DB, ases []IfInfo,
 
 type PeerEntry struct {
 	IA      addr.IA
-	Ingress common.IFIDType
+	Ingress iface.ID
 }
 
 type IfInfo struct {
 	IA      addr.IA
 	Next    addr.IA
-	Ingress common.IFIDType
-	Egress  common.IFIDType
+	Ingress iface.ID
+	Egress  iface.ID
 	Peers   []PeerEntry
 }
 
 func AllocBeacon(
 	t *testing.T,
 	ases []IfInfo,
-	inIfId uint16,
+	inIfID uint16,
 	infoTS uint32,
 ) (beacon.Beacon, []byte) {
 
@@ -401,5 +401,5 @@ func AllocBeacon(
 		err := pseg.AddASEntry(context.Background(), entry, signer)
 		require.NoError(t, err)
 	}
-	return beacon.Beacon{Segment: pseg, InIfId: inIfId}, pseg.ID()
+	return beacon.Beacon{Segment: pseg, InIfID: inIfID}, pseg.ID()
 }

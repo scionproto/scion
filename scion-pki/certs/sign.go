@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/app/flag"
+	scionpki "github.com/scionproto/scion/scion-pki"
 	"github.com/scionproto/scion/scion-pki/key"
 )
 
@@ -39,6 +40,7 @@ func newSignCmd(pather command.Pather) *cobra.Command {
 		notAfter  flag.Time
 		ca        string
 		caKey     string
+		caKms     string
 		bundle    bool
 	}
 	flags.notBefore = flag.Time{
@@ -86,7 +88,7 @@ and not to \--not-before.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ct, err := parseCertType(flags.profile)
 			if err != nil {
-				return serrors.WrapStr("parsing profile", err)
+				return serrors.Wrap("parsing profile", err)
 			}
 			if ct != cppki.AS && ct != cppki.CA {
 				return serrors.New("not supported", "profile", flags.profile)
@@ -96,7 +98,7 @@ and not to \--not-before.
 
 			csrRaw, err := os.ReadFile(args[0])
 			if err != nil {
-				return serrors.WrapStr("loading CSR", err)
+				return serrors.Wrap("loading CSR", err)
 			}
 			csrPem, rest := pem.Decode(csrRaw)
 			if len(rest) != 0 {
@@ -104,20 +106,25 @@ and not to \--not-before.
 			}
 			csr, err := x509.ParseCertificateRequest(csrPem.Bytes)
 			if err != nil {
-				return serrors.WrapStr("parsing CSR", err)
+				return serrors.Wrap("parsing CSR", err)
 			}
 
 			caCertRaw, err := os.ReadFile(flags.ca)
 			if err != nil {
-				return serrors.WrapStr("read CA certificate", err)
+				return serrors.Wrap("read CA certificate", err)
 			}
 			caCert, err := parseCertificate(caCertRaw)
 			if err != nil {
-				return serrors.WrapStr("parsing CA certificate", err)
+				return serrors.Wrap("parsing CA certificate", err)
 			}
-			caKey, err := key.LoadPrivateKey(flags.caKey)
+			caKey, err := key.LoadPrivateKey(flags.caKms, flags.caKey)
 			if err != nil {
-				return serrors.WrapStr("loading CA private key", err)
+				return serrors.Wrap("loading CA private key", err)
+			}
+			if !key.IsX509Signer(caKey) {
+				return serrors.New("the CA key cannot be used to create X.509 certificates",
+					"type", fmt.Sprintf("%T", caKey),
+				)
 			}
 
 			subject := csr.Subject
@@ -133,15 +140,15 @@ and not to \--not-before.
 				CACert:    caCert,
 			})
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err)
+				return serrors.Wrap("creating certificate", err)
 			}
 
 			cert, err := x509.ParseCertificate(certRaw)
 			if err != nil {
-				return serrors.WrapStr("parsing created certificate", err)
+				return serrors.Wrap("parsing created certificate", err)
 			}
 			if gt, err := cppki.ValidateCert(cert); err != nil {
-				return serrors.WrapStr("validating created certificate", err)
+				return serrors.Wrap("validating created certificate", err)
 			} else if gt != ct {
 				return serrors.New("created certificate with wrong type",
 					"expected", ct,
@@ -190,6 +197,7 @@ offset from the current time.`,
 	cmd.Flags().BoolVar(&flags.bundle, "bundle", false,
 		"Bundle the certificate with the issuer certificate as a certificate chain",
 	)
+	scionpki.BindFlagKmsCA(cmd.Flags(), &flags.caKms)
 	cmd.MarkFlagRequired("ca")
 	cmd.MarkFlagRequired("ca-key")
 

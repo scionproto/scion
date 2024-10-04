@@ -22,7 +22,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
@@ -53,11 +52,11 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		"UDP OHP packet": {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					IA:   addr.MustParseIA("1-ff00:0:110"),
 					Host: addr.HostSVC(addr.SvcCS),
 				},
 				Source: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					IA:   addr.MustParseIA("1-ff00:0:112"),
 					Host: addr.MustParseHost("127.0.0.1"),
 				},
 				Path: snetpath.OneHop{},
@@ -71,11 +70,11 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		"UDP packet": {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					IA:   addr.MustParseIA("1-ff00:0:110"),
 					Host: addr.HostSVC(addr.SvcCS),
 				},
 				Source: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					IA:   addr.MustParseIA("1-ff00:0:112"),
 					Host: addr.MustParseHost("127.0.0.1"),
 				},
 				Path: snetpath.SCION{
@@ -91,11 +90,11 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		"SCMP EchoRequest": {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					IA:   addr.MustParseIA("1-ff00:0:110"),
 					Host: addr.HostSVC(addr.SvcCS),
 				},
 				Source: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					IA:   addr.MustParseIA("1-ff00:0:112"),
 					Host: addr.MustParseHost("127.0.0.1"),
 				},
 				Path: snetpath.SCION{
@@ -111,11 +110,11 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		"SCMP EchoReply": {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					IA:   addr.MustParseIA("1-ff00:0:110"),
 					Host: addr.HostSVC(addr.SvcCS),
 				},
 				Source: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					IA:   addr.MustParseIA("1-ff00:0:112"),
 					Host: addr.MustParseHost("127.0.0.1"),
 				},
 				Path: snetpath.SCION{
@@ -131,18 +130,18 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		"SCMP ExternalInterfaceDown": {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					IA:   addr.MustParseIA("1-ff00:0:110"),
 					Host: addr.HostSVC(addr.SvcCS),
 				},
 				Source: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					IA:   addr.MustParseIA("1-ff00:0:112"),
 					Host: addr.MustParseHost("127.0.0.1"),
 				},
 				Path: snetpath.SCION{
 					Raw: rawSP(),
 				},
 				Payload: snet.SCMPExternalInterfaceDown{
-					IA:        xtest.MustParseIA("1-ff00:0:111"),
+					IA:        addr.MustParseIA("1-ff00:0:111"),
 					Interface: 13,
 					Payload:   []byte("scmp quote"),
 				},
@@ -151,18 +150,18 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		"SCMP InternalConnectivityDown": {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					IA:   addr.MustParseIA("1-ff00:0:110"),
 					Host: addr.HostSVC(addr.SvcCS),
 				},
 				Source: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					IA:   addr.MustParseIA("1-ff00:0:112"),
 					Host: addr.MustParseHost("127.0.0.1"),
 				},
 				Path: snetpath.SCION{
 					Raw: rawSP(),
 				},
 				Payload: snet.SCMPInternalConnectivityDown{
-					IA:      xtest.MustParseIA("1-ff00:0:111"),
+					IA:      addr.MustParseIA("1-ff00:0:111"),
 					Ingress: 14,
 					Egress:  25,
 					Payload: []byte("scmp quote"),
@@ -172,11 +171,11 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		"SCMP ParameterProblem": {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					IA:   addr.MustParseIA("1-ff00:0:110"),
 					Host: addr.HostSVC(addr.SvcCS),
 				},
 				Source: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					IA:   addr.MustParseIA("1-ff00:0:112"),
 					Host: addr.MustParseHost("127.0.0.1"),
 				},
 				Path: snetpath.SCION{
@@ -194,11 +193,11 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		"SCMP PacketTooBig": {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					IA:   addr.MustParseIA("1-ff00:0:110"),
 					Host: addr.HostSVC(addr.SvcCS),
 				},
 				Source: snet.SCIONAddress{
-					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					IA:   addr.MustParseIA("1-ff00:0:112"),
 					Host: addr.MustParseHost("127.0.0.1"),
 				},
 				Path: snetpath.SCION{
@@ -241,7 +240,7 @@ func convertRawPath(r snet.RawPath) (snet.DataplanePath, error) {
 	case onehop.PathType:
 		p := onehop.Path{}
 		if err := p.DecodeFromBytes(r.Raw); err != nil {
-			return nil, serrors.WrapStr("decoding ohp", err)
+			return nil, serrors.Wrap("decoding ohp", err)
 		}
 		return snetpath.OneHop{
 			Info:      p.Info,
@@ -266,11 +265,11 @@ func TestPacketSerialize(t *testing.T) {
 			input: snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:110"),
+						IA:   addr.MustParseIA("1-ff00:0:110"),
 						Host: addr.HostSVC(addr.SvcCS),
 					},
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:112"),
+						IA:   addr.MustParseIA("1-ff00:0:112"),
 						Host: addr.MustParseHost("127.0.0.1"),
 					},
 					Path: snetpath.OneHop{},
@@ -287,11 +286,11 @@ func TestPacketSerialize(t *testing.T) {
 			input: snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:110"),
+						IA:   addr.MustParseIA("1-ff00:0:110"),
 						Host: addr.HostSVC(addr.SvcCS),
 					},
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:112"),
+						IA:   addr.MustParseIA("1-ff00:0:112"),
 						Host: addr.MustParseHost("127.0.0.1"),
 					},
 					Payload: snet.UDPPayload{
@@ -311,11 +310,11 @@ func TestPacketSerialize(t *testing.T) {
 			input: snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:110"),
+						IA:   addr.MustParseIA("1-ff00:0:110"),
 						Host: addr.HostSVC(addr.SvcCS),
 					},
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:112"),
+						IA:   addr.MustParseIA("1-ff00:0:112"),
 						Host: addr.MustParseHost("127.0.0.1"),
 					},
 					Path: snetpath.OneHop{},

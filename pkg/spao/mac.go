@@ -94,11 +94,11 @@ func ComputeAuthCMAC(
 func initCMAC(key []byte) (hash.Hash, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to initialize AES cipher", err)
+		return nil, serrors.Wrap("unable to initialize AES cipher", err)
 	}
 	mac, err := cmac.New(block)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to initialize Mac", err)
+		return nil, serrors.Wrap("unable to initialize Mac", err)
 	}
 	return mac, nil
 }
@@ -162,7 +162,7 @@ func serializeAuthenticatedData(
 func zeroOutMutablePath(orig path.Path, buf []byte) error {
 	err := orig.SerializeTo(buf)
 	if err != nil {
-		return serrors.WrapStr("serializing path for resetting fields", err)
+		return serrors.Wrap("serializing path for resetting fields", err)
 	}
 	switch p := orig.(type) {
 	case empty.Path:

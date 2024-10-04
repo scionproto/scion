@@ -100,11 +100,11 @@ func (e *executor) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedT
 		return cppki.SignedTRC{}, nil
 	}
 	if err != nil {
-		return cppki.SignedTRC{}, serrors.Wrap(db.ErrReadFailed, err)
+		return cppki.SignedTRC{}, serrors.JoinNoStack(db.ErrReadFailed, err)
 	}
 	trc, err := cppki.DecodeSignedTRC(rawTRC)
 	if err != nil {
-		return cppki.SignedTRC{}, serrors.Wrap(db.ErrDataInvalid, err)
+		return cppki.SignedTRC{}, serrors.JoinNoStack(db.ErrDataInvalid, err)
 	}
 	return trc, nil
 }
@@ -128,11 +128,11 @@ func (e *executor) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, er
 			trc.Raw,
 		)
 		if err != nil {
-			return serrors.Wrap(db.ErrWriteFailed, err)
+			return serrors.JoinNoStack(db.ErrWriteFailed, err)
 		}
 		ar, err := r.RowsAffected()
 		if err != nil {
-			return serrors.Wrap(db.ErrWriteFailed, err)
+			return serrors.JoinNoStack(db.ErrWriteFailed, err)
 		}
 		inserted = ar > 0
 		return nil
@@ -177,25 +177,25 @@ func (e *executor) Chains(ctx context.Context,
 	sqlQuery = append(sqlQuery, strings.Join(filters, " AND "))
 	rows, err := e.db.QueryContext(ctx, strings.Join(sqlQuery, "\n"), args...)
 	if err != nil {
-		return nil, serrors.Wrap(db.ErrReadFailed, err)
+		return nil, serrors.JoinNoStack(db.ErrReadFailed, err)
 	}
 	defer rows.Close()
 	var chains [][]*x509.Certificate
 	for rows.Next() {
 		if err := rows.Err(); err != nil {
-			return nil, serrors.Wrap(db.ErrReadFailed, err)
+			return nil, serrors.JoinNoStack(db.ErrReadFailed, err)
 		}
 		var rawAS, rawCA []byte
 		if err := rows.Scan(&rawAS, &rawCA); err != nil {
-			return nil, serrors.Wrap(db.ErrReadFailed, err)
+			return nil, serrors.JoinNoStack(db.ErrReadFailed, err)
 		}
 		as, err := x509.ParseCertificate(rawAS)
 		if err != nil {
-			return nil, serrors.Wrap(db.ErrDataInvalid, err)
+			return nil, serrors.JoinNoStack(db.ErrDataInvalid, err)
 		}
 		ca, err := x509.ParseCertificate(rawCA)
 		if err != nil {
-			return nil, serrors.Wrap(db.ErrDataInvalid, err)
+			return nil, serrors.JoinNoStack(db.ErrDataInvalid, err)
 		}
 		chains = append(chains, []*x509.Certificate{as, ca})
 	}
@@ -212,15 +212,15 @@ func (e *executor) Chain(ctx context.Context,
 	var chain []*x509.Certificate
 	var rawAS, rawCA []byte
 	if err := r.Scan(&rawAS, &rawCA); err != nil {
-		return nil, serrors.Wrap(db.ErrReadFailed, err)
+		return nil, serrors.JoinNoStack(db.ErrReadFailed, err)
 	}
 	as, err := x509.ParseCertificate(rawAS)
 	if err != nil {
-		return nil, serrors.Wrap(db.ErrDataInvalid, err)
+		return nil, serrors.JoinNoStack(db.ErrDataInvalid, err)
 	}
 	ca, err := x509.ParseCertificate(rawCA)
 	if err != nil {
-		return nil, serrors.Wrap(db.ErrDataInvalid, err)
+		return nil, serrors.JoinNoStack(db.ErrDataInvalid, err)
 	}
 	chain = []*x509.Certificate{as, ca}
 	return chain, nil
@@ -231,13 +231,16 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 	defer e.Unlock()
 
 	if len(chain) != 2 {
-		return false, serrors.WithCtx(db.ErrInvalidInputData, "msg", "invalid chain length",
+		return false, serrors.JoinNoStack(db.ErrInvalidInputData, nil,
+			"msg", "invalid chain length",
 			"expected", 2, "actual", len(chain))
+
 	}
 	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {
-		return false, serrors.Wrap(db.ErrInvalidInputData, err,
+		return false, serrors.JoinNoStack(db.ErrInvalidInputData, err,
 			"msg", "invalid AS cert, invalid ISD-AS")
+
 	}
 	query := `INSERT INTO chains (isd_id, as_id, key_id, not_before, not_after,
 								  chain_fingerprint, as_cert, ca_cert)
@@ -249,11 +252,11 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 			chain[0].NotBefore.UTC(), chain[0].NotAfter.UTC(),
 			truststorage.ChainID(chain), chain[0].Raw, chain[1].Raw)
 		if err != nil {
-			return serrors.Wrap(db.ErrWriteFailed, err)
+			return serrors.JoinNoStack(db.ErrWriteFailed, err)
 		}
 		ar, err := r.RowsAffected()
 		if err != nil {
-			return serrors.Wrap(db.ErrWriteFailed, err)
+			return serrors.JoinNoStack(db.ErrWriteFailed, err)
 		}
 		inserted = ar > 0
 		return nil
@@ -302,7 +305,7 @@ func (e *executor) SignedTRCs(ctx context.Context,
 	}
 	rows, err := e.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
-		return nil, serrors.Wrap(db.ErrReadFailed, err)
+		return nil, serrors.JoinNoStack(db.ErrReadFailed, err)
 	}
 	defer rows.Close()
 	var res cppki.SignedTRCs
@@ -314,7 +317,7 @@ func (e *executor) SignedTRCs(ctx context.Context,
 		}
 		curRes, err := cppki.DecodeSignedTRC(rawTRC)
 		if err != nil {
-			return nil, serrors.Wrap(db.ErrDataInvalid, err)
+			return nil, serrors.JoinNoStack(db.ErrDataInvalid, err)
 		}
 		res = append(res, curRes)
 	}

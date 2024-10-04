@@ -1,5 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
@@ -60,16 +59,6 @@ config_setting(
     name = "sqlite_modernc",
     define_values = {
         "gotags": "sqlite_modernc",
-    },
-)
-
-# This is a dummy target so Make can "blaze build --announce_rc <something>
-# Where something truly does nothing that we may care about.
-
-config_setting(
-    name = "dummy_setting",
-    define_values = {
-        "whatever": "whatever",
     },
 )
 
@@ -140,9 +129,10 @@ gazelle(
 go_lint_config(
     name = "go_lint_config",
     exclude_filter = [
-        "mock_",
-        ".pb.go",
+        ".connect.go",
         ".gen.go",
+        ".pb.go",
+        "mock_",
     ],
     visibility = [
         "//visibility:public",
@@ -211,7 +201,6 @@ pkg_tar(
         "//tools/buildkite/cmd/buildkite_artifacts",
         "//tools/end2end",
         "//tools/end2end_integration",
-        "//tools/end2endblast",
         "//tools/pktgen/cmd/pktgen",
         "//tools/scion_integration",
         "//tools/udpproxy",
@@ -261,6 +250,11 @@ write_source_files(
         "//dispatcher/mgmtapi:write_files",
         "//doc/command:write_files",
         "//gateway/mgmtapi:write_files",
+        "//pkg/proto/control_plane/v1/control_planeconnect:write_files",
+        "//pkg/proto/daemon/v1/daemonconnect:write_files",
+        "//pkg/proto/discovery/v1/discoveryconnect:write_files",
+        "//pkg/proto/gateway/v1/gatewayconnect:write_files",
+        "//pkg/proto/hidden_segment/v1/hidden_segmentconnect:write_files",
         "//private/ca/api:write_files",
         "//private/mgmtapi/cppki/api:write_files",
         "//private/mgmtapi/health/api:write_files",

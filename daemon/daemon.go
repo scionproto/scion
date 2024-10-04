@@ -62,7 +62,7 @@ func TrustEngine(
 	certsDir := filepath.Join(cfgDir, "certs")
 	loaded, err := trust.LoadTRCs(context.Background(), certsDir, db)
 	if err != nil {
-		return trust.Engine{}, serrors.WrapStr("loading TRCs", err)
+		return trust.Engine{}, serrors.Wrap("loading TRCs", err)
 	}
 	log.Info("TRCs loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
@@ -74,8 +74,9 @@ func TrustEngine(
 	}
 	loaded, err = trust.LoadChains(context.Background(), certsDir, db)
 	if err != nil {
-		return trust.Engine{}, serrors.WrapStr("loading certificate chains",
+		return trust.Engine{}, serrors.Wrap("loading certificate chains",
 			err)
+
 	}
 	log.Info("Certificate chains loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {

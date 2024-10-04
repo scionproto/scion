@@ -33,7 +33,7 @@ jobs:
           caching: '1'
           statsFile: ${{ env.statsFile }}
       - name: Upload the verification report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: verification_stats.json
           path: ${{ env.statsFile }}

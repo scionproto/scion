@@ -16,7 +16,6 @@ package segfetcher_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -24,11 +23,11 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"github.com/scionproto/scion/pkg/private/xtest/matchers"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/private/pathdb/query"
 	"github.com/scionproto/scion/private/revcache"
@@ -389,10 +388,9 @@ func TestResolverWithRevocations(t *testing.T) {
 	futureT := time.Now().Add(2 * time.Minute)
 
 	revoke := func(t *testing.T, revCache *mock_revcache.MockRevCache, key revcache.Key) {
-		ksMatcher := keySetContains{keys: []revcache.Key{key}}
 		rev := &path_mgmt.RevInfo{}
-		revCache.EXPECT().Get(gomock.Any(), ksMatcher).
-			Return(revcache.Revocations{key: rev}, nil)
+		revCache.EXPECT().Get(gomock.Any(), key).
+			Return(rev, nil)
 	}
 	tests := map[string]resolverTest{
 		"Up wildcard (cached)": {
@@ -411,11 +409,11 @@ func TestResolverWithRevocations(t *testing.T) {
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
 				key111_120 := revcache.Key{
 					IA:   non_core_111,
-					IfId: common.IFIDType(graph.If_111_B_120_X),
+					IfID: iface.ID(graph.If_111_B_120_X),
 				}
 				key111_130 := revcache.Key{
 					IA:   non_core_111,
-					IfId: common.IFIDType(graph.If_111_A_130_B),
+					IfID: iface.ID(graph.If_111_A_130_B),
 				}
 				revoke(t, revCache, key111_120)
 				revoke(t, revCache, key111_130)
@@ -446,12 +444,9 @@ func TestResolverWithRevocations(t *testing.T) {
 				db.EXPECT().Get(gomock.Any(), gomock.Any()).Times(2)
 			},
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
-				key110 := revcache.Key{IA: core_110, IfId: common.IFIDType(graph.If_110_X_130_A)}
-				ksMatcher := keySetContains{keys: []revcache.Key{key110}}
+				key110 := revcache.Key{IA: core_110, IfID: iface.ID(graph.If_110_X_130_A)}
 				rev := &path_mgmt.RevInfo{}
-				revCache.EXPECT().Get(gomock.Any(), ksMatcher).Return(revcache.Revocations{
-					key110: rev,
-				}, nil)
+				revCache.EXPECT().Get(gomock.Any(), key110).Return(rev, nil)
 				revCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 			},
 			ExpectedSegments:  segfetcher.Segments{tg.seg210_130_core, tg.seg210_130_2_core},
@@ -473,27 +468,6 @@ func resultsFromSegs(segs ...*seg.Meta) query.Results {
 		})
 	}
 	return results
-}
-
-type keySetContains struct {
-	keys []revcache.Key
-}
-
-func (m keySetContains) Matches(other interface{}) bool {
-	ks, ok := other.(revcache.KeySet)
-	if !ok {
-		return false
-	}
-	for _, k := range m.keys {
-		if _, ok := ks[k]; !ok {
-			return false
-		}
-	}
-	return true
-}
-
-func (m keySetContains) String() string {
-	return fmt.Sprintf("revcache.KeySet containing %v", m.keys)
 }
 
 type neverLocal struct{}

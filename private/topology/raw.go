@@ -55,12 +55,12 @@ func rawBRIntfLocalAddr(u *jsontopo.Underlay) (netip.AddrPort, error) {
 func resolveAddrPortOrPort(s string) (netip.AddrPort, error) {
 	rh, rp, err := net.SplitHostPort(s)
 	if err != nil {
-		return netip.AddrPort{}, serrors.WrapStr("failed to split host port", err)
+		return netip.AddrPort{}, serrors.Wrap("failed to split host port", err)
 	}
 	if rh == "" {
 		port, err := strconv.ParseUint(rp, 10, 16)
 		if err != nil {
-			return netip.AddrPort{}, serrors.WrapStr("failed to parse port", err)
+			return netip.AddrPort{}, serrors.Wrap("failed to parse port", err)
 		}
 		return netip.AddrPortFrom(netip.Addr{}, uint16(port)), nil
 	}

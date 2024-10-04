@@ -51,7 +51,7 @@ func (f PrefixFetcher) Prefixes(ctx context.Context, gateway *net.UDPAddr) ([]*n
 	client := gpb.NewIPPrefixesServiceClient(conn)
 	rep, err := client.Prefixes(ctx, &gpb.PrefixesRequest{}, grpc.RetryProfile...)
 	if err != nil {
-		return nil, serrors.WrapStr("receiving IP prefixes", err)
+		return nil, serrors.Wrap("receiving IP prefixes", err)
 	}
 	prefixes := make([]*net.IPNet, 0, len(rep.Prefixes))
 	for _, pb := range rep.Prefixes {

@@ -51,7 +51,7 @@ func (r ASLocalRecurser) AllowRecursion(peer net.Addr) error {
 	switch a := peer.(type) {
 	case *snet.UDPAddr:
 		if !r.IA.Equal(a.IA) {
-			return serrors.WrapStr("client outside local AS", ErrRecursionNotAllowed,
+			return serrors.Wrap("client outside local AS", ErrRecursionNotAllowed,
 				"addr", peer)
 		}
 		return nil
@@ -59,7 +59,7 @@ func (r ASLocalRecurser) AllowRecursion(peer net.Addr) error {
 		// local host is allowed
 		return nil
 	default:
-		return serrors.WrapStr("unable to determine AS of peer", ErrRecursionNotAllowed,
+		return serrors.Wrap("unable to determine AS of peer", ErrRecursionNotAllowed,
 			"addr", peer, "type", common.TypeOf(peer))
 	}
 }
@@ -70,7 +70,13 @@ type LocalOnlyRecurser struct{}
 // AllowRecursion returns an error if the address is not nil.
 func (r LocalOnlyRecurser) AllowRecursion(peer net.Addr) error {
 	if peer != nil {
-		return serrors.WrapStr("client not host-local", ErrRecursionNotAllowed, "addr", peer)
+		return serrors.Wrap("client not host-local", ErrRecursionNotAllowed, "addr", peer)
 	}
 	return nil
+}
+
+type NeverRecurser struct{}
+
+func (r NeverRecurser) AllowRecursion(peer net.Addr) error {
+	return serrors.New("recursion never allowed")
 }

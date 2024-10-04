@@ -35,7 +35,7 @@ func newSamplePolicy(pather command.Pather) *cobra.Command {
 			var sample beacon.Policy
 			sample.InitDefaults()
 			if err := yaml.NewEncoder(os.Stdout).Encode(sample); err != nil {
-				return serrors.WrapStr("producing sample policy", err)
+				return serrors.Wrap("producing sample policy", err)
 			}
 			return nil
 		},

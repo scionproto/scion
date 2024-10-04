@@ -17,10 +17,8 @@ package revcache
 import (
 	"context"
 
-	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/storage/cleaner"
 )
 
@@ -32,78 +30,21 @@ func NewCleaner(rc RevCache, s string) *cleaner.Cleaner {
 	}, s)
 }
 
-// FilterNew filters the given revocations against the revCache, only the ones
-// which are not in the cache are returned. This is a convenience wrapper
-// around the Revocations type and its filter new method.
-func FilterNew(ctx context.Context, revCache RevCache,
-	revocations []*path_mgmt.RevInfo) ([]*path_mgmt.RevInfo, error) {
-
-	rMap, err := RevocationToMap(revocations)
-	if err != nil {
-		return nil, err
-	}
-	if err = rMap.FilterNew(ctx, revCache); err != nil {
-		return nil, err
-	}
-	return rMap.ToSlice(), nil
-}
-
-// newerInfo returns whether the received info is newer than the existing.
-func newerInfo(existing, received *path_mgmt.RevInfo) bool {
-	return !received.SameIntf(existing) ||
-		received.Timestamp().After(existing.Timestamp())
-}
-
 // NoRevokedHopIntf returns true if there is no on-segment revocation.
 func NoRevokedHopIntf(ctx context.Context, revCache RevCache,
 	s *seg.PathSegment) (bool, error) {
 
-	revKeys := make(KeySet)
-	addRevKeys([]*seg.PathSegment{s}, revKeys, true)
-	revs, err := revCache.Get(ctx, revKeys)
-	return len(revs) == 0, err
-}
-
-// RelevantRevInfos finds all revocations for the given segments.
-func RelevantRevInfos(ctx context.Context, revCache RevCache,
-	allSegs ...[]*seg.PathSegment) ([]*path_mgmt.RevInfo, error) {
-
-	revKeys := make(KeySet)
-	for _, segs := range allSegs {
-		addRevKeys(segs, revKeys, false)
-	}
-	revs, err := revCache.Get(ctx, revKeys)
-	if err != nil {
-		return nil, err
-	}
-	allRevs := make([]*path_mgmt.RevInfo, 0, len(revs))
-	for _, rev := range revs {
-		allRevs = append(allRevs, rev)
-	}
-	return allRevs, nil
-}
-
-// addRevKeys adds all revocations keys for the given segments to the keys set.
-// If hopOnly is set, only the first hop entry is considered.
-func addRevKeys(segs []*seg.PathSegment, keys KeySet, hopOnly bool) {
-	addIntfs := func(ia addr.IA, ingress, egress uint16) {
-		if ingress != 0 {
-			keys[*NewKey(ia, common.IFIDType(ingress))] = struct{}{}
-		}
-		if egress != 0 {
-			keys[*NewKey(ia, common.IFIDType(egress))] = struct{}{}
-		}
-	}
-	for _, s := range segs {
-		for _, asEntry := range s.ASEntries {
-			hop := asEntry.HopEntry.HopField
-			addIntfs(asEntry.Local, hop.ConsIngress, hop.ConsEgress)
-			if hopOnly {
-				continue
-			}
-			for _, peer := range asEntry.PeerEntries {
-				addIntfs(asEntry.Local, peer.HopField.ConsIngress, peer.HopField.ConsEgress)
+	for _, asEntry := range s.ASEntries {
+		hop := asEntry.HopEntry.HopField
+		for _, key := range [2]Key{
+			{IA: asEntry.Local, IfID: iface.ID(hop.ConsIngress)},
+			{IA: asEntry.Local, IfID: iface.ID(hop.ConsEgress)},
+		} {
+			rev, err := revCache.Get(ctx, key)
+			if err != nil || rev != nil {
+				return false, err
 			}
 		}
 	}
+	return true, nil
 }

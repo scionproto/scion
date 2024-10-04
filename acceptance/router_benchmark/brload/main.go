@@ -195,6 +195,18 @@ func run(cmd *cobra.Command) int {
 	// we don't need to update it.
 	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
 
+	// Prepare a batch worth of packets.
+	batchSize := int(8)
+	allPkts := make([][]byte, batchSize)
+	for i := 0; i < batchSize; i++ {
+		allPkts[i] = make([]byte, len(rawPkt))
+		copy(allPkts[i], rawPkt)
+	}
+
+	// Share them with a multi-packets sender. We modify the flowIDs in-place for each batch.
+	sender := newMpktSender(writePktTo)
+	sender.setPkts(allPkts)
+
 	// We started everything that could be started. So the best window for perf mertics
 	// opens somewhere around now.
 	begin := time.Now()
@@ -202,15 +214,18 @@ func run(cmd *cobra.Command) int {
 
 	numPkt := 0
 	for time.Since(begin) < testDuration {
-		// Check the time only once every 10000 packets
-		for i := 0; i < 10000; i++ {
+		// we break every 1000 batches to check the time
+		for i := 0; i < 1000; i++ {
 			// Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
 			// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
 			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
 			// more than 64K flows).
-			binary.BigEndian.PutUint16(rawPkt[44:46], uint16(numPkt%int(numStreams)))
-			numPkt++
-			if err := writePktTo.WritePacketData(rawPkt); err != nil {
+			for j := 0; j < batchSize; j++ {
+				binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
+				numPkt++
+			}
+
+			if _, err := sender.sendAll(); err != nil {
 				log.Error("writing input packet", "case", string(caseToRun), "error", err)
 				return 1
 			}
@@ -289,9 +304,9 @@ func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) 
 	handles := make(map[string]*afpacket.TPacket)
 
 	for _, intf := range interfaceNames {
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf))
+		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf), afpacket.OptFrameSize(4096))
 		if err != nil {
-			return nil, serrors.WrapStr("creating TPacket", err)
+			return nil, serrors.Wrap("creating TPacket", err)
 		}
 		handles[intf] = handle
 	}

@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/drkey/drkeytest"
@@ -31,8 +32,8 @@ var (
 	update  = xtest.UpdateGoldenFiles()
 	protoId = drkey.Generic
 	epoch   = drkey.NewEpoch(0, 1)
-	srcIA   = xtest.MustParseIA("1-ff00:0:111")
-	dstIA   = xtest.MustParseIA("1-ff00:0:112")
+	srcIA   = addr.MustParseIA("1-ff00:0:111")
+	dstIA   = addr.MustParseIA("1-ff00:0:112")
 	srcHost = "127.0.0.2"
 	dstHost = "127.0.0.1"
 )

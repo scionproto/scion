@@ -31,6 +31,7 @@ import (
 	csdrkey "github.com/scionproto/scion/control/drkey"
 	dk_grpc "github.com/scionproto/scion/control/drkey/grpc"
 	"github.com/scionproto/scion/control/drkey/grpc/mock_grpc"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -136,7 +137,7 @@ func TestLevel1KeyFetching(t *testing.T) {
 			meta := drkey.Level1Meta{
 				ProtoId:  drkey.Generic,
 				Validity: time.Now(),
-				SrcIA:    xtest.MustParseIA("1-ff00:0:111"),
+				SrcIA:    addr.MustParseIA("1-ff00:0:111"),
 			}
 			_, err = fetcher.Level1(context.Background(), meta)
 			tc.assertErr(t, err)

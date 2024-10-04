@@ -67,14 +67,14 @@ func (s Signer) Sign(
 
 	id := &cppb.VerificationKeyID{
 		IsdAs:        uint64(s.IA),
-		TrcBase:      uint64(s.TRCID.Base),
-		TrcSerial:    uint64(s.TRCID.Serial),
+		TrcBase:      uint64(s.TRCID.Base),   // nolint - name from published protobuf
+		TrcSerial:    uint64(s.TRCID.Serial), // nolint - name from published protobuf
 		SubjectKeyId: s.SubjectKeyID,
 	}
 	rawID, err := proto.Marshal(id)
 	if err != nil {
 		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
-		return nil, serrors.WrapStr("packing verification_key_id", err)
+		return nil, serrors.Wrap("packing verification_key_id", err)
 	}
 	hdr := signed.Header{
 		SignatureAlgorithm:   s.Algorithm,

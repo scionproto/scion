@@ -27,6 +27,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/metrics/mock_metrics"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/topology"
@@ -38,10 +39,10 @@ func TestLoader(t *testing.T) {
 	testBasicTopo := func(t *testing.T, l *topology.Loader) {
 		t.Helper()
 
-		assert.Equal(t, xtest.MustParseIA("1-ff00:0:311"), l.IA())
+		assert.Equal(t, addr.MustParseIA("1-ff00:0:311"), l.IA())
 		assert.Equal(t, uint16(1472), l.MTU())
 		assert.Equal(t, false, l.Core())
-		assert.ElementsMatch(t, []uint16{1, 3, 8, 11}, l.InterfaceIDs())
+		assert.ElementsMatch(t, []uint16{1, 3, 8, 11}, l.IfIDs())
 		assert.ElementsMatch(t,
 			xtest.MustParseUDPAddrs(t,
 				"127.0.0.67:30073",

@@ -74,11 +74,11 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	var keyID cppb.VerificationKeyID
 	if err := proto.Unmarshal(hdr.VerificationKeyID, &keyID); err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
-		return nil, serrors.WrapStr("parsing verification key ID", err)
+		return nil, serrors.Wrap("parsing verification key ID", err)
 	}
 	if len(keyID.SubjectKeyId) == 0 {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
-		return nil, serrors.WrapStr("subject key ID must be set", err)
+		return nil, serrors.Wrap("subject key ID must be set", err)
 	}
 	ia := addr.IA(keyID.IsdAs)
 	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(ia) {
@@ -94,12 +94,12 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		return nil, serrors.New("nil engine that provides cert chains")
 	}
 	id := cppki.TRCID{ISD: ia.ISD(),
-		Base:   scrypto.Version(keyID.TrcBase),
-		Serial: scrypto.Version(keyID.TrcSerial),
+		Base:   scrypto.Version(keyID.TrcBase),   // nolint - name from published protobuf
+		Serial: scrypto.Version(keyID.TrcSerial), // nolint - name from published protobuf
 	}
 	if err := v.notifyTRC(ctx, id); err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
-		return nil, serrors.WrapStr("reporting TRC", err, "id", id)
+		return nil, serrors.Wrap("reporting TRC", err, "id", id)
 	}
 	query := ChainQuery{
 		IA:           ia,
@@ -109,7 +109,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	chains, err := v.getChains(ctx, query)
 	if err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
-		return nil, serrors.WrapStr("getting chains", err,
+		return nil, serrors.Wrap("getting chains", err,
 			"query.isd_as", query.IA,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
 			"query.validity", query.Validity.String(),

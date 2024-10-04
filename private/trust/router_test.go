@@ -25,7 +25,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/mock_snet"
@@ -35,7 +34,7 @@ import (
 )
 
 func TestLocalRouterChooseServer(t *testing.T) {
-	ia122 := xtest.MustParseIA("1-ff00:0:122")
+	ia122 := addr.MustParseIA("1-ff00:0:122")
 
 	tests := map[string]addr.ISD{
 		"ISD local":  1,
@@ -55,8 +54,8 @@ func TestLocalRouterChooseServer(t *testing.T) {
 }
 
 func TestCSRouterChooseServer(t *testing.T) {
-	ia110 := xtest.MustParseIA("1-ff00:0:110")
-	ia210 := xtest.MustParseIA("2-ff00:0:210")
+	ia110 := addr.MustParseIA("1-ff00:0:110")
+	ia210 := addr.MustParseIA("2-ff00:0:210")
 	dbErr := serrors.New("DB error")
 	routeErr := serrors.New("unable to route")
 

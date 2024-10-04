@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -47,12 +48,12 @@ type LoadResult struct {
 // files that are not valid chains are ignored.
 func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	if _, err := os.Stat(dir); err != nil {
-		return LoadResult{}, serrors.WithCtx(err, "dir", dir)
+		return LoadResult{}, serrors.Wrap("stating directory", err, "dir", dir)
 	}
 
 	files, err := filepath.Glob(fmt.Sprintf("%s/*.pem", dir))
 	if err != nil {
-		return LoadResult{}, serrors.WithCtx(err, "dir", dir)
+		return LoadResult{}, serrors.Wrap("searching for certificates", err, "dir", dir)
 	}
 
 	res := LoadResult{Ignored: map[string]error{}}
@@ -83,8 +84,9 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 			continue
 		}
 		if err != nil {
-			return res, serrors.WrapStr("loading TRC(s) to verify certificate chain", err,
+			return res, serrors.Wrap("loading TRC(s) to verify certificate chain", err,
 				"file", f)
+
 		}
 		var verifyErrors serrors.List
 		for _, trc := range trcs {
@@ -99,10 +101,10 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		inserted, err := db.InsertChain(ctx, chain)
 		if err != nil {
-			return res, serrors.WrapStr("inserting certificate chain", err, "file", f)
+			return res, serrors.Wrap("inserting certificate chain", err, "file", f)
 		}
 		if !inserted {
-			res.Ignored[f] = serrors.Wrap(ErrAlreadyExists, err)
+			res.Ignored[f] = serrors.JoinNoStack(ErrAlreadyExists, err)
 			continue
 		}
 		res.Loaded = append(res.Loaded, f)
@@ -111,24 +113,41 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 }
 
 // LoadTRCs loads all *.trc located in a directory in the database. This
-// function exits on the first encountered error. TRCs with a not before time
-// in the future are ignored.
+// function exits on the first encountered error. TRCs with a not before time in
+// the future are ignored.
+//
+// This function is not recommended for repeated use as it will read all TRC
+// files in a directory on every invocation. Consider using a TRCLoader if you
+// want to monitor a directory for new TRCs.
 func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
+	return loadTRCs(ctx, dir, db, nil)
+}
+
+func loadTRCs(
+	ctx context.Context,
+	dir string,
+	db DB,
+	ignoreFiles map[string]struct{},
+) (LoadResult, error) {
 	if _, err := os.Stat(dir); err != nil {
-		return LoadResult{}, serrors.WithCtx(err, "dir", dir)
+		return LoadResult{}, serrors.WrapNoStack("stating directory", err, "dir", dir)
 	}
 
 	files, err := filepath.Glob(fmt.Sprintf("%s/*.trc", dir))
 	if err != nil {
-		return LoadResult{}, serrors.WithCtx(err, "dir", dir)
+		return LoadResult{}, serrors.WrapNoStack("searching for TRCs", err, "dir", dir)
 	}
 
 	res := LoadResult{Ignored: map[string]error{}}
 	// TODO(roosd): should probably be a transaction.
 	for _, f := range files {
+		// ignore as per request of the caller
+		if _, ok := ignoreFiles[f]; ok {
+			continue
+		}
 		raw, err := os.ReadFile(f)
 		if err != nil {
-			return res, serrors.WithCtx(err, "file", f)
+			return res, serrors.WrapNoStack("reading TRC", err, "file", f)
 		}
 		block, _ := pem.Decode(raw)
 		if block != nil && block.Type == "TRC" {
@@ -136,7 +155,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		trc, err := cppki.DecodeSignedTRC(raw)
 		if err != nil {
-			return res, serrors.WithCtx(err, "file", f)
+			return res, serrors.WrapNoStack("parsing TRC", err, "file", f)
 		}
 		if time.Now().Before(trc.TRC.Validity.NotBefore) {
 			res.Ignored[f] = serrors.New("TRC in the future", "validity", trc.TRC.Validity)
@@ -144,13 +163,44 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		inserted, err := db.InsertTRC(ctx, trc)
 		if err != nil {
-			return res, serrors.WithCtx(err, "file", f)
+			return res, serrors.WrapNoStack("adding TRC to DB", err, "file", f)
 		}
 		if !inserted {
-			res.Ignored[f] = serrors.Wrap(ErrAlreadyExists, err)
+			res.Ignored[f] = ErrAlreadyExists
 			continue
 		}
 		res.Loaded = append(res.Loaded, f)
 	}
 	return res, nil
+}
+
+// TRCLoader loads TRCs from a directory and stores them in the database. It
+// tracks files that it has already loaded and does not load them again.
+type TRCLoader struct {
+	Dir string
+	DB  DB
+
+	seen map[string]struct{}
+	mtx  sync.Mutex
+}
+
+// Load loads all TRCs from the directory into database. Files that have been
+// loaded by a previous Load invocation are silently ignored.
+func (l *TRCLoader) Load(ctx context.Context) (LoadResult, error) {
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
+	if l.seen == nil {
+		l.seen = make(map[string]struct{})
+	}
+
+	result, err := loadTRCs(ctx, l.Dir, l.DB, l.seen)
+	for _, f := range result.Loaded {
+		l.seen[f] = struct{}{}
+	}
+	for f, err := range result.Ignored {
+		if errors.Is(err, ErrAlreadyExists) {
+			l.seen[f] = struct{}{}
+		}
+	}
+	return result, err
 }

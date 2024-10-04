@@ -13,12 +13,14 @@ Naming
 ------
 
 We use mixedCaps notation as recommended by `Effective Go
-<https://golang.org/doc/effective_go.html>`__. The following rules apply (note
-that a significant part of the code base uses other notations; these should be
-refactored, however):
+<https://golang.org/doc/effective_go.html>`__. Perhaps unintuitively, Go
+treats ``ID`` as an initialism, and we treat ``If`` as a word. The following
+rules apply (note that a significant part of the code base uses other
+notations; these should be refactored, however):
 
 - Use ``sd`` or ``SD`` to refer to the SCION Daemon, not ``Sciond`` or ``SCIOND``.
-- Use ``IfID`` or ``ifID`` for SCION Interface Identifiers, not ``IFID`` or ``InterfaceID``.
+- Use ``IfID`` or ``ifID`` for SCION Interface Identifiers, not ``IFID`` nor ``InterfaceID`` nor ``intfID``.
+- Use ``IfIDSomething`` or ``ifIDSomething`` when concatenating ``ifID`` with ``something``.
 - Use ``Svc`` or ``svc`` for SCION Service Addresses, not ``SVC`` or ``Service``.
 - Use ``TRC`` or ``trc`` for Trust Root Configurations, not ``Trc``.
 

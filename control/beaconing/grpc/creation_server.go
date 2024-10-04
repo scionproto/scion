@@ -68,12 +68,12 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 	}
 	b := beacon.Beacon{
 		Segment: ps,
-		InIfId:  ingress,
+		InIfID:  ingress,
 	}
 	if err := s.Handler.HandleBeacon(ctx, b, peer); err != nil {
 		logger.Debug("Failed to handle beacon", "peer", peer, "err", err)
 		// TODO(roosd): return better error with status code.
-		return nil, serrors.WrapStr("handling beacon", err)
+		return nil, serrors.Wrap("handling beacon", err)
 	}
 	return &cppb.BeaconResponse{}, nil
 
@@ -91,7 +91,7 @@ func extractIngressIfID(path snet.DataplanePath) (uint16, error) {
 	}
 	hf, err := rawScionPath.GetCurrentHopField()
 	if err != nil {
-		return 0, serrors.WrapStr("getting current hop field", err)
+		return 0, serrors.Wrap("getting current hop field", err)
 	}
 	return hf.ConsIngress, nil
 }

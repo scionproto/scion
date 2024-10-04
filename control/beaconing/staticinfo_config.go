@@ -21,21 +21,21 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/control/ifstate"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/segment/extensions/staticinfo"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/topology"
 )
 
 type InterfaceLatencies struct {
-	Inter util.DurWrap                     `json:"Inter"`
-	Intra map[common.IFIDType]util.DurWrap `json:"Intra"`
+	Inter util.DurWrap              `json:"Inter"`
+	Intra map[iface.ID]util.DurWrap `json:"Intra"`
 }
 
 type InterfaceBandwidths struct {
-	Inter uint64                     `json:"Inter"`
-	Intra map[common.IFIDType]uint64 `json:"Intra"`
+	Inter uint64              `json:"Inter"`
+	Intra map[iface.ID]uint64 `json:"Intra"`
 }
 
 type InterfaceGeodata struct {
@@ -45,7 +45,7 @@ type InterfaceGeodata struct {
 }
 
 type InterfaceHops struct {
-	Intra map[common.IFIDType]uint32 `json:"Intra"`
+	Intra map[iface.ID]uint32 `json:"Intra"`
 }
 
 type LinkType staticinfo.LinkType
@@ -79,25 +79,27 @@ func (l *LinkType) UnmarshalText(text []byte) error {
 
 // StaticInfoCfg is used to parse data from config.json.
 type StaticInfoCfg struct {
-	Latency   map[common.IFIDType]InterfaceLatencies  `json:"Latency"`
-	Bandwidth map[common.IFIDType]InterfaceBandwidths `json:"Bandwidth"`
-	LinkType  map[common.IFIDType]LinkType            `json:"LinkType"`
-	Geo       map[common.IFIDType]InterfaceGeodata    `json:"Geo"`
-	Hops      map[common.IFIDType]InterfaceHops       `json:"Hops"`
-	Note      string                                  `json:"Note"`
+	Latency   map[iface.ID]InterfaceLatencies  `json:"Latency"`
+	Bandwidth map[iface.ID]InterfaceBandwidths `json:"Bandwidth"`
+	LinkType  map[iface.ID]LinkType            `json:"LinkType"`
+	Geo       map[iface.ID]InterfaceGeodata    `json:"Geo"`
+	Hops      map[iface.ID]InterfaceHops       `json:"Hops"`
+	Note      string                           `json:"Note"`
 }
 
 // ParseStaticInfoCfg parses data from a config file into a StaticInfoCfg struct.
 func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 	raw, err := os.ReadFile(file)
 	if err != nil {
-		return nil, serrors.WrapStr("failed to read static info config: ",
+		return nil, serrors.Wrap("failed to read static info config: ",
 			err, "file", file)
+
 	}
 	var cfg StaticInfoCfg
 	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return nil, serrors.WrapStr("failed to parse static info config: ",
+		return nil, serrors.Wrap("failed to parse static info config: ",
 			err, "file ", file)
+
 	}
 	cfg.clean()
 	return &cfg, nil
@@ -133,7 +135,7 @@ func (cfg *StaticInfoCfg) clean() {
 }
 
 // symmetrizeLatency makes the Intra latency values symmetric
-func symmetrizeLatency(latency map[common.IFIDType]InterfaceLatencies) {
+func symmetrizeLatency(latency map[iface.ID]InterfaceLatencies) {
 	for i, sub := range latency {
 		delete(sub.Intra, i) // Remove loopy entry
 		for j, v := range sub.Intra {
@@ -143,7 +145,7 @@ func symmetrizeLatency(latency map[common.IFIDType]InterfaceLatencies) {
 			if latency[j].Intra == nil {
 				latency[j] = InterfaceLatencies{
 					Inter: latency[j].Inter,
-					Intra: make(map[common.IFIDType]util.DurWrap),
+					Intra: make(map[iface.ID]util.DurWrap),
 				}
 			}
 			vTransposed, ok := latency[j].Intra[i]
@@ -156,7 +158,7 @@ func symmetrizeLatency(latency map[common.IFIDType]InterfaceLatencies) {
 }
 
 // symmetrizeBandwidth makes the Intra bandwidth values symmetric
-func symmetrizeBandwidth(bandwidth map[common.IFIDType]InterfaceBandwidths) {
+func symmetrizeBandwidth(bandwidth map[iface.ID]InterfaceBandwidths) {
 	for i, sub := range bandwidth {
 		delete(sub.Intra, i) // Remove loopy entry
 		for j, v := range sub.Intra {
@@ -166,7 +168,7 @@ func symmetrizeBandwidth(bandwidth map[common.IFIDType]InterfaceBandwidths) {
 			if bandwidth[j].Intra == nil {
 				bandwidth[j] = InterfaceBandwidths{
 					Inter: bandwidth[j].Inter,
-					Intra: make(map[common.IFIDType]uint64),
+					Intra: make(map[iface.ID]uint64),
 				}
 			}
 			vTransposed, ok := bandwidth[j].Intra[i]
@@ -179,13 +181,13 @@ func symmetrizeBandwidth(bandwidth map[common.IFIDType]InterfaceBandwidths) {
 }
 
 // symmetrizeHops makes the Intra hops values symmetric
-func symmetrizeHops(hops map[common.IFIDType]InterfaceHops) {
+func symmetrizeHops(hops map[iface.ID]InterfaceHops) {
 	for i, sub := range hops {
 		delete(sub.Intra, i) // Remove loopy entry
 		for j, v := range sub.Intra {
 			if _, ok := hops[j]; !ok {
 				hops[j] = InterfaceHops{
-					Intra: make(map[common.IFIDType]uint32),
+					Intra: make(map[iface.ID]uint32),
 				}
 			}
 			vTransposed, ok := hops[j].Intra[i]
@@ -203,11 +205,11 @@ func (cfg StaticInfoCfg) Generate(intfs *ifstate.Interfaces,
 	ingress, egress uint16) *staticinfo.Extension {
 
 	ifType := interfaceTypeTable(intfs)
-	return cfg.generate(ifType, common.IFIDType(ingress), common.IFIDType(egress))
+	return cfg.generate(ifType, iface.ID(ingress), iface.ID(egress))
 }
 
-func (cfg StaticInfoCfg) generate(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) *staticinfo.Extension {
+func (cfg StaticInfoCfg) generate(ifType map[iface.ID]topology.LinkType,
+	ingress, egress iface.ID) *staticinfo.Extension {
 
 	return &staticinfo.Extension{
 		Latency:      cfg.generateLatency(ifType, ingress, egress),
@@ -221,22 +223,22 @@ func (cfg StaticInfoCfg) generate(ifType map[common.IFIDType]topology.LinkType,
 
 // generateLatency creates the LatencyInfo by extracting the relevant values from
 // the config.
-func (cfg StaticInfoCfg) generateLatency(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) staticinfo.LatencyInfo {
+func (cfg StaticInfoCfg) generateLatency(ifType map[iface.ID]topology.LinkType,
+	ingress, egress iface.ID) staticinfo.LatencyInfo {
 
 	l := staticinfo.LatencyInfo{
-		Intra: make(map[common.IFIDType]time.Duration),
-		Inter: make(map[common.IFIDType]time.Duration),
+		Intra: make(map[iface.ID]time.Duration),
+		Inter: make(map[iface.ID]time.Duration),
 	}
-	for ifid, v := range cfg.Latency[egress].Intra {
-		if includeIntraInfo(ifType, ifid, ingress, egress) {
-			l.Intra[ifid] = v.Duration
+	for ifID, v := range cfg.Latency[egress].Intra {
+		if includeIntraInfo(ifType, ifID, ingress, egress) {
+			l.Intra[ifID] = v.Duration
 		}
 	}
-	for ifid, v := range cfg.Latency {
-		t := ifType[ifid]
-		if ifid == egress || t == topology.Peer {
-			l.Inter[ifid] = v.Inter.Duration
+	for ifID, v := range cfg.Latency {
+		t := ifType[ifID]
+		if ifID == egress || t == topology.Peer {
+			l.Inter[ifID] = v.Inter.Duration
 		}
 	}
 	return l
@@ -244,22 +246,22 @@ func (cfg StaticInfoCfg) generateLatency(ifType map[common.IFIDType]topology.Lin
 
 // generateBandwidth creates the BandwidthInfo by extracting the relevant values
 // from the config.
-func (cfg StaticInfoCfg) generateBandwidth(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) staticinfo.BandwidthInfo {
+func (cfg StaticInfoCfg) generateBandwidth(ifType map[iface.ID]topology.LinkType,
+	ingress, egress iface.ID) staticinfo.BandwidthInfo {
 
 	bw := staticinfo.BandwidthInfo{
-		Intra: make(map[common.IFIDType]uint64),
-		Inter: make(map[common.IFIDType]uint64),
+		Intra: make(map[iface.ID]uint64),
+		Inter: make(map[iface.ID]uint64),
 	}
-	for ifid, v := range cfg.Bandwidth[egress].Intra {
-		if includeIntraInfo(ifType, ifid, ingress, egress) {
-			bw.Intra[ifid] = v
+	for ifID, v := range cfg.Bandwidth[egress].Intra {
+		if includeIntraInfo(ifType, ifID, ingress, egress) {
+			bw.Intra[ifID] = v
 		}
 	}
-	for ifid, v := range cfg.Bandwidth {
-		t := ifType[ifid]
-		if ifid == egress || t == topology.Peer {
-			bw.Inter[ifid] = v.Inter
+	for ifID, v := range cfg.Bandwidth {
+		t := ifType[ifID]
+		if ifID == egress || t == topology.Peer {
+			bw.Inter[ifID] = v.Inter
 		}
 	}
 	return bw
@@ -267,14 +269,14 @@ func (cfg StaticInfoCfg) generateBandwidth(ifType map[common.IFIDType]topology.L
 
 // generateLinkType creates the LinkTypeInfo by extracting the relevant values from
 // the config.
-func (cfg StaticInfoCfg) generateLinkType(ifType map[common.IFIDType]topology.LinkType,
-	egress common.IFIDType) staticinfo.LinkTypeInfo {
+func (cfg StaticInfoCfg) generateLinkType(ifType map[iface.ID]topology.LinkType,
+	egress iface.ID) staticinfo.LinkTypeInfo {
 
 	lt := make(staticinfo.LinkTypeInfo)
-	for ifid, intfLT := range cfg.LinkType {
-		t := ifType[ifid]
-		if ifid == egress || t == topology.Peer {
-			lt[ifid] = staticinfo.LinkType(intfLT)
+	for ifID, intfLT := range cfg.LinkType {
+		t := ifType[ifID]
+		if ifID == egress || t == topology.Peer {
+			lt[ifID] = staticinfo.LinkType(intfLT)
 		}
 	}
 	return lt
@@ -282,13 +284,13 @@ func (cfg StaticInfoCfg) generateLinkType(ifType map[common.IFIDType]topology.Li
 
 // generateInternalHops creates the InternalHopsInfo by extracting the relevant
 // values from the config.
-func (cfg StaticInfoCfg) generateInternalHops(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) staticinfo.InternalHopsInfo {
+func (cfg StaticInfoCfg) generateInternalHops(ifType map[iface.ID]topology.LinkType,
+	ingress, egress iface.ID) staticinfo.InternalHopsInfo {
 
 	ihi := make(staticinfo.InternalHopsInfo)
-	for ifid, v := range cfg.Hops[egress].Intra {
-		if includeIntraInfo(ifType, ifid, ingress, egress) {
-			ihi[ifid] = v
+	for ifID, v := range cfg.Hops[egress].Intra {
+		if includeIntraInfo(ifType, ifID, ingress, egress) {
+			ihi[ifID] = v
 		}
 	}
 	return ihi
@@ -296,14 +298,14 @@ func (cfg StaticInfoCfg) generateInternalHops(ifType map[common.IFIDType]topolog
 
 // generateGeo creates the GeoInfo by extracting the relevant values from
 // the config.
-func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) staticinfo.GeoInfo {
+func (cfg StaticInfoCfg) generateGeo(ifType map[iface.ID]topology.LinkType,
+	ingress, egress iface.ID) staticinfo.GeoInfo {
 
 	gi := staticinfo.GeoInfo{}
-	for ifid, loc := range cfg.Geo {
-		t := ifType[ifid]
-		if ifid == egress || ifid == ingress || t == topology.Peer {
-			gi[ifid] = staticinfo.GeoCoordinates{
+	for ifID, loc := range cfg.Geo {
+		t := ifType[ifID]
+		if ifID == egress || ifID == ingress || t == topology.Peer {
+			gi[ifID] = staticinfo.GeoCoordinates{
 				Longitude: loc.Longitude,
 				Latitude:  loc.Latitude,
 				Address:   loc.Address,
@@ -314,7 +316,7 @@ func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkTyp
 }
 
 // includeIntraInfo determines if the intra-AS metadata info for the interface
-// pair (ifid, egress) should be included in this beacon:
+// pair (ifID, egress) should be included in this beacon:
 // Include information between the egress interface and
 // - ingress interface
 // - sibling child interfaces,
@@ -322,34 +324,34 @@ func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkTyp
 // - peer interfaces
 // For core/sibling child interfaces, we can skip some entries to avoid
 // redundancy: by consistently only including latency to interfaces with
-// ifid > egress, we ensure that for each cross-over, the latency from
+// ifID > egress, we ensure that for each cross-over, the latency from
 // this AS Entry's egress interface to the other AS Entry's egress
 // interface will be available in exactly one of the two AS Entries.
 // Note that the choice of < or > is arbitrary.  At least each separate
 // AS needs to pick one consistently (or decide to just include the full
 // information all the time), otherwise information for cross-overs may
 // be missing.
-func includeIntraInfo(ifType map[common.IFIDType]topology.LinkType,
-	ifid, ingress, egress common.IFIDType) bool {
+func includeIntraInfo(ifType map[iface.ID]topology.LinkType,
+	ifID, ingress, egress iface.ID) bool {
 
 	isCoreIngress := (ifType[ingress] == topology.Core || ingress == 0)
 	isCoreEgress := (ifType[egress] == topology.Core || egress == 0)
 	isCoreSeg := isCoreIngress && isCoreEgress
 	if isCoreSeg {
-		return ifid == ingress
+		return ifID == ingress
 	}
-	t := ifType[ifid]
-	return ifid == ingress ||
-		t == topology.Child && ifid > egress ||
+	t := ifType[ifID]
+	return ifID == ingress ||
+		t == topology.Child && ifID > egress ||
 		t == topology.Core ||
 		t == topology.Peer
 }
 
-func interfaceTypeTable(intfs *ifstate.Interfaces) map[common.IFIDType]topology.LinkType {
+func interfaceTypeTable(intfs *ifstate.Interfaces) map[iface.ID]topology.LinkType {
 	ifMap := intfs.All()
-	ifTypes := make(map[common.IFIDType]topology.LinkType, len(ifMap))
+	ifTypes := make(map[iface.ID]topology.LinkType, len(ifMap))
 	for ifID, ifInfo := range ifMap {
-		ifTypes[common.IFIDType(ifID)] = ifInfo.TopoInfo().LinkType
+		ifTypes[iface.ID(ifID)] = ifInfo.TopoInfo().LinkType
 	}
 	return ifTypes
 }

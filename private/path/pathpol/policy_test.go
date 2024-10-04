@@ -24,9 +24,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 )
@@ -41,8 +40,8 @@ func TestBasicPolicy(t *testing.T) {
 	}{
 		"Empty policy": {
 			Policy:     &Policy{},
-			Src:        xtest.MustParseIA("2-ff00:0:212"),
-			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			Src:        addr.MustParseIA("2-ff00:0:212"),
+			Dst:        addr.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
 	}
@@ -81,8 +80,8 @@ func TestOptionsEval(t *testing.T) {
 					Weight: 0,
 				},
 			}),
-			Src:        xtest.MustParseIA("2-ff00:0:212"),
-			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			Src:        addr.MustParseIA("2-ff00:0:212"),
+			Dst:        addr.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
 		"two options, deny everything": {
@@ -114,8 +113,8 @@ func TestOptionsEval(t *testing.T) {
 					Weight: 1,
 				},
 			}),
-			Src:        xtest.MustParseIA("2-ff00:0:212"),
-			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			Src:        addr.MustParseIA("2-ff00:0:212"),
+			Dst:        addr.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
 		"two options, first: allow everything, second: allow one path": {
@@ -149,8 +148,8 @@ func TestOptionsEval(t *testing.T) {
 					Weight: 1,
 				},
 			}),
-			Src:        xtest.MustParseIA("1-ff00:0:122"),
-			Dst:        xtest.MustParseIA("2-ff00:0:222"),
+			Src:        addr.MustParseIA("1-ff00:0:122"),
+			Dst:        addr.MustParseIA("2-ff00:0:222"),
 			ExpPathNum: 1,
 		},
 		"two options, combined": {
@@ -182,8 +181,8 @@ func TestOptionsEval(t *testing.T) {
 					Weight: 0,
 				},
 			}),
-			Src:        xtest.MustParseIA("1-ff00:0:110"),
-			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			Src:        addr.MustParseIA("1-ff00:0:110"),
+			Dst:        addr.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 3,
 		},
 		"two options, take first": {
@@ -215,8 +214,8 @@ func TestOptionsEval(t *testing.T) {
 					Weight: 0,
 				},
 			}),
-			Src:        xtest.MustParseIA("1-ff00:0:110"),
-			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			Src:        addr.MustParseIA("1-ff00:0:110"),
+			Dst:        addr.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 1,
 		},
 		"two options, take second": {
@@ -246,8 +245,8 @@ func TestOptionsEval(t *testing.T) {
 					Weight: 10,
 				},
 			}),
-			Src:        xtest.MustParseIA("1-ff00:0:110"),
-			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			Src:        addr.MustParseIA("1-ff00:0:110"),
+			Dst:        addr.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 2,
 		},
 	}
@@ -574,8 +573,8 @@ func TestFilterOpt(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
-	src := xtest.MustParseIA("1-ff00:0:110")
-	dst := xtest.MustParseIA("2-ff00:0:220")
+	src := addr.MustParseIA("1-ff00:0:110")
+	dst := addr.MustParseIA("2-ff00:0:220")
 	paths := pp.GetPaths(src, dst)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -599,14 +598,14 @@ func TestPolicyJsonConversion(t *testing.T) {
 					ACL: acl,
 					LocalISDAS: &LocalISDAS{
 						AllowedIAs: []addr.IA{
-							xtest.MustParseIA("64-123"),
-							xtest.MustParseIA("70-ff00:0102:0304"),
+							addr.MustParseIA("64-123"),
+							addr.MustParseIA("70-ff00:0102:0304"),
 						},
 					},
 					RemoteISDAS: &RemoteISDAS{
 						Rules: []ISDASRule{
 							{
-								IA:     xtest.MustParseIA("64-123"),
+								IA:     addr.MustParseIA("64-123"),
 								Reject: true,
 							},
 						},
@@ -643,13 +642,13 @@ func NewPathProvider(ctrl *gomock.Controller) PathProvider {
 func (p PathProvider) GetPaths(src, dst addr.IA) []snet.Path {
 	result := []snet.Path{}
 	paths := p.g.GetPaths(src.String(), dst.String())
-	for _, ifids := range paths {
-		pathIntfs := make([]snet.PathInterface, 0, len(ifids))
-		for _, ifid := range ifids {
-			ia := p.g.GetParent(ifid)
+	for _, ifIDs := range paths {
+		pathIntfs := make([]snet.PathInterface, 0, len(ifIDs))
+		for _, ifID := range ifIDs {
+			ia := p.g.GetParent(ifID)
 			pathIntfs = append(pathIntfs, snet.PathInterface{
 				IA: ia,
-				ID: common.IFIDType(ifid),
+				ID: iface.ID(ifID),
 			})
 		}
 		var srcIA, dstIA addr.IA

@@ -79,11 +79,11 @@ func (v *TLSCryptoVerifier) VerifyConnection(cs tls.ConnectionState) error {
 	serverNameIA := strings.Split(cs.ServerName, ",")[0]
 	serverIA, err := addr.ParseIA(serverNameIA)
 	if err != nil {
-		return serrors.WrapStr("extracting IA from server name", err, "connState", cs)
+		return serrors.Wrap("extracting IA from server name", err, "connState", cs)
 	}
 	certIA, err := cppki.ExtractIA(cs.PeerCertificates[0].Subject)
 	if err != nil {
-		return serrors.WrapStr("extracting IA from peer cert", err)
+		return serrors.Wrap("extracting IA from peer cert", err)
 	}
 	if !serverIA.Equal(certIA) {
 		return serrors.New("extracted IA from cert and server IA do not match",
@@ -103,7 +103,7 @@ func (v *TLSCryptoVerifier) verifyRawPeerCertificate(
 	for i, asn1Data := range rawCerts {
 		cert, err := x509.ParseCertificate(asn1Data)
 		if err != nil {
-			return serrors.WrapStr("parsing peer certificate", err)
+			return serrors.Wrap("parsing peer certificate", err)
 		}
 		chain[i] = cert
 	}
@@ -126,16 +126,16 @@ func (v *TLSCryptoVerifier) verifyParsedPeerCertificate(
 	}
 	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {
-		return 0, serrors.WrapStr("extracting ISD-AS from peer certificate", err)
+		return 0, serrors.Wrap("extracting ISD-AS from peer certificate", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), v.Timeout)
 	defer cancel()
 	trcs, _, err := activeTRCs(ctx, v.DB, ia.ISD())
 	if err != nil {
-		return 0, serrors.WrapStr("loading TRCs", err)
+		return 0, serrors.Wrap("loading TRCs", err)
 	}
 	if err := verifyChain(chain, trcs); err != nil {
-		return 0, serrors.WrapStr("verifying chains", err)
+		return 0, serrors.Wrap("verifying chains", err)
 	}
 	return ia, nil
 }

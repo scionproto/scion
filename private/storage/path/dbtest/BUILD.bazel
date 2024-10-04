@@ -7,10 +7,9 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/addr:go_default_library",
-        "//pkg/private/common:go_default_library",
-        "//pkg/private/xtest:go_default_library",
         "//pkg/private/xtest/graph:go_default_library",
         "//pkg/segment:go_default_library",
+        "//pkg/segment/iface:go_default_library",
         "//pkg/slayers/path:go_default_library",
         "//private/pathdb:go_default_library",
         "//private/pathdb/query:go_default_library",
