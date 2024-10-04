@@ -67,8 +67,8 @@
     },
     "unreachable": {
         "exclude_files": {
+            "antlr": "",
             "gazelle/pathtools/path.go": "",
-            "/com_github_antlr_antlr4_runtime_go_antlr/": "",
             "/com_github_uber_jaeger_client_go": "",
             "/com_github_marten_seemann_qtls/": "",
             "/org_golang_google_protobuf/": "",
