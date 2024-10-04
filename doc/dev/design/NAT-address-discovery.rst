@@ -4,6 +4,7 @@ NAT IP/port discovery
 
 - Author(s): Marc Frei, Tilmann Zäschke
 - Last updated: 2024-07-01
+- Status: **WIP**
 - Discussion at: :issue:`4517`
 
 Abstract

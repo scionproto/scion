@@ -2,7 +2,7 @@
 
 * Author: Juan A. García Pardo
 * Last updated: 2020-07-08
-* Status: **outdated**.
+* Status: **Outdated**.
   Prototype was developed in [netsec-ethz/scion:scionlab](https://github.com/netsec-ethz/scion/tree/scionlab)
   ([commit permalink](https://github.com/netsec-ethz/scion/commit/37a556a4bc494a93fe8294ed77b6f2c9b6192746)),
   to be replaced with new approach for QoS system.

@@ -4,6 +4,7 @@ Router benchmark observations and predictive model
 
 -  Author(s): Jean-Christophe Hugly
 -  Last updated: 2024-04-22
+-  Status: **Active**
 -  Discussion at: :issue:`4408`
 
 TL;DR
