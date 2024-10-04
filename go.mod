@@ -3,8 +3,8 @@ module github.com/scionproto/scion
 go 1.22.7
 
 require (
-	github.com/antlr4-go/antlr/v4 v4.13.1
 	connectrpc.com/connect v1.16.2
+	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bazelbuild/rules_go v0.47.1
 	github.com/buildkite/go-buildkite/v2 v2.9.0
 	github.com/dchest/cmac v1.0.0
