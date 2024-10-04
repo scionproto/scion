@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"unicode"
+
 	"github.com/antlr4-go/antlr/v4"
 )
 
