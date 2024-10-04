@@ -1,6 +1,6 @@
 module github.com/scionproto/scion
 
-go 1.22.4
+go 1.22.7
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
@@ -130,4 +130,3 @@ require (
 	modernc.org/strutil v1.2.0 // indirect
 	modernc.org/token v1.1.0 // indirect
 )
-go 1.22.7
