@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
-# Create system user
-adduser --system --gid scion -M -s /sbin/nologin
+# Create system user/group
+groupadd --system -f scion
+useradd --system --gid scion -M -s /sbin/nologin
 
 # Create configuration directory
 mkdir /etc/scion/ >& /dev/null || true
