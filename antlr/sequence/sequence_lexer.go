@@ -4,78 +4,15 @@ package sequence
 
 import (
 	"fmt"
+	"github.com/antlr4-go/antlr/v4"
+	"sync"
 	"unicode"
-
-	"github.com/antlr/antlr4/runtime/Go/antlr"
 )
 
 // Suppress unused import error
 var _ = fmt.Printf
+var _ = sync.Once{}
 var _ = unicode.IsLetter
-
-var serializedLexerAtn = []uint16{
-	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 2, 16, 88, 8,
-	1, 4, 2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9,
-	7, 4, 8, 9, 8, 4, 9, 9, 9, 4, 10, 9, 10, 4, 11, 9, 11, 4, 12, 9, 12, 4,
-	13, 9, 13, 4, 14, 9, 14, 4, 15, 9, 15, 4, 16, 9, 16, 3, 2, 3, 2, 7, 2,
-	36, 10, 2, 12, 2, 14, 2, 39, 11, 2, 3, 2, 5, 2, 42, 10, 2, 3, 3, 6, 3,
-	45, 10, 3, 13, 3, 14, 3, 46, 3, 3, 3, 3, 3, 4, 3, 4, 3, 5, 3, 5, 7, 5,
-	55, 10, 5, 12, 5, 14, 5, 58, 11, 5, 3, 6, 3, 6, 3, 6, 3, 7, 3, 7, 3, 7,
-	3, 8, 3, 8, 3, 8, 3, 8, 3, 8, 3, 8, 3, 8, 3, 9, 3, 9, 3, 10, 3, 10, 3,
-	11, 3, 11, 3, 12, 3, 12, 3, 13, 3, 13, 3, 14, 3, 14, 3, 15, 3, 15, 3, 16,
-	3, 16, 2, 2, 17, 3, 2, 5, 3, 7, 4, 9, 5, 11, 6, 13, 7, 15, 8, 17, 9, 19,
-	10, 21, 11, 23, 12, 25, 13, 27, 14, 29, 15, 31, 16, 3, 2, 7, 5, 2, 51,
-	59, 67, 72, 99, 104, 5, 2, 50, 59, 67, 72, 99, 104, 5, 2, 11, 12, 15, 15,
-	34, 34, 3, 2, 51, 59, 3, 2, 50, 59, 2, 90, 2, 5, 3, 2, 2, 2, 2, 7, 3, 2,
-	2, 2, 2, 9, 3, 2, 2, 2, 2, 11, 3, 2, 2, 2, 2, 13, 3, 2, 2, 2, 2, 15, 3,
-	2, 2, 2, 2, 17, 3, 2, 2, 2, 2, 19, 3, 2, 2, 2, 2, 21, 3, 2, 2, 2, 2, 23,
-	3, 2, 2, 2, 2, 25, 3, 2, 2, 2, 2, 27, 3, 2, 2, 2, 2, 29, 3, 2, 2, 2, 2,
-	31, 3, 2, 2, 2, 3, 41, 3, 2, 2, 2, 5, 44, 3, 2, 2, 2, 7, 50, 3, 2, 2, 2,
-	9, 52, 3, 2, 2, 2, 11, 59, 3, 2, 2, 2, 13, 62, 3, 2, 2, 2, 15, 65, 3, 2,
-	2, 2, 17, 72, 3, 2, 2, 2, 19, 74, 3, 2, 2, 2, 21, 76, 3, 2, 2, 2, 23, 78,
-	3, 2, 2, 2, 25, 80, 3, 2, 2, 2, 27, 82, 3, 2, 2, 2, 29, 84, 3, 2, 2, 2,
-	31, 86, 3, 2, 2, 2, 33, 37, 9, 2, 2, 2, 34, 36, 9, 3, 2, 2, 35, 34, 3,
-	2, 2, 2, 36, 39, 3, 2, 2, 2, 37, 35, 3, 2, 2, 2, 37, 38, 3, 2, 2, 2, 38,
-	42, 3, 2, 2, 2, 39, 37, 3, 2, 2, 2, 40, 42, 7, 50, 2, 2, 41, 33, 3, 2,
-	2, 2, 41, 40, 3, 2, 2, 2, 42, 4, 3, 2, 2, 2, 43, 45, 9, 4, 2, 2, 44, 43,
-	3, 2, 2, 2, 45, 46, 3, 2, 2, 2, 46, 44, 3, 2, 2, 2, 46, 47, 3, 2, 2, 2,
-	47, 48, 3, 2, 2, 2, 48, 49, 8, 3, 2, 2, 49, 6, 3, 2, 2, 2, 50, 51, 7, 50,
-	2, 2, 51, 8, 3, 2, 2, 2, 52, 56, 9, 5, 2, 2, 53, 55, 9, 6, 2, 2, 54, 53,
-	3, 2, 2, 2, 55, 58, 3, 2, 2, 2, 56, 54, 3, 2, 2, 2, 56, 57, 3, 2, 2, 2,
-	57, 10, 3, 2, 2, 2, 58, 56, 3, 2, 2, 2, 59, 60, 7, 47, 2, 2, 60, 61, 7,
-	50, 2, 2, 61, 12, 3, 2, 2, 2, 62, 63, 7, 47, 2, 2, 63, 64, 5, 9, 5, 2,
-	64, 14, 3, 2, 2, 2, 65, 66, 7, 47, 2, 2, 66, 67, 5, 3, 2, 2, 67, 68, 7,
-	60, 2, 2, 68, 69, 5, 3, 2, 2, 69, 70, 7, 60, 2, 2, 70, 71, 5, 3, 2, 2,
-	71, 16, 3, 2, 2, 2, 72, 73, 7, 37, 2, 2, 73, 18, 3, 2, 2, 2, 74, 75, 7,
-	46, 2, 2, 75, 20, 3, 2, 2, 2, 76, 77, 7, 65, 2, 2, 77, 22, 3, 2, 2, 2,
-	78, 79, 7, 45, 2, 2, 79, 24, 3, 2, 2, 2, 80, 81, 7, 44, 2, 2, 81, 26, 3,
-	2, 2, 2, 82, 83, 7, 126, 2, 2, 83, 28, 3, 2, 2, 2, 84, 85, 7, 42, 2, 2,
-	85, 30, 3, 2, 2, 2, 86, 87, 7, 43, 2, 2, 87, 32, 3, 2, 2, 2, 7, 2, 37,
-	41, 46, 56, 3, 8, 2, 2,
-}
-
-var lexerChannelNames = []string{
-	"DEFAULT_TOKEN_CHANNEL", "HIDDEN",
-}
-
-var lexerModeNames = []string{
-	"DEFAULT_MODE",
-}
-
-var lexerLiteralNames = []string{
-	"", "", "'0'", "", "", "", "", "'#'", "','", "'?'", "'+'", "'*'", "'|'",
-	"'('", "')'",
-}
-
-var lexerSymbolicNames = []string{
-	"", "WHITESPACE", "ZERO", "NUM", "WILDCARDAS", "LEGACYAS", "AS", "HASH",
-	"COMMA", "QUESTIONMARK", "PLUS", "ASTERISK", "OR", "LPAR", "RPAR",
-}
-
-var lexerRuleNames = []string{
-	"HEXA", "WHITESPACE", "ZERO", "NUM", "WILDCARDAS", "LEGACYAS", "AS", "HASH",
-	"COMMA", "QUESTIONMARK", "PLUS", "ASTERISK", "OR", "LPAR", "RPAR",
-}
 
 type SequenceLexer struct {
 	*antlr.BaseLexer
@@ -84,28 +21,110 @@ type SequenceLexer struct {
 	// TODO: EOF string
 }
 
-// NewSequenceLexer produces a new lexer instance for the optional input antlr.CharStream.
-//
-// The *SequenceLexer instance produced may be reused by calling the SetInputStream method.
-// The initial lexer configuration is expensive to construct, and the object is not thread-safe;
-// however, if used within a Golang sync.Pool, the construction cost amortizes well and the
-// objects can be used in a thread-safe manner.
-func NewSequenceLexer(input antlr.CharStream) *SequenceLexer {
-	l := new(SequenceLexer)
-	lexerDeserializer := antlr.NewATNDeserializer(nil)
-	lexerAtn := lexerDeserializer.DeserializeFromUInt16(serializedLexerAtn)
-	lexerDecisionToDFA := make([]*antlr.DFA, len(lexerAtn.DecisionToState))
-	for index, ds := range lexerAtn.DecisionToState {
-		lexerDecisionToDFA[index] = antlr.NewDFA(ds, index)
-	}
-	l.BaseLexer = antlr.NewBaseLexer(input)
-	l.Interpreter = antlr.NewLexerATNSimulator(l, lexerAtn, lexerDecisionToDFA, antlr.NewPredictionContextCache())
+var SequenceLexerLexerStaticData struct {
+	once                   sync.Once
+	serializedATN          []int32
+	ChannelNames           []string
+	ModeNames              []string
+	LiteralNames           []string
+	SymbolicNames          []string
+	RuleNames              []string
+	PredictionContextCache *antlr.PredictionContextCache
+	atn                    *antlr.ATN
+	decisionToDFA          []*antlr.DFA
+}
 
-	l.channelNames = lexerChannelNames
-	l.modeNames = lexerModeNames
-	l.RuleNames = lexerRuleNames
-	l.LiteralNames = lexerLiteralNames
-	l.SymbolicNames = lexerSymbolicNames
+func sequencelexerLexerInit() {
+	staticData := &SequenceLexerLexerStaticData
+	staticData.ChannelNames = []string{
+		"DEFAULT_TOKEN_CHANNEL", "HIDDEN",
+	}
+	staticData.ModeNames = []string{
+		"DEFAULT_MODE",
+	}
+	staticData.LiteralNames = []string{
+		"", "", "'0'", "", "", "", "", "'#'", "','", "'?'", "'+'", "'*'", "'|'",
+		"'('", "')'",
+	}
+	staticData.SymbolicNames = []string{
+		"", "WHITESPACE", "ZERO", "NUM", "WILDCARDAS", "LEGACYAS", "AS", "HASH",
+		"COMMA", "QUESTIONMARK", "PLUS", "ASTERISK", "OR", "LPAR", "RPAR",
+	}
+	staticData.RuleNames = []string{
+		"HEXA", "WHITESPACE", "ZERO", "NUM", "WILDCARDAS", "LEGACYAS", "AS",
+		"HASH", "COMMA", "QUESTIONMARK", "PLUS", "ASTERISK", "OR", "LPAR", "RPAR",
+	}
+	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
+	staticData.serializedATN = []int32{
+		4, 0, 14, 86, 6, -1, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2,
+		4, 7, 4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2,
+		10, 7, 10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 1, 0,
+		1, 0, 5, 0, 34, 8, 0, 10, 0, 12, 0, 37, 9, 0, 1, 0, 3, 0, 40, 8, 0, 1,
+		1, 4, 1, 43, 8, 1, 11, 1, 12, 1, 44, 1, 1, 1, 1, 1, 2, 1, 2, 1, 3, 1, 3,
+		5, 3, 53, 8, 3, 10, 3, 12, 3, 56, 9, 3, 1, 4, 1, 4, 1, 4, 1, 5, 1, 5, 1,
+		5, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 1, 7, 1, 7, 1, 8, 1, 8, 1,
+		9, 1, 9, 1, 10, 1, 10, 1, 11, 1, 11, 1, 12, 1, 12, 1, 13, 1, 13, 1, 14,
+		1, 14, 0, 0, 15, 1, 0, 3, 1, 5, 2, 7, 3, 9, 4, 11, 5, 13, 6, 15, 7, 17,
+		8, 19, 9, 21, 10, 23, 11, 25, 12, 27, 13, 29, 14, 1, 0, 5, 3, 0, 49, 57,
+		65, 70, 97, 102, 3, 0, 48, 57, 65, 70, 97, 102, 3, 0, 9, 10, 13, 13, 32,
+		32, 1, 0, 49, 57, 1, 0, 48, 57, 88, 0, 3, 1, 0, 0, 0, 0, 5, 1, 0, 0, 0,
+		0, 7, 1, 0, 0, 0, 0, 9, 1, 0, 0, 0, 0, 11, 1, 0, 0, 0, 0, 13, 1, 0, 0,
+		0, 0, 15, 1, 0, 0, 0, 0, 17, 1, 0, 0, 0, 0, 19, 1, 0, 0, 0, 0, 21, 1, 0,
+		0, 0, 0, 23, 1, 0, 0, 0, 0, 25, 1, 0, 0, 0, 0, 27, 1, 0, 0, 0, 0, 29, 1,
+		0, 0, 0, 1, 39, 1, 0, 0, 0, 3, 42, 1, 0, 0, 0, 5, 48, 1, 0, 0, 0, 7, 50,
+		1, 0, 0, 0, 9, 57, 1, 0, 0, 0, 11, 60, 1, 0, 0, 0, 13, 63, 1, 0, 0, 0,
+		15, 70, 1, 0, 0, 0, 17, 72, 1, 0, 0, 0, 19, 74, 1, 0, 0, 0, 21, 76, 1,
+		0, 0, 0, 23, 78, 1, 0, 0, 0, 25, 80, 1, 0, 0, 0, 27, 82, 1, 0, 0, 0, 29,
+		84, 1, 0, 0, 0, 31, 35, 7, 0, 0, 0, 32, 34, 7, 1, 0, 0, 33, 32, 1, 0, 0,
+		0, 34, 37, 1, 0, 0, 0, 35, 33, 1, 0, 0, 0, 35, 36, 1, 0, 0, 0, 36, 40,
+		1, 0, 0, 0, 37, 35, 1, 0, 0, 0, 38, 40, 5, 48, 0, 0, 39, 31, 1, 0, 0, 0,
+		39, 38, 1, 0, 0, 0, 40, 2, 1, 0, 0, 0, 41, 43, 7, 2, 0, 0, 42, 41, 1, 0,
+		0, 0, 43, 44, 1, 0, 0, 0, 44, 42, 1, 0, 0, 0, 44, 45, 1, 0, 0, 0, 45, 46,
+		1, 0, 0, 0, 46, 47, 6, 1, 0, 0, 47, 4, 1, 0, 0, 0, 48, 49, 5, 48, 0, 0,
+		49, 6, 1, 0, 0, 0, 50, 54, 7, 3, 0, 0, 51, 53, 7, 4, 0, 0, 52, 51, 1, 0,
+		0, 0, 53, 56, 1, 0, 0, 0, 54, 52, 1, 0, 0, 0, 54, 55, 1, 0, 0, 0, 55, 8,
+		1, 0, 0, 0, 56, 54, 1, 0, 0, 0, 57, 58, 5, 45, 0, 0, 58, 59, 5, 48, 0,
+		0, 59, 10, 1, 0, 0, 0, 60, 61, 5, 45, 0, 0, 61, 62, 3, 7, 3, 0, 62, 12,
+		1, 0, 0, 0, 63, 64, 5, 45, 0, 0, 64, 65, 3, 1, 0, 0, 65, 66, 5, 58, 0,
+		0, 66, 67, 3, 1, 0, 0, 67, 68, 5, 58, 0, 0, 68, 69, 3, 1, 0, 0, 69, 14,
+		1, 0, 0, 0, 70, 71, 5, 35, 0, 0, 71, 16, 1, 0, 0, 0, 72, 73, 5, 44, 0,
+		0, 73, 18, 1, 0, 0, 0, 74, 75, 5, 63, 0, 0, 75, 20, 1, 0, 0, 0, 76, 77,
+		5, 43, 0, 0, 77, 22, 1, 0, 0, 0, 78, 79, 5, 42, 0, 0, 79, 24, 1, 0, 0,
+		0, 80, 81, 5, 124, 0, 0, 81, 26, 1, 0, 0, 0, 82, 83, 5, 40, 0, 0, 83, 28,
+		1, 0, 0, 0, 84, 85, 5, 41, 0, 0, 85, 30, 1, 0, 0, 0, 5, 0, 35, 39, 44,
+		54, 1, 6, 0, 0,
+	}
+	deserializer := antlr.NewATNDeserializer(nil)
+	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
+	atn := staticData.atn
+	staticData.decisionToDFA = make([]*antlr.DFA, len(atn.DecisionToState))
+	decisionToDFA := staticData.decisionToDFA
+	for index, state := range atn.DecisionToState {
+		decisionToDFA[index] = antlr.NewDFA(state, index)
+	}
+}
+
+// SequenceLexerInit initializes any static state used to implement SequenceLexer. By default the
+// static state used to implement the lexer is lazily initialized during the first call to
+// NewSequenceLexer(). You can call this function if you wish to initialize the static state ahead
+// of time.
+func SequenceLexerInit() {
+	staticData := &SequenceLexerLexerStaticData
+	staticData.once.Do(sequencelexerLexerInit)
+}
+
+// NewSequenceLexer produces a new lexer instance for the optional input antlr.CharStream.
+func NewSequenceLexer(input antlr.CharStream) *SequenceLexer {
+	SequenceLexerInit()
+	l := new(SequenceLexer)
+	l.BaseLexer = antlr.NewBaseLexer(input)
+	staticData := &SequenceLexerLexerStaticData
+	l.Interpreter = antlr.NewLexerATNSimulator(l, staticData.atn, staticData.decisionToDFA, staticData.PredictionContextCache)
+	l.channelNames = staticData.ChannelNames
+	l.modeNames = staticData.ModeNames
+	l.RuleNames = staticData.RuleNames
+	l.LiteralNames = staticData.LiteralNames
+	l.SymbolicNames = staticData.SymbolicNames
 	l.GrammarFileName = "Sequence.g4"
 	// TODO: l.EOF = antlr.TokenEOF
 

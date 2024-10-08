@@ -4,7 +4,7 @@ Forwarding key rollover
 
 - Author: Sergiu Costea
 - Last updated: 2020-09-23
-- Status: **proposal** / **outdated**
+- Status: **WIP** / **Outdated**
 - Discussion at: -
 
 This document describes an implementation for key rollover in a SCION AS.
