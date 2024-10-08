@@ -2,7 +2,7 @@
 set -e
 
 # Create system user
-adduser --system --user-group --create-home --home /var/lib/scion scion
+adduser --system --gid scion -M -s /sbin/nologin
 
 # Create configuration directory
 mkdir /etc/scion/ >& /dev/null || true
