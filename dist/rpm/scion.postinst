@@ -6,5 +6,6 @@ adduser --system --gid scion -M -s /sbin/nologin
 
 # Create configuration directory
 mkdir /etc/scion/ >& /dev/null || true
+mkdir /var/lib/scion/ >& /dev/null || true
 chown scion:scion /etc/scion/
 
