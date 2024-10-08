@@ -106,7 +106,7 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
         )
         kwargs.pop("version")
 
-    # Use ethe same attributes as scion_pkg_deb, in view of may-be simplifying BUILD.bazel later.
+    # Use the same attributes as scion_pkg_deb, in view of may-be simplifying BUILD.bazel later.
     deps = kwargs.get("depends")
     if deps:
         kwargs.pop("depends")
