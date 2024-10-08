@@ -32,7 +32,7 @@ Version
     The version of the SCION Header. Currently, only 0 is supported.
 TrafficClass
     8-bit traffic class field. The value of the Traffic Class bits in a received
-    packet or fragment might be different from the value sent by the packet's
+    packet might be different from the value sent by the packet's
     source. The current use of the Traffic Class field for Differentiated
     Services and Explicit Congestion Notification is specified in `RFC2474
     <https://tools.ietf.org/html/rfc2474>`_ and `RFC3168
