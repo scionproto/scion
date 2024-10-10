@@ -408,7 +408,7 @@ class IFIDGenerator(object):
 
     def new(self):
         while True:
-            ifid = random.randrange(1, 4096)
+            ifid = random.randrange(1, 65536)
             if ifid in self._ifids:
                 continue
             self.add(ifid)
@@ -418,7 +418,7 @@ class IFIDGenerator(object):
         if ifid in self._ifids:
             logging.critical("IFID %d already exists!" % ifid)
             exit(1)
-        if ifid < 1 or ifid > 4095:
+        if ifid < 1 or ifid > 65535:
             logging.critical("IFID %d is invalid!" % ifid)
             exit(1)
         self._ifids.add(ifid)
