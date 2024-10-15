@@ -75,8 +75,8 @@ services:
     - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:ro
   br1-ff00_0_111-1:
     command:
-    - --config
-    - /etc/scion/br1-ff00_0_111-1.toml
+      - --config
+      - /etc/scion/br1-ff00_0_111-1.toml
     image: scion/router:latest
     networks:
       scn_000:

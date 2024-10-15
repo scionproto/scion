@@ -10,6 +10,8 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/snet"
+
+	"tailscale.com/net/stun"
 )
 
 func main() {
@@ -55,11 +57,37 @@ func main() {
 	}
 	defer conn.Close()
 
-	srcAddr, ok := netip.AddrFromSlice(localAddr.Host.IP)
-	if !ok {
-		log.Fatalf("Unexpected address type\n")
+	nextHop := sp.UnderlayNextHop()
+	if nextHop == nil && remoteAddr.IA.Equal(localAddr.IA) {
+		nextHop = remoteAddr.Host
 	}
-	srcAddr = srcAddr.Unmap()
+
+	txID := stun.NewTxID()
+	req := stun.Request(txID)
+
+	var stunAddr = *nextHop
+	stunAddr.Port = 3478
+
+	_, err = conn.WriteToUDP(req, &stunAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var stunBuf [1024]byte
+	n, _, err := conn.ReadFromUDPAddrPort(stunBuf[:])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tid, stunResponse, err := stun.ParseResponse(stunBuf[:n])
+	if err != nil {
+		log.Fatal(err)
+	}
+	if tid != txID {
+		log.Fatalf("txid mismatch: got %v, want %v", tid, txID)
+	}
+
+	srcAddr := stunResponse.Addr()
 	dstAddr, ok := netip.AddrFromSlice(remoteAddr.Host.IP)
 	if !ok {
 		log.Fatalf("Unexpected address type\n")
@@ -85,11 +113,6 @@ func main() {
 		},
 	}
 
-	nextHop := sp.UnderlayNextHop()
-	if nextHop == nil && remoteAddr.IA.Equal(localAddr.IA) {
-		nextHop = remoteAddr.Host
-	}
-
 	err = pkt.Serialize()
 	if err != nil {
 		log.Fatalf("Failed to serialize SCION packet: %v\n", err)
@@ -101,7 +124,7 @@ func main() {
 	}
 
 	pkt.Prepare()
-	n, _, err := conn.ReadFrom(pkt.Bytes)
+	n, _, err = conn.ReadFrom(pkt.Bytes)
 	if err != nil {
 		log.Fatalf("Failed to read packet: %v\n", err)
 	}
