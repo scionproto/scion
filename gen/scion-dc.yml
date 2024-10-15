@@ -86,6 +86,7 @@ services:
     user: 1000:1000
     volumes:
     - /home/ubuntu/scion/gen/ASff00_0_111:/etc/scion:ro
+    - /home/ubuntu/scion/nat-sim-tester:/share/testnet:ro
   br1-ff00_0_112-1:
     command:
     - --config
@@ -277,7 +278,7 @@ services:
     - /home/ubuntu/scion/logs:/share/logs:rw
     - /home/ubuntu/scion/gen:/share/gen:rw
     - /home/ubuntu/scion/gen-certs:/share/gen-certs:rw
-    - /home/ubuntu/scion-testnet:/share/testnet:ro
+    - /home/ubuntu/scion/nat-sim-tester:/share/testnet:ro
     - /home/ubuntu/go1.23:/share/go:rw
   tester_1-ff00_0_111:
     depends_on:
@@ -293,7 +294,7 @@ services:
     - /home/ubuntu/scion/logs:/share/logs:rw
     - /home/ubuntu/scion/gen:/share/gen:rw
     - /home/ubuntu/scion/gen-certs:/share/gen-certs:rw
-    - /home/ubuntu/scion-testnet:/share/testnet:ro
+    - /home/ubuntu/scion/nat-sim-tester:/share/testnet:ro
     - /home/ubuntu/go1.23:/share/go:rw
   tester_1-ff00_0_112:
     depends_on:
@@ -309,7 +310,7 @@ services:
     - /home/ubuntu/scion/logs:/share/logs:rw
     - /home/ubuntu/scion/gen:/share/gen:rw
     - /home/ubuntu/scion/gen-certs:/share/gen-certs:rw
-    - /home/ubuntu/scion-testnet:/share/testnet:ro
+    - /home/ubuntu/scion/nat-sim-tester:/share/testnet:ro
     - /home/ubuntu/go1.23:/share/go:rw
   nat_1-ff00_0_111:
     command: sh -c "apt update && apt install -y iptables && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o eth1 -j MASQUERADE && tail -f /dev/null"
