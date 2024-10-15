@@ -1,0 +1,31 @@
+# Packages for the tester images
+#
+#  Anytime this file is changed, the lockfile needs to be regenerated.
+#
+#  To generate the tester_deb.lock.json run the following command
+#
+#     bazel run @tester_deb//:lock
+#
+version: 1
+
+sources:
+  - channel: buster main contrib
+    url: https://snapshot.debian.org/archive/debian/20240311T214105Z
+    # TODO optimally we would also have updates and security channels here,
+    # but given it's only for testing it's also not a big issue.
+
+archs:
+  - "amd64"
+  - "arm64"
+
+packages:
+  - bridge-utils
+  - iperf3
+  - iptables
+  - netcat-openbsd
+  - openssh-server
+  - openssh-client
+  - procps
+  - telnet
+  - tshark
+  - wget
