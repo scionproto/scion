@@ -185,28 +185,27 @@ oci_pull(
 
 # Debian packaging
 http_archive(
-    name = "rules_debian_packages",
-    sha256 = "0ae3b332f9d894e57693ce900769d2bd1b693e1f5ea1d9cdd82fa4479c93bcc8",
-    strip_prefix = "rules_debian_packages-0.2.0",
-    url = "https://github.com/bazel-contrib/rules_debian_packages/releases/download/v0.2.0/rules_debian_packages-v0.2.0.tar.gz",
+    name = "rules_distroless",
+    sha256 = "6d1d739617e48fc3579781e694d3fabb08fc6c9300510982c01882732c775b8e",
+    strip_prefix = "rules_distroless-0.3.8",
+    url = "https://github.com/GoogleContainerTools/rules_distroless/releases/download/v0.3.8/rules_distroless-v0.3.8.tar.gz",
 )
 
-load("@rules_debian_packages//debian_packages:repositories.bzl", "rules_debian_packages_dependencies")
+load("@rules_distroless//distroless:dependencies.bzl", "distroless_dependencies")
 
-rules_debian_packages_dependencies(python_interpreter_target = python_interpreter)
+distroless_dependencies()
 
-load("@rules_debian_packages//debian_packages:defs.bzl", "debian_packages_repository")
+load("@rules_distroless//distroless:toolchains.bzl", "distroless_register_toolchains")
 
-debian_packages_repository(
-    name = "tester_debian10_packages",
-    default_arch = "amd64",
-    default_distro = "debian10",
-    lock_file = "//docker:tester_packages.lock",
-)
+distroless_register_toolchains()
 
-load("@tester_debian10_packages//:packages.bzl", tester_debian_packages_install_deps = "install_deps")
+load("//docker:tester.bzl", "declare_tester_deb")
 
-tester_debian_packages_install_deps()
+declare_tester_deb()
+
+load("@tester_deb//:packages.bzl", "tester_deb_packages")
+
+tester_deb_packages()
 
 # RPM packaging
 load("@rules_pkg//toolchains/rpm:rpmbuild_configure.bzl", "find_system_rpmbuild")
