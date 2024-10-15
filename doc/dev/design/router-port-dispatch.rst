@@ -160,9 +160,7 @@ For this, we add two mechanisms:
 
     .. code-block:: yaml
 
-       "underlay": {
-         "dispatched_ports": "<min>-<max>"
-       }
+       "dispatched_ports": "<min>-<max>"
 
   The ``min``, ``max`` values define the range of ports ``[min, max]`` (inclusive).
   The value ``"-"`` explicitly represents an empty range.
