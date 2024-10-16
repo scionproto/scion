@@ -80,8 +80,6 @@ All fields within SIG frame header are in network byte order.
 
 A SIG MAY drop frames. In the current implementation, the egress SIG does not buffer frames that are received out-ot-order. Instead it drops any out-of-order and following frames until it finds the begining of a new encapsulated IP packet.
 
-The Session ID and Stream ID are chosen by the sender but the tuple MUST be unique within a session.
-
 SIG frame payload
 -----------------
 
