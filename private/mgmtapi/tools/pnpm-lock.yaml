@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@types/jsonpath-plus': '>=10.0.0'
+
 packageExtensionsChecksum: 12431cddfbc961e47dea32fc33af3a5c
 
 importers:
