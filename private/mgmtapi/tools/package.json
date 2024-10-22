@@ -4,6 +4,9 @@
         "@stoplight/spectral-cli": "^6.11.1"
     },
     "pnpm": {
+	"overrides": {
+	    "@types/jsonpath-plus": ">=10.0.0"
+	},
         "onlyBuiltDependencies": [],
         "packageExtensions": {
             "styled-components@5.3.11": {
