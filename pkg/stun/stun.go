@@ -82,44 +82,22 @@ func appendU32(b []byte, v uint32) []byte {
 
 // ParseBindingRequest parses a STUN binding request.
 func ParseBindingRequest(b []byte) (TxID, error) {
-	if !Is(b) {
+	/**if !Is(b) {
 		return TxID{}, ErrNotSTUN
-	}
+	}**/
 	if string(b[:len(bindingRequest)]) != bindingRequest {
 		return TxID{}, ErrNotBindingRequest
 	}
 	var txID TxID
 	copy(txID[:], b[8:8+len(txID)])
-	// var softwareOK bool
-	var lastAttr uint16
-	var gotFP uint32
-	if err := foreachAttr(b[headerLen:], func(attrType uint16, a []byte) error {
-		lastAttr = attrType
-		/*if attrType == attrNumSoftware && string(a) == software {
-			softwareOK = true
-		}*/
-		if attrType == attrNumFingerprint && len(a) == 4 {
-			gotFP = binary.BigEndian.Uint32(a)
-		}
-		return nil
-	}); err != nil {
+	if err := foreachAttr(b[headerLen:], func(_ uint16, _ []byte) error { return nil }); err != nil {
 		return TxID{}, err
-	}
-	/*if !softwareOK {
-		return TxID{}, ErrWrongSoftware
-	}*/
-	if lastAttr != attrNumFingerprint {
-		return TxID{}, ErrNoFingerprint
-	}
-	wantFP := fingerPrint(b[:len(b)-lenFingerprint])
-	if gotFP != wantFP {
-		return TxID{}, ErrWrongFingerprint
 	}
 	return txID, nil
 }
 
 var (
-	ErrNotSTUN            = errors.New("response is not a STUN packet")
+	ErrNotSTUN            = errors.New("malformed STUN packet")
 	ErrNotSuccessResponse = errors.New("STUN packet is not a response")
 	ErrMalformedAttrs     = errors.New("STUN response has malformed attributes")
 	ErrNotBindingRequest  = errors.New("STUN request not a binding request")
@@ -303,7 +281,31 @@ func mappedAddress(b []byte) (addr []byte, port uint16, err error) {
 
 // Is reports whether b is a STUN message.
 func Is(b []byte) bool {
-	return len(b) >= headerLen &&
-		string(b[4:8]) == magicCookie &&
-		b[0]&0b11000000 == 0 // top two bits must be zero
+	if len(b) < headerLen {
+		return false
+	}
+	if string(b[4:8]) != magicCookie {
+		return false
+	}
+	// top two bits must be zero
+	if b[0]&0b11000000 != 0 {
+		return false
+	}
+	// check if packet has correct alignment
+	if len(b)%4 != 0 {
+		return false
+	}
+	// check if fingerprint attribute exists
+	lastAttrib := binary.BigEndian.Uint16(b[len(b)-lenFingerprint : len(b)-lenFingerprint+2])
+	lastAttribLen := binary.BigEndian.Uint16(b[len(b)-lenFingerprint+2 : len(b)-lenFingerprint+4])
+	if lastAttrib != attrNumFingerprint || lastAttribLen != 4 {
+		return false
+	}
+	// check if fingerprint correct
+	wantFP := fingerPrint(b[:len(b)-lenFingerprint])
+	gotFP := binary.BigEndian.Uint32(b[len(b)-4:])
+	if wantFP != gotFP {
+		return false
+	}
+	return true
 }
