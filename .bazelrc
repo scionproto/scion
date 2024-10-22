@@ -1,5 +1,8 @@
 ### common options for all subcommands (help, query, build, ...)
 common --show_timestamps --enable_platform_specific_config
+# Enable bazel module management
+common --enable_bzlmod
+common --incompatible_enable_proto_toolchain_resolution
 
 # connect to buchgr/bazel-remote cache
 # These flags can unfortunately not be specified for `common`, as they are not accepted by all subcommands (help, version, dump)
