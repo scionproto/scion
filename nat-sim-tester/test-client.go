@@ -66,7 +66,7 @@ func main() {
 	req := stun.Request(txID)
 
 	var stunAddr = *nextHop
-	stunAddr.Port = 3478
+	stunAddr.Port = 30042
 
 	_, err = conn.WriteToUDP(req, &stunAddr)
 	if err != nil {

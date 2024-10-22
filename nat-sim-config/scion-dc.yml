@@ -74,9 +74,9 @@ services:
     volumes:
     - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:ro
   br1-ff00_0_111-1:
-    entrypoint: /busybox/sh -c
     command:
-      - /app/router --config /etc/scion/br1-ff00_0_111-1.toml & /share/testnet/stund
+      - --config 
+      - /etc/scion/br1-ff00_0_111-1.toml
     image: scion/router:latest
     networks:
       scn_000:
