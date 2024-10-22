@@ -16,7 +16,7 @@ the project, this page will help you out on your journey to your first SCION com
    or on our `Github project page <https://github.com/scionproto/scion>`__.
    Do not hesitate to ask us anything, or feel free to just drop by and say "Hi".
 
-   Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-1gtgkuvk3-vQzq3gPOWOL6T58yu45vXg>`__.
+   Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-2tbqf49yo-4quzKc4N3g5h8wjZ~axNYQ>`__.
 
 
 What skills do you need to contribute?
