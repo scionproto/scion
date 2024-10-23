@@ -797,22 +797,22 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 	p.pkt = pkt
 	p.ingressFromLink = pkt.Link.IfID()
 
-	if stun.Is(pkt.RawPacket) {
-		txid, err := stun.ParseBindingRequest(pkt.RawPacket)
-		if err != nil {
-			return serrors.New("Error processing STUN packet", "error", err)
-		}
-		response := stun.Response(txid, pkt.SrcAddr.AddrPort())
-		p.pkt.RawPacket = p.pkt.RawPacket[:len(response)]
-		copy(p.pkt.RawPacket, response)
-		p.pkt.trafficType = ttOther
-		p.pkt.egress = p.pkt.Ingress
-		updateNetAddrFromNetAddr(p.pkt.DstAddr, p.pkt.SrcAddr)
-		return err
-	}
-
 	p.lastLayer, err = decodeLayers(pkt.RawPacket, &p.scionLayer, &p.hbhLayer, &p.e2eLayer)
 	if err != nil {
+		// Check for and process STUN packet
+		if stun.Is(pkt.RawPacket) {
+			txid, err := stun.ParseBindingRequest(pkt.RawPacket)
+			if err != nil {
+				return serrors.New("Error processing STUN packet", "error", err)
+			}
+			response := stun.Response(txid, pkt.SrcAddr.AddrPort())
+			p.pkt.RawPacket = p.pkt.RawPacket[:len(response)]
+			copy(p.pkt.RawPacket, response)
+			p.pkt.trafficType = ttOther
+			p.pkt.egress = p.pkt.Ingress
+			updateNetAddrFromNetAddr(p.pkt.DstAddr, p.pkt.SrcAddr)
+			return err
+		}
 		return err
 	}
 	pathType := p.scionLayer.PathType
@@ -906,15 +906,14 @@ func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
 	p.pkt = pkt
 	p.ingressFromLink = pkt.Link.IfID()
 
-	// Check if STUN packet
-	if stun.Is(p.pkt.RawPacket) {
-		return pSlowPath
-	}
-
 	// parse SCION header and skip extensions;
 	var err error
 	p.lastLayer, err = decodeLayers(pkt.RawPacket, &p.scionLayer, &p.hbhLayer, &p.e2eLayer)
 	if err != nil {
+		// Check if STUN packet
+		if stun.Is(p.pkt.RawPacket) {
+			return pSlowPath
+		}
 		return errorDiscard("error", err)
 	}
 
