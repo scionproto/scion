@@ -88,7 +88,7 @@ protobuf:
 	chmod 0644 pkg/proto/*/*.pb.go pkg/proto/*/*/*.pb.go
 
 mocks:
-	tools/gomocks.py
+	bazel run //tools:gomocks
 
 gazelle: go_deps.bzl
 	bazel run //:gazelle --verbose_failures --config=quiet
