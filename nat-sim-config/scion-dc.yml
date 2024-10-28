@@ -74,9 +74,9 @@ services:
     volumes:
     - /home/ubuntu/scion/gen/ASff00_0_110:/etc/scion:ro
   br1-ff00_0_111-1:
+    entrypoint: /busybox/sh -c
     command:
-      - --config 
-      - /etc/scion/br1-ff00_0_111-1.toml
+      - /app/router --config /etc/scion/br1-ff00_0_111-1.toml & /share/testnet/stund
     image: scion/router:latest
     networks:
       scn_000:
@@ -317,7 +317,7 @@ services:
     - /home/ubuntu/scion/nat-sim-tester:/share/testnet:ro
     - /home/ubuntu/go1.23:/share/go:rw
   nat_1-ff00_0_111:
-    command: sh -c "apt update && apt install -y iptables && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o eth1 -j MASQUERADE && tail -f /dev/null"
+    command: sh -c "apt update && apt install -y iptables && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p tcp -o eth1 -j MASQUERADE && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p udp -o eth1 -j MASQUERADE --random --to-ports 31000-32767 && tail -f /dev/null"
     image: scion/tester:latest
     networks:
       scn_002:
