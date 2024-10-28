@@ -57,37 +57,48 @@ func main() {
 	}
 	defer conn.Close()
 
+	var srcAddr netip.Addr
+	var srcPort uint16
+	var ok bool
+
 	nextHop := sp.UnderlayNextHop()
 	if nextHop == nil && remoteAddr.IA.Equal(localAddr.IA) {
+		srcAddr, ok = netip.AddrFromSlice(localAddr.Host.IP)
+		if !ok {
+			log.Fatalf("Unexpected address type\n")
+		}
+		srcPort = uint16(localAddr.Host.Port)
 		nextHop = remoteAddr.Host
+	} else {
+		txID := stun.NewTxID()
+		req := stun.Request(txID)
+
+		var stunAddr = *nextHop
+		stunAddr.Port = 30042
+
+		_, err = conn.WriteToUDP(req, &stunAddr)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var stunBuf [1024]byte
+		n, _, err := conn.ReadFromUDPAddrPort(stunBuf[:])
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		tid, stunResponse, err := stun.ParseResponse(stunBuf[:n])
+		if err != nil {
+			log.Fatal(err)
+		}
+		if tid != txID {
+			log.Fatalf("txid mismatch: got %v, want %v", tid, txID)
+		}
+
+		srcAddr = stunResponse.Addr()
+		srcPort = stunResponse.Port()
 	}
 
-	txID := stun.NewTxID()
-	req := stun.Request(txID)
-
-	var stunAddr = *nextHop
-	stunAddr.Port = 30042
-
-	_, err = conn.WriteToUDP(req, &stunAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var stunBuf [1024]byte
-	n, _, err := conn.ReadFromUDPAddrPort(stunBuf[:])
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	tid, stunResponse, err := stun.ParseResponse(stunBuf[:n])
-	if err != nil {
-		log.Fatal(err)
-	}
-	if tid != txID {
-		log.Fatalf("txid mismatch: got %v, want %v", tid, txID)
-	}
-
-	srcAddr := stunResponse.Addr()
 	dstAddr, ok := netip.AddrFromSlice(remoteAddr.Host.IP)
 	if !ok {
 		log.Fatalf("Unexpected address type\n")
@@ -106,7 +117,7 @@ func main() {
 			},
 			Path: sp.Dataplane(),
 			Payload: snet.UDPPayload{
-				SrcPort: uint16(localAddr.Host.Port),
+				SrcPort: srcPort,
 				DstPort: uint16(remoteAddr.Host.Port),
 				Payload: []byte(data),
 			},
@@ -124,7 +135,7 @@ func main() {
 	}
 
 	pkt.Prepare()
-	n, _, err = conn.ReadFrom(pkt.Bytes)
+	n, _, err := conn.ReadFrom(pkt.Bytes)
 	if err != nil {
 		log.Fatalf("Failed to read packet: %v\n", err)
 	}
