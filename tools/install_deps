@@ -8,4 +8,4 @@ if which apt-get >& /dev/null; then
 elif which yum >& /dev/null; then
   "$BASE/env/rhel/deps"
 fi
-"$BASE/env/pip3/deps"
+
