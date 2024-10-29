@@ -1,5 +1,5 @@
 ### common options for all subcommands (help, query, build, ...)
-common --show_timestamps --enable_platform_specific_config
+common --show_timestamps --enable_platform_specific_config --build_python_zip
 
 # connect to buchgr/bazel-remote cache
 # These flags can unfortunately not be specified for `common`, as they are not accepted by all subcommands (help, version, dump)
@@ -18,7 +18,6 @@ build --incompatible_default_to_explicit_init_py
 # Enable resolution of cc toolchain by go toolchain
 build --incompatible_enable_cc_toolchain_resolution
 build --flag_alias=file_name_version=//:file_name_version
-build --build_python_zip
 
 # include one of "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
 # cannot be in common, because query chokes on it.
@@ -36,7 +35,7 @@ test:unit_all --config=unit //...
 test:integration --test_tag_filters=integration,-lint
 test:integration_all --config=integration //...
 
-test:lint --test_tag_filters=lint,write_src --test_summary=terse --noshow_progress --experimental_convenience_symlinks=ignore
+test:lint --test_tag_filters=lint,write_src --test_summary=terse --noshow_progress --experimental_convenience_symlinks=ignore --nobuild_python_zip
 
 # run quietly, only display errors
 common:quiet --ui_event_filters=-warning,-info,-debug,-stdout,-stderr --noshow_progress
