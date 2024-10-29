@@ -86,19 +86,22 @@ class RouterBMTool(cli.Application, RouterBM):
     log_level = cli.SwitchAttr(["l", "loglevel"], str, default='warning', help="Logging level")
 
     doit = cli.Flag(["r", "run"],
-                    help="Run the benchmark, as opposed to seeing the instructions.")
+                    help="Run the benchmark, as opposed to seeing the instructions")
     json = cli.Flag(["j", "json"],
-                    help="Output the report in json format.")
+                    help="Output the report in json format")
 
     # Used by the RouterBM mixin:
     coremark = cli.SwitchAttr(["c", "coremark"], int, default=0,
-                              help="The coremark score of the subject machine.")
+                              help="The coremark score of the subject machine")
     mmbm = cli.SwitchAttr(["m", "mmbm"], int, default=0,
-                          help="The mmbm score of the subject machine.")
+                          help="The mmbm score of the subject machine")
     packet_size = cli.SwitchAttr(["s", "size"], int, default=172,
-                                 help="Test packet size (includes all headers - floored at 154).")
+                                 help="Test packet size (includes all headers - floored at 154)")
+    brload_path = cli.SwitchAttr(["b", "brload"], str, default="bin/brload",
+                                 help="Relative path to the brload tool")
+
     intf_map: dict[str, Intf] = {}
-    brload: LocalCommand = local["./bin/brload"]
+    brload: LocalCommand = None
     brload_cpus: list[int] = []
     artifacts = f"{os.getcwd()}/acceptance/router_benchmark"
     prom_address: str = "localhost:9090"
@@ -332,6 +335,9 @@ INSTRUCTIONS:
 """)
 
     def main(self, *interfaces: str):
+        # brload cannot be set statically. It need the cli arguments to be
+        # processed.
+        self.brload = local[self.brload_path]
         status = 1
         try:
             logging.basicConfig(level=self.log_level.upper())

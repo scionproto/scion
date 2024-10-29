@@ -53,6 +53,13 @@ py_library(
 py_binary(
     name = "benchmark",
     srcs = ["benchmark.py"],
+    args = [
+        "--brload",
+        "$(location //acceptance/router_benchmark/brload:brload)",
+    ],
+    data = [
+        "//acceptance/router_benchmark/brload",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "benchmarklib",

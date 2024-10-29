@@ -2,9 +2,10 @@
 
 build-dev:
 	rm -f bin/*
-	bazel build //:scion //:scion-ci
+	bazel build //:scion //:scion-ci //:scion-topo
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
+	tar -kxf bazel-bin/scion-topo.tar -C bin
 
 build:
 	rm -f bin/*
@@ -74,10 +75,6 @@ docker-images:
 	bazel build //docker:prod //docker:test
 	@echo "Load images"
 	@bazel cquery '//docker:prod union //docker:test' --output=files 2>/dev/null | xargs -I{} docker load --input {}
-
-scion-topo:
-	bazel build //:scion-topo
-	tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
 
 protobuf:
 	rm -rf bazel-bin/pkg/proto/*/go_default_library_/github.com/scionproto/scion/pkg/proto/*

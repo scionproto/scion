@@ -45,3 +45,34 @@ py_binary(
         requirement("pyyaml"),
     ],
 )
+
+py_binary(
+    name = "topodot",
+    srcs = ["topodot.py"],
+    data = [
+    ],
+    main = "topodot.py",
+    python_version = "PY3",
+    srcs_version = "PY3",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tools/topology:py_default_library",
+        "@bazel_tools//tools/python/runfiles",
+        requirement("plumbum"),
+    ],
+)
+
+py_binary(
+    name = "set_ipv6_addr",
+    srcs = ["set_ipv6_addr.py"],
+    data = [
+    ],
+    main = "set_ipv6_addr.py",
+    python_version = "PY3",
+    srcs_version = "PY3",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tools/topology:py_default_library",
+        "@bazel_tools//tools/python/runfiles",
+    ],
+)

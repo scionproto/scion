@@ -213,10 +213,11 @@ pkg_tar(
 pkg_tar(
     name = "scion-topo",
     srcs = [
-        "//scion-pki/cmd/scion-pki",
+        "//tools:set_ipv6_addr",
+        "//tools:topodot",
+        "//tools:topogen",
     ],
     mode = "0755",
-    package_dir = "",
 )
 
 # Nogo - Go code analysis tool
