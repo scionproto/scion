@@ -96,7 +96,7 @@ steps:
       - ./tools/licenses.sh /tmp/test-artifacts/licenses
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
       - echo "--- gomocks"
-      - ./tools/gomocks.py diff
+      - make gomocksdiff
       - echo "--- antlr"
       - rm -rf /tmp/test-artifacts/antlr
       - cp -R antlr/ /tmp/test-artifacts/antlr

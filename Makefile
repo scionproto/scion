@@ -1,4 +1,4 @@
-.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files git-version
+.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
 
 build-dev:
 	rm -f bin/*
@@ -89,6 +89,9 @@ protobuf:
 
 mocks:
 	bazel run //tools:gomocks
+
+mocksdiff:
+	bazel run //tools:gomocks -- diff
 
 gazelle: go_deps.bzl
 	bazel run //:gazelle --verbose_failures --config=quiet
