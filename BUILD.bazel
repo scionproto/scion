@@ -215,10 +215,10 @@ pkg_tar(
     name = "scion-topo",
     srcs = [
         "//tools:set_ipv6_addr",
+        "//tools:supervisorctl",
+        "//tools:supervisord",
         "//tools:topodot",
         "//tools:topogen",
-        "//tools:supervisord",
-        "//tools:supervisorctl",
     ],
     mode = "0755",
 )

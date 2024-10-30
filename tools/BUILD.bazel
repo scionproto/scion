@@ -29,21 +29,21 @@ py_binary(
 py_binary(
     name = "supervisord",
     srcs = ["supervisord.py"],
+    visibility = ["//visibility:public"],
     deps = [
         requirement("supervisor"),
         requirement("supervisor-wildcards"),
     ],
-    visibility = ["//visibility:public"],
 )
 
 py_binary(
     name = "supervisorctl",
     srcs = ["supervisorctl.py"],
+    visibility = ["//visibility:public"],
     deps = [
         requirement("supervisor"),
         requirement("supervisor-wildcards"),
     ],
-    visibility = ["//visibility:public"],
 )
 
 py_binary(
