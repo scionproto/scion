@@ -27,6 +27,26 @@ py_binary(
 )
 
 py_binary(
+    name = "supervisord",
+    srcs = ["supervisord.py"],
+    deps = [
+        requirement("supervisor"),
+        requirement("supervisor-wildcards"),
+    ],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "supervisorctl",
+    srcs = ["supervisorctl.py"],
+    deps = [
+        requirement("supervisor"),
+        requirement("supervisor-wildcards"),
+    ],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
     name = "topogen",
     srcs = ["topogen.py"],
     data = [
