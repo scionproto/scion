@@ -60,9 +60,9 @@ steps:
             - <a href="artifact://installables/scion_${SCION_VERSION}_openwrt_x86_64.tar.gz">x86_64</a>
             #### Packages :rpm:
             - <a href="artifact://installables/scion_${SCION_VERSION}_rpm_x86_64.tar.gz">x86_64</a>
-            - <a href="artifact://installables/scion_${SCION_VERSION}_rpm_arm64.tar.gz">x86_64</a>
-            - <a href="artifact://installables/scion_${SCION_VERSION}_rpm_i386.tar.gz">x86_64</a>
-            - <a href="artifact://installables/scion_${SCION_VERSION}_rpm_armel.tar.gz">x86_64</a>
+            - <a href="artifact://installables/scion_${SCION_VERSION}_rpm_arm64.tar.gz">arm64</a>
+            - <a href="artifact://installables/scion_${SCION_VERSION}_rpm_i386.tar.gz">i386</a>
+            - <a href="artifact://installables/scion_${SCION_VERSION}_rpm_armel.tar.gz">armel</a>
             EOF
     key: dist
     retry: *automatic-retry
