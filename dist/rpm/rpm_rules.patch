@@ -66,15 +66,6 @@ diff --git a/pkg/rpm_pfg.bzl b/pkg/rpm_pfg.bzl
 index 1e3450c1..596dc26d 100644
 --- a/pkg/rpm_pfg.bzl
 +++ b/pkg/rpm_pfg.bzl
-@@ -142,7 +142,7 @@ def _make_absolute_if_not_already_or_is_macro(path):
-     # this can be inlined easily.
-     return path if path.startswith(("/", "%")) else "/" + path
- 
--#### Input processing helper functons.
-+#### Input processing helper functions.
- 
- # TODO(nacl, #459): These are redundant with functions and structures in
- # pkg/private/pkg_files.bzl.  We should really use the infrastructure provided
 @@ -251,7 +251,7 @@ def _pkg_rpm_impl(ctx):
              rpm_name,
              ctx.attr.version,
@@ -83,26 +74,16 @@ index 1e3450c1..596dc26d 100644
 +            ctx.attr.architecture if ctx.attr.architecture else ctx.attr.target_architecture,
          )
  
-     outputs, output_file, output_name = setup_output_files(
-@@ -432,6 +432,9 @@ def _pkg_rpm_impl(ctx):
+     _, output_file, _ = setup_output_files(
+@@ -454,5 +454,8 @@ def _pkg_rpm_impl(ctx):
  
      args.append("--out_file=" + output_file.path)
  
 +    if ctx.attr.target_architecture:
 +        args.append("--target_arch=" + ctx.attr.target_architecture)
 +
-     # Add data files.
-     if ctx.file.changelog:
-         files.append(ctx.file.changelog)
-@@ -666,7 +669,7 @@ def _pkg_rpm_impl(ctx):
-     output_groups = {
-         "out": [default_file],
-         "rpm": [output_file],
--        "changes": changes
-+        "changes": changes,
-     }
-     return [
-         OutputGroupInfo(**output_groups),
+     # Add data files
+     files += ctx.files.srcs
 @@ -791,20 +794,29 @@ pkg_rpm = rule(
          # funny if it's not provided.  The contents of the RPM are believed to
          # be set as expected, though.
