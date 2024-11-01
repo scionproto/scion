@@ -15,10 +15,10 @@
 package snet
 
 import (
-	"fmt"
 	"net"
 	"net/netip"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -117,7 +117,15 @@ func (a *UDPAddr) Network() string {
 
 // String implements net.Addr interface.
 func (a *UDPAddr) String() string {
-	return fmt.Sprintf("%v,%s", a.IA, a.Host.String())
+	host, port, suffix := "<nil>", "0", ""
+	if a.Host != nil {
+		host = a.Host.IP.String()
+		port = strconv.Itoa(a.Host.Port)
+		if a.Host.Zone != "" {
+			suffix = "%" + a.Host.Zone
+		}
+	}
+	return net.JoinHostPort(a.IA.String()+","+host+suffix, port)
 }
 
 // GetPath returns a path with attached metadata.
