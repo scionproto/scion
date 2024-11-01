@@ -209,14 +209,18 @@ pkg_tar(
     package_dir = "",
 )
 
-# This contains all of the binaries needed to run the topology generator.
+# This contains all of the binaries needed to run the topology generator
+# and start a local stack.
 pkg_tar(
     name = "scion-topo",
     srcs = [
-        "//scion-pki/cmd/scion-pki",
+        "//tools:set_ipv6_addr",
+        "//tools:supervisorctl",
+        "//tools:supervisord",
+        "//tools:topodot",
+        "//tools:topogen",
     ],
     mode = "0755",
-    package_dir = "",
 )
 
 # Nogo - Go code analysis tool
