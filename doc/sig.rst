@@ -71,12 +71,12 @@ Each SIG frame starts with SIG frame header with the following format::
 
 All fields within SIG frame header are in network byte order.
 
-- `Version` (8 bits) indicates the SIG framing version. It MUST be set to zero if following this specification.
-- `Session ID` (8 bits) identifies a tunneling session between a pair of SIGs.
-- `Index` (16 bits) is the byte offset of the first beginning of an IP packet within the payload. If no IP packet starts in the payload, e.g. if the frame contains only the middle or trailing part of an IP packet, the field MUST be set to 0xFFFF.
-- `Reserved` (12 bits): it MUST be set to zero.
-- `Stream ID` (20 bits), along with the session, it identifies a unique sequence of SIG frames. Frames from the same stream are, on the egress SIG, put into the same reassembly queue. There may be multiple streams per session.
-- `Sequence Number` (64 bits) indicates the position of the frame within a stream. Consecutive frames of a given stream have consecutive sequence numbers. IP packets split among multiple frames are re-assembled by concatenating the payloads of consecutive frames.
+- ``Version`` (8 bits) indicates the SIG framing version. It MUST be set to zero if following this specification.
+- ``Session ID`` (8 bits) identifies a tunneling session between a pair of SIGs.
+- ``Index`` (16 bits) is the byte offset of the first beginning of an IP packet within the payload. If no IP packet starts in the payload, e.g. if the frame contains only the middle or trailing part of an IP packet, the field MUST be set to 0xFFFF.
+- ``Reserved`` (12 bits): it MUST be set to zero.
+- ``Stream ID`` (20 bits), along with the session, it identifies a unique sequence of SIG frames. Frames from the same stream are, on the egress SIG, put into the same reassembly queue. There may be multiple streams per session.
+- ``Sequence Number`` (64 bits) indicates the position of the frame within a stream. Consecutive frames of a given stream have consecutive sequence numbers. IP packets split among multiple frames are re-assembled by concatenating the payloads of consecutive frames.
 
 A SIG MAY drop frames. In the current implementation, the egress SIG does not buffer frames that are received out-ot-order. Instead it drops any out-of-order and following frames until it finds the begining of a new encapsulated IP packet.
 
@@ -87,7 +87,7 @@ SIG frame payload may contain multiple IPv4 or IPv6 packets, or parts
 thereof. No other types of packets can be encapsulated. The packets are
 placed one directly after another, with no padding.
 Multicast traffic is not supported yet.
- 
+
 SIG uses IPv4/6 "payload length" field to determine the size of the packet.
 To make the processing easier, it is required that the fixed part of the IP header
 is in the frame where the IP packet begins. In other words, the initial fragment
