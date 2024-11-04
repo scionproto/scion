@@ -23,11 +23,11 @@ cmd_topology() {
     cmd_topo-clean
 
     echo "Create topology, configuration, and execution files."
-    tools/topogen.py "$@"
+    ./bin/topogen "$@"
 }
 
 cmd_topodot() {
-    ./tools/topodot.py "$@"
+    ./bin/topodot "$@"
 }
 
 start_scion() {

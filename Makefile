@@ -1,10 +1,11 @@
-.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files git-version
+.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
 
 build-dev:
 	rm -f bin/*
-	bazel build //:scion //:scion-ci
+	bazel build //:scion //:scion-ci //:scion-topo
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
+	tar -kxf bazel-bin/scion-topo.tar -C bin
 
 build:
 	rm -f bin/*
@@ -75,10 +76,6 @@ docker-images:
 	@echo "Load images"
 	@bazel cquery '//docker:prod union //docker:test' --output=files 2>/dev/null | xargs -I{} docker load --input {}
 
-scion-topo:
-	bazel build //:scion-topo
-	tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
-
 protobuf:
 	rm -rf bazel-bin/pkg/proto/*/go_default_library_/github.com/scionproto/scion/pkg/proto/*
 	bazel build --output_groups=go_generated_srcs //pkg/proto/...
@@ -88,7 +85,10 @@ protobuf:
 	chmod 0644 pkg/proto/*/*.pb.go pkg/proto/*/*/*.pb.go
 
 mocks:
-	tools/gomocks.py
+	bazel run //tools:gomocks
+
+mocksdiff:
+	bazel run //tools:gomocks -- diff
 
 gazelle: go_deps.bzl
 	bazel run //:gazelle --verbose_failures --config=quiet

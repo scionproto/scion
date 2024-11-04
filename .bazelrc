@@ -18,6 +18,7 @@ build --incompatible_default_to_explicit_init_py
 # Enable resolution of cc toolchain by go toolchain
 build --incompatible_enable_cc_toolchain_resolution
 build --flag_alias=file_name_version=//:file_name_version
+build  --build_python_zip
 
 # include one of "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
 # cannot be in common, because query chokes on it.
@@ -25,7 +26,7 @@ build --define gotags=sqlite_modernc,netgo
 build:osx --define gotags=sqlite_modernc
 
 ### options for test
-test --build_tests_only --print_relative_test_log_paths --test_output=errors
+test --build_tests_only --print_relative_test_log_paths --test_output=errors --nobuild_python_zip
 
 ### predefined configurations (use with --config, eg. `bazel test --config=unit_all`)
 test:race --@io_bazel_rules_go//go/config:race
