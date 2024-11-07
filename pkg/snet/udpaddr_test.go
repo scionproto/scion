@@ -37,32 +37,32 @@ func TestUDPAddrString(t *testing.T) {
 	}{
 		"empty": {
 			input: &snet.UDPAddr{},
-			want:  "0-0,<nil>",
+			want:  "0-0,<nil>:0",
 		},
 		"empty host": {
 			input: &snet.UDPAddr{Host: &net.UDPAddr{}},
-			want:  "0-0,:0",
+			want:  "0-0,<nil>:0",
 		},
 		"ipv4": {
 			input: &snet.UDPAddr{
 				IA:   addr.MustParseIA("1-ff00:0:320"),
 				Host: &net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 10000},
 			},
-			want: "1-ff00:0:320,1.2.3.4:10000",
+			want: "[1-ff00:0:320,1.2.3.4]:10000",
 		},
 		"ipv6": {
 			input: &snet.UDPAddr{
 				IA:   addr.MustParseIA("1-ff00:0:320"),
 				Host: &net.UDPAddr{IP: net.ParseIP("2001::1"), Port: 20000},
 			},
-			want: "1-ff00:0:320,[2001::1]:20000",
+			want: "[1-ff00:0:320,2001::1]:20000",
 		},
 		"ipv6-zone": {
 			input: &snet.UDPAddr{
 				IA:   addr.MustParseIA("1-ff00:0:320"),
 				Host: &net.UDPAddr{IP: net.ParseIP("2001::1"), Port: 20000, Zone: "some-zone"},
 			},
-			want: "1-ff00:0:320,[2001::1%some-zone]:20000",
+			want: "[1-ff00:0:320,2001::1%some-zone]:20000",
 		},
 	}
 	for n, tc := range tests {

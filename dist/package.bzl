@@ -113,6 +113,10 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
     else:
         deps = []
 
+    tarch = kwargs.get("architecture")
+    if tarch:
+        kwargs.pop("architecture")
+
     post = kwargs.get("postinst")
     if post:
         kwargs.pop("postinst")
@@ -122,11 +126,13 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
         summary = kwargs["description"],
         srcs = ["%s_configs" % name, "%s_systemds" % name, "%s_execs" % name],
         target_compatible_with = ["@platforms//os:linux"],
+        target_architecture = tarch,
         package_file_name = "{package}_{file_name_version}_{architecture}.rpm",
         package_variables = ":package_file_naming_" + name,
         package_name = package,
         release = "%autorelease",
         version_file = ":%s_version" % name,
+        defines = {"_smp_build_ncpus": "1"},
         requires = deps,
         post_scriptlet_file = post,
         **kwargs

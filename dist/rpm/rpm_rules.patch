@@ -1,0 +1,120 @@
+The following patch comes from:
+https://github.com/bazelbuild/rules_pkg/pull/729
+Ownership as per the github project's provisions.
+
+I provide it here in advance of it being merged because it might take a while
+to happen.
+
+From 6c27a34cfe5a37901803ad8478f3b9ec668a3b69 Mon Sep 17 00:00:00 2001
+From: Alex Blago <ogalbxela@gmail.com>
+Date: Sun, 13 Aug 2023 00:33:00 -0700
+Subject: [PATCH] Support for cross-platform RPM package generation
+diff --git a/pkg/make_rpm.py b/pkg/make_rpm.py
+index e2ffca0a..76a2e51d 100644
+--- a/pkg/make_rpm.py
++++ b/pkg/make_rpm.py
+@@ -178,13 +178,14 @@ class RpmBuilder(object):
+   RPMS_DIR = 'RPMS'
+   DIRS = [SOURCE_DIR, BUILD_DIR, RPMS_DIR, TEMP_DIR]
+ 
+-  def __init__(self, name, version, release, arch, rpmbuild_path,
+-               source_date_epoch=None,
++  def __init__(self, name, version, release, arch, target_arch,
++               rpmbuild_path, source_date_epoch=None,
+                debug=False):
+     self.name = name
+     self.version = helpers.GetFlagValue(version)
+     self.release = helpers.GetFlagValue(release)
+     self.arch = arch
++    self.target_arch = target_arch
+     self.files = []
+     self.rpmbuild_path = FindRpmbuild(rpmbuild_path)
+     self.rpm_path = None
+@@ -354,6 +355,10 @@ def CallRpmBuild(self, dirname, rpmbuild_args):
+         '--buildroot=%s' % buildroot,
+     ]  # yapf: disable
+ 
++    # Target platform
++    if self.target_arch:
++      args += ['--target=%s' % self.target_arch]
++
+     # Macro-based RPM parameter substitution, if necessary inputs provided.
+     if self.preamble_file:
+       args += ['--define', 'build_rpm_options %s' % self.preamble_file]
+@@ -462,7 +467,10 @@ def main(argv):
+                       help='The release of the software being packaged.')
+   parser.add_argument(
+       '--arch',
+-      help='The CPU architecture of the software being packaged.')
++      help='The CPU architecture of the machine on which it is built. '
++           'If the package is not architecture dependent, set this to "noarch".')
++  parser.add_argument('--target_arch',
++      help='The CPU architecture of the target platform the software being packaged for.')
+   parser.add_argument('--spec_file', required=True,
+                       help='The file containing the RPM specification.')
+   parser.add_argument('--out_file', required=True,
+@@ -501,7 +509,7 @@ def main(argv):
+   try:
+     builder = RpmBuilder(options.name,
+                          options.version, options.release,
+-                         options.arch, options.rpmbuild,
++                         options.arch, options.target_arch, options.rpmbuild,
+                          source_date_epoch=options.source_date_epoch,
+                          debug=options.debug)
+     builder.AddFiles(options.files)
+diff --git a/pkg/rpm_pfg.bzl b/pkg/rpm_pfg.bzl
+index 1e3450c1..596dc26d 100644
+--- a/pkg/rpm_pfg.bzl
++++ b/pkg/rpm_pfg.bzl
+@@ -251,7 +251,7 @@ def _pkg_rpm_impl(ctx):
+             rpm_name,
+             ctx.attr.version,
+             ctx.attr.release,
+-            ctx.attr.architecture,
++            ctx.attr.architecture if ctx.attr.architecture else ctx.attr.target_architecture,
+         )
+ 
+     _, output_file, _ = setup_output_files(
+@@ -454,5 +454,8 @@ def _pkg_rpm_impl(ctx):
+ 
+     args.append("--out_file=" + output_file.path)
+ 
++    if ctx.attr.target_architecture:
++        args.append("--target_arch=" + ctx.attr.target_architecture)
++
+     # Add data files
+     files += ctx.files.srcs
+@@ -791,20 +794,29 @@ pkg_rpm = rule(
+         # funny if it's not provided.  The contents of the RPM are believed to
+         # be set as expected, though.
+         "architecture": attr.string(
+-            doc = """Package architecture.
++            doc = """Host architecture.
+ 
+             This currently sets the `BuildArch` tag, which influences the output
+             architecture of the package.
+ 
+             Typically, `BuildArch` only needs to be set when the package is
+-            known to be cross-platform (e.g. written in an interpreted
+-            language), or, less common, when it is known that the application is
+-            only valid for specific architectures.
++            not architecture dependent (e.g. written in an interpreted
++            language).
+ 
+             When no attribute is provided, this will default to your host's
+             architecture.  This is usually what you want.
+ 
+             """,
+         ),
++        "target_architecture": attr.string(
++            doc = """Package architecture.
++
++            This currently sets the value for the "--target" argument to "rpmbuild" 
++            to specify platform package is built for.
++
++            When no attribute is provided, this will default to your host's
++            architecture.
++            """,
++        ),
+         "license": attr.string(
+             doc = """RPM "License" tag.
