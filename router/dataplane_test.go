@@ -306,7 +306,7 @@ func TestDataPlaneRun(t *testing.T) {
 					},
 				).Times(1)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 				l := control.LinkEnd{
 					IA:   addr.MustParseIA("1-ff00:0:1"),
 					Addr: netip.MustParseAddrPort("10.0.0.100:0"),
@@ -373,10 +373,9 @@ func TestDataPlaneRun(t *testing.T) {
 					},
 				).Times(1)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
-
-				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ netip.AddrPort) (int, error) {
-						pkt := gopacket.NewPacket(data,
+				mInternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(msgs underlayconn.Messages, _ int) (int, error) {
+						pkt := gopacket.NewPacket(msgs[0].Buffers[0],
 							slayers.LayerTypeSCION, gopacket.Default)
 						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
 							v := b.(*layers.BFD).YourDiscriminator
@@ -391,7 +390,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 						return 0, fmt.Errorf("no valid BFD message")
 					}).MinTimes(1)
-				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mInternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := netip.MustParseAddrPort("10.0.200.100:0")
 				_ = ret.SetKey([]byte("randomkeyformacs"))
@@ -410,9 +409,9 @@ func TestDataPlaneRun(t *testing.T) {
 				localAddr := netip.MustParseAddrPort("10.0.200.100:0")
 				remoteAddr := netip.MustParseAddrPort("10.0.200.200:0")
 				mInternal := mock_router.NewMockBatchConn(ctrl)
-				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ netip.AddrPort) (int, error) {
-						pkt := gopacket.NewPacket(data,
+				mInternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(msgs underlayconn.Messages, _ int) (int, error) {
+						pkt := gopacket.NewPacket(msgs[0].Buffers[0],
 							slayers.LayerTypeSCION, gopacket.Default)
 
 						if b := pkt.Layer(layers.LayerTypeBFD); b == nil {
@@ -464,9 +463,9 @@ func TestDataPlaneRun(t *testing.T) {
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ netip.AddrPort) (int, error) {
-						pkt := gopacket.NewPacket(data,
+				mExternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(msgs underlayconn.Messages, _ int) (int, error) {
+						pkt := gopacket.NewPacket(msgs[0].Buffers[0],
 							slayers.LayerTypeSCION, gopacket.Default)
 
 						if b := pkt.Layer(layers.LayerTypeBFD); b == nil {
@@ -491,7 +490,7 @@ func TestDataPlaneRun(t *testing.T) {
 						done <- struct{}{}
 						return 1, nil
 					}).MinTimes(1)
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := control.LinkEnd{
 					IA:   addr.MustParseIA("1-ff00:0:1"),
@@ -552,9 +551,9 @@ func TestDataPlaneRun(t *testing.T) {
 				).Times(1)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ netip.AddrPort) (int, error) {
-						pkt := gopacket.NewPacket(data,
+				mExternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(msgs underlayconn.Messages, _ int) (int, error) {
+						pkt := gopacket.NewPacket(msgs[0].Buffers[0],
 							slayers.LayerTypeSCION, gopacket.Default)
 
 						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
@@ -569,7 +568,7 @@ func TestDataPlaneRun(t *testing.T) {
 						}
 						return 0, fmt.Errorf("no valid BFD message")
 					}).MinTimes(1)
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := control.LinkEnd{
 					IA:   addr.MustParseIA("1-ff00:0:1"),
