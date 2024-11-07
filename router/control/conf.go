@@ -196,13 +196,14 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 
 		_, owned := cfg.BR.IFs[ifID]
 		if !owned {
-			// XXX The current implementation effectively uses IP/UDP tunnels to create
-			// the SCION network as an overlay, with forwarding to local hosts being a special case.
-			// When setting up external interfaces that belong to other routers in the AS, they
-			// are basically IP/UDP tunnels between the two border routers, and as such is
-			// configured in the data plane.
+			// The current implementation effectively uses IP/UDP tunnels to create the SCION
+			// network as an overlay, with forwarding to local hosts being a special case. When
+			// setting up external interfaces that belong to other routers in the AS, they are
+			// basically IP/UDP tunnels between the two border routers. Those are described as a
+			// link from the internal address of the local router to the internal address of the
+			// sibling router; and not to the router in the remote AS.
 			linkInfo.Local.Addr = cfg.BR.InternalAddr
-			linkInfo.Remote.Addr = iface.InternalAddr
+			linkInfo.Remote.Addr = iface.InternalAddr // i.e. via sibling router.
 			// For internal BFD always use the default configuration.
 			linkInfo.BFD = BFD{}
 		}
