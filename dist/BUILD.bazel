@@ -11,6 +11,9 @@ DEB_PLATFORMS = [
 
 RPM_PLATFORMS = [
     "@io_bazel_rules_go//go/toolchain:linux_amd64",
+    "@io_bazel_rules_go//go/toolchain:linux_arm64",
+    "@io_bazel_rules_go//go/toolchain:linux_386",
+    "@io_bazel_rules_go//go/toolchain:linux_arm",
 ]
 
 # TODO(jice@scion.org):
