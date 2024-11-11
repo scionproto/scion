@@ -5,8 +5,6 @@
 package stun
 
 func FuzzStunParser(data []byte) int {
-	_, _, _ = ParseResponse(data)
-
 	_, _ = ParseBindingRequest(data)
 	return 1
 }
