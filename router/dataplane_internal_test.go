@@ -89,7 +89,7 @@ func TestReceiver(t *testing.T) {
 	dp.setRunning()
 	dp.initMetrics()
 	go func() {
-		dp.runReceiver(0, dp.internal, runConfig, procCh)
+		dp.runReceiver(0, dp.interfaces[0], runConfig, procCh)
 	}()
 	ptrMap := make(map[uintptr]struct{})
 	for i := 0; i < 21; i++ {
@@ -182,7 +182,7 @@ func TestForwarder(t *testing.T) {
 	initialPoolSize := len(dp.packetPool)
 	dp.setRunning()
 	dp.initMetrics()
-	go dp.runForwarder(0, dp.internal, runConfig, fwCh[0])
+	go dp.runForwarder(0, dp.interfaces[0], runConfig, fwCh[0])
 
 	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 	for i := 0; i < 255; i++ {

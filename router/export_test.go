@@ -76,6 +76,7 @@ func NewDP(
 	key []byte) *DataPlane {
 
 	dp := &DataPlane{
+		interfaces:          map[uint16]BatchConn{0: internal},
 		localIA:             local,
 		external:            external,
 		linkTypes:           linkTypes,
@@ -84,10 +85,10 @@ func NewDP(
 		dispatchedPortStart: uint16(dispatchedPortStart),
 		dispatchedPortEnd:   uint16(dispatchedPortEnd),
 		svc:                 &services{m: svc},
-		internal:            internal,
 		internalIP:          netip.MustParseAddr("198.51.100.1"),
 		Metrics:             metrics,
 	}
+
 	if err := dp.SetKey(key); err != nil {
 		panic(err)
 	}

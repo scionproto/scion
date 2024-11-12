@@ -176,7 +176,6 @@ type DataPlane struct {
 	linkTypes           map[uint16]topology.LinkType
 	neighborIAs         map[uint16]addr.IA
 	peerInterfaces      map[uint16]uint16
-	internal            BatchConn
 	internalIP          netip.Addr
 	internalNextHops    map[uint16]netip.AddrPort
 	svc                 *services
@@ -338,14 +337,12 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 	if conn == nil {
 		return emptyValue
 	}
-	if d.internal != nil {
-		return alreadySet
-	}
 	if d.interfaces == nil {
 		d.interfaces = make(map[uint16]BatchConn)
+	} else if d.interfaces[0] != nil {
+		return alreadySet
 	}
 	d.interfaces[0] = conn
-	d.internal = conn
 	d.internalIP = ip
 	return nil
 }
@@ -481,7 +478,7 @@ func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 	return control.InterfaceUp
 }
 
-func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
+func (d *DataPlane) addBFDController(ifID uint16, s bfd.Sender, cfg control.BFD,
 	metrics bfd.Metrics) error {
 
 	if d.bfdSessions == nil {
@@ -1830,6 +1827,7 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() disposition {
 		return pForward
 	}
 	if _, ok := p.d.external[p.pkt.egress]; !ok {
+		// the egress router is not this one.
 		return pForward
 	}
 	*alert = false
@@ -1999,7 +1997,6 @@ func (p *scionPacketProcessor) process() disposition {
 	if disp := p.validateEgressUp(); disp != pForward {
 		return disp
 	}
-
 	if _, ok := p.d.external[egressID]; ok {
 		// Not ASTransit in
 		if disp := p.processEgress(); disp != pForward {
