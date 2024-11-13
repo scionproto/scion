@@ -230,7 +230,6 @@ var (
 	errBFDSessionDown             = errors.New("bfd session down")
 	expiredHop                    = errors.New("expired hop")
 	ingressInterfaceInvalid       = errors.New("ingress interface invalid")
-	egressInterfaceInvalid        = errors.New("egress interface invalid")
 	macVerificationFailed         = errors.New("MAC verification failed")
 	badPacketSize                 = errors.New("bad packet size")
 
@@ -382,7 +381,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 
 // AddNeighborIA adds the neighboring IA for a given interface ID. If an IA for
 // the given ID is already set, this method will return an error. This can only
-// be called on a yet running dataplane.
+// be called on a not yet running dataplane.
 func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -2418,16 +2417,16 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		return err
 	}
 
-	fwChan, ok := b.dataPlane.fwQs[b.ifID]
-	if !ok {
-		// WTF? May be we should just treat that as a panic-able offense
-		return egressInterfaceInvalid
-	}
+	// BfdControllers and fwQs are initialized from the same set of ifIDs. So not finding
+	// the forwarding queue is an serious internal error. Let that panic.
+	fwChan, _ := b.dataPlane.fwQs[b.ifID]
 
 	p := b.dataPlane.getPacketFromPool()
 	p.reset()
 
-	// FIXME: would rather build the pkt directly into the rawPacket's buffer.
+	// TODO: it would be best to serialize directly into the packet buffer. This would require
+	// a custom SerializeBuffer implementation and some changes to the packet structure. To be
+	// considered in a future refactoring.
 	sz := copy(p.rawPacket, b.buffer.Bytes())
 	p.rawPacket = p.rawPacket[:sz]
 	if b.ifID == 0 {
@@ -2438,7 +2437,9 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	select {
 	case fwChan <- p:
 	default:
-		b.dataPlane.returnPacketToPool(p) // Do we care enough to have a metric?
+		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
+		// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
+		b.dataPlane.returnPacketToPool(p)
 	}
 	return err
 }
