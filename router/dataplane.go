@@ -2419,7 +2419,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 
 	// BfdControllers and fwQs are initialized from the same set of ifIDs. So not finding
 	// the forwarding queue is an serious internal error. Let that panic.
-	fwChan, _ := b.dataPlane.fwQs[b.ifID]
+	fwChan := b.dataPlane.fwQs[b.ifID]
 
 	p := b.dataPlane.getPacketFromPool()
 	p.reset()
