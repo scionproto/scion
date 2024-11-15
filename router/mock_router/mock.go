@@ -5,7 +5,6 @@
 package mock_router
 
 import (
-	netip "net/netip"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -77,19 +76,4 @@ func (m *MockBatchConn) WriteBatch(arg0 conn.Messages, arg1 int) (int, error) {
 func (mr *MockBatchConnMockRecorder) WriteBatch(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteBatch", reflect.TypeOf((*MockBatchConn)(nil).WriteBatch), arg0, arg1)
-}
-
-// WriteTo mocks base method.
-func (m *MockBatchConn) WriteTo(arg0 []byte, arg1 netip.AddrPort) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WriteTo", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WriteTo indicates an expected call of WriteTo.
-func (mr *MockBatchConnMockRecorder) WriteTo(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteTo", reflect.TypeOf((*MockBatchConn)(nil).WriteTo), arg0, arg1)
 }
