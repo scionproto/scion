@@ -1,5 +1,6 @@
 // Copyright 2020 Anapaya Systems
 // Copyright 2023 ETH Zurich
+// Copyright 2024 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -111,8 +112,10 @@ const (
 // required to occupy exactly 64 bytes depends on the architecture.
 type packet struct {
 	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).
-	// TODO(jiceatscion): would it be beneficial to store the length instead, like readBatch does?
+	// It can be any portion of the full buffer; not necessarily the start.
 	rawPacket []byte
+	// The entire packet buffer. We don't need it as a slice; we know its size.
+	buffer *[bufSize]byte
 	// The source address. Will be set by the receiver from smsg.Addr. We could update it in-place,
 	// but the IP address bytes in it are allocated by readbatch, so if we copy into a recyclable
 	// location, it's the original we throw away. No gain (may be a tiny bit?).
@@ -130,9 +133,7 @@ type packet struct {
 	// economically determined at the processing stage. So store it here. It's 2 bytes long.
 	trafficType trafficType
 	// Pad to 64 bytes. For 64bit arch, add 12 bytes. For 32bit arch, add 32 bytes.
-	// TODO(jiceatscion): see if packing two packets per cache line instead is good or bad for 32bit
-	// machines.
-	_ [12 + is32bit*20]byte
+	_ [4 + is32bit*24]byte
 }
 
 // Keep this 6 bytes long. See comment for packet.
@@ -150,7 +151,8 @@ const _ uintptr = unsafe.Sizeof(packet{}) - 64 // assert sizeof(packet) >= 64
 
 // initPacket configures the given blank packet (and returns it, for convenience).
 func (p *packet) init(buffer *[bufSize]byte) *packet {
-	p.rawPacket = buffer[:]
+	p.buffer = buffer
+	p.rawPacket = p.buffer[:]
 	p.dstAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
 	return p
 }
@@ -160,11 +162,11 @@ func (p *packet) init(buffer *[bufSize]byte) *packet {
 func (p *packet) reset() {
 	p.dstAddr.IP = p.dstAddr.IP[0:0] // We're keeping the object, just blank it.
 	*p = packet{
-		rawPacket: p.rawPacket[:cap(p.rawPacket)], // keep the slice and so the backing array.
-		dstAddr:   p.dstAddr,                      // keep the dstAddr and so the IP slice and bytes
+		buffer:    p.buffer,    // keep the buffer
+		rawPacket: p.buffer[:], // restore the full packet capacity
+		dstAddr:   p.dstAddr,   // keep the dstAddr and so the IP slice and bytes
 	}
 	// Everything else is reset to zero value.
-
 }
 
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
@@ -2328,7 +2330,6 @@ type bfdSend struct {
 	ohp              *onehop.Path
 	mac              hash.Hash
 	macBuffer        []byte
-	buffer           gopacket.SerializeBuffer
 }
 
 // newBFDSend creates and initializes a BFD Sender
@@ -2392,13 +2393,14 @@ func newBFDSend(d *DataPlane, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrP
 		ohp:       ohp,
 		mac:       mac,
 		macBuffer: make([]byte, path.MACBufferSize),
-		buffer:    gopacket.NewSerializeBuffer(),
 	}, nil
 }
 
 func (b *bfdSend) String() string {
 	return b.srcAddr.String()
 }
+
+var count = 0
 
 // Send sends out a BFD message.
 // Due to the internal state of the MAC computation, this is not goroutine
@@ -2411,24 +2413,30 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		ohp.FirstHop.Mac = path.MAC(b.mac, ohp.Info, ohp.FirstHop, b.macBuffer)
 	}
 
-	err := gopacket.SerializeLayers(b.buffer, gopacket.SerializeOptions{FixLengths: true},
+	p := b.dataPlane.getPacketFromPool()
+	p.reset()
+
+	serBuf := newSerializeProxy(p.rawPacket)
+
+	// serialized bytes lend directly into p.rawPacket, but somewhere in the middle.
+	// Bytes() will give us the correct slice, which we then set in the packet.
+	err := gopacket.SerializeLayers(&serBuf, gopacket.SerializeOptions{FixLengths: true},
 		b.scn, bfd)
 	if err != nil {
 		return err
+	}
+
+	// The usefull part of the buffer is given by Bytes. We don't copy the bytes; just the slice's
+	// metadata.
+	p.rawPacket = serBuf.Bytes()
+	if count < 10 {
+		count++
 	}
 
 	// BfdControllers and fwQs are initialized from the same set of ifIDs. So not finding
 	// the forwarding queue is an serious internal error. Let that panic.
 	fwChan := b.dataPlane.fwQs[b.ifID]
 
-	p := b.dataPlane.getPacketFromPool()
-	p.reset()
-
-	// TODO: it would be best to serialize directly into the packet buffer. This would require
-	// a custom SerializeBuffer implementation and some changes to the packet structure. To be
-	// considered in a future refactoring.
-	sz := copy(p.rawPacket, b.buffer.Bytes())
-	p.rawPacket = p.rawPacket[:sz]
 	if b.ifID == 0 {
 		// Using the internal interface: must specify the destination address
 		updateNetAddrFromAddrPort(p.dstAddr, b.dstAddr)
