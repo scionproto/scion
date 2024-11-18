@@ -270,6 +270,7 @@ services:
     entrypoint: sh tester.sh
     environment:
       SCION_DAEMON: 172.20.0.21:30255
+      SCION_DAEMON_ADDRESS: 172.20.0.21:30255
       SCION_LOCAL_ADDR: 172.20.0.22
     image: scion/tester:latest
     network_mode: service:disp_tester_1-ff00_0_110
@@ -279,6 +280,7 @@ services:
     - /home/ubuntu/scion/gen:/share/gen:rw
     - /home/ubuntu/scion/gen-certs:/share/gen-certs:rw
     - /home/ubuntu/scion/nat-sim-tester:/share/testnet:ro
+    - /home/ubuntu/scion-apps/bin:/share/pan-test:ro
     - /home/ubuntu/go1.23:/share/go:rw
   tester_1-ff00_0_111:
     depends_on:
@@ -286,6 +288,7 @@ services:
     command: sh -c "ip route del default && ip route add default via 192.168.123.2 && tail -f /dev/null"
     environment:
       SCION_DAEMON: 192.168.123.3:30255
+      SCION_DAEMON_ADDRESS: 192.168.123.3:30255
       SCION_LOCAL_ADDR: 192.168.123.4
     image: scion/tester:latest
     network_mode: service:disp_tester_1-ff00_0_111
@@ -295,6 +298,7 @@ services:
     - /home/ubuntu/scion/gen:/share/gen:rw
     - /home/ubuntu/scion/gen-certs:/share/gen-certs:rw
     - /home/ubuntu/scion/nat-sim-tester:/share/testnet:ro
+    - /home/ubuntu/scion-apps/bin:/share/pan-test:ro
     - /home/ubuntu/go1.23:/share/go:rw
   tester_1-ff00_0_112:
     depends_on:
