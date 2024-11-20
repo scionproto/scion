@@ -2288,15 +2288,15 @@ func decodeSCMP(scmp *slayers.SCMP) ([]gopacket.SerializableLayer, error) {
 }
 
 // updateSCIONLayer rewrites the SCION header at the start of the given raw packet buffer; replacing
-// it with the serialization of the given new SCION header. This works only if the new header
-// is of the same size as the old one. This function has no knowledge of the actual size of the
-// headers; it only ensures that the new one ends exactly where the old one did. It is possible to
-// use this function to replace a header with a smaller one; but the preceding headers, and the
-// start of the slice must be corrected afterwards.
+// it with the serialization of the given new SCION header. This works only if the new header is of
+// the same size as the old one. This function has no knowledge of the actual size of the headers;
+// it only ensures that the new one ends exactly where the old one did. It is possible to use this
+// function to replace a header with a smaller one; but the rawPacket's slice must be fixed
+// afterwards (and the preceding headers, if any).
 func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
 	payloadOffset := len(rawPkt) - len(s.LayerPayload())
 	serBuf := newSerializeProxy(rawPkt)
-	serBuf.clear(payloadOffset) // So, prepending just in front of the payload. Better not append!
+	serBuf.clear(payloadOffset) // Prepends will go just before payload. (Appends will wreck it)
 	return s.SerializeTo(&serBuf, gopacket.SerializeOptions{})
 }
 
@@ -2403,7 +2403,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		return err
 	}
 
-	// The usefull part of the buffer is given by Bytes. We don't copy the bytes; just the slice's
+	// The useful part of the buffer is given by Bytes. We don't copy the bytes; just the slice's
 	// metadata.
 	p.rawPacket = serBuf.Bytes()
 	if count < 10 {

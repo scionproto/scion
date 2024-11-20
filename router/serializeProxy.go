@@ -27,7 +27,7 @@ import (
 type serializeProxy struct {
 	initStart int // Initial starting point (where the first prepend or append occurs)
 	data      []byte
-	start     int // data[0] == buf[0] (bc changing it is one way), so we keep track of the real start.
+	start     int // The slice's offset can't change (irreversible). So keep track separately.
 	layers    []gopacket.LayerType
 }
 
@@ -45,15 +45,15 @@ func newSerializeProxy(buf []byte) serializeProxy {
 // Resets the buffer to empty and sets the initial prepend/append point to the given position.
 func (s *serializeProxy) clear(newStart int) {
 	s.initStart = newStart
-	s.Clear()
+	s.start = newStart
+	s.data = s.data[:newStart]
+	s.layers = s.layers[:0]
 }
 
-// Implements serializeBuffer.Clear(). Never returns an error.
+// Implements serializeBuffer.Clear(). This implementation never returns an error.
 // The initial prepend/append point is reset to that which was set by the last call to clear().
 func (s *serializeProxy) Clear() error {
-	s.start = s.initStart
-	s.data = s.data[:s.start]
-	s.layers = s.layers[:0]
+	s.clear(s.initStart)
 	return nil
 }
 

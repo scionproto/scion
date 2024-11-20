@@ -5,9 +5,9 @@ go_library(
     srcs = [
         "connector.go",
         "dataplane.go",
-        "serializeProxy.go",
         "fnv1aCheap.go",
         "metrics.go",
+        "serializeProxy.go",
         "svc.go",
     ],
     importpath = "github.com/scionproto/scion/router",
