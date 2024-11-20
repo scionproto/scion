@@ -2378,8 +2378,6 @@ func (b *bfdSend) String() string {
 	return b.srcAddr.String()
 }
 
-var count = 0
-
 // Send sends out a BFD message.
 // Due to the internal state of the MAC computation, this is not goroutine
 // safe.
@@ -2406,9 +2404,6 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	// The useful part of the buffer is given by Bytes. We don't copy the bytes; just the slice's
 	// metadata.
 	p.rawPacket = serBuf.Bytes()
-	if count < 10 {
-		count++
-	}
 
 	// BfdControllers and fwQs are initialized from the same set of ifIDs. So not finding
 	// the forwarding queue is an serious internal error. Let that panic.
