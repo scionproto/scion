@@ -38,10 +38,8 @@ package snet
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/netip"
-	"syscall"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -177,43 +175,4 @@ func (n *SCIONNetwork) Listen(
 	}
 	log.FromCtx(ctx).Debug("UDP socket openned on", "addr", packetConn.LocalAddr())
 	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather))
-}
-
-func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {
-	// XXX(JordiSubira): For now, we iterate on the complete SCION/UDP
-	// range, in decreasing order, taking the first unused port.
-	//
-	// If the defined range, intersects with the well-known port range, i.e.,
-	// 1-1023, we just start considering from 1024 onwards.
-	// The decreasing order first try to use the higher port numbers, normally used
-	// by ephemeral connections, letting free the lower port numbers, normally used
-	// by longer-lived applications, e.g., server applications.
-	//
-	// Ideally we would only take a standard ephemeral range, e.g., 32768-65535,
-	// Unfortunately, this range was ocuppied by the old dispatcher.
-	// The default range for the dispatched ports is 31000-32767.
-	// By configuration other port ranges may be defined and restricting to the default
-	// range for applications may cause problems.
-	//
-	// TODO: Replace this implementation with pseudorandom port checking.
-	restrictedStart := start
-	if start < 1024 {
-		restrictedStart = 1024
-	}
-	for port := end; port >= restrictedStart; port-- {
-		pconn, err := net.ListenUDP(addr.Network(), &net.UDPAddr{
-			IP:   addr.IP,
-			Port: int(port),
-		})
-		if err == nil {
-			return pconn, nil
-		}
-		if errors.Is(err, syscall.EADDRINUSE) {
-			continue
-		}
-		return nil, err
-	}
-	return nil, serrors.Wrap("binding to port range", syscall.EADDRINUSE,
-		"start", restrictedStart, "end", end)
-
 }

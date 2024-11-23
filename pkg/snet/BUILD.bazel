@@ -14,6 +14,8 @@ go_library(
         "scmp.go",
         "snet.go",
         "svcaddr.go",
+        "udp_range_windows.go",
+        "udp_range.go",
         "udpaddr.go",
         "writer.go",
     ],
