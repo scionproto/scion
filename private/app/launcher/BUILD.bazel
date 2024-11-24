@@ -4,6 +4,8 @@ go_library(
     name = "go_default_library",
     srcs = [
         "launcher.go",
+        "launcher_unix.go",
+        "launcher_windows.go",
         "network.go",
     ],
     importpath = "github.com/scionproto/scion/private/app/launcher",
