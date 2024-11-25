@@ -2,8 +2,8 @@
 NAT IP/port discovery
 *********************
 
-- Author(s): Marc Frei, Tilmann Zäschke
-- Last updated: 2024-07-01
+- Author(s): Marc Frei, Tilmann Zäschke, Jan Luan
+- Last updated: 2024-11-25
 - Status: **WIP**
 - Discussion at: :issue:`4517`
 
@@ -15,8 +15,8 @@ This address may not be easy to discover if the sender is separated from the rec
 
 We want to propose a solution that allows SCION endhosts (and endhost libraries) to discover and use
 the address that is visible to the first hop border router as the source host address in outbound packets.
-The most elegant and most reliable solution appears to be to have
-the border router itself detect the NATed IP/port and report it to the client (to the sending endhost).
+The most elegant and most reliable solution appears to be to have the client (the sending endhost) 
+detect its NATed IP/port by querying the border router for its publicly visible address.
 
 Background
 ==========
@@ -75,19 +75,46 @@ The implementation on the protocol level could be done in several ways:
 2.  Extend SCMP with a new INFO message
 
     -  Advantages: One less dependency on an external library and protocol
-    -  Disadvantages: More standardization effort? How do we solve authentication?
+    -  Disadvantages: More standardization effort? 
 
-3.  Extend SCMP with a new ERROR message: "invalid source address for first hop pkt", similar to error 33.
-    The router can verify that for first hop packets, the IP src address (and L4 port if applicable) matches the SCION
-    src address (and L4 port).
-    If not, it returns an error. The actual source address would need to be attached somewhere, unless we decide
-    to change the payload so it contains the IP header of the offending packet (and the IP header should contain the
-    NATed IP/port).
+An implementation with STUN seems like the better solution, since it is an existing, well known protocol. 
+Creating a new SCMP extension that provides essentially the same functionality as STUN seems redundant
+and doesn't provide any obvious advantages apart from the one mentioned above.
 
-    -  Advantages: One less dependency on an external library and protocol. Also one roundtrip less in case an endhost
-       doesn't sit behind a NAT or similar.
-    -  Disadvantages: Conceptually a bit of a hack. The BR would need to check every outbound packet as part of the fast
-       path. More standardization effort? How do we solve authentication?
+Regarding the STUN solution, there are multiple ways to send a STUN message over the wire:
+
+1. STUN/UDP: The standard way of sending STUN packets as proposed in the IETF standard.
+
+   -  Easy to implement. However, the border router must distinguish between STUN packets and SCION packets.
+      This may be done using the magic cookie value, which is part of the STUN header.
+
+      -  Part of the magic cookie field overlaps with the SCION ``nexthdr`` field. 
+         Reserving the value in that part of the magic cookie (33) would make the distinction unambiguous.
+         However, this value is assigned by IANA to "Datagram Congestion Control Protocol",
+         which might complicate standardization should we want to support this protocol over SCION in the future.
+   -  Disadvantage: We cannot use SCION's built in authentication features for message integrity.
+      If we want to have message integrity/authentication, we need to implement it separately.
+
+      -  The STUN standard provides an optional extension for username/password based authentication.
+         This is probably not what we want. However, we might be able to "misuse" the ``MESSAGE-INTEGRITY``
+         STUN attribute of this mechanism, which contains an HMAC of the STUN packet, for our own purpose.
+         We might be able to use some variation of DR-Key as the key for computing the HMAC.
+
+2. STUN/SCION/UDP: Carry the STUN packet (without UDP headers) inside a SCION packet.
+
+   -  Cleaner solution. We can assign a SCION ``nexthdr`` value to STUN to unambiguously distinguish STUN packets from
+      regular dataplane packets. (This is also how we handle bfd messages.)
+   -  Encapsulating STUN inside a SCION packet makes it possible to use SCION's built-in authentication functionality 
+      (e.g. SPAO) for message integrity/authentication.
+
+3. STUN/UDP/SCION/UDP: Carry an entire STUN packet with UDP headers inside a SCION packet.
+
+   -  Difficult for BR to distinguish from normal dataplane packets. 
+      The BR would need to look inside every UDP over SCION packet.
+
+Remark on message integrity/authentication: A MITM attacker may be able to intercept the NAT address discovery (e.g. STUN)
+messages and modify them in order to cause packets returning from the server to the client to be routed to the wrong destination.
+This could be mitigated by some form of message integrity/authentication mechanism.
 
 Rationale
 =========
@@ -121,6 +148,18 @@ Alternatives:
    -  This approach may be be problematic with sensitive NATs.
    -  We need to somehow standardize the STUN IP/port and/or communicate it to endhosts, e.g. via the topology.json file
       or the bootstrapping service.
+
+-  Extend SCMP with a new ERROR message: "invalid source address for first hop pkt", similar to error 33.
+   The router can verify that for first hop packets, the IP src address (and L4 port if applicable) matches the SCION
+   src address (and L4 port).
+   If not, it returns an error, with the actual source address attached somewhere, unless we decide
+   to change the payload so it contains the IP header of the offending packet (and the IP header should contain the
+   NATed IP/port).
+
+   -  Advantage: One roundtrip less in case an endhost doesn't sit behind a NAT or similar.
+   -  Disadvantages: Conceptually a bit of a hack. Complicated to implement.
+      The BR would need to check every outbound packet as part of the fast path. 
+      The client would need to somehow buffer sent packets in case of errors to resend them with the correct src address.
 
 -  Remove all NATs and use IPv6 instead. This is technically possible but unlikely to happen anytime soon, especially
    because scarcity of IPv4 addresses is not the only reason why NATs are deployed.
