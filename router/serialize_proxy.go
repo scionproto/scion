@@ -25,26 +25,38 @@ import (
 // panic. It is designed to be a local variable, so New() returns a value. The entire buffer
 // underpinning the given slice may be used; that is, from the start up to the remaining capacity.
 type serializeProxy struct {
-	initStart int // Initial starting point (where the first prepend or append occurs)
-	data      []byte
-	start     int // The slice's offset can't change (irreversible). So keep track separately.
-	layers    []gopacket.LayerType
+
+	// The slice's offset can't be changed as that is irreversible.
+	// So we keep track separately from the slice.
+
+	restart int // the value to reset start to during Clear().
+	start   int // current start of the useful data in the buffer.
+	data    []byte
+	layers  []gopacket.LayerType
 }
 
-// Initializes a new serializeProxy. The initial prepend/append point is set to the end of the
-// buffer in anticipation of AppendBytes never being used. This can be changed by calling clear()
-// if AppendBytes is to be used.
+// newSerializeProxy returns a new serializeProxy. The initial prepend/append point is set to the
+// end of the buffer in anticipation of AppendBytes never being used. The prepend/append point can
+// be changed when calling clear().
 func newSerializeProxy(buf []byte) serializeProxy {
+	return newSerializeProxyOffset(buf, cap(buf))
+}
+
+// newSerializeProxyOffset returns a new serializeProxy. The initial prepend/append point is set to
+// the given start value. This has the same effect as calling clear(statr).
+func newSerializeProxyOffset(buf []byte, start int) serializeProxy {
 	serBuf := serializeProxy{
 		data: buf,
 	}
-	serBuf.clear(cap(buf))
+	serBuf.clear(start)
 	return serBuf
 }
 
 // Resets the buffer to empty and sets the initial prepend/append point to the given position.
+// The next prepend will claim an area ending with index newStart - 1. The next append will claim an
+// area starting with index newStart.
 func (s *serializeProxy) clear(newStart int) {
-	s.initStart = newStart
+	s.restart = newStart
 	s.start = newStart
 	s.data = s.data[:newStart]
 	s.layers = s.layers[:0]
@@ -53,7 +65,7 @@ func (s *serializeProxy) clear(newStart int) {
 // Implements serializeBuffer.Clear(). This implementation never returns an error.
 // The initial prepend/append point is reset to that which was set by the last call to clear().
 func (s *serializeProxy) Clear() error {
-	s.clear(s.initStart)
+	s.clear(s.restart)
 	return nil
 }
 

@@ -2295,8 +2295,9 @@ func decodeSCMP(scmp *slayers.SCMP) ([]gopacket.SerializableLayer, error) {
 // afterwards (and the preceding headers, if any).
 func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
 	payloadOffset := len(rawPkt) - len(s.LayerPayload())
-	serBuf := newSerializeProxy(rawPkt)
-	serBuf.clear(payloadOffset) // Prepends will go just before payload. (Appends will wreck it)
+
+	// Prepends must go just before payload. (and any Append will wreck it)
+	serBuf := newSerializeProxyOffset(rawPkt, payloadOffset)
 	return s.SerializeTo(&serBuf, gopacket.SerializeOptions{})
 }
 
