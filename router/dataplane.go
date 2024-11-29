@@ -2297,7 +2297,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
 	payloadOffset := len(rawPkt) - len(s.LayerPayload())
 
 	// Prepends must go just before payload. (and any Append will wreck it)
-	serBuf := newSerializeProxyOffset(rawPkt, payloadOffset)
+	serBuf := newSerializeProxyStart(rawPkt, payloadOffset)
 	return s.SerializeTo(&serBuf, gopacket.SerializeOptions{})
 }
 

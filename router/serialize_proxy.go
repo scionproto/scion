@@ -27,7 +27,7 @@ import (
 type serializeProxy struct {
 
 	// The slice's offset can't be changed as that is irreversible.
-	// So we keep track separately from the slice.
+	// So we keep track of the prepend point separately from the slice.
 
 	restart int // the value to reset start to during Clear().
 	start   int // current start of the useful data in the buffer.
@@ -39,12 +39,12 @@ type serializeProxy struct {
 // end of the buffer in anticipation of AppendBytes never being used. The prepend/append point can
 // be changed when calling clear().
 func newSerializeProxy(buf []byte) serializeProxy {
-	return newSerializeProxyOffset(buf, cap(buf))
+	return newSerializeProxyStart(buf, cap(buf))
 }
 
-// newSerializeProxyOffset returns a new serializeProxy. The initial prepend/append point is set to
+// newSerializeProxyStart returns a new serializeProxy. The initial prepend/append point is set to
 // the given start value. This has the same effect as calling clear(statr).
-func newSerializeProxyOffset(buf []byte, start int) serializeProxy {
+func newSerializeProxyStart(buf []byte, start int) serializeProxy {
 	serBuf := serializeProxy{
 		data: buf,
 	}
