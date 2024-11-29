@@ -432,7 +432,7 @@ func TestSlowPathProcessing(t *testing.T) {
 	// ProcessPacket assumes some pre-conditions:
 	// * The ingress interface has to exist. This fake map is good for the test cases we have.
 	// * InternalNextHops may not be nil. Empty is ok for all the test cases we have.
-	fakeExternalInterfaces := map[uint16]BatchConn{1: nil}
+	fakeExternalInterfaces := map[uint16]struct{}{1: struct{}{}}
 	fakeInternalNextHops := map[uint16]netip.AddrPort{}
 	fakeServices := map[addr.SVC][]netip.AddrPort{}
 

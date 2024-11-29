@@ -643,7 +643,7 @@ func TestProcessPkt(t *testing.T) {
 	// * The ingress interface has to exist. This fake map is good for most test cases.
 	//   Others need a custom one.
 	// * InternalNextHops may not be nil. Empty is ok (sufficient unless testing AS transit).
-	fakeExternalInterfaces := map[uint16]router.BatchConn{1: nil, 2: nil, 3: nil}
+	fakeExternalInterfaces := map[uint16]struct{}{1: struct{}{}, 2: struct{}{}, 3: struct{}{}}
 	fakeInternalNextHops := map[uint16]netip.AddrPort{}
 
 	testCases := map[string]struct {
@@ -725,8 +725,8 @@ func TestProcessPkt(t *testing.T) {
 		"outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(1): struct{}{},
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Child,
@@ -759,9 +759,9 @@ func TestProcessPkt(t *testing.T) {
 		"brtransit": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
-						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(1): struct{}{},
+						uint16(2): struct{}{},
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Parent,
@@ -794,9 +794,9 @@ func TestProcessPkt(t *testing.T) {
 		"brtransit non consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
-						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(1): struct{}{},
+						uint16(2): struct{}{},
 					},
 					map[uint16]topology.LinkType{
 						2: topology.Parent,
@@ -830,9 +830,9 @@ func TestProcessPkt(t *testing.T) {
 		"brtransit peering consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
-						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(1): struct{}{},
+						uint16(2): struct{}{},
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
@@ -900,9 +900,9 @@ func TestProcessPkt(t *testing.T) {
 		"brtransit peering non consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
-						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(1): struct{}{},
+						uint16(2): struct{}{},
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
@@ -977,9 +977,9 @@ func TestProcessPkt(t *testing.T) {
 			// happens on the next hop.
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
-						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(1): struct{}{},
+						uint16(2): struct{}{},
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
@@ -1051,9 +1051,9 @@ func TestProcessPkt(t *testing.T) {
 		"peering non consdir upstream": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
-						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(1): struct{}{},
+						uint16(2): struct{}{},
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
@@ -1133,8 +1133,8 @@ func TestProcessPkt(t *testing.T) {
 		"astransit direct": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(1): struct{}{},
 						// Interface 3 isn't in the external interfaces of this router
 						// another router has it.
 					},
@@ -1168,8 +1168,8 @@ func TestProcessPkt(t *testing.T) {
 		"astransit xover": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(51): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(51): struct{}{},
 					},
 					map[uint16]topology.LinkType{
 						51: topology.Child,
@@ -1365,8 +1365,8 @@ func TestProcessPkt(t *testing.T) {
 		"reversed onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(1): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(1): struct{}{},
 					},
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
@@ -1425,8 +1425,8 @@ func TestProcessPkt(t *testing.T) {
 		"onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					map[uint16]struct{}{
+						uint16(2): struct{}{},
 					},
 					nil,
 					mock_router.NewMockBatchConn(ctrl),

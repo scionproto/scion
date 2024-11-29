@@ -66,7 +66,7 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 }
 
 func NewDP(
-	external map[uint16]BatchConn,
+	external map[uint16]struct{},
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
 	internalNextHops map[uint16]netip.AddrPort,
