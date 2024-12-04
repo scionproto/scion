@@ -141,10 +141,8 @@ Overall, the threat model is similar to the question about whether we need authe
 
 Decision
 --------
-During the open-source contributors meeting on Nov. 19, 2024, it was agreed that the STUN/UDP/IP solution is preferred
-due to its simplicity. However, arguments about message integrity/authentication have not yet been discussed at that time.
-It remains to be discussed whether these arguments pose enough reason to changed the preferred solution in favor of the
-STUN/SCION/UDP/IP variant.
+After discussion with the open-source contributors, it was decided that the STUN/UDP/IP solution is preferred, since it is the standard approach.
+It was agreed that message authentication would not yield any significant benefits in terms of security.
 
 Rationale
 =========
