@@ -1,6 +1,12 @@
 // Copyright (c) Tailscale Inc & AUTHORS
 // SPDX-License-Identifier: BSD-3-Clause
 
+// Copied from https://github.com/tailscale/tailscale/blob/main/net/stun/stun.go
+// Modifications:
+// - removed requirement for "software" attribute
+// - use "fingerprint" attribute as identifying feature in Is() method
+// - removed unused methods
+
 // Package STUN parses STUN binding request packets and generates response packets.
 package stun
 
@@ -31,9 +37,9 @@ func appendU16(b []byte, v uint16) []byte {
 
 // ParseBindingRequest parses a STUN binding request.
 func ParseBindingRequest(b []byte) (TxID, error) {
-	/**if !Is(b) {
+	if !Is(b) {
 		return TxID{}, ErrNotSTUN
-	}**/
+	}
 	if string(b[:len(bindingRequest)]) != bindingRequest {
 		return TxID{}, ErrNotBindingRequest
 	}

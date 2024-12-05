@@ -5,213 +5,130 @@ package stun_test
 
 import (
 	"bytes"
-	"encoding/hex"
-	"fmt"
+	crand "crypto/rand"
+	"encoding/binary"
+	"errors"
+	"hash/crc32"
+	"net"
 	"net/netip"
 	"testing"
 
-	"tailscale.com/net/stun"
-	"tailscale.com/util/must"
+	"github.com/scionproto/scion/pkg/stun"
 )
 
-// TODO(bradfitz): fuzz this.
+const (
+	attrNumFingerprint   = 0x8028
+	attrMappedAddress    = 0x0001
+	attrXorMappedAddress = 0x0020
+	bindingRequest       = "\x00\x01"
+	magicCookie          = "\x21\x12\xa4\x42"
+	lenFingerprint       = 8 // 2+byte header + 2-byte length + 4-byte crc32
+	headerLen            = 20
+)
 
-func ExampleRequest() {
-	txID := stun.NewTxID()
-	req := stun.Request(txID)
-	fmt.Printf("%x\n", req)
-}
+var (
+	ErrNotSTUN            = errors.New("malformed STUN packet")
+	ErrMalformedAttrs     = errors.New("STUN response has malformed attributes")
+	ErrNotSuccessResponse = errors.New("STUN packet is not a response")
+)
 
-var responseTests = []struct {
-	name     string
-	data     []byte
-	wantTID  []byte
-	wantAddr netip.Addr
-	wantPort uint16
-}{
-	{
-		name: "google-1",
-		data: []byte{
-			0x01, 0x01, 0x00, 0x0c, 0x21, 0x12, 0xa4, 0x42,
-			0x23, 0x60, 0xb1, 0x1e, 0x3e, 0xc6, 0x8f, 0xfa,
-			0x93, 0xe0, 0x80, 0x07, 0x00, 0x20, 0x00, 0x08,
-			0x00, 0x01, 0xc7, 0x86, 0x69, 0x57, 0x85, 0x6f,
-		},
-		wantTID: []byte{
-			0x23, 0x60, 0xb1, 0x1e, 0x3e, 0xc6, 0x8f, 0xfa,
-			0x93, 0xe0, 0x80, 0x07,
-		},
-		wantAddr: netip.AddrFrom4([4]byte{72, 69, 33, 45}),
-		wantPort: 59028,
-	},
-	{
-		name: "google-2",
-		data: []byte{
-			0x01, 0x01, 0x00, 0x0c, 0x21, 0x12, 0xa4, 0x42,
-			0xf9, 0xf1, 0x21, 0xcb, 0xde, 0x7d, 0x7c, 0x75,
-			0x92, 0x3c, 0xe2, 0x71, 0x00, 0x20, 0x00, 0x08,
-			0x00, 0x01, 0xc7, 0x87, 0x69, 0x57, 0x85, 0x6f,
-		},
-		wantTID: []byte{
-			0xf9, 0xf1, 0x21, 0xcb, 0xde, 0x7d, 0x7c, 0x75,
-			0x92, 0x3c, 0xe2, 0x71,
-		},
-		wantAddr: netip.AddrFrom4([4]byte{72, 69, 33, 45}),
-		wantPort: 59029,
-	},
-	{
-		name: "stun.sipgate.net:10000",
-		data: []byte{
-			0x01, 0x01, 0x00, 0x44, 0x21, 0x12, 0xa4, 0x42,
-			0x48, 0x2e, 0xb6, 0x47, 0x15, 0xe8, 0xb2, 0x8e,
-			0xae, 0xad, 0x64, 0x44, 0x00, 0x01, 0x00, 0x08,
-			0x00, 0x01, 0xe4, 0xab, 0x48, 0x45, 0x21, 0x2d,
-			0x00, 0x04, 0x00, 0x08, 0x00, 0x01, 0x27, 0x10,
-			0xd9, 0x0a, 0x44, 0x98, 0x00, 0x05, 0x00, 0x08,
-			0x00, 0x01, 0x27, 0x11, 0xd9, 0x74, 0x7a, 0x8a,
-			0x80, 0x20, 0x00, 0x08, 0x00, 0x01, 0xc5, 0xb9,
-			0x69, 0x57, 0x85, 0x6f, 0x80, 0x22, 0x00, 0x10,
-			0x56, 0x6f, 0x76, 0x69, 0x64, 0x61, 0x2e, 0x6f,
-			0x72, 0x67, 0x20, 0x30, 0x2e, 0x39, 0x36, 0x00,
-		},
-		wantTID: []byte{
-			0x48, 0x2e, 0xb6, 0x47, 0x15, 0xe8, 0xb2, 0x8e,
-			0xae, 0xad, 0x64, 0x44,
-		},
-		wantAddr: netip.AddrFrom4([4]byte{72, 69, 33, 45}),
-		wantPort: 58539,
-	},
-	{
-		name: "stun.powervoip.com:3478",
-		data: []byte{
-			0x01, 0x01, 0x00, 0x24, 0x21, 0x12, 0xa4, 0x42,
-			0x7e, 0x57, 0x96, 0x68, 0x29, 0xf4, 0x44, 0x60,
-			0x9d, 0x1d, 0xea, 0xa6, 0x00, 0x01, 0x00, 0x08,
-			0x00, 0x01, 0xe9, 0xd3, 0x48, 0x45, 0x21, 0x2d,
-			0x00, 0x04, 0x00, 0x08, 0x00, 0x01, 0x0d, 0x96,
-			0x4d, 0x48, 0xa9, 0xd4, 0x00, 0x05, 0x00, 0x08,
-			0x00, 0x01, 0x0d, 0x97, 0x4d, 0x48, 0xa9, 0xd5,
-		},
-		wantTID: []byte{
-			0x7e, 0x57, 0x96, 0x68, 0x29, 0xf4, 0x44, 0x60,
-			0x9d, 0x1d, 0xea, 0xa6,
-		},
-		wantAddr: netip.AddrFrom4([4]byte{72, 69, 33, 45}),
-		wantPort: 59859,
-	},
-	{
-		name: "in-process pion server",
-		data: []byte{
-			0x01, 0x01, 0x00, 0x24, 0x21, 0x12, 0xa4, 0x42,
-			0xeb, 0xc2, 0xd3, 0x6e, 0xf4, 0x71, 0x21, 0x7c,
-			0x4f, 0x3e, 0x30, 0x8e, 0x80, 0x22, 0x00, 0x0a,
-			0x65, 0x6e, 0x64, 0x70, 0x6f, 0x69, 0x6e, 0x74,
-			0x65, 0x72, 0x00, 0x00, 0x00, 0x20, 0x00, 0x08,
-			0x00, 0x01, 0xce, 0x66, 0x5e, 0x12, 0xa4, 0x43,
-			0x80, 0x28, 0x00, 0x04, 0xb6, 0x99, 0xbb, 0x02,
-			0x01, 0x01, 0x00, 0x24, 0x21, 0x12, 0xa4, 0x42,
-		},
-		wantTID: []byte{
-			0xeb, 0xc2, 0xd3, 0x6e, 0xf4, 0x71, 0x21, 0x7c,
-			0x4f, 0x3e, 0x30, 0x8e,
-		},
-		wantAddr: netip.AddrFrom4([4]byte{127, 0, 0, 1}),
-		wantPort: 61300,
-	},
-	{
-		name: "stuntman-server ipv6",
-		data: []byte{
-			0x01, 0x01, 0x00, 0x48, 0x21, 0x12, 0xa4, 0x42,
-			0x06, 0xf5, 0x66, 0x85, 0xd2, 0x8a, 0xf3, 0xe6,
-			0x9c, 0xe3, 0x41, 0xe2, 0x00, 0x01, 0x00, 0x14,
-			0x00, 0x02, 0x90, 0xce, 0x26, 0x02, 0x00, 0xd1,
-			0xb4, 0xcf, 0xc1, 0x00, 0x38, 0xb2, 0x31, 0xff,
-			0xfe, 0xef, 0x96, 0xf6, 0x80, 0x2b, 0x00, 0x14,
-			0x00, 0x02, 0x0d, 0x96, 0x26, 0x04, 0xa8, 0x80,
-			0x00, 0x02, 0x00, 0xd1, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0xc5, 0x70, 0x01, 0x00, 0x20, 0x00, 0x14,
-			0x00, 0x02, 0xb1, 0xdc, 0x07, 0x10, 0xa4, 0x93,
-			0xb2, 0x3a, 0xa7, 0x85, 0xea, 0x38, 0xc2, 0x19,
-			0x62, 0x0c, 0xd7, 0x14,
-		},
-		wantTID: []byte{
-			6, 245, 102, 133, 210, 138, 243, 230, 156, 227,
-			65, 226,
-		},
-		wantAddr: netip.MustParseAddr("2602:d1:b4cf:c100:38b2:31ff:feef:96f6"),
-		wantPort: 37070,
-	},
-
-	// Testing STUN attribute padding rules using STUN software attribute
-	// with values of 1 & 3 length respectively before the XorMappedAddress attribute
-	{
-		name: "software-a",
-		data: []byte{
-			0x01, 0x01, 0x00, 0x14, 0x21, 0x12, 0xa4, 0x42,
-			0xeb, 0xc2, 0xd3, 0x6e, 0xf4, 0x71, 0x21, 0x7c,
-			0x4f, 0x3e, 0x30, 0x8e, 0x80, 0x22, 0x00, 0x01,
-			0x61, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x08,
-			0x00, 0x01, 0xce, 0x66, 0x5e, 0x12, 0xa4, 0x43,
-		},
-		wantTID: []byte{
-			0xeb, 0xc2, 0xd3, 0x6e, 0xf4, 0x71, 0x21, 0x7c,
-			0x4f, 0x3e, 0x30, 0x8e,
-		},
-		wantAddr: netip.AddrFrom4([4]byte{127, 0, 0, 1}),
-		wantPort: 61300,
-	},
-	{
-		name: "software-abc",
-		data: []byte{
-			0x01, 0x01, 0x00, 0x14, 0x21, 0x12, 0xa4, 0x42,
-			0xeb, 0xc2, 0xd3, 0x6e, 0xf4, 0x71, 0x21, 0x7c,
-			0x4f, 0x3e, 0x30, 0x8e, 0x80, 0x22, 0x00, 0x03,
-			0x61, 0x62, 0x63, 0x00, 0x00, 0x20, 0x00, 0x08,
-			0x00, 0x01, 0xce, 0x66, 0x5e, 0x12, 0xa4, 0x43,
-		},
-		wantTID: []byte{
-			0xeb, 0xc2, 0xd3, 0x6e, 0xf4, 0x71, 0x21, 0x7c,
-			0x4f, 0x3e, 0x30, 0x8e,
-		},
-		wantAddr: netip.AddrFrom4([4]byte{127, 0, 0, 1}),
-		wantPort: 61300,
-	},
-	{
-		name:     "no-4in6",
-		data:     must.Get(hex.DecodeString("010100182112a4424fd5d202dcb37d31fc773306002000140002cd3d2112a4424fd5d202dcb382ce2dc3fcc7")),
-		wantTID:  []byte{79, 213, 210, 2, 220, 179, 125, 49, 252, 119, 51, 6},
-		wantAddr: netip.AddrFrom4([4]byte{209, 180, 207, 193}),
-		wantPort: 60463,
-	},
-}
-
-func TestParseResponse(t *testing.T) {
-	subtest := func(t *testing.T, i int) {
-		test := responseTests[i]
-		tID, addrPort, err := stun.ParseResponse(test.data)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !bytes.Equal(tID[:], test.wantTID) {
-			t.Errorf("tid=%v, want %v", tID[:], test.wantTID)
-		}
-		if addrPort.Addr().Compare(test.wantAddr) != 0 {
-			t.Errorf("addr=%v, want %v", addrPort.Addr(), test.wantAddr)
-		}
-		if addrPort.Port() != test.wantPort {
-			t.Errorf("port=%d, want %d", addrPort.Port(), test.wantPort)
-		}
+func newTxID() stun.TxID {
+	var tx stun.TxID
+	if _, err := crand.Read(tx[:]); err != nil {
+		panic(err)
 	}
-	for i, test := range responseTests {
-		t.Run(test.name, func(t *testing.T) {
-			subtest(t, i)
-		})
-	}
+	return tx
 }
+
+// Request generates a binding request STUN packet.
+// The transaction ID, tID, should be a random sequence of bytes.
+func request(tID stun.TxID) []byte {
+	// STUN header, RFC5389 Section 6.
+	b := make([]byte, 0, headerLen+lenFingerprint)
+	b = append(b, bindingRequest...)
+	b = appendU16(b, uint16(lenFingerprint)) // number of bytes following header
+	b = append(b, magicCookie...)
+	b = append(b, tID[:]...)
+
+	// Attribute FINGERPRINT, RFC5389 Section 15.5.
+	fp := fingerPrint(b)
+	b = appendU16(b, attrNumFingerprint)
+	b = appendU16(b, 4)
+	b = appendU32(b, fp)
+
+	return b
+}
+
+// ParseResponse parses a successful binding response STUN packet.
+// The IP address is extracted from the XOR-MAPPED-ADDRESS attribute.
+func parseResponse(b []byte) (tID stun.TxID, addr netip.AddrPort, err error) {
+	if !is(b) {
+		return tID, netip.AddrPort{}, ErrNotSTUN
+	}
+	copy(tID[:], b[8:8+len(tID)])
+	if b[0] != 0x01 || b[1] != 0x01 {
+		return tID, netip.AddrPort{}, ErrNotSuccessResponse
+	}
+	attrsLen := int(binary.BigEndian.Uint16(b[2:4]))
+	b = b[headerLen:] // remove STUN header
+	if attrsLen > len(b) {
+		return tID, netip.AddrPort{}, ErrMalformedAttrs
+	} else if len(b) > attrsLen {
+		b = b[:attrsLen] // trim trailing packet bytes
+	}
+
+	var fallbackAddr netip.AddrPort
+
+	// Read through the attributes.
+	// The the addr+port reported by XOR-MAPPED-ADDRESS
+	// as the canonical value. If the attribute is not
+	// present but the STUN server responds with
+	// MAPPED-ADDRESS we fall back to it.
+	if err := foreachAttr(b, func(attrType uint16, attr []byte) error {
+		switch attrType {
+		case attrXorMappedAddress:
+			ipSlice, port, err := xorMappedAddress(tID, attr)
+			if err != nil {
+				return err
+			}
+			if ip, ok := netip.AddrFromSlice(ipSlice); ok {
+				addr = netip.AddrPortFrom(ip.Unmap(), port)
+			}
+		case attrMappedAddress:
+			ipSlice, port, err := mappedAddress(attr)
+			if err != nil {
+				return ErrMalformedAttrs
+			}
+			if ip, ok := netip.AddrFromSlice(ipSlice); ok {
+				fallbackAddr = netip.AddrPortFrom(ip.Unmap(), port)
+			}
+		}
+		return nil
+
+	}); err != nil {
+		return stun.TxID{}, netip.AddrPort{}, err
+	}
+
+	if addr.IsValid() {
+		return tID, addr, nil
+	}
+	if fallbackAddr.IsValid() {
+		return tID, fallbackAddr, nil
+	}
+	return tID, netip.AddrPort{}, ErrMalformedAttrs
+}
+
+func appendU16(b []byte, v uint16) []byte {
+	return append(b, byte(v>>8), byte(v))
+}
+
+func appendU32(b []byte, v uint32) []byte {
+	return append(b, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+}
+
+func fingerPrint(b []byte) uint32 { return crc32.ChecksumIEEE(b) ^ 0x5354554e }
 
 func TestIs(t *testing.T) {
-	const magicCookie = "\x21\x12\xa4\x42"
 	tests := []struct {
 		in   string
 		want bool
@@ -220,15 +137,27 @@ func TestIs(t *testing.T) {
 		{"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", false},
 		{"\x00\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", false},
 		{"\x00\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", true},
-		{"\x00\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00foo", true},
 		// high bits set:
 		{"\xf0\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", false},
 		{"\x40\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", false},
 		// first byte non-zero, but not high bits:
 		{"\x20\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", true},
 	}
+	// without fingerprint
 	for i, tt := range tests {
 		pkt := []byte(tt.in)
+		got := stun.Is(pkt)
+		if got != false {
+			t.Errorf("%d. In(%q (%v)) = %v; want %v", i, pkt, pkt, got, false)
+		}
+	}
+	// with fingerprint
+	for i, tt := range tests {
+		pkt := []byte(tt.in)
+		fp := fingerPrint(pkt)
+		pkt = appendU16(pkt, attrNumFingerprint)
+		pkt = appendU16(pkt, 4)
+		pkt = appendU32(pkt, fp)
 		got := stun.Is(pkt)
 		if got != tt.want {
 			t.Errorf("%d. In(%q (%v)) = %v; want %v", i, pkt, pkt, got, tt.want)
@@ -237,8 +166,8 @@ func TestIs(t *testing.T) {
 }
 
 func TestParseBindingRequest(t *testing.T) {
-	tx := stun.NewTxID()
-	req := stun.Request(tx)
+	tx := newTxID()
+	req := request(tx)
 	gotTx, err := stun.ParseBindingRequest(req)
 	if err != nil {
 		t.Fatal(err)
@@ -267,7 +196,7 @@ func TestResponse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		res := stun.Response(tt.tx, netip.AddrPortFrom(tt.addr, tt.port))
-		tx2, addr2, err := stun.ParseResponse(res)
+		tx2, addr2, err := parseResponse(res)
 		if err != nil {
 			t.Errorf("TX %x: error: %v", tt.tx, err)
 			continue
@@ -284,18 +213,83 @@ func TestResponse(t *testing.T) {
 	}
 }
 
-func TestAttrOrderForXdpDERP(t *testing.T) {
-	// package derp/xdp assumes attribute order. This test ensures we don't
-	// drift and break that assumption.
-	txID := stun.NewTxID()
-	req := stun.Request(txID)
-	if len(req) < 20+12 {
-		t.Fatal("too short")
+func foreachAttr(b []byte, fn func(attrType uint16, a []byte) error) error {
+	for len(b) > 0 {
+		if len(b) < 4 {
+			return ErrMalformedAttrs
+		}
+		attrType := binary.BigEndian.Uint16(b[:2])
+		attrLen := int(binary.BigEndian.Uint16(b[2:4]))
+		attrLenWithPad := (attrLen + 3) &^ 3
+		b = b[4:]
+		if attrLenWithPad > len(b) {
+			return ErrMalformedAttrs
+		}
+		if err := fn(attrType, b[:attrLen]); err != nil {
+			return err
+		}
+		b = b[attrLenWithPad:]
 	}
-	if !bytes.Equal(req[20:22], []byte{0x80, 0x22}) {
-		t.Fatal("the first attr is not of type software")
+	return nil
+}
+
+func xorMappedAddress(tID stun.TxID, b []byte) (addr []byte, port uint16, err error) {
+	// XOR-MAPPED-ADDRESS attribute, RFC5389 Section 15.2
+	if len(b) < 4 {
+		return nil, 0, ErrMalformedAttrs
 	}
-	if !bytes.Equal(req[24:32], []byte("tailnode")) {
-		t.Fatal("unexpected software attr value")
+	xorPort := binary.BigEndian.Uint16(b[2:4])
+	addrField := b[4:]
+	port = xorPort ^ 0x2112 // first half of magicCookie
+
+	addrLen := familyAddrLen(b[1])
+	if addrLen == 0 {
+		return nil, 0, ErrMalformedAttrs
 	}
+	if len(addrField) < addrLen {
+		return nil, 0, ErrMalformedAttrs
+	}
+	xorAddr := addrField[:addrLen]
+	addr = make([]byte, addrLen)
+	for i := range xorAddr {
+		if i < len(magicCookie) {
+			addr[i] = xorAddr[i] ^ magicCookie[i]
+		} else {
+			addr[i] = xorAddr[i] ^ tID[i-len(magicCookie)]
+		}
+	}
+	return addr, port, nil
+}
+
+func familyAddrLen(fam byte) int {
+	switch fam {
+	case 0x01: // IPv4
+		return net.IPv4len
+	case 0x02: // IPv6
+		return net.IPv6len
+	default:
+		return 0
+	}
+}
+
+func mappedAddress(b []byte) (addr []byte, port uint16, err error) {
+	if len(b) < 4 {
+		return nil, 0, ErrMalformedAttrs
+	}
+	port = uint16(b[2])<<8 | uint16(b[3])
+	addrField := b[4:]
+	addrLen := familyAddrLen(b[1])
+	if addrLen == 0 {
+		return nil, 0, ErrMalformedAttrs
+	}
+	if len(addrField) < addrLen {
+		return nil, 0, ErrMalformedAttrs
+	}
+	return bytes.Clone(addrField[:addrLen]), port, nil
+}
+
+func is(b []byte) bool {
+	return len(b) >= headerLen &&
+		b[0]&0b11000000 == 0 && // top two bits must be zero
+		string(b[4:8]) == magicCookie
 }

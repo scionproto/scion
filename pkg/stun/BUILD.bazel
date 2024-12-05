@@ -2,21 +2,13 @@ load("//tools/lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "stun.go",
-    ],
+    srcs = ["stun.go"],
     importpath = "github.com/scionproto/scion/pkg/stun",
     visibility = ["//visibility:public"],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "stun_test.go",
-    ],
-    embed = [":go_default_library"],
-    deps = [
-        "@com_github_stretchr_testify//assert:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
-    ],
+    srcs = ["stun_test.go"],
+    deps = [":go_default_library"],
 )
