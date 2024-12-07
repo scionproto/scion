@@ -13,6 +13,8 @@ go_library(
         "router.go",
         "scmp.go",
         "snet.go",
+        "sock_error_posix.go",
+        "sock_error_windows.go",
         "svcaddr.go",
         "udpaddr.go",
         "writer.go",
