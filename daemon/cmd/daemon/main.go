@@ -75,9 +75,11 @@ var globalCfg config.Config
 
 func main() {
 	application := launcher.Application{
-		TOMLConfig: &globalCfg,
-		ShortName:  "SCION Daemon",
-		Main:       realMain,
+		ApplicationBase: launcher.ApplicationBase{
+			TOMLConfig: &globalCfg,
+			ShortName:  "SCION Daemon",
+			Main:       realMain,
+		},
 	}
 	application.Run()
 }

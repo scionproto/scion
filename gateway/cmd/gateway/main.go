@@ -43,9 +43,11 @@ var globalCfg config.Config
 
 func main() {
 	application := launcher.Application{
-		TOMLConfig: &globalCfg,
-		ShortName:  "SCION IP Gateway",
-		Main:       realMain,
+		ApplicationBase: launcher.ApplicationBase{
+			TOMLConfig: &globalCfg,
+			ShortName:  "SCION IP Gateway",
+			Main:       realMain,
+		},
 	}
 	application.Run()
 }

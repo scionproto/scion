@@ -42,9 +42,11 @@ var globalCfg config.Config
 
 func main() {
 	application := launcher.Application{
-		TOMLConfig: &globalCfg,
-		ShortName:  "SCION Router",
-		Main:       realMain,
+		ApplicationBase: launcher.ApplicationBase{
+			TOMLConfig: &globalCfg,
+			ShortName:  "SCION Router",
+			Main:       realMain,
+		},
 	}
 	application.Run()
 }
