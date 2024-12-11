@@ -3,7 +3,7 @@ NAT IP/port discovery
 *********************
 
 - Author(s): Marc Frei, Jan Luan, Tilmann Zäschke
-- Last updated: 2024-11-25
+- Last updated: 2024-12-11
 - Status: **WIP**
 - Discussion at: :issue:`4517`
 
@@ -64,6 +64,9 @@ accept requests for reporting addresses.
 To avoid potential misunderstandings: this proposal only addresses the problem of SCION clients behind NATs. It is not
 the goal to also support NAT traversal techniques such as NAT hole punching SCION-based servers and peer-to-peer
 scenarios.
+
+Also note that the NAT issue only exists for traffic between separate ASes. If both the client and the server are located within
+the same AS, the server can simply send returning packets to the underlay source address of the client (which is visible to the server in this case).
 
 The implementation on the protocol level could be done in several ways:
 
@@ -231,4 +234,24 @@ Implementation
 Necessary border router and snet library modifications have been coded for three approaches proposed in the *Proposal* section:
 STUN/UDP/IP, STUN/SCION/UDP/IP, and SCMP message extension.
 It was agreed that a PR would be created for the STUN/UDP/IP variant.
+The STUN specification used is the newer specification (RFC5389).
 Support in client libraries (PAN, JPAN) will be added subsequently.
+
+Client Side Considerations
+--------------------------
+- AS local traffic:
+  For communication within the same AS, the endhost should send returning packets to the underlay source address of the sender
+  simply by reversing src/dst addresses of the underlay in addition to reversing the src/dst addresses in the SCION header.
+  The sending endhost would then not need to use STUN.
+
+  Rationale: Since AS local communication does not involve a border router, it would be unclear which border router the client
+  should choose, if it were to send a STUN request. The AS may be split into multiple subnets, with different border routers in each subnet.
+  Therefore, not using STUN at all and instead using the above method seems like the best option in this case.
+
+- NAT mapping time-out:
+  The (private port <-> public port) mappings kept by the NAT device expire if no traffic is sent for some time (> ~5min).
+  If the client does not send packets to a border router for some longer period of time, the STUN procedure needs to be repeated
+  to determine whether the NAT has assigned a new public port for the client. This causes additional latency when the client starts sending packets again,
+  which may be undesirable if the application is time-sensitive (e.g. latency measurement with Ping).
+  Alternatively, the client library could send some sort of "keep-alive" packets to the BR on a regular interval to ensure the NAT mapping stays alive.
+  This could be implemented as a configurable option, if needed. -> TBD
