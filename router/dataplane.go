@@ -1,5 +1,6 @@
 // Copyright 2020 Anapaya Systems
 // Copyright 2023 ETH Zurich
+// Copyright 2024 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -86,7 +87,6 @@ type bfdSession interface {
 // BatchConn is a connection that supports batch reads and writes.
 type BatchConn interface {
 	ReadBatch(underlayconn.Messages) (int, error)
-	WriteTo([]byte, netip.AddrPort) (int, error)
 	WriteBatch(msgs underlayconn.Messages, flags int) (int, error)
 	Close() error
 }
@@ -112,8 +112,10 @@ const (
 // required to occupy exactly 64 bytes depends on the architecture.
 type packet struct {
 	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).
-	// TODO(jiceatscion): would it be beneficial to store the length instead, like readBatch does?
+	// It can be any portion of the full buffer; not necessarily the start.
 	rawPacket []byte
+	// The entire packet buffer. We don't need it as a slice; we know its size.
+	buffer *[bufSize]byte
 	// The source address. Will be set by the receiver from smsg.Addr. We could update it in-place,
 	// but the IP address bytes in it are allocated by readbatch, so if we copy into a recyclable
 	// location, it's the original we throw away. No gain (may be a tiny bit?).
@@ -131,9 +133,7 @@ type packet struct {
 	// economically determined at the processing stage. So store it here. It's 2 bytes long.
 	trafficType trafficType
 	// Pad to 64 bytes. For 64bit arch, add 12 bytes. For 32bit arch, add 32 bytes.
-	// TODO(jiceatscion): see if packing two packets per cache line instead is good or bad for 32bit
-	// machines.
-	_ [12 + is32bit*20]byte
+	_ [4 + is32bit*24]byte
 }
 
 // Keep this 6 bytes long. See comment for packet.
@@ -151,7 +151,8 @@ const _ uintptr = unsafe.Sizeof(packet{}) - 64 // assert sizeof(packet) >= 64
 
 // initPacket configures the given blank packet (and returns it, for convenience).
 func (p *packet) init(buffer *[bufSize]byte) *packet {
-	p.rawPacket = buffer[:]
+	p.buffer = buffer
+	p.rawPacket = p.buffer[:]
 	p.dstAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
 	return p
 }
@@ -161,11 +162,11 @@ func (p *packet) init(buffer *[bufSize]byte) *packet {
 func (p *packet) reset() {
 	p.dstAddr.IP = p.dstAddr.IP[0:0] // We're keeping the object, just blank it.
 	*p = packet{
-		rawPacket: p.rawPacket[:cap(p.rawPacket)], // keep the slice and so the backing array.
-		dstAddr:   p.dstAddr,                      // keep the dstAddr and so the IP slice and bytes
+		buffer:    p.buffer,    // keep the buffer
+		rawPacket: p.buffer[:], // restore the full packet capacity
+		dstAddr:   p.dstAddr,   // keep the dstAddr and so the IP slice and bytes
 	}
 	// Everything else is reset to zero value.
-
 }
 
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
@@ -177,7 +178,6 @@ type DataPlane struct {
 	linkTypes           map[uint16]topology.LinkType
 	neighborIAs         map[uint16]addr.IA
 	peerInterfaces      map[uint16]uint16
-	internal            BatchConn
 	internalIP          netip.Addr
 	internalNextHops    map[uint16]netip.AddrPort
 	svc                 *services
@@ -192,6 +192,10 @@ type DataPlane struct {
 	dispatchedPortEnd   uint16
 
 	ExperimentalSCMPAuthentication bool
+
+	// The forwarding queues. Each is consumed by a forwarder process and fed by
+	// one bfd sender and the packet processors.
+	fwQs map[uint16]chan *packet
 
 	// The pool that stores all the packet buffers as described in the design document. See
 	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
@@ -334,14 +338,12 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 	if conn == nil {
 		return emptyValue
 	}
-	if d.internal != nil {
-		return alreadySet
-	}
 	if d.interfaces == nil {
 		d.interfaces = make(map[uint16]BatchConn)
+	} else if d.interfaces[0] != nil {
+		return alreadySet
 	}
 	d.interfaces[0] = conn
-	d.internal = conn
 	d.internalIP = ip
 	return nil
 }
@@ -361,7 +363,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	if conn == nil || !src.Addr.IsValid() || !dst.Addr.IsValid() {
 		return emptyValue
 	}
-	err := d.addExternalInterfaceBFD(ifID, conn, src, dst, cfg)
+	err := d.addExternalInterfaceBFD(ifID, src, dst, cfg)
 	if err != nil {
 		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
 	}
@@ -381,7 +383,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 
 // AddNeighborIA adds the neighboring IA for a given interface ID. If an IA for
 // the given ID is already set, this method will return an error. This can only
-// be called on a yet running dataplane.
+// be called on a not yet running dataplane.
 func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -439,7 +441,7 @@ func (d *DataPlane) AddRemotePeer(local, remote uint16) error {
 }
 
 // AddExternalInterfaceBFD adds the inter AS connection BFD session.
-func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
+func (d *DataPlane) addExternalInterfaceBFD(ifID uint16,
 	src, dst control.LinkEnd, cfg control.BFD) error {
 
 	if *cfg.Disable {
@@ -459,7 +461,7 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 			PacketsReceived: d.Metrics.BFDPacketsReceived.With(labels),
 		}
 	}
-	s, err := newBFDSend(conn, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
+	s, err := newBFDSend(d, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
 	if err != nil {
 		return err
 	}
@@ -477,7 +479,7 @@ func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 	return control.InterfaceUp
 }
 
-func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
+func (d *DataPlane) addBFDController(ifID uint16, s bfd.Sender, cfg control.BFD,
 	metrics bfd.Metrics) error {
 
 	if d.bfdSessions == nil {
@@ -599,7 +601,7 @@ func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg cont
 		}
 	}
 
-	s, err := newBFDSend(d.internal, d.localIA, d.localIA, src, dst, 0, d.macFactory())
+	s, err := newBFDSend(d, d.localIA, d.localIA, src, dst, 0, d.macFactory())
 	if err != nil {
 		return err
 	}
@@ -621,7 +623,6 @@ type RunConfig struct {
 
 func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 	d.mtx.Lock()
-	d.setRunning()
 	d.initMetrics()
 
 	processorQueueSize := max(
@@ -630,7 +631,9 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 
 	d.initPacketPool(cfg, processorQueueSize)
 	procQs, fwQs, slowQs := initQueues(cfg, d.interfaces, processorQueueSize)
+	d.fwQs = fwQs // Shared with BFD senders
 
+	d.setRunning()
 	for ifID, conn := range d.interfaces {
 		go func(ifID uint16, conn BatchConn) {
 			defer log.HandlePanic()
@@ -759,7 +762,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 
 		// Give a new buffer to the msgs elements that have been used in the previous loop.
 		for i := 0; i < cfg.BatchSize-numReusable; i++ {
-			p := <-d.packetPool
+			p := d.getPacketFromPool()
 			p.reset()
 			packets[i] = p
 			msgs[i].Buffers[0] = p.rawPacket
@@ -803,6 +806,10 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	}
 
 	return s % uint32(numProcRoutines), nil
+}
+
+func (d *DataPlane) getPacketFromPool() *packet {
+	return <-d.packetPool
 }
 
 func (d *DataPlane) returnPacketToPool(pkt *packet) {
@@ -902,7 +909,6 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan *packet,
 func newSlowPathProcessor(d *DataPlane) *slowPathPacketProcessor {
 	p := &slowPathPacketProcessor{
 		d:              d,
-		buffer:         gopacket.NewSerializeBuffer(),
 		macInputBuffer: make([]byte, spao.MACBufferSize),
 		drkeyProvider: &drkeyutil.FakeProvider{
 			EpochDuration:    drkeyutil.LoadEpochDuration(),
@@ -916,9 +922,8 @@ func newSlowPathProcessor(d *DataPlane) *slowPathPacketProcessor {
 }
 
 type slowPathPacketProcessor struct {
-	d      *DataPlane
-	pkt    *packet
-	buffer gopacket.SerializeBuffer
+	d   *DataPlane
+	pkt *packet
 
 	scionLayer slayers.SCION
 	hbhLayer   slayers.HopByHopExtnSkipper
@@ -940,11 +945,6 @@ type slowPathPacketProcessor struct {
 }
 
 func (p *slowPathPacketProcessor) reset() {
-	if err := p.buffer.Clear(); err != nil {
-		// The serializeBuffer returned by NewSerializeBuffer isn't actually capable of failing to
-		// clear, so planning on doing something about it is pointless (and what might that be?).
-		panic(fmt.Sprintf("Error while clearing buffer: %v", err))
-	}
 	p.path = nil
 	p.hbhLayer = slayers.HopByHopExtnSkipper{}
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
@@ -1118,7 +1118,6 @@ func readUpTo(c <-chan *packet, n int, needsBlocking bool, pkts []*packet) int {
 func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
 	p := &scionPacketProcessor{
 		d:              d,
-		buffer:         gopacket.NewSerializeBuffer(),
 		mac:            d.macFactory(),
 		macInputBuffer: make([]byte, max(path.MACBufferSize, libepic.MACBufferSize)),
 	}
@@ -1134,11 +1133,6 @@ func (p *scionPacketProcessor) reset() error {
 	p.infoField = path.InfoField{}
 	p.effectiveXover = false
 	p.peering = false
-	if err := p.buffer.Clear(); err != nil {
-		// The serializeBuffer returned by NewSerializeBuffer isn't actually capable of failing to
-		// clear, so planning on doing something about it is pointless (and what might that be?).
-		panic(fmt.Sprintf("Error while clearing buffer: %v", err))
-	}
 	p.mac.Reset()
 	p.cachedMac = nil
 	// Reset hbh layer
@@ -1308,8 +1302,6 @@ type scionPacketProcessor struct {
 	d *DataPlane
 	// pkt is the packet currently being processed by this processor.
 	pkt *packet
-	// buffer is the buffer that can be used to serialize gopacket layers.
-	buffer gopacket.SerializeBuffer
 	// mac is the hasher for the MAC computation.
 	mac hash.Hash
 
@@ -1369,10 +1361,8 @@ func (p *slowPathPacketProcessor) packSCMP(
 		}
 	}
 
-	rawSCMP, err := p.prepareSCMP(typ, code, scmpP, isError)
-	if rawSCMP != nil {
-		p.pkt.rawPacket = p.pkt.rawPacket[:len(rawSCMP)]
-		copy(p.pkt.rawPacket, rawSCMP)
+	if err := p.prepareSCMP(typ, code, scmpP, isError); err != nil {
+		return err
 	}
 
 	// We're about to send a packet that has little to do with the one we received.
@@ -1380,7 +1370,7 @@ func (p *slowPathPacketProcessor) packSCMP(
 	p.pkt.trafficType = ttOther
 	p.pkt.egress = p.pkt.ingress
 	updateNetAddrFromNetAddr(p.pkt.dstAddr, p.pkt.srcAddr)
-	return err
+	return nil
 }
 
 func (p *scionPacketProcessor) parsePath() disposition {
@@ -1821,6 +1811,7 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() disposition {
 		return pForward
 	}
 	if _, ok := p.d.external[p.pkt.egress]; !ok {
+		// the egress router is not this one.
 		return pForward
 	}
 	*alert = false
@@ -1990,7 +1981,6 @@ func (p *scionPacketProcessor) process() disposition {
 	if disp := p.validateEgressUp(); disp != pForward {
 		return disp
 	}
-
 	if _, ok := p.d.external[egressID]; ok {
 		// Not ASTransit in
 		if disp := p.processEgress(); disp != pForward {
@@ -2067,7 +2057,7 @@ func (p *scionPacketProcessor) processOHP() disposition {
 		}
 		ohp.Info.UpdateSegID(ohp.FirstHop.Mac)
 
-		if err := updateSCIONLayer(p.pkt.rawPacket, s, p.buffer); err != nil {
+		if err := updateSCIONLayer(p.pkt.rawPacket, s); err != nil {
 			return errorDiscard("error", err)
 		}
 		p.pkt.egress = ohp.FirstHop.ConsEgress
@@ -2093,7 +2083,7 @@ func (p *scionPacketProcessor) processOHP() disposition {
 	ohp.SecondHop.Mac = path.MAC(p.mac, ohp.Info, ohp.SecondHop,
 		p.macInputBuffer[:path.MACBufferSize])
 
-	if err := updateSCIONLayer(p.pkt.rawPacket, s, p.buffer); err != nil {
+	if err := updateSCIONLayer(p.pkt.rawPacket, s); err != nil {
 		return errorDiscard("error", err)
 	}
 	err := p.d.resolveLocalDst(p.pkt.dstAddr, s, p.lastLayer)
@@ -2297,36 +2287,32 @@ func decodeSCMP(scmp *slayers.SCMP) ([]gopacket.SerializableLayer, error) {
 	return ret, nil
 }
 
-// TODO(matzf) this function is now only used to update the OneHop-path.
-// This should be changed so that the OneHop-path can be updated in-place, like
-// the scion.Raw path.
-func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeBuffer) error {
-	if err := buffer.Clear(); err != nil {
-		return err
-	}
-	if err := s.SerializeTo(buffer, gopacket.SerializeOptions{}); err != nil {
-		return err
-	}
-	// TODO(lukedirtwalker): We should add a method to the scion layers
-	// which can write into the existing buffer, see also the discussion in
-	// https://fsnets.slack.com/archives/C8ADBBG0J/p1592805884250700
-	rawContents := buffer.Bytes()
-	copy(rawPkt[:len(rawContents)], rawContents)
-	return nil
+// updateSCIONLayer rewrites the SCION header at the start of the given raw packet buffer; replacing
+// it with the serialization of the given new SCION header. This works only if the new header is of
+// the same size as the old one. This function has no knowledge of the actual size of the headers;
+// it only ensures that the new one ends exactly where the old one did. It is possible to use this
+// function to replace a header with a smaller one; but the rawPacket's slice must be fixed
+// afterwards (and the preceding headers, if any).
+func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
+	payloadOffset := len(rawPkt) - len(s.LayerPayload())
+
+	// Prepends must go just before payload. (and any Append will wreck it)
+	serBuf := newSerializeProxyStart(rawPkt, payloadOffset)
+	return s.SerializeTo(&serBuf, gopacket.SerializeOptions{})
 }
 
 type bfdSend struct {
-	conn             BatchConn
+	dataPlane        *DataPlane
+	ifID             uint16
 	srcAddr, dstAddr netip.AddrPort
 	scn              *slayers.SCION
 	ohp              *onehop.Path
 	mac              hash.Hash
 	macBuffer        []byte
-	buffer           gopacket.SerializeBuffer
 }
 
 // newBFDSend creates and initializes a BFD Sender
-func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrPort,
+func newBFDSend(d *DataPlane, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrPort,
 	ifID uint16, mac hash.Hash) (*bfdSend, error) {
 
 	scn := &slayers.SCION{
@@ -2373,15 +2359,19 @@ func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.Add
 		scn.Path = ohp
 	}
 
+	// bfdSend includes a reference to the dataplane. In general this must not be used until the
+	// dataplane is running. This is ensured by the fact that bfdSend objects are owned by bfd
+	// sessions, which are started by dataplane.Run() itself.
+
 	return &bfdSend{
-		conn:      conn,
+		dataPlane: d,
+		ifID:      ifID,
 		srcAddr:   srcAddr,
 		dstAddr:   dstAddr,
 		scn:       scn,
 		ohp:       ohp,
 		mac:       mac,
 		macBuffer: make([]byte, path.MACBufferSize),
-		buffer:    gopacket.NewSerializeBuffer(),
 	}, nil
 }
 
@@ -2400,12 +2390,38 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		ohp.FirstHop.Mac = path.MAC(b.mac, ohp.Info, ohp.FirstHop, b.macBuffer)
 	}
 
-	err := gopacket.SerializeLayers(b.buffer, gopacket.SerializeOptions{FixLengths: true},
+	p := b.dataPlane.getPacketFromPool()
+	p.reset()
+
+	serBuf := newSerializeProxy(p.rawPacket) // set for prepend-only by default. Perfect here.
+
+	// serialized bytes lend directly into p.rawPacket (alignedd at the end).
+	err := gopacket.SerializeLayers(&serBuf, gopacket.SerializeOptions{FixLengths: true},
 		b.scn, bfd)
 	if err != nil {
 		return err
 	}
-	_, err = b.conn.WriteTo(b.buffer.Bytes(), b.dstAddr)
+
+	// The useful part of the buffer is given by Bytes. We don't copy the bytes; just the slice's
+	// metadata.
+	p.rawPacket = serBuf.Bytes()
+
+	// BfdControllers and fwQs are initialized from the same set of ifIDs. So not finding
+	// the forwarding queue is an serious internal error. Let that panic.
+	fwChan := b.dataPlane.fwQs[b.ifID]
+
+	if b.ifID == 0 {
+		// Using the internal interface: must specify the destination address
+		updateNetAddrFromAddrPort(p.dstAddr, b.dstAddr)
+	}
+	// No need to specify pkt.egress. It isn't used downstream from here.
+	select {
+	case fwChan <- p:
+	default:
+		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
+		// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
+		b.dataPlane.returnPacketToPool(p)
+	}
 	return err
 }
 
@@ -2414,7 +2430,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	code slayers.SCMPCode,
 	scmpP gopacket.SerializableLayer,
 	isError bool,
-) ([]byte, error) {
+) error {
 
 	// *copy* and reverse path -- the original path should not be modified as this writes directly
 	// back to rawPkt (quote).
@@ -2425,36 +2441,36 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		var ok bool
 		path, ok = p.scionLayer.Path.(*scion.Raw)
 		if !ok {
-			return nil, serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
+			return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
 
 		}
 	case epic.PathType:
 		epicPath, ok := p.scionLayer.Path.(*epic.Path)
 		if !ok {
-			return nil, serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
+			return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
 
 		}
 		path = epicPath.ScionPath
 	default:
-		return nil, serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
+		return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 			"path type", pathType)
 
 	}
 	decPath, err := path.ToDecoded()
 	if err != nil {
-		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "decoding raw path")
+		return serrors.JoinNoStack(cannotRoute, err, "details", "decoding raw path")
 	}
 	revPathTmp, err := decPath.Reverse()
 	if err != nil {
-		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "reversing path for SCMP")
+		return serrors.JoinNoStack(cannotRoute, err, "details", "reversing path for SCMP")
 	}
 	revPath := revPathTmp.(*scion.Decoded)
 
 	peering, err := determinePeer(revPath.PathMeta, revPath.InfoFields[revPath.PathMeta.CurrINF])
 	if err != nil {
-		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "peering cannot be determined")
+		return serrors.JoinNoStack(cannotRoute, err, "details", "peering cannot be determined")
 	}
 
 	// Revert potential path segment switches that were done during processing.
@@ -2462,7 +2478,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		// An effective cross-over is a change of segment other than at
 		// a peering hop.
 		if err := revPath.IncPath(); err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err,
+			return serrors.JoinNoStack(cannotRoute, err,
 				"details", "reverting cross over for SCMP")
 		}
 	}
@@ -2476,7 +2492,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			infoField.UpdateSegID(hopField.Mac)
 		}
 		if err := revPath.IncPath(); err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err,
+			return serrors.JoinNoStack(cannotRoute, err,
 				"details", "incrementing path for SCMP")
 		}
 	}
@@ -2494,7 +2510,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	scionL.NextHdr = slayers.L4SCMP
 
 	if err := scionL.SetSrcAddr(addr.HostIP(p.d.internalIP)); err != nil {
-		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "setting src addr")
+		return serrors.JoinNoStack(cannotRoute, err, "details", "setting src addr")
 	}
 	typeCode := slayers.CreateSCMPTypeCode(typ, code)
 	scmpH := slayers.SCMP{TypeCode: typeCode}
@@ -2534,19 +2550,19 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		}
 	}
 
-	if err := p.buffer.Clear(); err != nil {
-		return nil, err
-	}
+	serBuf := newSerializeProxy(p.pkt.rawPacket) // Prepend-only by default. It's all we need.
 	sopts := gopacket.SerializeOptions{
 		ComputeChecksums: true,
 		FixLengths:       true,
 	}
 	// First write the SCMP message only without the SCION header(s) to get a buffer that we
-	// can (re-)use as input in the MAC computation.
-	// XXX(matzf) could we use iovec gather to avoid copying quote?
-	err = gopacket.SerializeLayers(p.buffer, sopts, &scmpH, scmpP, gopacket.Payload(quote))
+	// can (re-)use as input in the MAC computation. Note that we move the quoted part of the packet
+	// to the end of the buffer (go supports overlaps properly).
+	// TODO(jiceatscion): in the future we may be able to leave room at the head of the
+	// buffer on ingest, so we won't need to move the quote at all.
+	err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 	if err != nil {
-		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+		return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
 	}
 
 	if needsAuth {
@@ -2556,15 +2572,15 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		now := time.Now()
 		dstA, err := scionL.DstAddr()
 		if err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err,
+			return serrors.JoinNoStack(cannotRoute, err,
 				"details", "parsing destination address")
 		}
 		key, err := p.drkeyProvider.GetASHostKey(now, scionL.DstIA, dstA)
 		if err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "retrieving DRKey")
+			return serrors.JoinNoStack(cannotRoute, err, "details", "retrieving DRKey")
 		}
 		if err := p.resetSPAOMetadata(key, now); err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "resetting SPAO header")
+			return serrors.JoinNoStack(cannotRoute, err, "details", "resetting SPAO header")
 		}
 
 		e2e.Options = []*slayers.EndToEndOption{p.optAuth.EndToEndOption}
@@ -2575,27 +2591,28 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 				Header:     p.optAuth,
 				ScionLayer: &scionL,
 				PldType:    slayers.L4SCMP,
-				Pld:        p.buffer.Bytes(),
+				Pld:        serBuf.Bytes(),
 			},
 			p.macInputBuffer,
 			p.optAuth.Authenticator(),
 		)
 		if err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "computing CMAC")
+			return serrors.JoinNoStack(cannotRoute, err, "details", "computing CMAC")
 		}
-		if err := e2e.SerializeTo(p.buffer, sopts); err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err,
+		if err := e2e.SerializeTo(&serBuf, sopts); err != nil {
+			return serrors.JoinNoStack(cannotRoute, err,
 				"details", "serializing SCION E2E headers")
 		}
 	} else {
 		scionL.NextHdr = slayers.L4SCMP
 	}
-	if err := scionL.SerializeTo(p.buffer, sopts); err != nil {
-		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCION header")
+	if err := scionL.SerializeTo(&serBuf, sopts); err != nil {
+		return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCION header")
 	}
+	p.pkt.rawPacket = serBuf.Bytes()
 
 	log.Debug("scmp", "typecode", scmpH.TypeCode)
-	return p.buffer.Bytes(), nil
+	return nil
 }
 
 func (p *slowPathPacketProcessor) resetSPAOMetadata(key drkey.ASHostKey, now time.Time) error {
