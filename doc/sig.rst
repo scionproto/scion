@@ -19,6 +19,13 @@ Tunneling IP traffic over SCION requires a pair of SIGs and it involves the foll
 
 5. The egress SIG receives the SCION packet or packets and decapsulates the original IP packet. It then forwards the packet to the final IP destination using standard IP routing.
 
+This protocol is designed to:
+
+- provide independence from the underlying SCION path MTU which can increase and decrease over time.
+- provide fast detection of packet loss and subsequent recovery of decapsulation for packets that weren't lost.
+- support for multiple streams within a framing session such that independent packet sequences be tunneled in parallel.
+
+
 SIG Framing Protocol
 ====================
 
@@ -33,7 +40,7 @@ To preserve performance, IP packets that form a sequence leave the egress SIG in
 - The ingress SIG encapsulates IP packets that cannot be proven independent (e.g., with the same  IP 6-tuple) in the same stream.
 - The ingress SIG encapsulates IP packets to a given stream in the order in which they were received.
 - The ingress SIG sends all frames of a given stream over the same SCION path.
-- The egress SIG reassembles and forward packets from each stream, ordered by frame sequence number and packet within each frame.
+- The egress SIG reassembles and forward packets from each stream, ordered by frame sequence number and by packet within each frame.
 
 The session ID part of the (session ID, stream ID) pair is used to differentiate traffic classes. The egress SIG does not interpret session IDs, but dedicates, as much as possible, processing resources to each session (and not to each individual stream). The ingress SIG takes advantage of this by using different sessions for different traffic classes, thereby allowing them to receive a fair share of the egress processing resources. As a result lesser used sessions (presumably with higher priority traffic) receive relatively more processing resources.
 
@@ -91,7 +98,7 @@ Multicast traffic is not supported yet.
 SIG uses IPv4/6 "payload length" field to determine the size of the packet.
 To make the processing easier, it is required that the fixed part of the IP header
 is in the frame where the IP packet begins. In other words, the initial fragment
-of an IPv4 packet must be at least 20 bytes long. Initial fragment of an IPv6
+of an IPv4 packet must be at least 20 bytes long. The initial fragment of an IPv6
 packet must be at least 40 bytes long.
 
 Example
