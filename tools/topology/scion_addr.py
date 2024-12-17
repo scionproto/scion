@@ -55,17 +55,16 @@ class ISD_AS:
         return hash(str(self))
 
 
-# Regex matching ISD-AS (hex form), with either : or _ as hex-part separator
+# Regex matching ISD-AS (hex or decimal form), with either : or _ as hex-part separator
 _RE_ISD_AS = re.compile(
-    r"^([1-9][0-9]{0,4})-([0-9a-fA-F]{1,4})[:_]([0-9a-fA-F]{1,4})[:_]([0-9a-fA-F]{1,4})$"
+    r"^([1-9][0-9]{0,4})-([0-9a-fA-F]{1,4})[:_]([0-9a-fA-F]{1,4})[:_]([0-9a-fA-F]{1,4})" +
+    r"|([1-9][0-9]{0,4})-([1-9][0-9]{1,9})$"
 )
 
 
 def _clean_isd_as(isd_as_str):
     """
     Parse an ISD-AS-identifier and return the "canonical" string representation.
-
-    Note that the short form for decimal BGP AS numbers is not supported here.
 
     :param str as_id_str: AS-identifier to parse
     :returns: AS-identifier as integer
@@ -75,10 +74,20 @@ def _clean_isd_as(isd_as_str):
     m = _RE_ISD_AS.match(isd_as_str)
     if not m:
         raise ValueError('Invalid ISD-AS', isd_as_str)
-    isd = int(m.group(1), 10)
+    if m.group(1) is not None:
+        isd = int(m.group(1), 10)
+        hig = int(m.group(2), 16)
+        mid = int(m.group(3), 16)
+        low = int(m.group(4), 16)
+        asn = (hig << 32) | (mid << 16) | low
+    else:
+        isd = int(m.group(5), 10)
+        asn = int(m.group(6), 10)
+        if asn >= 2**32:
+            ValueError('Invalid ISD-AS, ASN out of range', isd_as_str)
     if isd >= 2**16:
         raise ValueError('Invalid ISD-AS, ISD out of range', isd_as_str)
-    hig = int(m.group(2), 16)
-    mid = int(m.group(3), 16)
-    low = int(m.group(4), 16)
-    return "%i-%x:%x:%x" % (isd, hig, mid, low)
+    if asn < 2**32:
+        return "%i-%d" % (isd, asn)
+    else:
+        return "%i-%x:%x:%x" % (isd, hig, mid, low)
