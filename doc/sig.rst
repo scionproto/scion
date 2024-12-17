@@ -33,7 +33,7 @@ IP packets are encapsulated into SIG frames, which are sent as SCION/UDP datagra
 
 There may be multiple IP packets in a single SIG frame, and a single IP packet may be split into multiple SIG frames.
 
-The ingress SIG initiates unidirectional packet flows to the egress SIG simply by sending the corresponding SIG frames. There is no handshake. The egress SIG, should it accept the traffic, instanciates the necessary resources on-demand to process each flow. Each such flow forms an independent sequence of packets (a stream) ordered by an incrementing sequence number. Between a given SIG ingress/egress pair, a (session ID, stream ID) pair uniquely identifies a stream.
+The ingress SIG initiates unidirectional packet flows to the egress SIG simply by sending the corresponding SIG frames. There is no handshake. The egress SIG, should it accept the traffic, instantiates the necessary resources on-demand to process each flow. Each such flow forms an independent sequence of packets (a stream) ordered by an incrementing sequence number. Between a given SIG ingress/egress pair, a (session ID, stream ID) pair uniquely identifies a stream.
 
 To preserve performance, IP packets that form a sequence leave the egress SIG in the order in which they entered the ingress SIG. To that end:
 
