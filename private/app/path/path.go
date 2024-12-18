@@ -214,7 +214,7 @@ func printAndChoose(paths []snet.Path, remote addr.IA, cs ColorScheme) (snet.Pat
 		if err != nil {
 			return nil, err
 		}
-		idx, err := strconv.Atoi(pathIndexStr[:len(pathIndexStr)-1])
+		idx, err := strconv.Atoi(strings.TrimRight(pathIndexStr, "\n\r"))
 		if err == nil && idx < len(paths) {
 			return paths[idx], nil
 		}
