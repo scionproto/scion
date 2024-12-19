@@ -174,7 +174,7 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 			// will not be nil unless there was an error while reading the
 			// SCION packet. If the err is nil, it means that it was a
 			// non-recoverable error (e.g., decoding the header) and we
-			// discard the packet and keep reading.
+			// discard the packet and keep
 			continue
 		}
 		*ov = *remoteAddr
@@ -216,15 +216,9 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	if err := pkt.Decode(); err != nil {
 		metrics.CounterInc(c.Metrics.ParseErrors)
 		// XXX(JordiSubira): We avoid bubbling up parsing errors to the
-		// caller application. This simulates that the network stack
-		// simply discards incorrect/malformated packets. Otherwise,
-		// some libraries/applications would misbehave (similar to what
-		// would happen if were to receive SCMP errors).
-		//
-		// If we believe that SCION-aware applications using the low-level
-		// SCIONPacketConn should receive the error, we can move this up to
-		// Conn.
-		log.Error("decoding packet", "error", err)
+		// caller application to avoid problems with applications
+		// that don't expect this type of errors.
+		log.Debug("decoding packet", "error", err)
 		return nil, nil
 	}
 
@@ -238,15 +232,9 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 		lastHop, err = c.lastHop(pkt)
 		if err != nil {
 			// XXX(JordiSubira): We avoid bubbling up parsing errors to the
-			// caller application. This simulates that the network stack
-			// simply discards incorrect/malformated packets. Otherwise,
-			// some libraries/applications would misbehave (similar to what
-			// would happen if were to receive SCMP errors).
-			//
-			// If we believe that SCION-aware applications using the low-level
-			// SCIONPacketConn should receive the error, we can move this up to
-			// Conn.
-			log.Error("extracting last hop based on packet path", "error", err)
+			// caller application to avoid problems with applications
+			// that don't expect this type of errors.
+			log.Debug("extracting last hop based on packet path", "error", err)
 			return nil, nil
 		}
 	}
