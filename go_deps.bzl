@@ -1602,8 +1602,8 @@ def go_deps():
     go_repository(
         name = "org_golang_x_net",
         importpath = "golang.org/x/net",
-        sum = "h1:d/OCCoBEUq33pjydKrGQhw7IlUPI2Oylr+8qLx49kac=",
-        version = "v0.25.0",
+        sum = "h1:74SYHlV8BIgHIFC/LrYkOGIwL19eTYXQ5wc6TBuO36I=",
+        version = "v0.33.0",
     )
     go_repository(
         name = "org_golang_x_oauth2",
