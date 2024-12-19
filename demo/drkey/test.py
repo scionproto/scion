@@ -71,7 +71,7 @@ class Test(base.TestTopogen):
         # Enable delegation for tester host on the fast side (server side), i.e.
         # allow the tester host to directly request the secret value from which
         # keys can be derived locally for any host.
-        tester_ip = self._container_ip("scion_disp_tester_%s" % self.server_isd_as.file_fmt())
+        tester_ip = self._container_ip("disp_tester_%s" % self.server_isd_as.file_fmt())
         cs_config = self._conf_dir(self.server_isd_as) // "cs*-1.toml"
         scion.update_toml({"drkey.delegation.scmp": [tester_ip]}, cs_config)
 
@@ -82,9 +82,8 @@ class Test(base.TestTopogen):
 
         # install demo binary in tester containers:
         drkey_demo = local["realpath"](self.get_executable("drkey-demo").executable).strip()
-        testers = ["tester_%s" % ia.file_fmt() for ia in {self.server_isd_as, self.client_isd_as}]
-        for tester in testers:
-            local["docker"]("cp", drkey_demo, tester + ":/bin/")
+        for ia in {self.server_isd_as, self.client_isd_as}:
+            self.dc("cp", drkey_demo, "tester_%s" % ia.file_fmt() + ":/bin/")
 
         # Define DRKey protocol identifiers and derivation typ for test
         for test in [
@@ -134,7 +133,7 @@ class Test(base.TestTopogen):
         """ Determine the IP used for the end host (client or server) in the given ISD-AS """
         # The address must be the daemon IP (as it makes requests to the control
         # service on behalf of the end host application).
-        return self._container_ip("scion_sd%s" % isd_as.file_fmt())
+        return self._container_ip("sd%s" % isd_as.file_fmt())
 
     def _container_ip(self, container: str) -> str:
         """ Determine the IP of the container """

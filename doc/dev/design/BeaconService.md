@@ -1,10 +1,11 @@
 # Beacon Service
 
 * Author: Lukas Vogel
-* Status: **outdated**
+* Status: **Outdated**
 
 ---
-⚠️  **NOTE** ⚠️<br/>
+⚠️  **NOTE** ⚠️
+
 Outdated contents! This document is kept for historical purpose.
 
 ---

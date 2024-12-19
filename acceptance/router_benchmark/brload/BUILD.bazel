@@ -1,0 +1,31 @@
+load("//tools/lint:go.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "main.go",
+        "mmsg.go",
+    ],
+    importpath = "github.com/scionproto/scion/acceptance/router_benchmark/brload",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//acceptance/router_benchmark/cases:go_default_library",
+        "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/scrypto:go_default_library",
+        "//pkg/slayers:go_default_library",
+        "//private/keyconf:go_default_library",
+        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_google_gopacket//afpacket:go_default_library",
+        "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+        "@org_golang_x_sys//unix:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "brload",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

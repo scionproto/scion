@@ -20,6 +20,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
+	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/private/config"
 )
 
@@ -47,20 +48,20 @@ func (cfg *Config) ConfigName() string {
 }
 
 type Cache struct {
-	Disable    bool          `toml:"disable,omitempty"`
-	Expiration time.Duration `toml:"expiration,omitempty"`
+	Disable    bool         `toml:"disable,omitempty"`
+	Expiration util.DurWrap `toml:"expiration,omitempty"`
 }
 
 func (cfg *Cache) New() *cache.Cache {
 	if cfg.Disable {
 		return nil
 	}
-	return cache.New(cfg.Expiration, time.Minute)
+	return cache.New(cfg.Expiration.Duration, time.Minute)
 }
 
 func (cfg *Cache) InitDefaults() {
-	if cfg.Expiration == 0 {
-		cfg.Expiration = defaultExpiration
+	if cfg.Expiration.Duration == 0 {
+		cfg.Expiration.Duration = defaultExpiration
 	}
 }
 
@@ -69,7 +70,7 @@ func (cfg *Cache) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 # Disable caching.
 disable = false
 
-# Maximum chache expiration.
+# Maximum cache expiration.
 expiration = "1m"
 `)
 }

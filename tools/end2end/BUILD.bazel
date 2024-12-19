@@ -16,8 +16,6 @@ go_library(
         "//pkg/snet:go_default_library",
         "//pkg/snet/metrics:go_default_library",
         "//pkg/snet/path:go_default_library",
-        "//pkg/sock/reliable:go_default_library",
-        "//private/topology:go_default_library",
         "//private/tracing:go_default_library",
         "//tools/integration:go_default_library",
         "//tools/integration/integrationlib:go_default_library",

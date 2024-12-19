@@ -15,8 +15,8 @@
 
 package common
 
-// ErrMsg should be used for error string constants. The constant can then be
-// used for Is checking in the calling code.
+// Deprecated: ErrMsg is not useful. It mimics errors.New() but fails to return a singleton. Just
+// use errors.New() if you need cheap sentinel errors.
 type ErrMsg string
 
 func (e ErrMsg) Error() string {

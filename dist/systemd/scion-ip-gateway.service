@@ -1,0 +1,18 @@
+[Unit]
+Description=SCION IP Gateway
+Documentation=https://docs.scion.org
+After=network-online.target scion-daemon.service
+Wants=scion-daemon.service
+StartLimitBurst=1
+StartLimitInterval=1s
+
+[Service]
+Type=simple
+User=scion
+Group=scion
+AmbientCapabilities=cap_net_admin
+ExecStart=/usr/bin/scion-ip-gateway --config /etc/scion/gateway.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

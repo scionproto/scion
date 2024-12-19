@@ -1,10 +1,9 @@
 load("//tools/lint:go.bzl", "go_library")
-load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_generate_go")
+load("//private/mgmtapi:api.bzl", "openapi_generate_go")
 
 openapi_generate_go(
     name = "api_generated",
     src = "//spec:health",
-    server = True,
     spec = False,
 )
 

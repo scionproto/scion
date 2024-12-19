@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
+	scionpki "github.com/scionproto/scion/scion-pki"
 	"github.com/scionproto/scion/scion-pki/key"
 )
 
@@ -45,6 +46,7 @@ func newMatchCmd(pather command.Pather) *cobra.Command {
 func newMatchPrivateKey(pather command.Pather) *cobra.Command {
 	var flags struct {
 		separator string
+		kms       string
 	}
 	cmd := &cobra.Command{
 		Use:   "private <certificate> <private-key> [<private-key> ...]",
@@ -65,16 +67,16 @@ The output contains all the private keys that are authenticated by the certifica
 
 			certs, err := cppki.ReadPEMCerts(args[0])
 			if err != nil {
-				return serrors.WrapStr("parsing certificate", err, "file", args[0])
+				return serrors.Wrap("parsing certificate", err, "file", args[0])
 			}
 			certKey, err := x509.MarshalPKIXPublicKey(certs[0].PublicKey)
 			if err != nil {
-				return serrors.WrapStr("packing the certificate public key", err)
+				return serrors.Wrap("packing the certificate public key", err)
 			}
 
 			var keys []string
 			for _, file := range args[1:] {
-				key, err := loadPackedPublicFromPrivate(file)
+				key, err := loadPackedPublicFromPrivate(flags.kms, file)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "WARN: ignoring %q: %s\n", file, err)
 					continue
@@ -92,17 +94,18 @@ The output contains all the private keys that are authenticated by the certifica
 		},
 	}
 	cmd.Flags().StringVar(&flags.separator, "separator", "\n", "The separator between file names")
+	scionpki.BindFlagKms(cmd.Flags(), &flags.kms)
 	return cmd
 }
 
-func loadPackedPublicFromPrivate(file string) ([]byte, error) {
-	key, err := key.LoadPrivateKey(file)
+func loadPackedPublicFromPrivate(kms, name string) ([]byte, error) {
+	key, err := key.LoadPrivateKey(kms, name)
 	if err != nil {
 		return nil, err
 	}
 	pub, err := x509.MarshalPKIXPublicKey(key.Public())
 	if err != nil {
-		return nil, serrors.WrapStr("packing the public key", err)
+		return nil, serrors.Wrap("packing the public key", err)
 	}
 	return pub, nil
 }

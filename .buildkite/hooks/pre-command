@@ -11,16 +11,29 @@ printenv PATH
 # Install build tools on first job for this runner.
 .buildkite/provision-agent.sh
 
-# Clean up left-overs from previous run
-PRE_COMMAND_SETUP=true . .buildkite/hooks/pre-exit
-
 set -euo pipefail
 
-echo "--- Increase receive network buffer size"
+echo "~~~ Increase receive network buffer size"
 sudo sysctl -w net.core.rmem_max=1048576
 
-echo "--- Setting up bazel environment"
 
+# Export SCION_VERSION as environment variable, unless it's set from outside (e.g. as variable for this build)
+# Note that this precommand hook runs even in "step zero" of the pipeline, where we `buildkite-agent upload'.
+# With this, the SCION_VERSION can be interpolated by the agent throughout the pipeline yaml.
+if [ -z ${SCION_VERSION+x} ]; then
+    echo "~~~ Export SCION_VERSION"
+    if [ "$BUILDKITE_PIPELINE_SLUG" == "scion" ]; then
+        # Shorten the git version to omit commit information, improving cache reuse.
+        # The format of git-version is "<tag>-<number-of-commits-since-the-tag>-<commit-short-hash>"
+        # This will be shortened to "<tag>-modified-ci"
+        export SCION_VERSION=$(tools/git-version | sed 's/-.*/-modified-ci/')
+    else
+        export SCION_VERSION=$(tools/git-version)
+    fi
+    echo SCION_VERSION=${SCION_VERSION}
+fi
+
+echo "~~~ Setting up bazel environment"
 if [ -z ${BAZEL_REMOTE_S3_ACCESS_KEY_ID+x} ]; then
     echo "S3 env not set, not starting bazel remote proxy"
     exit 0
@@ -33,20 +46,17 @@ rm -f $HOME/.bazelrc
 # --nostamp is required for better caching (only on non-release jobs).
 if [ "$BUILDKITE_PIPELINE_SLUG" == "scion" ]; then
     echo "build --nostamp" > $HOME/.bazelrc
-    # Also set a fixed GIT_VERSION so that the workspace_status_command always
-    # returns the same value on CI to improve cache reuse.
-    export GIT_VERSION="ci-fixed"
 else
     echo "build --stamp" > $HOME/.bazelrc
 fi
 echo "test --test_env CI" >> $HOME/.bazelrc
 
-echo "--- Starting bazel remote cache proxy"
+echo "~~~ Starting bazel remote cache proxy"
 
 # Start bazel remote cache proxy for S3
 # Note that S3 keys are injected by buildkite, see
 # https://buildkite.com/docs/pipelines/secrets#storing-secrets-with-the-elastic-ci-stack-for-aws
-docker-compose -f .buildkite/hooks/bazel-remote.yml -p bazel_remote up -d
+docker compose -f .buildkite/hooks/bazel-remote.yml up -d
 
-echo "--- Starting go module proxy"
-docker-compose -f .buildkite/hooks/go-module-proxy.yml -p athens up -d
+echo "~~~ Starting go module proxy"
+docker compose -f .buildkite/hooks/go-module-proxy.yml up -d

@@ -1,0 +1,10 @@
+global:
+  evaluation_interval: 1s
+  external_labels:
+    monitor: scion-monitor
+  scrape_interval: 1s
+scrape_configs:
+  - job_name: BR
+    static_configs:
+    - targets:
+      - 10.123.10.1:30442

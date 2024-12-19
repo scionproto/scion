@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
 )
 
 // ServerInterface represents all server handlers.
@@ -16,12 +16,43 @@ type ServerInterface interface {
 	// List the SCION path segments
 	// (GET /segments)
 	GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams)
+	// Delete the SCION path segment
+	// (DELETE /segments/{segment-id})
+	DeleteSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
 	// Get the SCION path segment description
 	// (GET /segments/{segment-id})
 	GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
 	// Get the SCION path segment blob
 	// (GET /segments/{segment-id}/blob)
 	GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
+}
+
+// Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
+
+type Unimplemented struct{}
+
+// List the SCION path segments
+// (GET /segments)
+func (_ Unimplemented) GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete the SCION path segment
+// (DELETE /segments/{segment-id})
+func (_ Unimplemented) DeleteSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get the SCION path segment description
+// (GET /segments/{segment-id})
+func (_ Unimplemented) GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get the SCION path segment blob
+// (GET /segments/{segment-id}/blob)
+func (_ Unimplemented) GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -58,9 +89,35 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegments(w, r, params)
-	})
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// DeleteSegment operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSegment(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "segment-id" -------------
+	var segmentId SegmentID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "segment-id", chi.URLParam(r, "segment-id"), &segmentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSegment(w, r, segmentId)
+	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
@@ -78,15 +135,15 @@ func (siw *ServerInterfaceWrapper) GetSegment(w http.ResponseWriter, r *http.Req
 	// ------------- Path parameter "segment-id" -------------
 	var segmentId SegmentID
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, chi.URLParam(r, "segment-id"), &segmentId)
+	err = runtime.BindStyledParameterWithOptions("simple", "segment-id", chi.URLParam(r, "segment-id"), &segmentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegment(w, r, segmentId)
-	})
+	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
@@ -104,15 +161,15 @@ func (siw *ServerInterfaceWrapper) GetSegmentBlob(w http.ResponseWriter, r *http
 	// ------------- Path parameter "segment-id" -------------
 	var segmentId SegmentID
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, chi.URLParam(r, "segment-id"), &segmentId)
+	err = runtime.BindStyledParameterWithOptions("simple", "segment-id", chi.URLParam(r, "segment-id"), &segmentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegmentBlob(w, r, segmentId)
-	})
+	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
@@ -134,16 +191,16 @@ func (e *UnescapedCookieParamError) Unwrap() error {
 	return e.Err
 }
 
-type UnmarshallingParamError struct {
+type UnmarshalingParamError struct {
 	ParamName string
 	Err       error
 }
 
-func (e *UnmarshallingParamError) Error() string {
-	return fmt.Sprintf("Error unmarshalling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
+func (e *UnmarshalingParamError) Error() string {
+	return fmt.Sprintf("Error unmarshaling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
 }
 
-func (e *UnmarshallingParamError) Unwrap() error {
+func (e *UnmarshalingParamError) Unwrap() error {
 	return e.Err
 }
 
@@ -236,6 +293,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/segments", wrapper.GetSegments)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/segments/{segment-id}", wrapper.DeleteSegment)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/segments/{segment-id}", wrapper.GetSegment)

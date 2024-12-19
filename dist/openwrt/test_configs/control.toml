@@ -1,0 +1,32 @@
+[general]
+id = "cs-1"
+config_dir = "/etc/scion"
+
+[trust_db]
+connection = "/var/lib/scion/cs-1.trust.db"
+
+[beacon_db]
+connection = "/var/lib/scion/cs-1.beacon.db"
+
+[path_db]
+connection = "/var/lib/scion/cs-1.path.db"
+
+# [tracing]
+# enabled = true
+# debug = true
+# agent = "127.0.0.1:6831"
+
+[api]
+addr = "127.0.0.1:30152"
+
+[features]
+
+[ca]
+mode = "in-process"
+
+[log.console]
+level = "info"
+
+# Optionally expose metrics and other local inspection endpoints.
+# [metrics]
+# prometheus = "127.0.0.1:30452"

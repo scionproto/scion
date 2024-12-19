@@ -83,10 +83,10 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 
 	p, err := router.Route(ctx, ia)
 	if err != nil {
-		return nil, serrors.WrapStr("looking up path", err)
+		return nil, serrors.Wrap("looking up path", err)
 	}
 	if p == nil {
-		return nil, serrors.WrapStr("no path found to remote", err)
+		return nil, serrors.Wrap("no path found to remote", err)
 	}
 	dsAddr := &snet.SVCAddr{
 		IA:      ia,
@@ -99,11 +99,11 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 	}
 	hps, err := discoverer.Discover(ctx, dsAddr)
 	if err != nil {
-		return nil, serrors.WrapStr("discovering hidden path server", err)
+		return nil, serrors.Wrap("discovering hidden path server", err)
 	}
 	a, err := extractAddr(hps)
 	if err != nil {
-		return nil, serrors.WithCtx(err, "isd_as", ia)
+		return nil, serrors.Wrap("extracting address", err, "isd_as", ia)
 	}
 	return &snet.UDPAddr{
 		IA:      ia,

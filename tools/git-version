@@ -1,5 +1,5 @@
 #!/bin/bash
 
-# Small script to determine the git version.
+# Small script to determine the git version. The leading "v" is deleted.
 
-exec git describe --tags --dirty
+exec git describe --tags --dirty --always | sed 's/^v//'

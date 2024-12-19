@@ -37,8 +37,8 @@ cmd_help() {
 	    - [SERVICE]: As scion service glob, e.g. cs1*.
 	    - [GROUP]:
 	        - scion:    For all scion services.
-	        - prom:     For the prometheus service.
-	    - [COMMAND]: A docker-compose command like 'up -d' or 'down'
+	        - monitoring:     For the monitoring service (i.e. prometheus and yaeger).
+	    - [COMMAND]: A docker compose command like 'up -d' or 'down'
 	    - [IA]: An IA number like 1-ff00:0:110
 	    - [LOG_DIR]: A folder.
 	_EOF
@@ -70,20 +70,15 @@ cmd_scion() {
     dc "scion" "$@"
 }
 
-cmd_jaeger() {
-    dc "jaeger" "$@"
-}
-
-cmd_prom() {
-    dc "prom" "$@"
+cmd_monitoring() {
+    dc "monitoring" "$@"
 }
 
 # Runs docker compose for the given project
 dc() {
-    local project="$1"
     local dc_file="gen/$1-dc.yml"
     shift
-    COMPOSE_FILE="$dc_file" docker-compose -p "$project" --ansi never "$@"
+    COMPOSE_FILE="$dc_file" docker compose --ansi never "$@"
 }
 
 cmd_collect_logs() {
@@ -135,7 +130,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    start|stop|down|run|scion|jaeger|prom|collect_logs)
+    start|stop|down|run|scion|monitoring|collect_logs)
         "cmd_$COMMAND" "$@" ;;
     exec_tester)
         "exec_tester" "$@" ;;

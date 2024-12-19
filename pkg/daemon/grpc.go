@@ -17,20 +17,22 @@ package daemon
 import (
 	"context"
 	"net"
+	"net/netip"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology"
@@ -49,12 +51,12 @@ func (s Service) Connect(ctx context.Context) (Connector, error) {
 	a, err := net.ResolveTCPAddr("tcp", s.Address)
 	if err != nil {
 		s.Metrics.incConnects(err)
-		return nil, serrors.WrapStr("resolving addr", err)
+		return nil, serrors.Wrap("resolving addr", err)
 	}
 	conn, err := libgrpc.SimpleDialer{}.Dial(ctx, a)
 	if err != nil {
 		s.Metrics.incConnects(err)
-		return nil, serrors.WrapStr("dialing", err)
+		return nil, serrors.Wrap("dialing", err)
 	}
 	s.Metrics.incConnects(nil)
 	return grpcConn{conn: conn, metrics: s.Metrics}, nil
@@ -72,6 +74,35 @@ func (c grpcConn) LocalIA(ctx context.Context) (addr.IA, error) {
 	}
 	ia := asInfo.IA
 	return ia, nil
+}
+
+func (c grpcConn) PortRange(ctx context.Context) (uint16, uint16, error) {
+	client := sdpb.NewDaemonServiceClient(c.conn)
+	response, err := client.PortRange(ctx, &emptypb.Empty{})
+	if err != nil {
+		return 0, 0, err
+	}
+	return uint16(response.DispatchedPortStart), uint16(response.DispatchedPortEnd), nil
+}
+
+func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error) {
+	client := sdpb.NewDaemonServiceClient(c.conn)
+	response, err := client.Interfaces(ctx, &sdpb.InterfacesRequest{})
+	if err != nil {
+		c.metrics.incInterface(err)
+		return nil, err
+	}
+	result := make(map[uint16]netip.AddrPort, len(response.Interfaces))
+	for ifID, intf := range response.Interfaces {
+		a, err := netip.ParseAddrPort(intf.Address.Address)
+		if err != nil {
+			c.metrics.incInterface(err)
+			return nil, serrors.Wrap("parsing reply", err, "raw_uri", intf.Address.Address)
+		}
+		result[uint16(ifID)] = a
+	}
+	c.metrics.incInterface(nil)
+	return result, nil
 }
 
 func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
@@ -105,28 +136,6 @@ func (c grpcConn) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
 		IA:  addr.IA(response.IsdAs),
 		MTU: uint16(response.Mtu),
 	}, nil
-}
-
-func (c grpcConn) IFInfo(ctx context.Context,
-	_ []common.IFIDType) (map[common.IFIDType]*net.UDPAddr, error) {
-
-	client := sdpb.NewDaemonServiceClient(c.conn)
-	response, err := client.Interfaces(ctx, &sdpb.InterfacesRequest{})
-	if err != nil {
-		c.metrics.incInterface(err)
-		return nil, err
-	}
-	result := make(map[common.IFIDType]*net.UDPAddr)
-	for ifID, intf := range response.Interfaces {
-		a, err := net.ResolveUDPAddr("udp", intf.Address.Address)
-		if err != nil {
-			c.metrics.incInterface(err)
-			return nil, serrors.WrapStr("parsing reply", err, "raw_uri", intf.Address.Address)
-		}
-		result[common.IFIDType(ifID)] = a
-	}
-	c.metrics.incInterface(nil)
-	return result, nil
 }
 
 func (c grpcConn) SVCInfo(
@@ -246,12 +255,12 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	}
 	underlayA, err := net.ResolveUDPAddr("udp", p.Interface.Address.Address)
 	if err != nil {
-		return path.Path{}, serrors.WrapStr("resolving underlay", err)
+		return path.Path{}, serrors.Wrap("resolving underlay", err)
 	}
 	interfaces := make([]snet.PathInterface, len(p.Interfaces))
 	for i, pi := range p.Interfaces {
 		interfaces[i] = snet.PathInterface{
-			ID: common.IFIDType(pi.Id),
+			ID: iface.ID(pi.Id),
 			IA: addr.IA(pi.IsdAs),
 		}
 	}
@@ -339,11 +348,11 @@ func getASHostKeyFromReply(rep *sdpb.DRKeyASHostResponse,
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return drkey.ASHostKey{}, serrors.Wrap("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return drkey.ASHostKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{
@@ -383,11 +392,11 @@ func getHostASKeyFromReply(rep *sdpb.DRKeyHostASResponse,
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return drkey.HostASKey{}, serrors.Wrap("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return drkey.HostASKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{
@@ -427,11 +436,11 @@ func getHostHostKeyFromReply(rep *sdpb.DRKeyHostHostResponse,
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+		return drkey.HostHostKey{}, serrors.Wrap("invalid EpochBegin from response", err)
 	}
 	err = rep.EpochEnd.CheckValid()
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+		return drkey.HostHostKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{

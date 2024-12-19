@@ -53,7 +53,7 @@ Glossary
       An endpoint can be an end host, but it applies slightly more generically to any node which is
       the source or destination of SCION traffic, e.g. to a gateway.
 
-      The terms "endpoint" and "end host" are used mostly interchangably.
+      The terms "endpoint" and "end host" are used mostly interchangeably.
       End host is preferred where the focus is (physical or virtual) machines and the software
       running on them, and endpoint is used otherwise.
 

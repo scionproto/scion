@@ -106,7 +106,7 @@ An originated PCB sent to a child AS initiates the intra-ISD beacon creating an 
 Propagation of PCBs
 -------------------
 
-PCBs are propgated at regular intervals at each AS.
+PCBs are propagated at regular intervals at each AS.
 When PCBs are received, they are not propagated immediately, but put into temporary storage
 until the next propagation event.
 The selection and propagation of PCBs differs between the inter-ISD and intra-ISD beacon schemes.
@@ -160,7 +160,7 @@ or :file-ref:`proto/control_plane/v1/seg.proto` for the raw protocol definitions
    :end-at: }
 
 .. literalinclude:: /../proto/control_plane/v1/seg.proto
-   :caption: Hop field protobuf message definition. This is a part of the ``HopEntry``, refererred to
+   :caption: Hop field protobuf message definition. This is a part of the ``HopEntry``, referred to
              in the ``ASEntrySignedBody`` definition above.
    :language: proto
    :start-at: message HopField {
@@ -188,7 +188,7 @@ lookup process.
 As mentioned previously, a non-core AS typically receives several PCBs representing path segments to
 the core ASes of the ISD the AS belongs to.
 Out of these PCBs, the non-core AS selects those down-path segments through which it wants to be
-reached, based on AS-specific selection critera.
+reached, based on AS-specific selection criteria.
 The next step is to register the selected down-segments with the control service of the
 core AS that originated the PCB.
 
@@ -266,10 +266,12 @@ path-lookup on behalf of applications. This SCION daemon also caches path-segmen
    Down-segment Control service of core ASes in destination ISD (either the local ISD or a remote ISD)
    ============ ===========================
 
+.. _control-plane-segment-combination:
+
 Path-Segment Combination
 ========================
 
-The last step of the path-resolution process is to combine the available up-, core- and down-
+The last step of the path-resolution process is to combine the available up, core and down
 path segments to end-to-end forwarding paths.
 This path-segment combination process is done by each endpoint separately.
 Typically, end hosts run the :doc:`SCION daemon <manuals/daemon>` which centralizes the

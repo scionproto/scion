@@ -1,3 +1,5 @@
+ethtool
+gawk
 bridge-utils
 build-essential
 cgroup-tools
@@ -17,3 +19,4 @@ sqlite3
 sudo
 tzdata
 zlib1g-dev
+zip

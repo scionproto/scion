@@ -7,25 +7,13 @@ networks:
       config:
       - subnet: 242.253.100.0/24
 services:
-  topo_cs_reload_dispatcher:
-    container_name: topo_cs_reload_dispatcher
-    image: bazel/acceptance/topo_cs_reload:dispatcher
-    networks:
-      bridge1:
-        ipv4_address: 242.253.100.2
-    volumes:
-    - vol_topo_cs_reload_disp:/run/shm/dispatcher:rw
   topo_cs_reload_control_srv:
-    container_name: topo_cs_reload_control_srv
-    image: bazel/acceptance/topo_cs_reload:control
-    depends_on:
-      - topo_cs_reload_dispatcher
+    image: scion/acceptance/topo_cs_reload:control
     volumes:
-    - vol_topo_cs_reload_disp:/run/shm/dispatcher:ro
     - "${TOPO_CS_RELOAD_CONFIG_DIR}/certs:/certs:ro"
     - "${TOPO_CS_RELOAD_CONFIG_DIR}/keys:/keys:ro"
     - "${TOPO_CS_RELOAD_CONFIG_DIR}/crypto:/crypto:ro"
-    network_mode: service:topo_cs_reload_dispatcher
+    networks:
+      bridge1:
+        ipv4_address: 242.253.100.2
 version: '2.4'
-volumes:
-  vol_topo_cs_reload_disp: null

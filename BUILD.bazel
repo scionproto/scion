@@ -1,4 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
@@ -7,7 +7,7 @@ load("//tools/lint:write_source_files.bzl", "write_source_files")
 load("//tools/lint/python:flake8_config.bzl", "flake8_lint_config")
 load("//:nogo.bzl", "nogo_deps")
 load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
-load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
+load("@npm//private/mgmtapi/tools:@stoplight/spectral-cli/package_json.bzl", spectral_bin = "bin")
 
 # gazelle:prefix github.com/scionproto/scion
 # gazelle:map_kind go_library go_library //tools/lint:go.bzl
@@ -35,6 +35,20 @@ load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 # This is simplistic but the complete, by-the-everchanging-bazel-book, solution
 # is ludicrously complicated. Go there if and when needed.
 config_setting(
+    name = "sqlite_mattn_netgo",
+    define_values = {
+        "gotags": "sqlite_mattn,netgo",
+    },
+)
+
+config_setting(
+    name = "sqlite_modernc_netgo",
+    define_values = {
+        "gotags": "sqlite_modernc,netgo",
+    },
+)
+
+config_setting(
     name = "sqlite_mattn",
     define_values = {
         "gotags": "sqlite_mattn",
@@ -48,21 +62,23 @@ config_setting(
     },
 )
 
-# This is a dummy target so Make can "blaze build --announce_rc <something>
-# Where something truly does nothing that we may care about.
-
-config_setting(
-    name = "dummy_setting",
-    define_values = {
-        "whatever": "whatever",
-    },
-)
-
 gazelle(
     name = "gazelle",
     build_tags = select({
-        ":sqlite_modernc": ["sqlite_modernc"],
-        ":sqlite_mattn": ["sqlite_mattn"],
+        ":sqlite_modernc_netgo": [
+            "sqlite_modernc",
+            "sqlite_modernc_netgo",
+        ],
+        ":sqlite_modernc": [
+            "sqlite_modernc",
+        ],
+        ":sqlite_mattn_netgo": [
+            "sqlite_mattn",
+            "netgo",
+        ],
+        ":sqlite_mattn": [
+            "sqlite_mattn",
+        ],
     }),
     command = "update",
     extra_args = [
@@ -76,8 +92,20 @@ gazelle(
 gazelle(
     name = "gazelle_diff",
     build_tags = select({
-        ":sqlite_modernc": ["sqlite_modernc"],
-        ":sqlite_mattn": ["sqlite_mattn"],
+        ":sqlite_modernc_netgo": [
+            "sqlite_modernc",
+            "netgo",
+        ],
+        ":sqlite_modernc": [
+            "sqlite_modernc",
+        ],
+        ":sqlite_mattn_netgo": [
+            "sqlite_mattn",
+            "netgo",
+        ],
+        ":sqlite_mattn": [
+            "sqlite_mattn",
+        ],
     }),
     command = "update",
     extra_args = [
@@ -91,14 +119,20 @@ gazelle(
 gazelle(
     name = "gazelle_update_repos",
     command = "update-repos",
+    extra_args = [
+        "-prune",
+        "-from_file=go.mod",
+        "-to_macro=go_deps.bzl%go_deps",
+    ],
 )
 
 go_lint_config(
     name = "go_lint_config",
     exclude_filter = [
-        "mock_",
-        ".pb.go",
+        ".connect.go",
         ".gen.go",
+        ".pb.go",
+        "mock_",
     ],
     visibility = [
         "//visibility:public",
@@ -111,6 +145,17 @@ flake8_lint_config(
     visibility = [
         "//visibility:public",
     ],
+)
+
+# Optional version string to produce versioned file names. End deliverables, such as installable
+# packages will have a name derived from that string.
+# The flag is to be used when producing publishable assets (so, typically by the CI build).
+# The rest of the time the assets will have an unversioned name. The version tags embedded
+# in binaries and package manifests are always set. Regardless of this flag.
+string_flag(
+    name = "file_name_version",
+    build_setting_default = "dev",
+    visibility = ["//visibility:public"],
 )
 
 # Add a build flag to enable bundling the management API documentation with the
@@ -150,6 +195,7 @@ pkg_tar(
     name = "scion-ci",
     srcs = [
         "//acceptance/cmd/sig_ping_acceptance",
+        "//acceptance/router_benchmark/brload",
         "//pkg/private/xtest/graphupdater",
         "//tools/braccept",
         "//tools/buildkite/cmd/buildkite_artifacts",
@@ -163,14 +209,18 @@ pkg_tar(
     package_dir = "",
 )
 
-# This contains all of the binaries needed to run the topology generator.
+# This contains all of the binaries needed to run the topology generator
+# and start a local stack.
 pkg_tar(
     name = "scion-topo",
     srcs = [
-        "//scion-pki/cmd/scion-pki",
+        "//tools:set_ipv6_addr",
+        "//tools:supervisorctl",
+        "//tools:supervisord",
+        "//tools:topodot",
+        "//tools:topogen",
     ],
     mode = "0755",
-    package_dir = "",
 )
 
 # Nogo - Go code analysis tool
@@ -190,11 +240,8 @@ buildifier(
     mode = "check",
 )
 
-# Runs all update_src targets in this Workspace. Currently, generating the
-# OpenAPI specs is the last target that depends on update_src. Eventually,
-# this should be transitioned to write_all_source_files below.
-updatesrc_update_all(
-    name = "update_all",
+spectral_bin.spectral_binary(
+    name = "spectral",
 )
 
 # Runs all write_source_files targets in this Workspace. To update the list run
@@ -202,6 +249,21 @@ updatesrc_update_all(
 write_source_files(
     name = "write_all_source_files",
     additional_update_targets = [
+        "//control/mgmtapi:write_files",
+        "//daemon/mgmtapi:write_files",
+        "//dispatcher/mgmtapi:write_files",
         "//doc/command:write_files",
+        "//gateway/mgmtapi:write_files",
+        "//pkg/proto/control_plane/v1/control_planeconnect:write_files",
+        "//pkg/proto/daemon/v1/daemonconnect:write_files",
+        "//pkg/proto/discovery/v1/discoveryconnect:write_files",
+        "//pkg/proto/gateway/v1/gatewayconnect:write_files",
+        "//pkg/proto/hidden_segment/v1/hidden_segmentconnect:write_files",
+        "//private/ca/api:write_files",
+        "//private/mgmtapi/cppki/api:write_files",
+        "//private/mgmtapi/health/api:write_files",
+        "//private/mgmtapi/segments/api:write_files",
+        "//router/mgmtapi:write_files",
+        "//spec:write_files",
     ],
 )

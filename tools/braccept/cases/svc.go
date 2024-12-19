@@ -25,7 +25,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
@@ -34,6 +33,7 @@ import (
 
 // SVC tests resolution of SVC addresses.
 func SVC(artifactsDir string, mac hash.Hash) runner.Case {
+	const csPort = 20007
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -91,8 +91,8 @@ func SVC(artifactsDir string, mac hash.Hash) runner.Case {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:4"),
+		DstIA:        addr.MustParseIA("1-ff00:0:1"),
 		Path:         sp,
 	}
 	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.4.1")); err != nil {
@@ -103,7 +103,7 @@ func SVC(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2345
-	scionudp.DstPort = 53
+	scionudp.DstPort = 6789
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -125,8 +125,7 @@ func SVC(artifactsDir string, mac hash.Hash) runner.Case {
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	// CS address from the topology file.
 	ip.DstIP = net.IP{192, 168, 0, 71}
-	// 	UDP: Src=30001 Dst=30041
-	udp.SrcPort, udp.DstPort = 30001, 30041
+	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(csPort)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	if err := gopacket.SerializeLayers(want, options,

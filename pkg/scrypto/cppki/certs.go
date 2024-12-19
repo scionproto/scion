@@ -133,7 +133,7 @@ func ParsePEMCerts(raw []byte) ([]*x509.Certificate, error) {
 		}
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return nil, serrors.WrapStr("error parsing certificate", err)
+			return nil, serrors.Wrap("error parsing certificate", err)
 		}
 		certs = append(certs, cert)
 	}
@@ -158,7 +158,7 @@ func VerifyChain(certs []*x509.Certificate, opts VerifyOptions) error {
 	for _, trc := range opts.TRC {
 		if err := verifyChain(certs, trc, opts.CurrentTime); err != nil {
 			errs = append(errs,
-				serrors.WrapStr("verifying chain", err,
+				serrors.Wrap("verifying chain", err,
 					"trc_base", trc.ID.Base,
 					"trc_serial", trc.ID.Serial,
 				),
@@ -172,7 +172,7 @@ func VerifyChain(certs []*x509.Certificate, opts VerifyOptions) error {
 
 func verifyChain(certs []*x509.Certificate, trc *TRC, now time.Time) error {
 	if err := ValidateChain(certs); err != nil {
-		return serrors.WrapStr("chain validation failed", err)
+		return serrors.Wrap("chain validation failed", err)
 	}
 	if trc == nil || trc.IsZero() {
 		return serrors.New("TRC required for chain verification")
@@ -181,7 +181,7 @@ func verifyChain(certs []*x509.Certificate, trc *TRC, now time.Time) error {
 	intPool.AddCert(certs[1])
 	rootPool, err := trc.RootPool()
 	if err != nil {
-		return serrors.WrapStr("failed to extract root certs", err, "trc", trc.ID)
+		return serrors.Wrap("failed to extract root certs", err, "trc", trc.ID)
 	}
 	_, err = certs[0].Verify(x509.VerifyOptions{
 		Intermediates: intPool,
@@ -201,7 +201,7 @@ func ValidateChain(certs []*x509.Certificate) error {
 
 	first, err := ValidateCert(certs[0])
 	if err != nil {
-		return serrors.WrapStr("validating first certificate", err)
+		return serrors.Wrap("validating first certificate", err)
 	}
 	if first != AS {
 		return serrors.New("first certificate of invalid type", "expected", AS, "actual", first)
@@ -210,7 +210,7 @@ func ValidateChain(certs []*x509.Certificate) error {
 
 	second, err := ValidateCert(certs[1])
 	if err != nil {
-		return serrors.WrapStr("validating second certificate", err)
+		return serrors.Wrap("validating second certificate", err)
 	}
 	if second != CA {
 		return serrors.New("second certificate of invalid type", "expected", CA, "actual", second)
@@ -246,7 +246,7 @@ func ValidateCert(c *x509.Certificate) (CertType, error) {
 	case AS:
 		return ct, validateAS(c)
 	default:
-		return Invalid, serrors.WithCtx(ErrInvalidCertType, "cert_type", ct)
+		return Invalid, serrors.JoinNoStack(ErrInvalidCertType, nil, "cert_type", ct)
 	}
 }
 
@@ -505,10 +505,10 @@ func containsOID(oids []asn1.ObjectIdentifier, o asn1.ObjectIdentifier) bool {
 func subjectAndIssuerIASet(c *x509.Certificate) error {
 	var errs serrors.List
 	if _, err := ExtractIA(c.Issuer); err != nil {
-		errs = append(errs, serrors.WrapStr("extracting issuer ISD-AS", err))
+		errs = append(errs, serrors.Wrap("extracting issuer ISD-AS", err))
 	}
 	if _, err := ExtractIA(c.Subject); err != nil {
-		errs = append(errs, serrors.WrapStr("extracting subject ISD-AS", err))
+		errs = append(errs, serrors.Wrap("extracting subject ISD-AS", err))
 	}
 	return errs.ToError()
 }
@@ -540,7 +540,7 @@ func findIA(dn pkix.Name) (*addr.IA, error) {
 		}
 		ia, err := addr.ParseIA(rawIA)
 		if err != nil {
-			return nil, serrors.WrapStr("invalid ISD-AS value", err)
+			return nil, serrors.Wrap("invalid ISD-AS value", err)
 		}
 		if ia.IsWildcard() {
 			return nil, serrors.New("wildcard ISD-AS not allowed", "isd_as", ia)

@@ -30,46 +30,28 @@ import (
 	"sort"
 	"strings"
 
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-type errOrMsg struct {
-	str string
-	err error
+// ctxPair is one item of context info.
+type ctxPair struct {
+	Key   string
+	Value interface{}
 }
 
-func (m errOrMsg) Error() string {
-	if m.err != nil {
-		return m.err.Error()
-	}
-	return m.str
+// errorInfo is a base class for two implementations of error: basicError and joinedError.
+type errorInfo struct {
+	ctx   *[]ctxPair
+	cause error
+	stack *stack
 }
 
-func (m errOrMsg) addToEncoder(enc zapcore.ObjectEncoder) error {
-	if m.err != nil {
-		if marshaler, ok := m.err.(zapcore.ObjectMarshaler); ok {
-			return enc.AddObject("msg", marshaler)
-		}
-		enc.AddString("msg", m.err.Error())
-		return nil
-	}
-	enc.AddString("msg", m.str)
-	return nil
-}
-
-type basicError struct {
-	msg    errOrMsg
-	fields map[string]interface{}
-	cause  error
-	stack  *stack
-}
-
-func (e basicError) Error() string {
+func (e errorInfo) error() string {
 	var buf bytes.Buffer
-	buf.WriteString(e.msg.Error())
-	if len(e.fields) != 0 {
+	if len(*e.ctx) != 0 {
 		fmt.Fprint(&buf, " ")
-		encodeContext(&buf, e.ctxPairs())
+		encodeContext(&buf, *e.ctx)
 	}
 	if e.cause != nil {
 		fmt.Fprintf(&buf, ": %s", e.cause)
@@ -79,10 +61,7 @@ func (e basicError) Error() string {
 
 // MarshalLogObject implements zapcore.ObjectMarshaler to have a nicer log
 // representation.
-func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	if err := e.msg.addToEncoder(enc); err != nil {
-		return err
-	}
+func (e errorInfo) marshalLogObject(enc zapcore.ObjectEncoder) error {
 	if e.cause != nil {
 		if m, ok := e.cause.(zapcore.ObjectMarshaler); ok {
 			if err := enc.AddObject("cause", m); err != nil {
@@ -97,54 +76,18 @@ func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 			return err
 		}
 	}
-	for k, v := range e.fields {
-		if err := enc.AddReflected(k, v); err != nil {
-			return err
-		}
+	for _, pair := range *e.ctx {
+		zap.Any(pair.Key, pair.Value).AddTo(enc)
 	}
 	return nil
 }
 
-func (e basicError) Is(err error) bool {
-	switch other := err.(type) {
-	case basicError:
-		return e.msg == other.msg
-	default:
-		if e.msg.err != nil {
-			return e.msg.err == err
-		}
-		return false
-	}
-}
-
-func (e basicError) As(as interface{}) bool {
-	if e.msg.err != nil {
-		return errors.As(e.msg.err, as)
-	}
-	return false
-}
-
-func (e basicError) Unwrap() error {
-	return e.cause
-}
-
 // StackTrace returns the attached stack trace if there is any.
-func (e basicError) StackTrace() StackTrace {
+func (e errorInfo) StackTrace() StackTrace {
 	if e.stack == nil {
 		return nil
 	}
 	return e.stack.StackTrace()
-}
-
-func (e basicError) ctxPairs() []ctxPair {
-	fields := make([]ctxPair, 0, len(e.fields))
-	for k, v := range e.fields {
-		fields = append(fields, ctxPair{Key: k, Value: v})
-	}
-	sort.Slice(fields, func(i, j int) bool {
-		return fields[i].Key < fields[j].Key
-	})
-	return fields
 }
 
 // IsTimeout returns whether err is or is caused by a timeout error.
@@ -159,72 +102,186 @@ func IsTemporary(err error) bool {
 	return errors.As(err, &t) && t.Temporary()
 }
 
-// WithCtx returns an error that is the same as the given error but contains the
-// additional context. The additional context is printed in the Error method.
-// The returned error implements Is and Is(err) returns true.
-// Deprecated: use WrapStr or New instead.
-func WithCtx(err error, errCtx ...interface{}) error {
-	if top, ok := err.(basicError); ok {
-		return basicError{
-			msg:    top.msg,
-			fields: combineFields(top.fields, errCtxToFields(errCtx)),
-			cause:  top.cause,
-			stack:  top.stack,
-		}
+func mkErrorInfo(cause error, addStack bool, errCtx ...interface{}) errorInfo {
+	np := len(errCtx) / 2
+	ctx := make([]ctxPair, np)
+	for i := 0; i < np; i++ {
+		k := errCtx[2*i]
+		v := errCtx[2*i+1]
+		ctx[i] = ctxPair{Key: fmt.Sprint(k), Value: v}
+	}
+	sort.Slice(ctx, func(a, b int) bool {
+		return ctx[a].Key < ctx[b].Key
+	})
+
+	r := errorInfo{
+		cause: cause,
+		ctx:   &ctx,
+	}
+	if !addStack {
+		return r
 	}
 
-	return basicError{
-		msg:    errOrMsg{err: err},
-		fields: errCtxToFields(errCtx),
-	}
-}
-
-// Wrap wraps the cause with the msg error and adds context to the resulting
-// error. The returned error implements Is and Is(msg) and Is(cause) returns
-// true.
-// Deprecated: use WrapStr instead.
-func Wrap(msg, cause error, errCtx ...interface{}) error {
-	return basicError{
-		msg:    errOrMsg{err: msg},
-		cause:  cause,
-		fields: errCtxToFields(errCtx),
-	}
-}
-
-// WrapStr wraps the cause with an error that has msg in the error message and
-// adds the additional context. The returned error implements Is and Is(cause)
-// returns true.
-func WrapStr(msg string, cause error, errCtx ...interface{}) error {
 	var (
-		existingVal basicError
-		existingPtr *basicError
-		st          *stack
+		t1 basicError
+		t2 *basicError
+		t3 joinedError
+		t4 *joinedError
 	)
 
-	// We attach a stacktrace if there is no basic error already.
-	if !errors.As(cause, &existingVal) && !errors.As(cause, &existingPtr) {
-		st = callers()
+	// We attach a stacktrace if there is no basic error cause already. Note that if the innermost
+	// basicError was without a stack trace, then there'll never be one. That's to avoid looking
+	// for it in every level or every constructor. TB revisisted if necessary.
+	// TODO(jiceatscion): should we define a "stackertracer" interface?
+	if r.cause == nil || !(errors.As(cause, &t1) || errors.As(cause, &t2) ||
+		errors.As(cause, &t3) || errors.As(cause, &t4)) {
+
+		r.stack = callers()
 	}
+	return r
+}
+
+// basicError is an implementation of error that encapsulates various pieces of information besides
+// a message. The msg field is strictly a string.
+type basicError struct {
+	errorInfo
+	msg string
+}
+
+func (e basicError) Error() string {
+	var buf bytes.Buffer
+	buf.WriteString(e.msg)
+	buf.WriteString(e.errorInfo.error())
+	return buf.String()
+}
+
+func (e basicError) Unwrap() error {
+	return e.cause
+}
+
+// MarshalLogObject implements zapcore.ObjectMarshaler to have a nicer log
+// representation.
+func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("msg", e.msg)
+	return e.errorInfo.marshalLogObject(enc)
+}
+
+// Wrap returns an error that associates the given error, with the given cause (an underlying
+// error) unless nil, and the given context.
+//
+// A stack dump is added unless cause is a basicError or joinedError (in which case it is assumed to
+// contain a stack dump).
+//
+// The returned error supports Is. Is(cause) returns true.
+//
+// This is best used when adding context to an error that already has some. The existing error is
+// used as the cause; all of its existing context and stack trace are preserved for printing and
+// logging. The new context is attached to the new error.
+//
+// Passing nil as the cause is legal but of little use. In that case, prefer [New]. The only
+// difference is the underlying type of the returned interface.
+//
+// To enrich a sentinel error with context only, do not use
+//
+//	Wrap("dummy message", sentinel, ...)
+//
+// instead use [Join]
+//
+//	Join(sentinel, nil, ...)
+//
+// Wrap may be useful to enrich sentinel errors if the main message needs to be different than
+// that supplied by the sentinel error.
+func Wrap(msg string, cause error, errCtx ...interface{}) error {
 	return basicError{
-		msg:    errOrMsg{str: msg},
-		cause:  cause,
-		fields: errCtxToFields(errCtx),
-		stack:  st,
+		errorInfo: mkErrorInfo(cause, true, errCtx...),
+		msg:       msg,
 	}
 }
 
-// New creates a new error with the given message and context.
-func New(msg string, errCtx ...interface{}) error {
-	if len(errCtx) == 0 {
-		return &basicError{
-			msg:   errOrMsg{str: msg},
-			stack: callers(),
-		}
+// WrapNoStack behaves like [Wrap], except that no stack dump is added, regardless of cause's
+// underlying type.
+func WrapNoStack(msg string, cause error, errCtx ...interface{}) error {
+	return basicError{
+		errorInfo: mkErrorInfo(cause, false, errCtx...),
+		msg:       msg,
 	}
+}
+
+// New creates a new basicError with the given message and context, plus a stack dump.
+// It returns a pointer as the underlying type of the error interface object.
+// Avoid using this in performance-critical code: it is the most expensive variant. If used to
+// construct other errors, such as with Join, the embedded stack trace and context serve no
+// purpose. Therefore, to make sentinel errors, errors.New() should be preferred.
+func New(msg string, errCtx ...interface{}) error {
 	return &basicError{
-		msg:    errOrMsg{str: msg},
-		fields: errCtxToFields(errCtx),
-		stack:  callers(),
+		errorInfo: mkErrorInfo(nil, true, errCtx...),
+		msg:       msg,
+	}
+}
+
+// joinedError is an implementation of error that aggregates various pieces of information, around
+// an existing error, the base error (for example a unique sentinel error). The base error isn't
+// assumed to be of any particular implementation.
+type joinedError struct {
+	errorInfo
+	error error
+}
+
+func (e joinedError) Error() string {
+	var buf bytes.Buffer
+	buf.WriteString(e.error.Error())
+	buf.WriteString(e.errorInfo.error())
+	return buf.String()
+}
+
+func (e joinedError) Unwrap() []error {
+	return []error{e.error, e.cause}
+}
+
+// MarshalLogObject implements zapcore.ObjectMarshaler to have a nicer log
+// representation. The base error is not dissected. It is treated as a most generic error.
+func (e joinedError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("msg", e.error.Error())
+	return e.errorInfo.marshalLogObject(enc)
+}
+
+// Join returns an error that associates the given error, with the given cause (an underlying error)
+// unless nil, and the given context.
+//
+// A stack dump is added unless cause is a basicError or joinedError (in which case it is assumed to
+// contain a stack dump).
+//
+// The returned error supports Is. If cause isn't nil, Is(cause) returns true. Is(error) returns
+// true.
+//
+// This is best used as an alternative to [Wrap] when deriving an error from a sentinel error. If
+// there is an underlying error it may be used as the cause (with the same effect as [Wrap]. When
+// creating a new error (not due to an underlying error) nil may be passed as the cause. In that
+// case the result is a sentinel error enriched with context. For such a purpose this is better than
+// [Wrap], since [Wrap] would retain any irrelevant context possibly attached to the sentinel error
+// and store a redundant message string.
+func Join(err, cause error, errCtx ...interface{}) error {
+	if err == nil && cause == nil {
+		// Pointless. Will not. Also, maintaining backward compatibility with
+		// a previous Join function.
+		return nil
+	}
+	return joinedError{
+		errorInfo: mkErrorInfo(cause, true, errCtx...),
+		error:     err,
+	}
+}
+
+// JoinNoStack behaves like [Join] except that no stack dump is added regardless of cause's
+// underlying type.
+func JoinNoStack(err, cause error, errCtx ...interface{}) error {
+	if err == nil && cause == nil {
+		// Pointless. Will not.
+		return nil
+	}
+	return joinedError{
+		errorInfo: mkErrorInfo(cause, false, errCtx...),
+		error:     err,
 	}
 }
 
@@ -261,55 +318,6 @@ func (e List) MarshalLogArray(ae zapcore.ArrayEncoder) error {
 		}
 	}
 	return nil
-}
-
-// Join returns an error that wraps the given errors in a List error.
-// Any nil error values are discarded.
-// Join returns nil if errs contains no non-nil values.
-func Join(errs ...error) error {
-	n := 0
-	for _, err := range errs {
-		if err != nil {
-			n++
-		}
-	}
-	if n == 0 {
-		return nil
-	}
-	l := make(List, 0, n)
-	for _, err := range errs {
-		if err != nil {
-			l = append(l, err)
-		}
-	}
-	return l
-}
-
-func errCtxToFields(errCtx []interface{}) map[string]interface{} {
-	if len(errCtx) == 0 {
-		return nil
-	}
-	fields := make(map[string]interface{}, len(errCtx)/2)
-	for i := 0; i < len(errCtx)-1; i += 2 {
-		fields[fmt.Sprint(errCtx[i])] = errCtx[i+1]
-	}
-	return fields
-}
-
-func combineFields(a, b map[string]interface{}) map[string]interface{} {
-	fields := make(map[string]interface{}, len(a)+len(b))
-	for k, v := range a {
-		fields[k] = v
-	}
-	for k, v := range b {
-		fields[k] = v
-	}
-	return fields
-}
-
-type ctxPair struct {
-	Key   string
-	Value interface{}
 }
 
 func encodeContext(buf io.Writer, pairs []ctxPair) {

@@ -94,14 +94,15 @@ class RouterTest(base.TestBase):
     def setup_start(self):
         super().setup_start()
 
-        envs = ["-e SCION_EXPERIMENTAL_BFD_DISABLE=true"]
         if self.bfd:
-            envs = []
-
-        exec_docker("run -v %s/conf:/share/conf -d %s --network container:%s \
-                    --name router %s" % (self.artifacts, " ".join(envs),
-                    "pause", "bazel/acceptance/router_multi:router"))
-
+            exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
+                        "--network container:pause --name router "
+                        "scion/router:latest")
+        else:
+            exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
+                        "--network container:pause --name router "
+                        "scion/router:latest "
+                        "--config /etc/scion/router_nobfd.toml")
         time.sleep(1)
 
     def _run(self):
@@ -118,6 +119,10 @@ class RouterTest(base.TestBase):
         sudo("chown -R %s %s" % (cmd.whoami(), self.artifacts))
 
     def create_veths(self, ns: str):
+        # Set default TTL for outgoing packets to the common value 64, so that packets sent
+        # from router will match the expected value.
+        sudo("ip netns exec %s sysctl -w net.ipv4.ip_default_ttl=64" % ns)
+
         create_veth("veth_int_host", "veth_int", "192.168.0.11/24", "f0:0d:ca:fe:00:01", ns,
                     ["192.168.0.12", "192.168.0.13", "192.168.0.14", "192.168.0.51", "192.168.0.61",
                         "192.168.0.71"])

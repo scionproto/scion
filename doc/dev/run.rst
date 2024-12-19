@@ -14,8 +14,9 @@ Running SCION in this developement setup, is also called running a **local topol
 The scripts support two different process orchestrators as "backends":
 
 - `supervisor <http://supervisord.org/>`_. This is the default and a bit more light-weight. Packets are sent over the loopback interface.
-- `docker-compose <https://docs.docker.com/compose/>`_. Runs individual processes in separate containers connected with docker network bridges. Only this mode supports running a "SCION-IP gateway".
+- `docker compose <https://docs.docker.com/compose/>`_. Runs individual processes in separate containers connected with docker network bridges. Only this mode supports running a "SCION-IP gateway".
 
+  .. hint:: Before attempting to use the docker compose mode, be sure to build the necessary docker images with ``make docker-images``
 
 .. TODO
    - Describe configuration directory (referencing manuals)
@@ -31,7 +32,7 @@ Quickstart
    * Build, using ``make``
 
 #. Generate the control-plane PKI keys and certificates, configuration files, and process
-   orchestrator (supervisor or docker-compose) configuration.
+   orchestrator (supervisor or docker compose) configuration.
 
    .. code-block:: bash
 
@@ -84,6 +85,13 @@ Various helper files are also generated for the benefit of scripts and tooling o
 for example, ``gen/sciond_addresses.json`` is a simple mapping from AS number to the address of the
 corresponding :doc:`scion daemon </manuals/daemon>` instance.
 
+If  :option:`scion.sh topology -d` command is used, configuration files are created to
+enable running the SCION services in docker containers (see :ref:`docker-section`). Otherwise,
+a configuration file is created to enable running the SCION services as plain processes
+(see :ref:`supervisor-section`)
+
+.. _supervisor-section:
+
 supervisor
 ----------
 The ``gen/supervisord.conf`` configuration defines the programs that make up the local topology.
@@ -109,16 +117,18 @@ For example::
    # and now ping this host from inside AS 1-ff00:0:110, with interactive path prompt
    bin/scion ping --sciond $(./scion.sh sciond-addr 110) 1-ff00:0:111,127.0.0.1 --interactive
 
+.. _docker-section:
+
 docker
 ------
-The main docker-compose file is ``gen/scion-dc.yml``.
+The main docker compose file is ``gen/scion-dc.yml``.
 
 Each SCION service or router runs in a separate container, and the network access of the individual
 containers is configured to mimick real-world connectivity.
 
 There are "tester" containers configured in each AS to mimick end hosts in a SCION AS.
 These tester containers can be used to run commands accessing the SCION network.
-As a shorthand for the somewhat unwieldy ``docker-compose`` invocation, the :file-ref:`tools/dc`
+As a shorthand for the somewhat unwieldy ``docker compose`` invocation, the :file-ref:`tools/dc`
 script can be used. For example::
 
    # show paths from 1-ff00:0:112 to 1-ff00:0:110
@@ -140,7 +150,7 @@ scion.sh
 
 .. Note::
    The SCION tools and services need to be built **before** running these commands, using
-   ``make`` or ``make docker-images`` (when using the docker-compose configuration).
+   ``make`` or ``make docker-images`` (when using the docker compose configuration).
 
 The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands are:
 
@@ -149,7 +159,7 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 .. option:: topology
 
    Generate the control-plane PKI keys and certificates, configuration files,
-   and process orchestrator (supervisor or docker-compose) configuration
+   and process orchestrator (supervisor or docker compose) configuration
    for a given network topopology defined in a
    :file-ref:`*.topo configuration file <topology/README.md>`.
 
@@ -161,7 +171,7 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 
    .. option:: -d, --docker
 
-      Create a docker-compose configuration (instead of default supervisord).
+      Create a docker compose configuration (instead of default supervisord).
 
    .. option:: --sig
 
@@ -180,6 +190,14 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 
    Terminate this run of the local SCION topology.
 
+.. option:: start-monitoring
+
+   Start the monitoring services (jaeger and prometheus).
+
+.. option:: stop-monitoring
+
+   Stop the monitoring services.
+
 .. option:: sciond-addr <ISD-AS>
 
    Return the address for the scion daemon for the matching ISD-AS by consulting
@@ -190,3 +208,17 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 .. option:: help
 
    Describe all available subcommands
+
+end2end_integration
+===================
+
+:program:`bin/end2end_integration` is a basic functional test.
+
+The basic usage is ``./end2end_integration <options>``.
+
+.. program:: end2end_integration
+
+.. option:: -d
+
+   Assume the SCION services are dockerized. Must be consistent with the last
+   invocation of ``scion.sh topology``.

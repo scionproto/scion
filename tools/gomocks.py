@@ -27,6 +27,7 @@ def rule_to_file(rule: str) -> Tuple[str, str]:
 
 def mock_rules() -> List[str]:
     bazel = plumbum.local['bazel']
+    os.chdir(os.environ.get("BUILD_WORKING_DIRECTORY","/nonexistium"))
     raw_rules = bazel("query", "filter(\"go_default_mock$\", kind(gomock, //...))")
     return raw_rules.splitlines()
 

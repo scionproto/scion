@@ -96,7 +96,7 @@ type ClientInterface interface {
 	// GetLogLevel request
 	GetLogLevel(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SetLogLevel request with any body
+	// SetLogLevelWithBody request with any body
 	SetLogLevelWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SetLogLevel(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -326,16 +326,16 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GetConfig request
+	// GetConfigWithResponse request
 	GetConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConfigResponse, error)
 
-	// GetInfo request
+	// GetInfoWithResponse request
 	GetInfoWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInfoResponse, error)
 
-	// GetLogLevel request
+	// GetLogLevelWithResponse request
 	GetLogLevelWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetLogLevelResponse, error)
 
-	// SetLogLevel request with any body
+	// SetLogLevelWithBodyWithResponse request with any body
 	SetLogLevelWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
 
 	SetLogLevelWithResponse(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
@@ -344,7 +344,7 @@ type ClientWithResponsesInterface interface {
 type GetConfigResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -366,7 +366,7 @@ func (r GetConfigResponse) StatusCode() int {
 type GetInfoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -389,7 +389,7 @@ type GetLogLevelResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *LogLevel
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -412,7 +412,7 @@ type SetLogLevelResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *LogLevel
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -490,7 +490,7 @@ func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -516,7 +516,7 @@ func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -549,7 +549,7 @@ func ParseGetLogLevelResponse(rsp *http.Response) (*GetLogLevelResponse, error) 
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -582,7 +582,7 @@ func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) 
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

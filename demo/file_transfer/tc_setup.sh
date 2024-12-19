@@ -4,7 +4,7 @@ set -ex
 NETWORK=$1
 RATE=$2
 
-veths=$(brctl show $NETWORK | awk 'NR>1''{print $NF}')
+veths=$(bridge link show | awk "/$NETWORK/{print \$2}")
 for veth in $veths
 do
     echo $veth

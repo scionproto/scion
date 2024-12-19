@@ -36,7 +36,9 @@ import (
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/trust"
 )
 
 func TestDefaultExtenderExtend(t *testing.T) {
@@ -98,8 +100,8 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				intfs.Get(peer).Activate(peerRemoteIfs[peer])
 			}
 			ext := &beaconing.DefaultExtender{
-				IA:     topo.IA(),
-				Signer: testSigner(t, priv, topo.IA()),
+				IA:        topo.IA(),
+				SignerGen: testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
 				MAC: func() hash.Hash {
 					mac, err := scrypto.InitMac(make([]byte, 16))
 					require.NoError(t, err)
@@ -171,8 +173,8 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 		require.NoError(t, err)
 		ext := &beaconing.DefaultExtender{
-			IA:     topo.IA(),
-			Signer: testSigner(t, priv, topo.IA()),
+			IA:        topo.IA(),
+			SignerGen: testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
 			MAC: func() hash.Hash {
 				mac, err := scrypto.InitMac(make([]byte, 16))
 				require.NoError(t, err)
@@ -189,8 +191,106 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []uint16{})
 		require.NoError(t, err)
 		assert.Equal(t, uint8(1), pseg.ASEntries[0].HopEntry.HopField.ExpTime)
-
 	})
+	t.Run("segment and signer expiration interaction", func(t *testing.T) {
+		ts := time.Now()
+		testCases := map[string]struct {
+			SignerGen    beaconing.SignerGen
+			MaxExpTime   func() uint8
+			ExpTime      uint8
+			ErrAssertion assert.ErrorAssertionFunc
+		}{
+			"signer expires before max expiration time": {
+				SignerGen: testSignerGen{
+					Signers: []trust.Signer{func() trust.Signer {
+						s := testSigner(t, priv, topo.IA())
+						s.Expiration = ts.Add(path.MaxTTL / 2)
+						return s
+					}()},
+				},
+				ExpTime:      127,
+				MaxExpTime:   func() uint8 { return 255 },
+				ErrAssertion: assert.NoError,
+			},
+			"signer expires after max expiration time": {
+				SignerGen: testSignerGen{
+					Signers: []trust.Signer{func() trust.Signer {
+						s := testSigner(t, priv, topo.IA())
+						s.Expiration = ts.Add(path.MaxTTL)
+						return s
+					}()},
+				},
+				ExpTime:      254,
+				MaxExpTime:   func() uint8 { return 254 },
+				ErrAssertion: assert.NoError,
+			},
+			"minimum signer expiration time": {
+				SignerGen: testSignerGen{
+					Signers: []trust.Signer{func() trust.Signer {
+						s := testSigner(t, priv, topo.IA())
+						s.Expiration = ts.Add(path.MaxTTL / 256)
+						return s
+					}()},
+				},
+				ExpTime:      0,
+				MaxExpTime:   func() uint8 { return 10 },
+				ErrAssertion: assert.NoError,
+			},
+			"signer expiration time too small": {
+				SignerGen: testSignerGen{
+					Signers: []trust.Signer{func() trust.Signer {
+						s := testSigner(t, priv, topo.IA())
+						s.Expiration = ts.Add(path.MaxTTL / 257)
+						return s
+					}()},
+				},
+				MaxExpTime:   func() uint8 { return 10 },
+				ErrAssertion: assert.Error,
+			},
+			"signer expiration time too large uses MaxExpTime": {
+				SignerGen: testSignerGen{
+					Signers: []trust.Signer{func() trust.Signer {
+						s := testSigner(t, priv, topo.IA())
+						s.Expiration = ts.Add(2 * path.MaxTTL)
+						return s
+					}()},
+				},
+				ExpTime:      157,
+				MaxExpTime:   func() uint8 { return 157 },
+				ErrAssertion: assert.NoError,
+			},
+		}
+		for name, tc := range testCases {
+			t.Run(name, func(t *testing.T) {
+				mctrl := gomock.NewController(t)
+				defer mctrl.Finish()
+				intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
+				require.NoError(t, err)
+				ext := &beaconing.DefaultExtender{
+					IA:        topo.IA(),
+					SignerGen: tc.SignerGen,
+					MAC: func() hash.Hash {
+						mac, err := scrypto.InitMac(make([]byte, 16))
+						require.NoError(t, err)
+						return mac
+					},
+					Intfs:      intfs,
+					MTU:        1337,
+					MaxExpTime: tc.MaxExpTime,
+					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+				}
+				pseg, err := seg.CreateSegment(ts, uint16(mrand.Int()))
+				require.NoError(t, err)
+				err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []uint16{})
+				tc.ErrAssertion(t, err)
+				if err != nil {
+					return
+				}
+				assert.Equal(t, tc.ExpTime, pseg.ASEntries[0].HopEntry.HopField.ExpTime)
+			})
+		}
+	})
+
 	t.Run("segment is not extended on error", func(t *testing.T) {
 		defaultSigner := func(t *testing.T) seg.Signer {
 			return testSigner(t, priv, topo.IA())
@@ -238,8 +338,10 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				defer mctrl.Finish()
 				intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 				ext := &beaconing.DefaultExtender{
-					IA:     topo.IA(),
-					Signer: testSigner(t, priv, topo.IA()),
+					IA: topo.IA(),
+					SignerGen: testSignerGen{
+						Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
+					},
 					MAC: func() hash.Hash {
 						mac, err := scrypto.InitMac(make([]byte, 16))
 						require.NoError(t, err)

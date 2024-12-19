@@ -25,8 +25,8 @@ import (
 type Beacon struct {
 	// Segment is the path segment.
 	Segment *seg.PathSegment
-	// InIfId is the interface the beacon is received on.
-	InIfId uint16
+	// InIfID is the interface the beacon is received on.
+	InIfID uint16
 }
 
 // Diversity returns the link diversity between this and the other beacon. The
@@ -39,11 +39,11 @@ func (b Beacon) Diversity(other Beacon) int {
 	}
 	var diff int
 	for _, asEntry := range b.Segment.ASEntries {
-		ia, ifid := link(asEntry)
+		ia, ifID := link(asEntry)
 		var found bool
 		for _, otherEntry := range other.Segment.ASEntries {
-			oia, oifid := link(otherEntry)
-			if ia.Equal(oia) && ifid == oifid {
+			oia, oifID := link(otherEntry)
+			if ia.Equal(oia) && ifID == oifID {
 				found = true
 				break
 			}
@@ -56,7 +56,7 @@ func (b Beacon) Diversity(other Beacon) int {
 }
 
 func (b Beacon) String() string {
-	return fmt.Sprintf("Ingress: %d Segment: [ %s ]", b.InIfId, b.Segment)
+	return fmt.Sprintf("Ingress: %d Segment: [ %s ]", b.InIfID, b.Segment)
 }
 
 func link(entry seg.ASEntry) (addr.IA, uint16) {

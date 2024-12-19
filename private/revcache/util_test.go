@@ -20,156 +20,70 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/revcache/mock_revcache"
 )
 
 var (
-	ia110  = xtest.MustParseIA("1-ff00:0:110")
-	ia211  = xtest.MustParseIA("2-ff00:0:211")
-	ifid10 = uint16(10)
-	ifid11 = uint16(11)
-
+	ia211   = addr.MustParseIA("2-ff00:0:211")
 	timeout = time.Second
 )
 
-func TestFilterNew(t *testing.T) {
-	now := time.Now()
-	sr10 := defaultRevInfo(ia110, ifid10, now)
-	sr11 := defaultRevInfo(ia110, ifid11, now)
-	sr11Old := defaultRevInfo(ia110, ifid11, now.Add(-10*time.Second))
-	Convey("TestFilterNew", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		revCache := mock_revcache.NewMockRevCache(ctrl)
-		Convey("Given an empty cache", func() {
-			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, nil)
-			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{sr10})
-			expectedMap := copy(rMap)
-			SoMsg("No error expected", err, ShouldBeNil)
-			err = rMap.FilterNew(context.Background(), revCache)
-			SoMsg("No error expected", err, ShouldBeNil)
-			SoMsg("All revocations should be considered new", rMap, ShouldResemble, expectedMap)
-		})
-		Convey("Given a cache with an old revocation", func() {
-			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(revcache.Revocations{
-				revcache.Key{IA: ia110, IfId: common.IFIDType(ifid11)}: sr11Old,
-			}, nil)
-			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{sr10, sr11})
-			expectedMap := copy(rMap)
-			SoMsg("No error expected", err, ShouldBeNil)
-			err = rMap.FilterNew(context.Background(), revCache)
-			SoMsg("No error expected", err, ShouldBeNil)
-			SoMsg("All revocations should be considered new", rMap, ShouldResemble, expectedMap)
-		})
-		Convey("Given a cache with a newer revocation", func() {
-			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(revcache.Revocations{
-				revcache.Key{IA: ia110, IfId: common.IFIDType(ifid11)}: sr11,
-			}, nil)
-			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{sr10, sr11Old})
-			expectedMap := copy(rMap)
-			delete(expectedMap, revcache.Key{IA: ia110, IfId: common.IFIDType(ifid11)})
-			SoMsg("No error expected", err, ShouldBeNil)
-			err = rMap.FilterNew(context.Background(), revCache)
-			SoMsg("No error expected", err, ShouldBeNil)
-			SoMsg("Only new revocations should stay in map", rMap, ShouldResemble, expectedMap)
-		})
-		Convey("Given a cache with an error", func() {
-			expectedErr := serrors.New("TESTERR")
-			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, expectedErr)
-			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{})
-			SoMsg("No error expected", err, ShouldBeNil)
-			err = rMap.FilterNew(context.Background(), revCache)
-			SoMsg("Error from cache expected", err, ShouldResemble, expectedErr)
-		})
-	})
-
-}
-
 func TestNoRevokedHopIntf(t *testing.T) {
 	now := time.Now()
-	Convey("NoRevokedHopIntf", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		seg210_222_1 := createSeg(ctrl)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+	defer cancelF()
+	seg210_222_1 := createSeg(ctrl)
+
+	t.Run("empty", func(t *testing.T) {
 		revCache := mock_revcache.NewMockRevCache(ctrl)
-		Convey("Given an empty revcache", func() {
-			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any())
-			noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
-			SoMsg("No err expected", err, ShouldBeNil)
-			SoMsg("No revocation expected", noR, ShouldBeTrue)
-		})
-		Convey("Given a revcache with an on segment revocation", func() {
-			sRev := defaultRevInfo(ia211, graph.If_210_X_211_A, now)
-			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
-				revcache.Revocations{
-					revcache.Key{IA: xtest.MustParseIA("2-ff00:0:211"),
-						IfId: common.IFIDType(graph.If_210_X_211_A)}: sRev,
-				}, nil,
-			)
-			noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
-			SoMsg("No err expected", err, ShouldBeNil)
-			SoMsg("Revocation expected", noR, ShouldBeFalse)
-		})
-		Convey("Given an error in the revache it is propagated", func() {
-			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
-				nil, serrors.New("TestError"),
-			)
-			_, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
-			SoMsg("Err expected", err, ShouldNotBeNil)
-		})
+		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).AnyTimes()
+		noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
+		assert.NoError(t, err)
+		assert.True(t, noR, "no revocation expected")
+	})
+	t.Run("on segment revocation", func(t *testing.T) {
+		sRev := defaultRevInfo(ia211, graph.If_211_A_210_X, now)
+		revCache := mock_revcache.NewMockRevCache(ctrl)
+		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).DoAndReturn(
+			func(_ context.Context, key revcache.Key) (*path_mgmt.RevInfo, error) {
+				iaFmt := key.IA.String()
+				_ = iaFmt
+				if key.IA == ia211 && key.IfID == iface.ID(graph.If_211_A_210_X) {
+					return sRev, nil
+				}
+				return nil, nil
+			}).AnyTimes()
+
+		noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
+		assert.NoError(t, err)
+		assert.False(t, noR, "revocation expected")
+	})
+	t.Run("error progation", func(t *testing.T) {
+		revCache := mock_revcache.NewMockRevCache(ctrl)
+		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
+			nil, serrors.New("TestError"),
+		).AnyTimes()
+		_, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
+		assert.Error(t, err)
 	})
 }
 
-func TestRelevantRevInfos(t *testing.T) {
-	Convey("TestRelevantRevInfos", t, func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		segs := []*seg.PathSegment{createSeg(ctrl)}
-		revCache := mock_revcache.NewMockRevCache(ctrl)
-		Convey("Given an empty revcache", func() {
-			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any())
-			revs, err := revcache.RelevantRevInfos(ctx, revCache, segs)
-			SoMsg("No err expected", err, ShouldBeNil)
-			SoMsg("No revocation expected", revs, ShouldBeEmpty)
-		})
-		// TODO(lukedirtwalker): Add test with revocations
-		Convey("Given an error in the revache it is propagated", func() {
-			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
-				nil, serrors.New("TestError"),
-			)
-			_, err := revcache.RelevantRevInfos(ctx, revCache, segs)
-			SoMsg("Err expected", err, ShouldNotBeNil)
-		})
-	})
-}
-
-func copy(revs revcache.Revocations) revcache.Revocations {
-	res := make(revcache.Revocations, len(revs))
-	for k, v := range revs {
-		res[k] = v
-	}
-	return res
-}
-
-func defaultRevInfo(ia addr.IA, ifId uint16, ts time.Time) *path_mgmt.RevInfo {
+func defaultRevInfo(ia addr.IA, ifID uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         common.IFIDType(ifId),
+		IfID:         iface.ID(ifID),
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),

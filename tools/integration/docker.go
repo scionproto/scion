@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	dockerCmd = "docker-compose"
+	dockerCmd = "docker"
 )
 
 var (
@@ -38,8 +38,8 @@ var (
 var dockerArgs []string
 
 func initDockerArgs() {
-	dockerArgs = []string{"-f", GenFile("scion-dc.yml"), "-p", "scion", "exec", "-T", "-e",
-		fmt.Sprintf("%s=1", GoIntegrationEnv)}
+	dockerArgs = []string{"compose", "-f", GenFile("scion-dc.yml"), "exec", "-T",
+		"-e", fmt.Sprintf("%s=1", GoIntegrationEnv)}
 }
 
 var _ Integration = (*dockerIntegration)(nil)

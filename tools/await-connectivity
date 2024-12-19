@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script waits for the beaconing process in a local topology (running
-# either with supervisor or docker-compose) to establish full connectivity.
+# either with supervisor or docker compose) to establish full connectivity.
 # Uses the control service's segments/ API to determine whether segments have
 # been registered.
 #
@@ -13,7 +13,7 @@
 # 
 # Usage: await-connectivity -q QUIET -t TIMEOUT
 
-set -euo pipefail
+set -Eeuo pipefail
 
 QUIET=10
 TIMEOUT=20
@@ -61,7 +61,7 @@ check_connectivity() {
   for as in $cores; do
     missing=$(comm -23 \
       <(printf "%s\n" $cores | grep -v $as | sort) \
-      <(curl -sfS $(cs_api_url_segments "$as") | jq '.[].start_isd_as' -r | sort -u)
+      <(curl --connect-timeout 5 -sfS $(cs_api_url_segments "$as") | jq '.[].start_isd_as' -r | sort -u)
     )
     if [ -n "$missing" ]; then
       echo "$as: waiting for" $missing
@@ -69,12 +69,13 @@ check_connectivity() {
     fi
   done
 
-  # non-core ASes: wait for at least one (up-)segment
+  # non-core ASes: wait for at least one up-segment.
   for as in $noncores; do
-    curl -sfS $(cs_api_url_segments "$as") | jq -e 'length > 0' > /dev/null || { 
-      echo "$as waiting for up segment"
-      ret=1
-    }
+    tops=$(curl --connect-timeout 5 -sfS $(cs_api_url_segments "$as") | jq -r '.[] | select(.end_isd_as =="'${as}'")')
+    if [ -z "$tops" ]; then
+	  echo "$as: Waiting for Upsegs"
+	  ret=1
+    fi
   done
   return $ret
 }
@@ -83,6 +84,7 @@ main() {
   parse_opts "$@"
 
   # poor bash-man's yaml parser
+  stat gen/as_list.yml > /dev/null # ensure file exists; command substitutions below don't fail because local (!?)
   local cores=$(sed -n '1,/Non-core/{s/^- //p}' gen/as_list.yml)
   local noncores=$(sed -n '/Non-core/,${s/^- //p}' gen/as_list.yml)
 

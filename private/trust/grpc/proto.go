@@ -28,9 +28,10 @@ import (
 
 func chainQueryToReq(query trust.ChainQuery) *cppb.ChainsRequest {
 	return &cppb.ChainsRequest{
-		IsdAs:        uint64(query.IA),
-		SubjectKeyId: query.SubjectKeyID,
-		Date:         &timestamppb.Timestamp{Seconds: query.Date.UTC().Unix()},
+		IsdAs:             uint64(query.IA),
+		SubjectKeyId:      query.SubjectKeyID,
+		AtLeastValidSince: &timestamppb.Timestamp{Seconds: query.Validity.NotBefore.UTC().Unix()},
+		AtLeastValidUntil: &timestamppb.Timestamp{Seconds: query.Validity.NotAfter.UTC().Unix()},
 	}
 }
 
@@ -40,10 +41,10 @@ func repToChains(pbChains []*cppb.Chain) ([][]*x509.Certificate, string, error) 
 		var err error
 		chain := make([]*x509.Certificate, 2)
 		if chain[0], err = x509.ParseCertificate(c.AsCert); err != nil {
-			return nil, trustmetrics.ErrParse, serrors.WrapStr("parsing AS certificate", err)
+			return nil, trustmetrics.ErrParse, serrors.Wrap("parsing AS certificate", err)
 		}
 		if chain[1], err = x509.ParseCertificate(c.CaCert); err != nil {
-			return nil, trustmetrics.ErrParse, serrors.WrapStr("parsing CA certificate", err)
+			return nil, trustmetrics.ErrParse, serrors.Wrap("parsing CA certificate", err)
 		}
 		if err := cppki.ValidateChain(chain); err != nil {
 			return nil, trustmetrics.ErrValidate, err

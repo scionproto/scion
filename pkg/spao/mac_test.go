@@ -24,8 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
@@ -36,10 +36,9 @@ import (
 )
 
 func TestComputeAuthMac(t *testing.T) {
-	srcIA := xtest.MustParseIA("1-ff00:0:111")
-	dstIA := xtest.MustParseIA("1-ff00:0:112")
+	srcIA := addr.MustParseIA("1-ff00:0:111")
+	dstIA := addr.MustParseIA("1-ff00:0:112")
 	authKey := drkey.Key{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
-	sn := uint32(0x060504)
 	ts := uint32(0x030201)
 	fooPayload := []byte("some payload")
 	decodedPath := &scion.Decoded{
@@ -108,11 +107,10 @@ func TestComputeAuthMac(t *testing.T) {
 	}{
 		"empty": {
 			optionParameter: slayers.PacketAuthOptionParams{
-				SPI:            slayers.PacketAuthSPI(0x1),
-				Algorithm:      slayers.PacketAuthCMAC,
-				Timestamp:      0x3e8,
-				SequenceNumber: sn,
-				Auth:           make([]byte, 16),
+				SPI:         slayers.PacketAuthSPI(0x1),
+				Algorithm:   slayers.PacketAuthCMAC,
+				TimestampSN: 0x060504030201,
+				Auth:        make([]byte, 16),
 			},
 			scionL: slayers.SCION{
 				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
@@ -131,8 +129,9 @@ func TestComputeAuthMac(t *testing.T) {
 			rawMACInput: append([]byte{
 				// 1. Authenticator Option Metadata
 				0x9, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
-				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
-				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
+				0x0, 0x0, // Algorithm | RSV
+				0x6, 0x5, 0x4, 0x3, // Timestamp / Sequence Number
+				0x2, 0x1,
 				// 2. SCION Common Header
 				0x3, 0xf0, 0x12, 0x34, // Version | TrafficClass | FlowID
 				0x0, 0x0, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
@@ -143,11 +142,10 @@ func TestComputeAuthMac(t *testing.T) {
 		},
 		"decoded": {
 			optionParameter: slayers.PacketAuthOptionParams{
-				SPI:            slayers.PacketAuthSPI(0x1),
-				Algorithm:      slayers.PacketAuthCMAC,
-				Timestamp:      0x3e8,
-				SequenceNumber: sn,
-				Auth:           make([]byte, 16),
+				SPI:         slayers.PacketAuthSPI(0x1),
+				Algorithm:   slayers.PacketAuthCMAC,
+				TimestampSN: 0x060504030201,
+				Auth:        make([]byte, 16),
 			},
 			scionL: slayers.SCION{
 				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
@@ -166,8 +164,9 @@ func TestComputeAuthMac(t *testing.T) {
 			rawMACInput: append([]byte{
 				// 1. Authenticator Option Metadata
 				0x1c, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
-				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
-				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
+				0x0, 0x0, // Algorithm | RSV
+				0x6, 0x5, 0x4, 0x3, // Timestamp / Sequence Number
+				0x2, 0x1,
 				// 2. SCION Common Header
 				0x3, 0xf0, 0x12, 0x34, // Version | TrafficClass | FlowID
 				0x1, 0x43, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
@@ -198,11 +197,10 @@ func TestComputeAuthMac(t *testing.T) {
 		},
 		"one hop": {
 			optionParameter: slayers.PacketAuthOptionParams{
-				SPI:            slayers.PacketAuthSPI(0x1),
-				Algorithm:      slayers.PacketAuthCMAC,
-				Timestamp:      0x3e8,
-				SequenceNumber: sn,
-				Auth:           make([]byte, 16),
+				SPI:         slayers.PacketAuthSPI(0x1),
+				Algorithm:   slayers.PacketAuthCMAC,
+				TimestampSN: 0x060504030201,
+				Auth:        make([]byte, 16),
 			},
 			scionL: slayers.SCION{
 				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
@@ -242,8 +240,9 @@ func TestComputeAuthMac(t *testing.T) {
 			rawMACInput: append([]byte{
 				// 1. Authenticator Option Metadata
 				0x11, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
-				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
-				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
+				0x0, 0x0, // Algorithm | RSV
+				0x6, 0x5, 0x4, 0x3, // Timestamp / Sequence Number
+				0x2, 0x1,
 				// 2. SCION Common Header
 				0x3, 0xf0, 0x12, 0x34, // Version | TrafficClass | FlowID
 				0x2, 0x0, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
@@ -263,11 +262,10 @@ func TestComputeAuthMac(t *testing.T) {
 		},
 		"epic": {
 			optionParameter: slayers.PacketAuthOptionParams{
-				SPI:            slayers.PacketAuthSPI(2 ^ 21 - 1),
-				Algorithm:      slayers.PacketAuthCMAC,
-				Timestamp:      0x3e8,
-				SequenceNumber: sn,
-				Auth:           make([]byte, 16),
+				SPI:         slayers.PacketAuthSPI(2 ^ 21 - 1),
+				Algorithm:   slayers.PacketAuthCMAC,
+				TimestampSN: 0x060504030201,
+				Auth:        make([]byte, 16),
 			},
 			scionL: slayers.SCION{
 				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
@@ -298,8 +296,9 @@ func TestComputeAuthMac(t *testing.T) {
 
 				// 1. Authenticator Option Metadata
 				0x1d, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
-				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
-				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
+				0x0, 0x0, // Algorithm | RSV
+				0x6, 0x5, 0x4, 0x3, // Timestamp / Sequence Number
+				0x2, 0x1,
 				// 2. SCION Common Header
 				0x3, 0xf0, 0x12, 0x34, // Version | TrafficClass | FlowID
 				0x3, 0x0, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV

@@ -1,0 +1,47 @@
+sh_test(
+    name = "deb_test",
+    srcs = ["deb_test.sh"],
+    data = [
+        "Dockerfile",
+        "//dist:deb",
+    ],
+    env = {
+        "SCION_DEB_PACKAGES": "$(locations //dist:deb)",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)
+
+sh_test(
+    name = "openwrt_test",
+    srcs = ["openwrt_test.sh"],
+    data = [
+        "//dist:openwrt_all",
+        "//dist:openwrt_testing_all",
+    ],
+    env = {
+        "SCION_OPENWRT_PACKAGES": "$(locations //dist:openwrt_all) $(locations //dist:openwrt_testing_all)",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)
+
+sh_test(
+    name = "rpm_test",
+    srcs = ["rpm_test.sh"],
+    data = [
+        "Dockerfile.rpm",
+        "//dist:rpm",
+    ],
+    env = {
+        "SCION_RPM_PACKAGES": "$(locations //dist:rpm)",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)

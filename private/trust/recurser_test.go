@@ -20,14 +20,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/trust"
 )
 
 func TestASLocalRecurserAllowRecursion(t *testing.T) {
-	ia110 := xtest.MustParseIA("1-ff00:0:110")
-	ia120 := xtest.MustParseIA("1-ff00:0:120")
+	ia110 := addr.MustParseIA("1-ff00:0:110")
+	ia120 := addr.MustParseIA("1-ff00:0:120")
 
 	tests := map[string]struct {
 		Addr      net.Addr
@@ -63,8 +63,8 @@ func TestASLocalRecurserAllowRecursion(t *testing.T) {
 }
 
 func TestLocalOnlyRecurserAllowRecursion(t *testing.T) {
-	ia110 := xtest.MustParseIA("1-ff00:0:110")
-	ia120 := xtest.MustParseIA("1-ff00:0:120")
+	ia110 := addr.MustParseIA("1-ff00:0:110")
+	ia120 := addr.MustParseIA("1-ff00:0:120")
 
 	tests := map[string]struct {
 		Addr      net.Addr

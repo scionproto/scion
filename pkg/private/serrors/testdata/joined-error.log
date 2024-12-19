@@ -1,0 +1,1 @@
+{"err":{"cause":{"msg":"msg cause","stacktrace":["pkg/private/serrors/go_default_test_test.TestEncoding pkg/private/serrors/errors_test.go:215","testing.tRunner gosdk"]},"k0":"v0","k1":1,"msg":"msg error"},"level":"info","msg":"Failed to do thing"}

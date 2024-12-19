@@ -63,6 +63,7 @@ func TestLoadTRC(t *testing.T) {
 		file      string
 		cfg       conf.TRC
 		assertErr assert.ErrorAssertionFunc
+		check     func(*conf.TRC)
 	}{
 		"file not found": {
 			file:      "notfound.404",
@@ -71,14 +72,33 @@ func TestLoadTRC(t *testing.T) {
 		"valid": {
 			file:      "testdata/testcfg.toml",
 			assertErr: assert.NoError,
-			cfg:       *createTRC(t),
+			check: func(cfg *conf.TRC) {
+				assert.Equal(t, createTRC(t), cfg)
+				assert.True(t, cfg.Validity.NotBefore.Time().IsZero())
+			},
+		},
+		"unix": {
+			file:      "testdata/testcfg.unix.toml",
+			assertErr: assert.NoError,
+			check: func(cfg *conf.TRC) {
+				assert.Equal(t, int64(1719223994), cfg.Validity.NotBefore.Time().Unix())
+			},
+		},
+		"rfc3339": {
+			file:      "testdata/testcfg.rfc3339.toml",
+			assertErr: assert.NoError,
+			check: func(cfg *conf.TRC) {
+				assert.Equal(t, int64(1719223994), cfg.Validity.NotBefore.Time().Unix())
+			},
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			cfg, err := conf.LoadTRC(tc.file)
 			tc.assertErr(t, err)
-			assert.Equal(t, tc.cfg, cfg)
+			if tc.check != nil {
+				tc.check(&cfg)
+			}
 		})
 	}
 }
@@ -94,10 +114,20 @@ func TestTRCCertificates(t *testing.T) {
 		prepareCfg   func(*conf.TRC)
 		errMsg       string
 		expectedCrts []*x509.Certificate
+		pred         *cppki.TRC
 	}{
 		"valid": {
 			prepareCfg:   func(_ *conf.TRC) {},
 			expectedCrts: []*x509.Certificate{rVoting, sVoting},
+		},
+		"load from predecessor": {
+			prepareCfg: func(cfg *conf.TRC) {
+				cfg.CertificateFiles[0] = "predecessor:4"
+			},
+			expectedCrts: []*x509.Certificate{rVoting, sVoting},
+			pred: &cppki.TRC{
+				Certificates: []*x509.Certificate{4: rVoting},
+			},
 		},
 		"file not found": {
 			prepareCfg: func(cfg *conf.TRC) { cfg.CertificateFiles = []string{"notfound"} },
@@ -108,7 +138,7 @@ func TestTRCCertificates(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cfg := createTRC(t)
 			tc.prepareCfg(cfg)
-			crts, err := cfg.Certificates()
+			crts, err := cfg.Certificates(tc.pred)
 			if tc.errMsg != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tc.errMsg)

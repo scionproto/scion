@@ -44,37 +44,40 @@
 #     |                                                     |
 #     |   +---------------------------------------------+   |
 #     +---+                    pathb                    +----
-#         | 242.254.100.3:50000 <-> 242.254.200.4:50000 |
+#         | 242.254.100.4:50000 <-> 242.254.200.4:50000 |
 #         +---------------------------------------------+
 
 run_test() {(set -e
-    # Register with the docker daemon the docker images bazel created
-    docker image load -i acceptance/sig_short_exp_time/udpproxy.tar
-    docker image load -i acceptance/sig_short_exp_time/dispatcher1.tar
-    docker image load -i acceptance/sig_short_exp_time/dispatcher2.tar
-    docker image load -i acceptance/sig_short_exp_time/sig1.tar
-    docker image load -i acceptance/sig_short_exp_time/sig2.tar
+    # Copy testdata file tree to dereference the symlinks (docker does not follow symlinks)
+    tmpdir=$(mktemp -d)
+    cp -RL acceptance/sig_short_exp_time/* "$tmpdir"
 
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb
+    # Register with the docker daemon the docker images bazel created
+    docker image load -i tools/udpproxy/udpproxy.tar
+    docker image load -i docker/dispatcher.tar
+    docker image load -i docker/gateway.tar
+
+    pushd $tmpdir
+    docker compose up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb
 
     # Set up forward route on network stack 1 and 2 through the sig tunnel
     # device. The route is a property of the network stack, and persists after
     # the container that added it has exited.
     #
     # If the route configuration fails, the test is not stopped.
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name route1 --rm tester1 ip route add 242.254.200.2/32 dev sig || true
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name route2 --rm tester2 ip route add 242.254.100.2/32 dev sig || true
+    docker compose run tester1 ip route add 242.254.200.2/32 dev sig || true
+    docker compose run tester2 ip route add 242.254.100.2/32 dev sig || true
 
     echo "Start background ping, ping every 0.2 seconds"
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name tester1 -d tester1 ping -i 0.2 242.254.200.2
+    docker compose run --name tester1 -d tester1 ping -i 0.2 242.254.200.2
 
     echo "Waiting 10 seconds for path A to expire..."
     sleep 10
     echo "Path A expired, simulating it by shutting down path A proxy"
     # Traffic should have switched beforehand to path b, and no pings should be lost
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml stop patha
+    docker compose stop patha
     sleep 1
-    docker kill -s SIGINT tester1
+    docker compose kill -s SIGINT tester1
 
     sleep 1
     local ping_exit_code=$(docker inspect tester1 --format='{{.State.ExitCode}}')
@@ -95,18 +98,19 @@ run_test() {(set -e
     return 1
 )}
 
+
+OUTPUT_DIR=$(realpath $TEST_UNDECLARED_OUTPUTS_DIR)
+mkdir -p $OUTPUT_DIR/logs
+
 set +e
 run_test
 RC=$?
 
 # Write outputs to bazel directory
-OUTPUT_DIR=$TEST_UNDECLARED_OUTPUTS_DIR
-mkdir -p $OUTPUT_DIR/logs
-
 for CNTR in sig1 sig2 dispatcher1 dispatcher2; do
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml logs "$CNTR" > "$OUTPUT_DIR/logs/$CNTR.log"
+    docker compose -f acceptance/sig_short_exp_time/docker-compose.yml logs "$CNTR" | tee "$OUTPUT_DIR/logs/$CNTR.log"
 done
 
-docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml down -v
+docker compose -f acceptance/sig_short_exp_time/docker-compose.yml down -v --remove-orphans
 
 exit $RC

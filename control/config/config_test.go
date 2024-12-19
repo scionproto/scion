@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/log/logtest"
@@ -34,8 +34,8 @@ func TestConfigSample(t *testing.T) {
 	cfg.Sample(&sample, nil, nil)
 
 	InitTestConfig(&cfg)
-	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
-	assert.NoError(t, err)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).DisallowUnknownFields().Decode(&cfg)
+	assert.NoError(t, err, "config: \n%s", sample.String())
 	CheckTestConfig(t, &cfg, idSample)
 }
 
@@ -75,6 +75,7 @@ func CheckTestBSConfig(t *testing.T, cfg *BSConfig) {
 	assert.Equal(t, DefaultOriginationInterval, cfg.OriginationInterval.Duration)
 	assert.Equal(t, DefaultPropagationInterval, cfg.PropagationInterval.Duration)
 	assert.Equal(t, DefaultRegistrationInterval, cfg.RegistrationInterval.Duration)
+	assert.False(t, cfg.EPIC)
 	CheckTestPolicies(t, &cfg.Policies)
 }
 

@@ -2,17 +2,10 @@ load("//tools/lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "dispatcher.go",
-        "table.go",
-        "underlay.go",
-    ],
+    srcs = ["dispatcher.go"],
     importpath = "github.com/scionproto/scion/dispatcher",
     visibility = ["//visibility:public"],
     deps = [
-        "//dispatcher/internal/metrics:go_default_library",
-        "//dispatcher/internal/registration:go_default_library",
-        "//dispatcher/internal/respool:go_default_library",
         "//pkg/addr:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/private/common:go_default_library",
@@ -20,25 +13,20 @@ go_library(
         "//pkg/slayers:go_default_library",
         "//pkg/slayers/path/epic:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
-        "//private/ringbuf:go_default_library",
-        "//private/underlay/conn:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
+        "@org_golang_x_net//ipv4:go_default_library",
+        "@org_golang_x_net//ipv6:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = ["underlay_test.go"],
+    srcs = ["dispatcher_test.go"],
     embed = [":go_default_library"],
     deps = [
-        "//dispatcher/internal/respool:go_default_library",
         "//pkg/addr:go_default_library",
-        "//pkg/private/xtest:go_default_library",
-        "//pkg/slayers:go_default_library",
-        "//pkg/slayers/path:go_default_library",
-        "//pkg/slayers/path/scion:go_default_library",
-        "@com_github_golang_mock//gomock:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
+        "//pkg/snet:go_default_library",
+        "//pkg/snet/path:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],

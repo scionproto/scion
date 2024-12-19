@@ -1,1 +1,1 @@
-{"err":{"k0":"v0","k1":1,"msg":"err msg","stacktrace":["pkg/private/serrors/go_default_test_test.TestEncoding pkg/private/serrors/errors_test.go:191","testing.tRunner src/testing/testing.go:1446","runtime.goexit src/runtime/asm_amd64.s:1594"]},"level":"info","msg":"Failed to do thing"}
+{"err":{"k0":"v0","k1":1,"msg":"err msg","stacktrace":["pkg/private/serrors/go_default_test_test.TestEncoding pkg/private/serrors/errors_test.go:191","testing.tRunner gosdk"]},"level":"info","msg":"Failed to do thing"}

@@ -49,50 +49,40 @@ class DockerUtilsGenerator(object):
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
 
     def generate(self):
-        self._utils_conf()
         for topo_id in self.args.topo_dicts:
             self._test_conf(topo_id)
         if self.args.sig:
             self._sig_testing_conf()
         return self.dc_conf
 
-    def _utils_conf(self):
-        entry_chown = {
-            'image': 'busybox',
-            'network_mode': 'none',
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro'
-            ],
-            'command': 'chown -R ' + self.user + ' /mnt/volumes'
-        }
-        for volume in self.dc_conf['volumes']:
-            entry_chown['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
-        self.dc_conf['services']['utils_chowner'] = entry_chown
-
     def _test_conf(self, topo_id):
         cntr_base = '/share'
         name = 'tester_%s' % topo_id.file_fmt()
         entry = {
             'image': docker_image(self.args, 'tester'),
-            'container_name': 'tester_%s' % topo_id.file_fmt(),
-            'depends_on': ['scion_disp_%s' % name],
             'privileged': True,
             'entrypoint': 'sh tester.sh',
             'environment': {},
             # 'user': self.user,
             'volumes': [
-                'vol_scion_disp_%s:/run/shm/dispatcher:rw' % name,
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
-            'network_mode': 'service:scion_disp_%s' % name,
         }
         net = self.args.networks[name][0]
         ipv = 'ipv4'
         if ipv not in net:
             ipv = 'ipv6'
+        ip = str(net[ipv])
+        if 'disp_%s' % name in self.dc_conf['services']:
+            entry['depends_on'] = ['disp_%s' % name]
+            entry.update({'network_mode': 'service:disp_%s' % name})
+        else:
+            entry['networks'] = {}
+            entry['networks'][self.args.bridges[net['net']]] = {
+                '%s_address' % ipv: ip
+            }
         disp_net = self.args.networks[name][0]
         entry['environment']['SCION_LOCAL_ADDR'] = str(disp_net[ipv])
         sciond_net = self.args.networks['sd%s' % topo_id.file_fmt()][0]

@@ -36,8 +36,8 @@ func TestSDTopoReload(t *testing.T) {
 		t.Skip("This test only runs as bazel unit test")
 	}
 
-	defer teardownTest(t)
 	setupTest(t)
+	defer collectLogs(t)
 
 	// first load the topo files to memory for comparison.
 	origTopo, err := topology.RWTopologyFromJSONFile("../topo_common/topology.json")
@@ -68,29 +68,30 @@ func TestSDTopoReload(t *testing.T) {
 func setupTest(t *testing.T) {
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
-	mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
-	mustExec(t, "docker", "image", "load", "-i", "daemon.tar")
+	mustExec(t, "docker", "image", "load", "-i", "daemon.tar/tarball.tar")
+	t.Cleanup(func() {
+		mustExec(t, "docker", "image", "rm", "scion/acceptance/topo_daemon_reload:daemon")
+	})
 	// now start the docker containers
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up",
-		"-d", "topo_daemon_reload_dispatcher", "topo_daemon_reload_daemon")
+	mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
+		"up", "-d", "topo_daemon_reload_daemon")
+	t.Cleanup(func() { mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "down", "-v") })
 	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second / 2)
 	t.Log("Test setup done")
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "ps")
+	mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "ps")
 }
 
-func teardownTest(t *testing.T) {
-	defer mustExec(t, "docker-compose", "-f", "docker-compose.yml", "down", "-v")
-
+func collectLogs(t *testing.T) {
 	outdir, exists := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR")
 	require.True(t, exists, "TEST_UNDECLARED_OUTPUTS_DIR must be defined")
 	require.NoError(t, os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
 	// collect logs
 	for service, file := range map[string]string{
-		"topo_daemon_reload_dispatcher": "disp.log",
-		"topo_daemon_reload_daemon":     "daemon.log",
+		"topo_daemon_reload_daemon": "daemon.log",
 	} {
-		cmd := exec.Command("docker-compose", "-f", "docker-compose.yml", "logs", "--no-color",
+		cmd := exec.Command("docker", "compose",
+			"-f", "docker-compose.yml", "logs", "--no-color",
 			service)
 		logFileName := fmt.Sprintf("%s/logs/%s", outdir, file)
 		logFile, err := os.Create(logFileName)
@@ -108,10 +109,10 @@ func teardownTest(t *testing.T) {
 func loadTopo(t *testing.T, name string) {
 	t.Helper()
 
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "exec", "-T",
-		"topo_daemon_reload_daemon", "mv", name, "/topology.json")
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "kill", "-s", "SIGHUP",
-		"topo_daemon_reload_daemon")
+	mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
+		"exec", "-T", "topo_daemon_reload_daemon", "mv", name, "/topology.json")
+	mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
+		"kill", "-s", "SIGHUP", "topo_daemon_reload_daemon")
 }
 
 func mustExec(t *testing.T, name string, arg ...string) {

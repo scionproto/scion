@@ -1,73 +1,78 @@
-load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("@io_bazel_rules_docker//container:container.bzl", "container_image")
-load("@io_bazel_rules_docker//docker/package_managers:download_pkgs.bzl", "download_pkgs")
-load("@io_bazel_rules_docker//docker/package_managers:install_pkgs.bzl", "install_pkgs")
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@tester_debian10_packages//:packages.bzl", "debian_package_layer")
 
-def build_tester_image():
-    download_pkgs(
-        name = "tester_pkgs",
-        image_tar = "@debian10//image",
-        packages = [
-            "bridge-utils",
-            "iperf3",
-            "iptables",
-            "netcat-openbsd",
-            "openssh-server",
-            "openssh-client",
-            "procps",
-            "telnet",
-            "tshark",
-            "wget",
+def scion_tester_image():
+    pkg_tar(
+        name = "tester_layer_packages",
+        deps = [
+            debian_package_layer("bridge-utils"),
+            debian_package_layer("iperf3"),
+            debian_package_layer("iptables"),
+            debian_package_layer("netcat-openbsd"),
+            debian_package_layer("openssh-server"),
+            debian_package_layer("openssh-client"),
+            debian_package_layer("procps"),
+            debian_package_layer("telnet"),
+            debian_package_layer("tshark"),
+            debian_package_layer("wget"),
         ],
     )
 
-    install_pkgs(
-        name = "tester_pkgs_image",
-        image_tar = "@debian10//image",
-        installables_tar = ":tester_pkgs.tar",
-        installation_cleanup_commands = "rm -rf /var/lib/apt/lists/*",
-        output_image_name = "tester_pkgs_image",
-    )
-
     pkg_tar(
-        name = "bin",
+        name = "tester_layer_bin",
         srcs = [
             "//tools/end2end:end2end",
             "//scion/cmd/scion",
             "//scion-pki/cmd/scion-pki:scion-pki",
         ],
-        package_dir = "bin",
+        package_dir = "share/bin",
     )
 
     pkg_tar(
-        name = "integration",
+        name = "tester_layer_tools_integration",
         srcs = [
             "//tools/integration:bin_wrapper.sh",
         ],
-        package_dir = "tools/integration",
+        package_dir = "share/tools/integration",
     )
 
     pkg_tar(
-        name = "share",
-        deps = [
-            ":bin",
-            ":integration",
-        ],
-        srcs = [":tester_files"],
+        name = "tester_layer_share",
+        srcs = native.glob(["files/*"]),
         package_dir = "share",
     )
 
-    container_image(
+    oci_image(
         name = "tester",
-        base = ":tester_pkgs_image.tar",
+        base = "@debian10",
         env = {
             "TZ": "UTC",
             "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/share/bin",
         },
-        tars = [
-            ":share",
-        ],
         workdir = "/share",
-        cmd = "tail -f /dev/null",
+        cmd = ["tail", "-f", "/dev/null"],
+        tars = [
+            ":tester_layer_packages",
+            ":tester_layer_share",
+            ":tester_layer_tools_integration",
+            ":tester_layer_bin",
+        ],
+        labels = ":labels",
+        visibility = ["//visibility:public"],
+    )
+    oci_tarball(
+        name = "tester.load",
+        format = "docker",
+        image = "tester",
+        repo_tags = ["scion/tester:latest"],
+    )
+
+    # see comment on scion_app.bzl
+    copy_file(
+        name = "tester.tarball",
+        src = "tester.load",
+        out = "tester.tar",
         visibility = ["//visibility:public"],
     )

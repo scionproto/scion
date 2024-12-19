@@ -42,9 +42,11 @@ var globalCfg config.Config
 
 func main() {
 	application := launcher.Application{
-		TOMLConfig: &globalCfg,
-		ShortName:  "SCION Router",
-		Main:       realMain,
+		ApplicationBase: launcher.ApplicationBase{
+			TOMLConfig: &globalCfg,
+			ShortName:  "SCION Router",
+			Main:       realMain,
+		},
 	}
 	application.Run()
 }
@@ -56,19 +58,24 @@ func realMain(ctx context.Context) error {
 	}
 	g, errCtx := errgroup.WithContext(ctx)
 	metrics := router.NewMetrics()
+
 	dp := &router.Connector{
 		DataPlane: router.DataPlane{
-			Metrics: metrics,
+			Metrics:                        metrics,
+			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
 		},
-		ReceiveBufferSize: globalCfg.Router.ReceiveBufferSize,
-		SendBufferSize:    globalCfg.Router.SendBufferSize,
+		ReceiveBufferSize:   globalCfg.Router.ReceiveBufferSize,
+		SendBufferSize:      globalCfg.Router.SendBufferSize,
+		BFD:                 globalCfg.Router.BFD,
+		DispatchedPortStart: globalCfg.Router.DispatchedPortStart,
+		DispatchedPortEnd:   globalCfg.Router.DispatchedPortEnd,
 	}
 	iaCtx := &control.IACtx{
 		Config: controlConfig,
 		DP:     dp,
 	}
 	if err := iaCtx.Configure(); err != nil {
-		return serrors.WrapStr("configuring dataplane", err)
+		return serrors.Wrap("configuring dataplane", err)
 	}
 	statusPages := service.StatusPages{
 		"info":      service.NewInfoStatusPage(),
@@ -112,7 +119,7 @@ func realMain(ctx context.Context) error {
 			defer log.HandlePanic()
 			err := mgmtServer.ListenAndServe()
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return serrors.WrapStr("serving service management API", err)
+				return serrors.Wrap("serving service management API", err)
 			}
 			return nil
 		})
@@ -129,7 +136,7 @@ func realMain(ctx context.Context) error {
 			BatchSize:             globalCfg.Router.BatchSize,
 		}
 		if err := dp.DataPlane.Run(errCtx, runConfig); err != nil {
-			return serrors.WrapStr("running dataplane", err)
+			return serrors.Wrap("running dataplane", err)
 		}
 		return nil
 	})
@@ -140,7 +147,7 @@ func realMain(ctx context.Context) error {
 func loadControlConfig() (*control.Config, error) {
 	newConf, err := control.LoadConfig(globalCfg.General.ID, globalCfg.General.ConfigDir)
 	if err != nil {
-		return nil, serrors.WrapStr("loading topology", err)
+		return nil, serrors.Wrap("loading topology", err)
 	}
 	return newConf, nil
 }

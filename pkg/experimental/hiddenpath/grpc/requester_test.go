@@ -40,14 +40,14 @@ import (
 func TestRequesterSegments(t *testing.T) {
 	testSeg := createSeg(t)
 	hpID := hiddenpath.GroupID{
-		OwnerAS: xtest.MustParseAS("ff00:0:2"),
+		OwnerAS: addr.MustParseAS("ff00:0:2"),
 		Suffix:  15,
 	}
 	defaultGroups := hiddenpath.Groups{
 		hpID: {
 			ID: hpID,
 			Writers: map[addr.IA]struct{}{
-				xtest.MustParseIA("1-ff00:0:3"): {},
+				addr.MustParseIA("1-ff00:0:3"): {},
 			},
 		},
 	}
@@ -69,7 +69,7 @@ func TestRequesterSegments(t *testing.T) {
 					return ret
 				},
 				input: segfetcher.Request{
-					Dst: xtest.MustParseIA("1-ff00:0:3"),
+					Dst: addr.MustParseIA("1-ff00:0:3"),
 				},
 				want:        1,
 				assertError: assert.NoError,
@@ -83,7 +83,7 @@ func TestRequesterSegments(t *testing.T) {
 					return ret
 				},
 				input: segfetcher.Request{
-					Dst: xtest.MustParseIA("1-ff00:0:7"),
+					Dst: addr.MustParseIA("1-ff00:0:7"),
 				},
 				want:        0,
 				assertError: assert.NoError,
@@ -97,7 +97,7 @@ func TestRequesterSegments(t *testing.T) {
 					return ret
 				},
 				input: segfetcher.Request{
-					Dst: xtest.MustParseIA("1-ff00:0:3"),
+					Dst: addr.MustParseIA("1-ff00:0:3"),
 				},
 				want:        0,
 				assertError: assert.Error,
@@ -149,7 +149,7 @@ func TestAuthoritativeRequesterHiddenSegments(t *testing.T) {
 		"valid": {
 			input: hiddenpath.SegmentRequest{
 				GroupIDs: []hiddenpath.GroupID{mustParseGroupID(t, "ff00:0:42-404")},
-				DstIA:    xtest.MustParseIA("1-ff00:0:3"),
+				DstIA:    addr.MustParseIA("1-ff00:0:3"),
 			},
 			signer: func(ctrl *gomock.Controller) hpgrpc.Signer {
 				s := mock_grpc.NewMockSigner(ctrl)

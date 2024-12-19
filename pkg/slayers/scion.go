@@ -394,15 +394,16 @@ func ParseAddr(addrType AddrType, raw []byte) (addr.Host, error) {
 func PackAddr(host addr.Host) (AddrType, []byte, error) {
 	switch host.Type() {
 	case addr.HostTypeIP:
-		ip := host.IP()
+		// The IP is potentially IPv4-in-IPv6. We need to unmap it to ensure
+		// we only have true IPv4 or IPv6 addresses.
+		ip := host.IP().Unmap()
 		if !ip.IsValid() {
 			break
 		}
-		t := T4Ip
 		if ip.Is6() {
-			t = T16Ip
+			return T16Ip, ip.AsSlice(), nil
 		}
-		return t, ip.AsSlice(), nil
+		return T4Ip, ip.AsSlice(), nil
 	case addr.HostTypeSVC:
 		raw := make([]byte, 4)
 		binary.BigEndian.PutUint16(raw, uint16(host.SVC()))

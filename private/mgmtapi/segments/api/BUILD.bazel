@@ -1,10 +1,9 @@
 load("//tools/lint:go.bzl", "go_library", "go_test")
-load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_generate_go")
+load("//private/mgmtapi:api.bzl", "openapi_generate_go")
 
 openapi_generate_go(
     name = "api_generated",
     src = "//spec:segments",
-    server = True,
     spec = False,
 )
 
@@ -24,8 +23,8 @@ go_library(
         "//pkg/segment:go_default_library",
         "//private/mgmtapi:go_default_library",
         "//private/pathdb/query:go_default_library",
-        "@com_github_deepmap_oapi_codegen//pkg/runtime:go_default_library",  # keep
         "@com_github_go_chi_chi_v5//:go_default_library",  # keep
+        "@com_github_oapi_codegen_runtime//:go_default_library",  # keep
         "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )

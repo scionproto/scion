@@ -1,0 +1,1 @@
+{"err":{"msg":"msg","stacktrace":["pkg/private/serrors/go_default_test_test.TestEncoding.func2.1 pkg/private/serrors/errors_test.go:239"]},"level":"info","msg":"Failed to do thing"}

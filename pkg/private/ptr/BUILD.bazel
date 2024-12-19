@@ -1,0 +1,8 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["ptr.go"],
+    importpath = "github.com/scionproto/scion/pkg/private/ptr",
+    visibility = ["//visibility:public"],
+)

@@ -128,7 +128,7 @@ func (h *deviceHandle) ioWrapper(f func([]byte) (int, error), b []byte) (int, er
 	if err != nil && h.destroyed() {
 		// always give the correct number of bytes to the caller (e.g., so it can know up to
 		// where it read/wrote on a device which supports streaming).
-		return n, serrors.Wrap(control.ObjectDestroyedError, err)
+		return n, serrors.JoinNoStack(control.ObjectDestroyedError, err)
 	}
 	return n, err
 }
@@ -151,7 +151,7 @@ func (h *deviceHandle) routeWrapper(ctx context.Context,
 	}
 	err := f(ctx, r)
 	if err != nil && h.destroyed() {
-		return serrors.Wrap(control.ObjectDestroyedError, err)
+		return serrors.JoinNoStack(control.ObjectDestroyedError, err)
 	}
 	return err
 }

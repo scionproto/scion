@@ -1,0 +1,17 @@
+[Unit]
+Description=SCION Daemon
+Documentation=https://docs.scion.org
+After=network-online.target scion-dispatcher.service
+Wants=scion-dispatcher.service
+StartLimitBurst=1
+StartLimitInterval=1s
+
+[Service]
+Type=simple
+User=scion
+Group=scion
+ExecStart=/usr/bin/scion-daemon --config /etc/scion/daemon.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

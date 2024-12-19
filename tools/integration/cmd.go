@@ -43,7 +43,7 @@ func (c Cmd) Template(src, dst *snet.UDPAddr) (Cmd, error) {
 	if needSCIOND(args) {
 		daemonAddr, err := GetSCIONDAddress(GenFile(DaemonAddressesFile), src.IA)
 		if err != nil {
-			return Cmd{}, serrors.WrapStr("unable to determine SCION Daemon address", err)
+			return Cmd{}, serrors.Wrap("unable to determine SCION Daemon address", err)
 		}
 		args = replacePattern(Daemon, daemonAddr, args)
 	}
@@ -75,7 +75,7 @@ func Run(ctx context.Context, cfg RunConfig) error {
 	if cfg.Tester != "" {
 		args := append([]string{}, dockerArgs...)
 		args = append(args, cfg.Tester, "sh", "-c", joinCmds(cfg.Commands))
-		cmd = exec.CommandContext(ctx, "docker-compose", args...)
+		cmd = exec.CommandContext(ctx, "docker", args...)
 		log.Debug("Running docker command", "cmd", cmd)
 	} else {
 		cmd = exec.CommandContext(ctx, "sh", "-c", joinCmds(cfg.Commands))

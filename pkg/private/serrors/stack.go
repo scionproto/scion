@@ -188,10 +188,11 @@ func (s *stack) StackTrace() StackTrace {
 }
 
 func callers() *stack {
+	// We skip 4 boilerplate frames: Ctor()->mkErrorInfo()->callers()->Callers()
 	const depth = 32
 	var pcs [depth]uintptr
-	n := runtime.Callers(3, pcs[:])
-	var st stack = pcs[0:n]
+	n := runtime.Callers(4, pcs[:])
+	var st stack = pcs[0 : n-1] // skip bottom runtime.goexit at bottom of each stack
 	return &st
 }
 

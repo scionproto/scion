@@ -24,13 +24,13 @@ import (
 	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/opentracing/opentracing-go"
 	"golang.org/x/sync/singleflight"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	drkey_daemon "github.com/scionproto/scion/daemon/drkey"
 	"github.com/scionproto/scion/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/prom"
@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/util"
 	pb_daemon "github.com/scionproto/scion/pkg/proto/daemon"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/revcache"
@@ -46,9 +47,10 @@ import (
 )
 
 type Topology interface {
-	InterfaceIDs() []uint16
+	IfIDs() []uint16
 	UnderlayNextHop(uint16) *net.UDPAddr
 	ControlServiceAddresses() []*net.UDPAddr
+	PortRange() (uint16, uint16)
 }
 
 // DaemonServer handles gRPC requests to the SCION daemon.
@@ -245,7 +247,7 @@ func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 	core, err := s.ASInspector.HasAttributes(ctx, reqIA, trust.Core)
 	if err != nil {
 		log.FromCtx(ctx).Error("Inspecting ISD-AS", "err", err, "isd_as", reqIA)
-		return nil, serrors.WrapStr("inspecting ISD-AS", err, "isd_as", reqIA)
+		return nil, serrors.Wrap("inspecting ISD-AS", err, "isd_as", reqIA)
 	}
 	reply := &sdpb.ASResponse{
 		IsdAs: uint64(reqIA),
@@ -275,7 +277,7 @@ func (s *DaemonServer) interfaces(ctx context.Context,
 		Interfaces: make(map[uint64]*sdpb.Interface),
 	}
 	topo := s.Topology
-	for _, ifID := range topo.InterfaceIDs() {
+	for _, ifID := range topo.IfIDs() {
 		nextHop := topo.UnderlayNextHop(ifID)
 		if nextHop == nil {
 			continue
@@ -335,7 +337,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 
 	revInfo := &path_mgmt.RevInfo{
 		RawIsdas:     addr.IA(req.IsdAs),
-		IfID:         common.IFIDType(req.Id),
+		IfID:         iface.ID(req.Id),
 		LinkType:     proto.LinkType_core,
 		RawTTL:       10,
 		RawTimestamp: util.TimeToSecs(time.Now()),
@@ -344,11 +346,24 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 	if err != nil {
 		log.FromCtx(ctx).Error("Inserting revocation", "err", err, "req", req)
 		return nil, metricsError{
-			err:    serrors.WrapStr("inserting revocation", err),
+			err:    serrors.Wrap("inserting revocation", err),
 			result: prom.ErrDB,
 		}
 	}
 	return &sdpb.NotifyInterfaceDownResponse{}, nil
+}
+
+// PortRange returns the port range for the dispatched ports.
+func (s *DaemonServer) PortRange(
+	_ context.Context,
+	_ *emptypb.Empty,
+) (*sdpb.PortRangeResponse, error) {
+
+	startPort, endPort := s.Topology.PortRange()
+	return &sdpb.PortRangeResponse{
+		DispatchedPortStart: uint32(startPort),
+		DispatchedPortEnd:   uint32(endPort),
+	}, nil
 }
 
 func (s *DaemonServer) DRKeyASHost(
@@ -356,14 +371,17 @@ func (s *DaemonServer) DRKeyASHost(
 	req *pb_daemon.DRKeyASHostRequest,
 ) (*pb_daemon.DRKeyASHostResponse, error) {
 
+	if s.DRKeyClient == nil {
+		return nil, serrors.New("DRKey is not available")
+	}
 	meta, err := requestToASHostMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing protobuf ASHostReq", err)
+		return nil, serrors.Wrap("parsing protobuf ASHostReq", err)
 	}
 
 	lvl2Key, err := s.DRKeyClient.GetASHostKey(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("getting AS-Host from client store", err)
+		return nil, serrors.Wrap("getting AS-Host from client store", err)
 	}
 
 	return &sdpb.DRKeyASHostResponse{
@@ -378,14 +396,17 @@ func (s *DaemonServer) DRKeyHostAS(
 	req *pb_daemon.DRKeyHostASRequest,
 ) (*pb_daemon.DRKeyHostASResponse, error) {
 
+	if s.DRKeyClient == nil {
+		return nil, serrors.New("DRKey is not available")
+	}
 	meta, err := requestToHostASMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing protobuf HostASReq", err)
+		return nil, serrors.Wrap("parsing protobuf HostASReq", err)
 	}
 
 	lvl2Key, err := s.DRKeyClient.GetHostASKey(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("getting Host-AS from client store", err)
+		return nil, serrors.Wrap("getting Host-AS from client store", err)
 	}
 
 	return &sdpb.DRKeyHostASResponse{
@@ -400,13 +421,16 @@ func (s *DaemonServer) DRKeyHostHost(
 	req *pb_daemon.DRKeyHostHostRequest,
 ) (*pb_daemon.DRKeyHostHostResponse, error) {
 
+	if s.DRKeyClient == nil {
+		return nil, serrors.New("DRKey is not available")
+	}
 	meta, err := requestToHostHostMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing protobuf HostHostReq", err)
+		return nil, serrors.Wrap("parsing protobuf HostHostReq", err)
 	}
 	lvl2Key, err := s.DRKeyClient.GetHostHostKey(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("getting Host-Host from client store", err)
+		return nil, serrors.Wrap("getting Host-Host from client store", err)
 	}
 
 	return &sdpb.DRKeyHostHostResponse{
@@ -419,7 +443,7 @@ func (s *DaemonServer) DRKeyHostHost(
 func requestToASHostMeta(req *sdpb.DRKeyASHostRequest) (drkey.ASHostMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.ASHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+		return drkey.ASHostMeta{}, serrors.Wrap("invalid valTime from pb request", err)
 	}
 	return drkey.ASHostMeta{
 		ProtoId:  drkey.Protocol(req.ProtocolId),
@@ -433,7 +457,7 @@ func requestToASHostMeta(req *sdpb.DRKeyASHostRequest) (drkey.ASHostMeta, error)
 func requestToHostASMeta(req *sdpb.DRKeyHostASRequest) (drkey.HostASMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.HostASMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+		return drkey.HostASMeta{}, serrors.Wrap("invalid valTime from pb request", err)
 	}
 	return drkey.HostASMeta{
 		ProtoId:  drkey.Protocol(req.ProtocolId),
@@ -447,7 +471,7 @@ func requestToHostASMeta(req *sdpb.DRKeyHostASRequest) (drkey.HostASMeta, error)
 func requestToHostHostMeta(req *sdpb.DRKeyHostHostRequest) (drkey.HostHostMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.HostHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+		return drkey.HostHostMeta{}, serrors.Wrap("invalid valTime from pb request", err)
 	}
 	return drkey.HostHostMeta{
 		ProtoId:  drkey.Protocol(req.ProtocolId),

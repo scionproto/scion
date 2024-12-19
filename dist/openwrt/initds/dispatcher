@@ -1,0 +1,27 @@
+#!/bin/sh /etc/rc.common
+# "new(er)" style init script
+# Look at /lib/functions/service.sh on a running system for explanations of what other SERVICE_
+# options you can use, and when you might want them.
+
+START=99
+STOP=0
+APP=scion-dispatcher
+SERVICE_WRITE_PID=1
+SERVICE_DAEMONIZE=1
+
+init_conf() {
+    if [ -f "/etc/scion/dispatcher.toml" ]; then
+        rm -f /etc/scion/dispatcher.toml.default
+    elif [ -f "/etc/scion/dispatcher.toml.default" ]; then
+        mv /etc/scion/dispatcher.toml.default /etc/scion/dispatcher.toml
+    fi
+}
+
+start() {
+    init_conf
+    service_start /usr/bin/$APP --config /etc/scion/dispatcher.toml
+}
+
+stop() {
+    service_stop /usr/bin/$APP
+}

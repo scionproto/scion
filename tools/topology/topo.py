@@ -66,7 +66,8 @@ class TopoGenArgs(ArgsBase):
                  topo_config,
                  subnet_gen4: SubnetGenerator,
                  subnet_gen6: SubnetGenerator,
-                 default_mtu: int):
+                 default_mtu: int,
+                 dispatched_ports: str):
         """
         :param ArgsBase args: Contains the passed command line arguments.
         :param dict topo_config: The parsed topology config.
@@ -81,6 +82,7 @@ class TopoGenArgs(ArgsBase):
             ADDR_TYPE_6: subnet_gen6,
         }
         self.default_mtu = default_mtu
+        self.dispatched_ports = dispatched_ports
         self.port_gen = PortGenerator()
 
 
@@ -242,6 +244,16 @@ class TopoGenerator(object):
             'attributes': attributes,
             'isd_as': str(topo_id),
             'mtu': mtu,
+            # XXX(JordiSubira): This key is used internally later on, to decide
+            # whether to create a dispatcher container collocated with the tester
+            # container.
+            #
+            # Correcter/nicer would be to pass the ConfigGenerator.topo_config
+            # via the DockerGenArgs to DockerGenerator and check the test_dispatcher
+            # flag for the individual AS in DockerGenerator.generate before the call
+            # to self._gen_topo
+            'test_dispatcher': as_conf.get('test_dispatcher', True),
+            'dispatched_ports': as_conf.get('dispatched_ports', self.args.dispatched_ports),
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
@@ -294,10 +306,13 @@ class TopoGenerator(object):
     def _gen_br_entry(self, local, l_ifid, remote, r_ifid, remote_type, attrs,
                       local_br, remote_br, addr_type):
         link_addr_type = addr_type_from_underlay(attrs.get('underlay', DEFAULT_UNDERLAY))
-        public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid,
-                                                        r_ifid, link_addr_type)
+        local_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid,
+                                                       r_ifid, link_addr_type)
 
         intl_addr = self._reg_addr(local, local_br + "_internal", addr_type)
+
+        intf = self._gen_br_intf(remote, r_ifid, local_addr, remote_addr, attrs, remote_type)
+
         if self.topo_dicts[local]["border_routers"].get(local_br) is None:
             intl_port = 30042
             if not self.args.docker:
@@ -306,24 +321,27 @@ class TopoGenerator(object):
             self.topo_dicts[local]["border_routers"][local_br] = {
                 'internal_addr': join_host_port(intl_addr.ip, intl_port),
                 'interfaces': {
-                    l_ifid: self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
+                    l_ifid: intf
                 }
             }
         else:
             # There is already a BR entry, add interface
-            intf = self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
             self.topo_dicts[local]["border_routers"][local_br]['interfaces'][l_ifid] = intf
 
-    def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
-        return {
+    def _gen_br_intf(self, remote, r_ifid, local_addr, remote_addr, attrs, remote_type):
+        link_to = remote_type.name.lower()
+        intf = {
             'underlay': {
-                'public': join_host_port(public_addr.ip, SCION_ROUTER_PORT),
+                'local': join_host_port(local_addr.ip, SCION_ROUTER_PORT),
                 'remote': join_host_port(remote_addr.ip, SCION_ROUTER_PORT),
             },
             'isd_as': str(remote),
-            'link_to': remote_type.name.lower(),
-            'mtu': attrs.get('mtu', self.args.default_mtu)
+            'link_to': link_to,
+            'mtu': attrs.get('mtu', self.args.default_mtu),
         }
+        if link_to == 'peer':
+            intf['remote_interface_id'] = r_ifid
+        return intf
 
     def _gen_sig_entries(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
@@ -390,7 +408,7 @@ class IFIDGenerator(object):
 
     def new(self):
         while True:
-            ifid = random.randrange(1, 4096)
+            ifid = random.randrange(1, 65536)
             if ifid in self._ifids:
                 continue
             self.add(ifid)
@@ -400,7 +418,7 @@ class IFIDGenerator(object):
         if ifid in self._ifids:
             logging.critical("IFID %d already exists!" % ifid)
             exit(1)
-        if ifid < 1 or ifid > 4095:
+        if ifid < 1 or ifid > 65535:
             logging.critical("IFID %d is invalid!" % ifid)
             exit(1)
         self._ifids.add(ifid)

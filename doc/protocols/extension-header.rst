@@ -8,7 +8,7 @@ This document contains the specification of the SCION extension headers. There
 are two extension headers defined, the *Hop-by-Hop (HBH) Options Header* and the
 *End-to-End (E2E) Options Header*. A SCION packet can have at most **one** of
 each. If both headers are present, the HBH options **MUST** come before the E2E
-options. The option header support a variable number of *type-length-value
+options. The option header supports a variable number of *type-length-value
 (TLV)* encoded options.
 
 .. _hop-by-hop-options:

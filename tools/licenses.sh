@@ -14,7 +14,7 @@ rm -rf $DSTDIR
 
 (cd $EXECROOT/external; find -L . -iregex '.*\(LICENSE\|COPYING\).*') | while IFS= read -r path ; do
     # skip over node JS stuff, this is only used during build time.
-    if [[ "$path" =~ "node_modules" || "$path" =~ "nodejs" ]]; then
+    if [[ "$path" =~ "node_modules" || "$path" =~ "nodejs" || "$path" =~ "rules_license" ]]; then
         continue
     fi
     dst=$DSTDIR/$(dirname $path)
@@ -35,3 +35,9 @@ rm -rf $DSTDIR/org_uber_go_zap/checklicense.sh
 rm -rf $DSTDIR/org_golang_x_tools/gopls/
 rm -rf $DSTDIR/org_golang_x_tools/internal/lsp/cmd/usage/licenses.hlp
 rm -rf $DSTDIR/com_github_google_certificate_transparency_go/scripts
+rm -rf $DSTDIR/python3_10_x86_64-unknown-linux-gnu/
+rm -rf $DSTDIR/aspect_bazel_lib/
+rm -rf $DSTDIR/aspect_rules_js/
+rm -rf $DSTDIR/npm__*/
+find $DSTDIR/ -name "*.go" -type f -delete
+find $DSTDIR/ -path "*/testdata/*" -type f -delete

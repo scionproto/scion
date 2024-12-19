@@ -28,10 +28,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
@@ -67,8 +67,8 @@ func TestBadPeering(t *testing.T) {
 		{
 			Name:     "broken peering",
 			FileName: "00_bad_peering.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:112"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:122"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:112"),
+			DstIA:    addr.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_B_111_A, graph.If_111_A_112_X}),
 			},
@@ -96,10 +96,12 @@ func TestBadPeering(t *testing.T) {
 	}
 }
 
-func TestMultiPeering(t *testing.T) {
+func TestMiscPeering(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
+	// Add a core-core peering link. It can be used in some cases.
+	g.AddLink("1-ff00:0:130", 4001, "2-ff00:0:210", 4002, true)
 
 	testCases := []struct {
 		Name     string
@@ -111,10 +113,10 @@ func TestMultiPeering(t *testing.T) {
 		Downs    []*seg.PathSegment
 	}{
 		{
-			Name:     "two peerings between same ases",
+			Name:     "two peerings between same ases and core core peering",
 			FileName: "00_multi_peering.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:112"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:212"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:112"),
+			DstIA:    addr.MustParseIA("2-ff00:0:212"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_B_111_A, graph.If_111_A_112_X}),
 			},
@@ -125,8 +127,27 @@ func TestMultiPeering(t *testing.T) {
 				g.Beacon([]uint16{graph.If_210_X_211_A, graph.If_211_A_212_X}),
 			},
 		},
+		{
+			// In this case, the 130-210 peering link should not be used (the router would reject)
+			// because the hop through 210 would be assimilated to a valley path: one of the
+			// joined segments is a core segment, not a down segment.
+			Name:     "core to core peering forbidden",
+			FileName: "00_core_core_invalid_peering.txt",
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("2-ff00:0:221"),
+			Ups: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_130_A_131_X}),
+			},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]uint16{
+					graph.If_220_X_210_X, graph.If_210_X_110_X, graph.If_110_X_130_A}),
+			},
+			Downs: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_220_X_221_X}),
+			},
+		},
 	}
-	t.Log("TestMultiPeering")
+	t.Log("TestMiscPeering")
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
@@ -159,8 +180,8 @@ func TestSameCoreParent(t *testing.T) {
 		{
 			Name:     "non-core ases share same core as direct upstream",
 			FileName: "00_same_core_parent.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:112"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("1-ff00:0:112"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
 			},
@@ -201,8 +222,8 @@ func TestLoops(t *testing.T) {
 		{
 			Name:     "core segment create a loop",
 			FileName: "00_loops.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:111"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:112"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:111"),
+			DstIA:    addr.MustParseIA("1-ff00:0:112"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_111_B}),
 				g.Beacon([]uint16{graph.If_130_B_111_A}),
@@ -253,8 +274,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#0 simple up-core-down",
 			FileName: "00_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("1-ff00:0:111"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
 			},
@@ -268,8 +289,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#1 simple up-core",
 			FileName: "01_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:110"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("1-ff00:0:110"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
 			},
@@ -280,8 +301,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#2 simple up only",
 			FileName: "02_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:130"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("1-ff00:0:130"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
 			},
@@ -289,8 +310,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#3 simple core-down",
 			FileName: "03_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:130"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:121"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:130"),
+			DstIA:    addr.MustParseIA("1-ff00:0:121"),
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_A_130_B}),
 			},
@@ -301,8 +322,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#4 simple down only",
 			FileName: "04_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:130"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:130"),
+			DstIA:    addr.MustParseIA("1-ff00:0:111"),
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_B_111_A}),
 			},
@@ -310,8 +331,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#5 inverted core",
 			FileName: "05_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("1-ff00:0:111"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
 			},
@@ -325,8 +346,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#6 simple long up-core-down",
 			FileName: "06_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:212"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:132"),
+			DstIA:    addr.MustParseIA("2-ff00:0:212"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
@@ -340,8 +361,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#7 missing up",
 			FileName: "07_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:122"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:132"),
+			DstIA:    addr.MustParseIA("1-ff00:0:122"),
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_A_110_X, graph.If_110_X_130_A}),
 			},
@@ -352,8 +373,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#8 missing core",
 			FileName: "08_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:211"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:132"),
+			DstIA:    addr.MustParseIA("2-ff00:0:211"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
@@ -364,8 +385,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#9 missing down",
 			FileName: "09_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:122"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:132"),
+			DstIA:    addr.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
@@ -376,8 +397,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#10 simple up-core-down, multiple cores",
 			FileName: "10_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:112"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:132"),
+			DstIA:    addr.MustParseIA("1-ff00:0:112"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
@@ -392,8 +413,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#11 shortcut, destination on path, going up, vonly hf is from core",
 			FileName: "11_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:133"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:131"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:133"),
+			DstIA:    addr.MustParseIA("1-ff00:0:131"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X,
 					graph.If_132_X_133_X}),
@@ -405,8 +426,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#12 shortcut, destination on path, going up, vonly hf is non-core",
 			FileName: "12_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:133"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:132"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:133"),
+			DstIA:    addr.MustParseIA("1-ff00:0:132"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X,
 					graph.If_132_X_133_X}),
@@ -418,8 +439,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#13 shortcut, destination on path, going down, verify hf is from core",
 			FileName: "13_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:132"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("1-ff00:0:132"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
 			},
@@ -430,8 +451,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#14 shortcut, common upstream",
 			FileName: "14_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
+			SrcIA:    addr.MustParseIA("2-ff00:0:212"),
+			DstIA:    addr.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X1_211_A, graph.If_211_A1_212_X}),
 			},
@@ -442,8 +463,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#15 go through peer",
 			FileName: "15_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
+			SrcIA:    addr.MustParseIA("2-ff00:0:212"),
+			DstIA:    addr.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X1_211_A, graph.If_211_A1_212_X}),
 			},
@@ -457,8 +478,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#16 start from peer",
 			FileName: "16_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:122"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
 			},
@@ -472,8 +493,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#17 start and end on peer",
 			FileName: "17_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:121"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("1-ff00:0:121"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
 			},
@@ -487,8 +508,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#18 only end on peer",
 			FileName: "18_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:121"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:132"),
+			DstIA:    addr.MustParseIA("1-ff00:0:121"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
@@ -502,8 +523,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#19 don't use core shortcuts",
 			FileName: "19_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:110"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:110"),
+			DstIA:    addr.MustParseIA("2-ff00:0:222"),
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X_110_X}),
 				g.Beacon([]uint16{graph.If_220_X_210_X, graph.If_210_X_110_X}),
@@ -516,8 +537,8 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#20 core only",
 			FileName: "20_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:130"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:210"),
+			SrcIA:    addr.MustParseIA("1-ff00:0:130"),
+			DstIA:    addr.MustParseIA("2-ff00:0:210"),
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X_110_X, graph.If_110_X_130_A}),
 				g.Beacon([]uint16{graph.If_210_X_110_X, graph.If_110_X_120_A,
@@ -547,20 +568,20 @@ func TestFilterDuplicates(t *testing.T) {
 	// These look somewhat valid, but that doesn't matter at all -- we only look
 	// at the fingerprint anyway.
 	path0 := []snet.PathInterface{
-		{IA: xtest.MustParseIA("1-ff00:0:110"), ID: common.IFIDType(10)},
-		{IA: xtest.MustParseIA("1-ff00:0:111"), ID: common.IFIDType(10)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(10)},
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.ID(10)},
 	}
 	path1 := []snet.PathInterface{
-		{IA: xtest.MustParseIA("1-ff00:0:110"), ID: common.IFIDType(11)},
-		{IA: xtest.MustParseIA("1-ff00:0:112"), ID: common.IFIDType(11)},
-		{IA: xtest.MustParseIA("1-ff00:0:112"), ID: common.IFIDType(12)},
-		{IA: xtest.MustParseIA("1-ff00:0:111"), ID: common.IFIDType(12)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.ID(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.ID(12)},
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.ID(12)},
 	}
 	path2 := []snet.PathInterface{
-		{IA: xtest.MustParseIA("1-ff00:0:110"), ID: common.IFIDType(11)},
-		{IA: xtest.MustParseIA("1-ff00:0:112"), ID: common.IFIDType(11)},
-		{IA: xtest.MustParseIA("1-ff00:0:112"), ID: common.IFIDType(22)},
-		{IA: xtest.MustParseIA("1-ff00:0:111"), ID: common.IFIDType(22)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.ID(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.ID(22)},
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.ID(22)},
 	}
 
 	// Define two expiry times for the paths: paths with latest expiry will be kept
@@ -577,6 +598,7 @@ func TestFilterDuplicates(t *testing.T) {
 				Interfaces: interfaces,
 				Expiry:     expiry,
 			},
+			Fingerprint: combinator.Fingerprint(interfaces, combinator.NewHashState()),
 		}
 	}
 

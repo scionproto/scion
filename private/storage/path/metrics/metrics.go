@@ -191,6 +191,15 @@ func (db *metricsExecutor) InsertWithHPGroupIDs(ctx context.Context,
 	return cnt, err
 }
 
+func (db *metricsExecutor) DeleteSegment(ctx context.Context, partialID string) error {
+	var err error
+	db.metrics.Observe(ctx, promOpInsertHpCfg, func(ctx context.Context) error {
+		err = db.pathDB.DeleteSegment(ctx, partialID)
+		return err
+	})
+	return err
+}
+
 func (db *metricsExecutor) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	var cnt int
 	var err error

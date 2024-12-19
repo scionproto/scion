@@ -17,78 +17,63 @@ package topology
 
 import (
 	"net"
+	"net/netip"
 	"strconv"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	jsontopo "github.com/scionproto/scion/private/topology/json"
 )
 
-func rawAddrToTopoAddr(rawAddr string) (*TopoAddr, error) {
-	a, err := rawAddrToUDPAddr(rawAddr)
-	if err != nil {
-		return nil, err
+func rawBRIntfLocalAddr(u *jsontopo.Underlay) (netip.AddrPort, error) {
+	if (u.DeprecatedPublic != "" || u.DeprecatedBind != "") && u.Local != "" {
+		return netip.AddrPort{},
+			serrors.New(`deprecated "public" and "bind" fields cannot be combined with "local"`,
+				"underlay", u)
 	}
-	return &TopoAddr{
-		SCIONAddress: a,
-		UnderlayAddress: &net.UDPAddr{
-			IP:   append(a.IP[:0:0], a.IP...),
-			Port: EndhostPort,
-			Zone: a.Zone,
-		},
-	}, nil
+
+	// handle _deprecated_ "public" and "bind" fields
+	if u.DeprecatedPublic != "" {
+		ret, err := resolveAddrPort(u.DeprecatedPublic)
+		if err != nil {
+			return netip.AddrPort{}, err
+		}
+		if u.DeprecatedBind != "" {
+			bindIP, err := netip.ParseAddr(u.DeprecatedBind)
+			if err != nil {
+				return netip.AddrPort{}, err
+			}
+			ret = netip.AddrPortFrom(bindIP.Unmap(), ret.Port())
+		}
+		return ret, nil
+	}
+
+	// the new normal, parse "local"
+	return resolveAddrPortOrPort(u.Local)
 }
 
-func rawBRIntfTopoBRAddr(i *jsontopo.BRInterface) (*net.UDPAddr, error) {
-	rh, port, err := splitHostPort(i.Underlay.Public)
+// resolveAddrPortOrPort parses a string in the format "IP:port", "hostname:port" or just ":port".
+func resolveAddrPortOrPort(s string) (netip.AddrPort, error) {
+	rh, rp, err := net.SplitHostPort(s)
 	if err != nil {
-		return nil, err
+		return netip.AddrPort{}, serrors.Wrap("failed to split host port", err)
 	}
-	var rawIP string
-	if i.Underlay.Bind != "" {
-		rawIP = i.Underlay.Bind
-	} else if rh != "" {
-		rawIP = rh
-	} else {
-		return nil, serrors.WithCtx(errUnderlayAddrNotFound, "underlay", i.Underlay)
+	if rh == "" {
+		port, err := strconv.ParseUint(rp, 10, 16)
+		if err != nil {
+			return netip.AddrPort{}, serrors.Wrap("failed to parse port", err)
+		}
+		return netip.AddrPortFrom(netip.Addr{}, uint16(port)), nil
 	}
-	return resolveToUDPAddr(rawIP, port)
+	return resolveAddrPort(s)
 }
 
-func splitHostPort(rawAddr string) (string, int, error) {
-	rh, rp, err := net.SplitHostPort(rawAddr)
+// resolveAddrPort parses a string in the format "IP:port" or "hostname:port".
+func resolveAddrPort(s string) (netip.AddrPort, error) {
+	// detour via "legacy" net.UDPAddr; there is no corresponding function for netip.AddrPort
+	udpAddr, err := net.ResolveUDPAddr("udp", s)
 	if err != nil {
-		return "", 0, serrors.WrapStr("failed to split host port", err)
+		return netip.AddrPort{}, err
 	}
-	port, err := strconv.Atoi(rp)
-	if err != nil {
-		return "", 0, serrors.WrapStr("failed to parse port", err)
-	}
-	return rh, port, nil
-}
-
-func resolveToUDPAddr(rawIP string, port int) (*net.UDPAddr, error) {
-	ipAddr, err := net.ResolveIPAddr("ip", rawIP)
-	if err != nil {
-		return nil, serrors.WrapStr("failed to resolve ip", err, "raw", rawIP)
-	}
-	if ipAddr.IP == nil {
-		return nil, serrors.New("missing/invalid IP", "raw", rawIP)
-	}
-	// Convert to 4-byte format to simplify testing
-	if ip4 := ipAddr.IP.To4(); ip4 != nil {
-		ipAddr.IP = ip4
-	}
-	return &net.UDPAddr{
-		IP:   append(ipAddr.IP[:0:0], ipAddr.IP...),
-		Port: port,
-		Zone: ipAddr.Zone,
-	}, nil
-}
-
-func rawAddrToUDPAddr(rawAddr string) (*net.UDPAddr, error) {
-	rh, port, err := splitHostPort(rawAddr)
-	if err != nil {
-		return nil, err
-	}
-	return resolveToUDPAddr(rh, port)
+	a := udpAddr.AddrPort()
+	return netip.AddrPortFrom(a.Addr().Unmap(), a.Port()), nil
 }

@@ -1,0 +1,12 @@
+[gateway]
+traffic_policy_file = "/etc/scion/gateway.json"
+
+[tunnel]
+name = "sig"
+
+[log.console]
+level = "info"
+
+# Optionally expose metrics and other local inspection endpoints.
+# [metrics]
+# prometheus = "127.0.0.1:30456"

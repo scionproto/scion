@@ -1,5 +1,8 @@
-Sphinx
 recommonmark
+Sphinx
+sphinx_copybutton
+sphinx_design
 sphinx-autobuild
+sphinx-lint
 sphinx-rtd-theme
 sphinxcontrib-openapi

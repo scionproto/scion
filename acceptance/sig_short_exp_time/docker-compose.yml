@@ -1,3 +1,4 @@
+name: sig_short_exp_time
 networks:
   bridge1:
     driver: bridge
@@ -21,8 +22,7 @@ services:
       "-local_y", "242.254.200.3:50000",
       "-remote_y", "242.254.200.2:30041",
       ]
-    container_name: patha
-    image: bazel/acceptance/sig_short_exp_time:udpproxy
+    image: scion/tools/udpproxy:latest
     networks:
       bridge1:
         ipv4_address: 242.254.100.3
@@ -35,65 +35,66 @@ services:
       "-local_y", "242.254.200.4:50000",
       "-remote_y", "242.254.200.2:30041",
       ]
-    container_name: pathb
-    image: bazel/acceptance/sig_short_exp_time:udpproxy
+    image: scion/tools/udpproxy:latest
     networks:
       bridge1:
         ipv4_address: 242.254.100.4
       bridge2:
         ipv4_address: 242.254.200.4
   dispatcher1:
-    container_name: dispatcher1
-    image: bazel/acceptance/sig_short_exp_time:dispatcher1
+    image: scion/dispatcher:latest
     networks:
       bridge1:
         ipv4_address: 242.254.100.2
     volumes:
-    - vol_scion_disp_sig1-ff00_0_110:/run/shm/dispatcher:rw
+    - ./testdata/1-ff00_0_110/dispatcher:/etc/scion/
+    command: [ "--config", "/etc/scion/disp.toml" ]
   dispatcher2:
-    container_name: dispatcher2
-    image: bazel/acceptance/sig_short_exp_time:dispatcher2
+    image: scion/dispatcher:latest
     networks:
       bridge2:
         ipv4_address: 242.254.200.2
     volumes:
-    - vol_scion_disp_sig1-ff00_0_111:/run/shm/dispatcher:rw
+    - ./testdata/1-ff00_0_111/dispatcher:/etc/scion/
+    command: [ "--config", "/etc/scion/disp.toml" ]
   sig1:
     cap_add:
     - NET_ADMIN
     container_name: sig1
-    depends_on:
-    - dispatcher1
-    image: bazel/acceptance/sig_short_exp_time:sig1
-    network_mode: service:dispatcher1
+    image: scion/gateway:latest
+    networks:
+      bridge1:
+        ipv4_address: 242.254.100.2
     privileged: true
     volumes:
-    - vol_scion_disp_sig1-ff00_0_110:/run/shm/dispatcher:rw
     - /dev/net/tun:/dev/net/tun
+    - ./testdata/1-ff00_0_110/sig:/etc/scion/
+    command: [ "--config", "/etc/scion/sig.toml" ]
   sig2:
     cap_add:
     - NET_ADMIN
     container_name: sig2
-    depends_on:
-    - dispatcher2
-    image: bazel/acceptance/sig_short_exp_time:sig2
-    network_mode: service:dispatcher2
+    image: scion/gateway:latest
+    networks:
+      bridge2:
+        ipv4_address: 242.254.200.2
     privileged: true
     volumes:
-    - vol_scion_disp_sig1-ff00_0_111:/run/shm/dispatcher:rw
     - /dev/net/tun:/dev/net/tun
+    - ./testdata/1-ff00_0_111/sig:/etc/scion/
+    command: [ "--config", "/etc/scion/sig.toml" ]
   tester1:
-    container_name: tester1
     image: alpine
-    network_mode: service:dispatcher1
+    networks:
+      bridge1:
+        ipv4_address: 242.254.100.10
     privileged: true
   tester2:
-    container_name: tester2
     image: alpine
-    network_mode: service:dispatcher2
+    networks:
+      bridge2:
+        ipv4_address: 242.254.200.10
     privileged: true
 version: '2.4'
 volumes:
   vol_logs: null
-  vol_scion_disp_sig1-ff00_0_110: null
-  vol_scion_disp_sig1-ff00_0_111: null

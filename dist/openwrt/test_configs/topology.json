@@ -1,0 +1,23 @@
+{
+    "attributes": [
+        "core"
+    ],
+    "isd_as": "1-ff00:0:a",
+    "dispatched_ports": "1024-65535",
+    "mtu": 1472,
+    "control_service": {
+        "cs-1": {
+            "addr": "127.0.0.1:30252"
+        }
+    },
+    "discovery_service": {
+        "cs-1": {
+            "addr": "127.0.0.1:30252"
+        }
+    },
+    "border_routers": {
+        "br-1": {
+            "internal_addr": "127.0.0.1:30042"
+        }
+    }
+}

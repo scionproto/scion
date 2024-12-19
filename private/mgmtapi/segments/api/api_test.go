@@ -96,8 +96,8 @@ func TestAPI(t *testing.T) {
 				}
 				dbresult := createSegs(t, graph.NewSigner())
 				q := query.Params{
-					StartsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
-					EndsAt:   []addr.IA{xtest.MustParseIA("1-ff00:0:112")},
+					StartsAt: []addr.IA{addr.MustParseIA("1-ff00:0:110")},
+					EndsAt:   []addr.IA{addr.MustParseIA("1-ff00:0:112")},
 				}
 				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
 					dbresult[:1], nil,
@@ -183,7 +183,7 @@ func TestAPI(t *testing.T) {
 						}
 						rawHdr, err := proto.Marshal(inputHdr)
 						if err != nil {
-							return nil, serrors.WrapStr("packing header", err)
+							return nil, serrors.Wrap("packing header", err)
 						}
 						hdrAndBody := &cryptopb.HeaderAndBodyInternal{
 							Header: rawHdr,
@@ -191,7 +191,7 @@ func TestAPI(t *testing.T) {
 						}
 						rawHdrAndBody, err := proto.Marshal(hdrAndBody)
 						if err != nil {
-							return nil, serrors.WrapStr("packing signature input", err)
+							return nil, serrors.Wrap("packing signature input", err)
 						}
 						return &cryptopb.SignedMessage{
 							HeaderAndBody: rawHdrAndBody,
@@ -260,7 +260,7 @@ func TestAPI(t *testing.T) {
 
 func createSegs(t *testing.T, signer seg.Signer) query.Results {
 	asEntry1 := seg.ASEntry{
-		Local: xtest.MustParseIA("1-ff00:0:110"),
+		Local: addr.MustParseIA("1-ff00:0:110"),
 		HopEntry: seg.HopEntry{
 			HopField: seg.HopField{MAC: [path.MacLen]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11},
 				ConsEgress: 1,
@@ -268,7 +268,7 @@ func createSegs(t *testing.T, signer seg.Signer) query.Results {
 		},
 	}
 	asEntry2 := seg.ASEntry{
-		Local: xtest.MustParseIA("1-ff00:0:111"),
+		Local: addr.MustParseIA("1-ff00:0:111"),
 		HopEntry: seg.HopEntry{
 			HopField: seg.HopField{MAC: [path.MacLen]byte{0x12, 0x12, 0x12, 0x12, 0x12, 0x12},
 				ConsIngress: 1,
@@ -276,7 +276,7 @@ func createSegs(t *testing.T, signer seg.Signer) query.Results {
 		},
 	}
 	asEntry3 := seg.ASEntry{
-		Local: xtest.MustParseIA("1-ff00:0:113"),
+		Local: addr.MustParseIA("1-ff00:0:113"),
 		HopEntry: seg.HopEntry{
 			HopField: seg.HopField{MAC: [path.MacLen]byte{0x13, 0x13, 0x13, 0x13, 0x13, 0x13},
 				ConsIngress: 2},

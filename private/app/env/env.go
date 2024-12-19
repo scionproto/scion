@@ -38,7 +38,7 @@ func (s *SCION) Validate() error {
 	}
 	for ia, as := range s.ASes {
 		if err := as.Validate(); err != nil {
-			return serrors.WrapStr("validating AS", err, "isd-as", ia)
+			return serrors.Wrap("validating AS", err, "isd-as", ia)
 		}
 	}
 	return nil
@@ -49,8 +49,6 @@ type General struct {
 	// DefaultIA is the ISD-AS that will be used by default as a source AS in case multiple SCION
 	// ASes are available on the host.
 	DefaultIA addr.IA `json:"default_isd_as,omitempty"`
-	// DispatcherSocket is the path to the dispatcher socket.
-	DispatcherSocket string `json:"dispatcher_socket,omitempty"`
 }
 
 func (g *General) Validate() error {

@@ -28,7 +28,7 @@ to derive keys in the hierarchy from top to bottom.
 The first secret in the hierarchy (:math:`SV_A`) is derived from a long-term ``master_secret``,
 using a key derivation function.
 For the rest of the derivations, DRKey utilizes pseudorandom functions, which are more efficient.
-Informally, key derivation functions output a cryptographic key indistingushible from
+Informally, key derivation functions output a cryptographic key indistinguishable from
 a random key if the secret is unknown for the attacker.
 In contrast, the security of pseudorandom functions relies on the input being a uniformly
 random secret.
@@ -134,7 +134,7 @@ Protocol-specific derivation
      - host-host key (Level 3)
 
 The SV computation is local, thus the AS is free to compute it as desired as long as
-it outputs a cryptographic key indistingushible from a random key for an attacker.
+it outputs a cryptographic key indistinguishable from a random key for an attacker.
 We suggest to use the *PBKDF2* as KDF function and set ``input`` to:
 ``input = "len(master_secret) || master_secret || protocol || epoch_begin || epoch_end"``.
 
@@ -216,6 +216,8 @@ except for the host address whose length is prepended.
 Key Validity time
 =================
 
+.. _drkey-epoch:
+
 Epochs
 ------
 An epoch is an interval between a starting and ending point in time. The epoch
@@ -229,10 +231,15 @@ Defining a reasonable lower bound for the epoch length used in DRKey
 is necessary to avoid nonsensical scenarios. This value is
 globally set to 6 minutes.
 
+The upper bound for the epoch length is defined to 3 days, looking for a trade-off
+between efficiency and security.
+
 .. note::
 
-  This lower bound might be changed in the future in case a more suitable
-  value is found.
+  These bounds might be changed in the future in case a more suitable
+  values are found.
+
+.. _drkey-grace:
 
 Grace period
 ------------
@@ -248,7 +255,7 @@ Prefetching period
 ------------------
 ASes will be allowed to prefetch keys some time before the key for the current epoch expires.
 This period must be long enough to allow every remote AS to attempt the key prefetching
-enough times to be succesful even in the presence of failures. However, this period
+enough times to be successful even in the presence of failures. However, this period
 should not be too long, since the issuer AS is not assumed to carry out any changes
 once it has issued keys for a given epoch (e.g. modifying SV epoch duration,
 rotating the master secret, etc.).
@@ -270,12 +277,14 @@ The subject-AS on the slow side (i.e. the AS requesting the key) will establish 
 the issuer-AS  on the fast side (i.e. the AS serving the key). Both parties identify each other by using
 the CP-PKI infrastructure.
 
-The Level 1 key request message contains the ``validTime`` for which the key must be active
-and the ``protocol_id``. The Level 1 key response includes the symmetric key along with the epoch
+The Level 1 key request message contains the ``validTime`` that specifies for what time the requested
+key must be valid (it implicitly specifies the epoch for which the key will be valid)
+and the ``protocol_id``.
+The Level 1 key response includes the symmetric key along with the epoch
 for which this key will be valid.
 
 The ``protocol_id`` is either set to ``GENERIC = 0`` to request Lvl1 keys that will be derived according to
-the `generic-protocol` hierarchy or to the protocol number for the `protocol-specific` derivation.
+the ``generic-protocol`` hierarchy or to the protocol number for the ``protocol-specific`` derivation.
 
 Level 0/2/3 key establishment
 -----------------------------
@@ -298,8 +307,8 @@ information (depending on the key type).
 The server responds with the symmetric key and the epoch.
 
 The ``protocol_id`` in Lvl2/3 requests is always set to the final protocol identifier.
-The key service will choose between the `protocol-specific` derivation, if it exists, or
-the `generic-protocol` derivation, otherwise.
+The key service will choose between the ``protocol-specific`` derivation, if it exists, or
+the ``generic-protocol`` derivation, otherwise.
 
 Spreading Level 1 key requests
 ==============================

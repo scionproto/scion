@@ -34,6 +34,7 @@ import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	jaeger "github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -61,6 +62,10 @@ const (
 	// ShutdownGraceInterval is the time applications wait after issuing a
 	// clean shutdown signal, before forcerfully tearing down the application.
 	ShutdownGraceInterval = 5 * time.Second
+
+	// HandlerTimeout is the time after which the http handler gives up on a request and
+	// returns an error instead.
+	HandlerTimeout = time.Minute
 )
 
 var sighupC chan os.Signal
@@ -79,9 +84,6 @@ type General struct {
 	ID string `toml:"id,omitempty"`
 	// ConfigDir for loading extra files (currently, only topology.json and staticInfoConfig.json)
 	ConfigDir string `toml:"config_dir,omitempty"`
-	// ReconnectToDispatcher can be set to true to enable transparent dispatcher
-	// reconnects.
-	ReconnectToDispatcher bool `toml:"reconnect_to_dispatcher,omitempty"`
 }
 
 // InitDefaults sets the default value for Topology if not already set.
@@ -188,7 +190,14 @@ func (cfg *Metrics) ServePrometheus(ctx context.Context) error {
 	if cfg.Prometheus == "" {
 		return nil
 	}
-	http.Handle("/metrics", promhttp.Handler())
+	handler := promhttp.InstrumentMetricHandler(
+		prometheus.DefaultRegisterer,
+		promhttp.HandlerFor(
+			prometheus.DefaultGatherer,
+			promhttp.HandlerOpts{Timeout: HandlerTimeout},
+		),
+	)
+	http.Handle("/metrics", handler)
 	log.Info("Exporting prometheus metrics", "addr", cfg.Prometheus)
 
 	server := &http.Server{Addr: cfg.Prometheus}
@@ -199,7 +208,7 @@ func (cfg *Metrics) ServePrometheus(ctx context.Context) error {
 	}()
 	err := server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return serrors.WrapStr("serving prometheus metrics", err)
+		return serrors.Wrap("serving prometheus metrics", err)
 	}
 	return nil
 }
@@ -252,17 +261,4 @@ func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) 
 	return traceConfig.NewTracer(
 		jaegercfg.Extractor(opentracing.Binary, bp),
 		jaegercfg.Injector(opentracing.Binary, bp))
-}
-
-// QUIC contains configuration for control-plane speakers.
-type QUIC struct {
-	Address string `toml:"address,omitempty"`
-}
-
-func (cfg *QUIC) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteString(dst, quicSample)
-}
-
-func (cfg *QUIC) ConfigName() string {
-	return "quic"
 }

@@ -7,18 +7,20 @@ Unless specified otherwise below, stick to golang's
 
 Generally the code should be formatted with ``gofmt`` (checked by CI).
 
-Lines must be at most 100 characters long (checked by CI via `lll`).
+Lines must be at most 100 characters long (checked by CI via ``lll``).
 
 Naming
 ------
 
 We use mixedCaps notation as recommended by `Effective Go
-<https://golang.org/doc/effective_go.html>`__. The following rules apply (note
-that a significant part of the code base uses other notations; these should be
-refactored, however):
+<https://golang.org/doc/effective_go.html>`__. Perhaps unintuitively, Go
+treats ``ID`` as an initialism, and we treat ``If`` as a word. The following
+rules apply (note that a significant part of the code base uses other
+notations; these should be refactored, however):
 
 - Use ``sd`` or ``SD`` to refer to the SCION Daemon, not ``Sciond`` or ``SCIOND``.
-- Use ``IfID`` or ``ifID`` for SCION Interface Identifiers, not ``IFID`` or ``InterfaceID``.
+- Use ``IfID`` or ``ifID`` for SCION Interface Identifiers, not ``IFID`` nor ``InterfaceID`` nor ``intfID``.
+- Use ``IfIDSomething`` or ``ifIDSomething`` when concatenating ``ifID`` with ``something``.
 - Use ``Svc`` or ``svc`` for SCION Service Addresses, not ``SVC`` or ``Service``.
 - Use ``TRC`` or ``trc`` for Trust Root Configurations, not ``Trc``.
 
@@ -113,35 +115,26 @@ metrics, and for operators to understand where metrics are coming from. As a
 bonus, we should leverage the type system to help us spot as many errors as
 possible.
 
-To write code that both includes metrics, and is testable, we use the
-`metric recommendations from the go-kit project <https://godoc.org/github.com/go-kit/kit/metrics>`__.
+To write code that both includes metrics, and is testable, we use the metric
+interfaces defined in the ``pkg/metrics/v2`` package.
 
-A simple example with labels (note that ``Foo``'s metrics can be unit tested by mocking the counter):
+A simple example with labels (note that ``Giant``'s metrics can be unit tested by
+mocking the counter):
 
-.. literalinclude:: /../pkg/metrics/metrics_test.go
-   :language: Go
-   :dedent: 1
-   :start-after: LITERALINCLUDE ExampleCounter_Interface START
-   :end-before: LITERALINCLUDE ExampleCounter_Interface END
-
-Calling code can later create ``Giant`` objects with Prometheus metric reporting
-by plugging a prometheus counter as the ``Counter``. The Prometheus objects can be
-obtained from the metrics packages in the following way:
-
-.. literalinclude:: /../pkg/metrics/metrics_test.go
+.. literalinclude:: /../pkg/metrics/v2/metrics_test.go
    :language: Go
    :dedent: 1
    :start-after: LITERALINCLUDE ExampleCounter_Implementation START
    :end-before: LITERALINCLUDE ExampleCounter_Implementation END
 
-In cases where performance is a concern, consider applying the labels outside of
-the performance-critical section.
+Calling code can later create ``Giant`` objects with Prometheus metric reporting
+by plugging a prometheus counter as the ``Counter`` as shown in the example.
 
 .. note::
-   Some packages have `metrics` packages that define labels and initialize
+   Some packages have ``metrics`` packages that define labels and initialize
    metrics (see the ``go/cs/beacon/metrics`` package for an example). While this
    is also ok, the recommended way is to define labels in the package itself and
-   initialize metrics in `main`.
+   initialize metrics in ``main``.
 
 Best Practices
 ^^^^^^^^^^^^^^
@@ -152,4 +145,4 @@ Best Practices
 #. Use values that can be searched with regex. E.g. prepend ``err_`` for every error result.
 #. ``snake_case`` label names and values.
 #. Put shared label names and values into ``go/lib/prom``.
-#. Always initialize ``CounterVec`` to avoid hidden metrics `link <https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics)>`.
+#. Always initialize ``CounterVec`` to avoid hidden metrics `link <https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics)>`_.

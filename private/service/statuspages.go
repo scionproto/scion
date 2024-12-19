@@ -23,7 +23,7 @@ import (
 	"sort"
 	"strings"
 
-	toml "github.com/pelletier/go-toml"
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/scionproto/scion/pkg/log"
@@ -99,7 +99,7 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 	})
 	var mainBuf bytes.Buffer
 	if err := t.Execute(&mainBuf, mainData{ElemId: elemId, Pages: pages}); err != nil {
-		return serrors.WrapStr("executing template", err)
+		return serrors.Wrap("executing template", err)
 	}
 	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, mainBuf.String())
@@ -128,7 +128,7 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 func NewConfigStatusPage(config interface{}) StatusPage {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
-		err := toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(config)
+		err := toml.NewEncoder(&buf).Encode(config)
 		if err != nil {
 			http.Error(w, "Error encoding toml config", http.StatusInternalServerError)
 			return

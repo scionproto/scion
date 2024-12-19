@@ -39,18 +39,18 @@ type BeaconSenderFactory struct {
 func (f *BeaconSenderFactory) NewSender(
 	ctx context.Context,
 	dstIA addr.IA,
-	egIfId uint16,
+	egIfID uint16,
 	nextHop *net.UDPAddr,
 ) (beaconing.Sender, error) {
 	addr := &onehop.Addr{
 		IA:      dstIA,
-		Egress:  egIfId,
+		Egress:  egIfID,
 		SVC:     addr.SvcCS,
 		NextHop: nextHop,
 	}
 	conn, err := f.Dialer.Dial(ctx, addr)
 	if err != nil {
-		return nil, serrors.WrapStr("dialing gRPC conn", err)
+		return nil, serrors.Wrap("dialing gRPC conn", err)
 	}
 	return &BeaconSender{
 		Conn: conn,

@@ -25,9 +25,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	jsontopo "github.com/scionproto/scion/private/topology/json"
 )
 
@@ -37,20 +37,20 @@ var (
 
 func TestLoadRawFromFile(t *testing.T) {
 	referenceTopology := &jsontopo.Topology{
-		Timestamp:      168562800,
-		TimestampHuman: "May  6 00:00:00 CET 1975",
-		IA:             "6-ff00:0:362",
-		MTU:            1472,
-		Attributes:     []jsontopo.Attribute{jsontopo.AttrCore},
+		Timestamp:        168562800,
+		TimestampHuman:   "May  6 00:00:00 CET 1975",
+		IA:               "6-ff00:0:362",
+		MTU:              1472,
+		EndhostPortRange: "1024-65535",
+		Attributes:       []jsontopo.Attribute{jsontopo.AttrCore},
 		BorderRouters: map[string]*jsontopo.BRInfo{
 			"borderrouter6-f00:0:362-1": {
 				InternalAddr: "10.1.0.1:0",
-				Interfaces: map[common.IFIDType]*jsontopo.BRInterface{
+				Interfaces: map[iface.ID]*jsontopo.BRInterface{
 					91: {
 						Underlay: jsontopo.Underlay{
-							Public: "192.0.2.1:4997",
+							Local:  "192.0.2.1:4997",
 							Remote: "192.0.2.2:4998",
-							Bind:   "10.0.0.1",
 						},
 						IA:     "6-ff00:0:363",
 						LinkTo: "CORE",
@@ -65,12 +65,11 @@ func TestLoadRawFromFile(t *testing.T) {
 			},
 			"borderrouter6-f00:0:362-9": {
 				InternalAddr: "[2001:db8:a0b:12f0::2]:0",
-				Interfaces: map[common.IFIDType]*jsontopo.BRInterface{
+				Interfaces: map[iface.ID]*jsontopo.BRInterface{
 					32: {
 						Underlay: jsontopo.Underlay{
-							Public: "[2001:db8:a0b:12f0::1]:4997",
+							Local:  "[2001:db8:a0b:12f0::1]:4997",
 							Remote: "[2001:db8:a0b:12f0::2]:4998",
-							Bind:   "2001:db8:a0b:12f0::8",
 						},
 						IA:     "6-ff00:0:364",
 						LinkTo: "CHILD",

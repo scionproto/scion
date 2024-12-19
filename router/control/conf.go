@@ -16,15 +16,14 @@ package control
 
 import (
 	"crypto/sha256"
-	"net"
+	"net/netip"
 	"sort"
 
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/topology"
 )
 
@@ -32,12 +31,16 @@ import (
 // by this controller.
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
-	AddInternalInterface(ia addr.IA, local net.UDPAddr) error
-	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
-	AddSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
-	DelSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
+	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
+	AddExternalInterface(localIfID iface.ID, info LinkInfo, owned bool) error
+	AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
+	DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	SetKey(ia addr.IA, index int, key []byte) error
+	SetPortRange(start, end uint16)
 }
+
+// BFD is the configuration for the BFD sessions.
+type BFD topology.BFD
 
 // LinkInfo contains the information about a link between an internal and
 // external router.
@@ -50,10 +53,11 @@ type LinkInfo struct {
 	MTU      int
 }
 
-// LinkEnd represents on end of a link.
+// LinkEnd represents one end of a link.
 type LinkEnd struct {
 	IA   addr.IA
-	Addr *net.UDPAddr
+	Addr netip.AddrPort
+	IfID iface.ID
 }
 
 type ObservableDataplane interface {
@@ -65,13 +69,13 @@ type ObservableDataplane interface {
 // InternalInterface represents the internal interface of a router.
 type InternalInterface struct {
 	IA   addr.IA
-	Addr *net.UDPAddr
+	Addr netip.AddrPort
 }
 
 // ExternalInterface represents an external interface of a router.
 type ExternalInterface struct {
 	// InterfaceID is the identifier of the external interface.
-	InterfaceID uint16
+	IfID uint16
 	// Link is the information associated with this link.
 	Link LinkInfo
 	// State indicates the interface state.
@@ -81,10 +85,10 @@ type ExternalInterface struct {
 // SiblingInterface represents a sibling interface of a router.
 type SiblingInterface struct {
 	// InterfaceID is the identifier of the external interface.
-	InterfaceID uint16
+	IfID uint16
 	// InternalInterfaces is the local address (internal interface)
 	// of the sibling router that owns this interface.
-	InternalInterface *net.UDPAddr
+	InternalInterface netip.AddrPort
 	// Relationship describes the type of inter-AS links.
 	Relationship topology.LinkType
 	// MTU is the maximum Transmission Unit for SCION packets.
@@ -124,10 +128,11 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 			return err
 		}
 	}
+
 	// Add internal interfaces
 	if cfg.BR != nil {
-		if cfg.BR.InternalAddr != nil {
-			if err := dp.AddInternalInterface(cfg.IA, *cfg.BR.InternalAddr); err != nil {
+		if cfg.BR.InternalAddr != (netip.AddrPort{}) {
+			if err := dp.AddInternalInterface(cfg.IA, cfg.BR.InternalAddr); err != nil {
 				return err
 			}
 		}
@@ -140,6 +145,8 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	if err := confServices(dp, cfg); err != nil {
 		return err
 	}
+	// Set Endhost port range
+	dp.SetPortRange(cfg.Topo.PortRange())
 	return nil
 }
 
@@ -156,50 +163,52 @@ func DeriveHFMacKey(k []byte) []byte {
 }
 
 func confExternalInterfaces(dp Dataplane, cfg *Config) error {
-	// Sort out keys/ifids to get deterministic order for unit testing
+	// Sort out keys/ifIDs to get deterministic order for unit testing
 	infoMap := cfg.Topo.IFInfoMap()
 	if len(infoMap) == 0 {
 		// nothing to do
 		return nil
 	}
-	ifids := []common.IFIDType{}
+	ifIDs := []iface.ID{}
 	for k := range infoMap {
-		ifids = append(ifids, k)
+		ifIDs = append(ifIDs, k)
 	}
-	sort.Slice(ifids, func(i, j int) bool { return ifids[i] < ifids[j] })
+	sort.Slice(ifIDs, func(i, j int) bool { return ifIDs[i] < ifIDs[j] })
 	// External interfaces
-	for _, ifid := range ifids {
-		iface := infoMap[ifid]
+	for _, ifID := range ifIDs {
+		iface := infoMap[ifID]
 		linkInfo := LinkInfo{
 			Local: LinkEnd{
 				IA:   cfg.IA,
-				Addr: snet.CopyUDPAddr(iface.Local),
+				Addr: iface.Local,
+				IfID: iface.ID,
 			},
 			Remote: LinkEnd{
 				IA:   iface.IA,
-				Addr: snet.CopyUDPAddr(iface.Remote),
+				Addr: iface.Remote,
+				IfID: iface.RemoteIfID,
 			},
 			Instance: iface.BRName,
-			BFD:      WithDefaults(BFD(iface.BFD)),
+			BFD:      BFD(iface.BFD),
 			LinkTo:   iface.LinkType,
 			MTU:      iface.MTU,
 		}
 
-		_, owned := cfg.BR.IFs[ifid]
+		_, owned := cfg.BR.IFs[ifID]
 		if !owned {
-			// XXX The current implementation effectively uses IP/UDP tunnels to create
-			// the SCION network as an overlay, with forwarding to local hosts being a special case.
-			// When setting up external interfaces that belong to other routers in the AS, they
-			// are basically IP/UDP tunnels between the two border routers, and as such is
-			// configured in the data plane.
-			linkInfo.Local.Addr = snet.CopyUDPAddr(cfg.BR.InternalAddr)
-			linkInfo.Remote.Addr = snet.CopyUDPAddr(iface.InternalAddr)
-			// For internal BFD always use the default configuration, which can be modified with
-			// the env variables.
-			linkInfo.BFD = BFDDefaults
+			// The current implementation effectively uses IP/UDP tunnels to create the SCION
+			// network as an overlay, with forwarding to local hosts being a special case. When
+			// setting up external interfaces that belong to other routers in the AS, they are
+			// basically IP/UDP tunnels between the two border routers. Those are described as a
+			// link from the internal address of the local router to the internal address of the
+			// sibling router; and not to the router in the remote AS.
+			linkInfo.Local.Addr = cfg.BR.InternalAddr
+			linkInfo.Remote.Addr = iface.InternalAddr // i.e. via sibling router.
+			// For internal BFD always use the default configuration.
+			linkInfo.BFD = BFD{}
 		}
 
-		if err := dp.AddExternalInterface(ifid, linkInfo, owned); err != nil {
+		if err := dp.AddExternalInterface(ifID, linkInfo, owned); err != nil {
 			return err
 		}
 	}
@@ -217,7 +226,7 @@ func confServices(dp Dataplane, cfg *Config) error {
 		return nil
 	}
 	for _, svc := range svcTypes {
-		addrs, err := cfg.Topo.UnderlayMulticast(svc)
+		addrs, err := cfg.Topo.Multicast(svc)
 		if err != nil {
 			// XXX assumption is that any error means there are no addresses for the SVC type
 			continue
@@ -227,7 +236,7 @@ func confServices(dp Dataplane, cfg *Config) error {
 			return addrs[i].IP.String() < addrs[j].IP.String()
 		})
 		for _, a := range addrs {
-			if err := dp.AddSvc(cfg.IA, svc, a.IP); err != nil {
+			if err := dp.AddSvc(cfg.IA, svc, a.AddrPort()); err != nil {
 				return err
 			}
 		}

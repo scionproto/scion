@@ -39,7 +39,7 @@ func TestComputeSegmentExpTime(t *testing.T) {
 		{
 			Name:               "non-zero hop ttl field value",
 			Segment:            buildTestSegment(0, 1),
-			ExpectedExpiration: 674,
+			ExpectedExpiration: 675,
 		},
 		{
 			Name:               "two hop fields, min should be taken",
@@ -49,29 +49,29 @@ func TestComputeSegmentExpTime(t *testing.T) {
 		{
 			Name:               "maximum ttl selected",
 			Segment:            buildTestSegment(0, 255),
-			ExpectedExpiration: 24*60*60 - 128, // rounding error drift
+			ExpectedExpiration: 24 * 60 * 60,
 		},
 		{
 			Name:               "ttl relative to info field timestamp",
 			Segment:            buildTestSegment(100, 1),
-			ExpectedExpiration: 774,
+			ExpectedExpiration: 775,
 		},
 		{
 			Name:               "ttl relative to maximum info field timestamp",
 			Segment:            buildTestSegment(4294967295, 1),
-			ExpectedExpiration: 4294967969,
+			ExpectedExpiration: 4294967970,
 		},
 		{
 			Name:               "maximum possible value",
 			Segment:            buildTestSegment(4294967295, 255),
-			ExpectedExpiration: 4295053695 - 128, // rounding error drift
+			ExpectedExpiration: 4295053695,
 		},
 	}
 	t.Log("Expiration values should be correct")
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			computedExpiration := tc.Segment.ComputeExpTime()
-			assert.Equal(t, computedExpiration.Unix(), tc.ExpectedExpiration)
+			assert.Equal(t, tc.ExpectedExpiration, computedExpiration.Unix())
 		})
 
 	}

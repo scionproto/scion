@@ -1,8 +1,0 @@
-{
-    "dependencies": {
-        "@redocly/cli": "^1.0.0-beta.123",
-        "@stoplight/spectral-cli": "^6.6.0",
-        "lodash.get": "^4.4.2",
-        "lodash.set": "^4.3.2"
-    }
-}

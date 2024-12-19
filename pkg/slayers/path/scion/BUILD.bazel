@@ -24,6 +24,7 @@ go_test(
     ],
     deps = [
         ":go_default_library",
+        "//pkg/private/serrors:go_default_library",
         "//pkg/slayers/path:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

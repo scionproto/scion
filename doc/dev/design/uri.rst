@@ -4,7 +4,7 @@ SCION Address URI encoding
 
 - Author: Dominik Roos
 - Last updated: 2020-09-02
-- Status: **proposal**
+- Status: **Active**
 - Discussion at: -
 
 Abstract

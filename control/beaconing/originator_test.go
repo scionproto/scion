@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/trust"
 )
 
 const (
@@ -60,7 +61,7 @@ func TestOriginatorRun(t *testing.T) {
 		}
 		return false
 	}
-	t.Run("run originates ifid packets on all active interfaces", func(t *testing.T) {
+	t.Run("run originates ifID packets on all active interfaces", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
@@ -69,7 +70,7 @@ func TestOriginatorRun(t *testing.T) {
 			Extender: &beaconing.DefaultExtender{
 				IA:         topo.IA(),
 				MTU:        topo.MTU(),
-				Signer:     signer,
+				SignerGen:  testSignerGen{Signers: []trust.Signer{signer}},
 				Intfs:      intfs,
 				MAC:        macFactory,
 				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -89,7 +90,7 @@ func TestOriginatorRun(t *testing.T) {
 
 		senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Times(4).DoAndReturn(
-			func(_ context.Context, dstIA addr.IA, egIfId uint16,
+			func(_ context.Context, dstIA addr.IA, egIfID uint16,
 				nextHop *net.UDPAddr) (beaconing.Sender, error) {
 
 				sender := mock_beaconing.NewMockSender(mctrl)
@@ -102,9 +103,12 @@ func TestOriginatorRun(t *testing.T) {
 						// Extract the hop field from the current AS entry to compare.
 						hopF := b.ASEntries[b.MaxIdx()].HopEntry.HopField
 						// Check the interface matches.
-						assert.Equal(t, hopF.ConsEgress, egIfId)
+						assert.Equal(t, hopF.ConsEgress, egIfID)
+						// Check that the expected peering entry is there too.
+						peering := b.ASEntries[b.MaxIdx()].PeerEntries[0]
+						assert.Equal(t, peering.HopField.ConsIngress, uint16(4242))
 						// Check that the beacon is sent to the correct border router.
-						br := net.UDPAddrFromAddrPort(interfaceInfos(topo)[egIfId].InternalAddr)
+						br := net.UDPAddrFromAddrPort(interfaceInfos(topo)[egIfID].InternalAddr)
 						assert.Equal(t, br, nextHop)
 						return nil
 					},
@@ -130,7 +134,7 @@ func TestOriginatorRun(t *testing.T) {
 			Extender: &beaconing.DefaultExtender{
 				IA:         topo.IA(),
 				MTU:        topo.MTU(),
-				Signer:     signer,
+				SignerGen:  testSignerGen{Signers: []trust.Signer{signer}},
 				Intfs:      intfs,
 				MAC:        macFactory,
 				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },

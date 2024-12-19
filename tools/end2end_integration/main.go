@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2023 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -72,13 +73,13 @@ func realMain() int {
 		"-log.console", "debug",
 		"-attempts", strconv.Itoa(attempts),
 		"-timeout", timeout.String(),
-		"-local", integration.SrcAddrPattern + ":0",
-		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+		"-local", "[" + integration.SrcAddrPattern + "]:0",
+		"-remote", "[" + integration.DstAddrPattern + "]:" + integration.ServerPortReplace,
 		fmt.Sprintf("-epic=%t", epic),
 	}
 	serverArgs := []string{
 		"-mode", "server",
-		"-local", integration.DstAddrPattern + ":0",
+		"-local", "[" + integration.DstAddrPattern + "]:0",
 	}
 	if len(features) != 0 {
 		clientArgs = append(clientArgs, "--features", features)
@@ -99,6 +100,7 @@ func realMain() int {
 		log.Error("Error during tests", "err", err)
 		return 1
 	}
+
 	return 0
 }
 
@@ -110,8 +112,9 @@ func addFlags() {
 	flag.StringVar(&name, "name", "end2end_integration",
 		"The name of the test that is running (default: end2end_integration)")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
-	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|core#core|"+
-		"noncore#localcore|noncore#core|noncore#noncore)")
+	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|<src>#<dst>[#<local>] "+
+		" where <src>=[<AS>|core|noncore] dst=[<AS>|core|noncore] and "+
+		" <local> is [localAS|remoteAS|localISD|remoteISD])")
 	flag.IntVar(&parallelism, "parallelism", 1, "How many end2end tests run in parallel.")
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
@@ -178,10 +181,10 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		var ctr int
 		doneDir, err := filepath.Abs(filepath.Join(integration.LogDir(), "socks"))
 		if err != nil {
-			return serrors.WrapStr("determining abs path", err)
+			return serrors.Wrap("determining abs path", err)
 		}
 		if err := os.MkdirAll(doneDir, os.ModePerm); err != nil {
-			return serrors.WrapStr("creating socks directory", err)
+			return serrors.Wrap("creating socks directory", err)
 		}
 		// this is a bit of a hack, socket file names have a max length of 108
 		// and inside bazel tests we easily have longer paths, therefore we
@@ -189,13 +192,13 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		// file.
 		tmpDir, err := os.MkdirTemp("", "e2e_integration")
 		if err != nil {
-			return serrors.WrapStr("creating temp dir", err)
+			return serrors.Wrap("creating temp dir", err)
 		}
 		if err := os.Remove(tmpDir); err != nil {
-			return serrors.WrapStr("deleting temp dir", err)
+			return serrors.Wrap("deleting temp dir", err)
 		}
 		if err := os.Symlink(doneDir, tmpDir); err != nil {
-			return serrors.WrapStr("symlinking socks dir", err)
+			return serrors.Wrap("symlinking socks dir", err)
 		}
 		doneDir = tmpDir
 		defer os.Remove(doneDir)
@@ -207,7 +210,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
 		})
 		if err != nil {
-			return serrors.WrapStr("creating done listener", err)
+			return serrors.Wrap("creating done listener", err)
 		}
 		defer clean()
 
@@ -253,14 +256,27 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 					Tester:   tester,
 				})
 				if err != nil {
-					err = serrors.WithCtx(err, "file", relFile(logFile))
+					err = serrors.Wrap("running integration", err, "file", relFile(logFile))
 				}
 				clientResults <- err
 			}(src, dsts)
 		}
+
+		// We started everything that could be started. So the best window for perf mertics
+		// opens somewhere around now.
+		metricsBegin := time.Now().Unix()
 		errs = nil
+		end_reported := false
 		for range groups {
 			err := <-clientResults
+			if !end_reported {
+				end_reported = true
+				// The first client has finished. So the performance metrics have begun losing
+				// quality.
+				metricsEnd := time.Now().Unix()
+				// The test harness looks for this output.
+				fmt.Printf("metricsBegin: %d metricsEnd: %d\n", metricsBegin, metricsEnd)
+			}
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -277,8 +293,8 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-log.console", "debug",
 			"-attempts", strconv.Itoa(attempts),
 			"-timeout", timeout.String(),
-			"-local", integration.SrcAddrPattern + ":0",
-			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+			"-local", "[" + integration.SrcAddrPattern + "]:0",
+			"-remote", "[" + integration.DstAddrPattern + "]:" + integration.ServerPortReplace,
 			fmt.Sprintf("-epic=%t", epic),
 		},
 	}
@@ -295,21 +311,33 @@ func clientTemplate(progressSock string) integration.Cmd {
 }
 
 // getPairs returns the pairs to test according to the specified subset.
+// The subset can be based on role, as follows:
+// role1#role2[#local] selects all src:dst pairs matching  such that src has role1
+// and dst has role2 (and NOT the other way around). If local[ISD|AS]/remote[ISD|AS] is specified
+// then src and dst must/must-not be in the same ISD/AS
+//
+// This implies that IFF role1 == role2, then h1:h2 pairs are mirrored with h2:h1 and, unless
+// remote[ISD/AS] is specified, h2:h2 and h1:h1. Not all combinations yield something useful...
+// caveat emptor.
 func getPairs() ([]integration.IAPair, error) {
-	pairs := integration.IAPairs(integration.DispAddr)
+	pairs := integration.IAPairs(integration.CSAddr)
 	if subset == "all" {
 		return pairs, nil
 	}
 	parts := strings.Split(subset, "#")
-	if len(parts) != 2 {
+	switch len(parts) {
+	case 2:
+		return filter(parts[0], parts[1], "", pairs, integration.LoadedASList), nil
+	case 3:
+		return filter(parts[0], parts[1], parts[2], pairs, integration.LoadedASList), nil
+	default:
 		return nil, serrors.New("Invalid subset", "subset", subset)
 	}
-	return filter(parts[0], parts[1], pairs, integration.LoadedASList), nil
 }
 
 // filter returns the list of ASes that are part of the desired subset.
 func filter(
-	src, dst string,
+	src, dst, local string,
 	pairs []integration.IAPair,
 	ases *integration.ASList,
 ) []integration.IAPair {
@@ -325,11 +353,21 @@ func filter(
 			}
 		}
 	}
+
+	// Selection based on role.
 	for _, pair := range pairs {
 		filter := !contains(ases, src != "noncore", pair.Src.IA)
 		filter = filter || !contains(ases, dst != "noncore", pair.Dst.IA)
-		if dst == "localcore" {
+		switch local {
+		case "localISD":
 			filter = filter || pair.Src.IA.ISD() != pair.Dst.IA.ISD()
+		case "remoteISD":
+			filter = filter || pair.Src.IA.ISD() == pair.Dst.IA.ISD()
+		case "localAS":
+			filter = filter || pair.Src.IA != pair.Dst.IA
+		case "remoteAS":
+			filter = filter || pair.Src.IA == pair.Dst.IA
+		default:
 		}
 		if !filter {
 			res = append(res, pair)

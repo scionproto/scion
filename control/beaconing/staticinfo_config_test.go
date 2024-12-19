@@ -21,9 +21,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/control/beaconing"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/segment/extensions/staticinfo"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/topology"
 )
 
@@ -95,10 +95,10 @@ func getTestConfigData() *beaconing.StaticInfoCfg {
 	}
 
 	return &beaconing.StaticInfoCfg{
-		Latency: map[common.IFIDType]beaconing.InterfaceLatencies{
+		Latency: map[iface.ID]beaconing.InterfaceLatencies{
 			1: {
 				Inter: w(latency_inter_1),
-				Intra: map[common.IFIDType]util.DurWrap{
+				Intra: map[iface.ID]util.DurWrap{
 					2: w(latency_intra_1_2),
 					3: w(latency_intra_1_3),
 					5: w(latency_intra_1_5),
@@ -106,7 +106,7 @@ func getTestConfigData() *beaconing.StaticInfoCfg {
 			},
 			2: {
 				Inter: w(latency_inter_2),
-				Intra: map[common.IFIDType]util.DurWrap{
+				Intra: map[iface.ID]util.DurWrap{
 					1: w(latency_intra_1_2),
 					3: w(latency_intra_2_3),
 					5: w(latency_intra_2_5),
@@ -114,7 +114,7 @@ func getTestConfigData() *beaconing.StaticInfoCfg {
 			},
 			3: {
 				Inter: w(latency_inter_3),
-				Intra: map[common.IFIDType]util.DurWrap{
+				Intra: map[iface.ID]util.DurWrap{
 					1: w(latency_intra_1_3),
 					2: w(latency_intra_2_3),
 					5: w(latency_intra_3_5),
@@ -122,17 +122,17 @@ func getTestConfigData() *beaconing.StaticInfoCfg {
 			},
 			5: {
 				Inter: w(latency_inter_5),
-				Intra: map[common.IFIDType]util.DurWrap{
+				Intra: map[iface.ID]util.DurWrap{
 					1: w(latency_intra_1_5),
 					2: w(latency_intra_2_5),
 					3: w(latency_intra_3_5),
 				},
 			},
 		},
-		Bandwidth: map[common.IFIDType]beaconing.InterfaceBandwidths{
+		Bandwidth: map[iface.ID]beaconing.InterfaceBandwidths{
 			1: {
 				Inter: bandwidth_inter_1,
-				Intra: map[common.IFIDType]uint64{
+				Intra: map[iface.ID]uint64{
 					2: bandwidth_intra_1_2,
 					3: bandwidth_intra_1_3,
 					5: bandwidth_intra_1_5,
@@ -140,7 +140,7 @@ func getTestConfigData() *beaconing.StaticInfoCfg {
 			},
 			2: {
 				Inter: bandwidth_inter_2,
-				Intra: map[common.IFIDType]uint64{
+				Intra: map[iface.ID]uint64{
 					1: bandwidth_intra_1_2,
 					3: bandwidth_intra_2_3,
 					5: bandwidth_intra_2_5,
@@ -148,7 +148,7 @@ func getTestConfigData() *beaconing.StaticInfoCfg {
 			},
 			3: {
 				Inter: bandwidth_inter_3,
-				Intra: map[common.IFIDType]uint64{
+				Intra: map[iface.ID]uint64{
 					1: bandwidth_intra_1_3,
 					2: bandwidth_intra_2_3,
 					5: bandwidth_intra_3_5,
@@ -156,49 +156,49 @@ func getTestConfigData() *beaconing.StaticInfoCfg {
 			},
 			5: {
 				Inter: bandwidth_inter_5,
-				Intra: map[common.IFIDType]uint64{
+				Intra: map[iface.ID]uint64{
 					1: bandwidth_intra_1_5,
 					2: bandwidth_intra_2_5,
 					3: bandwidth_intra_3_5,
 				},
 			},
 		},
-		LinkType: map[common.IFIDType]beaconing.LinkType{
+		LinkType: map[iface.ID]beaconing.LinkType{
 			1: beaconing.LinkType(link_type_1),
 			2: beaconing.LinkType(link_type_2),
 			3: beaconing.LinkType(link_type_3),
 			5: beaconing.LinkType(link_type_5),
 		},
-		Geo: map[common.IFIDType]beaconing.InterfaceGeodata{
+		Geo: map[iface.ID]beaconing.InterfaceGeodata{
 			1: {geo_1.Longitude, geo_1.Latitude, geo_1.Address},
 			2: {geo_2.Longitude, geo_2.Latitude, geo_2.Address},
 			3: {geo_3.Longitude, geo_3.Latitude, geo_3.Address},
 			5: {geo_5.Longitude, geo_5.Latitude, geo_5.Address},
 		},
-		Hops: map[common.IFIDType]beaconing.InterfaceHops{
+		Hops: map[iface.ID]beaconing.InterfaceHops{
 			1: {
-				Intra: map[common.IFIDType]uint32{
+				Intra: map[iface.ID]uint32{
 					2: hops_intra_1_2,
 					3: hops_intra_1_3,
 					5: hops_intra_1_5,
 				},
 			},
 			2: {
-				Intra: map[common.IFIDType]uint32{
+				Intra: map[iface.ID]uint32{
 					1: hops_intra_1_2,
 					3: hops_intra_2_3,
 					5: hops_intra_2_5,
 				},
 			},
 			3: {
-				Intra: map[common.IFIDType]uint32{
+				Intra: map[iface.ID]uint32{
 					1: hops_intra_1_3,
 					2: hops_intra_2_3,
 					5: hops_intra_3_5,
 				},
 			},
 			5: {
-				Intra: map[common.IFIDType]uint32{
+				Intra: map[iface.ID]uint32{
 					1: hops_intra_1_5,
 					2: hops_intra_2_5,
 					3: hops_intra_3_5,
@@ -221,14 +221,14 @@ func TestGenerateStaticInfo(t *testing.T) {
 	cfg := getTestConfigData()
 
 	// "topology" information for a non-core AS:
-	ifTypeNoncore := map[common.IFIDType]topology.LinkType{
+	ifTypeNoncore := map[iface.ID]topology.LinkType{
 		1: topology.Child,
 		2: topology.Child,
 		3: topology.Parent,
 		5: topology.Peer,
 	}
 	// "topology" information for a core AS:
-	ifTypeCore := map[common.IFIDType]topology.LinkType{
+	ifTypeCore := map[iface.ID]topology.LinkType{
 		1: topology.Core,
 		2: topology.Child,
 		3: topology.Core,
@@ -237,9 +237,9 @@ func TestGenerateStaticInfo(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		ingress  common.IFIDType
-		egress   common.IFIDType
-		ifType   map[common.IFIDType]topology.LinkType
+		ingress  iface.ID
+		egress   iface.ID
+		ifType   map[iface.ID]topology.LinkType
 		expected staticinfo.Extension
 	}{
 		{
@@ -249,23 +249,23 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
-					Intra: map[common.IFIDType]time.Duration{
+					Intra: map[iface.ID]time.Duration{
 						2: latency_intra_1_2,
 						3: latency_intra_1_3,
 						5: latency_intra_1_5,
 					},
-					Inter: map[common.IFIDType]time.Duration{
+					Inter: map[iface.ID]time.Duration{
 						1: latency_inter_1,
 						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint64{
+					Intra: map[iface.ID]uint64{
 						2: bandwidth_intra_1_2,
 						3: bandwidth_intra_1_3,
 						5: bandwidth_intra_1_5,
 					},
-					Inter: map[common.IFIDType]uint64{
+					Inter: map[iface.ID]uint64{
 						1: bandwidth_inter_1,
 						5: bandwidth_inter_5,
 					},
@@ -279,7 +279,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 					1: link_type_1,
 					5: link_type_5,
 				},
-				InternalHops: map[common.IFIDType]uint32{
+				InternalHops: map[iface.ID]uint32{
 					2: hops_intra_1_2,
 					3: hops_intra_1_3,
 					5: hops_intra_1_5,
@@ -294,21 +294,21 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
-					Intra: map[common.IFIDType]time.Duration{
+					Intra: map[iface.ID]time.Duration{
 						3: latency_intra_2_3,
 						5: latency_intra_2_5,
 					},
-					Inter: map[common.IFIDType]time.Duration{
+					Inter: map[iface.ID]time.Duration{
 						2: latency_inter_2,
 						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint64{
+					Intra: map[iface.ID]uint64{
 						3: bandwidth_intra_2_3,
 						5: bandwidth_intra_2_5,
 					},
-					Inter: map[common.IFIDType]uint64{
+					Inter: map[iface.ID]uint64{
 						2: bandwidth_inter_2,
 						5: bandwidth_inter_5,
 					},
@@ -322,7 +322,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 					2: link_type_2,
 					5: link_type_5,
 				},
-				InternalHops: map[common.IFIDType]uint32{
+				InternalHops: map[iface.ID]uint32{
 					3: hops_intra_2_3,
 					5: hops_intra_2_5,
 				},
@@ -336,14 +336,14 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
-					Intra: map[common.IFIDType]time.Duration{},
-					Inter: map[common.IFIDType]time.Duration{
+					Intra: map[iface.ID]time.Duration{},
+					Inter: map[iface.ID]time.Duration{
 						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint64{},
-					Inter: map[common.IFIDType]uint64{
+					Intra: map[iface.ID]uint64{},
+					Inter: map[iface.ID]uint64{
 						5: bandwidth_inter_5,
 					},
 				},
@@ -354,7 +354,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 				LinkType: staticinfo.LinkTypeInfo{
 					5: link_type_5,
 				},
-				InternalHops: map[common.IFIDType]uint32{},
+				InternalHops: map[iface.ID]uint32{},
 				Note:         note,
 			},
 		},
@@ -365,21 +365,21 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
-					Intra: map[common.IFIDType]time.Duration{
+					Intra: map[iface.ID]time.Duration{
 						2: latency_intra_1_2,
 						5: latency_intra_1_5,
 					},
-					Inter: map[common.IFIDType]time.Duration{
+					Inter: map[iface.ID]time.Duration{
 						1: latency_inter_1,
 						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint64{
+					Intra: map[iface.ID]uint64{
 						2: bandwidth_intra_1_2,
 						5: bandwidth_intra_1_5,
 					},
-					Inter: map[common.IFIDType]uint64{
+					Inter: map[iface.ID]uint64{
 						1: bandwidth_inter_1,
 						5: bandwidth_inter_5,
 					},
@@ -392,7 +392,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 					1: link_type_1,
 					5: link_type_5,
 				},
-				InternalHops: map[common.IFIDType]uint32{
+				InternalHops: map[iface.ID]uint32{
 					2: hops_intra_1_2,
 					5: hops_intra_1_5,
 				},
@@ -406,19 +406,19 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
-					Intra: map[common.IFIDType]time.Duration{
+					Intra: map[iface.ID]time.Duration{
 						5: latency_intra_2_5,
 					},
-					Inter: map[common.IFIDType]time.Duration{
+					Inter: map[iface.ID]time.Duration{
 						2: latency_inter_2,
 						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint64{
+					Intra: map[iface.ID]uint64{
 						5: bandwidth_intra_2_5,
 					},
-					Inter: map[common.IFIDType]uint64{
+					Inter: map[iface.ID]uint64{
 						2: bandwidth_inter_2,
 						5: bandwidth_inter_5,
 					},
@@ -431,7 +431,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 					2: link_type_2,
 					5: link_type_5,
 				},
-				InternalHops: map[common.IFIDType]uint32{
+				InternalHops: map[iface.ID]uint32{
 					5: hops_intra_2_5,
 				},
 				Note: note,
@@ -444,22 +444,22 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ifType:  ifTypeCore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
-					Intra: map[common.IFIDType]time.Duration{
+					Intra: map[iface.ID]time.Duration{
 						1: latency_intra_1_2,
 						3: latency_intra_2_3,
 						5: latency_intra_2_5,
 					},
-					Inter: map[common.IFIDType]time.Duration{
+					Inter: map[iface.ID]time.Duration{
 						2: latency_inter_2,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint64{
+					Intra: map[iface.ID]uint64{
 						1: bandwidth_intra_1_2,
 						3: bandwidth_intra_2_3,
 						5: bandwidth_intra_2_5,
 					},
-					Inter: map[common.IFIDType]uint64{
+					Inter: map[iface.ID]uint64{
 						2: bandwidth_inter_2,
 					},
 				},
@@ -469,7 +469,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 				LinkType: staticinfo.LinkTypeInfo{
 					2: link_type_2,
 				},
-				InternalHops: map[common.IFIDType]uint32{
+				InternalHops: map[iface.ID]uint32{
 					1: hops_intra_1_2,
 					3: hops_intra_2_3,
 					5: hops_intra_2_5,
@@ -484,14 +484,14 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ifType:  ifTypeCore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
-					Intra: map[common.IFIDType]time.Duration{},
-					Inter: map[common.IFIDType]time.Duration{
+					Intra: map[iface.ID]time.Duration{},
+					Inter: map[iface.ID]time.Duration{
 						1: latency_inter_1,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint64{},
-					Inter: map[common.IFIDType]uint64{
+					Intra: map[iface.ID]uint64{},
+					Inter: map[iface.ID]uint64{
 						1: bandwidth_inter_1,
 					},
 				},
@@ -501,7 +501,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 				LinkType: staticinfo.LinkTypeInfo{
 					1: link_type_1,
 				},
-				InternalHops: map[common.IFIDType]uint32{},
+				InternalHops: map[iface.ID]uint32{},
 				Note:         note,
 			},
 		},
@@ -512,18 +512,18 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ifType:  ifTypeCore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
-					Intra: map[common.IFIDType]time.Duration{
+					Intra: map[iface.ID]time.Duration{
 						3: latency_intra_1_3,
 					},
-					Inter: map[common.IFIDType]time.Duration{
+					Inter: map[iface.ID]time.Duration{
 						1: latency_inter_1,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint64{
+					Intra: map[iface.ID]uint64{
 						3: bandwidth_intra_1_3,
 					},
-					Inter: map[common.IFIDType]uint64{
+					Inter: map[iface.ID]uint64{
 						1: bandwidth_inter_1,
 					},
 				},
@@ -534,7 +534,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 				LinkType: staticinfo.LinkTypeInfo{
 					1: link_type_1,
 				},
-				InternalHops: map[common.IFIDType]uint32{
+				InternalHops: map[iface.ID]uint32{
 					3: hops_intra_1_3,
 				},
 				Note: note,
@@ -547,18 +547,18 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ifType:  ifTypeCore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
-					Intra: map[common.IFIDType]time.Duration{},
-					Inter: map[common.IFIDType]time.Duration{},
+					Intra: map[iface.ID]time.Duration{},
+					Inter: map[iface.ID]time.Duration{},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint64{},
-					Inter: map[common.IFIDType]uint64{},
+					Intra: map[iface.ID]uint64{},
+					Inter: map[iface.ID]uint64{},
 				},
 				Geo: staticinfo.GeoInfo{
 					3: geo_3,
 				},
 				LinkType:     staticinfo.LinkTypeInfo{},
-				InternalHops: map[common.IFIDType]uint32{},
+				InternalHops: map[iface.ID]uint32{},
 				Note:         note,
 			},
 		},

@@ -1,6 +1,11 @@
 load("//tools/lint:py.bzl", "py_binary", "py_library", "py_test")
 load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
+# Bug in bazel: HOME isn't set to TEST_TMPDIR.
+# Bug in docker-compose v2.21 a writable HOME is required (eventhough not used).
+# Poor design in Bazel, there's no sane way to obtain the path to some
+# location that's not a litteral dependency.
+# So, HOME must be provided by the invoker.
 def topogen_test(
         name,
         src,
@@ -10,14 +15,15 @@ def topogen_test(
         args = [],
         deps = [],
         data = [],
-        tester = "//docker:tester"):
+        homedir = "",
+        tester = "//docker:tester.tarball"):
     """Creates a test based on a topology file.
 
     It creates a target specified by the 'name' argument that runs the entire
     test. Additionally, It creates <name>_setup, <name>_run and <name>_teardown
     targets that allow to run the test in stages.
 
-    Args:
+    Args:cc
         name: name of the test
         src: the source code of the test
         topo: the topology (.topo) file to use for the test
@@ -45,6 +51,7 @@ def topogen_test(
     common_args = [
         "--executable=scion-pki:$(location //scion-pki/cmd/scion-pki)",
         "--executable=topogen:$(location //tools:topogen)",
+        "--executable=await-connectivity:$(location //tools:await_connectivity)",
         "--topo=$(location %s)" % topo,
     ]
     if gateway:
@@ -54,13 +61,23 @@ def topogen_test(
         "//scion-pki/cmd/scion-pki",
         "//tools:topogen",
         "//tools:docker_ip",
+        "//tools:await_connectivity",
         topo,
     ]
-    loaders = container_loaders(tester, gateway)
-    for tag in loaders:
-        loader = loaders[tag]
-        common_data = common_data + ["%s" % loader]
-        common_args = common_args + ["--container-loader=%s#$(location %s)" % (tag, loader)]
+    docker_images = [
+        "//docker:control.tarball",
+        "//docker:daemon.tarball",
+        "//docker:dispatcher.tarball",
+        "//docker:router.tarball",
+    ]
+    if tester:
+        docker_images += [tester]
+    if gateway:
+        docker_images += ["//docker:gateway.tarball"]
+
+    for tar in docker_images:
+        common_data = common_data + [tar]
+        common_args = common_args + ["--docker-image=$(location %s)" % tar]
 
     py_binary(
         name = "%s_setup" % name,
@@ -103,17 +120,6 @@ def topogen_test(
             "PYTHONUNBUFFERED": "1",
             # Ensure that unicode output can be printed to the log/console
             "PYTHONIOENCODING": "utf-8",
+            "HOME": homedir,
         },
     )
-
-def container_loaders(tester, gateway):
-    images = {
-        "control:latest": "//docker:control",
-        "daemon:latest": "//docker:daemon",
-        "dispatcher:latest": "//docker:dispatcher",
-        "tester:latest": tester,
-        "posix-router:latest": "//docker:posix_router",
-    }
-    if gateway:
-        images["posix-gateway:latest"] = "//docker:posix_gateway"
-    return images

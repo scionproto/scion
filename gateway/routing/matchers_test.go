@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/gateway/routing"
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 func TestSingleIAMatcher(t *testing.T) {
@@ -73,10 +73,10 @@ func TestSingleIAMatcher(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			for _, matches := range tc.Matches {
-				assert.True(t, tc.Matcher.Match(xtest.MustParseIA(matches)), matches)
+				assert.True(t, tc.Matcher.Match(addr.MustParseIA(matches)), matches)
 			}
 			for _, notMatches := range tc.NotMatches {
-				assert.False(t, tc.Matcher.Match(xtest.MustParseIA(notMatches)), notMatches)
+				assert.False(t, tc.Matcher.Match(addr.MustParseIA(notMatches)), notMatches)
 			}
 		})
 	}

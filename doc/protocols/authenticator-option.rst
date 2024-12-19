@@ -35,9 +35,9 @@ Alignment requirement: 4n + 2::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                   Security Parameter Index                    |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |    Algorithm  |                    Timestamp                  |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      RSV      |                  Sequence Number              |
+    |    Algorithm  |      RSV      |                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+    |                    Timestamp / Sequence Number                |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                          Authenticator ...                    |
     |                                                               |
@@ -49,50 +49,41 @@ OptDataLen
   Unsigned 8-bit integer denoting the length in bytes of the full option data
   (12 + length of Authenticator).
   The length depends on algorithm used.
-Timestamp:
-  Unsigned 24-bit integer timestamp.
-  The timestamp expressed by the value of this field is relative to the
-  `Timestamp` of the first :ref:`Info Field<scion-path-info-field>` of the
-  SCION Path.
-  The timestamp has a granularity of
+Timestamp / Sequence Number:
+  Unsigned 48-bit integer value.
+  The Timestamp / Sequence Number field contains a value for each packet that
+  can be used for replay detection by the receiver.
+  The detailed interpretation of the Timestamp / Sequence Number field depends on the :ref:`SPI <spao-spi>`.
 
-  .. math::
-      q := \left\lceil\left(
-        \frac{24 \times 60 \times 60 \times 10^3}
-             {2^{24}}
-      \right)\right\rceil ms
-          = 6 ms.\\
+  When used with a DRKey :ref:`SPI <spao-spi>`, the field represents a relative Timestamp (*Ts*),
+  counting the nanoseconds since the starting time of the associated DRKey :ref:`Epoch<drkey-epoch>`.
+  (See :ref:`Appendix<spao-appendix>` for a more detailed explanation about the field interpretation).
+  The timestamp MAY be used to compute the absolute time (*AbsTime*) value,
+  which corresponds to the time when the packet was sent.
+  The section :ref:`Absolute time derivation<spao-absTime>` describes the derivation of *AbsTime* and
+  the associated DRKey.
 
-  and the absolute Unix time expressed by this Timestamp field is
-
-  .. math::
-    \mathrm{info[0].Timestamp} + \mathrm{Timestamp} \cdot q
-
-  The Timestamp field can be used for replay detection by the receiver.
-  The receiver SHOULD drop packets with timestamps outside of a locally chosen
+  The receiver SHOULD drop packets with *AbsTime* outside of a locally chosen
   range around the current time.
 
-Sequence Number:
-  Unsigned 24-bit sequence number.
-  This field can be used for replay detection by the receiver.
-
-  When used with a :ref:`SPI <spao-spi>` referring to an established
-  security association, this is used as a wrapping counter and replay detection
-  is based on sliding window of expected counter values.
-  This use case is not specified in detail here. Extending this specification
-  in the future will closely follow [`RFC 4302 <https://tools.ietf.org/html/rfc4302>`_].
-
-  When used with :ref:`spao-spi-drkey`, this field is used together with the
-  timestamp field to provide a unique identifier for a packet.
-  The sender can arbitrarily choose this value, but it SHOULD ensure
-  the uniqueness of the combination of timestamp and sequence number.
-  For example, the value can be chosen based on a counter, randomly or even as
-  a constant, provided that the send rate is low enough.
-  The receiver SHOULD drop packets with duplicate
+  The sender SHOULD ensure the uniqueness of the absolute time (*AbsTime*) per identical packet.
+  The receiver will use the *AbsTime* for replay detection and, thus,
+  it SHOULD drop identical packets, i.e. packets with a duplicate:
 
   .. math::
-    (\mathrm{Source\ Address, info[0].Timestamp, Timestamp, Sequence\ Number})
+    (\mathrm{SRC\ ISD, SRC\ AS, SrcHostAddr, Authenticator})
 
+  .. note::
+    In other words, the duplicate suppression would happen within the
+    acceptance windows considering identical values for the Authenticator field, which is
+    computed based on packet contents, such as the Timestamp (used to derive the *AbsTime*)
+    and the upper layer payload
+    (see the section :ref:`Authenticated Data<authenticated-data>`).
+
+    When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as
+    a wrapping counter and replay detection is based on sliding window of expected counter values.
+    This use case is not specified in detail here. Extending this specification
+    in the future will closely follow [`RFC 4302 <https://tools.ietf.org/html/rfc4302>`_].
 
 Security Parameter Index (SPI)
   32-bit identifier for the key used for this authentication option.
@@ -137,7 +128,7 @@ DRKey
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |             0       |R R T D E|       Protocol Identifier     |
+    |             0       |R R R T D|       Protocol Identifier     |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 R
@@ -154,17 +145,48 @@ D
 
     * ``0``: sender-side key derivation
     * ``1``: receiver-side key derivation
-E
-  Epoch. Specifies the key epoch. The time specified by the Timestamp field is
-  used to look up the relevant candidate epochs. At all times, at most two key
-  epochs can be active; this field distinguishes between these two candidates.
-
-    * ``0``: the active epoch with later start time
-    * ``1``: the active epoch with earlier start time
 Protocol Identifier
   16-bit protocol identifier. Note that 0 is a reserved protocol number and
   cannot occur here.
 
+.. _spao-absTime:
+
+Absolute time and DRKey selection
+=================================
+
+This section proposes an implementation method to find out the Security Association from the
+SPAO metadata information, i.e., to select the DRKey to authenticate the packet.
+
+Firstly, the receiver entity defines an *acceptance window*.
+An *acceptance window* (aw) is a time range of width *a* around the receiver's current time *T*,
+i.e.,:
+
+:math:`aw := [T-a/2, T+a/2)`
+
+
+[i] The acceptance window is equal or smaller than the minimum DRKey epoch length.
+
+The receiver entity derives the absolute timestamp and selects the associated DRKey by:
+
+1. Given a time instant *T*, considering:
+
+   - Epoch :math:`E_{i}` as the one whose time range includes *T*.
+   - Epoch :math:`E_{i-1}` as the prior epoch to :math:`E_{i}`.
+   - Epoch :math:`E_{i+1}` as the subsequent epoch to :math:`E_{i}`.
+
+2. Adding the relative timestamp (*RelTime*) (the one in :ref:`SPAO Header<authenticator-option>`) to
+   the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`,
+   computing the respective *absolute times* (*AbsTime*):
+   :math:`at_{i-1}`, :math:`at_{i}` and :math:`at_{i+1}`.
+3. Given [i] at most one *absolute time* will be within *aw*.
+4. The candidate DRKey is the key whose epoch is associated to *AbsTime*,
+   e.g., if *AbsTime* is :math:`at_{i-1}` the key belonging to :math:`E_{i-1}`.
+
+Note that :math:`at_{i-1}` might, for instance be within the :ref:`Grace period<drkey-grace>`, i.e.,
+overlapping at :math:`E_{i}`. Nevertheless, due to [i] we can unambiguously distinguish it.
+
+
+.. _authenticated-data:
 
 Authenticated Data
 ==================
@@ -196,9 +218,9 @@ The input for the MAC is the concatenation of the following items:
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |  HdrLen       |  Upper Layer  |    Upper-Layer Packet Length  |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |    Algorithm  |                    Timestamp                  |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      RSV      |                  Sequence Number              |
+    |    Algorithm  |      RSV      |                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+    |                 Timestamp / Sequence Number                   |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
   HdrLen
@@ -364,17 +386,15 @@ It is visible from the metadata whether the addresses are to be skipped from
 the MAC input, as discussed above, so that also in this case no length
 extension attacks are possible.
 
+.. _spao-appendix:
 
 Appendix: Design Rationale
 ==========================
 
 The following goals/constraints led to this design:
 
-- include a timestamp / sequence number to uniquely identify packets of the
-  entire lifetime of a SCION path (24h).
+- include a timestamp / sequence number to uniquely identify packets.
 
-  - with high rates of packets (>1Gpps) we seem to need about 37 bit (~5bytes)
-    for uniqueness
   - timestamp should be accurate enough to allow dropping obviously old packets
   - sequence number should be long enough to allow sliding window replay
     suppression like in IPSec
@@ -385,14 +405,24 @@ The following goals/constraints led to this design:
 - reasonable field alignment with little padding with 4n + 2 option alignment
   (to avoid padding before first option)
 
-- 2 AES blocks or fewer for lightning filter use case (SHA1-AES-CBC with DRKey)
+- 2 AES blocks or fewer for LightningFilter use case (SHA1-AES-CBC with DRKey)
 
   - Require as little copying as possible to check MAC in this use case. Hash
     directly following the option.
 
 - this does not appear to work with less than 3 rows. We use the available
-  room to make the timestamp and sequence number 3 bytes each and leave one
+  room to make a 48-bit Timestamp / Sequence Number field and leave one
   reserved byte for future extensions (e.g. flags or extended timestamp or
   sequence number).
   The SPI comes first as we don't need to include it in the MAC computation and
   don't want it between the other fields and the SHA1 hash.
+
+- When the Timestamp / Sequence Number field is used with DRKey SPI, the 48-bits in the field allow to
+  cover the maximum DRKey epoch length plus the :ref:`Grace period<drkey-grace>`
+  with granularity of 1 nanosecond, since:
+
+  .. math::
+        (3 \times 24 \times 60 \times 60 + 5) \times 10^9 < {2^{48}}
+
+- When the Timestamp / Sequence Number field is used with DRKey SPI, the application can use a clock that is less
+  accurate than 1 nanosecond and fill out the less significant bits with a counter.

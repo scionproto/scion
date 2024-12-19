@@ -33,10 +33,11 @@ import (
 )
 
 var (
-	ip6Addr = addr.MustParseHost("2001:db8::68")
-	ip4Addr = addr.MustParseHost("10.0.0.100")
-	svcAddr = addr.MustParseHost("Wildcard")
-	rawPath = func() []byte {
+	ip6Addr    = addr.MustParseHost("2001:db8::68")
+	ip4Addr    = addr.MustParseHost("10.0.0.100")
+	ip4in6Addr = addr.MustParseHost("::ffff:10.0.0.100")
+	svcAddr    = addr.MustParseHost("Wildcard")
+	rawPath    = func() []byte {
 		return []byte("\x00\x00\x20\x80\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x02\x22\x00" +
 			"\x00\x01\x00\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x03\x00" +
 			"\x02\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06\x00" +
@@ -311,6 +312,12 @@ func TestPackAddr(t *testing.T) {
 			rawAddr:   ip4Addr.IP().AsSlice(),
 			errorFunc: assert.NoError,
 		},
+		"pack IPv4-mapped IPv6": {
+			addr:      ip4in6Addr,
+			addrType:  slayers.T4Ip,
+			rawAddr:   []byte{0xa, 0x0, 0x0, 0x64},
+			errorFunc: assert.NoError,
+		},
 		"pack IPv6": {
 			addr:      ip6Addr,
 			addrType:  slayers.T16Ip,
@@ -508,8 +515,8 @@ func prepPacket(t testing.TB, c slayers.L4ProtocolType) *slayers.SCION {
 		PathType:     scion.PathType,
 		DstAddrType:  slayers.T16Ip,
 		SrcAddrType:  slayers.T4Ip,
-		DstIA:        xtest.MustParseIA("1-ff00:0:111"),
-		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+		DstIA:        addr.MustParseIA("1-ff00:0:111"),
+		SrcIA:        addr.MustParseIA("2-ff00:0:222"),
 		Path:         &scion.Raw{},
 	}
 	require.NoError(t, spkt.SetDstAddr(ip6Addr))
@@ -536,8 +543,8 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/IPv4": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-					DstIA: xtest.MustParseIA("1-ff00:0:112"),
+					SrcIA: addr.MustParseIA("1-ff00:0:110"),
+					DstIA: addr.MustParseIA("1-ff00:0:112"),
 				}
 				err := s.SetSrcAddr(addr.MustParseHost("174.16.4.1"))
 				require.NoError(t, err)
@@ -552,8 +559,8 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/IPv4 odd length": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-					DstIA: xtest.MustParseIA("1-ff00:0:112"),
+					SrcIA: addr.MustParseIA("1-ff00:0:110"),
+					DstIA: addr.MustParseIA("1-ff00:0:112"),
 				}
 				err := s.SetSrcAddr(addr.MustParseHost("174.16.4.1"))
 				require.NoError(t, err)
@@ -568,8 +575,8 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/IPv6": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-					DstIA: xtest.MustParseIA("1-ff00:0:112"),
+					SrcIA: addr.MustParseIA("1-ff00:0:110"),
+					DstIA: addr.MustParseIA("1-ff00:0:112"),
 				}
 				err := s.SetSrcAddr(addr.MustParseHost("174.16.4.1"))
 				require.NoError(t, err)
@@ -584,8 +591,8 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/SVC": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-					DstIA: xtest.MustParseIA("1-ff00:0:112"),
+					SrcIA: addr.MustParseIA("1-ff00:0:110"),
+					DstIA: addr.MustParseIA("1-ff00:0:112"),
 				}
 				err := s.SetSrcAddr(addr.MustParseHost("174.16.4.1"))
 				require.NoError(t, err)

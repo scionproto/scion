@@ -46,7 +46,7 @@ func Sort(paths []snet.Path) {
 			return len(intfA) < len(intfB)
 		}
 		for i := range intfA {
-			if iaA, iaB := intfA[i].IA, intfA[i].IA; iaA != iaB {
+			if iaA, iaB := intfA[i].IA, intfB[i].IA; iaA != iaB {
 				return iaA < iaB
 			}
 			if idA, idB := intfA[i].ID, intfB[i].ID; idA != idB {
@@ -81,7 +81,7 @@ func Choose(
 	o := applyOption(opts)
 	paths, err := fetchPaths(ctx, conn, remote, o.refresh, o.seq)
 	if err != nil {
-		return nil, serrors.WrapStr("fetching paths", err)
+		return nil, serrors.Wrap("fetching paths", err)
 	}
 	if o.epic {
 		// Only use paths that support EPIC and intra-AS (empty) paths.
@@ -104,7 +104,7 @@ func Choose(
 	if o.probeCfg != nil {
 		paths, err = filterUnhealthy(ctx, paths, remote, conn, o.probeCfg, o.epic)
 		if err != nil {
-			return nil, serrors.WrapStr("probing paths", err)
+			return nil, serrors.Wrap("probing paths", err)
 		}
 		if len(paths) == 0 {
 			return nil, serrors.New("no healthy paths available")
@@ -143,12 +143,11 @@ func filterUnhealthy(
 		DstIA:                  remote,
 		LocalIA:                cfg.LocalIA,
 		LocalIP:                cfg.LocalIP,
-		ID:                     uint16(rand.Uint32()),
 		SCIONPacketConnMetrics: cfg.SCIONPacketConnMetrics,
-		Dispatcher:             cfg.Dispatcher,
+		Topology:               sd,
 	}.GetStatuses(subCtx, nonEmptyPaths, pathprobe.WithEPIC(epic))
 	if err != nil {
-		return nil, serrors.WrapStr("probing paths", err)
+		return nil, serrors.Wrap("probing paths", err)
 	}
 	// Filter all paths that aren't healthy.
 	var healthyPaths []snet.Path
@@ -175,7 +174,7 @@ func fetchPaths(
 
 	allPaths, err := conn.Paths(ctx, remote, 0, daemon.PathReqFlags{Refresh: refresh})
 	if err != nil {
-		return nil, serrors.WrapStr("retrieving paths", err)
+		return nil, serrors.Wrap("retrieving paths", err)
 	}
 
 	paths, err := Filter(seq, allPaths)
@@ -215,7 +214,7 @@ func printAndChoose(paths []snet.Path, remote addr.IA, cs ColorScheme) (snet.Pat
 		if err != nil {
 			return nil, err
 		}
-		idx, err := strconv.Atoi(pathIndexStr[:len(pathIndexStr)-1])
+		idx, err := strconv.Atoi(strings.TrimRight(pathIndexStr, "\n\r"))
 		if err == nil && idx < len(paths) {
 			return paths[idx], nil
 		}
@@ -259,7 +258,7 @@ func DefaultColorScheme(disable bool) ColorScheme {
 }
 
 func (cs ColorScheme) KeyValue(k, v string) string {
-	return fmt.Sprintf("%s: %s", cs.Keys.Sprintf(k), cs.Values.Sprintf(v))
+	return fmt.Sprintf("%s: %s", cs.Keys.Sprint(k), cs.Values.Sprint(v))
 }
 
 func (cs ColorScheme) KeyValues(kv ...string) []string {
@@ -305,9 +304,8 @@ func (cs ColorScheme) Path(path snet.Path) string {
 }
 
 type ProbeConfig struct {
-	LocalIA    addr.IA
-	LocalIP    net.IP
-	Dispatcher string
+	LocalIA addr.IA
+	LocalIP net.IP
 
 	// Metrics injected into Prober.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics

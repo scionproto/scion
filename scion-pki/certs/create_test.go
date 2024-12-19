@@ -610,7 +610,7 @@ func TestNewCreateCmdCSR(t *testing.T) {
 			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
 				require.NoError(t, csr.CheckSignature())
 				require.Equal(t, "1-ff00:0:111 Certificate", csr.Subject.CommonName)
-				priv, err := key.LoadPrivateKey("testdata/create/private.key")
+				priv, err := key.LoadPrivateKey("", "testdata/create/private.key")
 				require.NoError(t, err)
 				require.Equal(t, priv.Public(), csr.PublicKey)
 			},

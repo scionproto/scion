@@ -111,13 +111,13 @@ func BeaconFromPB(pb *cppb.PathSegment) (*PathSegment, error) {
 func segmentFromPB(pb *cppb.PathSegment) (*PathSegment, error) {
 	info, err := infoFromRaw(pb.SegmentInfo)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing segment info", err)
+		return nil, serrors.Wrap("parsing segment info", err)
 	}
 	asEntries := make([]ASEntry, 0, len(pb.AsEntries))
 	for i, entry := range pb.AsEntries {
 		as, err := ASEntryFromPB(entry)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing AS entry", err, "index", i)
+			return nil, serrors.Wrap("parsing AS entry", err, "index", i)
 		}
 		asEntries = append(asEntries, as)
 	}
@@ -220,7 +220,7 @@ func (ps *PathSegment) MaxExpiry() time.Time {
 // MinExpiry returns the minimum expiry of all hop fields.
 // Assumes segment is validated.
 func (ps *PathSegment) MinExpiry() time.Time {
-	return ps.expiry(path.MaxTTL*time.Second, func(hfTtl time.Duration, ttl time.Duration) bool {
+	return ps.expiry(path.MaxTTL, func(hfTtl time.Duration, ttl time.Duration) bool {
 		return hfTtl < ttl
 	})
 }
@@ -293,11 +293,11 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 	}
 	rawASEntry, err := proto.Marshal(asEntryPB)
 	if err != nil {
-		return serrors.WrapStr("packing AS entry", err)
+		return serrors.Wrap("packing AS entry", err)
 	}
 	signedMsg, err := signer.Sign(ctx, rawASEntry, ps.associatedData(len(ps.ASEntries))...)
 	if err != nil {
-		return serrors.WrapStr("signing AS entry", err)
+		return serrors.Wrap("signing AS entry", err)
 	}
 	asEntry.Signed = signedMsg
 	ps.ASEntries = append(ps.ASEntries, asEntry)
@@ -308,7 +308,7 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 func (ps *PathSegment) Verify(ctx context.Context, verifier Verifier) error {
 	for i := range ps.ASEntries {
 		if err := ps.VerifyASEntry(ctx, verifier, i); err != nil {
-			return serrors.WrapStr("verifying AS entry", err, "idx", i)
+			return serrors.Wrap("verifying AS entry", err, "idx", i)
 		}
 	}
 	return nil

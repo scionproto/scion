@@ -15,14 +15,15 @@
 package pathpol
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 func TestNewACL(t *testing.T) {
@@ -60,6 +61,48 @@ func TestNewACL(t *testing.T) {
 	}
 }
 
+func TestUnmarshal(t *testing.T) {
+	tests := map[string]struct {
+		Input       string
+		ExpectedErr error
+	}{
+		"No entry": {
+			Input:       `[]`,
+			ExpectedErr: ErrNoDefault,
+		},
+		"No default entry": {
+			Input:       `["+ 42"]`,
+			ExpectedErr: ErrNoDefault,
+		},
+		"Entry without rule": {
+			Input: `["+"]`,
+		},
+		"Entry with hop predicates": {
+			Input: `["+ 42", "-"]`,
+		},
+		"Extra entries (first)": {
+			Input:       `["-", "+ 27"]`,
+			ExpectedErr: ErrExtraEntries,
+		},
+		"Extra entries (in the middle)": {
+			Input:       `["+ 42", "-", "+ 27", "- 30"]`,
+			ExpectedErr: ErrExtraEntries,
+		},
+	}
+	for name, test := range tests {
+		t.Run("json: "+name, func(t *testing.T) {
+			var acl ACL
+			err := json.Unmarshal([]byte(test.Input), &acl)
+			assert.ErrorIs(t, err, test.ExpectedErr)
+		})
+		t.Run("yaml: "+name, func(t *testing.T) {
+			var acl ACL
+			err := yaml.Unmarshal([]byte(test.Input), &acl)
+			assert.ErrorIs(t, err, test.ExpectedErr)
+		})
+	}
+}
+
 func TestACLEntryLoadFromString(t *testing.T) {
 	tests := map[string]struct {
 		String         string
@@ -70,7 +113,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			String: "+ 0",
 			ACLEntry: ACLEntry{
 				Action: Allow,
-				Rule:   &HopPredicate{IfIDs: []common.IFIDType{0}},
+				Rule:   &HopPredicate{IfIDs: []iface.ID{0}},
 			},
 			ErrorAssertion: assert.NoError,
 		},
@@ -78,7 +121,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			String: "+ 1-2#3",
 			ACLEntry: ACLEntry{
 				Action: Allow,
-				Rule:   &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{3}},
+				Rule:   &HopPredicate{ISD: 1, AS: 2, IfIDs: []iface.ID{3}},
 			},
 			ErrorAssertion: assert.NoError,
 		},
@@ -91,7 +134,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			String: "- 0",
 			ACLEntry: ACLEntry{
 				Action: Deny,
-				Rule:   &HopPredicate{IfIDs: []common.IFIDType{0}},
+				Rule:   &HopPredicate{IfIDs: []iface.ID{0}},
 			},
 			ErrorAssertion: assert.NoError,
 		},
@@ -118,7 +161,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 
 func TestACLEntryString(t *testing.T) {
 	aclEntryString := "+ 0-0#0"
-	aclEntry := &ACLEntry{Action: true, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}}
+	aclEntry := &ACLEntry{Action: true, Rule: &HopPredicate{IfIDs: []iface.ID{0}}}
 	assert.Equal(t, aclEntryString, aclEntry.String())
 }
 
@@ -139,8 +182,8 @@ func TestACLEval(t *testing.T) {
 					denyEntry,
 				},
 			},
-			Src:        xtest.MustParseIA("2-ff00:0:212"),
-			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			Src:        addr.MustParseIA("2-ff00:0:212"),
+			Dst:        addr.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
 		"allow 2-0#0, deny rest": {
@@ -150,8 +193,8 @@ func TestACLEval(t *testing.T) {
 					denyEntry,
 				},
 			},
-			Src:        xtest.MustParseIA("2-ff00:0:212"),
-			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			Src:        addr.MustParseIA("2-ff00:0:212"),
+			Dst:        addr.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
 		"allow 2-ff00:0:212#0 and 2-ff00:0:211, deny rest": {
@@ -162,8 +205,8 @@ func TestACLEval(t *testing.T) {
 					denyEntry,
 				},
 			},
-			Src:        xtest.MustParseIA("2-ff00:0:212"),
-			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			Src:        addr.MustParseIA("2-ff00:0:212"),
+			Dst:        addr.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
 		"allow 2-ff00:0:212#0, deny rest": {
@@ -173,8 +216,8 @@ func TestACLEval(t *testing.T) {
 					denyEntry,
 				},
 			},
-			Src:        xtest.MustParseIA("2-ff00:0:212"),
-			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			Src:        addr.MustParseIA("2-ff00:0:212"),
+			Dst:        addr.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 0,
 		},
 		"deny 1-ff00:0:110#0, 1-ff00:0:120#0, allow rest": {
@@ -185,8 +228,8 @@ func TestACLEval(t *testing.T) {
 					allowEntry,
 				},
 			},
-			Src:        xtest.MustParseIA("1-ff00:0:133"),
-			Dst:        xtest.MustParseIA("2-ff00:0:222"),
+			Src:        addr.MustParseIA("1-ff00:0:133"),
+			Dst:        addr.MustParseIA("2-ff00:0:222"),
 			ExpPathNum: 2,
 		},
 		"deny 1-ff00:0:110#0, 1-ff00:0:120#0 and 1-ff00:0:111#2823, allow rest": {
@@ -198,8 +241,8 @@ func TestACLEval(t *testing.T) {
 					allowEntry,
 				},
 			},
-			Src:        xtest.MustParseIA("1-ff00:0:133"),
-			Dst:        xtest.MustParseIA("2-ff00:0:222"),
+			Src:        addr.MustParseIA("1-ff00:0:133"),
+			Dst:        addr.MustParseIA("2-ff00:0:222"),
 			ExpPathNum: 1,
 		},
 		"deny ISD1, allow certain ASes": {
@@ -211,8 +254,8 @@ func TestACLEval(t *testing.T) {
 					allowEntry,
 				},
 			},
-			Src:        xtest.MustParseIA("1-ff00:0:130"),
-			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			Src:        addr.MustParseIA("1-ff00:0:130"),
+			Dst:        addr.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 2,
 		},
 		"deny ISD1, allow certain ASes - wrong oder": {
@@ -224,8 +267,8 @@ func TestACLEval(t *testing.T) {
 					allowEntry,
 				},
 			},
-			Src:        xtest.MustParseIA("1-ff00:0:130"),
-			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			Src:        addr.MustParseIA("1-ff00:0:130"),
+			Dst:        addr.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 0,
 		},
 		"nil rule should match all the paths": {
@@ -235,8 +278,8 @@ func TestACLEval(t *testing.T) {
 					allowEntry,
 				},
 			},
-			Src:        xtest.MustParseIA("1-ff00:0:130"),
-			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			Src:        addr.MustParseIA("1-ff00:0:130"),
+			Dst:        addr.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 0,
 		},
 	}
@@ -262,6 +305,6 @@ func TestACLPanic(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
-	paths := pp.GetPaths(xtest.MustParseIA("2-ff00:0:212"), xtest.MustParseIA("2-ff00:0:211"))
+	paths := pp.GetPaths(addr.MustParseIA("2-ff00:0:212"), addr.MustParseIA("2-ff00:0:211"))
 	assert.Panics(t, func() { acl.Eval(paths) })
 }

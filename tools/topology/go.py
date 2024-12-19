@@ -38,7 +38,7 @@ from topology.common import (
 
 from topology.net import socket_address_str, NetworkDescription, IPNetwork
 
-from topology.prometheus import (
+from topology.monitoring import (
     CS_PROM_PORT,
     DEFAULT_BR_PROM_PORT,
     SCIOND_PROM_PORT,
@@ -68,7 +68,6 @@ class GoGenerator(object):
         self.args = args
         self.log_dir = '/share/logs' if args.docker else 'logs'
         self.db_dir = '/share/cache' if args.docker else 'gen-cache'
-        self.certs_dir = '/share/crypto' if args.docker else 'gen-certs'
         self.log_level = 'debug'
 
     def generate_br(self):
@@ -79,7 +78,7 @@ class GoGenerator(object):
                 write_file(os.path.join(base, "%s.toml" % k), toml.dumps(br_conf))
 
     def _build_br_conf(self, topo_id, ia, base, name, v):
-        config_dir = '/share/conf' if self.args.docker else base
+        config_dir = '/etc/scion' if self.args.docker else base
         raw_entry = {
             'general': {
                 'id': name,
@@ -109,12 +108,11 @@ class GoGenerator(object):
                                toml.dumps(bs_conf))
 
     def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem, ca):
-        config_dir = '/share/conf' if self.args.docker else base
+        config_dir = '/etc/scion' if self.args.docker else base
         raw_entry = {
             'general': {
                 'id': name,
                 'config_dir': config_dir,
-                'reconnect_to_dispatcher': True,
             },
             'log': self._log_entry(name),
             'trust_db': {
@@ -143,13 +141,12 @@ class GoGenerator(object):
 
     def _build_sciond_conf(self, topo_id, ia, base):
         name = sciond_name(topo_id)
-        config_dir = '/share/conf' if self.args.docker else base
+        config_dir = '/etc/scion' if self.args.docker else base
         ip = sciond_ip(self.args.docker, topo_id, self.args.networks)
         raw_entry = {
             'general': {
                 'id': name,
                 'config_dir': config_dir,
-                'reconnect_to_dispatcher': True,
             },
             'log': self._log_entry(name),
             'trust_db': {
@@ -178,13 +175,13 @@ class GoGenerator(object):
         else:
             elem_dir = os.path.join(self.args.output_dir, "dispatcher")
             config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
-            write_file(config_file_path, toml.dumps(self._build_disp_conf("dispatcher")))
+            write_file(config_file_path, toml.dumps(self._build_disp_conf(
+                "dispatcher")))
 
     def _gen_disp_docker(self):
         for topo_id, topo in self.args.topo_dicts.items():
             base = topo_id.base_dir(self.args.output_dir)
             elem_ids = ['sig_%s' % topo_id.file_fmt()] + \
-                list(topo.get("border_routers", {})) + \
                 list(topo.get("control_service", {})) + \
                 ['tester_%s' % topo_id.file_fmt()]
             for k in elem_ids:
@@ -197,9 +194,11 @@ class GoGenerator(object):
                                                self.args.networks, DISP_PROM_PORT, name)
         api_addr = prom_addr_dispatcher(self.args.docker, topo_id,
                                         self.args.networks, DISP_PROM_PORT+700, name)
-        return {
+        srv_addresses = self._build_srv_addresses(self.args.docker, name, topo_id)
+        tomlDict = {
             'dispatcher': {
                 'id': name,
+                'local_udp_forwarding': True,
             },
             'log': self._log_entry(name),
             'metrics': {
@@ -210,6 +209,26 @@ class GoGenerator(object):
                 'addr': api_addr,
             },
         }
+        if len(srv_addresses) > 1:
+            tomlDict["dispatcher"]["service_addresses"] = srv_addresses
+        return tomlDict
+
+    def _build_srv_addresses(self, docker, name, topo_id):
+        srv_addresses = dict()
+        if docker:
+            if name.startswith("disp_cs"):
+                topo = self.args.topo_dicts.get(topo_id)
+                cs_addresses = list(topo.get("control_service", {}).values())
+                srv_addresses[str(topo_id)+",CS"] = cs_addresses[0]["addr"]
+                ds_addresses = list(topo.get("discovery_service", {}).values())
+                srv_addresses[str(topo_id)+",DS"] = ds_addresses[0]["addr"]
+        else:
+            for topo_id, topo in self.args.topo_dicts.items():
+                cs_addresses = list(topo.get("control_service", {}).values())
+                srv_addresses[str(topo_id)+",CS"] = cs_addresses[0]["addr"]
+                ds_addresses = list(topo.get("discovery_service", {}).values())
+                srv_addresses[str(topo_id)+",DS"] = ds_addresses[0]["addr"]
+        return srv_addresses
 
     def _tracing_entry(self):
         docker_ip = docker_host(self.args.docker)

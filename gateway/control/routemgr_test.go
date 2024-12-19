@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/gateway/control"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
@@ -72,7 +73,7 @@ func TestRouteString(t *testing.T) {
 				Prefix:  xtest.MustParseCIDR(t, "192.168.0.0/24"),
 				NextHop: net.ParseIP("192.168.0.1"),
 				Source:  net.ParseIP("192.168.0.2"),
-				IA:      xtest.MustParseIA("1-ff00:0:1"),
+				IA:      addr.MustParseIA("1-ff00:0:1"),
 			},
 			String: "192.168.0.0/24 via 192.168.0.1 src 192.168.0.2 isd-as 1-ff00:0:1",
 		},
@@ -80,7 +81,7 @@ func TestRouteString(t *testing.T) {
 			Route: &control.Route{
 				Prefix:  xtest.MustParseCIDR(t, "192.168.0.0/24"),
 				NextHop: net.ParseIP("192.168.0.1"),
-				IA:      xtest.MustParseIA("1-ff00:0:1"),
+				IA:      addr.MustParseIA("1-ff00:0:1"),
 			},
 			String: "192.168.0.0/24 via 192.168.0.1 isd-as 1-ff00:0:1",
 		},

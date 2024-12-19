@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -48,14 +48,14 @@ const streamAcceptTimeout = 5 * time.Second
 
 // ConnListener wraps a quic.Listener as a net.Listener.
 type ConnListener struct {
-	quic.Listener
+	*quic.Listener
 
 	ctx    context.Context
 	cancel func()
 }
 
 // NewConnListener constructs a new listener with the appropriate buffers set.
-func NewConnListener(l quic.Listener) *ConnListener {
+func NewConnListener(l *quic.Listener) *ConnListener {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &ConnListener{
 		Listener: l,
@@ -316,7 +316,7 @@ func (c *acceptingConn) RemoteAddr() net.Addr {
 }
 
 func (c *acceptingConn) ConnectionState() tls.ConnectionState {
-	return c.session.ConnectionState().TLS.ConnectionState
+	return c.session.ConnectionState().TLS
 }
 
 func (c *acceptingConn) Close() error {
@@ -347,10 +347,16 @@ func (c *acceptingConn) Close() error {
 
 // ConnDialer dials a net.Conn over a QUIC stream.
 type ConnDialer struct {
-	// Conn is the connection to initiate QUIC Sessions on. It can be shared
+	// Conn is the transport to initiate QUIC Sessions on. It can be shared
 	// between clients and servers, because QUIC connection IDs are used to
 	// demux the packets.
-	Conn net.PacketConn
+	//
+	// Note: When creating the transport, ensure that the SCMP errors are not
+	// propagated. You can for example use
+	// [github.com/scionproto/scion/pkg/snet.SCMPPropagationStopper]. Otherwise,
+	// the QUIC transport will close the listening side on SCMP errors and enter
+	// a broken state.
+	Transport *quic.Transport
 	// TLSConfig is the client's TLS configuration for starting QUIC connections.
 	TLSConfig *tls.Config
 	// QUICConfig is the client's QUIC configuration.
@@ -363,15 +369,19 @@ type ConnDialer struct {
 // fails due to a SERVER_BUSY error. Timers, number of attempts are EXPERIMENTAL
 // and subject to change.
 func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
-	addressStr := computeAddressStr(dst)
-
 	if d.TLSConfig == nil {
 		return nil, serrors.New("tls.Config not set")
 	}
+	serverName := d.TLSConfig.ServerName
+	if serverName == "" {
+		serverName = computeServerName(dst)
+	}
+
 	var session quic.Connection
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
 		// Clone TLS config to avoid data races.
 		tlsConfig := d.TLSConfig.Clone()
+		tlsConfig.ServerName = serverName
 		// Clone QUIC config to avoid data races, if it exists.
 		var quicConfig *quic.Config
 		if d.QUICConfig != nil {
@@ -379,29 +389,29 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		}
 
 		var err error
-		session, err = quic.DialContext(ctx, d.Conn, dst, addressStr, tlsConfig, quicConfig)
+		session, err = d.Transport.Dial(ctx, dst, tlsConfig, quicConfig)
 		if err == nil {
 			break
 		}
 		var transportErr *quic.TransportError
 		if !errors.As(err, &transportErr) || transportErr.ErrorCode != quic.ConnectionRefused {
-			return nil, serrors.WrapStr("dialing QUIC/SCION", err)
+			return nil, serrors.Wrap("dialing QUIC/SCION", err)
 		}
 
 		jitter := time.Duration(mrand.Int63n(int64(5 * time.Millisecond)))
 		select {
 		case <-time.After(sleep + jitter):
 		case <-ctx.Done():
-			return nil, serrors.WrapStr("timed out connecting to busy server", err)
+			return nil, serrors.Wrap("timed out connecting to busy server", err)
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, serrors.WrapStr("dialing QUIC/SCION, after loop", err)
+		return nil, serrors.Wrap("dialing QUIC/SCION, after loop", err)
 	}
 	stream, err := session.OpenStreamSync(ctx)
 	if err != nil {
 		_ = session.CloseWithError(OpenStreamError, "")
-		return nil, serrors.WrapStr("opening stream", err)
+		return nil, serrors.Wrap("opening stream", err)
 	}
 	return &acceptedConn{
 		stream:  stream,
@@ -410,13 +420,22 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 
 }
 
-// computeAddressStr returns a parseable version of the SCION address for use
+// computeServerName returns a parseable version of the SCION address for use
 // with QUIC SNI.
-func computeAddressStr(address net.Addr) string {
+func computeServerName(address net.Addr) string {
+	// XXX(roosd): Special case snet.UDPAddr because its string encoding is not
+	// processable by net.SplitHostPort.
 	if v, ok := address.(*snet.UDPAddr); ok {
-		return fmt.Sprintf("[%s,%s]:%d", v.IA, v.Host.IP, v.Host.Port)
+		return fmt.Sprintf("%s,%s", v.IA, v.Host.IP)
 	}
-	return address.String()
+	host := address.String()
+	sni, _, err := net.SplitHostPort(host)
+	if err != nil {
+		// It's ok if net.SplitHostPort returns an error. it could be a
+		// hostname/IP address without a port.
+		sni = host
+	}
+	return sni
 }
 
 // acceptedConn is a net.Conn wrapper for a QUIC stream.
@@ -454,7 +473,7 @@ func (c *acceptedConn) RemoteAddr() net.Addr {
 }
 
 func (c *acceptedConn) ConnectionState() tls.ConnectionState {
-	return c.session.ConnectionState().TLS.ConnectionState
+	return c.session.ConnectionState().TLS
 }
 
 func (c *acceptedConn) Close() error {

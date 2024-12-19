@@ -12,6 +12,7 @@ go_library(
         "//pkg/scrypto/cppki:go_default_library",
         "//private/storage:go_default_library",
         "//private/storage/trust:go_default_library",
+        "//private/trust:go_default_library",
         "//private/trust/dbtest:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

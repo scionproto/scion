@@ -53,6 +53,7 @@ class Test(base.TestTopogen):
     """
 
     def _run(self):
+        self.await_connectivity()
 
         isd_ases = scion.ASList.load("%s/gen/as_list.yml" %
                                      self.artifacts).all
@@ -71,9 +72,9 @@ class Test(base.TestTopogen):
         end2end.run_fg()
 
         logger.info("==> Shutting down control servers and purging caches")
-        for container in self.dc.list_containers("scion_sd.*"):
+        for container in self.dc.list_containers("sd.*"):
             self.dc("rm", container)
-        for container in self.dc.list_containers("scion_cs.*"):
+        for container in self.dc.list_containers("cs.*"):
             self.dc.stop_container(container)
         for cs_config in cs_configs:
             files = list((pathlib.Path(self.artifacts) /
@@ -84,7 +85,7 @@ class Test(base.TestTopogen):
 
         logger.info("==> Restart containers")
         self.setup_start()
-        time.sleep(5)
+        self.await_connectivity()
 
         logger.info("==> Check connectivity")
         end2end.run_fg()

@@ -1,11 +1,12 @@
 ### common options for all subcommands (help, query, build, ...)
-common --show_timestamps
+common --show_timestamps --enable_platform_specific_config
 
 # connect to buchgr/bazel-remote cache
 # These flags can unfortunately not be specified for `common`, as they are not accepted by all subcommands (help, version, dump)
-build --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
-query --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
-fetch --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
+# The --experimental_remote_downloader_local_fallback is used as workaround for issue with rules_oci (https://github.com/bazel-contrib/rules_oci/issues/275).
+build --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092 --experimental_remote_downloader_local_fallback=true
+query --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092 --experimental_remote_downloader_local_fallback=true
+fetch --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092 --experimental_remote_downloader_local_fallback=true
 
 ### options for build, test, run, clean, etc.
 # expose git version (etc) to bazel
@@ -14,13 +15,18 @@ build --workspace_status_command=./tools/bazel-build-env
 build --java_runtime_version=remotejdk_11
 # disable legacy_create_init for py_binary, py_test etc. This may eventually become the default.
 build --incompatible_default_to_explicit_init_py
+# Enable resolution of cc toolchain by go toolchain
+build --incompatible_enable_cc_toolchain_resolution
+build --flag_alias=file_name_version=//:file_name_version
+build  --build_python_zip
 
 # include one of "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
 # cannot be in common, because query chokes on it.
-build --define gotags=sqlite_modernc
+build --define gotags=sqlite_modernc,netgo
+build:osx --define gotags=sqlite_modernc
 
 ### options for test
-test --build_tests_only --print_relative_test_log_paths --test_output=errors
+test --build_tests_only --print_relative_test_log_paths --test_output=errors --nobuild_python_zip
 
 ### predefined configurations (use with --config, eg. `bazel test --config=unit_all`)
 test:race --@io_bazel_rules_go//go/config:race
@@ -30,7 +36,7 @@ test:unit_all --config=unit //...
 test:integration --test_tag_filters=integration,-lint
 test:integration_all --config=integration //...
 
-test:lint --test_tag_filters=lint --test_summary=terse --noshow_progress --experimental_convenience_symlinks=ignore //...
+test:lint --test_tag_filters=lint,write_src --test_summary=terse --noshow_progress --experimental_convenience_symlinks=ignore
 
 # run quietly, only display errors
 common:quiet --ui_event_filters=-warning,-info,-debug,-stdout,-stderr --noshow_progress

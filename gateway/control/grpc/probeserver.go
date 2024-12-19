@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	gpb "github.com/scionproto/scion/pkg/proto/gateway"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
 // ProbeDispatcher handles incoming gateway protocol messages.
@@ -46,9 +45,6 @@ func (d *ProbeDispatcher) Listen(ctx context.Context, conn net.PacketConn) error
 		default:
 			n, addr, err := conn.ReadFrom(buf)
 			if err != nil {
-				if reliable.IsDispatcherError(err) {
-					return err
-				}
 				logger.Info("ProbeDispatcher: Error reading from connection", "err", err)
 				// FIXME(shitz): Continuing here is only a temporary solution. Different
 				// errors need to be handled different, for some it should break and others
@@ -79,7 +75,7 @@ func (d *ProbeDispatcher) dispatch(conn net.PacketConn, raw []byte, addr net.Add
 		}
 		packed, err := proto.Marshal(reply)
 		if err != nil {
-			return serrors.WrapStr("packing probe response", err, "session_id", c.Probe.SessionId)
+			return serrors.Wrap("packing probe response", err, "session_id", c.Probe.SessionId)
 		}
 		_, err = conn.WriteTo(packed, addr)
 		return err

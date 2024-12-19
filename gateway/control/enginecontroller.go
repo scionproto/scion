@@ -161,7 +161,7 @@ func (c *EngineController) run(ctx context.Context) error {
 		// session configurations.
 		rt, err := c.RoutingTableFactory.New(rcs)
 		if err != nil {
-			return serrors.WrapStr("creating routing table", err)
+			return serrors.Wrap("creating routing table", err)
 		}
 		routingTable := NewPublishingRoutingTable(rcs, rt,
 			c.RoutePublisherFactory.NewPublisher(), net.IP{}, c.RouteSourceIPv4, c.RouteSourceIPv6)
@@ -171,7 +171,7 @@ func (c *EngineController) run(ctx context.Context) error {
 		logger.Info("Starting new forwarding engine.",
 			"routing_chain_mapping", routingChainMappingForLog(rcMapping))
 		if err := newEngine.Run(ctx); err != nil {
-			return serrors.WrapStr("setting up the engine", err)
+			return serrors.Wrap("setting up the engine", err)
 		}
 
 		time.Sleep(c.SwapDelay)
@@ -180,14 +180,14 @@ func (c *EngineController) run(ctx context.Context) error {
 		old := c.RoutingTableSwapper.SetRoutingTable(routingTable)
 		if old != nil {
 			if err := old.Close(); err != nil {
-				return serrors.WrapStr("closing old routing table", err)
+				return serrors.Wrap("closing old routing table", err)
 			}
 		}
 
 		if c.engine != nil {
 			logger.Debug("Shutting down old forwarding engine.")
 			if err := c.engine.Close(ctx); err != nil {
-				return serrors.WrapStr("shutting down engine", err)
+				return serrors.Wrap("shutting down engine", err)
 			}
 			logger.Debug("Shut down old forwarding engine")
 		}

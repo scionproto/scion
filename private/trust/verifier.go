@@ -29,7 +29,6 @@ import (
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -48,6 +47,9 @@ type Verifier struct {
 	BoundIA addr.IA
 	// BoundServer binds a remote server to ask for missing crypto material.
 	BoundServer net.Addr
+	// BoundValidity binds the verifier to only use certificates that are valid
+	// at the specified time.
+	BoundValidity cppki.Validity
 	// Engine provides verified certificate chains.
 	Engine Provider
 
@@ -72,11 +74,11 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	var keyID cppb.VerificationKeyID
 	if err := proto.Unmarshal(hdr.VerificationKeyID, &keyID); err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
-		return nil, serrors.WrapStr("parsing verification key ID", err)
+		return nil, serrors.Wrap("parsing verification key ID", err)
 	}
 	if len(keyID.SubjectKeyId) == 0 {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
-		return nil, serrors.WrapStr("subject key ID must be set", err)
+		return nil, serrors.Wrap("subject key ID must be set", err)
 	}
 	ia := addr.IA(keyID.IsdAs)
 	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(ia) {
@@ -92,25 +94,25 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		return nil, serrors.New("nil engine that provides cert chains")
 	}
 	id := cppki.TRCID{ISD: ia.ISD(),
-		Base:   scrypto.Version(keyID.TrcBase),
-		Serial: scrypto.Version(keyID.TrcSerial),
+		Base:   scrypto.Version(keyID.TrcBase),   // nolint - name from published protobuf
+		Serial: scrypto.Version(keyID.TrcSerial), // nolint - name from published protobuf
 	}
 	if err := v.notifyTRC(ctx, id); err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
-		return nil, serrors.WrapStr("reporting TRC", err, "id", id)
+		return nil, serrors.Wrap("reporting TRC", err, "id", id)
 	}
 	query := ChainQuery{
 		IA:           ia,
 		SubjectKeyID: keyID.SubjectKeyId,
-		Date:         time.Now(),
+		Validity:     v.BoundValidity,
 	}
 	chains, err := v.getChains(ctx, query)
 	if err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
-		return nil, serrors.WrapStr("getting chains", err,
+		return nil, serrors.Wrap("getting chains", err,
 			"query.isd_as", query.IA,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
-			"query.date", util.TimeToCompact(query.Date),
+			"query.validity", query.Validity.String(),
 		)
 	}
 	for _, c := range chains {
@@ -124,7 +126,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	return nil, serrors.New("no chain in database can verify signature",
 		"query.isd_as", query.IA,
 		"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
-		"query.date", util.TimeToCompact(query.Date),
+		"query.validity", query.Validity.String(),
 	)
 }
 

@@ -15,7 +15,7 @@
 package drkey
 
 import (
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru/arc/v2"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -23,14 +23,14 @@ import (
 // Level1ARC maintains an Adaptative Replacement Cache, storing
 // the necessary metadata to prefetch Level1 keys.
 type Level1ARC struct {
-	cache *lru.ARCCache
+	cache *arc.ARCCache[Level1PrefetchInfo, struct{}]
 }
 
 // NewLevel1ARC returns a Level1ARC cache of a given size.
 func NewLevel1ARC(size int) (*Level1ARC, error) {
-	cache, err := lru.NewARC(size)
+	cache, err := arc.NewARC[Level1PrefetchInfo, struct{}](size)
 	if err != nil {
-		return nil, serrors.WrapStr("creating Level1ARC cache", err)
+		return nil, serrors.Wrap("creating Level1ARC cache", err)
 	}
 	return &Level1ARC{
 		cache: cache,
@@ -47,7 +47,7 @@ func (c *Level1ARC) Update(keyPair Level1PrefetchInfo) {
 func (c *Level1ARC) Info() []Level1PrefetchInfo {
 	list := []Level1PrefetchInfo{}
 	for _, k := range c.cache.Keys() {
-		lvl1Info := k.(Level1PrefetchInfo)
+		lvl1Info := k
 		list = append(list, lvl1Info)
 	}
 	return list

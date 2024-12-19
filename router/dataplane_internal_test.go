@@ -33,12 +33,16 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/mock_router"
+)
+
+var (
+	testKey = []byte("testkey_xxxxxxxx")
 )
 
 // TestReceiver sets up a mocked batchConn, starts the receiver that reads from
@@ -67,25 +71,25 @@ func TestReceiver(t *testing.T) {
 	).Times(2)
 	mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 		func(m underlayconn.Messages) (int, error) {
-			dp.running = false
+			dp.setStopping()
 			done <- true
 			return 0, nil
 		},
 	).Times(1)
 
-	_ = dp.AddInternalInterface(mInternal, net.IP{})
+	_ = dp.AddInternalInterface(mInternal, netip.Addr{})
 
 	runConfig := &RunConfig{
 		NumProcessors: 1,
 		BatchSize:     64,
 	}
 	dp.initPacketPool(runConfig, 64)
-	procCh, _ := initQueues(runConfig, dp.interfaces, 64)
+	procCh, _, _ := initQueues(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
-	dp.running = true
+	dp.setRunning()
 	dp.initMetrics()
 	go func() {
-		dp.runReceiver(0, dp.internal, runConfig, procCh)
+		dp.runReceiver(0, dp.interfaces[0], runConfig, procCh)
 	}()
 	ptrMap := make(map[uintptr]struct{})
 	for i := 0; i < 21; i++ {
@@ -105,7 +109,7 @@ func TestReceiver(t *testing.T) {
 			// make sure that the processing routine received exactly 20 messages
 			if i != 20 {
 				t.Fail()
-				dp.running = false
+				dp.setStopping()
 			}
 		}
 	}
@@ -156,7 +160,7 @@ func TestForwarder(t *testing.T) {
 					}
 				}
 				if totalCount == 255 {
-					ret.running = false
+					ret.setStopping()
 					done <- struct{}{}
 				}
 				if len(ms) == 0 {
@@ -165,7 +169,7 @@ func TestForwarder(t *testing.T) {
 
 				return len(ms), nil
 			}).AnyTimes()
-		_ = ret.AddInternalInterface(mInternal, net.IP{})
+		_ = ret.AddInternalInterface(mInternal, netip.Addr{})
 		return ret
 	}
 	dp := prepareDP(ctrl)
@@ -174,27 +178,29 @@ func TestForwarder(t *testing.T) {
 		BatchSize:     64,
 	}
 	dp.initPacketPool(runConfig, 64)
-	_, fwCh := initQueues(runConfig, dp.interfaces, 64)
+	_, fwCh, _ := initQueues(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
-	dp.running = true
+	dp.setRunning()
 	dp.initMetrics()
-	go dp.runForwarder(0, dp.internal, runConfig, fwCh[0])
+	go dp.runForwarder(0, dp.interfaces[0], runConfig, fwCh[0])
 
 	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 	for i := 0; i < 255; i++ {
 		pkt := <-dp.packetPool
-		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
-		pkt[0] = byte(i)
-		if i == 100 {
-			dstAddr = nil
+		pkt.reset()
+		pkt.rawPacket = pkt.rawPacket[:1]
+		pkt.rawPacket[0] = byte(i)
+		if i < 100 {
+			pkt.dstAddr.IP = pkt.dstAddr.IP[:4]
+			copy(pkt.dstAddr.IP, dstAddr.IP)
 		}
+		pkt.srcAddr = &net.UDPAddr{} // Receiver always sets this.
+		pkt.ingress = 0
+
+		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
+
 		select {
-		case fwCh[0] <- packet{
-			srcAddr:   nil,
-			dstAddr:   dstAddr,
-			ingress:   0,
-			rawPacket: pkt[:1],
-		}:
+		case fwCh[0] <- pkt:
 		case <-done:
 		}
 
@@ -205,23 +211,30 @@ func TestForwarder(t *testing.T) {
 		assert.Equal(t, initialPoolSize, len(dp.packetPool))
 	case <-time.After(100 * time.Millisecond):
 		t.Fail()
-		dp.running = false
+		dp.setStopping()
 	}
 }
 
 func TestComputeProcId(t *testing.T) {
-	randomValue := []byte{1, 2, 3, 4}
+	randomValueBytes := []byte{1, 2, 3, 4}
 	numProcs := 10000
 
-	// this function returns the procID by using the slayers.SCION serialization
-	// implementation
+	// ComputeProcID expects the per-receiver random number to be pre-hashed into the seed that we
+	// pass.
+	hashSeed := fnv1aOffset32
+	for _, c := range randomValueBytes {
+		hashSeed = hashFNV1a(hashSeed, c)
+	}
+
+	// this function returns the procID as we expect it by using the  slayers.SCION serialization
+	// implementation.
 	referenceHash := func(s *slayers.SCION) uint32 {
 		flowBuf := make([]byte, 4)
 		binary.BigEndian.PutUint32(flowBuf, s.FlowID)
 		flowBuf[0] &= 0xF
 		tmpBuffer := make([]byte, 100)
 		hasher := fnv.New32a()
-		hasher.Write(randomValue)
+		hasher.Write(randomValueBytes)
 		hasher.Write(flowBuf[1:4])
 		if err := s.SerializeAddrHdr(tmpBuffer); err != nil {
 			panic(err)
@@ -230,11 +243,9 @@ func TestComputeProcId(t *testing.T) {
 		return hasher.Sum32() % uint32(numProcs)
 	}
 
-	// this helper returns the procID by using the extraction
-	// from dataplane.computeProcID()
+	// this helper returns the procID as the router actually makes it by using the extraction
+	// from dataplane.computeProcID() along with hashFNV1a() for the seed.
 	computeProcIDHelper := func(payload []byte, s *slayers.SCION) (uint32, error) {
-		flowIdBuffer := make([]byte, 3)
-		hasher := fnv.New32a()
 		buffer := gopacket.NewSerializeBuffer()
 		err := gopacket.SerializeLayers(buffer,
 			gopacket.SerializeOptions{FixLengths: true},
@@ -242,7 +253,7 @@ func TestComputeProcId(t *testing.T) {
 		require.NoError(t, err)
 		raw := buffer.Bytes()
 
-		return computeProcID(raw, numProcs, randomValue, flowIdBuffer, hasher)
+		return computeProcID(raw, numProcs, hashSeed)
 	}
 	type ret struct {
 		payload []byte
@@ -402,9 +413,8 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			randomValue := []byte{1, 2, 3, 4}
-			flowIdBuffer := make([]byte, 3)
-			_, actualErr := computeProcID(tc.data, 10000, randomValue, flowIdBuffer, fnv.New32a())
+			randomValue := uint32(1234) // not a proper hash seed, but hash result is irrelevant.
+			_, actualErr := computeProcID(tc.data, 10000, randomValue)
 			if tc.expectedError != nil {
 				assert.Equal(t, tc.expectedError.Error(), actualErr.Error())
 			} else {
@@ -412,6 +422,249 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSlowPathProcessing(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	payload := []byte("actualpayloadbytes")
+
+	// ProcessPacket assumes some pre-conditions:
+	// * The ingress interface has to exist. This fake map is good for the test cases we have.
+	// * InternalNextHops may not be nil. Empty is ok for all the test cases we have.
+	fakeExternalInterfaces := map[uint16]BatchConn{1: nil}
+	fakeInternalNextHops := map[uint16]netip.AddrPort{}
+	fakeServices := map[addr.SVC][]netip.AddrPort{}
+
+	testCases := map[string]struct {
+		mockMsg                 func() []byte
+		prepareDP               func(*gomock.Controller) *DataPlane
+		expectedSlowPathRequest slowPathRequest
+		srcInterface            uint16
+		expectedLayerType       gopacket.LayerType
+	}{
+		"svc nobackend": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:110"),
+					nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeDestinationUnreachable,
+				code:     slayers.SCMPCodeNoRoute,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
+		},
+		"svc invalid": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeDestinationUnreachable,
+				code:     slayers.SCMPCodeNoRoute,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
+		},
+		"invalid dest": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:f1")
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeParameterProblem,
+				code:     slayers.SCMPCodeInvalidDestinationAddress,
+				pointer:  0xc,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
+		"invalid dest addr": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				spkt.RawDstAddr = []byte("invalid")
+				spkt.DstAddrType = 1 // invalid address type
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeParameterProblem,
+				code:     slayers.SCMPCodeInvalidDestinationAddress,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
+		"invalid dest v4mapped": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				spkt.DstAddrType = slayers.T16Ip
+				spkt.RawDstAddr = []byte{
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 10, 0, 200, 200,
+				}
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeParameterProblem,
+				code:     slayers.SCMPCodeInvalidDestinationAddress,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
+		"invalid dest unspecified": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				spkt.DstAddrType = slayers.T4Ip
+				spkt.RawDstAddr = []byte{0, 0, 0, 0}
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeParameterProblem,
+				code:     slayers.SCMPCodeInvalidDestinationAddress,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
+		"invalid src v4mapped": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsgHop0Out(t, payload, 0)
+				_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
+				spkt.SrcAddrType = slayers.T16Ip
+				spkt.RawSrcAddr = []byte{
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 10, 0, 200, 100,
+				}
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 0,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeParameterProblem,
+				code:     slayers.SCMPCodeInvalidSourceAddress,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dp := tc.prepareDP(ctrl)
+			dp.initMetrics()
+
+			rp := tc.mockMsg()
+			pkt := packet{}
+			pkt.init(&[bufSize]byte{})
+			pkt.reset()
+			pkt.ingress = tc.srcInterface
+			pkt.srcAddr = &net.UDPAddr{} // The receiver always sets this.
+			pkt.rawPacket = pkt.rawPacket[:len(rp)]
+			copy(pkt.rawPacket, rp)
+
+			processor := newPacketProcessor(dp)
+			disp := processor.processPkt(&pkt)
+			assert.Equal(t, pSlowPath, disp)
+
+			assert.Equal(t, tc.expectedSlowPathRequest, pkt.slowPathRequest)
+			slowPathProcessor := newSlowPathProcessor(dp)
+			err := slowPathProcessor.processPacket(&pkt)
+			assert.NoError(t, err)
+
+			// here we parse the outgoing packet to verify that it contains the correct SCMP
+			// header and typecodes.
+			packet := gopacket.NewPacket(pkt.rawPacket, slayers.LayerTypeSCION, gopacket.Default)
+			scmp := packet.Layer(slayers.LayerTypeSCMP).(*slayers.SCMP)
+			expectedTypeCode := slayers.CreateSCMPTypeCode(tc.expectedSlowPathRequest.scmpType,
+				tc.expectedSlowPathRequest.code)
+			assert.Equal(t, expectedTypeCode, scmp.TypeCode)
+			assert.NotNil(t, packet.Layer(tc.expectedLayerType))
+		})
+	}
+}
+
+func toMsg(t *testing.T, spkt *slayers.SCION) []byte {
+	t.Helper()
+	buffer := gopacket.NewSerializeBuffer()
+	payload := []byte("actualpayloadbytes")
+	err := gopacket.SerializeLayers(buffer, gopacket.SerializeOptions{FixLengths: true},
+		spkt, gopacket.Payload(payload))
+	require.NoError(t, err)
+	raw := buffer.Bytes()
+	ret := make([]byte, bufSize)
+	copy(ret, raw)
+	return ret[:len(raw)]
+}
+
+func computeMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopField) [path.MacLen]byte {
+	mac, err := scrypto.InitMac(key)
+	require.NoError(t, err)
+	return path.MAC(mac, info, hf, nil)
 }
 
 func serializedBaseMsg(t *testing.T, payload []byte, flowId uint32) []byte {
@@ -424,6 +677,7 @@ func serializedBaseMsg(t *testing.T, payload []byte, flowId uint32) []byte {
 	return buffer.Bytes()
 }
 
+// Prepares a message that is arriving at its last hop, incoming through interface 1.
 func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 	spkt := &slayers.SCION{
 		Version:      0,
@@ -431,8 +685,8 @@ func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 		FlowID:       flowId,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		DstIA:        xtest.MustParseIA("1-ff00:0:110"),
-		SrcIA:        xtest.MustParseIA("1-ff00:0:111"),
+		DstIA:        addr.MustParseIA("1-ff00:0:110"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:111"),
 		Path:         &scion.Raw{},
 		PayloadLen:   18,
 	}
@@ -440,7 +694,7 @@ func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 	dpath := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
-				CurrHF: 1,
+				CurrHF: 2,
 				SegLen: [3]uint8{3, 0, 0},
 			},
 			NumINF:  1,
@@ -456,6 +710,45 @@ func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 			{ConsIngress: 1, ConsEgress: 0},
 		},
 	}
+	dpath.HopFields[2].Mac = computeMAC(t, testKey, dpath.InfoFields[0], dpath.HopFields[2])
+	spkt.Path = dpath
+	return spkt
+}
+
+// Prepares a message that is at its first hop and outgoing via interface 1.
+func prepBaseMsgHop0Out(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
+	spkt := &slayers.SCION{
+		Version:      0,
+		TrafficClass: 0xb8,
+		FlowID:       flowId,
+		NextHdr:      slayers.L4UDP,
+		PathType:     scion.PathType,
+		DstIA:        addr.MustParseIA("1-ff00:0:110"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:111"),
+		Path:         &scion.Raw{},
+		PayloadLen:   18,
+	}
+
+	dpath := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF: 0,
+				SegLen: [3]uint8{3, 0, 0},
+			},
+			NumINF:  1,
+			NumHops: 3,
+		},
+		InfoFields: []path.InfoField{
+			{SegID: 0x111, ConsDir: true, Timestamp: util.TimeToSecs(time.Now())},
+		},
+
+		HopFields: []path.HopField{
+			{ConsIngress: 0, ConsEgress: 1},
+			{ConsIngress: 41, ConsEgress: 40},
+			{ConsIngress: 31, ConsEgress: 30},
+		},
+	}
+	dpath.HopFields[0].Mac = computeMAC(t, testKey, dpath.InfoFields[0], dpath.HopFields[0])
 	spkt.Path = dpath
 	return spkt
 }

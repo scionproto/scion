@@ -66,6 +66,10 @@ doc/venv/
 /bin/*
 !/bin/.keepme
 
+# Generated package files
+##########################
+/installables/
+
 # CTags
 ##########################
 tags
@@ -91,6 +95,11 @@ _build
 node_modules
 
 # gobra
+#######
 *.vpr
 tmp/
 logger.log
+
+# emacs backup files
+####################
+*~

@@ -122,7 +122,7 @@ func (t *TCPDialer) Dial(ctx context.Context, dst net.Addr) (*grpc.ClientConn, e
 
 // AddressRewriter redirects to QUIC endpoints.
 type AddressRewriter interface {
-	RedirectToQUIC(ctx context.Context, address net.Addr) (net.Addr, bool, error)
+	RedirectToQUIC(ctx context.Context, address net.Addr) (net.Addr, error)
 }
 
 // ConnDialer dials a net.Conn.
@@ -143,9 +143,9 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 	// resolver+balancer mechanism of gRPC. For now, keep the legacy behavior of
 	// dialing a connection based on the QUIC redirects.
 
-	addr, _, err := d.Rewriter.RedirectToQUIC(ctx, addr)
+	addr, err := d.Rewriter.RedirectToQUIC(ctx, addr)
 	if err != nil {
-		return nil, serrors.WrapStr("resolving SVC address", err)
+		return nil, serrors.Wrap("resolving SVC address", err)
 	}
 	if _, ok := addr.(*snet.UDPAddr); !ok {
 		return nil, serrors.New("wrong address type after svc resolution",

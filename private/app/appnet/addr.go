@@ -16,10 +16,8 @@ package appnet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -47,81 +45,41 @@ type AddressRewriter struct {
 	SVCRouter SVCResolver
 	// Resolver performs SVC resolution if enabled.
 	Resolver Resolver
-	// SVCResolutionFraction enables SVC resolution for traffic to SVC
-	// destinations in a way that is also compatible with control plane servers
-	// that do not implement the SVC Resolution Mechanism. The value represents
-	// the percentage of time, out of the total available context timeout,
-	// spent attempting to perform SVC resolution. If SVCResolutionFraction is
-	// 0 or less, SVC resolution is never attempted. If it is between 0 and 1,
-	// the remaining context timeout is multiplied by the value, and that
-	// amount of time is spent waiting for an SVC resolution reply from the
-	// server. If this times out, the data packet is sent with an SVC
-	// destination. If the value is 1 or more, then legacy behavior is
-	// disabled, and data packets are never sent to SVC destinations unless the
-	// resolution step is successful.
-	SVCResolutionFraction float64
 }
 
 // RedirectToQUIC takes an address and adds a path (if one does not already
 // exist but is required), and replaces SVC destinations with QUIC unicast
 // ones, if possible.
 //
-// The returned boolean value is set to true if the remote server is
-// QUIC-compatible and we have successfully discovered its address.
-//
 // If the address is already unicast, no redirection to QUIC is attempted.
 func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
-	address net.Addr) (net.Addr, bool, error) {
-	logger := log.FromCtx(ctx)
-
-	// FIXME(scrye): This is not legitimate use. It's only included for
-	// compatibility with older unit tests. See
-	// https://github.com/scionproto/scion/issues/2611.
-	if address == nil {
-		return address, false, nil
-	}
+	address net.Addr) (net.Addr, error) {
 
 	switch a := address.(type) {
 	case *snet.UDPAddr:
-		return a, false, nil
+		return a, nil
 	case *snet.SVCAddr:
 		fa, err := r.buildFullAddress(ctx, a)
 		if err != nil {
-			return nil, false, err
-		}
-		if r.SVCResolutionFraction <= 0.0 {
-			return fa, false, nil
+			return nil, err
 		}
 
 		path, err := fa.GetPath()
 		if err != nil {
-			return nil, false, serrors.WrapStr("bad path", err)
+			return nil, serrors.Wrap("bad path", err)
 		}
 
 		// During One-Hop Path operation, use SVC resolution to also bootstrap the path.
-		p, u, quicRedirect, err := r.resolveSVC(ctx, path, fa.SVC)
+		p, u, err := r.resolveSVC(ctx, path, fa.SVC)
 		if err != nil {
-			// For a revoked path we don't fallback we want to give the option
-			// to retry with a new path.
-			isRevokedPath := func(err error) bool {
-				var opErr *snet.OpError
-				return errors.As(err, &opErr) && opErr.RevInfo() != nil
-			}
-			if r.SVCResolutionFraction < 1.0 && !isRevokedPath(err) {
-				// SVC resolution failed but we allow legacy behavior and have some
-				// fraction of the timeout left for data transfers, so return
-				// address with SVC destination still set
-				logger.Debug("Falling back to legacy mode, ignore error", "err", err)
-				return fa, false, nil
-			}
-			return a, false, err
+			return a, err
 		}
 
 		ret := &snet.UDPAddr{IA: fa.IA, Path: p.Dataplane(), NextHop: fa.NextHop, Host: u}
-		return ret, quicRedirect, err
+		return ret, nil
 	}
 
-	return nil, false, serrors.New("address type not supported",
+	return nil, serrors.New("address type not supported",
 		"addr", fmt.Sprintf("%v(%T)", address, address))
 }
 
@@ -158,7 +116,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	if len(p.Metadata().Interfaces) == 0 { //when local AS
 		ov, err := r.SVCRouter.GetUnderlay(s.SVC)
 		if err != nil {
-			return nil, serrors.WrapStr("Unable to resolve underlay", err)
+			return nil, serrors.Wrap("Unable to resolve underlay", err)
 		}
 		ret.NextHop = ov
 		ret.Path = path.Empty{}
@@ -167,48 +125,30 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	return ret, nil
 }
 
-// resolveSVC performs SVC resolution and returns an UDP/IP address. If the UDP/IP
-// address is for a QUIC-compatible server, the returned boolean value is set
-// to true. If the address does not have an SVC destination, it is returned
+// resolveSVC performs SVC resolution and returns an UDP/IP address.
+// If the address does not have an SVC destination, it is returned
 // unchanged. If address is not a well-formed application address (all fields
 // set, non-nil, supported protocols), the function's behavior is undefined.
 // The returned path is the path contained in the reply; the path can be used
 // to talk to the remote AS after One-Hop Path construction.
 func (r AddressRewriter) resolveSVC(ctx context.Context, p snet.Path,
-	s addr.SVC) (snet.Path, *net.UDPAddr, bool, error) {
+	s addr.SVC) (snet.Path, *net.UDPAddr, error) {
 	logger := log.FromCtx(ctx)
-	if r.SVCResolutionFraction < 1.0 {
-		var cancelF context.CancelFunc
-		ctx, cancelF = r.resolutionCtx(ctx)
-		defer cancelF()
-	}
 
-	logger.Debug("Sending SVC resolution request", "isd_as", p.Destination(), "svc", s,
-		"svcResFraction", r.SVCResolutionFraction)
+	logger.Debug("Sending SVC resolution request", "isd_as", p.Destination(), "svc", s)
 
 	reply, err := r.Resolver.LookupSVC(ctx, p, s)
 	if err != nil {
 		logger.Debug("SVC resolution failed", "err", err)
-		return nil, nil, false, err
+		return nil, nil, err
 	}
 
 	logger.Debug("SVC resolution successful", "reply", reply)
 	u, err := parseReply(reply)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, err
 	}
-	return reply.ReturnPath, u, true, nil
-}
-
-func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, context.CancelFunc) {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return context.WithCancel(ctx)
-	}
-
-	timeout := time.Until(deadline)
-	timeout = time.Duration(float64(timeout) * r.SVCResolutionFraction)
-	return context.WithTimeout(ctx, timeout)
+	return reply.ReturnPath, u, nil
 }
 
 // parseReply searches for a QUIC server on the remote address. If one is not

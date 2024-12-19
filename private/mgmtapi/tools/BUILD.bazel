@@ -1,0 +1,10 @@
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
+exports_files(
+    [
+        "package.json",
+        "pnpm-lock.yml",
+    ],
+)
+
+npm_link_all_packages(name = "node_modules")

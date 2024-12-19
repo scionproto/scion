@@ -15,10 +15,10 @@
 package snet
 
 import (
-	"fmt"
 	"net"
 	"net/netip"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -91,21 +91,21 @@ func parseUDPAddrLegacy(s string) (*UDPAddr, error) {
 	}
 	ia, err := addr.ParseIA(rawIA)
 	if err != nil {
-		return nil, serrors.WrapStr("invalid address: IA not parsable", err, "ia", ia)
+		return nil, serrors.Wrap("invalid address: IA not parsable", err, "ia", ia)
 	}
 	if ipOnly(rawHost) {
 		addr, err := net.ResolveIPAddr("ip", strings.Trim(rawHost, "[]"))
 		if err != nil {
-			return nil, serrors.WrapStr("invalid address: IP not resolvable", err)
+			return nil, serrors.Wrap("invalid address: IP not resolvable", err)
 		}
 		return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: addr.IP, Port: 0, Zone: addr.Zone}}, nil
 	}
 	udp, err := net.ResolveUDPAddr("udp", rawHost)
 	if err != nil {
-		return nil, serrors.WrapStr("invalid address: host not parsable", err, "host", rawHost)
+		return nil, serrors.Wrap("invalid address: host not parsable", err, "host", rawHost)
 	}
 	if udp.IP == nil {
-		return nil, serrors.WrapStr("invalid address: ip not specified", err, "host", rawHost)
+		return nil, serrors.Wrap("invalid address: ip not specified", err, "host", rawHost)
 	}
 	return &UDPAddr{IA: ia, Host: udp}, nil
 }
@@ -117,7 +117,15 @@ func (a *UDPAddr) Network() string {
 
 // String implements net.Addr interface.
 func (a *UDPAddr) String() string {
-	return fmt.Sprintf("%v,%s", a.IA, a.Host.String())
+	host, port, suffix := "<nil>", "0", ""
+	if a.Host != nil {
+		host = a.Host.IP.String()
+		port = strconv.Itoa(a.Host.Port)
+		if a.Host.Zone != "" {
+			suffix = "%" + a.Host.Zone
+		}
+	}
+	return net.JoinHostPort(a.IA.String()+","+host+suffix, port)
 }
 
 // GetPath returns a path with attached metadata.

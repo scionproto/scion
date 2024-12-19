@@ -1,6 +1,7 @@
 {
   "isd_as": "1-ff00:0:110",
   "mtu": 1472,
+  "dispatched_ports": "1024-65535",
   "attributes": [
       "core"
   ],
@@ -11,7 +12,7 @@
       "interfaces": {
         "1": {
           "underlay": {
-            "public": "127.0.0.1:50000",
+            "local": "127.0.0.1:50000",
             "remote": "127.0.0.2:50000"
           },
           "isd_as": "1-ff00:0:120",
@@ -26,7 +27,7 @@
       "interfaces": {
         "2": {
           "underlay": {
-            "public": "127.0.0.1:50000",
+            "local": "127.0.0.1:50000",
             "remote": "127.0.0.1:50000"
           },
           "isd_as": "1-ff00:0:120",

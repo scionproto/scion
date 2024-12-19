@@ -20,6 +20,7 @@ package proto.daemon.v1;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
 import "proto/drkey/v1/drkey.proto";
 
 service DaemonService {
@@ -35,6 +36,8 @@ service DaemonService {
     rpc Services(ServicesRequest) returns (ServicesResponse) {}
     // Inform the SCION Daemon of a revocation.
     rpc NotifyInterfaceDown(NotifyInterfaceDownRequest) returns (NotifyInterfaceDownResponse) {}
+    // Returns the endhost portRange defined in the local AS.
+    rpc PortRange(google.protobuf.Empty) returns (PortRangeResponse) {}
     // DRKeyASHost returns a key that matches the request.
     rpc DRKeyASHost (DRKeyASHostRequest) returns (DRKeyASHostResponse) {}
     // DRKeyHostAS returns a key that matches the request.
@@ -74,7 +77,8 @@ message Path {
     // Latency lists the latencies between any two consecutive interfaces.
     // Entry i describes the latency between interface i and i+1.
     // Consequently, there are N-1 entries for N interfaces.
-    // A 0-value indicates that the AS did not announce a latency for this hop.
+    // A negative value indicates that the AS did not announce a latency for
+    // this hop.
     repeated google.protobuf.Duration latency = 6;
     // Bandwidth lists the bandwidth between any two consecutive interfaces, in
     // Kbit/s.
@@ -198,6 +202,13 @@ message NotifyInterfaceDownRequest {
 }
 
 message NotifyInterfaceDownResponse {};
+
+message PortRangeResponse {
+    // The lowest port in the SCION/UDP dispatched port range.
+    uint32 dispatched_port_start = 1;
+    // The highest port in the SCION/UDP dispatched port range.
+    uint32 dispatched_port_end = 2;
+}
 
 message DRKeyHostASRequest{
     // Point in time where requested key is valid.

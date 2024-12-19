@@ -32,8 +32,8 @@ var update = xtest.UpdateGoldenFiles()
 
 func TestGroupIDUint64Conversion(t *testing.T) {
 	testCases := []hiddenpath.GroupID{
-		{OwnerAS: xtest.MustParseAS("ff00:0:110"), Suffix: 24},
-		{OwnerAS: xtest.MustParseAS("ff00:0:112"), Suffix: 0},
+		{OwnerAS: addr.MustParseAS("ff00:0:110"), Suffix: 24},
+		{OwnerAS: addr.MustParseAS("ff00:0:112"), Suffix: 0},
 	}
 	for i, id := range testCases {
 		i, id := i, id
@@ -53,44 +53,44 @@ func TestNewGroup(t *testing.T) {
 			input: "./testdata/groups.yml",
 			want: hiddenpath.Groups{
 				hiddenpath.GroupID{
-					OwnerAS: xtest.MustParseAS("ff00:0:110"),
+					OwnerAS: addr.MustParseAS("ff00:0:110"),
 					Suffix:  0x69b5,
 				}: {
 					ID: hiddenpath.GroupID{
-						OwnerAS: xtest.MustParseAS("ff00:0:110"),
+						OwnerAS: addr.MustParseAS("ff00:0:110"),
 						Suffix:  0x69b5,
 					},
-					Owner: xtest.MustParseIA("1-ff00:0:110"),
+					Owner: addr.MustParseIA("1-ff00:0:110"),
 					Writers: map[addr.IA]struct{}{
-						xtest.MustParseIA("1-ff00:0:111"): {},
-						xtest.MustParseIA("1-ff00:0:112"): {},
+						addr.MustParseIA("1-ff00:0:111"): {},
+						addr.MustParseIA("1-ff00:0:112"): {},
 					},
 					Readers: map[addr.IA]struct{}{
-						xtest.MustParseIA("1-ff00:0:114"): {},
+						addr.MustParseIA("1-ff00:0:114"): {},
 					},
 					Registries: map[addr.IA]struct{}{
-						xtest.MustParseIA("1-ff00:0:111"): {},
-						xtest.MustParseIA("1-ff00:0:113"): {},
+						addr.MustParseIA("1-ff00:0:111"): {},
+						addr.MustParseIA("1-ff00:0:113"): {},
 					},
 				},
 				hiddenpath.GroupID{
-					OwnerAS: xtest.MustParseAS("ff00:0:222"),
+					OwnerAS: addr.MustParseAS("ff00:0:222"),
 					Suffix:  0xabcd,
 				}: {
 					ID: hiddenpath.GroupID{
-						OwnerAS: xtest.MustParseAS("ff00:0:222"),
+						OwnerAS: addr.MustParseAS("ff00:0:222"),
 						Suffix:  0xabcd,
 					},
-					Owner: xtest.MustParseIA("1-ff00:0:222"),
+					Owner: addr.MustParseIA("1-ff00:0:222"),
 					Writers: map[addr.IA]struct{}{
-						xtest.MustParseIA("1-ff00:0:111"): {},
-						xtest.MustParseIA("1-ff00:0:112"): {},
+						addr.MustParseIA("1-ff00:0:111"): {},
+						addr.MustParseIA("1-ff00:0:112"): {},
 					},
 					Readers: map[addr.IA]struct{}{
-						xtest.MustParseIA("1-ff00:0:114"): {},
+						addr.MustParseIA("1-ff00:0:114"): {},
 					},
 					Registries: map[addr.IA]struct{}{
-						xtest.MustParseIA("1-ff00:0:115"): {},
+						addr.MustParseIA("1-ff00:0:115"): {},
 					},
 				},
 			},
@@ -125,22 +125,22 @@ func TestGroupValidate(t *testing.T) {
 		"valid": {
 			input: &hiddenpath.Group{
 				ID: hiddenpath.GroupID{
-					OwnerAS: xtest.MustParseAS("ff00:0:110"),
+					OwnerAS: addr.MustParseAS("ff00:0:110"),
 					Suffix:  0x69b5,
 				},
-				Owner: xtest.MustParseIA("1-ff00:0:110"),
+				Owner: addr.MustParseIA("1-ff00:0:110"),
 				Writers: map[addr.IA]struct{}{
-					xtest.MustParseIA("1-ff00:0:111"): {},
-					xtest.MustParseIA("1-ff00:0:112"): {},
+					addr.MustParseIA("1-ff00:0:111"): {},
+					addr.MustParseIA("1-ff00:0:112"): {},
 				},
 				Readers: map[addr.IA]struct{}{
-					xtest.MustParseIA("1-ff00:0:113"): {},
-					xtest.MustParseIA("1-ff00:0:114"): {},
+					addr.MustParseIA("1-ff00:0:113"): {},
+					addr.MustParseIA("1-ff00:0:114"): {},
 				},
 				Registries: map[addr.IA]struct{}{
-					xtest.MustParseIA("1-ff00:0:110"): {},
-					xtest.MustParseIA("1-ff00:0:111"): {},
-					xtest.MustParseIA("1-ff00:0:115"): {},
+					addr.MustParseIA("1-ff00:0:110"): {},
+					addr.MustParseIA("1-ff00:0:111"): {},
+					addr.MustParseIA("1-ff00:0:115"): {},
 				},
 			},
 			assertError: assert.NoError,
@@ -154,7 +154,7 @@ func TestGroupValidate(t *testing.T) {
 		"invalid owner": {
 			input: &hiddenpath.Group{
 				ID: hiddenpath.GroupID{
-					OwnerAS: xtest.MustParseAS("ff00:0:110"),
+					OwnerAS: addr.MustParseAS("ff00:0:110"),
 					Suffix:  0x69b5,
 				},
 				Owner: 0,
@@ -164,20 +164,20 @@ func TestGroupValidate(t *testing.T) {
 		"invalid owner and group id": {
 			input: &hiddenpath.Group{
 				ID: hiddenpath.GroupID{
-					OwnerAS: xtest.MustParseAS("ff00:0:110"),
+					OwnerAS: addr.MustParseAS("ff00:0:110"),
 					Suffix:  0x69b5,
 				},
-				Owner: xtest.MustParseIA("1-ff00:0:111"),
+				Owner: addr.MustParseIA("1-ff00:0:111"),
 			},
 			assertError: assert.Error,
 		},
 		"invalid writers": {
 			input: &hiddenpath.Group{
 				ID: hiddenpath.GroupID{
-					OwnerAS: xtest.MustParseAS("ff00:0:110"),
+					OwnerAS: addr.MustParseAS("ff00:0:110"),
 					Suffix:  0x69b5,
 				},
-				Owner:      xtest.MustParseIA("1-ff00:0:110"),
+				Owner:      addr.MustParseIA("1-ff00:0:110"),
 				Writers:    map[addr.IA]struct{}{},
 				Readers:    map[addr.IA]struct{}{},
 				Registries: map[addr.IA]struct{}{},

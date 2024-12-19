@@ -1,5 +1,5 @@
 {
-    "detail": "[ invalid ISD-AS {value=garbage} {parameter=isd_as} ]",
+    "detail": "[ parsing isd_as {parameter=isd_as}: invalid ISD-AS {value=garbage} ]",
     "status": 400,
     "title": "malformed query parameters",
     "type": "/problems/bad-request"

@@ -16,17 +16,18 @@ package combinator
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/util"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
@@ -50,7 +51,7 @@ type vertexInfo map[vertex]edgeMap
 // dmg is a Directed Multigraph.
 //
 // Vertices are either ASes (identified by their ISD-AS number) or peering
-// links (identified by the the ISD-AS numbers of the peers, and the IFIDs on
+// links (identified by the the ISD-AS numbers of the peers, and the IfIDs on
 // the peering link).
 type dmg struct {
 	Adjacencies map[vertex]vertexInfo
@@ -146,8 +147,8 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 		}
 
 		for peerEntryIdx, peer := range asEntries[asEntryIndex].PeerEntries {
-			ingress := common.IFIDType(peer.HopField.ConsIngress)
-			remote := common.IFIDType(peer.PeerInterface)
+			ingress := iface.ID(peer.HopField.ConsIngress)
+			remote := iface.ID(peer.PeerInterface)
 			tuples = append(tuples, Tuple{
 				Src:  vertexFromIA(pinnedIA),
 				Dst:  vertexFromPeering(currentIA, ingress, peer.Peer, remote),
@@ -193,9 +194,9 @@ func (g *dmg) AddEdge(src, dst vertex, segment *inputSegment, e *edge) {
 }
 
 // GetPaths returns all the paths from src to dst, sorted according to weight.
-func (g *dmg) GetPaths(src, dst vertex) pathSolutionList {
-	var solutions pathSolutionList
-	queue := pathSolutionList{&pathSolution{currentVertex: src}}
+func (g *dmg) GetPaths(src, dst vertex) []*pathSolution {
+	var solutions []*pathSolution
+	queue := []*pathSolution{{currentVertex: src}}
 	for len(queue) > 0 {
 		currentPathSolution := queue[0]
 		queue = queue[1:]
@@ -234,15 +235,42 @@ func (g *dmg) GetPaths(src, dst vertex) pathSolutionList {
 			}
 		}
 	}
-	sort.Sort(solutions)
+	slices.SortFunc(solutions, func(a, b *pathSolution) int {
+		d := cmp.Or(
+			cmp.Compare(a.cost, b.cost),
+			cmp.Compare(len(a.edges), len(b.edges)),
+		)
+		if d != 0 {
+			return d
+		}
+		trailA, trailB := a.edges, b.edges
+		for ka := range trailA {
+			idA := trailA[ka].segment.ID()
+			idB := trailB[ka].segment.ID()
+			d := cmp.Or(
+				bytes.Compare(idA, idB),
+				cmp.Compare(trailA[ka].edge.Shortcut, trailB[ka].edge.Shortcut),
+				cmp.Compare(trailA[ka].edge.Peer, trailB[ka].edge.Peer),
+			)
+			if d != 0 {
+				return d
+			}
+		}
+		return 0
+	})
 	return solutions
 }
 
 // inputSegment is a local representation of a path segment that includes the
-// segment's type.
+// segment's type. The type (up down or core) indicates the role that this
+// segment holds in a path solution. That is, in which order the hops would
+// be used for building an actual forwarding path (e.g. from the end in the
+// case of an UP segment). However, the hops within the referred PathSegment
+// *always* remain in construction order.
 type inputSegment struct {
 	*seg.PathSegment
 	Type proto.PathSegType
+	id   []byte
 }
 
 // IsDownSeg returns true if the segment is a DownSegment.
@@ -250,30 +278,37 @@ func (s *inputSegment) IsDownSeg() bool {
 	return s.Type == proto.PathSegType_down
 }
 
+func (s *inputSegment) ID() []byte {
+	if s.id == nil {
+		s.id = s.PathSegment.ID()
+	}
+	return s.id
+}
+
 // Vertex is a union-like type for the AS vertices and Peering link vertices in
 // a DMG that can be used as key in maps.
 type vertex struct {
 	IA       addr.IA
 	UpIA     addr.IA
-	UpIFID   common.IFIDType
+	UpIfID   iface.ID
 	DownIA   addr.IA
-	DownIFID common.IFIDType
+	DownIfID iface.ID
 }
 
 func vertexFromIA(ia addr.IA) vertex {
 	return vertex{IA: ia}
 }
 
-func vertexFromPeering(upIA addr.IA, upIFID common.IFIDType,
-	downIA addr.IA, downIFID common.IFIDType) vertex {
+func vertexFromPeering(upIA addr.IA, upIfID iface.ID,
+	downIA addr.IA, downIfID iface.ID) vertex {
 
-	return vertex{UpIA: upIA, UpIFID: upIFID, DownIA: downIA, DownIFID: downIFID}
+	return vertex{UpIA: upIA, UpIfID: upIfID, DownIA: downIA, DownIfID: downIfID}
 }
 
 // Reverse returns a new vertex that contains the peering information in
 // reverse. AS vertices remain unchanged.
 func (v vertex) Reverse() vertex {
-	return vertex{IA: v.IA, UpIA: v.DownIA, UpIFID: v.DownIFID, DownIA: v.UpIA, DownIFID: v.UpIFID}
+	return vertex{IA: v.IA, UpIA: v.DownIA, UpIfID: v.DownIfID, DownIA: v.UpIA, DownIfID: v.UpIfID}
 }
 
 // edgeMap is used to keep the set of edges going from one vertex to another.
@@ -306,7 +341,7 @@ type pathSolution struct {
 
 // Path builds the forwarding path with metadata by extracting it from a path
 // between source and destination in the DMG.
-func (solution *pathSolution) Path() Path {
+func (solution *pathSolution) Path(hashState hashState) Path {
 	mtu := ^uint16(0)
 	var segments segmentList
 	var epicPathAuths [][]byte
@@ -316,7 +351,11 @@ func (solution *pathSolution) Path() Path {
 		var pathASEntries []seg.ASEntry // ASEntries that on the path, eventually in path order.
 		var epicSegAuths [][]byte
 
-		// Go through each ASEntry, starting from the last one, until we
+		// Segments are in construction order, regardless of whether they're
+		// up or down segments. We traverse them FROM THE END. So, in reverse
+		// forwarding order for down segments and in forwarding order for
+		// up segments.
+		// We go through each ASEntry, starting from the last one until we
 		// find a shortcut (which can be 0, meaning the end of the segment).
 		asEntries := solEdge.segment.ASEntries
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
@@ -357,14 +396,14 @@ func (solution *pathSolution) Path() Path {
 			if hopField.ConsEgress != 0 {
 				intfs = append(intfs, snet.PathInterface{
 					IA: asEntry.Local,
-					ID: common.IFIDType(hopField.ConsEgress),
+					ID: iface.ID(hopField.ConsEgress),
 				})
 			}
 			// In a non-peer shortcut the AS is not traversed completely.
 			if hopField.ConsIngress != 0 && (!isShortcut || isPeer) {
 				intfs = append(intfs, snet.PathInterface{
 					IA: asEntry.Local,
-					ID: common.IFIDType(hopField.ConsIngress),
+					ID: iface.ID(hopField.ConsIngress),
 				})
 			}
 			hops = append(hops, hopField)
@@ -378,6 +417,9 @@ func (solution *pathSolution) Path() Path {
 			}
 		}
 
+		// Put the hops in forwarding order. Needed for down segments
+		// since we collected hops from the end, just like for up
+		// segments.
 		if solEdge.segment.Type == proto.PathSegType_down {
 			reverseHops(hops)
 			reverseIntfs(intfs)
@@ -416,7 +458,8 @@ func (solution *pathSolution) Path() Path {
 			InternalHops: staticInfo.InternalHops,
 			Notes:        staticInfo.Notes,
 		},
-		Weight: solution.cost,
+		Weight:      solution.cost,
+		Fingerprint: fingerprint(interfaces, hashState),
 	}
 
 	if authPHVF, authLHVF, ok := isEpicAvailable(epicPathAuths); ok {
@@ -487,15 +530,30 @@ func reverseEpicAuths(s [][]byte) {
 }
 
 func calculateBeta(se *solutionEdge) uint16 {
+
+	// If this is a peer hop, we need to set beta[i] = beta[i+1]. That is, the SegID
+	// accumulator must correspond to the next (in construction order) hop.
+	//
+	// This is because this peering hop has a MAC that chains to its non-peering
+	// counterpart, the same as what the next hop (in construction order) chains to.
+	// So both this and the next hop are to be validated from the same SegID
+	// accumulator value: the one for the *next* hop, calculated on the regular
+	// non-peering segment.
+	//
+	// Note that, when traversing peer hops, the SegID accumulator is left untouched for the
+	// next router on the path to use.
+
 	var index int
 	if se.segment.IsDownSeg() {
 		index = se.edge.Shortcut
-		// If this is a peer, we need to set beta i+1.
 		if se.edge.Peer != 0 {
 			index++
 		}
 	} else {
 		index = len(se.segment.ASEntries) - 1
+		if index == se.edge.Shortcut && se.edge.Peer != 0 {
+			index++
+		}
 	}
 	beta := se.segment.Info.SegmentID
 	for i := 0; i < index; i++ {
@@ -503,50 +561,6 @@ func calculateBeta(se *solutionEdge) uint16 {
 		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC[:])
 	}
 	return beta
-}
-
-// PathSolutionList is a sort.Interface implementation for a slice of solutions.
-type pathSolutionList []*pathSolution
-
-func (sl pathSolutionList) Len() int {
-	return len(sl)
-}
-
-// Less sorts according to the following priority list:
-//   - total path cost (number of hops)
-//   - number of segments
-//   - segmentIDs
-//   - shortcut index
-//   - peer entry index
-func (sl pathSolutionList) Less(i, j int) bool {
-	if sl[i].cost != sl[j].cost {
-		return sl[i].cost < sl[j].cost
-	}
-
-	trailI, trailJ := sl[i].edges, sl[j].edges
-	if len(trailI) != len(trailJ) {
-		return len(trailI) < len(trailJ)
-	}
-
-	for ki := range trailI {
-		idI := trailI[ki].segment.ID()
-		idJ := trailJ[ki].segment.ID()
-		idcmp := bytes.Compare(idI, idJ)
-		if idcmp != 0 {
-			return idcmp == -1
-		}
-		if trailI[ki].edge.Shortcut != trailJ[ki].edge.Shortcut {
-			return trailI[ki].edge.Shortcut < trailJ[ki].edge.Shortcut
-		}
-		if trailI[ki].edge.Peer != trailJ[ki].edge.Peer {
-			return trailI[ki].edge.Peer < trailJ[ki].edge.Peer
-		}
-	}
-	return false
-}
-
-func (sl pathSolutionList) Swap(i, j int) {
-	sl[i], sl[j] = sl[j], sl[i]
 }
 
 // solutionEdge contains a graph edge and additional metadata required during
@@ -586,7 +600,8 @@ func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 }
 
 // segment is a helper that represents a path segment during the conversion
-// from the graph solution to the raw forwarding information.
+// from the graph solution to the raw forwarding information. The hops should
+// be in forwarding order.
 type segment struct {
 	InfoField  path.InfoField
 	HopFields  []path.HopField
@@ -600,7 +615,7 @@ func (segment *segment) ComputeExpTime() time.Time {
 }
 
 func (segment *segment) computeHopFieldsTTL() time.Duration {
-	minTTL := time.Duration(path.MaxTTL) * time.Second
+	minTTL := path.MaxTTL
 	for _, hf := range segment.HopFields {
 		offset := path.ExpTimeToDuration(hf.ExpTime)
 		if minTTL > offset {

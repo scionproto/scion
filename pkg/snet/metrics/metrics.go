@@ -20,7 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -50,12 +50,12 @@ func NewSCIONNetworkMetrics(opts ...Option) snet.SCIONNetworkMetrics {
 	auto := promauto.With(o.registry)
 
 	return snet.SCIONNetworkMetrics{
-		Dials: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+		Dials: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_dials_total",
-			Help: "Total number of Dial calls."}, []string{})),
-		Listens: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+			Help: "Total number of Dial calls."}),
+		Listens: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_listens_total",
-			Help: "Total number of Listen calls."}, []string{})),
+			Help: "Total number of Listen calls."}),
 	}
 }
 
@@ -63,28 +63,28 @@ func NewSCIONPacketConnMetrics(opts ...Option) snet.SCIONPacketConnMetrics {
 	o := apply(opts)
 	auto := promauto.With(o.registry)
 	return snet.SCIONPacketConnMetrics{
-		Closes: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+		Closes: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_closes_total",
-			Help: "Total number of Close calls."}, []string{})),
-		ReadBytes: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+			Help: "Total number of Close calls."}),
+		ReadBytes: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_read_total_bytes",
-			Help: "Total number of bytes read"}, []string{})),
-		ReadPackets: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+			Help: "Total number of bytes read"}),
+		ReadPackets: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_read_total_pkts",
-			Help: "Total number of packetes read"}, []string{})),
-		WriteBytes: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+			Help: "Total number of packetes read"}),
+		WriteBytes: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_write_total_bytes",
-			Help: "Total number of bytes written"}, []string{})),
-		WritePackets: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+			Help: "Total number of bytes written"}),
+		WritePackets: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_write_total_pkts",
-			Help: "Total number of packets written"}, []string{})),
-		DispatcherErrors: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
-			Name: "lib_snet_dispatcher_error_total",
-			Help: "Total number of dispatcher errors"}, []string{})),
-		ParseErrors: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+			Help: "Total number of packets written"}),
+		UnderlayConnectionErrors: auto.NewCounter(prometheus.CounterOpts{
+			Name: "lib_snet_underlay_error_total",
+			Help: "Total number of underlay connection errors"}),
+		ParseErrors: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_parse_error_total",
-			Help: "Total number of parse errors"}, []string{})),
-		SCMPErrors: NewSCMPErrors(),
+			Help: "Total number of parse errors"}),
+		SCMPErrors: NewSCMPErrors(opts...),
 	}
 }
 
@@ -92,7 +92,7 @@ func NewSCMPErrors(opts ...Option) metrics.Counter {
 	o := apply(opts)
 	auto := promauto.With(o.registry)
 
-	return metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+	return auto.NewCounter(prometheus.CounterOpts{
 		Name: "lib_snet_scmp_error_total",
-		Help: "Total number of SCMP errors"}, []string{}))
+		Help: "Total number of SCMP errors"})
 }

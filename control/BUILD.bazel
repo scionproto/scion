@@ -28,6 +28,7 @@ go_library(
         "//pkg/grpc:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/metrics:go_default_library",
+        "//pkg/metrics/v2:go_default_library",
         "//pkg/private/ctrl/path_mgmt:go_default_library",
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
@@ -64,7 +65,7 @@ go_test(
     data = glob(["testdata/**"]),
     deps = [
         ":go_default_library",
-        "//pkg/private/xtest:go_default_library",
+        "//pkg/addr:go_default_library",
         "//private/app/command:go_default_library",
         "//private/storage/trust/sqlite:go_default_library",
         "//scion-pki/testcrypto:go_default_library",

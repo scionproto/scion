@@ -2,25 +2,26 @@
     "assign": {
         "exclude_files": {
             "gazelle/walk/walk.go": "",
-            "com_github_deepmap_oapi_codegen/pkg/codegen/": "",
+            "/org_modernc_libc": "",
             "/org_modernc_sqlite": ""
         }
     },
     "composites": {
         "exclude_files": {
-            "gazelle/language/go/resolve.go": "",
-            "/io_bazel_rules_docker/": "",
             "/com_github_bazelbuild_buildtools/": "",
             "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": "",
             "/com_github_vishvananda_netlink/": "",
-            "/org_golang_x_tools/internal": "",
             "/org_golang_google_protobuf": "",
-            "/org_golang_x_tools/go/analysis/internal/checker": ""
+            "/org_golang_x_text": "",
+            "/org_golang_x_tools/go/analysis/internal/checker": "",
+            "/org_golang_x_tools/internal": "",
+            "gazelle/language/go/resolve.go": ""
         }
     },
     "copylocks": {
         "exclude_files": {
-            "/org_golang_google_protobuf/internal/impl/": ""
+            "/org_golang_google_protobuf/internal/impl/": "",
+            "gazelle/walk/config": ""
         }
     },
     "nilness": {
@@ -44,9 +45,9 @@
             "gazelle/cmd/gazelle/diff.go": "",
             "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
             "/com_github_mattn_go_sqlite3": "",
-            "/com_github_lucas_clemente_quic_go": "",
             "/com_github_cloudflare_sidh": "",
-            "/com_github_vishvananda_netlink": ""
+            "/com_github_vishvananda_netlink": "",
+            "/com_github_spf13_pflag": ""
         }
     },
     "printf": {
@@ -66,8 +67,8 @@
     },
     "unreachable": {
         "exclude_files": {
+            "antlr": "",
             "gazelle/pathtools/path.go": "",
-            "/com_github_antlr_antlr4_runtime_go_antlr/": "",
             "/com_github_uber_jaeger_client_go": "",
             "/com_github_marten_seemann_qtls/": "",
             "/org_golang_google_protobuf/": "",
@@ -98,17 +99,24 @@
         },
         "exclude_files": {
             "/com_github_mattn_go_sqlite3/": "",
-            "/com_github_google_gopacket/afpacket/": ""
+            "/com_github_google_gopacket/afpacket/": "",
+            "/org_modernc_memory/": "",
+            "/org_golang_x_sys/": "",
+            "org_modernc_libc": "",
+            "org_modernc_sqlite": "",
+            "com_github_mailru_easyjson": ""
         }
     },
     "shift": {
         "exclude_files": {
-            "/com_github_marten_seemann_qtls/": ""
+            "/com_github_marten_seemann_qtls/": "",
+            "/org_modernc_mathutil/": ""
         }
     },
     "stdmethods": {
         "exclude_files": {
             "/com_github_uber_jaeger_client_go": "",
+            "org_golang_x_exp": "",
             "/org_modernc_sqlite": "",
             "/org_modernc_mathutil": ""
         }
@@ -143,21 +151,27 @@
     },
     "lostcancel": {
         "exclude_files": {
-            "com_github_grpc_ecosystem_go_grpc_middleware/retry": ""
+            "com_github_grpc_ecosystem_go_grpc_middleware/retry": "",
+            "org_golang_x_tools": ""
         }
     },
     "maincheck": {
         "exclude_files": {
-            "/com_github_deepmap_oapi_codegen/": "",
+            "/com_github_deepmap_oapi_codegen_v2/": "",
             "/com_github_golang_mock/mockgen": "",
             "/org_golang_x_tools": "",
-            "/com_github_bazelbuild_buildtools": ""
+            "gazelle/language/go/gen_std_package_list": "",
+            "gazelle/language/proto/gen/gen_known_imports": "",
+            "gazelle/cmd/gazelle/gazelle": "",
+            "/com_github_bazelbuild_buildtools": "",
+            "/com_github_oncilla_ineffassign/": ""
         }
     },
     "reflectvaluecompare": {
         "exclude_files": {
             "in_gopkg_yaml_v2": "",
-            "com_github_smartystreets_assertions": ""
+            "com_github_smartystreets_assertions": "",
+            "/com_github_smarty_assertions": ""
         }
     },
     "shadow": {
@@ -178,14 +192,10 @@
             "com_github_matttproud_golang_protobuf_extensions": "",
             "com_github_getkin_kin_openapi": "",
             "com_github_buildkite_go_buildkite_v2/buildkite": "",
-            "com_github_deepmap_oapi_codegen/pkg/runtime": "",
             "com_github_uber_jaeger_client_go/thrift": "",
             "com_github_hashicorp_hcl": "",
             "com_github_stretchr_testify/assert": "",
             "com_github_spf13_afero": "",
-            "com_github_marten_seemann_qtls_go1_16": "",
-            "com_github_marten_seemann_qtls_go1_17": "",
-            "com_github_lucas_clemente_quic_go": "",
             "com_github_lestrrat_go_jwx": "",
             "com_github_pelletier_go_toml": "",
             "com_github_mdlayher_raw": "",
@@ -196,8 +206,6 @@
             "com_github_uber_jaeger_client_go": "",
             "com_github_spf13_viper": "",
             "com_github_labstack_echo_v4": "",
-            "com_github_deepmap_oapi_codegen": "",
-
             "pkg/private/serrors/errors.go": "err shadowed",
             "pkg/slayers/path/scion/raw.go": "err shadowed",
             "pkg/scrypto/cppki/trc.go": "err shadowed",
@@ -210,8 +218,10 @@
             "org_golang_x_mod": "",
             "org_golang_x_crypto/ed25519/internal/edwards25519": "",
             "com_github_vishvananda_netlink/nl": "",
-            "com_github_deepmap_oapi_codegen/pkg/codegen": "",
-            "com_github_bazelbuild_buildtools": ""
+            "com_github_deepmap_oapi_codegen_v2/pkg/codegen": "",
+            "com_github_quic_go_quic_go": "",
+            "com_github_bazelbuild_buildtools": "",
+            "/bazel_gazelle/": ""
         }
     }
 }

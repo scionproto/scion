@@ -25,27 +25,39 @@ import (
 
 	trustgrpc "github.com/scionproto/scion/control/trust/grpc"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
 func TestReqToChainQuery(t *testing.T) {
 	now := time.Now().UTC()
-	date, err := ptypes.TimestampProto(now)
+	validUntil, err := ptypes.TimestampProto(now)
+	require.NoError(t, err)
+	validSince, err := ptypes.TimestampProto(now.Add(-time.Hour))
 	require.NoError(t, err)
 
 	req := &cppb.ChainsRequest{
-		IsdAs:        uint64(xtest.MustParseIA("1-ff00:0:110")),
-		SubjectKeyId: []byte("tank"),
-		Date:         date,
+		IsdAs:             uint64(addr.MustParseIA("1-ff00:0:110")),
+		SubjectKeyId:      []byte("tank"),
+		AtLeastValidSince: validSince,
+		AtLeastValidUntil: validUntil,
 	}
 
 	query, err := trustgrpc.RequestToChainQuery(req)
 	require.NoError(t, err)
 	assert.Equal(t, addr.IA(req.IsdAs), query.IA)
 	assert.Equal(t, req.SubjectKeyId, query.SubjectKeyID)
-	assert.Equal(t, now, query.Date)
+	assert.Equal(t, now.Add(-time.Hour), query.Validity.NotBefore)
+	assert.Equal(t, now, query.Validity.NotAfter)
+
+	// Test with request from legacy client, i.e., AtLeastValidSince is nil.
+	req.AtLeastValidSince = nil
+	query, err = trustgrpc.RequestToChainQuery(req)
+	require.NoError(t, err)
+	assert.Equal(t, addr.IA(req.IsdAs), query.IA)
+	assert.Equal(t, req.SubjectKeyId, query.SubjectKeyID)
+	assert.Equal(t, now, query.Validity.NotBefore)
+	assert.Equal(t, now, query.Validity.NotAfter)
 }
 
 func TestReqToTRCQuery(t *testing.T) {
@@ -138,5 +150,5 @@ func TestChainsToRep(t *testing.T) {
 func TestTRCToRep(t *testing.T) {
 	trc := cppki.SignedTRC{Raw: []byte("you can trust me, for sure!")}
 	rep := trustgrpc.TRCToResponse(trc)
-	assert.Equal(t, trc.Raw, rep.Trc)
+	assert.Equal(t, trc.Raw, rep.Trc) // nolint - name from published protobuf
 }

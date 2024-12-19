@@ -17,8 +17,8 @@
 package metrics
 
 import (
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/prom"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 const Namespace = "br"
@@ -65,9 +65,9 @@ func (l IntfLabels) Values() []string {
 	return []string{l.Intf, l.NeighIA}
 }
 
-func IntfToLabel(ifid common.IFIDType) string {
-	if ifid == 0 {
+func IntfToLabel(ifID iface.ID) string {
+	if ifID == 0 {
 		return "loc"
 	}
-	return ifid.String()
+	return ifID.String()
 }

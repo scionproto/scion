@@ -4,7 +4,7 @@ Forwarding key rollover
 
 - Author: Sergiu Costea
 - Last updated: 2020-09-23
-- Status: **proposal** / **outdated**
+- Status: **WIP** / **Outdated**
 - Discussion at: -
 
 This document describes an implementation for key rollover in a SCION AS.
@@ -220,7 +220,7 @@ Implementing the router
 
 When the router receives a path for processing, it must verify the HF. The first
 step in this process is computing the MAC verification key. To compute the key,
-first the `ExpirationTime` must be computed:
+first the ``ExpirationTime`` must be computed:
 
 .. code-block:: text
 

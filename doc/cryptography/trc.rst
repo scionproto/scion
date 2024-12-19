@@ -111,7 +111,7 @@ version is always ``v1``.
 
 **Deprecation warning**: note that the ``version`` field has different semantics
 compared to the old SCION JSON format for TRCs (where version was an
-incrementing counter). The JSON style `version` is moved to the `serial number`
+incrementing counter). The JSON style ``version`` is moved to the ``serial number``
 field in the :ref:`trc-id-field` sequence bellow.
 
 .. _trc-id-field:
@@ -347,7 +347,7 @@ We build on top of the rules from [RFC5652]_ and add the following restrictions:
 - The ``certificates`` field in ``SignedData`` is left empty. The certificate
   pool used to verify the TRC updates is based on the previous TRC.
 - The ``eContentType`` is set to ``id-data``. The contents of the ``eContent``
-  is the DER encoded `TRCPayload`, as specified above. This has the benefit that
+  is the DER encoded ``TRCPayload``, as specified above. This has the benefit that
   the format is backwards compatible with PKCS #7, as described in [RFC5652]_,
   Section 5.2.1.
 - Because we do not include certificates in ``SignedData`` and choose

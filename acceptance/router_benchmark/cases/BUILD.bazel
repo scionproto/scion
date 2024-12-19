@@ -1,0 +1,31 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "br_transit.go",
+        "helpers.go",
+        "in.go",
+        "in_transit.go",
+        "out.go",
+        "out_transit.go",
+        "topo.go",
+    ],
+    importpath = "github.com/scionproto/scion/acceptance/router_benchmark/cases",
+    visibility = [
+        "//acceptance/router_benchmark:__subpackages__",
+    ],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/log:go_default_library",
+        "//pkg/private/util:go_default_library",
+        "//pkg/scrypto:go_default_library",
+        "//pkg/slayers:go_default_library",
+        "//pkg/slayers/path:go_default_library",
+        "//pkg/slayers/path/scion:go_default_library",
+        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_mdlayher_arp//:go_default_library",
+        "@com_github_mdlayher_ethernet//:go_default_library",
+    ],
+)

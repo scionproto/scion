@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/antlr4-go/antlr/v4"
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/antlr/traffic_class"
@@ -75,7 +75,7 @@ func (l *classListener) EnterMatchDst(ctx *traffic_class.MatchDstContext) {
 	mdst := &IPv4MatchDestination{}
 	_, mdst.Net, err = net.ParseCIDR(ctx.GetStop().GetText())
 	if err != nil {
-		l.err = serrors.WrapStr("CIDR parsing failed!", err, "cidr", ctx.GetStop().GetText())
+		l.err = serrors.Wrap("CIDR parsing failed!", err, "cidr", ctx.GetStop().GetText())
 	}
 	l.pushCond(NewCondIPv4(mdst))
 }
@@ -86,7 +86,7 @@ func (l *classListener) EnterMatchSrc(ctx *traffic_class.MatchSrcContext) {
 	msrc := &IPv4MatchSource{}
 	_, msrc.Net, err = net.ParseCIDR(ctx.GetStop().GetText())
 	if err != nil {
-		l.err = serrors.WrapStr("CIDR parsing failed!", err, "cidr", ctx.GetStop().GetText())
+		l.err = serrors.Wrap("CIDR parsing failed!", err, "cidr", ctx.GetStop().GetText())
 	}
 	l.pushCond(NewCondIPv4(msrc))
 }
@@ -96,7 +96,7 @@ func (l *classListener) EnterMatchDSCP(ctx *traffic_class.MatchDSCPContext) {
 	mdscp := &IPv4MatchDSCP{}
 	dscp, err := strconv.ParseUint(ctx.GetStop().GetText(), 16, 8)
 	if err != nil {
-		l.err = serrors.WrapStr("DSCP parsing failed!", err, "dscp", ctx.GetStop().GetText())
+		l.err = serrors.Wrap("DSCP parsing failed!", err, "dscp", ctx.GetStop().GetText())
 	}
 	mdscp.DSCP = uint8(dscp)
 	l.pushCond(NewCondIPv4(mdscp))
@@ -107,7 +107,7 @@ func (l *classListener) EnterMatchTOS(ctx *traffic_class.MatchTOSContext) {
 	mtos := &IPv4MatchToS{}
 	tos, err := strconv.ParseUint(ctx.GetStop().GetText(), 16, 8)
 	if err != nil {
-		l.err = serrors.WrapStr("TOS parsing failed!", err, "tos", ctx.GetStop().GetText())
+		l.err = serrors.Wrap("TOS parsing failed!", err, "tos", ctx.GetStop().GetText())
 	}
 	mtos.TOS = uint8(tos)
 	l.pushCond(NewCondIPv4(mtos))
@@ -118,8 +118,9 @@ func (l *classListener) EnterMatchProtocol(ctx *traffic_class.MatchProtocolConte
 	prot := &IPv4MatchProtocol{}
 	number, err := protocolNameToNumber(ctx.GetStop().GetText())
 	if err != nil {
-		l.err = serrors.WrapStr("Protocol parsing failed!", err,
+		l.err = serrors.Wrap("Protocol parsing failed!", err,
 			"protocol", ctx.GetStop().GetText())
+
 	}
 	prot.Protocol = number
 	l.pushCond(NewCondIPv4(prot))
@@ -130,8 +131,9 @@ func (l *classListener) EnterMatchSrcPort(ctx *traffic_class.MatchSrcPortContext
 	src := &PortMatchSource{}
 	msrc, err := strconv.ParseUint(ctx.GetStop().GetText(), 10, 16)
 	if err != nil {
-		l.err = serrors.WrapStr("SRCPORT parsing failed!", err,
+		l.err = serrors.Wrap("SRCPORT parsing failed!", err,
 			"srcport", ctx.GetStop().GetText())
+
 	}
 	src.MinPort = uint16(msrc)
 	src.MaxPort = uint16(msrc)
@@ -145,11 +147,11 @@ func (l *classListener) EnterMatchSrcPortRange(ctx *traffic_class.MatchSrcPortRa
 	max := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 1).GetText()
 	msrcMin, err := strconv.ParseUint(min, 10, 16)
 	if err != nil {
-		l.err = serrors.WrapStr("SRCPORT parsing failed!", err, "srcport", min)
+		l.err = serrors.Wrap("SRCPORT parsing failed!", err, "srcport", min)
 	}
 	msrcMax, err := strconv.ParseUint(max, 10, 16)
 	if err != nil {
-		l.err = serrors.WrapStr("SRCPORT parsing failed!", err, "srcport", max)
+		l.err = serrors.Wrap("SRCPORT parsing failed!", err, "srcport", max)
 	}
 	src.MinPort = uint16(msrcMin)
 	src.MaxPort = uint16(msrcMax)
@@ -161,8 +163,9 @@ func (l *classListener) EnterMatchDstPort(ctx *traffic_class.MatchDstPortContext
 	dst := &PortMatchDestination{}
 	mdst, err := strconv.ParseUint(ctx.GetStop().GetText(), 10, 16)
 	if err != nil {
-		l.err = serrors.WrapStr("DSTPORT parsing failed!", err,
+		l.err = serrors.Wrap("DSTPORT parsing failed!", err,
 			"dstport", ctx.GetStop().GetText())
+
 	}
 	dst.MinPort = uint16(mdst)
 	dst.MaxPort = uint16(mdst)
@@ -176,11 +179,11 @@ func (l *classListener) EnterMatchDstPortRange(ctx *traffic_class.MatchDstPortRa
 	max := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 1).GetText()
 	mdstMin, err := strconv.ParseUint(min, 10, 16)
 	if err != nil {
-		l.err = serrors.WrapStr("SRCPORT parsing failed!", err, "dstport", min)
+		l.err = serrors.Wrap("SRCPORT parsing failed!", err, "dstport", min)
 	}
 	mdstMax, err := strconv.ParseUint(max, 10, 16)
 	if err != nil {
-		l.err = serrors.WrapStr("SRCPORT parsing failed!", err, "dstport", max)
+		l.err = serrors.Wrap("SRCPORT parsing failed!", err, "dstport", max)
 	}
 	dst.MinPort = uint16(mdstMin)
 	dst.MaxPort = uint16(mdstMax)
@@ -223,8 +226,9 @@ func (l *classListener) ExitCondNot(ctx *traffic_class.CondNotContext) {
 func (l *classListener) EnterCondBool(ctx *traffic_class.CondBoolContext) {
 	bool, err := strconv.ParseBool(ctx.GetStop().GetText())
 	if err != nil {
-		l.err = serrors.WrapStr("CondBool parsing failed!", err,
+		l.err = serrors.Wrap("CondBool parsing failed!", err,
 			"bool", ctx.GetStop().GetText())
+
 	}
 	l.pushCond(CondBool(bool))
 }

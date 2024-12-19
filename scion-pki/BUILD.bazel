@@ -1,0 +1,12 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "flags.go",
+        "plugin.go",
+    ],
+    importpath = "github.com/scionproto/scion/scion-pki",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_spf13_pflag//:go_default_library"],
+)

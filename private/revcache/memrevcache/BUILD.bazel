@@ -8,7 +8,7 @@ go_library(
     deps = [
         "//pkg/private/ctrl/path_mgmt:go_default_library",
         "//private/revcache:go_default_library",
-        "@com_github_patrickmn_go_cache//:go_default_library",
+        "@at_zgo_zcache_v2//:go_default_library",
     ],
 )
 
@@ -20,6 +20,5 @@ go_test(
         "//pkg/private/ctrl/path_mgmt:go_default_library",
         "//private/revcache:go_default_library",
         "//private/revcache/revcachetest:go_default_library",
-        "@com_github_smartystreets_goconvey//convey:go_default_library",
     ],
 )

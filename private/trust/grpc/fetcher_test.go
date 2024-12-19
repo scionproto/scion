@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -40,7 +41,7 @@ func TestFetcherChains(t *testing.T) {
 	dir := genCrypto(t)
 	chain110 := xtest.LoadChain(t, filepath.Join(dir, "/certs/ISD1-ASff00_0_110.pem"))
 	chain112 := xtest.LoadChain(t, filepath.Join(dir, "/certs/ISD1-ASff00_0_112.pem"))
-	ia110 := xtest.MustParseIA("1-ff00:0:110")
+	ia110 := addr.MustParseIA("1-ff00:0:110")
 	queryDate := chain110[0].NotBefore.Add(time.Hour)
 	internal := serrors.New("internal")
 
@@ -59,7 +60,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         queryDate,
+				Validity: cppki.Validity{
+					NotBefore: queryDate,
+					NotAfter:  queryDate,
+				},
 			},
 			Assertion: assert.Error,
 		},
@@ -77,7 +81,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         queryDate,
+				Validity: cppki.Validity{
+					NotBefore: queryDate,
+					NotAfter:  queryDate,
+				},
 			},
 			Assertion: assert.Error,
 		},
@@ -98,7 +105,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         queryDate,
+				Validity: cppki.Validity{
+					NotBefore: queryDate,
+					NotAfter:  queryDate,
+				},
 			},
 			Assertion: assert.Error,
 		},
@@ -119,7 +129,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         chain110[0].NotBefore.Add(-time.Hour),
+				Validity: cppki.Validity{
+					NotBefore: chain110[0].NotBefore.Add(-time.Hour),
+					NotAfter:  chain110[0].NotBefore.Add(-time.Hour),
+				},
 			},
 			Assertion: assert.Error,
 		},
@@ -140,7 +153,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         queryDate,
+				Validity: cppki.Validity{
+					NotBefore: queryDate,
+					NotAfter:  queryDate,
+				},
 			},
 			Assertion: assert.NoError,
 			Expected:  [][]*x509.Certificate{chain110},
@@ -194,7 +210,10 @@ func TestFetcherTRC(t *testing.T) {
 			Server: func(mctrl *gomock.Controller) *mock_cp.MockTrustMaterialServiceServer {
 				srv := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 				srv.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(
-					&cppb.TRCResponse{Trc: []byte("garbage")}, nil,
+					&cppb.TRCResponse{
+						Trc: []byte("garbage"), // nolint - name from published protobuf
+					},
+					nil,
 				)
 				return srv
 			},
@@ -208,7 +227,7 @@ func TestFetcherTRC(t *testing.T) {
 
 				srv := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 				srv.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(
-					&cppb.TRCResponse{Trc: rawBase}, nil,
+					&cppb.TRCResponse{Trc: rawBase}, nil, // nolint - name from published protobuf
 				)
 				return srv
 			},
@@ -219,7 +238,10 @@ func TestFetcherTRC(t *testing.T) {
 			Server: func(mctrl *gomock.Controller) *mock_cp.MockTrustMaterialServiceServer {
 				srv := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 				srv.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(
-					&cppb.TRCResponse{Trc: updated.Raw}, nil,
+					&cppb.TRCResponse{
+						Trc: updated.Raw, // nolint - name from published protobuf
+					},
+					nil,
 				)
 				return srv
 			},

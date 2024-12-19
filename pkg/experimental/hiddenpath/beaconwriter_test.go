@@ -37,7 +37,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/mock_hiddenpath"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
@@ -45,6 +44,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
@@ -147,7 +147,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				rpc := mock_hiddenpath.NewMockRegister(ctrl)
 				rpc.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(),
 					addrMatcher{udp: &snet.UDPAddr{
-						IA:   xtest.MustParseIA("1-ff00:0:114"),
+						IA:   addr.MustParseIA("1-ff00:0:114"),
 						Host: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 					}}).Times(2).DoAndReturn(
 					func(_ context.Context, reg hiddenpath.SegmentRegistration, _ net.Addr) error {
@@ -163,19 +163,19 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 						mustParseGroupID(t, "ff00:0:140-2"): {
 							ID: mustParseGroupID(t, "ff00:0:140-2"),
 							Registries: map[addr.IA]struct{}{
-								xtest.MustParseIA("1-ff00:0:114"): {},
+								addr.MustParseIA("1-ff00:0:114"): {},
 							},
-							Writers: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:111"): {}},
+							Writers: map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:111"): {}},
 						},
 					},
 				},
 			},
 			resolver: func(ctrl *gomock.Controller) hiddenpath.AddressResolver {
 				resolver := mock_hiddenpath.NewMockAddressResolver(ctrl)
-				resolver.EXPECT().Resolve(gomock.Any(), xtest.MustParseIA("1-ff00:0:114")).
+				resolver.EXPECT().Resolve(gomock.Any(), addr.MustParseIA("1-ff00:0:114")).
 					Times(2).Return(
 					&snet.UDPAddr{
-						IA:   xtest.MustParseIA("1-ff00:0:114"),
+						IA:   addr.MustParseIA("1-ff00:0:114"),
 						Host: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 					}, nil)
 				return resolver
@@ -196,7 +196,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				Extender: &beaconing.DefaultExtender{
 					IA:         topo.IA(),
 					MTU:        topo.MTU(),
-					Signer:     testSigner(t, priv, topo.IA()),
+					SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
 					Intfs:      intfs,
 					MAC:        macFactory,
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -231,12 +231,12 @@ func testBeacon(g *graph.Graph, desc []uint16) beacon.Beacon {
 	bseg.ASEntries = bseg.ASEntries[:len(bseg.ASEntries)-1]
 
 	return beacon.Beacon{
-		InIfId:  asEntry.HopEntry.HopField.ConsIngress,
+		InIfID:  asEntry.HopEntry.HopField.ConsIngress,
 		Segment: bseg,
 	}
 }
 
-func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) seg.Signer {
+func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) trust.Signer {
 	return trust.Signer{
 		PrivateKey: priv,
 		Algorithm:  signed.ECDSAWithSHA256,
@@ -274,12 +274,12 @@ func (v segVerifier) Verify(_ context.Context, signedMsg *cryptopb.SignedMessage
 // ID.
 func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16 {
 	var result []uint16
-	for ifid, intf := range intfs.All() {
+	for ifID, intf := range intfs.All() {
 		topoInfo := intf.TopoInfo()
 		if topoInfo.LinkType != linkType {
 			continue
 		}
-		result = append(result, ifid)
+		result = append(result, ifID)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
 	return result
@@ -288,7 +288,7 @@ func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16
 func matchSVCCS(ia string) gomock.Matcher {
 	return addrMatcher{
 		svc: &snet.SVCAddr{
-			IA:  xtest.MustParseIA(ia),
+			IA:  addr.MustParseIA(ia),
 			SVC: addr.SvcCS,
 		},
 	}
@@ -348,8 +348,16 @@ type topoWrap struct {
 }
 
 func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
-	a, _ := w.Topo.UnderlayNextHop(common.IFIDType(id))
+	a, _ := w.Topo.UnderlayNextHop(iface.ID(id))
 	return a
+}
+
+type testSignerGen struct {
+	Signer trust.Signer
+}
+
+func (s testSignerGen) Generate(ctx context.Context) ([]beaconing.Signer, error) {
+	return []beaconing.Signer{s.Signer}, nil
 }
 
 func interfaceInfos(topo topology.Topology) map[uint16]ifstate.InterfaceInfo {
@@ -361,7 +369,7 @@ func interfaceInfos(topo topology.Topology) map[uint16]ifstate.InterfaceInfo {
 			IA:           info.IA,
 			LinkType:     info.LinkType,
 			InternalAddr: netip.MustParseAddrPort(info.InternalAddr.String()),
-			RemoteID:     uint16(info.RemoteIFID),
+			RemoteID:     uint16(info.RemoteIfID),
 			MTU:          uint16(info.MTU),
 		}
 	}

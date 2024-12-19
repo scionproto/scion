@@ -1,7 +1,7 @@
 load("//tools/lint:go.bzl", "go_library")
-load("//rules_openapi:defs.bzl", "openapi_build_docs", "openapi_generate_go")
+load("//private/mgmtapi:api.bzl", "openapi_docs", "openapi_generate_go")
 
-openapi_build_docs(
+openapi_docs(
     name = "doc",
     src = "//spec:dispatcher",
     out = "index.html",

@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/deepmap/oapi-codegen/pkg/runtime"
+	"github.com/oapi-codegen/runtime"
 )
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -92,6 +92,9 @@ type ClientInterface interface {
 	// GetBeacons request
 	GetBeacons(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteBeacon request
+	DeleteBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetBeacon request
 	GetBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -122,13 +125,16 @@ type ClientInterface interface {
 	// GetLogLevel request
 	GetLogLevel(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SetLogLevel request with any body
+	// SetLogLevelWithBody request with any body
 	SetLogLevelWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SetLogLevel(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSegments request
 	GetSegments(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteSegment request
+	DeleteSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSegment request
 	GetSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -157,6 +163,18 @@ type ClientInterface interface {
 
 func (c *Client) GetBeacons(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetBeaconsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteBeaconRequest(c.Server, segmentId)
 	if err != nil {
 		return nil, err
 	}
@@ -323,6 +341,18 @@ func (c *Client) GetSegments(ctx context.Context, params *GetSegmentsParams, req
 	return c.Client.Do(req)
 }
 
+func (c *Client) DeleteSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSegmentRequest(c.Server, segmentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetSegmentRequest(c.Server, segmentId)
 	if err != nil {
@@ -438,123 +468,159 @@ func NewGetBeaconsRequest(server string, params *GetBeaconsParams) (*http.Reques
 		return nil, err
 	}
 
-	queryValues := queryURL.Query()
+	if params != nil {
+		queryValues := queryURL.Query()
 
-	if params.StartIsdAs != nil {
+		if params.StartIsdAs != nil {
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.Usages != nil {
 
-	if params.Usages != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "usages", runtime.ParamLocationQuery, *params.Usages); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "usages", runtime.ParamLocationQuery, *params.Usages); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.IngressInterface != nil {
 
-	if params.IngressInterface != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "ingress_interface", runtime.ParamLocationQuery, *params.IngressInterface); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "ingress_interface", runtime.ParamLocationQuery, *params.IngressInterface); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.ValidAt != nil {
 
-	if params.ValidAt != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "valid_at", runtime.ParamLocationQuery, *params.ValidAt); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "valid_at", runtime.ParamLocationQuery, *params.ValidAt); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.All != nil {
 
-	if params.All != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.Desc != nil {
 
-	if params.Desc != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "desc", runtime.ParamLocationQuery, *params.Desc); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "desc", runtime.ParamLocationQuery, *params.Desc); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.Sort != nil {
 
-	if params.Sort != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sort", runtime.ParamLocationQuery, *params.Sort); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sort", runtime.ParamLocationQuery, *params.Sort); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
+		queryURL.RawQuery = queryValues.Encode()
 	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteBeaconRequest generates requests for DeleteBeacon
+func NewDeleteBeaconRequest(server string, segmentId SegmentID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, segmentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/beacons/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -676,57 +742,59 @@ func NewGetCertificatesRequest(server string, params *GetCertificatesParams) (*h
 		return nil, err
 	}
 
-	queryValues := queryURL.Query()
+	if params != nil {
+		queryValues := queryURL.Query()
 
-	if params.IsdAs != nil {
+		if params.IsdAs != nil {
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "isd_as", runtime.ParamLocationQuery, *params.IsdAs); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "isd_as", runtime.ParamLocationQuery, *params.IsdAs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.ValidAt != nil {
 
-	if params.ValidAt != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "valid_at", runtime.ParamLocationQuery, *params.ValidAt); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "valid_at", runtime.ParamLocationQuery, *params.ValidAt); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.All != nil {
 
-	if params.All != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
+		queryURL.RawQuery = queryValues.Encode()
 	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -971,43 +1039,79 @@ func NewGetSegmentsRequest(server string, params *GetSegmentsParams) (*http.Requ
 		return nil, err
 	}
 
-	queryValues := queryURL.Query()
+	if params != nil {
+		queryValues := queryURL.Query()
 
-	if params.StartIsdAs != nil {
+		if params.StartIsdAs != nil {
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.EndIsdAs != nil {
 
-	if params.EndIsdAs != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end_isd_as", runtime.ParamLocationQuery, *params.EndIsdAs); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end_isd_as", runtime.ParamLocationQuery, *params.EndIsdAs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
+		queryURL.RawQuery = queryValues.Encode()
 	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteSegmentRequest generates requests for DeleteSegment
+func NewDeleteSegmentRequest(server string, segmentId SegmentID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, segmentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/segments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1183,41 +1287,43 @@ func NewGetTrcsRequest(server string, params *GetTrcsParams) (*http.Request, err
 		return nil, err
 	}
 
-	queryValues := queryURL.Query()
+	if params != nil {
+		queryValues := queryURL.Query()
 
-	if params.Isd != nil {
+		if params.Isd != nil {
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", false, "isd", runtime.ParamLocationQuery, *params.Isd); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", false, "isd", runtime.ParamLocationQuery, *params.Isd); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.All != nil {
 
-	if params.All != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
+		queryURL.RawQuery = queryValues.Encode()
 	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -1366,69 +1472,75 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GetBeacons request
+	// GetBeaconsWithResponse request
 	GetBeaconsWithResponse(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*GetBeaconsResponse, error)
 
-	// GetBeacon request
+	// DeleteBeaconWithResponse request
+	DeleteBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*DeleteBeaconResponse, error)
+
+	// GetBeaconWithResponse request
 	GetBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconResponse, error)
 
-	// GetBeaconBlob request
+	// GetBeaconBlobWithResponse request
 	GetBeaconBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconBlobResponse, error)
 
-	// GetCa request
+	// GetCaWithResponse request
 	GetCaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCaResponse, error)
 
-	// GetCertificates request
+	// GetCertificatesWithResponse request
 	GetCertificatesWithResponse(ctx context.Context, params *GetCertificatesParams, reqEditors ...RequestEditorFn) (*GetCertificatesResponse, error)
 
-	// GetCertificate request
+	// GetCertificateWithResponse request
 	GetCertificateWithResponse(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*GetCertificateResponse, error)
 
-	// GetCertificateBlob request
+	// GetCertificateBlobWithResponse request
 	GetCertificateBlobWithResponse(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*GetCertificateBlobResponse, error)
 
-	// GetConfig request
+	// GetConfigWithResponse request
 	GetConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConfigResponse, error)
 
-	// GetHealth request
+	// GetHealthWithResponse request
 	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
 
-	// GetInfo request
+	// GetInfoWithResponse request
 	GetInfoWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInfoResponse, error)
 
-	// GetLogLevel request
+	// GetLogLevelWithResponse request
 	GetLogLevelWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetLogLevelResponse, error)
 
-	// SetLogLevel request with any body
+	// SetLogLevelWithBodyWithResponse request with any body
 	SetLogLevelWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
 
 	SetLogLevelWithResponse(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
 
-	// GetSegments request
+	// GetSegmentsWithResponse request
 	GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error)
 
-	// GetSegment request
+	// DeleteSegmentWithResponse request
+	DeleteSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*DeleteSegmentResponse, error)
+
+	// GetSegmentWithResponse request
 	GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error)
 
-	// GetSegmentBlob request
+	// GetSegmentBlobWithResponse request
 	GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error)
 
-	// GetSigner request
+	// GetSignerWithResponse request
 	GetSignerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSignerResponse, error)
 
-	// GetSignerChain request
+	// GetSignerChainWithResponse request
 	GetSignerChainWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSignerChainResponse, error)
 
-	// GetTopology request
+	// GetTopologyWithResponse request
 	GetTopologyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTopologyResponse, error)
 
-	// GetTrcs request
+	// GetTrcsWithResponse request
 	GetTrcsWithResponse(ctx context.Context, params *GetTrcsParams, reqEditors ...RequestEditorFn) (*GetTrcsResponse, error)
 
-	// GetTrc request
+	// GetTrcWithResponse request
 	GetTrcWithResponse(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*GetTrcResponse, error)
 
-	// GetTrcBlob request
+	// GetTrcBlobWithResponse request
 	GetTrcBlobWithResponse(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*GetTrcBlobResponse, error)
 }
 
@@ -1438,7 +1550,7 @@ type GetBeaconsResponse struct {
 	JSON200      *struct {
 		Beacons *[]Beacon `json:"beacons,omitempty"`
 	}
-	JSON400 *StandardError
+	JSON400 *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1457,11 +1569,34 @@ func (r GetBeaconsResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteBeaconResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+	JSON500      *Internal
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteBeaconResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteBeaconResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetBeaconResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *BeaconGetResponseJson
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1483,7 +1618,7 @@ func (r GetBeaconResponse) StatusCode() int {
 type GetBeaconBlobResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1506,7 +1641,7 @@ type GetCaResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *CA
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1526,10 +1661,10 @@ func (r GetCaResponse) StatusCode() int {
 }
 
 type GetCertificatesResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *[]ChainBrief
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *[]ChainBrief
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1549,10 +1684,10 @@ func (r GetCertificatesResponse) StatusCode() int {
 }
 
 type GetCertificateResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *Chain
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *Chain
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1572,9 +1707,9 @@ func (r GetCertificateResponse) StatusCode() int {
 }
 
 type GetCertificateBlobResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1596,7 +1731,7 @@ func (r GetCertificateBlobResponse) StatusCode() int {
 type GetConfigResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1619,7 +1754,7 @@ type GetHealthResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *HealthResponse
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1641,7 +1776,7 @@ func (r GetHealthResponse) StatusCode() int {
 type GetInfoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1664,7 +1799,7 @@ type GetLogLevelResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *LogLevel
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1687,7 +1822,7 @@ type SetLogLevelResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *LogLevel
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1707,10 +1842,10 @@ func (r SetLogLevelResponse) StatusCode() int {
 }
 
 type GetSegmentsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *[]SegmentBrief
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *[]SegmentBrief
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1729,11 +1864,34 @@ func (r GetSegmentsResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteSegmentResponse struct {
+	Body                      []byte
+	HTTPResponse              *http.Response
+	ApplicationproblemJSON400 *Problem
+	ApplicationproblemJSON500 *Problem
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSegmentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSegmentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetSegmentResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *Segment
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *Segment
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1753,9 +1911,9 @@ func (r GetSegmentResponse) StatusCode() int {
 }
 
 type GetSegmentBlobResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1778,7 +1936,7 @@ type GetSignerResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *Signer
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1800,7 +1958,7 @@ func (r GetSignerResponse) StatusCode() int {
 type GetSignerChainResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1823,7 +1981,7 @@ type GetTopologyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *Topology
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1846,7 +2004,7 @@ type GetTrcsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *[]TRCBrief
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1869,7 +2027,7 @@ type GetTrcResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *TRC
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1891,7 +2049,7 @@ func (r GetTrcResponse) StatusCode() int {
 type GetTrcBlobResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1917,6 +2075,15 @@ func (c *ClientWithResponses) GetBeaconsWithResponse(ctx context.Context, params
 		return nil, err
 	}
 	return ParseGetBeaconsResponse(rsp)
+}
+
+// DeleteBeaconWithResponse request returning *DeleteBeaconResponse
+func (c *ClientWithResponses) DeleteBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*DeleteBeaconResponse, error) {
+	rsp, err := c.DeleteBeacon(ctx, segmentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteBeaconResponse(rsp)
 }
 
 // GetBeaconWithResponse request returning *GetBeaconResponse
@@ -2035,6 +2202,15 @@ func (c *ClientWithResponses) GetSegmentsWithResponse(ctx context.Context, param
 	return ParseGetSegmentsResponse(rsp)
 }
 
+// DeleteSegmentWithResponse request returning *DeleteSegmentResponse
+func (c *ClientWithResponses) DeleteSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*DeleteSegmentResponse, error) {
+	rsp, err := c.DeleteSegment(ctx, segmentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSegmentResponse(rsp)
+}
+
 // GetSegmentWithResponse request returning *GetSegmentResponse
 func (c *ClientWithResponses) GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error) {
 	rsp, err := c.GetSegment(ctx, segmentId, reqEditors...)
@@ -2131,11 +2307,44 @@ func ParseGetBeaconsResponse(rsp *http.Response) (*GetBeaconsResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteBeaconResponse parses an HTTP response from a DeleteBeaconWithResponse call
+func ParseDeleteBeaconResponse(rsp *http.Response) (*DeleteBeaconResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteBeaconResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Internal
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	}
 
@@ -2164,7 +2373,7 @@ func ParseGetBeaconResponse(rsp *http.Response) (*GetBeaconResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2190,7 +2399,7 @@ func ParseGetBeaconBlobResponse(rsp *http.Response) (*GetBeaconBlobResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2223,7 +2432,7 @@ func ParseGetCaResponse(rsp *http.Response) (*GetCaResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2260,7 +2469,7 @@ func ParseGetCertificatesResponse(rsp *http.Response) (*GetCertificatesResponse,
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -2293,7 +2502,7 @@ func ParseGetCertificateResponse(rsp *http.Response) (*GetCertificateResponse, e
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -2319,7 +2528,7 @@ func ParseGetCertificateBlobResponse(rsp *http.Response) (*GetCertificateBlobRes
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -2341,7 +2550,7 @@ func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2374,7 +2583,7 @@ func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2400,7 +2609,7 @@ func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2433,7 +2642,7 @@ func ParseGetLogLevelResponse(rsp *http.Response) (*GetLogLevelResponse, error) 
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2466,7 +2675,7 @@ func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) 
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2503,7 +2712,40 @@ func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) 
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSegmentResponse parses an HTTP response from a DeleteSegmentWithResponse call
+func ParseDeleteSegmentResponse(rsp *http.Response) (*DeleteSegmentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSegmentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
 
 	}
 
@@ -2536,7 +2778,7 @@ func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -2562,7 +2804,7 @@ func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, e
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -2591,7 +2833,7 @@ func ParseGetSignerResponse(rsp *http.Response) (*GetSignerResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2617,7 +2859,7 @@ func ParseGetSignerChainResponse(rsp *http.Response) (*GetSignerChainResponse, e
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2650,7 +2892,7 @@ func ParseGetTopologyResponse(rsp *http.Response) (*GetTopologyResponse, error) 
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2683,7 +2925,7 @@ func ParseGetTrcsResponse(rsp *http.Response) (*GetTrcsResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2716,7 +2958,7 @@ func ParseGetTrcResponse(rsp *http.Response) (*GetTrcResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2742,7 +2984,7 @@ func ParseGetTrcBlobResponse(rsp *http.Response) (*GetTrcBlobResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

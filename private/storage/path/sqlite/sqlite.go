@@ -87,7 +87,7 @@ func (b *Backend) BeginTransaction(ctx context.Context,
 	defer b.Unlock()
 	tx, err := b.db.BeginTx(ctx, opts)
 	if err != nil {
-		return nil, serrors.WrapStr("Failed to create transaction", err)
+		return nil, serrors.Wrap("Failed to create transaction", err)
 	}
 	return &transaction{
 		executor: &executor{
@@ -197,7 +197,7 @@ func get(ctx context.Context, tx *sql.Tx, segID []byte) (*segMeta, error) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, serrors.WrapStr("Failed to lookup segment", err)
+		return nil, serrors.Wrap("Failed to lookup segment", err)
 	}
 	meta.LastUpdated = time.Unix(0, lastUpdated)
 	meta.Seg, err = pathdb.UnpackSegment(rawSeg)
@@ -253,7 +253,7 @@ func updateSeg(ctx context.Context, tx *sql.Tx, meta *segMeta) error {
 	_, err = tx.ExecContext(ctx, stmtStr,
 		fullID, meta.LastUpdated.UnixNano(), meta.Seg.Info.Timestamp, packedSeg, exp, meta.RowID)
 	if err != nil {
-		return serrors.WrapStr("Failed to update segment", err)
+		return serrors.Wrap("Failed to update segment", err)
 	}
 	return nil
 }
@@ -264,7 +264,7 @@ func insertType(ctx context.Context, tx *sql.Tx, segRowID int64,
 	_, err := tx.ExecContext(ctx, "INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
 		segRowID, segType)
 	if err != nil {
-		return serrors.WrapStr("Failed to insert type", err)
+		return serrors.Wrap("Failed to insert type", err)
 	}
 	return nil
 }
@@ -278,7 +278,7 @@ func insertHPGroupID(ctx context.Context, tx *sql.Tx, segRowID int64,
 		"INSERT INTO HPGroupIDs (SegRowID, GroupID) VALUES (?, ?)",
 		segRowID, int64(hpGroupID))
 	if err != nil {
-		return serrors.WrapStr("Failed to insert hpGroupID", err)
+		return serrors.Wrap("Failed to insert hpGroupID", err)
 	}
 	return nil
 }
@@ -302,11 +302,11 @@ func insertFull(ctx context.Context, tx *sql.Tx, pseg *seg.PathSegment, types []
 	res, err := tx.ExecContext(ctx, inst, segID, fullID, time.Now().UnixNano(),
 		pseg.Info.Timestamp.UnixNano(), packedSeg, exp, st.ISD(), st.AS(), end.ISD(), end.AS())
 	if err != nil {
-		return serrors.WrapStr("Failed to insert path segment", err)
+		return serrors.Wrap("Failed to insert path segment", err)
 	}
 	segRowID, err := res.LastInsertId()
 	if err != nil {
-		return serrors.WrapStr("Failed to retrieve segRowID of inserted segment", err)
+		return serrors.Wrap("Failed to retrieve segRowID of inserted segment", err)
 	}
 	// Insert all interfaces.
 	if err = insertInterfaces(ctx, tx, pseg.ASEntries, segRowID); err != nil {
@@ -336,7 +336,7 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, ases []seg.ASEntry, segRo
 	stmtStr := `INSERT INTO IntfToSeg (IsdID, AsID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, stmtStr)
 	if err != nil {
-		return serrors.WrapStr("Failed to prepare insert into IntfToSeg", err)
+		return serrors.Wrap("Failed to prepare insert into IntfToSeg", err)
 	}
 	defer stmt.Close()
 	for _, as := range ases {
@@ -346,13 +346,13 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, ases []seg.ASEntry, segRo
 		if hof.ConsIngress != 0 {
 			_, err = stmt.ExecContext(ctx, ia.ISD(), ia.AS(), hof.ConsIngress, segRowID)
 			if err != nil {
-				return serrors.WrapStr("inserting Ingress into IntfToSeg", err)
+				return serrors.Wrap("inserting Ingress into IntfToSeg", err)
 			}
 		}
 		if hof.ConsEgress != 0 {
 			_, err := stmt.ExecContext(ctx, ia.ISD(), ia.AS(), hof.ConsEgress, segRowID)
 			if err != nil {
-				return serrors.WrapStr("inserting Egress into IntfToSeg", err)
+				return serrors.Wrap("inserting Egress into IntfToSeg", err)
 			}
 		}
 		// Only insert the Egress interface for the regular hop entry in an AS entry.
@@ -362,12 +362,20 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, ases []seg.ASEntry, segRo
 			if hof.ConsIngress != 0 {
 				_, err = stmt.ExecContext(ctx, ia.ISD(), ia.AS(), hof.ConsIngress, segRowID)
 				if err != nil {
-					return serrors.WrapStr("insert peering Ingress into IntfToSeg", err, "index", i)
+					return serrors.Wrap("insert peering Ingress into IntfToSeg", err, "index", i)
 				}
 			}
 		}
 	}
 	return nil
+}
+
+func (e *executor) DeleteSegment(ctx context.Context, partialID string) error {
+	_, err := e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
+		delStmt := `DELETE FROM Segments WHERE hex(SegID) LIKE ?`
+		return tx.ExecContext(ctx, delStmt, partialID+"%")
+	})
+	return err
 }
 
 func (e *executor) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
@@ -397,7 +405,7 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 	stmt, args := e.buildQuery(params)
 	rows, err := e.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
-		return nil, serrors.WrapStr("Error looking up path segment", err, "q", stmt)
+		return nil, serrors.Wrap("Error looking up path segment", err, "q", stmt)
 	}
 	defer rows.Close()
 	var res []*query.Result
@@ -410,11 +418,11 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 		if err = rows.Scan(
 			&segRowID, &rawSeg, &lastUpdated, &segTypes, &hpGroupIDs); err != nil {
 
-			return nil, serrors.WrapStr("Error reading DB response", err)
+			return nil, serrors.Wrap("Error reading DB response", err)
 		}
 		parsed, err := pathdb.UnpackSegment(rawSeg)
 		if err != nil {
-			return nil, serrors.WrapStr("unmarshalling segment", err)
+			return nil, serrors.Wrap("unmarshalling segment", err)
 		}
 		for _, t := range segTypes {
 			res = append(res, &query.Result{
@@ -554,7 +562,7 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA,
 		return err
 	})
 	if err != nil {
-		return false, serrors.WrapStr("Failed to execute statement", err)
+		return false, serrors.Wrap("Failed to execute statement", err)
 	}
 	n, err := r.RowsAffected()
 	return n > 0, err

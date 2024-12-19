@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"time"
 
-	quic "github.com/lucas-clemente/quic-go"
 	"github.com/prometheus/client_golang/prometheus"
+	quic "github.com/quic-go/quic-go"
 	"google.golang.org/grpc"
 
 	"github.com/scionproto/scion/gateway/control"
@@ -46,8 +46,6 @@ import (
 	gatewaypb "github.com/scionproto/scion/pkg/proto/gateway"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/squic"
-	"github.com/scionproto/scion/pkg/sock/reliable"
-	"github.com/scionproto/scion/pkg/sock/reliable/reconnect"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/service"
@@ -101,32 +99,11 @@ type PacketConnFactory struct {
 func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	conn, err := pcf.Network.Listen(ctx, "udp", pcf.Addr, addr.SvcNone)
+	conn, err := pcf.Network.Listen(ctx, "udp", pcf.Addr)
 	if err != nil {
-		return nil, serrors.WrapStr("creating packet conn", err)
+		return nil, serrors.Wrap("creating packet conn", err)
 	}
 	return conn, nil
-}
-
-type ProbeConnFactory struct {
-	Dispatcher *reconnect.DispatcherService
-	LocalIA    addr.IA
-	LocalIP    netip.Addr
-}
-
-func (f ProbeConnFactory) New(ctx context.Context) (net.PacketConn, error) {
-	pathMonitorConnection, pathMonitorPort, err := f.Dispatcher.Register(
-		context.Background(),
-		f.LocalIA,
-		&net.UDPAddr{IP: f.LocalIP.AsSlice()},
-		addr.SvcNone,
-	)
-	if err != nil {
-		return nil, serrors.WrapStr("unable to open control socket", err)
-	}
-	log.FromCtx(ctx).Debug("Path monitor connection opened on Raw UDP/SCION",
-		"local_ip", f.LocalIP, "local_port", pathMonitorPort)
-	return pathMonitorConnection, nil
 }
 
 type RoutingTableFactory struct {
@@ -138,16 +115,6 @@ func (rtf RoutingTableFactory) New(
 ) (control.RoutingTable, error) {
 
 	return dataplane.NewRoutingTable(routingChains), nil
-}
-
-// ignoreSCMP ignores all received SCMP packets.
-//
-// XXX(scrye): This is needed such that the QUIC server does not shut down when
-// receiving a SCMP error. DO NOT REMOVE!
-type ignoreSCMP struct{}
-
-func (ignoreSCMP) Handle(pkt *snet.Packet) error {
-	return nil
 }
 
 // SelectAdvertisedRoutes computes the networks that should be advertised
@@ -200,9 +167,6 @@ type Gateway struct {
 
 	// DataIP is the IP that should be used for dataplane traffic.
 	DataAddr *net.UDPAddr
-
-	// Dispatcher is the API of the SCION Dispatcher on the local host.
-	Dispatcher reliable.Dispatcher
 
 	// Daemon is the API of the SCION Daemon.
 	Daemon daemon.Connector
@@ -273,16 +237,14 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	routePublisherFactory := createRouteManager(ctx, deviceManager)
 
-	// *************************************************************************
-	// Initialize base SCION network information: IA + Dispatcher connectivity
-	// *************************************************************************
+	// *********************************************
+	// Initialize base SCION network information: IA
+	// *********************************************
 	localIA, err := g.Daemon.LocalIA(context.Background())
 	if err != nil {
-		return serrors.WrapStr("unable to learn local ISD-AS number", err)
+		return serrors.Wrap("unable to learn local ISD-AS number", err)
 	}
 	logger.Info("Learned local IA from SCION Daemon", "ia", localIA)
-
-	reconnectingDispatcher := reconnect.NewDispatcherService(g.Dispatcher)
 
 	// *************************************************************************
 	// Set up path monitoring. The path monitor runs an the SCION/UDP stack
@@ -328,20 +290,16 @@ func (g *Gateway) Run(ctx context.Context) error {
 			RemoteWatcherFactory: &pathhealth.DefaultRemoteWatcherFactory{
 				Router: pathRouter,
 				PathWatcherFactory: &pathhealth.DefaultPathWatcherFactory{
-					LocalIA:           localIA,
-					LocalIP:           g.PathMonitorIP,
-					RevocationHandler: revocationHandler,
-					ConnFactory: ProbeConnFactory{
-						Dispatcher: reconnectingDispatcher,
-						LocalIA:    localIA,
-						LocalIP:    g.PathMonitorIP,
-					},
+					LocalIA:                localIA,
+					LocalIP:                g.PathMonitorIP,
+					RevocationHandler:      revocationHandler,
 					ProbeInterval:          0, // using default for now
 					ProbesSent:             probesSent,
 					ProbesReceived:         probesReceived,
 					ProbesSendErrors:       probesSendErrors,
 					SCMPErrors:             g.Metrics.SCMPErrors,
 					SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+					Topology:               g.Daemon,
 				},
 				PathUpdateInterval: PathUpdateInterval(ctx),
 				PathFetchTimeout:   0, // using default for now
@@ -445,42 +403,43 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// Generate throwaway self-signed TLS certificates. These DO NOT PROVIDE ANY SECURITY.
 	ephemeralTLSConfig, err := infraenv.GenerateTLSConfig()
 	if err != nil {
-		return serrors.WrapStr("unable to generate TLS config", err)
+		return serrors.Wrap("unable to generate TLS config", err)
 	}
 
-	// scionNetwork is the network for all SCION connections, with the exception of the QUIC server
-	// connection.
-	scionNetwork := &snet.SCIONNetwork{
-		LocalIA: localIA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			// Enable transparent reconnections to the dispatcher
-			Dispatcher: reconnectingDispatcher,
-			// Forward revocations to Daemon
-			SCMPHandler: snet.DefaultSCMPHandler{
+	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
+	// will cause the server's accepts to fail, we ignore SCMP.
+	scionNetworkNoSCMP := &snet.SCIONNetwork{
+		Topology: g.Daemon,
+		// Discard all SCMP propagation, to avoid accept/read errors on the
+		// QUIC server/client.
+		SCMPHandler: snet.SCMPPropagationStopper{
+			Handler: snet.DefaultSCMPHandler{
 				RevocationHandler: revocationHandler,
 				SCMPErrors:        g.Metrics.SCMPErrors,
 			},
-			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+			Log: log.FromCtx(ctx).Debug,
 		},
-		Metrics: g.Metrics.SCIONNetworkMetrics,
+		PacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+		Metrics:           g.Metrics.SCIONNetworkMetrics,
 	}
 
 	// Initialize the UDP/SCION QUIC conn for outgoing Gateway Discovery RPCs and outgoing Prefix
 	// Fetching. Open up a random high port for this.
-	clientConn, err := scionNetwork.Listen(
+	clientConn, err := scionNetworkNoSCMP.Listen(
 		context.TODO(),
 		"udp",
 		&net.UDPAddr{IP: g.ControlClientIP},
-		addr.SvcNone,
 	)
 	if err != nil {
-		return serrors.WrapStr("unable to initialize client QUIC connection", err)
+		return serrors.Wrap("unable to initialize client QUIC connection", err)
 	}
 	logger.Info("QUIC client connection initialized",
 		"local_addr", clientConn.LocalAddr())
 
 	quicClientDialer := &squic.ConnDialer{
-		Conn:      clientConn,
+		Transport: &quic.Transport{
+			Conn: clientConn,
+		},
 		TLSConfig: ephemeralTLSConfig,
 	}
 
@@ -509,6 +468,18 @@ func (g *Gateway) Run(ctx context.Context) error {
 				"remote_isd_as", ia.String())
 		}
 	}
+
+	// scionNetwork is the network for all SCION connections, with the exception of the QUIC server
+	// and client connection.
+	scionNetwork := &snet.SCIONNetwork{
+		Topology: g.Daemon,
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: revocationHandler,
+			SCMPErrors:        g.Metrics.SCMPErrors,
+		},
+		PacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+		Metrics:           g.Metrics.SCIONNetworkMetrics,
+	}
 	remoteMonitor := &control.RemoteMonitor{
 		IAs:                   remoteIAsChannel,
 		RemotesMonitored:      rmMetric,
@@ -531,10 +502,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 					Resolver: &svc.Resolver{
 						LocalIA: localIA,
 						// Reuse the network with SCMP error support.
-						ConnFactory: scionNetwork.Dispatcher,
-						LocalIP:     g.ServiceDiscoveryClientIP,
+						Network: scionNetwork,
+						LocalIP: g.ServiceDiscoveryClientIP,
 					},
-					SVCResolutionFraction: 1.337,
 				},
 			},
 		},
@@ -548,34 +518,20 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 	logger.Debug("Remote monitor started.")
 
-	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
-	// will cause the server's accepts to fail, we ignore SCMP.
-	scionNetworkNoSCMP := &snet.SCIONNetwork{
-		LocalIA: localIA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			// Enable transparent reconnections to the dispatcher
-			Dispatcher: reconnectingDispatcher,
-			// Discard all SCMP, to avoid accept errors on the QUIC server.
-			SCMPHandler:            ignoreSCMP{},
-			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
-		},
-		Metrics: g.Metrics.SCIONNetworkMetrics,
-	}
 	serverConn, err := scionNetworkNoSCMP.Listen(
 		context.TODO(),
 		"udp",
 		g.ControlServerAddr,
-		addr.SvcNone,
 	)
 	if err != nil {
-		return serrors.WrapStr("unable to initialize server QUIC connection", err)
+		return serrors.Wrap("unable to initialize server QUIC connection", err)
 	}
 	logger.Info("QUIC server connection initialized",
 		"local_addr", serverConn.LocalAddr())
 
 	internalQUICServerListener, err := quic.Listen(serverConn, ephemeralTLSConfig, nil)
 	if err != nil {
-		return serrors.WrapStr("unable to initializer server QUIC listener", err)
+		return serrors.Wrap("unable to initializer server QUIC listener", err)
 	}
 	// Wrap in net.Listener for use with gRPC
 	quicServerListener := squic.NewConnListener(internalQUICServerListener)
@@ -584,7 +540,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 	if g.Metrics != nil {
 		paMetric = metrics.NewPromGauge(g.Metrics.PrefixesAdvertised)
 	}
-	discoveryServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	discoveryServer := grpc.NewServer(
+		libgrpc.UnaryServerInterceptor(),
+		libgrpc.DefaultMaxConcurrentStreams(),
+	)
 	gatewaypb.RegisterIPPrefixesServiceServer(
 		discoveryServer,
 		controlgrpc.IPPrefixServer{
@@ -610,9 +569,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// received from the session monitors of the remote gateway.
 	// *********************************************************************************
 
-	probeConn, err := scionNetwork.Listen(context.TODO(), "udp", g.ProbeServerAddr, addr.SvcNone)
+	probeConn, err := scionNetwork.Listen(context.TODO(), "udp", g.ProbeServerAddr)
 	if err != nil {
-		return serrors.WrapStr("creating server probe conn", err)
+		return serrors.Wrap("creating server probe conn", err)
 	}
 	probeServer := controlgrpc.ProbeDispatcher{}
 	probeServerCtx, probeServerCancel := context.WithCancel(context.Background())
@@ -725,7 +684,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	if err := g.HTTPEndpoints.Register(g.HTTPServeMux, g.ID); err != nil {
-		return serrors.WrapStr("registering HTTP pages", err)
+		return serrors.Wrap("registering HTTP pages", err)
 	}
 	<-ctx.Done()
 	return nil
@@ -808,10 +767,9 @@ func StartIngress(ctx context.Context, scionNetwork *snet.SCIONNetwork, dataAddr
 		context.TODO(),
 		"udp",
 		dataAddr,
-		addr.SvcNone,
 	)
 	if err != nil {
-		return serrors.WrapStr("creating ingress conn", err)
+		return serrors.Wrap("creating ingress conn", err)
 	}
 	ingressMetrics := CreateIngressMetrics(metrics)
 	ingressServer := &dataplane.IngressServer{
@@ -913,7 +871,7 @@ func (r *TunnelReader) GetDeviceOpenerWithAsyncReader(ctx context.Context) contr
 		logger := log.FromCtx(ctx)
 		handle, err := r.DeviceOpener.Open(ctx, ia)
 		if err != nil {
-			return nil, serrors.WrapStr("opening device", err)
+			return nil, serrors.Wrap("opening device", err)
 		}
 
 		forwarder := &dataplane.IPForwarder{

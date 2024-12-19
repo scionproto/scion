@@ -100,7 +100,7 @@ func TestSign(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			err := trcs.RunSign(tc.pld, tc.cert, tc.key, "", outDir)
+			err := trcs.RunSign(tc.pld, tc.cert, tc.key, "", "", outDir)
 			assert.NoError(t, err)
 			fn := filepath.Join(outDir, fmt.Sprintf("ISD1-B1-S2.1-1-%s.trc", tc.signType))
 
@@ -111,7 +111,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestOpensslCompatible(t *testing.T) {
-	if !strings.HasSuffix(os.Getenv("TEST_TARGET"), "go_integration_test") && false {
+	if !strings.HasSuffix(os.Getenv("TEST_TARGET"), "go_integration_test") {
 		t.Skip("This test only runs as integration test")
 	}
 
@@ -159,7 +159,7 @@ func TestOpensslCompatible(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-			err := trcs.RunSign(tc.pld, tc.cert, tc.key, "", outDir)
+			err := trcs.RunSign(tc.pld, tc.cert, tc.key, "", "", outDir)
 			assert.NoError(t, err)
 			fn := filepath.Join(outDir, fmt.Sprintf("ISD1-B1-S2.1-1-%s.trc", tc.signType))
 
@@ -170,7 +170,7 @@ func TestOpensslCompatible(t *testing.T) {
 			require.NoError(t, err)
 
 			cmd := exec.Command(
-				"docker", "run", "-v", outDir+":"+outDir, "emberstack/openssl",
+				"docker", "run", "--rm", "-v", outDir+":"+outDir, "emberstack/openssl",
 				"openssl",
 				"cms",
 				"-verify",

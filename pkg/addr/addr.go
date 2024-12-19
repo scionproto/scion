@@ -93,15 +93,15 @@ func (a *Addr) UnmarshalText(b []byte) error {
 func ParseAddrPort(s string) (Addr, uint16, error) {
 	host, port, err := net.SplitHostPort(s)
 	if err != nil {
-		return Addr{}, 0, serrors.WrapStr("invalid address: split host:port", err, "addr", s)
+		return Addr{}, 0, serrors.Wrap("invalid address: split host:port", err, "addr", s)
 	}
 	a, err := ParseAddr(host)
 	if err != nil {
-		return Addr{}, 0, serrors.WrapStr("invalid address: host invalid", err, "host", host)
+		return Addr{}, 0, serrors.Wrap("invalid address: host invalid", err, "host", host)
 	}
 	p, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
-		return Addr{}, 0, serrors.WrapStr("invalid address: port invalid", err, "port", port)
+		return Addr{}, 0, serrors.Wrap("invalid address: port invalid", err, "port", port)
 	}
 	return a, uint16(p), nil
 }

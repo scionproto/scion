@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/control/mgmtapi/mock_mgmtapi"
 	cstrust "github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/control/trust/mock_trust"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -287,9 +288,13 @@ func TestAPI(t *testing.T) {
 						SignerGen: g,
 					},
 				}
+				notBefore := time.Unix(1611051121, 0).UTC()
+				notAfter := time.Unix(1611061121, 0).UTC()
+				now := notBefore.Add(time.Minute)
+				s.SetNowProvider(func() time.Time { return now })
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
-					trust.Signer{
-						IA:        xtest.MustParseIA("1-ff00:0:110"),
+					[]trust.Signer{{
+						IA:        addr.MustParseIA("1-ff00:0:110"),
 						Algorithm: signed.ECDSAWithSHA512,
 						Subject: pkix.Name{
 							Country:    []string{"CH"},
@@ -301,13 +306,13 @@ func TestAPI(t *testing.T) {
 							Serial: 42,
 							Base:   1,
 						},
-						Expiration: time.Unix(1611061121, 0).UTC(),
+						Expiration: notAfter,
 						ChainValidity: cppki.Validity{
-							NotBefore: time.Unix(1611051121, 0).UTC(),
-							NotAfter:  time.Unix(1611061121, 0).UTC(),
+							NotBefore: notBefore,
+							NotAfter:  notAfter,
 						},
 						InGrace: true,
-					}, nil,
+					}}, nil,
 				)
 				return api.Handler(s)
 			},
@@ -323,7 +328,7 @@ func TestAPI(t *testing.T) {
 					},
 				}
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
-					trust.Signer{}, serrors.New("internal"),
+					nil, serrors.New("internal"),
 				)
 				return api.Handler(s)
 			},
@@ -340,9 +345,14 @@ func TestAPI(t *testing.T) {
 				}
 				validCert, _ := cppki.ReadPEMCerts(filepath.Join("testdata", "signer-chain.crt"))
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
-					trust.Signer{
-						Chain: validCert,
-					}, nil,
+					[]trust.Signer{{
+						Chain:      validCert,
+						Expiration: time.Now().Add(time.Hour),
+						ChainValidity: cppki.Validity{
+							NotBefore: time.Now(),
+							NotAfter:  time.Now().Add(time.Hour),
+						},
+					}}, nil,
 				)
 				return api.Handler(s)
 			},
@@ -358,7 +368,7 @@ func TestAPI(t *testing.T) {
 					},
 				}
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
-					trust.Signer{}, nil,
+					[]trust.Signer{{}}, nil,
 				)
 				return api.Handler(s)
 			},
@@ -912,8 +922,8 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 					},
 					ASEntries: []seg.ASEntry{
 						{
-							Local: xtest.MustParseIA("1-ff00:0:110"),
-							Next:  xtest.MustParseIA("1-ff00:0:111"),
+							Local: addr.MustParseIA("1-ff00:0:110"),
+							Next:  addr.MustParseIA("1-ff00:0:111"),
 							HopEntry: seg.HopEntry{
 								HopField: seg.HopField{
 									ConsIngress: 0,
@@ -923,8 +933,8 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 							},
 						},
 						{
-							Local: xtest.MustParseIA("1-ff00:0:111"),
-							Next:  xtest.MustParseIA("1-ff00:0:112"),
+							Local: addr.MustParseIA("1-ff00:0:111"),
+							Next:  addr.MustParseIA("1-ff00:0:112"),
 							HopEntry: seg.HopEntry{
 								HopField: seg.HopField{
 									ConsIngress: 2,
@@ -935,7 +945,7 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 						},
 					},
 				},
-				InIfId: 2,
+				InIfID: 2,
 			},
 			Usage:       beaconlib.UsageUpReg | beaconlib.UsageDownReg,
 			LastUpdated: time.Date(2021, 1, 2, 8, 0, 0, 0, time.UTC),
@@ -948,8 +958,8 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 					},
 					ASEntries: []seg.ASEntry{
 						{
-							Local: xtest.MustParseIA("2-ff00:0:220"),
-							Next:  xtest.MustParseIA("3-ff00:0:330"),
+							Local: addr.MustParseIA("2-ff00:0:220"),
+							Next:  addr.MustParseIA("3-ff00:0:330"),
 							HopEntry: seg.HopEntry{
 								HopField: seg.HopField{
 									ConsIngress: 0,
@@ -958,8 +968,8 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 							},
 						},
 						{
-							Local: xtest.MustParseIA("3-ff00:0:330"),
-							Next:  xtest.MustParseIA("4-ff00:0:440"),
+							Local: addr.MustParseIA("3-ff00:0:330"),
+							Next:  addr.MustParseIA("4-ff00:0:440"),
 							HopEntry: seg.HopEntry{
 								HopField: seg.HopField{
 									ConsIngress: 6,
@@ -969,7 +979,7 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 						},
 					},
 				},
-				InIfId: 1,
+				InIfID: 1,
 			},
 			Usage:       beaconlib.UsageCoreReg,
 			LastUpdated: time.Date(2021, 2, 2, 8, 0, 0, 0, time.UTC),

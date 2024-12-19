@@ -55,7 +55,7 @@ Routing is based on the ISD-AS tuple, agnostic of endpoint addressing.
 ISD numbers are 16-bit identifiers.
 The 48-bit AS numbers are globally unique, and use a superset of the existing BGP AS numbering
 scheme.
-Formatting rules and and allocations are is currently described in `wiki page "ISD and AS numbering" <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
+Formatting rules and allocations are currently described in `wiki page "ISD and AS numbering" <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
 
 The endpoint local address is not used for inter-domain routing or forwarding, does not need to be
 globally unique, and can thus be an IPv4, IPv6, or MAC address, for example.

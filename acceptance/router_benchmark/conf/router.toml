@@ -1,0 +1,17 @@
+[general]
+id = "br1a"
+config_dir = "/etc/scion"
+
+[metrics]
+prometheus = "10.123.10.1:30442"
+
+[features]
+
+[router.bfd]
+disable = true
+
+[api]
+addr = "10.123.10.1:31142"
+
+[log.console]
+level = "error"

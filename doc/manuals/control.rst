@@ -64,6 +64,7 @@ Options
    Run :option:`control help completion [shell] <control help>` for usage information on the
    autocomplete script for a particular shell.
 
+.. _control-envvars:
 
 Environment variables
 ---------------------
@@ -76,7 +77,10 @@ Environment variables
    This can only work correctly if the same value is set for all connected control services in the
    test network.
 
-   The format is a :ref:`duration <control-conf-duration>` with unit suffix (e.g. ``10s``).
+   Also applies to the :ref:`router <router-envvars>`.
+
+   :Type: :ref:`duration <common-conf-duration>`
+   :Default: ``24h``
 
 Configuration
 =============
@@ -248,7 +252,7 @@ considers the following options.
          - use the `netsys-lab/scion-ca <https://github.com/netsys-lab/scion-ca>`_ SCION CA
            based on `smallstep's step-ca <https://github.com/smallstep/certificates>`_,
          - ask SCION vendors for proprietary CA implementations and offerings,
-         - plug in your own CA service implementing the :file-ref:`spec/ca.gen.yaml` API.
+         - plug in your own CA service implementing the :file-ref:`spec/ca.gen.yml` API.
 
       .. option:: ca.service.address = <string>
 
@@ -258,13 +262,13 @@ considers the following options.
 
       .. option:: ca.service.shared_secret = <string>
 
-	      Path to the PEM-encoded shared secret that is used to create JWT tokens.
+         Path to the PEM-encoded shared secret that is used to create JWT tokens.
 
          The shared secret file is re-read from disk at 5 second intervals.
 
       .. option:: ca.service.lifetime = <duration> (Default: "10m")
 
-         Validity period (a :ref:`duration <control-conf-duration>`) of JWT authorization tokens
+         Validity period (a :ref:`duration <common-conf-duration>`) of JWT authorization tokens
          for the CA service.
 
       .. option:: ca.service.client_id = <string> (Default: general.id)
@@ -311,11 +315,9 @@ considers the following options.
 
       Disable caching entirely.
 
-   .. option:: trustengine.cache.expiration = <int> (Default: 60000000000)
+   .. option:: trustengine.cache.expiration = <duration> (Default: "1m")
 
-      Expiration of cached entries in nanoseconds.
-
-      **TODO:** this should be changed to accept values in :ref:`duration format <control-conf-duration>`.
+      Expiration time for cached entries.
 
 .. object:: drkey
 
@@ -367,7 +369,7 @@ considers the following options.
          # Example
 
          [drkey.delegation]
-         scmp: ["203.0.113.17", "198.51.100.249"]
+         scmp = ["203.0.113.17", "198.51.100.249"]
 
    .. option:: drkey.prefetch_entries = <number> (Default: 10000)
 
@@ -774,29 +776,6 @@ There is one top-level entry for each type of metadata, all of which are optiona
 .. option:: Note = <string>
 
    A free form string to communicate interesting/important information to other network operators.
-
-
-.. _control-conf-duration:
-
-Duration Format
----------------
-
-Where duration values are loaded from configuration options, the following format is expected:
-
-.. code-block::
-
-   [\-0-9]+(y|w|d|h|m|s|ms|us|µs|ns)
-
-The unit suffixes have their usual meaning of ``y`` year, ``w`` week, ``d`` day, ``h`` hour,
-``m`` minute, ``s`` second, ``ms`` millisecond, ``us`` or ``µs`` microsecond, and ``ns`` nanosecond.
-
-Mixed unit durations are not supported (e.g. ``1h10m10s`` is not supported).
-The long duration units are simple factors, not calendar offsets:
-
-- ``d`` is always 24 hours
-- ``w`` is always 7 days
-- ``y`` is always 365 days
-
 
 Port table
 ==========

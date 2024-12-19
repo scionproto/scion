@@ -1,5 +1,6 @@
 // Copyright 2018 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2023 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,7 +59,7 @@ var (
 func Setup() error {
 	err := addFlags()
 	if err != nil {
-		return serrors.WrapStr("adding flags", err)
+		return serrors.Wrap("adding flags", err)
 	}
 	validateFlags()
 	return nil
@@ -67,8 +68,10 @@ func Setup() error {
 func addFlags() error {
 	err := envFlags.LoadExternalVars()
 	if err != nil {
-		return serrors.WrapStr("reading scion environment", err)
+		return serrors.Wrap("reading scion environment", err)
 	}
+	// TODO(JordiSubira): Make this flag optional and consider the same case as Unspecified
+	// if it isn't explicitly set.
 	flag.Var(&Local, "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
@@ -138,24 +141,37 @@ func SDConn() daemon.Connector {
 // AttemptFunc attempts a request repeatedly, receives the attempt number
 type AttemptFunc func(n int) bool
 
-// AttemptRepeatedly runs attempt until it returns true or more than Attempts were executed.
-// Between two attempts at least RetryTimeout time has to pass.
+// AttemptRepeatedly runs attempt until it returns true (succeeded => stop) or more than Attempts
+// were executed. Between two attempts at least RetryTimeout time has to pass.
 // Returns 0 on success, 1 on failure.
 func AttemptRepeatedly(name string, attempt AttemptFunc) int {
-	attempts := 0
-	for {
-		attempts++
-		if attempt(attempts) {
-			return 0
-		} else if attempts < Attempts {
+	for attempts := 0; attempts < Attempts; attempts++ {
+		if attempts != 0 {
 			log.Info("Retrying...")
 			time.Sleep(integration.RetryTimeout)
-			continue
 		}
-		log.Error(fmt.Sprintf("%s failed. No more attempts...", name))
-		break
+		if attempt(attempts) {
+			return 0
+		}
 	}
+	log.Error(fmt.Sprintf("%s failed. No more attempts...", name))
 	return 1
+}
+
+// RepeatUntilFail runs doit() until it returns true (failed -> stop) or more than Attempts
+// were executed. There is no delay nor logging between attempts.
+// Returns 0 if all Attempts succeeded, 1 on failure.
+// This is very similar to AttemptRepeatedly, but difference in failure/success behaviour
+// justify a different function: parameter-based tweaks would be easily confusing.
+func RepeatUntilFail(name string, doit AttemptFunc) int {
+	for attempts := 0; attempts < Attempts; attempts++ {
+		if doit(attempts) {
+			log.Error(fmt.Sprintf("%s failed...", name))
+			return 1
+		}
+	}
+	log.Info(fmt.Sprintf("%s completed. No more repeats...", name))
+	return 0
 }
 
 // Done informs the integration test that a test binary has finished.

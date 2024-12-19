@@ -22,10 +22,17 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
-// MetaLen is the length of the PathMetaHeader.
-const MetaLen = 4
+const (
+	// MaxINFs is the maximum number of info fields in a SCION path.
+	MaxINFs = 3
+	// MaxHops is the maximum number of hop fields in a SCION path.
+	MaxHops = 64
 
-const PathType path.Type = 1
+	// MetaLen is the length of the PathMetaHeader.
+	MetaLen = 4
+
+	PathType path.Type = 1
+)
 
 func RegisterPath() {
 	path.RegisterPath(path.Metadata{
@@ -66,6 +73,14 @@ func (s *Base) DecodeFromBytes(data []byte) error {
 		}
 		s.NumHops += int(s.PathMeta.SegLen[i])
 	}
+
+	// We must check the validity of NumHops. It is possible to fit more than 64 hops in
+	// the length of a scion header. Yet a path of more than 64 hops cannot be followed to
+	// the end because CurrHF is only 6 bits long.
+	if s.NumHops > MaxHops {
+		return serrors.New("NumHops too large", "NumHops", s.NumHops, "Maximum", MaxHops)
+	}
+
 	return nil
 }
 
@@ -76,7 +91,9 @@ func (s *Base) IncPath() error {
 	}
 	if int(s.PathMeta.CurrHF) >= s.NumHops-1 {
 		s.PathMeta.CurrHF = uint8(s.NumHops - 1)
-		return serrors.New("path already at end")
+		return serrors.New("path already at end",
+			"curr_hf", s.PathMeta.CurrHF,
+			"num_hops", s.NumHops)
 	}
 	s.PathMeta.CurrHF++
 	// Update CurrINF
@@ -84,7 +101,11 @@ func (s *Base) IncPath() error {
 	return nil
 }
 
-// IsXover returns whether we are at a crossover point.
+// IsXover returns whether we are at a crossover point. This includes
+// all segment switches, even over a peering link. Note that handling
+// of a regular segment switch and handling of a segment switch over a
+// peering link are fundamentally different. To distinguish the two,
+// you will need to extract the information from the info field.
 func (s *Base) IsXover() bool {
 	return s.PathMeta.CurrHF+1 < uint8(s.NumHops) &&
 		s.PathMeta.CurrINF != s.infIndexForHF(s.PathMeta.CurrHF+1)
@@ -107,7 +128,9 @@ func (s *Base) infIndexForHF(hf uint8) uint8 {
 	}
 }
 
-// Len returns the length of the path in bytes.
+// Len returns the length of the path in bytes. That is, the number of byte required to
+// store it, based on the metadata. The actual number of bytes available to contain it
+// can be inferred from the common header field HdrLen. It may or may not be consistent.
 func (s *Base) Len() int {
 	return MetaLen + s.NumINF*path.InfoLen + s.NumHops*path.HopLen
 }

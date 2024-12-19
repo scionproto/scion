@@ -1,0 +1,9 @@
+[general]
+  id = "brA"
+  config_dir = "/etc/scion"
+
+[features]
+  experimental_scmp_authentication = true
+
+[log.console]
+  level = "debug"

@@ -17,7 +17,6 @@ package pathhealth
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -51,7 +50,7 @@ type PathWatcher interface {
 
 // PathWatcherFactory constructs a PathWatcher.
 type PathWatcherFactory interface {
-	New(ctx context.Context, remote addr.IA, path snet.Path, id uint16) (PathWatcher, error)
+	New(ctx context.Context, remote addr.IA, path snet.Path) (PathWatcher, error)
 }
 
 // DefaultRemoteWatcherFactory is a default factory for creating RemoteWatchers.
@@ -85,7 +84,6 @@ func (f *DefaultRemoteWatcherFactory) New(remote addr.IA) RemoteWatcher {
 		router:             f.Router,
 		pathWatcherFactory: f.PathWatcherFactory,
 		pathWatchers:       make(map[snet.PathFingerprint]*pathWatcherItem),
-		pathWatchersByID:   make(map[uint16]*pathWatcherItem),
 		// Set this to true so that first failure to get paths is logged.
 		hasPaths:           true,
 		pathUpdateInterval: f.PathUpdateInterval,
@@ -108,8 +106,6 @@ type remoteWatcher struct {
 	// pathWatchers is a map of all the paths being currently monitored, indexed by path
 	// fingerprint.
 	pathWatchers map[snet.PathFingerprint]*pathWatcherItem
-	// pathWatchersByID contains the same paths as above, but indexed by SCMP Traceroute ID.
-	pathWatchersByID map[uint16]*pathWatcherItem
 	// hasPaths is true if, at the moment, there is at least one path known.
 	hasPaths bool
 
@@ -163,7 +159,6 @@ func (w *remoteWatcher) cleanup(ctx context.Context) {
 		}
 		pm.cancel()
 		delete(w.pathWatchers, fingerprint)
-		delete(w.pathWatchersByID, pm.id)
 	}
 	metrics.GaugeSet(w.pathsMonitored, float64(len(w.pathWatchers)))
 }
@@ -222,14 +217,9 @@ func (w *remoteWatcher) updatePaths(ctx context.Context) {
 	for fingerprint, path := range pathmap {
 		pw, ok := w.pathWatchers[fingerprint]
 		if !ok {
-			id, found := w.selectID()
-			if !found {
-				logger.Info("All traceroute IDs are occupied")
-				continue
-			}
-			pathW, err := w.pathWatcherFactory.New(ctx, w.remote, path, id)
+			pathW, err := w.pathWatcherFactory.New(ctx, w.remote, path)
 			if err != nil {
-				logger.Error("Failed to create path watcher", "path", fmt.Sprint(path))
+				logger.Error("Failed to create path watcher", "path", fmt.Sprint(path), "err", err)
 				continue
 			}
 			pathWCtx, cancel := context.WithCancel(ctx)
@@ -241,11 +231,9 @@ func (w *remoteWatcher) updatePaths(ctx context.Context) {
 			// This is a new path, add an entry.
 			pw = &pathWatcherItem{
 				pathWatcher: pathW,
-				id:          id,
 				cancel:      cancel,
 			}
 			w.pathWatchers[fingerprint] = pw
-			w.pathWatchersByID[id] = pw
 		} else {
 			// If the path already exists, update it. Needed to keep expirations fresh.
 			pw.pathWatcher.UpdatePath(path)
@@ -255,21 +243,9 @@ func (w *remoteWatcher) updatePaths(ctx context.Context) {
 	metrics.GaugeSet(w.pathsMonitored, float64(len(w.pathWatchers)))
 }
 
-func (w *remoteWatcher) selectID() (uint16, bool) {
-	for i := 0; i < 100; i++ {
-		id := uint16(rand.Uint32())
-		if _, ok := w.pathWatchersByID[id]; !ok {
-			return id, true
-		}
-	}
-	return 0, false
-}
-
 // pathWatcherItem is an wrapper type that adds RemoteWatcher-specific data to pathWatcher.
 type pathWatcherItem struct {
 	pathWatcher PathWatcher
-	// id is the traceroute ID for this pathWatcher
-	id uint16
 	// lastUsed is the time when the path ceased to be used.
 	// If the path is used right now, set to time.Time{}.
 	// Paths that are not used will be removed after a certain period of time.

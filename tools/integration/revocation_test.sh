@@ -27,14 +27,19 @@ done
 
 # Bring down routers.
 echo "Revocation test"
-echo "Stopping routers and waiting for ${SLEEP}s."
+echo "Stopping routers and waiting for 4s."
 ./scion.sh mstop $REV_BRS
 if [ $? -ne 0 ]; then
     echo "Failed stopping routers."
     exit 1
 fi
 sleep 4
+
+if [ -f gen/scion-dc.yml ]; then
+    DOCKER_ARGS="-d"
+fi
+
 # Do another round of e2e test with retries
 echo "Testing connectivity between all the hosts (with retries)."
-bin/end2end_integration -log.console info -attempts 15 -subset 1-ff00:0:131#2-ff00:0:222 $DOCKER_ARGS
+bin/end2end_integration $DOCKER_ARGS -log.console info -attempts 15 -subset 1-ff00:0:131#2-ff00:0:222
 exit $?

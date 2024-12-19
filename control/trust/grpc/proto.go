@@ -17,8 +17,6 @@ package grpc
 import (
 	"crypto/x509"
 
-	"github.com/golang/protobuf/ptypes"
-
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -28,14 +26,32 @@ import (
 )
 
 func requestToChainQuery(req *cppb.ChainsRequest) (trust.ChainQuery, error) {
-	date, err := ptypes.Timestamp(req.Date)
-	if err != nil {
-		return trust.ChainQuery{}, err
+	var validity cppki.Validity
+	if req.AtLeastValidUntil != nil {
+		if err := req.AtLeastValidUntil.CheckValid(); err != nil {
+			return trust.ChainQuery{}, serrors.Wrap("validating at_least_valid_until", err)
+		}
+		validity.NotAfter = req.AtLeastValidUntil.AsTime()
+
+		// If AtLeastValidUntil is set but AtLeastValidSince is not this request
+		// comes from a legacy client that does not support the new protobuf. In
+		// this case we set AtLeastValidSince to AtLeastValidUntil to get the
+		// same behavior as before.
+		if req.AtLeastValidSince == nil {
+			validity.NotBefore = validity.NotAfter
+		}
 	}
+	if req.AtLeastValidSince != nil {
+		if err := req.AtLeastValidSince.CheckValid(); err != nil {
+			return trust.ChainQuery{}, serrors.Wrap("validating at_least_valid_since", err)
+		}
+		validity.NotBefore = req.AtLeastValidSince.AsTime()
+	}
+
 	return trust.ChainQuery{
 		IA:           addr.IA(req.IsdAs),
 		SubjectKeyID: req.SubjectKeyId,
-		Date:         date,
+		Validity:     validity,
 	}, nil
 }
 
@@ -48,6 +64,14 @@ func requestToTRCQuery(req *cppb.TRCRequest) (cppki.TRCID, error) {
 		ISD:    addr.ISD(req.Isd),
 		Base:   scrypto.Version(req.Base),
 		Serial: scrypto.Version(req.Serial),
+	}
+	// If the query is for the latest version don't validate the ID fully, only
+	// the ISD ID.
+	if id.Base.IsLatest() && id.Serial.IsLatest() {
+		if id.ISD == 0 {
+			return cppki.TRCID{}, cppki.ErrWildcardISD
+		}
+		return id, nil
 	}
 	if err := id.Validate(); err != nil {
 		return cppki.TRCID{}, err
@@ -70,6 +94,6 @@ func chainsToResponse(chains [][]*x509.Certificate) *cppb.ChainsResponse {
 
 func trcToResponse(trc cppki.SignedTRC) *cppb.TRCResponse {
 	return &cppb.TRCResponse{
-		Trc: trc.Raw,
+		Trc: trc.Raw, // nolint - name from protobuf
 	}
 }

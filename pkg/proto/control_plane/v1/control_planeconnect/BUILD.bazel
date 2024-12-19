@@ -1,0 +1,12 @@
+load("//tools/proto:connect.bzl", "go_connect_library")
+
+go_connect_library(
+    name = "go_default_library",
+    files = [
+        "cppki.connect.go",
+        "drkey.connect.go",
+        "renewal.connect.go",
+        "seg.connect.go",
+    ],
+    proto = "control_plane",
+)

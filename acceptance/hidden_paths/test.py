@@ -3,13 +3,11 @@
 # Copyright 2020 Anapaya Systems
 
 import http.server
-import time
 import threading
-
-from plumbum import cmd
 
 from acceptance.common import base
 from acceptance.common import scion
+from tools.topology.scion_addr import ISD_AS
 
 
 class Test(base.TestTopogen):
@@ -45,6 +43,12 @@ class Test(base.TestTopogen):
       Expect no connectivity:
         AS3 <-> AS4 (Group ff00:0:2-3 to group ff00:0:2-4)
     """
+    _ases = {
+        "2": "1-ff00:0:2",
+        "3": "1-ff00:0:3",
+        "4": "1-ff00:0:4",
+        "5": "1-ff00:0:5",
+    }
 
     http_server_port = 9099
 
@@ -105,47 +109,39 @@ class Test(base.TestTopogen):
                 ("0.0.0.0", self.http_server_port), http.server.SimpleHTTPRequestHandler)
         server_thread = threading.Thread(target=configuration_server, args=[server])
         server_thread.start()
+        self._server = server
 
         super().setup_start()
-        time.sleep(4)  # Give applications time to download configurations
 
-        self._testers = {
-            "2": "tester_1-ff00_0_2",
-            "3": "tester_1-ff00_0_3",
-            "4": "tester_1-ff00_0_4",
-            "5": "tester_1-ff00_0_5",
-        }
-        self._ases = {
-            "2": "1-ff00:0:2",
-            "3": "1-ff00:0:3",
-            "4": "1-ff00:0:4",
-            "5": "1-ff00:0:5",
-        }
-        server.shutdown()
+        self.await_connectivity()
+        self._server.shutdown()  # by now configuration must have been downloaded everywhere
 
     def _run(self):
         # Group 3
-        self._showpaths_bidirectional("2", "3", 0)
-        self._showpaths_bidirectional("2", "5", 0)
-        self._showpaths_bidirectional("3", "5", 0)
+        self._showpaths_bidirectional("2", "3")
+        self._showpaths_bidirectional("2", "5")
+        self._showpaths_bidirectional("3", "5")
 
         # Group 4
-        self._showpaths_bidirectional("2", "4", 0)
-        self._showpaths_bidirectional("2", "5", 0)
-        self._showpaths_bidirectional("4", "5", 0)
+        self._showpaths_bidirectional("2", "4")
+        self._showpaths_bidirectional("2", "5")
+        self._showpaths_bidirectional("4", "5")
 
         # Group 3 X 4
-        self._showpaths_bidirectional("3", "4", 1)
+        try:
+            self._showpaths_bidirectional("3", "4")
+        except Exception as e:
+            print(e)
+        else:
+            raise AssertionError("Unexpected success; should not have paths 3 -> 4")
 
-    def _showpaths_bidirectional(self, source: str, destination: str, retcode: int):
-        self._showpaths_run(source, destination, retcode)
-        self._showpaths_run(destination, source, retcode)
+    def _showpaths_bidirectional(self, source: str, destination: str):
+        self._showpaths_run(source, destination)
+        self._showpaths_run(destination, source)
 
-    def _showpaths_run(self, source_as: str, destination_as: str, retcode: int):
-        print(cmd.docker("exec", "-t", self._testers[source_as], "scion",
-                         "sp", self._ases[destination_as],
-                         "--timeout", "2s",
-                         retcode=retcode))
+    def _showpaths_run(self, source_as: str, destination_as: str):
+        print(self.execute_tester(ISD_AS(self._ases[source_as]),
+                                  "scion", "sp", self._ases[destination_as], "--timeout", "2s"))
 
 
 def configuration_server(server):

@@ -30,8 +30,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/scionproto/scion/pkg/addr"
 )
 
 // Update registers the '-update' flag for the test.
@@ -186,48 +184,6 @@ func ExpandPath(file string) string {
 	return filepath.Join("testdata", file)
 }
 
-// MustParseIA parses s and returns the corresponding addr.IA object. It
-// panics if s is not a valid ISD-AS representation.
-func MustParseIA(s string) addr.IA {
-	ia, err := addr.ParseIA(s)
-	if err != nil {
-		panic(err)
-	}
-	return ia
-}
-
-// MustParseIAs parses a list of comma separated ISD-AS strings. It panics in case
-// parsing fails.
-func MustParseIAs(list string) []addr.IA {
-	l := strings.Split(list, ",")
-	var ias []addr.IA
-	for _, raw := range l {
-		ias = append(ias, MustParseIA(raw))
-	}
-	return ias
-}
-
-// MustParseAS parses s and returns the corresponding addr.AS object. It panics
-// if s is not valid AS representation.
-func MustParseAS(s string) addr.AS {
-	ia, err := addr.ParseAS(s)
-	if err != nil {
-		panic(err)
-	}
-	return ia
-}
-
-// MustParseASes parses a list of comma separated AS strings. It panics in case
-// parsing fails.
-func MustParseASes(list string) []addr.AS {
-	l := strings.Split(list, ",")
-	var ases []addr.AS
-	for _, raw := range l {
-		ases = append(ases, MustParseAS(raw))
-	}
-	return ases
-}
-
 // MustParseHexString parses s and returns the corresponding byte slice.
 // It panics if the decoding fails.
 func MustParseHexString(s string) []byte {
@@ -312,6 +268,17 @@ func MustParseUDPAddrs(t *testing.T, entries ...string) []*net.UDPAddr {
 		result = append(result, MustParseUDPAddr(t, e))
 	}
 	return result
+}
+
+// MustParseTime parses s and returns the corresponding time.Time object. It
+// fails the test if s is not a valid time string.
+func MustParseTime(t *testing.T, s string) time.Time {
+	t.Helper()
+	res, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
 }
 
 // AssertReadReturnsBetween will call t.Fatalf if the first read from the

@@ -20,7 +20,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 func TestRemoteISDASEval(t *testing.T) {
@@ -38,33 +38,33 @@ func TestRemoteISDASEval(t *testing.T) {
 		},
 		"accept all": {
 			Rules: []ISDASRule{
-				{IA: xtest.MustParseIA("0-0")},
+				{IA: addr.MustParseIA("0-0")},
 			},
 			ExpPathNum: 6,
 		},
 		"as wildcard": {
 			Rules: []ISDASRule{
-				{IA: xtest.MustParseIA("2-0")},
+				{IA: addr.MustParseIA("2-0")},
 			},
 			ExpPathNum: 5,
 		},
 		"isd wildcard": {
 			Rules: []ISDASRule{
-				{IA: xtest.MustParseIA("0-ff00:0:212")},
+				{IA: addr.MustParseIA("0-ff00:0:212")},
 			},
 			ExpPathNum: 4,
 		},
 		"two rules": {
 			Rules: []ISDASRule{
-				{IA: xtest.MustParseIA("1-0")},
-				{IA: xtest.MustParseIA("2-ff00:0:220")},
+				{IA: addr.MustParseIA("1-0")},
+				{IA: addr.MustParseIA("2-ff00:0:220")},
 			},
 			ExpPathNum: 2,
 		},
 		"two rules negated": {
 			Rules: []ISDASRule{
-				{IA: xtest.MustParseIA("1-0"), Reject: true},
-				{IA: xtest.MustParseIA("0-0")},
+				{IA: addr.MustParseIA("1-0"), Reject: true},
+				{IA: addr.MustParseIA("0-0")},
 			},
 			ExpPathNum: 5,
 		},
@@ -73,9 +73,9 @@ func TestRemoteISDASEval(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
-	paths1_110 := pp.GetPaths(xtest.MustParseIA("2-ff00:0:210"), xtest.MustParseIA("1-ff00:0:110"))
-	paths2_212 := pp.GetPaths(xtest.MustParseIA("2-ff00:0:210"), xtest.MustParseIA("2-ff00:0:212"))
-	paths2_220 := pp.GetPaths(xtest.MustParseIA("2-ff00:0:210"), xtest.MustParseIA("2-ff00:0:220"))
+	paths1_110 := pp.GetPaths(addr.MustParseIA("2-ff00:0:210"), addr.MustParseIA("1-ff00:0:110"))
+	paths2_212 := pp.GetPaths(addr.MustParseIA("2-ff00:0:210"), addr.MustParseIA("2-ff00:0:212"))
+	paths2_220 := pp.GetPaths(addr.MustParseIA("2-ff00:0:210"), addr.MustParseIA("2-ff00:0:220"))
 	inPaths := append(paths1_110, append(paths2_212, paths2_220...)...)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {

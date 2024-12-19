@@ -46,20 +46,29 @@ func (s *Server) GetCertificates(
 ) {
 
 	w.Header().Set("Content-Type", "application/json")
-	q := trust.ChainQuery{Date: time.Now()}
+	now := time.Now()
+	q := trust.ChainQuery{
+		Validity: cppki.Validity{
+			NotBefore: now,
+			NotAfter:  now,
+		},
+	}
 	var errs serrors.List
 	if params.IsdAs != nil {
 		if ia, err := addr.ParseIA(*params.IsdAs); err == nil {
 			q.IA = ia
 		} else {
-			errs = append(errs, serrors.WithCtx(err, "parameter", "isd_as"))
+			errs = append(errs, serrors.Wrap("parsing isd_as", err, "parameter", "isd_as"))
 		}
 	}
 	if params.ValidAt != nil {
-		q.Date = *params.ValidAt
+		q.Validity = cppki.Validity{
+			NotBefore: *params.ValidAt,
+			NotAfter:  *params.ValidAt,
+		}
 	}
 	if params.All != nil && *params.All {
-		q.Date = time.Time{}
+		q.Validity = cppki.Validity{}
 	}
 	if err := errs.ToError(); err != nil {
 		Error(w, Problem{
@@ -218,7 +227,12 @@ func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chai
 	_, _ = w.Write(buf.Bytes())
 }
 
-func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams) {
+func (s *Server) GetTrcs(
+	w http.ResponseWriter,
+	r *http.Request,
+	params GetTrcsParams, // nolint - name from published API
+) {
+
 	db := s.TrustDB
 	q := truststorage.TRCsQuery{Latest: !(params.All != nil && *params.All)}
 	if params.Isd != nil {
@@ -270,7 +284,7 @@ func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsP
 
 }
 
-// GetTrc gets the trc specified by it's isd bas and serial.
+// GetTrc gets the trc specified by it's isd base and serial.
 func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
 	db := s.TrustDB
 	trc, err := db.SignedTRC(r.Context(), cppki.TRCID{

@@ -44,8 +44,8 @@ type Epoch struct {
 func NewEpoch(begin, end uint32) Epoch {
 	return Epoch{
 		cppki.Validity{
-			NotBefore: util.SecsToTime(begin).UTC(),
-			NotAfter:  util.SecsToTime(end).UTC(),
+			NotBefore: util.SecsToTime(begin),
+			NotAfter:  util.SecsToTime(end),
 		},
 	}
 }

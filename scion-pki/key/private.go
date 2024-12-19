@@ -57,18 +57,18 @@ The contents are the private key in PKCS #8 ASN.1 DER format.
 
 			filename := args[0]
 			if err := file.CheckDirExists(filepath.Dir(filename)); err != nil {
-				return serrors.WrapStr("checking that directory of private key exists", err)
+				return serrors.Wrap("checking that directory of private key exists", err)
 			}
 			key, err := GeneratePrivateKey(flags.curve)
 			if err != nil {
-				return serrors.WrapStr("generating private key", err)
+				return serrors.Wrap("generating private key", err)
 			}
 			raw, err := EncodePEMPrivateKey(key)
 			if err != nil {
-				return serrors.WrapStr("encoding private key", err)
+				return serrors.Wrap("encoding private key", err)
 			}
 			if err := file.WriteFile(filename, raw, 0600, file.WithForce(flags.force)); err != nil {
-				return serrors.WrapStr("writing private key", err)
+				return serrors.Wrap("writing private key", err)
 			}
 			fmt.Printf("Private key successfully written to %q\n", filename)
 			return nil
@@ -84,7 +84,7 @@ The contents are the private key in PKCS #8 ASN.1 DER format.
 }
 
 // GeneratePrivateKey generates a new private key.
-func GeneratePrivateKey(curve string) (PrivateKey, error) {
+func GeneratePrivateKey(curve string) (crypto.Signer, error) {
 	switch strings.ToLower(curve) {
 	case "p-256", "p256":
 		return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

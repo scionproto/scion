@@ -19,8 +19,6 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/revcache/revcachetest"
@@ -39,9 +37,8 @@ func (c *testRevCache) InsertExpired(t *testing.T, _ context.Context,
 	if ttl >= 0 {
 		panic("Should only be used for expired elements")
 	}
-	k := revcache.NewKey(rev.IA(), rev.IfID)
-	key := k.String()
-	c.c.Set(key, rev, time.Microsecond)
+	key := revcache.NewKey(rev.IA(), rev.IfID)
+	c.c.SetWithExpire(key, rev, time.Microsecond)
 	// Unfortunately inserting with negative TTL makes entries available forever,
 	// so we use 1 micro second and sleep afterwards
 	// to simulate the insertion of an expired entry.
@@ -54,7 +51,5 @@ func (c *testRevCache) Prepare(t *testing.T, _ context.Context) {
 }
 
 func TestRevCacheSuite(t *testing.T) {
-	Convey("RevCache Suite", t, func() {
-		revcachetest.TestRevCache(t, &testRevCache{memRevCache: New()})
-	})
+	revcachetest.TestRevCache(t, &testRevCache{memRevCache: New()})
 }

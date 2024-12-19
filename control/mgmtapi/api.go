@@ -40,10 +40,12 @@ import (
 	segapi "github.com/scionproto/scion/private/mgmtapi/segments/api"
 	"github.com/scionproto/scion/private/storage"
 	beaconstorage "github.com/scionproto/scion/private/storage/beacon"
+	"github.com/scionproto/scion/private/trust"
 )
 
 type BeaconStore interface {
 	GetBeacons(context.Context, *beaconstorage.QueryParams) ([]beaconstorage.Beacon, error)
+	DeleteBeacon(ctx context.Context, idPrefix string) error
 }
 
 type Healther interface {
@@ -89,6 +91,9 @@ type Server struct {
 	Topology       http.HandlerFunc
 	TrustDB        storage.TrustDB
 	Healther       Healther
+
+	// nowProvider can be set during tests to control the current time.
+	nowProvider func() time.Time
 }
 
 // UnpackBeaconUsages extracts the Usage's bits as snake case string constants for the API.
@@ -117,7 +122,7 @@ func (s *Server) GetBeacons(w http.ResponseWriter, r *http.Request, params GetBe
 		if ia, err := addr.ParseIA(*params.StartIsdAs); err == nil {
 			q.StartsAt = []addr.IA{ia}
 		} else {
-			errs = append(errs, serrors.WrapStr("parsing start_isd_as", err))
+			errs = append(errs, serrors.Wrap("parsing start_isd_as", err))
 		}
 	}
 	if params.Usages != nil {
@@ -208,7 +213,7 @@ func (s *Server) GetBeacons(w http.ResponseWriter, r *http.Request, params GetBe
 		}
 		rep = append(rep, &Beacon{
 			Usages:           usage,
-			IngressInterface: int(result.Beacon.InIfId),
+			IngressInterface: int(result.Beacon.InIfID),
 			Id:               segapi.SegID(s),
 			LastUpdated:      result.LastUpdated,
 			Timestamp:        s.Info.Timestamp.UTC(),
@@ -357,7 +362,7 @@ func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId Seg
 	res := map[string]Beacon{
 		"beacon": {
 			Usages:           usage,
-			IngressInterface: int(results[0].Beacon.InIfId),
+			IngressInterface: int(results[0].Beacon.InIfID),
 			Id:               segapi.SegID(seg),
 			LastUpdated:      results[0].LastUpdated,
 			Timestamp:        seg.Info.Timestamp.UTC(),
@@ -376,6 +381,27 @@ func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId Seg
 		})
 		return
 	}
+}
+
+func (s *Server) DeleteBeacon(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
+	if segmentId == "" {
+		ErrorResponse(w, Problem{
+			Status: http.StatusBadRequest,
+			Title:  "segment ID is required",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	if err := s.Beacons.DeleteBeacon(r.Context(), segmentId); err != nil {
+		ErrorResponse(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to delete beacon",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) GetBeaconBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
@@ -471,6 +497,10 @@ func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, id SegmentID
 	s.SegmentsServer.GetSegment(w, r, id)
 }
 
+func (s *Server) DeleteSegment(w http.ResponseWriter, r *http.Request, id SegmentID) {
+	s.SegmentsServer.DeleteSegment(w, r, id)
+}
+
 func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, id SegmentID) {
 	s.SegmentsServer.GetSegmentBlob(w, r, id)
 }
@@ -556,22 +586,26 @@ func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetTrcs gets the trcs specified by it's params.
-func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams) {
-	cppkiParams := cppkiapi.GetTrcsParams{
+func (s *Server) GetTrcs(
+	w http.ResponseWriter,
+	r *http.Request,
+	params GetTrcsParams, // nolint - name from published API
+) {
+	cppkiParams := cppkiapi.GetTrcsParams{ // nolint - name from published API
 		Isd: params.Isd,
 		All: params.All,
 	}
-	s.CPPKIServer.GetTrcs(w, r, cppkiParams)
+	s.CPPKIServer.GetTrcs(w, r, cppkiParams) // nolint - name from published API
 }
 
 // GetTrc gets the trc specified by it's isd base and serial.
 func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
-	s.CPPKIServer.GetTrc(w, r, isd, base, serial)
+	s.CPPKIServer.GetTrc(w, r, isd, base, serial) // nolint - name from published API
 }
 
 // GetTrcBlob gets the trc encoded pem blob.
 func (s *Server) GetTrcBlob(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
-	s.CPPKIServer.GetTrcBlob(w, r, isd, base, serial)
+	s.CPPKIServer.GetTrcBlob(w, r, isd, base, serial) // nolint - name from published API
 }
 
 // GetConfig is an indirection to the http handler.
@@ -597,12 +631,26 @@ func (s *Server) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 // GetSigner generates the singer response content.
 func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	p, err := s.Signer.SignerGen.Generate(r.Context())
+	signers, err := s.Signer.SignerGen.Generate(r.Context())
 	if err != nil {
 		ErrorResponse(w, Problem{
 			Detail: api.StringRef(err.Error()),
 			Status: http.StatusInternalServerError,
 			Title:  "Unable to get signer",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	now := s.now()
+	p, err := trust.LastExpiring(signers, cppki.Validity{
+		NotBefore: now,
+		NotAfter:  now,
+	})
+	if err != nil {
+		ErrorResponse(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "No signer currently valid",
 			Type:   api.StringRef(api.InternalError),
 		})
 		return
@@ -619,12 +667,12 @@ func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		Expiration: p.Expiration,
-		TrcId: TRCID{
+		TrcId: TRCID{ // nolint - name from published API
 			BaseNumber:   int(p.TRCID.Base),
 			Isd:          int(p.TRCID.ISD),
 			SerialNumber: int(p.TRCID.Serial),
 		},
-		TrcInGracePeriod: p.InGrace,
+		TrcInGracePeriod: p.InGrace, // nolint - name from published API
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
@@ -641,12 +689,26 @@ func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 
 // GetSignerChain generates a certificate chain blob response encoded as PEM.
 func (s *Server) GetSignerChain(w http.ResponseWriter, r *http.Request) {
-	p, err := s.Signer.SignerGen.Generate(r.Context())
+	signers, err := s.Signer.SignerGen.Generate(r.Context())
 	if err != nil {
 		ErrorResponse(w, Problem{
 			Detail: api.StringRef(err.Error()),
 			Status: http.StatusInternalServerError,
 			Title:  "unable to get signer",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	now := s.now()
+	p, err := trust.LastExpiring(signers, cppki.Validity{
+		NotBefore: now,
+		NotAfter:  now,
+	})
+	if err != nil {
+		ErrorResponse(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "no signer currently valid",
 			Type:   api.StringRef(api.InternalError),
 		})
 		return
@@ -777,6 +839,13 @@ func (s *Server) GetHealth(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+}
+
+func (s *Server) now() time.Time {
+	if s.nowProvider != nil {
+		return s.nowProvider()
+	}
+	return time.Now()
 }
 
 // Error creates an detailed error response.

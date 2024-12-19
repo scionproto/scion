@@ -1,0 +1,31 @@
+name: Check the pull request title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - name : Check the PR title
+      env:
+        TITLE: ${{ github.event.pull_request.title }}
+      run: |
+        # Check that PR is of the form `<subsystem>: <lowercase message>`
+
+        url='https://docs.scion.org/en/latest/dev/git.html#good-commit-messages'
+        if [[ ! "$TITLE" =~ ^[a-z0-9,/-]*:[[:space:]] ]]; then
+          echo '::error::The PR title should start with `<substystem>: `. See '"$url"
+          exit 1
+        fi
+        # Title should be lower case; initialisms and identifiers still occur occasionally and should be allowed.
+        # -> enforce only the first word
+        if [[ ! "$TITLE" =~ ^[a-z0-9,/-]*:[[:space:]][a-z] ]]; then
+          echo '::error::The PR title should be lower case (enforced on first letter). See '"$url"
+          exit 1
+        fi
+        if [[ $TITLE =~ \.[[:space:]]*$ ]]; then
+          echo '::error::The PR title should not end with a ".". See '"$url"
+          exit 1
+        fi

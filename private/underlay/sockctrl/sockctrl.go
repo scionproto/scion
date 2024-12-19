@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build go1.9
-// +build go1.9
+// In Windows, SetSockOptInt and GetSockOptInt require syscall.Handle instead of int.
+//go:build !windows
 
-// This version of sockctrl is for Go versions >= 1.9, where the socket FDs are
-// accessible via RawConn.Control().
 package sockctrl
 
 import (
@@ -28,17 +26,17 @@ import (
 func SockControl(c *net.UDPConn, f func(int) error) error {
 	rawConn, err := c.SyscallConn()
 	if err != nil {
-		return serrors.WrapStr("sockctrl: error accessing raw connection", err)
+		return serrors.Wrap("sockctrl: error accessing raw connection", err)
 	}
 	var ctrlErr error
 	err = rawConn.Control(func(fd uintptr) {
 		ctrlErr = f(int(fd))
 	})
 	if err != nil {
-		return serrors.WrapStr("sockctrl: RawConn.Control error", err)
+		return serrors.Wrap("sockctrl: RawConn.Control error", err)
 	}
 	if ctrlErr != nil {
-		return serrors.WrapStr("sockctrl: control function error", ctrlErr)
+		return serrors.Wrap("sockctrl: control function error", ctrlErr)
 	}
 	return nil
 }

@@ -73,9 +73,9 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 	verified := make(chan segverifier.UnitResult, 3)
 
 	verifyErrs := []error{
-		serrors.WrapStr("test err 1", segverifier.ErrSegment),
-		serrors.WrapStr("test err 2", segverifier.ErrSegment),
-		serrors.WrapStr("test err 3", segverifier.ErrSegment),
+		serrors.Wrap("test err 1", segverifier.ErrSegment),
+		serrors.Wrap("test err 2", segverifier.ErrSegment),
+		serrors.Wrap("test err 3", segverifier.ErrSegment),
 	}
 
 	storage := mock_seghandler.NewMockStorage(ctrl)

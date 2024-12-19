@@ -32,7 +32,9 @@ import (
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/slayers/path"
 	infra "github.com/scionproto/scion/private/segment/verifier"
 )
 
@@ -146,9 +148,18 @@ func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr
 	for i, asEntry := range segment.ASEntries {
 		// Bind the verifier to the values specified in the AS Entry since
 		// the sign meta does not carry this information.
-		verifier := verifier.WithServer(server).WithIA(asEntry.Local)
+		// Validity is set to include the validity of the hop field contained in
+		// the AS Entry.
+		validity := cppki.Validity{
+			NotBefore: segment.Info.Timestamp,
+			NotAfter: segment.Info.Timestamp.Add(
+				path.ExpTimeToDuration(asEntry.HopEntry.HopField.ExpTime),
+			),
+		}
+		verifier := verifier.WithServer(server).WithIA(asEntry.Local).WithValidity(validity)
 		if err := segment.VerifyASEntry(ctx, verifier, i); err != nil {
-			return serrors.Wrap(ErrSegment, err, "seg", segment, "as", asEntry.Local)
+			return serrors.JoinNoStack(ErrSegment, err,
+				"seg", segment, "as", asEntry.Local)
 		}
 	}
 	return nil

@@ -19,10 +19,7 @@ const generalSample = `
 id = "%s"
 
 # Directory for loading AS information, certs, keys, path policy, topology.
-config_dir = "/share/conf"
-
-# Enable the snetproxy reconnecter. (default false)
-reconnect_to_dispatcher = false
+config_dir = "/etc/scion"
 `
 
 const featuresSample = `
@@ -53,10 +50,4 @@ debug = false
 # Address of the local agent that handles the reported traces.
 # (default: localhost:6831)
 agent = "localhost:6831"
-`
-
-const quicSample = `
-# The address to start a QUIC server on (ip:port). If not set, a QUIC server on
-# the public IP and a high port is started. (default "")
-address = ""
 `

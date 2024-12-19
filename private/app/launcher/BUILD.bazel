@@ -4,16 +4,16 @@ go_library(
     name = "go_default_library",
     srcs = [
         "launcher.go",
+        "launcher_unix.go",
+        "launcher_windows.go",
         "network.go",
     ],
     importpath = "github.com/scionproto/scion/private/app/launcher",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/log:go_default_library",
-        "//pkg/metrics:go_default_library",
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//private/app:go_default_library",
         "//private/app/command:go_default_library",
         "//private/config:go_default_library",
         "//private/env:go_default_library",
@@ -21,7 +21,53 @@ go_library(
         "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@com_github_spf13_viper//:go_default_library",
-    ],
+    ] + select({
+        "@io_bazel_rules_go//go/platform:aix": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:android": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:dragonfly": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:freebsd": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:illumos": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:ios": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:js": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:linux": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:netbsd": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:openbsd": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:plan9": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:solaris": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:windows": [
+            "@org_golang_x_sys//windows/svc:go_default_library",
+            "@org_golang_x_sys//windows/svc/debug:go_default_library",
+            "@org_golang_x_sys//windows/svc/eventlog:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 go_test(

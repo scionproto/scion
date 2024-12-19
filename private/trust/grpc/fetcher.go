@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/tracing"
@@ -65,7 +64,7 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 	logger := log.FromCtx(ctx)
 	logger.Debug("Fetch certificate chain from remote",
 		"isd_as", query.IA,
-		"date", util.TimeToCompact(query.Date),
+		"validity", query.Validity.String(),
 		"subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
 		"server", server,
 	)
@@ -73,14 +72,14 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 	conn, err := f.Dialer.Dial(ctx, server)
 	if err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrTransmit), err)
-		return nil, serrors.WrapStr("dialing", err)
+		return nil, serrors.Wrap("dialing", err)
 	}
 	defer conn.Close()
 	client := cppb.NewTrustMaterialServiceClient(conn)
 	rep, err := client.Chains(ctx, chainQueryToReq(query), grpc.RetryProfile...)
 	if err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrTransmit), err)
-		return nil, serrors.WrapStr("receiving chains", err)
+		return nil, serrors.Wrap("receiving chains", err)
 	}
 
 	chains, res, err := repToChains(rep.Chains)
@@ -95,7 +94,7 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 
 	if err := checkChainsMatchQuery(query, chains); err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrMismatch), err)
-		return nil, serrors.WrapStr("chains do not match query", err)
+		return nil, serrors.Wrap("chains do not match query", err)
 	}
 	f.updateMetric(span, labels.WithResult(trustmetrics.Success), nil)
 	return chains, nil
@@ -119,20 +118,20 @@ func (f Fetcher) TRC(ctx context.Context, id cppki.TRCID,
 	conn, err := f.Dialer.Dial(ctx, server)
 	if err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrTransmit), err)
-		return cppki.SignedTRC{}, serrors.WrapStr("dialing", err)
+		return cppki.SignedTRC{}, serrors.Wrap("dialing", err)
 	}
 	defer conn.Close()
 	client := cppb.NewTrustMaterialServiceClient(conn)
 	rep, err := client.TRC(ctx, idToReq(id), grpc.RetryProfile...)
 	if err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrTransmit), err)
-		return cppki.SignedTRC{}, serrors.WrapStr("receiving TRC", err)
+		return cppki.SignedTRC{}, serrors.Wrap("receiving TRC", err)
 	}
 
-	trc, err := cppki.DecodeSignedTRC(rep.Trc)
+	trc, err := cppki.DecodeSignedTRC(rep.Trc) // nolint - name from protobuf
 	if err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
-		return cppki.SignedTRC{}, serrors.WrapStr("parse TRC reply", err)
+		return cppki.SignedTRC{}, serrors.Wrap("parse TRC reply", err)
 	}
 	logger.Debug("[trust:Resolver] Received TRC from remote", "id", id)
 	if trc.TRC.ID != id {
@@ -159,7 +158,7 @@ func addChainsSpan(ctx context.Context,
 	tracing.Component(span, "trust")
 	span.SetTag("query.isd_as", query.IA)
 	span.SetTag("query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID))
-	span.SetTag("query.date", util.TimeToCompact(query.Date))
+	span.SetTag("query.validity", query.Validity.String())
 	span.SetTag("msgr.stack", "grpc")
 	return span, ctx
 }
@@ -180,7 +179,7 @@ func checkChainsMatchQuery(query trust.ChainQuery, chains [][]*x509.Certificate)
 	for i, chain := range chains {
 		ia, err := cppki.ExtractIA(chain[0].Subject)
 		if err != nil {
-			return serrors.WrapStr("extracting ISD-AS", err, "index", i)
+			return serrors.Wrap("extracting ISD-AS", err, "index", i)
 		}
 		if !query.IA.Equal(ia) {
 			return serrors.New("ISD-AS mismatch",
@@ -190,9 +189,13 @@ func checkChainsMatchQuery(query trust.ChainQuery, chains [][]*x509.Certificate)
 			return serrors.New("SubjectKeyID mismatch", "index", i)
 		}
 		validity := cppki.Validity{NotBefore: chain[0].NotBefore, NotAfter: chain[0].NotAfter}
-		if !validity.Contains(query.Date) {
-			return serrors.New("queried date not covered",
-				"index", i, "date", util.TimeToCompact(query.Date), "validity", validity)
+		if !query.Validity.IsZero() && !validity.Covers(query.Validity) {
+			return serrors.New(
+				"queried validity not covered",
+				"index", i,
+				"validity", query.Validity.String(),
+				"chain_validity", validity.String(),
+			)
 		}
 	}
 	return nil

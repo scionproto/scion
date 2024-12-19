@@ -3,6 +3,7 @@ linters:
   disable-all: true
   enable:
     # Default linters.
+    - forbidigo
     - errcheck
     - gosimple
     - govet
@@ -10,7 +11,6 @@ linters:
     - typecheck
     - unused
     # Extended linters.
-    - depguard
     - exportloopref
     - rowserrcheck
     - sqlclosecheck
@@ -20,18 +20,18 @@ linters:
     - misspell
     - goheader
 linters-settings:
+  # ...
+  forbidigo:
+    forbid:
+    - p: "([iI][fF][iI]d)|([iI]F[iI][dD])|([iI][fF]i[dD])"
+      msg: "spell interface ID as ifID / IfID"
+    - p: "(?i)interfaceID"  # case insensitive
+      msg: "spell interface ID as ifID / IfID"
+    - p: "Trc"
+      msg: "spell trust root certificate as trc / TRC"
   lll:
     line-length: 100
     tab-width: 4
-  depguard:
-    list-type: blacklist
-    include-go-root: true
-    packages: "io/ioutil"
-    packages-with-error-message:
-      # specify an error message to output when a blacklisted package is used
-      "io/ioutil": >
-        "The use of 'io/ioutil' is deprecated. Check
-        https://pkg.go.dev/io/ioutil for alternatives"
   errcheck:
     exclude-functions:
       - (*github.com/spf13/cobra.Command).MarkFlagRequired
@@ -73,8 +73,3 @@ issues:
     - path: pkg/scrypto/cms
       linters: [goheader]
 
-    # Exceptions to errcheck for some old-ish convey tests.
-    - linters: [errcheck]
-      path: "^pkg/sock/reliable/reconnect/conn_io_test.go$|\
-             ^pkg/sock/reliable/reconnect/network_test.go$|\
-             ^pkg/sock/reliable/reconnect/reconnecter_test.go$"

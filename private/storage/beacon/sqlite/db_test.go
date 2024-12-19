@@ -28,12 +28,12 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beacon/beacondbtest"
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/storage/beacon/dbtest"
 	"github.com/scionproto/scion/private/storage/beacon/sqlite"
 )
 
-var testIA = xtest.MustParseIA("1-ff00:0:333")
+var testIA = addr.MustParseIA("1-ff00:0:333")
 
 type TestBackend struct {
 	*sqlite.Backend

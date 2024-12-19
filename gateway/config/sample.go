@@ -22,8 +22,8 @@ id = "gateway"
 # policy from the default location. If set, the gateway will read the policy from
 # the specified location. If the file does not exist, the gateway will exit with
 # an error.
-# (default "/share/conf/traffic.policy")
-traffic_policy_file = "/share/conf/traffic.policy"
+# (default "/etc/scion/traffic.policy")
+traffic_policy_file = "/etc/scion/traffic.policy"
 
 # The IP routing policy file. If set, the gateway will read the policy
 # from the specified location. It no file is specified, a default policy

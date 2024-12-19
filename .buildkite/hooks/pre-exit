@@ -1,8 +1,7 @@
 #!/bin/bash
 
-
-if [ -f ".buildkite/hooks/bazel-remote.yml" -a -z "$PRE_COMMAND_SETUP" ]; then
-    echo "--- Uploading bazel-remote and go-module-proxy logs/metrics"
+if [ -f ".buildkite/hooks/bazel-remote.yml" ]; then
+    echo "~~~ Uploading bazel-remote and go-module-proxy logs/metrics"
     curl http://localhost:8080/metrics > bazel-remote-cache.metrics
     docker logs bazel-remote-cache &> bazel-remote-cache.log
 
@@ -11,19 +10,3 @@ if [ -f ".buildkite/hooks/bazel-remote.yml" -a -z "$PRE_COMMAND_SETUP" ]; then
 
     buildkite-agent artifact upload "bazel-remote-cache.*;go-module-proxy.*"
 fi
-
-echo "--- Cleaning up the topology"
-
-./scion.sh topo_clean
-
-echo "--- Cleaning up docker containers/networks/volumes"
-cntrs="$(docker ps -aq | grep -v -f <(docker ps -q --filter "name=go-module-proxy" --filter "name=bazel-remote-cache"))"
-[ -n "$cntrs" ] && { echo "Remove leftover containers..."; docker rm -f $cntrs; }
-
-echo "Remove leftover networks"
-docker network prune -f
-echo "Remove leftover volumes"
-docker volume prune -f
-
-echo "--- Cleaning up logs and artifacts"
-rm -rf bazel-testlogs logs/* traces gen gen-cache /tmp/test-artifacts

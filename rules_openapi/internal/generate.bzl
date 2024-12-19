@@ -2,16 +2,15 @@ load("@bazel_skylib//lib:shell.bzl", "shell")
 
 def _openapi_generate_go(ctx):
     generate = {
-        "types": ctx.attr.types,
-        "server": ctx.attr.server,
-        "client": ctx.attr.client,
-        "spec": ctx.attr.spec,
+        "types": ctx.outputs.out_types,
+        "server": ctx.outputs.out_server,
+        "client": ctx.outputs.out_client,
+        "spec": ctx.outputs.out_spec,
     }
     out_files = []
-    for k, v in generate.items():
-        if not v:
+    for k, out_file in generate.items():
+        if not out_file:
             continue
-        out_file = ctx.actions.declare_file(k + ".gen.go")
         generate_kind = k
         if generate_kind == "server":
             generate_kind = "chi-server"
@@ -69,25 +68,9 @@ openapi_generate_go = rule(
             doc = "The Go package the generated code should live in.",
             default = "api",
         ),
-        "types": attr.bool(
-            doc = "Whether the types file should be generated",
-            default = True,
-        ),
         "types_excludes": attr.label(
             doc = "The file containing the schema list to exclude during the types generation.",
             allow_single_file = True,
-        ),
-        "server": attr.bool(
-            doc = "Whether the server code should be generated",
-            default = True,
-        ),
-        "client": attr.bool(
-            doc = "Whehter the client code should be generated",
-            default = True,
-        ),
-        "spec": attr.bool(
-            doc = "Whether the spec code should be generated",
-            default = True,
         ),
         "templates": attr.label_list(
             doc = """Folder containing Go templates to be used during code generation.
@@ -98,9 +81,25 @@ openapi_generate_go = rule(
         ),
         "_oapi_codegen": attr.label(
             doc = "The code generator binary.",
-            default = "@com_github_deepmap_oapi_codegen//cmd/oapi-codegen:oapi-codegen",
+            default = "@com_github_deepmap_oapi_codegen_v2//cmd/oapi-codegen:oapi-codegen",
             executable = True,
-            cfg = "target",
+            cfg = "exec",
+        ),
+        "out_types": attr.output(
+            doc = "The generated types file.",
+            mandatory = False,
+        ),
+        "out_server": attr.output(
+            doc = "The generated server file.",
+            mandatory = False,
+        ),
+        "out_client": attr.output(
+            doc = "The generated client file.",
+            mandatory = False,
+        ),
+        "out_spec": attr.output(
+            doc = "The generated spec file.",
+            mandatory = False,
         ),
     },
 )

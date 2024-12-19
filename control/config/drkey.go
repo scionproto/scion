@@ -18,7 +18,6 @@ import (
 	"io"
 	"net/netip"
 	"strings"
-	"time"
 
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -26,12 +25,7 @@ import (
 	"github.com/scionproto/scion/private/storage"
 )
 
-const (
-	// DefaultEpochDuration is the default duration for the drkey SecretValue and derived keys
-	DefaultEpochDuration   = 24 * time.Hour
-	DefaultPrefetchEntries = 10000
-	EnvVarEpochDuration    = "SCION_TESTING_DRKEY_EPOCH_DURATION"
-)
+const DefaultPrefetchEntries = 10000
 
 var _ (config.Config) = (*DRKeyConfig)(nil)
 

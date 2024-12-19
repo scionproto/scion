@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/storage"
 	truststorage "github.com/scionproto/scion/private/storage/trust"
+	"github.com/scionproto/scion/private/trust"
 	"github.com/scionproto/scion/private/trust/dbtest"
 )
 
@@ -137,6 +138,28 @@ func run(t *testing.T, db TestableDB, cfg Config) {
 			chain, err := db.Chain(ctx, []byte("fa53a04h"))
 			assert.Error(t, err)
 			assert.Empty(t, chain)
+		})
+		t.Run("Get chain with covered validity", func(t *testing.T) {
+			chains, err := db.Chains(ctx, trust.ChainQuery{
+				IA: addr.MustParseIA("1-ff00:0:110"),
+				Validity: cppki.Validity{
+					NotBefore: xtest.MustParseTime(t, "2020-06-24T14:00:00Z"),
+					NotAfter:  xtest.MustParseTime(t, "2020-06-27T00:00:00Z"),
+				},
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, bern1Chain, chains[0])
+		})
+		t.Run("Get chain with not covered validity", func(t *testing.T) {
+			chains, err := db.Chains(ctx, trust.ChainQuery{
+				IA: addr.MustParseIA("1-ff00:0:110"),
+				Validity: cppki.Validity{
+					NotBefore: xtest.MustParseTime(t, "2020-06-24T14:00:00Z"),
+					NotAfter:  xtest.MustParseTime(t, "2020-06-27T14:00:00Z"),
+				},
+			})
+			assert.NoError(t, err)
+			assert.Empty(t, chains)
 		})
 	})
 }

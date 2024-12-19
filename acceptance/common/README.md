@@ -32,9 +32,8 @@ following switches:
   environment variable `TEST_UNDECLARED_OUTPUTS_DIR`
 - `--executable <name>:<path>`; specifies path for an executable used in the test.
   This can be used to run executables that are built by bazel.
-- `--container-loader <tag>#<path>`; load the specified container images and
-  define the tags referenced in the test.
-  This can be used to run containers that are built by bazel.
+- `--docker-image <path>`; load the specified container images tars.
+  This can be used to load images that are built by bazel.
 - `--topo <path>`; path to the .topo file for topogen tests
 - `--setup-params <args>`; additional parameters for topogen.
 
@@ -56,7 +55,7 @@ Tests can use:
 
 - `self.artifacts`: the specified directory for test outputs, created during setup.
 - `self.get_executable(<name>)`: returns an executable specified using the `--executable` switch.
-- `self.dc`: a wrapper for `docker-compose`, instantiated during `TestTopogen.setup`.
+- `self.dc`: a wrapper for `docker compose`, instantiated during `TestTopogen.setup`.
 
 The `base.main` function is the main entry point to run the tests and must be
 invoked in `__main__`.

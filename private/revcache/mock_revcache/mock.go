@@ -66,10 +66,10 @@ func (mr *MockRevCacheMockRecorder) DeleteExpired(arg0 interface{}) *gomock.Call
 }
 
 // Get mocks base method.
-func (m *MockRevCache) Get(arg0 context.Context, arg1 revcache.KeySet) (revcache.Revocations, error) {
+func (m *MockRevCache) Get(arg0 context.Context, arg1 revcache.Key) (*path_mgmt.RevInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1)
-	ret0, _ := ret[0].(revcache.Revocations)
+	ret0, _ := ret[0].(*path_mgmt.RevInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

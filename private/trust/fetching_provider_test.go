@@ -42,9 +42,10 @@ func TestFetchingProviderGetChains(t *testing.T) {
 	inactive[0].NotAfter = time.Now().Add(-time.Second)
 	all := append([][]*x509.Certificate{valid}, inactive)
 
+	now := time.Now()
 	query := trust.ChainQuery{
-		IA:           xtest.MustParseIA("1-ff00:0:110"),
-		Date:         time.Now(),
+		IA:           addr.MustParseIA("1-ff00:0:110"),
+		Validity:     cppki.Validity{NotBefore: now, NotAfter: now},
 		SubjectKeyID: valid[0].SubjectKeyId,
 	}
 
@@ -72,8 +73,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
 			Query: trust.ChainQuery{
-				IA:           xtest.MustParseIA("1-0"),
-				Date:         query.Date,
+				IA:           addr.MustParseIA("1-0"),
+				Validity:     query.Validity,
 				SubjectKeyID: query.SubjectKeyID,
 			},
 			Options:      []trust.Option{trust.AllowInactive()},
@@ -97,8 +98,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
 			Query: trust.ChainQuery{
-				IA:   query.IA,
-				Date: query.Date,
+				IA:       query.IA,
+				Validity: query.Validity,
 			},
 			Options:        []trust.Option{trust.AllowInactive()},
 			ErrAssertion:   assert.NoError,

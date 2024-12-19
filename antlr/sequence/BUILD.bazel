@@ -5,7 +5,8 @@ load("@apple_rules_lint//lint:defs.bzl", "package_lint_config")
 go_lint_config(
     name = "go_lint_config",
     exclude_filter = [
-        "sequence_parser.go",
+        "_parser.go",
+        "_lexer.go",
     ],
     visibility = [
         "//visibility:public",
@@ -26,5 +27,5 @@ go_library(
     ],
     importpath = "github.com/scionproto/scion/antlr/sequence",
     visibility = ["//visibility:public"],
-    deps = ["@com_github_antlr_antlr4_runtime_go_antlr//:go_default_library"],
+    deps = ["@com_github_antlr4_go_antlr_v4//:go_default_library"],
 )

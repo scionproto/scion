@@ -20,19 +20,25 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/netip"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	jsontopo "github.com/scionproto/scion/private/topology/json"
 	"github.com/scionproto/scion/private/topology/underlay"
 )
 
-// EndhostPort is the underlay port that the dispatcher binds to on non-routers.
-const EndhostPort = underlay.EndhostPort
+const (
+	// EndhostPort is the underlay port that SCION binds to on non-routers.
+	EndhostPort = underlay.EndhostPort
+)
 
 // ErrAddressNotFound indicates the address was not found.
 var ErrAddressNotFound = serrors.New("address not found")
@@ -45,12 +51,9 @@ type (
 	// should be self-explanatory. The unit of TTL is seconds, with the zero value
 	// indicating an infinite TTL.
 	//
-	// The second section concerns the Border routers. BRNames is just a sorted slice
-	// of the names of the BRs in this topology. Its contents is exactly the same as
-	// the keys in the BR map.
-	//
+	// The second section concerns the Border routers.
 	// The BR map points from border router names to BRInfo structs, which in turn
-	// are lists of IFID type slices, thus defines the IFIDs that belong to a
+	// are lists of IfID type slices, thus defines the IfIDs that belong to a
 	// particular border router. The IFInfoMap points from interface IDs to IFInfo structs.
 	//
 	// The third section in RWTopology concerns the SCION-specific services in the topology.
@@ -58,13 +61,14 @@ type (
 	// there is again a sorted slice of names of the servers that provide the service.
 	// Additionally, there is a map from those names to TopoAddr structs.
 	RWTopology struct {
-		Timestamp time.Time
-		IA        addr.IA
-		IsCore    bool
-		MTU       int
+		Timestamp           time.Time
+		IA                  addr.IA
+		IsCore              bool
+		MTU                 int
+		DispatchedPortStart uint16
+		DispatchedPortEnd   uint16
 
 		BR        map[string]BRInfo
-		BRNames   []string
 		IFInfoMap IfInfoMap
 
 		CS                        IDAddrMap
@@ -89,28 +93,27 @@ type (
 	BRInfo struct {
 		Name string
 		// InternalAddr is the local data-plane address.
-		InternalAddr *net.UDPAddr
-		// IFIDs is a sorted list of the interface IDs.
-		IFIDs []common.IFIDType
+		InternalAddr netip.AddrPort
+		// IfIDs is a sorted list of the interface IDs.
+		IfIDs []iface.ID
 		// IFs is a map of interface IDs.
-		IFs map[common.IFIDType]*IFInfo
+		IFs map[iface.ID]*IFInfo
 	}
 
 	// IfInfoMap maps interface ids to the interface information.
-	IfInfoMap map[common.IFIDType]IFInfo
+	IfInfoMap map[iface.ID]IFInfo
 
 	// IFInfo describes a border router link to another AS, including the internal data-plane
 	// address applications should send traffic to and information about the link itself and the
 	// remote side of it.
 	IFInfo struct {
 		// ID is the interface ID. It is unique per AS.
-		ID           common.IFIDType
+		ID           iface.ID
 		BRName       string
-		Underlay     underlay.Type
-		InternalAddr *net.UDPAddr
-		Local        *net.UDPAddr
-		Remote       *net.UDPAddr
-		RemoteIFID   common.IFIDType
+		InternalAddr netip.AddrPort
+		Local        netip.AddrPort
+		Remote       netip.AddrPort
+		RemoteIfID   iface.ID
 		IA           addr.IA
 		LinkType     LinkType
 		MTU          int
@@ -122,14 +125,18 @@ type (
 
 	// TopoAddr wraps the possible addresses of a SCION service and describes
 	// the underlay to be used for contacting said service.
+	// XXX: this has become redundant. Replace with single address (and netip.AddrPort)
 	TopoAddr struct {
 		SCIONAddress    *net.UDPAddr
 		UnderlayAddress *net.UDPAddr
 	}
 
 	// BFD is the configuration for a BFD session
+	// Disable can be set from two sources: the topology configuration for the link (here), and
+	// the dataplane's bfd global configuration. This is actually a pointer to boolean. nil
+	// means unspecified.
 	BFD struct {
-		Disable               bool
+		Disable               *bool
 		DetectMult            uint8
 		DesiredMinTxInterval  time.Duration
 		RequiredMinRxInterval time.Duration
@@ -173,7 +180,7 @@ func RWTopologyFromJSONBytes(b []byte) (*RWTopology, error) {
 	}
 	ct, err := RWTopologyFromJSONTopology(rt)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to convert raw topology to topology", err)
+		return nil, serrors.Wrap("unable to convert raw topology to topology", err)
 	}
 	return ct, nil
 }
@@ -201,6 +208,11 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	}
 	t.MTU = raw.MTU
 
+	t.DispatchedPortStart, t.DispatchedPortEnd, err = validatePortRange(raw.EndhostPortRange)
+	if err != nil {
+		return err
+	}
+
 	isCore := false
 	for _, attr := range raw.Attributes {
 		if attr == jsontopo.AttrCore {
@@ -212,29 +224,60 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	return nil
 }
 
+func validatePortRange(portRange string) (uint16, uint16, error) {
+	if portRange == "" || portRange == "-" {
+		log.Debug("Empty port range defined")
+		return 0, 0, nil
+	}
+	if portRange == "all" || portRange == "ALL" {
+		log.Debug("\"all\" port range defined")
+		return uint16(1), uint16(65535), nil
+	}
+	ports := strings.Split(portRange, "-")
+	if len(ports) != 2 {
+		return 0, 0, serrors.New("invalid format: expected startPort-endPort", "got", portRange)
+	}
+	startPort, errStart := strconv.ParseUint(ports[0], 10, 16)
+	endPort, errEnd := strconv.ParseUint(ports[1], 10, 16)
+	if errStart != nil || errEnd != nil {
+		return 0, 0, serrors.New("invalid port numbers", "got", portRange)
+	}
+	if startPort < 1 {
+		return 0, 0, serrors.New("invalid value for start port", "start port", startPort)
+	}
+	if endPort < 1 {
+		return 0, 0, serrors.New("invalid value for end port", "end port", endPort)
+	}
+	if startPort > endPort {
+		return 0, 0, serrors.New("start port is bigger than end port for the SCION port range",
+			"start port", startPort, "end port", endPort)
+	}
+	return uint16(startPort), uint16(endPort), nil
+}
+
 func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 	for name, rawBr := range raw.BorderRouters {
 		if rawBr.InternalAddr == "" {
 			return serrors.New("Missing Internal Address", "br", name)
 		}
-		intAddr, err := rawAddrToUDPAddr(rawBr.InternalAddr)
+		intAddr, err := resolveAddrPort(rawBr.InternalAddr)
 		if err != nil {
-			return serrors.WrapStr("unable to extract underlay internal data-plane address", err)
+			return serrors.Wrap("unable to extract underlay internal data-plane address", err)
 		}
 		brInfo := BRInfo{
 			Name:         name,
 			InternalAddr: intAddr,
-			IFs:          make(map[common.IFIDType]*IFInfo),
+			IFs:          make(map[iface.ID]*IFInfo),
 		}
-		for ifid, rawIntf := range rawBr.Interfaces {
+		for ifID, rawIntf := range rawBr.Interfaces {
 			var err error
-			// Check that ifid is unique
-			if _, ok := t.IFInfoMap[ifid]; ok {
-				return serrors.New("IFID already exists", "ID", ifid)
+			// Check that ifID is unique
+			if _, ok := t.IFInfoMap[ifID]; ok {
+				return serrors.New("IfID already exists", "ID", ifID)
 			}
-			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
+			brInfo.IfIDs = append(brInfo.IfIDs, ifID)
 			ifinfo := IFInfo{
-				ID:           ifid,
+				ID:           ifID,
 				BRName:       name,
 				InternalAddr: intAddr,
 				MTU:          rawIntf.MTU,
@@ -243,6 +286,10 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return err
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
+			if ifinfo.LinkType == Peer {
+				ifinfo.RemoteIfID = rawIntf.RemoteIfID
+			}
+
 			if err = ifinfo.CheckLinks(t.IsCore, name); err != nil {
 				return err
 			}
@@ -256,34 +303,30 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			}
 
 			// These fields are only necessary for the border router.
-			// Parsing should not fail if they are missing.
-			if rawIntf.Underlay.Bind == "" && rawIntf.Underlay.Remote == "" {
-				brInfo.IFs[ifid] = &ifinfo
-				t.IFInfoMap[ifid] = ifinfo
+			// Parsing should not fail if all fields are empty.
+			if rawIntf.Underlay == (jsontopo.Underlay{}) {
+				brInfo.IFs[ifID] = &ifinfo
+				t.IFInfoMap[ifID] = ifinfo
 				continue
 			}
-			if ifinfo.Local, err = rawBRIntfTopoBRAddr(rawIntf); err != nil {
-				return serrors.WrapStr("unable to extract "+
+			if ifinfo.Local, err = rawBRIntfLocalAddr(&rawIntf.Underlay); err != nil {
+				return serrors.Wrap("unable to extract "+
 					"underlay external data-plane local address", err)
+
 			}
-			if ifinfo.Remote, err = rawAddrToUDPAddr(rawIntf.Underlay.Remote); err != nil {
-				return serrors.WrapStr("unable to extract "+
+			if ifinfo.Remote, err = resolveAddrPort(rawIntf.Underlay.Remote); err != nil {
+				return serrors.Wrap("unable to extract "+
 					"underlay external data-plane remote address", err)
+
 			}
-			ifinfo.Underlay = underlay.UDPIPv6
-			if ifinfo.Local.IP.To4() != nil && ifinfo.Remote.IP.To4() != nil {
-				ifinfo.Underlay = underlay.UDPIPv4
-			}
-			brInfo.IFs[ifid] = &ifinfo
-			t.IFInfoMap[ifid] = ifinfo
+			brInfo.IFs[ifID] = &ifinfo
+			t.IFInfoMap[ifID] = ifinfo
 		}
-		sort.Slice(brInfo.IFIDs, func(i, j int) bool {
-			return brInfo.IFIDs[i] < brInfo.IFIDs[j]
+		sort.Slice(brInfo.IfIDs, func(i, j int) bool {
+			return brInfo.IfIDs[i] < brInfo.IfIDs[j]
 		})
 		t.BR[name] = brInfo
-		t.BRNames = append(t.BRNames, name)
 	}
-	sort.Strings(t.BRNames)
 	return nil
 }
 
@@ -291,23 +334,23 @@ func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	var err error
 	t.CS, err = svcMapFromRaw(raw.ControlService)
 	if err != nil {
-		return serrors.WrapStr("unable to extract CS address", err)
+		return serrors.Wrap("unable to extract CS address", err)
 	}
 	t.SIG, err = gatewayMapFromRaw(raw.SIG)
 	if err != nil {
-		return serrors.WrapStr("unable to extract SIG address", err)
+		return serrors.Wrap("unable to extract SIG address", err)
 	}
 	t.DS, err = svcMapFromRaw(raw.DiscoveryService)
 	if err != nil {
-		return serrors.WrapStr("unable to extract DS address", err)
+		return serrors.Wrap("unable to extract DS address", err)
 	}
 	t.HiddenSegmentLookup, err = svcMapFromRaw(raw.HiddenSegmentLookup)
 	if err != nil {
-		return serrors.WrapStr("unable to extract hidden segment lookup address", err)
+		return serrors.Wrap("unable to extract hidden segment lookup address", err)
 	}
 	t.HiddenSegmentRegistration, err = svcMapFromRaw(raw.HiddenSegmentReg)
 	if err != nil {
-		return serrors.WrapStr("unable to extract hidden segment registration address", err)
+		return serrors.Wrap("unable to extract hidden segment registration address", err)
 	}
 	return nil
 }
@@ -374,13 +417,14 @@ func (t *RWTopology) Copy() *RWTopology {
 		return nil
 	}
 	return &RWTopology{
-		Timestamp: t.Timestamp,
-		IA:        t.IA,
-		MTU:       t.MTU,
-		IsCore:    t.IsCore,
+		Timestamp:           t.Timestamp,
+		IA:                  t.IA,
+		MTU:                 t.MTU,
+		IsCore:              t.IsCore,
+		DispatchedPortStart: t.DispatchedPortStart,
+		DispatchedPortEnd:   t.DispatchedPortEnd,
 
 		BR:        copyBRMap(t.BR),
-		BRNames:   append(t.BRNames[:0:0], t.BRNames...),
 		IFInfoMap: t.IFInfoMap.copy(),
 
 		CS:                        t.CS.copy(),
@@ -424,17 +468,17 @@ func (i *BRInfo) copy() *BRInfo {
 	}
 	return &BRInfo{
 		Name:         i.Name,
-		InternalAddr: copyUDPAddr(i.InternalAddr),
-		IFIDs:        append(i.IFIDs[:0:0], i.IFIDs...),
+		InternalAddr: i.InternalAddr,
+		IfIDs:        append(i.IfIDs[:0:0], i.IfIDs...),
 		IFs:          copyIFsMap(i.IFs),
 	}
 }
 
-func copyIFsMap(m map[common.IFIDType]*IFInfo) map[common.IFIDType]*IFInfo {
+func copyIFsMap(m map[iface.ID]*IFInfo) map[iface.ID]*IFInfo {
 	if m == nil {
 		return nil
 	}
-	newM := make(map[common.IFIDType]*IFInfo)
+	newM := make(map[iface.ID]*IFInfo)
 	for k, v := range m {
 		newM[k] = v.copy()
 	}
@@ -468,10 +512,15 @@ func (svc *svcInfo) getAllTopoAddrs() []TopoAddr {
 func svcMapFromRaw(ras map[string]*jsontopo.ServerInfo) (IDAddrMap, error) {
 	svcMap := make(IDAddrMap)
 	for name, svc := range ras {
-		svcTopoAddr, err := rawAddrToTopoAddr(svc.Addr)
+		a, err := resolveAddrPort(svc.Addr)
 		if err != nil {
-			return nil, serrors.WrapStr("could not parse address", err,
+			return nil, serrors.Wrap("could not parse address", err,
 				"address", svc.Addr, "process_name", name)
+
+		}
+		svcTopoAddr := &TopoAddr{
+			SCIONAddress:    net.UDPAddrFromAddrPort(a),
+			UnderlayAddress: net.UDPAddrFromAddrPort(netip.AddrPortFrom(a.Addr(), EndhostPort)),
 		}
 		svcMap[name] = *svcTopoAddr
 	}
@@ -481,32 +530,37 @@ func svcMapFromRaw(ras map[string]*jsontopo.ServerInfo) (IDAddrMap, error) {
 func gatewayMapFromRaw(ras map[string]*jsontopo.GatewayInfo) (map[string]GatewayInfo, error) {
 	ret := make(map[string]GatewayInfo)
 	for name, svc := range ras {
-		c, err := rawAddrToTopoAddr(svc.CtrlAddr)
+		c, err := resolveAddrPort(svc.CtrlAddr)
 		if err != nil {
-			return nil, serrors.WrapStr("could not parse control address", err,
+			return nil, serrors.Wrap("could not parse control address", err,
 				"address", svc.CtrlAddr, "process_name", name)
+
 		}
-		d, err := rawAddrToUDPAddr(svc.DataAddr)
+		d, err := resolveAddrPort(svc.DataAddr)
 		if err != nil {
-			return nil, serrors.WrapStr("could not parse data address", err,
+			return nil, serrors.Wrap("could not parse data address", err,
 				"address", svc.DataAddr, "process_name", name)
+
 		}
 		// backward compatibility: if no probe address is specified just use the
 		// default (ctrl address & port 30856):
-		probeAddr := copyUDPAddr(c.SCIONAddress)
-		probeAddr.Port = 30856
+		probeAddr := netip.AddrPortFrom(c.Addr(), 30856)
 		if svc.ProbeAddr != "" {
-			probeAddr, err = rawAddrToUDPAddr(svc.ProbeAddr)
+			probeAddr, err = resolveAddrPort(svc.ProbeAddr)
 			if err != nil {
-				return nil, serrors.WrapStr("could not parse probe address", err,
+				return nil, serrors.Wrap("could not parse probe address", err,
 					"address", svc.ProbeAddr, "process_name", name)
+
 			}
 		}
 
 		ret[name] = GatewayInfo{
-			CtrlAddr:        c,
-			DataAddr:        d,
-			ProbeAddr:       probeAddr,
+			CtrlAddr: &TopoAddr{
+				SCIONAddress:    net.UDPAddrFromAddrPort(c),
+				UnderlayAddress: net.UDPAddrFromAddrPort(netip.AddrPortFrom(c.Addr(), EndhostPort)),
+			},
+			DataAddr:        net.UDPAddrFromAddrPort(d),
+			ProbeAddr:       net.UDPAddrFromAddrPort(probeAddr),
 			AllowInterfaces: svc.Interfaces,
 		}
 	}
@@ -539,7 +593,7 @@ func (m IDAddrMap) copy() IDAddrMap {
 func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 	if isCore {
 		switch i.LinkType {
-		case Core, Child:
+		case Core, Child, Peer:
 		default:
 			return serrors.New("Illegal link type for core AS",
 				"type", i.LinkType, "br", brName)
@@ -556,8 +610,8 @@ func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 }
 
 func (i IFInfo) String() string {
-	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] Underlay:%s Local:%+v "+
-		"Remote:%+v IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr, i.Underlay,
+	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] Local:%+v "+
+		"Remote:%+v IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr,
 		i.Local, i.Remote, i.IA, i.LinkType, i.MTU)
 }
 
@@ -565,18 +619,8 @@ func (i *IFInfo) copy() *IFInfo {
 	if i == nil {
 		return nil
 	}
-	return &IFInfo{
-		ID:           i.ID,
-		BRName:       i.BRName,
-		Underlay:     i.Underlay,
-		InternalAddr: copyUDPAddr(i.InternalAddr),
-		Local:        copyUDPAddr(i.Local),
-		Remote:       copyUDPAddr(i.Remote),
-		RemoteIFID:   i.RemoteIFID,
-		IA:           i.IA,
-		LinkType:     i.LinkType,
-		MTU:          i.MTU,
-	}
+	cpy := *i
+	return &cpy
 }
 
 // UnderlayAddr returns the underlay address interpreted as a net.UDPAddr.

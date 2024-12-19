@@ -7,22 +7,14 @@ networks:
       config:
       - subnet: 242.254.100.0/24
 services:
-  topo_daemon_reload_dispatcher:
-    container_name: topo_daemon_reload_dispatcher
-    image: bazel/acceptance/topo_daemon_reload:dispatcher
+  topo_daemon_reload_daemon:
+    container_name: topo_daemon_reload_daemon
+    image: scion/acceptance/topo_daemon_reload:daemon
+    volumes:
+    - vol_topo_daemon_reload_certs:/certs:ro
     networks:
       bridge1:
         ipv4_address: 242.254.100.2
-    volumes:
-    - vol_topo_daemon_reload_disp:/run/shm/dispatcher:rw
-  topo_daemon_reload_daemon:
-    container_name: topo_daemon_reload_daemon
-    image: bazel/acceptance/topo_daemon_reload:daemon
-    volumes:
-    - vol_topo_daemon_reload_disp:/run/shm/dispatcher:ro
-    - vol_topo_daemon_reload_certs:/certs:ro
-    network_mode: service:topo_daemon_reload_dispatcher
 version: '2.4'
 volumes:
-  vol_topo_daemon_reload_disp: null
   vol_topo_daemon_reload_certs: null

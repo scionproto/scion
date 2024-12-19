@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/mock_snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -35,32 +34,26 @@ import (
 )
 
 func TestRedirectQUIC(t *testing.T) {
-	dummyIA := xtest.MustParseIA("1-ff00:0:2")
+	dummyIA := addr.MustParseIA("1-ff00:0:2")
 	testCases := map[string]struct {
-		input                 net.Addr
-		wantAddr              net.Addr
-		wantRedirect          bool
-		SVCResolutionFraction float64
-		assertErr             assert.ErrorAssertionFunc
+		input     net.Addr
+		wantAddr  net.Addr
+		assertErr assert.ErrorAssertionFunc
 	}{
-		"nil addr, no error": {
+		"nil addr, error": {
 			input:     nil,
 			wantAddr:  nil,
-			assertErr: assert.NoError,
+			assertErr: assert.Error,
 		},
 		"not nil invalid addr, error": {
-			input:                 &net.TCPAddr{},
-			wantAddr:              nil,
-			wantRedirect:          false,
-			SVCResolutionFraction: 1.0,
-			assertErr:             assert.Error,
+			input:     &net.TCPAddr{},
+			wantAddr:  nil,
+			assertErr: assert.Error,
 		},
 		"valid UDPAddr, returns unchanged": {
-			input:                 &snet.UDPAddr{IA: dummyIA, Host: &net.UDPAddr{}},
-			wantAddr:              &snet.UDPAddr{IA: dummyIA, Host: &net.UDPAddr{}},
-			wantRedirect:          false,
-			SVCResolutionFraction: 1.0,
-			assertErr:             assert.NoError,
+			input:     &snet.UDPAddr{IA: dummyIA, Host: &net.UDPAddr{}},
+			wantAddr:  &snet.UDPAddr{IA: dummyIA, Host: &net.UDPAddr{}},
+			assertErr: assert.NoError,
 		},
 	}
 	for tn, tc := range testCases {
@@ -73,51 +66,15 @@ func TestRedirectQUIC(t *testing.T) {
 			resolver.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 			aw := infraenv.AddressRewriter{
-				Resolver:              resolver,
-				Router:                router,
-				SVCResolutionFraction: tc.SVCResolutionFraction,
+				Resolver: resolver,
+				Router:   router,
 			}
 
-			a, r, err := aw.RedirectToQUIC(context.Background(), tc.input)
+			a, err := aw.RedirectToQUIC(context.Background(), tc.input)
 			tc.assertErr(t, err)
 			assert.Equal(t, tc.wantAddr, a)
-			assert.Equal(t, tc.wantRedirect, r)
 		})
 	}
-
-	t.Run("Fraction 0.5, returns no error", func(t *testing.T) {
-		t.Log("svc address, half time allowed for resolution, lookup fails")
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		router := mock_snet.NewMockRouter(ctrl)
-		resolver := mock_infraenv.NewMockResolver(ctrl)
-		resolver.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
-			Return(nil, fmt.Errorf("lookups errors"))
-		path := mock_snet.NewMockPath(ctrl)
-		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
-		path.EXPECT().Dataplane().Return(snetpath.SCION{})
-		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
-		path.EXPECT().Metadata().Return(&snet.PathMetadata{
-			Interfaces: make([]snet.PathInterface, 1), // just non-empty
-		})
-		aw := infraenv.AddressRewriter{
-			Router:                router,
-			Resolver:              resolver,
-			SVCResolutionFraction: 0.5,
-		}
-
-		input := &snet.SVCAddr{IA: dummyIA, SVC: addr.SvcCS, Path: snetpath.Empty{}}
-		want := &snet.SVCAddr{
-			IA:      dummyIA,
-			NextHop: &net.UDPAddr{IP: net.ParseIP("10.1.1.1")},
-			SVC:     addr.SvcCS,
-			Path:    snetpath.SCION{},
-		}
-		a, r, err := aw.RedirectToQUIC(context.Background(), input)
-		assert.NoError(t, err)
-		assert.Equal(t, want, a)
-		assert.False(t, r)
-	})
 
 	t.Run("valid SVCAddr, returns no error and UPDAddr", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -137,9 +94,8 @@ func TestRedirectQUIC(t *testing.T) {
 			Interfaces: make([]snet.PathInterface, 1), // just non-empty
 		})
 		aw := infraenv.AddressRewriter{
-			Router:                router,
-			Resolver:              resolver,
-			SVCResolutionFraction: 1,
+			Router:   router,
+			Resolver: resolver,
 		}
 
 		input := &snet.SVCAddr{IA: dummyIA, SVC: addr.SvcCS, Path: snetpath.Empty{}}
@@ -149,44 +105,11 @@ func TestRedirectQUIC(t *testing.T) {
 			NextHop: &net.UDPAddr{IP: net.ParseIP("10.1.1.1")},
 			Host:    &net.UDPAddr{IP: net.ParseIP("192.168.1.1"), Port: 8000},
 		}
-		a, r, err := aw.RedirectToQUIC(context.Background(), input)
+		a, err := aw.RedirectToQUIC(context.Background(), input)
 		assert.NoError(t, err)
 		assert.Equal(t, want, a)
-		assert.True(t, r)
 	})
 
-	t.Run("valid SVCAddr, no resolution, resolves path", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		router := mock_snet.NewMockRouter(ctrl)
-
-		path := mock_snet.NewMockPath(ctrl)
-		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
-		path.EXPECT().Dataplane().Return(snetpath.SCION{})
-		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
-		path.EXPECT().Metadata().Return(&snet.PathMetadata{})
-		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
-		svcRouter.EXPECT().GetUnderlay(addr.SvcCS).Return(
-			&net.UDPAddr{IP: net.ParseIP("10.1.1.1")}, nil,
-		)
-
-		aw := infraenv.AddressRewriter{
-			Router:                router,
-			SVCRouter:             svcRouter,
-			SVCResolutionFraction: 0.0,
-		}
-
-		input := &snet.SVCAddr{SVC: addr.SvcCS, Path: snetpath.Empty{}}
-		want := &snet.SVCAddr{
-			SVC:     addr.SvcCS,
-			NextHop: &net.UDPAddr{IP: net.ParseIP("10.1.1.1")},
-			Path:    snetpath.Empty{},
-		}
-		a, r, err := aw.RedirectToQUIC(context.Background(), input)
-		assert.NoError(t, err)
-		assert.Equal(t, want, a)
-		assert.False(t, r)
-	})
 }
 
 func TestBuildFullAddress(t *testing.T) {
@@ -194,7 +117,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		remoteIA := addr.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,
@@ -210,7 +133,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		remoteIA := addr.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,
@@ -231,7 +154,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		remoteIA := addr.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,
@@ -261,7 +184,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		localIA := xtest.MustParseIA("1-ff00:0:1")
+		localIA := addr.MustParseIA("1-ff00:0:1")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,
@@ -297,7 +220,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		localIA := xtest.MustParseIA("1-ff00:0:1")
+		localIA := addr.MustParseIA("1-ff00:0:1")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,
@@ -321,13 +244,11 @@ func TestBuildFullAddress(t *testing.T) {
 
 func TestResolve(t *testing.T) {
 	testCases := map[string]struct {
-		input                 addr.SVC
-		ResolverSetup         func(*mock_infraenv.MockResolver)
-		SVCResolutionFraction float64
-		wantPath              snet.Path
-		want                  *net.UDPAddr
-		wantQUICRedirect      bool
-		assertErr             assert.ErrorAssertionFunc
+		input         addr.SVC
+		ResolverSetup func(*mock_infraenv.MockResolver)
+		wantPath      snet.Path
+		want          *net.UDPAddr
+		assertErr     assert.ErrorAssertionFunc
 	}{
 		"svc address, lookup fails": {
 			input: addr.SvcCS,
@@ -335,8 +256,7 @@ func TestResolve(t *testing.T) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, fmt.Errorf("err"))
 			},
-			SVCResolutionFraction: 1.0,
-			assertErr:             assert.Error,
+			assertErr: assert.Error,
 		},
 		"svc address, lookup succeeds": {
 			input: addr.SvcCS,
@@ -352,29 +272,9 @@ func TestResolve(t *testing.T) {
 						nil,
 					)
 			},
-			SVCResolutionFraction: 1.0,
-			wantPath:              &testPath{},
-			want:                  &net.UDPAddr{IP: net.IP{192, 168, 1, 1}, Port: 8000},
-			wantQUICRedirect:      true,
-			assertErr:             assert.NoError,
-		},
-		"svc address, half time allowed for resolution, lookup succeeds": {
-			input: addr.SvcCS,
-			ResolverSetup: func(r *mock_infraenv.MockResolver) {
-				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(
-						&svc.Reply{
-							Transports: map[svc.Transport]string{
-								svc.QUIC: "192.168.1.1:8000",
-							},
-						},
-						nil,
-					)
-			},
-			SVCResolutionFraction: 0.5,
-			want:                  &net.UDPAddr{IP: net.ParseIP("192.168.1.1"), Port: 8000},
-			wantQUICRedirect:      true,
-			assertErr:             assert.NoError,
+			wantPath:  &testPath{},
+			want:      &net.UDPAddr{IP: net.IP{192, 168, 1, 1}, Port: 8000},
+			assertErr: assert.NoError,
 		},
 	}
 
@@ -386,14 +286,12 @@ func TestResolve(t *testing.T) {
 			path := mock_snet.NewMockPath(ctrl)
 			path.EXPECT().Destination().Return(addr.IA(0)).AnyTimes()
 			aw := infraenv.AddressRewriter{
-				Resolver:              resolver,
-				SVCResolutionFraction: tc.SVCResolutionFraction,
+				Resolver: resolver,
 			}
 			initResolver(resolver, tc.ResolverSetup)
-			p, a, redirect, err := aw.ResolveSVC(context.Background(), path, tc.input)
+			p, a, err := aw.ResolveSVC(context.Background(), path, tc.input)
 			assert.Equal(t, tc.wantPath, p)
 			assert.Equal(t, tc.want.String(), a.String())
-			assert.Equal(t, tc.wantQUICRedirect, redirect)
 			tc.assertErr(t, err)
 		})
 	}

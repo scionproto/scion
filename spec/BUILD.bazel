@@ -1,102 +1,105 @@
-load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_bundle")
+load("//tools/lint:write_source_files.bzl", "write_source_files")
+load("//private/mgmtapi:api.bzl", "openapi_bundle")
 
 openapi_bundle(
     name = "control",
     srcs = [
-        "//spec/common:base.yml",
-        "//spec/common:process.yml",
-        "//spec/control:beacons.yml",
-        "//spec/control:cppki.yml",
-        "//spec/cppki:spec.yml",
-        "//spec/health:spec.yml",
-        "//spec/segments:spec.yml",
+        "//spec/common:files",
+        "//spec/control:files",
+        "//spec/cppki:spec",
+        "//spec/health:spec",
+        "//spec/segments:spec",
     ],
-    entrypoint = "//spec/control:spec.yml",
+    entrypoint = "//spec/control:spec",
     visibility = ["//visibility:public"],
 )
 
 openapi_bundle(
     name = "ca",
     srcs = [
-        "//spec/ca:auth.yml",
-        "//spec/ca:health.yml",
-        "//spec/ca:problem.yml",
-        "//spec/ca:ra.yml",
+        "//spec/ca:files",
     ],
-    entrypoint = "//spec/ca:spec.yml",
+    entrypoint = "//spec/ca:spec",
     visibility = ["//visibility:public"],
 )
 
 openapi_bundle(
     name = "dispatcher",
     srcs = [
-        "//spec/common:base.yml",
-        "//spec/common:process.yml",
+        "//spec/common:files",
     ],
-    entrypoint = "//spec/dispatcher:spec.yml",
+    entrypoint = "//spec/dispatcher:spec",
     visibility = ["//visibility:public"],
 )
 
 openapi_bundle(
     name = "daemon",
     srcs = [
-        "//spec/common:base.yml",
-        "//spec/common:process.yml",
-        "//spec/cppki:spec.yml",
-        "//spec/segments:spec.yml",
+        "//spec/common:files",
+        "//spec/cppki:spec",
+        "//spec/segments:spec",
     ],
-    entrypoint = "//spec/daemon:spec.yml",
+    entrypoint = "//spec/daemon:spec",
     visibility = ["//visibility:public"],
 )
 
 openapi_bundle(
     name = "gateway",
     srcs = [
-        "//spec/common:base.yml",
-        "//spec/common:process.yml",
+        "//spec/common:files",
     ],
-    entrypoint = "//spec/gateway:spec.yml",
+    entrypoint = "//spec/gateway:spec",
     visibility = ["//visibility:public"],
 )
 
 openapi_bundle(
     name = "router",
     srcs = [
-        "//spec/common:base.yml",
-        "//spec/common:process.yml",
-        "//spec/common:scion.yml",
-        "//spec/router:interfaces.yml",
+        "//spec/common:files",
+        "//spec/router:files",
     ],
-    entrypoint = "//spec/router:spec.yml",
+    entrypoint = "//spec/router:spec",
     visibility = ["//visibility:public"],
 )
 
 openapi_bundle(
     name = "segments",
     srcs = [
-        "//spec/common:base.yml",
-        "//spec/common:process.yml",
+        "//spec/common:files",
     ],
-    entrypoint = "//spec/segments:spec.yml",
+    entrypoint = "//spec/segments:spec",
     visibility = ["//visibility:public"],
 )
 
 openapi_bundle(
     name = "cppki",
     srcs = [
-        "//spec/common:base.yml",
-        "//spec/common:process.yml",
+        "//spec/common:files",
     ],
-    entrypoint = "//spec/cppki:spec.yml",
+    entrypoint = "//spec/cppki:spec",
     visibility = ["//visibility:public"],
 )
 
 openapi_bundle(
     name = "health",
     srcs = [
-        "//spec/common:base.yml",
-        "//spec/common:process.yml",
+        "//spec/common:files",
     ],
-    entrypoint = "//spec/health:spec.yml",
+    entrypoint = "//spec/health:spec",
     visibility = ["//visibility:public"],
+)
+
+write_source_files(
+    name = "write_files",
+    files = {
+        "control.gen.yml": ":control",
+        "ca.gen.yml": ":ca",
+        "dispatcher.gen.yml": ":dispatcher",
+        "daemon.gen.yml": ":daemon",
+        "gateway.gen.yml": ":gateway",
+        "router.gen.yml": ":router",
+        "segments.gen.yml": ":segments",
+        "cppki.gen.yml": ":cppki",
+        "health.gen.yml": ":health",
+    },
 )

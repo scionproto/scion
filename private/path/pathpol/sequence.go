@@ -23,13 +23,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/antlr4-go/antlr/v4"
 
 	"github.com/scionproto/scion/antlr/sequence"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -61,7 +61,7 @@ func NewSequence(s string) (*Sequence, error) {
 	parser.RemoveErrorListeners()
 	parser.AddErrorListener(errListener)
 	listener := sequenceListener{}
-	antlr.ParseTreeWalkerDefault.Walk(&listener, parser.Start())
+	antlr.ParseTreeWalkerDefault.Walk(&listener, parser.Start_())
 	if errListener.msg != "" {
 		return nil, serrors.New("Failed to parse a sequence",
 			"sequence", s, "msg", errListener.msg)
@@ -70,8 +70,9 @@ func NewSequence(s string) (*Sequence, error) {
 	re, err := regexp.Compile(restr)
 	if err != nil {
 		// This should never happen. Sequence parser should produce a valid regexp.
-		return nil, serrors.WrapStr("Error while parsing sequence regexp", err,
+		return nil, serrors.Wrap("Error while parsing sequence regexp", err,
 			"regexp", restr)
+
 	}
 	return &Sequence{re: re, srcstr: s, restr: restr}, nil
 }
@@ -293,7 +294,7 @@ func (l *sequenceListener) ExitIFace(c *sequence.IFaceContext) {
 	l.push(re)
 }
 
-func hop(ia addr.IA, ingress, egress common.IFIDType) string {
+func hop(ia addr.IA, ingress, egress iface.ID) string {
 	return fmt.Sprintf("%s#%d,%d", ia, ingress, egress)
 }
 

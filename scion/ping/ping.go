@@ -18,8 +18,9 @@ package ping
 import (
 	"context"
 	"encoding/binary"
-	"math/rand"
 	"net"
+	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -27,7 +28,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/topology/underlay"
 )
 
@@ -74,9 +74,14 @@ func (s State) String() string {
 
 // Config configures the ping run.
 type Config struct {
-	Dispatcher reliable.Dispatcher
-	Local      *snet.UDPAddr
-	Remote     *snet.UDPAddr
+	Local   addr.Addr
+	Remote  addr.Addr
+	Path    snet.DataplanePath
+	NextHop *net.UDPAddr
+
+	// Topology is the helper class to get control-plane information for the
+	// local AS.
+	Topology snet.Topology
 
 	// Attempts is the number of pings to send.
 	Attempts uint16
@@ -102,23 +107,31 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		return Stats{}, serrors.New("interval below millisecond")
 	}
 
-	id := rand.Uint64()
 	replies := make(chan reply, 10)
-
-	svc := snet.DefaultPacketDispatcherService{
-		Dispatcher: cfg.Dispatcher,
-		SCMPHandler: scmpHandler{
-			id:      uint16(id),
-			replies: replies,
-		},
+	scmpHandler := &scmpHandler{
+		replies: replies,
 	}
-	conn, port, err := svc.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
+	sn := &snet.SCIONNetwork{
+		SCMPHandler: scmpHandler,
+		Topology:    cfg.Topology,
+	}
+	// We need to manufacture a netip.UDPAddr as we're constrained by the sn API.
+	netUdpAddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(cfg.Local.Host.IP(), 0))
+	conn, err := sn.OpenRaw(ctx, netUdpAddr)
 	if err != nil {
 		return Stats{}, err
 	}
 
-	local := cfg.Local.Copy()
-	local.Host.Port = int(port)
+	// Get our real local address and the port number we got.
+	// We use the port as identifier on the handler.
+	asNetipAddr, ok := netip.AddrFromSlice(conn.LocalAddr().(*net.UDPAddr).IP)
+	if !ok {
+		panic("Invalid Local IP address")
+	}
+	local := cfg.Local
+	local.Host = addr.HostIP(asNetipAddr)
+	id := conn.LocalAddr().(*net.UDPAddr).Port
+	scmpHandler.SetId(id)
 
 	// we need to have at least 8 bytes to store the request time in the
 	// payload.
@@ -131,14 +144,14 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		timeout:       cfg.Timeout,
 		pldSize:       cfg.PayloadSize,
 		pld:           make([]byte, cfg.PayloadSize),
-		id:            id,
+		id:            uint16(id),
 		conn:          conn,
 		local:         local,
 		replies:       replies,
 		errHandler:    cfg.ErrHandler,
 		updateHandler: cfg.UpdateHandler,
 	}
-	return p.Ping(ctx, cfg.Remote)
+	return p.Ping(ctx, cfg.Remote, cfg.Path, cfg.NextHop)
 }
 
 type pinger struct {
@@ -147,9 +160,9 @@ type pinger struct {
 	timeout  time.Duration
 	pldSize  int
 
-	id      uint64
+	id      uint16
 	conn    snet.PacketConn
-	local   *snet.UDPAddr
+	local   addr.Addr
 	replies <-chan reply
 
 	// Handlers
@@ -163,7 +176,13 @@ type pinger struct {
 	stats            Stats
 }
 
-func (p *pinger) Ping(ctx context.Context, remote *snet.UDPAddr) (Stats, error) {
+func (p *pinger) Ping(
+	ctx context.Context,
+	remote addr.Addr,
+	dPath snet.DataplanePath,
+	nextHop *net.UDPAddr,
+) (Stats, error) {
+
 	p.sentSequence, p.receivedSequence = -1, -1
 	send := time.NewTicker(p.interval)
 	defer send.Stop()
@@ -178,11 +197,15 @@ func (p *pinger) Ping(ctx context.Context, remote *snet.UDPAddr) (Stats, error) 
 		p.drain(ctx)
 	}()
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
 		defer log.HandlePanic()
+		defer wg.Done()
 		for i := uint16(0); i < p.attempts; i++ {
-			if err := p.send(remote); err != nil {
-				errSend <- serrors.WrapStr("sending", err)
+			if err := p.send(remote, dPath, nextHop); err != nil {
+				errSend <- serrors.Wrap("sending", err)
 				return
 			}
 			select {
@@ -210,27 +233,28 @@ func (p *pinger) Ping(ctx context.Context, remote *snet.UDPAddr) (Stats, error) 
 			p.receive(reply)
 		}
 	}
+	wg.Wait()
 	return p.stats, nil
 }
 
-func (p *pinger) send(remote *snet.UDPAddr) error {
+func (p *pinger) send(remote addr.Addr, dPath snet.DataplanePath, nextHop *net.UDPAddr) error {
 	sequence := p.sentSequence + 1
 
 	binary.BigEndian.PutUint64(p.pld, uint64(time.Now().UnixNano()))
-	pkt, err := pack(p.local, remote, snet.SCMPEchoRequest{
-		Identifier: uint16(p.id),
+	pkt, err := pack(p.local, remote, dPath, snet.SCMPEchoRequest{
+		Identifier: p.id,
 		SeqNumber:  uint16(sequence),
 		Payload:    p.pld,
 	})
 	if err != nil {
 		return err
 	}
-	nextHop := remote.NextHop
+
 	if nextHop == nil && p.local.IA.Equal(remote.IA) {
 		nextHop = &net.UDPAddr{
-			IP:   remote.Host.IP,
+			IP:   remote.Host.IP().AsSlice(),
 			Port: underlay.EndhostPort,
-			Zone: remote.Host.Zone,
+			Zone: remote.Host.IP().Zone(),
 		}
 
 	}
@@ -282,7 +306,7 @@ func (p *pinger) drain(ctx context.Context) {
 			if err := p.conn.ReadFrom(&pkt, &ov); err != nil && p.errHandler != nil {
 				// Rate limit the error reports.
 				if now := time.Now(); now.Sub(last) > 500*time.Millisecond {
-					p.errHandler(serrors.WrapStr("reading packet", err))
+					p.errHandler(serrors.Wrap("reading packet", err))
 					last = now
 				}
 			}
@@ -313,6 +337,10 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		Error:    err,
 	}
 	return nil
+}
+
+func (h *scmpHandler) SetId(id int) {
+	h.id = uint16(id)
 }
 
 func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {

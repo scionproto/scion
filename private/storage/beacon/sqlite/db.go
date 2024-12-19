@@ -24,9 +24,9 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	storagebeacon "github.com/scionproto/scion/private/storage/beacon"
 	"github.com/scionproto/scion/private/storage/db"
 )
@@ -140,15 +140,15 @@ func (e *executor) CandidateBeacons(
 	beacons := make([]beacon.Beacon, 0, setSize)
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
-		var inIntfID common.IFIDType
-		if err = rows.Scan(&rawBeacon, &inIntfID); err != nil {
+		var inIfID iface.ID
+		if err = rows.Scan(&rawBeacon, &inIfID); err != nil {
 			return nil, db.NewReadError(beacon.ErrReadingRows, err)
 		}
 		s, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
 			return nil, db.NewDataError(beacon.ErrParse, err)
 		}
-		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: uint16(inIntfID)})
+		beacons = append(beacons, beacon.Beacon{Segment: s, InIfID: uint16(inIfID)})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -208,7 +208,7 @@ func (e *executor) GetBeacons(
 	stmt, args := e.buildQuery(params)
 	rows, err := e.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
-		return nil, serrors.WrapStr("looking up beacons", err, "query", stmt)
+		return nil, serrors.Wrap("looking up beacons", err, "query", stmt)
 	}
 	defer rows.Close()
 	var res []storagebeacon.Beacon
@@ -217,19 +217,19 @@ func (e *executor) GetBeacons(
 		var lastUpdated int64
 		var usage int
 		var rawBeacon sql.RawBytes
-		var InIntfID uint16
-		err = rows.Scan(&RowID, &lastUpdated, &usage, &rawBeacon, &InIntfID)
+		var InIfID uint16
+		err = rows.Scan(&RowID, &lastUpdated, &usage, &rawBeacon, &InIfID)
 		if err != nil {
-			return nil, serrors.WrapStr("reading row", err)
+			return nil, serrors.Wrap("reading row", err)
 		}
 		seg, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing beacon", err)
+			return nil, serrors.Wrap("parsing beacon", err)
 		}
 		res = append(res, storagebeacon.Beacon{
 			Beacon: beacon.Beacon{
 				Segment: seg,
-				InIfId:  InIntfID,
+				InIfID:  InIfID,
 			},
 			Usage:       beacon.Usage(usage),
 			LastUpdated: time.Unix(0, lastUpdated),
@@ -239,6 +239,14 @@ func (e *executor) GetBeacons(
 		return nil, err
 	}
 	return res, nil
+}
+
+func (e *executor) DeleteBeacon(ctx context.Context, partialID string) error {
+	_, err := e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
+		delStmt := `DELETE FROM Beacons WHERE hex(SegID) LIKE ?`
+		return tx.ExecContext(ctx, delStmt, partialID+"%")
+	})
+	return err
 }
 
 func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []interface{}) {
@@ -352,7 +360,7 @@ func (e *executor) updateExistingBeacon(
 	inst := `UPDATE Beacons SET FullID=?, InIntfID=?, HopsLength=?, InfoTime=?,
 			ExpirationTime=?, LastUpdated=?, Usage=?, Beacon=?
 			WHERE RowID=?`
-	_, err = e.db.ExecContext(ctx, inst, fullID, b.InIfId, len(b.Segment.ASEntries), infoTime,
+	_, err = e.db.ExecContext(ctx, inst, fullID, b.InIfID, len(b.Segment.ASEntries), infoTime,
 		expTime, lastUpdated, usage, packedSeg, rowID)
 	if err != nil {
 		return db.NewWriteError("update segment", err)
@@ -385,7 +393,7 @@ func insertNewBeacon(
 		ExpirationTime, LastUpdated, Usage, Beacon)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err = tx.ExecContext(ctx, inst, segID, fullID, start.ISD(), start.AS(), b.InIfId,
+	_, err = tx.ExecContext(ctx, inst, segID, fullID, start.ISD(), start.AS(), b.InIfID,
 		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, usage, packed)
 	if err != nil {
 		return db.NewWriteError("insert beacon", err)

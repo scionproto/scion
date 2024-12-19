@@ -23,13 +23,14 @@ from topology.util import write_file
 from topology.common import (
     ArgsBase,
     json_default,
-    sciond_svc_name,
+    docker_image,
+    sciond_name,
     SD_API_PORT,
     SIG_CONFIG_NAME,
     translate_features,
 )
 from topology.net import socket_address_str
-from topology.prometheus import SIG_PROM_PORT
+from topology.monitoring import SIG_PROM_PORT
 
 
 class SIGGenArgs(ArgsBase):
@@ -55,7 +56,6 @@ class SIGGenerator(object):
         self.dc_conf = args.dc_conf
         self.user = '%d:%d' % (os.getuid(), os.getgid())
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
-        self.prefix = ''
 
     def generate(self):
         for topo_id, topo in self.args.topo_dicts.items():
@@ -70,25 +70,16 @@ class SIGGenerator(object):
     def _dispatcher_conf(self, topo_id, base):
         # Create dispatcher config
         entry = {
-            'image':
-            'dispatcher',
-            'container_name':
-            'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
-            'depends_on': {
-                'utils_chowner': {
-                    'condition': 'service_started'
-                },
-            },
+            'image': docker_image(self.args, 'dispatcher'),
             'user':
             self.user,
             'networks': {},
             'volumes': [
-                self._disp_vol(topo_id),
-                '%s:/share/conf:rw' % base,
+                '%s:/etc/scion:rw' % base,
             ],
             'command':
             ['--config',
-             '/share/conf/disp_sig_%s.toml' % topo_id.file_fmt()],
+             '/etc/scion/disp_sig_%s.toml' % topo_id.file_fmt()],
         }
 
         net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
@@ -98,48 +89,37 @@ class SIGGenerator(object):
         entry['networks'][self.args.bridges[net['net']]] = {
             '%s_address' % ipv: str(net[ipv])
         }
-        self.dc_conf['services']['scion_disp_sig_%s' %
+        self.dc_conf['services']['disp_sig_%s' %
                                  topo_id.file_fmt()] = entry
-        vol_name = 'vol_scion_%sdisp_sig_%s' % (self.prefix,
-                                                topo_id.file_fmt())
-        self.dc_conf['volumes'][vol_name] = None
 
     def _sig_dc_conf(self, topo_id, base):
-        setup_name = 'scion_sig_setup_%s' % topo_id.file_fmt()
-        disp_id = 'scion_disp_sig_%s' % topo_id.file_fmt()
+        setup_name = 'sig_setup_%s' % topo_id.file_fmt()
+        disp_id = 'disp_sig_%s' % topo_id.file_fmt()
         self.dc_conf['services'][setup_name] = {
-            'image': 'tester:latest',
+            'image': docker_image(self.args, 'tester'),
             'depends_on': [disp_id],
             'entrypoint': './sig_setup.sh',
             'privileged': True,
             'network_mode': 'service:%s' % disp_id,
         }
-        self.dc_conf['services']['scion_sig_%s' % topo_id.file_fmt()] = {
-            'image':
-            'posix-gateway:latest',
-            'container_name':
-            'scion_%ssig_%s' % (self.prefix, topo_id.file_fmt()),
+        self.dc_conf['services']['sig_%s' % topo_id.file_fmt()] = {
+            'image': docker_image(self.args, 'gateway'),
             'depends_on': [
                 disp_id,
-                sciond_svc_name(topo_id),
+                sciond_name(topo_id),
                 setup_name,
             ],
             'environment': {
                 'SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL': '1s',
             },
             'cap_add': ['NET_ADMIN'],
-            # XXX(matzf): running as root; it _should_ work running as unprivileged user. The
-            # gateway is a setcap binary and that should suffice. It does work on Ubuntu,
-            # but on the RHEL machines in in CI it simply doesn't. Needs to be investigated & fixed.
-            #  'user': self.user,
             'volumes': [
-                self._disp_vol(topo_id),
                 '/dev/net/tun:/dev/net/tun',
-                '%s:/share/conf' % base,
+                '%s:/etc/scion' % base,
             ],
             'network_mode':
             'service:%s' % disp_id,
-            'command': ['--config', '/share/conf/sig.toml'],
+            'command': ['--config', '/etc/scion/sig.toml'],
         }
 
     def _sig_json(self, topo_id):
@@ -172,7 +152,7 @@ class SIGGenerator(object):
         sig_conf = {
             'gateway': {
                 'id': name,
-                'traffic_policy_file': 'conf/sig.json',
+                'traffic_policy_file': '/etc/scion/sig.json',
                 'ctrl_addr': str(net[ipv]),
             },
             'sciond_connection': {
@@ -194,7 +174,3 @@ class SIGGenerator(object):
         path = os.path.join(topo_id.base_dir(self.args.output_dir),
                             SIG_CONFIG_NAME)
         write_file(path, toml.dumps(sig_conf))
-
-    def _disp_vol(self, topo_id):
-        return 'vol_scion_%sdisp_sig_%s:/run/shm/dispatcher:rw' % (
-            self.prefix, topo_id.file_fmt())

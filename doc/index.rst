@@ -43,7 +43,8 @@ The ideas and concepts behind SCION.
   :doc:`SCION <overview>` |
   :doc:`Control Plane <control-plane>` |
   :doc:`Data Plane <data-plane>` |
-  SCION End Hosts
+  SCION End Hosts |
+  `Applications <https://docs.scion.org/projects/scion-applications/en/latest>`_
 
 
 Reference Manuals
@@ -57,6 +58,7 @@ implementation <https://github.com/scionproto/scion>`_.
    :caption: Reference Manuals
    :hidden:
 
+   manuals/install
    manuals/control
    manuals/router
    manuals/gateway
@@ -68,13 +70,16 @@ implementation <https://github.com/scionproto/scion>`_.
    command/scion-pki/scion-pki
 
    snet API <https://pkg.go.dev/github.com/scionproto/scion/pkg/snet>
+   Applications <https://docs.scion.org/projects/scion-applications/en/latest>
 
 * **For operators of SCION end hosts**:
+  :doc:`manuals/install` |
   :doc:`command/scion/scion` |
   :doc:`manuals/daemon` |
   :doc:`manuals/dispatcher`
 
 * **For operators of** :term:`SCION ASes <AS>`:
+  :doc:`manuals/install` |
   :doc:`manuals/control` |
   :doc:`manuals/router` |
   :doc:`manuals/gateway` |
@@ -88,6 +93,22 @@ implementation <https://github.com/scionproto/scion>`_.
    snet documentation should be a good starting point for using SCION as an application library.
    For this, the package documentation needs to be streamlined a bit...
 
+* **For users of SCION applications**:
+  `Applications <https://docs.scion.org/projects/scion-applications/en/latest>`_
+
+
+Guides and Tutorials
+^^^^^^^^^^^^^^^^^^^^
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Guides and Tutorials
+   :hidden:
+
+   tutorials/deploy
+
+* :doc:`tutorials/deploy`: Follow step by step instructions and see what a running SCION network could look like.
+
 Developer Documentation
 ^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -98,6 +119,7 @@ Developer Documentation
 
    dev/contribute
    dev/setup
+   dev/build
    dev/run
    dev/style/index
    dev/testing/index
@@ -113,6 +135,7 @@ Start with the :doc:`dev/contribute` to contribute to the open-source SCION impl
 
 * **Building and Running**:
   :doc:`dev/setup` |
+  :doc:`dev/build` |
   :doc:`dev/run` |
   :doc:`dev/dependencies` |
   :doc:`dev/testing/index`

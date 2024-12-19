@@ -36,10 +36,10 @@ func (m *MockSignerGen) EXPECT() *MockSignerGenMockRecorder {
 }
 
 // Generate mocks base method.
-func (m *MockSignerGen) Generate(arg0 context.Context) (trust.Signer, error) {
+func (m *MockSignerGen) Generate(arg0 context.Context) ([]trust.Signer, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Generate", arg0)
-	ret0, _ := ret[0].(trust.Signer)
+	ret0, _ := ret[0].([]trust.Signer)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

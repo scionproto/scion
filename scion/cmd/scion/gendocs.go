@@ -46,11 +46,11 @@ in the location given as an argument.`,
 				return fmt.Sprintf(":ref:`%s <%s>`", name, ref)
 			}
 			if err := os.MkdirAll(directory, 0755); err != nil {
-				return serrors.WrapStr("creating directory", err, "directory", directory)
+				return serrors.Wrap("creating directory", err, "directory", directory)
 			}
 			err := doc.GenReSTTreeCustom(cmd.Parent(), directory, filePrepender, linkHandler)
 			if err != nil {
-				return serrors.WrapStr("generating RST documentation", err)
+				return serrors.Wrap("generating RST documentation", err)
 			}
 
 			return nil

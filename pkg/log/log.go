@@ -60,8 +60,9 @@ func Setup(cfg Config, opts ...Option) error {
 func convertCfg(cfg ConsoleConfig) (zap.Config, error) {
 	var level zapcore.Level
 	if err := level.UnmarshalText([]byte(cfg.Level)); err != nil {
-		return zap.Config{}, serrors.WrapStr("unable to parse log.console.level", err,
+		return zap.Config{}, serrors.Wrap("unable to parse log.console.level", err,
 			"level", cfg.Level)
+
 	}
 	encoding := "console"
 	if cfg.Format == "json" {
@@ -90,8 +91,9 @@ func getStacktraceLvl(cfg ConsoleConfig) (zapcore.LevelEnabler, error) {
 	}
 	var level zapcore.Level
 	if err := level.UnmarshalText([]byte(cfg.StacktraceLevel)); err != nil {
-		return nil, serrors.WrapStr("unable to parse log.console.stacktrace_level", err,
+		return nil, serrors.Wrap("unable to parse log.console.stacktrace_level", err,
 			"level", cfg.Level)
+
 	}
 	return level, nil
 }
@@ -114,7 +116,7 @@ func setupConsole(cfg ConsoleConfig, opts options) error {
 
 	logger, err := zCfg.Build(zapOpts...)
 	if err != nil {
-		return serrors.WrapStr("creating logger", err)
+		return serrors.Wrap("creating logger", err)
 	}
 	zap.ReplaceGlobals(logger)
 	ConsoleLevel = httpLevel{a: zCfg.Level}

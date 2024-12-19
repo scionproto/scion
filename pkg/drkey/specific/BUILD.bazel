@@ -19,6 +19,7 @@ go_test(
     data = glob(["testdata/**"]),
     deps = [
         ":go_default_library",
+        "//pkg/addr:go_default_library",
         "//pkg/drkey:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//private/drkey/drkeytest:go_default_library",

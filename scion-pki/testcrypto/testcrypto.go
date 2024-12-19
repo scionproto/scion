@@ -313,7 +313,7 @@ func createTRCs(cfg config) error {
 			BaseVersion:   1,
 			VotingQuorum:  uint8(len(voters[isd])/2 + 1),
 			Validity: conf.Validity{
-				NotBefore: uint32(cfg.now.UTC().Unix()),
+				NotBefore: conf.Time(cfg.now.UTC()),
 				Validity:  util.DurWrap{Duration: 450 * 24 * time.Hour},
 			},
 			CoreASes:          cores[isd],
@@ -321,13 +321,13 @@ func createTRCs(cfg config) error {
 			CertificateFiles:  certFiles[isd],
 		}
 		sort.Strings(trcConf.CertificateFiles)
-		trc, err := trcs.CreatePayload(trcConf)
+		trc, err := trcs.CreatePayload(trcConf, nil)
 		if err != nil {
-			return serrors.WrapStr("creating TRC payload", err, "isd", isd)
+			return serrors.Wrap("creating TRC payload", err, "isd", isd)
 		}
 		raw, err := trc.Encode()
 		if err != nil {
-			return serrors.WrapStr("encoding TRC payload", err, "isd", isd)
+			return serrors.Wrap("encoding TRC payload", err, "isd", isd)
 		}
 
 		parts := make(map[string]cppki.SignedTRC, len(voters[isd])*2)
@@ -339,19 +339,19 @@ func createTRCs(cfg config) error {
 
 			sensitive, err := signPayload(raw, voterInfo.sensitiveKey, voterInfo.sensitiveCert)
 			if err != nil {
-				return serrors.WrapStr("signing TRC payload - sensitive", err)
+				return serrors.Wrap("signing TRC payload - sensitive", err)
 			}
 			parts[fmt.Sprintf("ISD%d-B1-S1.%s-sensitive.trc", isd, voter)] = sensitive
 			regular, err := signPayload(raw, voterInfo.regularKey, voterInfo.regularCert)
 			if err != nil {
-				return serrors.WrapStr("signing TRC payload - regular", err)
+				return serrors.Wrap("signing TRC payload - regular", err)
 			}
 			parts[fmt.Sprintf("ISD%d-B1-S1.%s-regular.trc", isd, voter)] = regular
 		}
 
 		combined, err := trcs.CombineSignedPayloads(parts)
 		if err != nil {
-			return serrors.WrapStr("combining signed TRC payloads", err)
+			return serrors.Wrap("combining signed TRC payloads", err)
 		}
 		combined = pem.EncodeToMemory(&pem.Block{
 			Type:  "TRC",
@@ -359,26 +359,25 @@ func createTRCs(cfg config) error {
 		})
 		if err := os.WriteFile(filepath.Join(trcDir(isd, cfg.out),
 			fmt.Sprintf("ISD%d-B1-S1.trc", isd)), combined, 0644); err != nil {
-			return serrors.WrapStr("writing TRC", err)
+			return serrors.Wrap("writing TRC", err)
 		}
 	}
 	return nil
 }
 
 func loadVoterInfo(voter addr.IA, votingDir string) (*voterInfo, error) {
-	sensitiveKey, err := key.LoadPrivateKey(
-		filepath.Join(votingDir, "sensitive-voting.key"))
+	sensitiveKey, err := key.LoadPrivateKey("", filepath.Join(votingDir, "sensitive-voting.key"))
 	if err != nil {
-		return nil, serrors.WrapStr("loading sensitive key", err)
+		return nil, serrors.Wrap("loading sensitive key", err)
 	}
-	regularKey, err := key.LoadPrivateKey(filepath.Join(votingDir, "regular-voting.key"))
+	regularKey, err := key.LoadPrivateKey("", filepath.Join(votingDir, "regular-voting.key"))
 	if err != nil {
-		return nil, serrors.WrapStr("loading regular key", err)
+		return nil, serrors.Wrap("loading regular key", err)
 	}
 	sensitiveCerts, err := cppki.ReadPEMCerts(
 		filepath.Join(votingDir, sensitiveCertName(voter)))
 	if err != nil {
-		return nil, serrors.WrapStr("loading sensitive cert", err)
+		return nil, serrors.Wrap("loading sensitive cert", err)
 	}
 	if len(sensitiveCerts) > 1 {
 		return nil, serrors.New("more than one sensitive cert found", "ia", voter)
@@ -386,7 +385,7 @@ func loadVoterInfo(voter addr.IA, votingDir string) (*voterInfo, error) {
 	regularCerts, err := cppki.ReadPEMCerts(
 		filepath.Join(votingDir, regularCertName(voter)))
 	if err != nil {
-		return nil, serrors.WrapStr("loading regular cert", err)
+		return nil, serrors.Wrap("loading regular cert", err)
 	}
 	if len(regularCerts) > 1 {
 		return nil, serrors.New("more than one regular cert found", "ia", voter)
@@ -486,7 +485,7 @@ func flatten(out outConfig) error {
 	for _, trc := range trcs {
 		_, name := filepath.Split(trc)
 		if err := copyFile(filepath.Join(out.base, "trcs", name), trc); err != nil {
-			return serrors.WithCtx(err, "file", trc)
+			return serrors.Wrap("copying", err, "file", trc)
 		}
 	}
 
@@ -506,7 +505,7 @@ func flatten(out outConfig) error {
 	for _, file := range append(pems, crts...) {
 		_, name := filepath.Split(file)
 		if err := copyFile(filepath.Join(out.base, "certs", name), file); err != nil {
-			return serrors.WithCtx(err, "file", file)
+			return serrors.Wrap("copying", err, "file", file)
 		}
 	}
 	return nil

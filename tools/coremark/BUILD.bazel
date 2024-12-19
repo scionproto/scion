@@ -1,0 +1,29 @@
+cflags = "-O2"
+
+cc_library(
+    name = "coremarkobjs",
+    srcs = glob(
+        ["**/*.c"],
+        exclude = ["core_main.c"],
+    ),
+    hdrs = glob(["**/*.h"]),
+    copts = [
+        cflags,
+        "-Itools/coremark",
+        "-Itools/coremark/posix",
+        "-DFLAGS_STR='\"%s\"'" % cflags,
+    ],
+)
+
+cc_binary(
+    name = "coremark",
+    srcs = ["core_main.c"],
+    copts = [
+        cflags,
+        "-Itools/coremark",
+        "-Itools/coremark/posix",
+        "-DFLAGS_STR='\"%s\"'" % cflags,
+    ],
+    visibility = ["//visibility:public"],
+    deps = [":coremarkobjs"],
+)

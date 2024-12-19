@@ -19,7 +19,7 @@ go_library(
         "//pkg/log:go_default_library",
         "//pkg/private/common:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "@com_github_antlr_antlr4_runtime_go_antlr//:go_default_library",
+        "@com_github_antlr4_go_antlr_v4//:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
         "@com_github_google_gopacket//layers:go_default_library",
     ],

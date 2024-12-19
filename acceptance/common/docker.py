@@ -35,15 +35,12 @@ import plumbum
 from plumbum import cmd
 
 SCION_DC_FILE = "gen/scion-dc.yml"
-DC_PROJECT = "scion"
 SCION_TESTING_DOCKER_ASSERTIONS_OFF = 'SCION_TESTING_DOCKER_ASSERTIONS_OFF'
 
 
 class Compose(object):
     def __init__(self,
-                 project: str = DC_PROJECT,
                  compose_file: str = SCION_DC_FILE):
-        self.project = project
         self.compose_file = compose_file
 
     def __call__(self, *args, **kwargs) -> str:
@@ -51,7 +48,7 @@ class Compose(object):
         # Note: not using plumbum here due to complications with encodings in the captured output
         try:
             res = subprocess.run(
-                ["docker-compose", "-f", self.compose_file, "-p", self.project, *args],
+                ["docker", "compose", "-f", self.compose_file, *args],
                 check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
         except subprocess.CalledProcessError as e:
             raise _CalledProcessErrorWithOutput(e) from None
@@ -64,8 +61,9 @@ class Compose(object):
         for svc in self("config", "--services").splitlines():
             # Collect logs.
             dst_f = out_p / "%s.log" % svc
+            print(svc)
             with open(dst_f, "w") as log_file:
-                cmd.docker.run(args=("logs", svc), stdout=log_file,
+                cmd.docker.run(args=("logs", "scion-"+svc+"-1"), stdout=log_file,
                                stderr=subprocess.STDOUT, retcode=None)
             # Collect coredupms.
             coredump_f = out_p / "%s.coredump" % svc
@@ -200,7 +198,7 @@ def assert_no_networks(writer=None):
             writer.write("Docker networking assertions are OFF\n")
         return
 
-    allowed_nets = ['bridge', 'host', 'none']
+    allowed_nets = ['bridge', 'host', 'none', 'benchmark']
     unexpected_nets = []
     for net in _get_networks():
         if net.name not in allowed_nets:
