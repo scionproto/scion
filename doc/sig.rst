@@ -42,7 +42,7 @@ To preserve performance, IP packets that form a sequence leave the egress SIG in
 - The ingress SIG sends all frames of a given stream over the same SCION path.
 - The egress SIG reassembles and forward packets from each stream, ordered by frame sequence number and by packet within each frame.
 
-The session ID part of the (session ID, stream ID) pair is used to differentiate traffic classes. The egress SIG does not interpret session IDs, but dedicates, as much as possible, processing resources to each session (and not to each individual stream). The ingress SIG takes advantage of this by using different sessions for different traffic classes, thereby allowing them to receive a fair share of the egress processing resources. As a result lesser used sessions (presumably with higher priority traffic) receive relatively more processing resources.
+The session ID part of the (session ID, stream ID) pair has an implementation defined meaning. Existing implementations use different session IDs for different traffic classes: the ingress SIG is responsible for assigning a traffic class. On the egress SIG side, the session ID may inform the processing of frames and enables per-class metrics.
 
 The Stack
 ---------
@@ -90,7 +90,7 @@ A SIG MAY drop frames. In the current implementation, the egress SIG does not bu
 SIG frame payload
 -----------------
 
-SIG frame payload may contain multiple IPv4 or IPv6 packets, or parts
+The SIG frame payload may contain multiple IPv4 or IPv6 packets, or parts
 thereof. No other types of packets can be encapsulated. The packets are
 placed one directly after another, with no padding.
 Multicast traffic is not supported yet.
