@@ -95,6 +95,7 @@ class ConfigGenerator(object):
         Generate all needed files.
         """
         self._ensure_uniq_ases()
+        self._canonicalize_isd_asns()
         topo_dicts, self.all_networks = self._generate_topology()
         self.networks = remove_v4_nets(self.all_networks)
         self._generate_with_topo(topo_dicts)
@@ -109,6 +110,12 @@ class ConfigGenerator(object):
                 logging.critical("Non-unique AS Id '%s'", ia.as_str())
                 sys.exit(1)
             seen.add(ia.as_str())
+
+    def _canonicalize_isd_asns(self):
+        canonicalized = {}
+        for asStr, value in self.topo_config["ASes"].items():
+            canonicalized[str(ISD_AS(asStr))] = value
+        self.topo_config["ASes"] = canonicalized
 
     def _generate_with_topo(self, topo_dicts):
         self._generate_go(topo_dicts)
