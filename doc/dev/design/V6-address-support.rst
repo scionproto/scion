@@ -152,7 +152,7 @@ Address structure evolution
     * One 32 bits-wide block for pure SCION ASNs.
     * One 16 bits-wide block for examples.
     * One 24 bits-wide block for test deployments.
-    
+
     The two different ASNs blocks exist so that IP ASNs can be grand-fathered
     into SCION while non IP ASNs can be given a SCION ASN number without
     coliding with the grand-fathered numbers. However, IP ASNs only use
@@ -348,7 +348,7 @@ The thing currently most ressembling a SCION API is the snet package. The snet A
 currently is does not allow the use of addresses as opaque entities. The application is
 expected to openly manipulate address components, find a route, and even connect to the
 border router by itself. Under these conditions it not even possible to initiate the
-transition to V6 addresses for our own client code (i.e. the control server, ping, others?). 
+transition to V6 addresses for our own client code (i.e. the control server, ping, others?).
 
 So, to make that possible we must first give our application some API that allows them
 to treat an address as just that: a bunch of random bits plus, may be a port; something
