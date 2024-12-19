@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -168,6 +169,14 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 		if err != nil {
 			return err
 		}
+		if remoteAddr == nil {
+			// XXX(JordiSubira): The remote address of the underlay next host
+			// will not be nil unless there was an error while reading the
+			// SCION packet. If the err is nil, it means that it was a
+			// non-recoverable error (e.g., decoding the header) and we
+			// discard the packet and keep reading.
+			continue
+		}
 		*ov = *remoteAddr
 		if scmp, ok := pkt.Payload.(SCMPPayload); ok {
 			if c.SCMPHandler == nil {
@@ -206,7 +215,17 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	pkt.Bytes = pkt.Bytes[:n]
 	if err := pkt.Decode(); err != nil {
 		metrics.CounterInc(c.Metrics.ParseErrors)
-		return nil, serrors.Wrap("decoding packet", err)
+		// XXX(JordiSubira): We avoid bubbling up parsing errors to the
+		// caller application. This simulates that the network stack
+		// simply discards incorrect/malformated packets. Otherwise,
+		// some libraries/applications would misbehave (similar to what
+		// would happen if were to receive SCMP errors).
+		//
+		// If we believe that SCION-aware applications using the low-level
+		// SCIONPacketConn should receive the error, we can move this up to
+		// Conn.
+		log.Error("decoding packet", "error", err)
+		return nil, nil
 	}
 
 	udpRemoteAddr := remoteAddr.(*net.UDPAddr)
@@ -218,7 +237,17 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 		// *loopback:30041* `SCIONPacketConn.lastHop()` should yield the right next hop address.
 		lastHop, err = c.lastHop(pkt)
 		if err != nil {
-			return nil, serrors.Wrap("extracting last hop based on packet path", err)
+			// XXX(JordiSubira): We avoid bubbling up parsing errors to the
+			// caller application. This simulates that the network stack
+			// simply discards incorrect/malformated packets. Otherwise,
+			// some libraries/applications would misbehave (similar to what
+			// would happen if were to receive SCMP errors).
+			//
+			// If we believe that SCION-aware applications using the low-level
+			// SCIONPacketConn should receive the error, we can move this up to
+			// Conn.
+			log.Error("extracting last hop based on packet path", "error", err)
+			return nil, nil
 		}
 	}
 	return lastHop, nil
