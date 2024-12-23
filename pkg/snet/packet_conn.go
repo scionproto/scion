@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -168,6 +169,14 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 		if err != nil {
 			return err
 		}
+		if remoteAddr == nil {
+			// XXX(JordiSubira): The remote address of the underlay next host
+			// will not be nil unless there was an error while reading the
+			// SCION packet. If the err is nil, it means that it was a
+			// non-recoverable error (e.g., decoding the header) and we
+			// discard the packet and keep
+			continue
+		}
 		*ov = *remoteAddr
 		if scmp, ok := pkt.Payload.(SCMPPayload); ok {
 			if c.SCMPHandler == nil {
@@ -206,7 +215,11 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	pkt.Bytes = pkt.Bytes[:n]
 	if err := pkt.Decode(); err != nil {
 		metrics.CounterInc(c.Metrics.ParseErrors)
-		return nil, serrors.Wrap("decoding packet", err)
+		// XXX(JordiSubira): We avoid bubbling up parsing errors to the
+		// caller application to avoid problems with applications
+		// that don't expect this type of errors.
+		log.Debug("decoding packet", "error", err)
+		return nil, nil
 	}
 
 	udpRemoteAddr := remoteAddr.(*net.UDPAddr)
@@ -218,7 +231,11 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 		// *loopback:30041* `SCIONPacketConn.lastHop()` should yield the right next hop address.
 		lastHop, err = c.lastHop(pkt)
 		if err != nil {
-			return nil, serrors.Wrap("extracting last hop based on packet path", err)
+			// XXX(JordiSubira): We avoid bubbling up parsing errors to the
+			// caller application to avoid problems with applications
+			// that don't expect this type of errors.
+			log.Debug("extracting last hop based on packet path", "error", err)
+			return nil, nil
 		}
 	}
 	return lastHop, nil
