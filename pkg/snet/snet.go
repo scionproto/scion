@@ -95,10 +95,6 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 	if err != nil {
 		return nil, err
 	}
-	ifAddrs, err := n.Topology.Interfaces(ctx)
-	if err != nil {
-		return nil, err
-	}
 	if addr.Port == 0 {
 		pconn, err = listenUDPRange(addr, start, end)
 	} else {
@@ -118,10 +114,10 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 		return nil, err
 	}
 	return &SCIONPacketConn{
-		Conn:         pconn,
-		SCMPHandler:  n.SCMPHandler,
-		Metrics:      n.PacketConnMetrics,
-		interfaceMap: ifAddrs,
+		Conn:        pconn,
+		SCMPHandler: n.SCMPHandler,
+		Metrics:     n.PacketConnMetrics,
+		Topology:    n.Topology,
 	}, nil
 }
 
