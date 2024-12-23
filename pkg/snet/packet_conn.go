@@ -15,7 +15,6 @@
 package snet
 
 import (
-	"context"
 	"net"
 	"syscall"
 	"time"
@@ -343,16 +342,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 }
 
 func (c *SCIONPacketConn) ifIDToAddr(ifID uint16) (*net.UDPAddr, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-	intfs, err := c.Topology.Interfaces(ctx)
-	if err != nil {
-		return nil, serrors.Wrap(
-			"resolving interfaces address (fetching interfaces)", err,
-			"interface", ifID,
-		)
-	}
-	addrPort, ok := intfs[ifID]
+	addrPort, ok := c.Topology.Interface(ifID)
 	if !ok {
 		return nil, serrors.New("interface number not found", "interface", ifID)
 	}

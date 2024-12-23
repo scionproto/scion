@@ -739,9 +739,13 @@ func (r *renewer) requestRemote(
 		IA:   r.LocalIA,
 		Host: &net.UDPAddr{IP: localIP},
 	}
+	topo, err := daemon.LoadTopology(ctx, r.Daemon)
+	if err != nil {
+		return nil, serrors.Wrap("loading topology", err)
+	}
 
 	sn := &snet.SCIONNetwork{
-		Topology: r.Daemon,
+		Topology: topo,
 		SCMPHandler: snet.SCMPPropagationStopper{
 			Handler: snet.DefaultSCMPHandler{
 				RevocationHandler: daemon.RevHandler{Connector: r.Daemon},

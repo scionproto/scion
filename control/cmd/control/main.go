@@ -222,7 +222,7 @@ func realMain(ctx context.Context) error {
 		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
 		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
 		MTU:                    topo.MTU(),
-		Topology:               cpInfoProvider{topo: topo},
+		Topology:               adaptTopology(topo),
 	}
 	quicStack, err := nc.QUICStack()
 	if err != nil {
@@ -945,29 +945,24 @@ func (h *healther) GetCAHealth(ctx context.Context) (api.CAHealthStatus, bool) {
 	return api.Unavailable, false
 }
 
-type cpInfoProvider struct {
-	topo *topology.Loader
-}
-
-func (c cpInfoProvider) LocalIA(_ context.Context) (addr.IA, error) {
-	return c.topo.IA(), nil
-}
-
-func (c cpInfoProvider) PortRange(_ context.Context) (uint16, uint16, error) {
-	start, end := c.topo.PortRange()
-	return start, end, nil
-}
-
-func (c cpInfoProvider) Interfaces(_ context.Context) (map[uint16]netip.AddrPort, error) {
-	ifMap := c.topo.InterfaceInfoMap()
-	ifsToUDP := make(map[uint16]netip.AddrPort, len(ifMap))
-	for i, v := range ifMap {
-		if i > (1<<16)-1 {
-			return nil, serrors.New("invalid interface id", "id", i)
-		}
-		ifsToUDP[uint16(i)] = v.InternalAddr
+func adaptTopology(topo *topology.Loader) snet.Topology {
+	start, end := topo.PortRange()
+	return snet.Topology{
+		LocalIA: topo.IA(),
+		PortRange: snet.TopologyPortRange{
+			Start: start,
+			End:   end,
+		},
+		Interface: func(ifID uint16) (netip.AddrPort, bool) {
+			// XXX(lukedirtwalker): The amount of conversiones between
+			// netip.AddrPort and *net.UDPAddr is a bit too high...
+			a := topo.UnderlayNextHop(ifID)
+			if a == nil {
+				return netip.AddrPort{}, false
+			}
+			return a.AddrPort(), true
+		},
 	}
-	return ifsToUDP, nil
 }
 
 func getCAHealth(
