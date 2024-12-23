@@ -15,8 +15,8 @@
 package snet
 
 import (
+	"context"
 	"net"
-	"net/netip"
 	"syscall"
 	"time"
 
@@ -122,8 +122,9 @@ type SCIONPacketConn struct {
 	// SCMP message is received.
 	SCMPHandler SCMPHandler
 	// Metrics are the metrics exported by the conn.
-	Metrics      SCIONPacketConnMetrics
-	interfaceMap interfaceMap
+	Metrics SCIONPacketConnMetrics
+	// Topology provides interface information for the local AS.
+	Topology Topology
 }
 
 func (c *SCIONPacketConn) SetReadBuffer(bytes int) error {
@@ -299,7 +300,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if !path.Info.ConsDir {
 			ifID = path.SecondHop.ConsEgress
 		}
-		return c.interfaceMap.get(ifID)
+		return c.ifIDToAddr(ifID)
 	case epic.PathType:
 		var path epic.Path
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
@@ -317,7 +318,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if !infoField.ConsDir {
 			ifID = hf.ConsEgress
 		}
-		return c.interfaceMap.get(ifID)
+		return c.ifIDToAddr(ifID)
 	case scion.PathType:
 		var path scion.Raw
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
@@ -335,10 +336,27 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if !infoField.ConsDir {
 			ifID = hf.ConsEgress
 		}
-		return c.interfaceMap.get(ifID)
+		return c.ifIDToAddr(ifID)
 	default:
 		return nil, serrors.New("unknown path type", "type", rpath.PathType.String())
 	}
+}
+
+func (c *SCIONPacketConn) ifIDToAddr(ifID uint16) (*net.UDPAddr, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	intfs, err := c.Topology.Interfaces(ctx)
+	if err != nil {
+		return nil, serrors.Wrap(
+			"resolving interfaces address (fetching interfaces)", err,
+			"interface", ifID,
+		)
+	}
+	addrPort, ok := intfs[ifID]
+	if !ok {
+		return nil, serrors.New("interface number not found", "interface", ifID)
+	}
+	return net.UDPAddrFromAddrPort(addrPort), nil
 }
 
 type SerializationOptions struct {
@@ -354,14 +372,4 @@ type SerializationOptions struct {
 	// previous offsets. If it is set to false, then the fields are left
 	// unchanged.
 	InitializePaths bool
-}
-
-type interfaceMap map[uint16]netip.AddrPort
-
-func (m interfaceMap) get(id uint16) (*net.UDPAddr, error) {
-	addrPort, ok := m[id]
-	if !ok {
-		return nil, serrors.New("interface number not found", "interface", id)
-	}
-	return net.UDPAddrFromAddrPort(addrPort), nil
 }
