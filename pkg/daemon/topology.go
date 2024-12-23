@@ -64,16 +64,29 @@ type ReloadingTopology struct {
 
 // NewReloadingTopology creates a new ReloadingTopology that reloads the
 // interface information periodically. The Run method must be called for
-// interface information to be populated.
+// interface information to be populated. NOTE: The reloading topology does not
+// clean up old interface information, so if you have a lot of interface churn,
+// you may want to use a different implementation.
 func NewReloadingTopology(ctx context.Context, conn Connector) (*ReloadingTopology, error) {
-	topo, err := LoadTopology(ctx, conn)
+	ia, err := conn.LocalIA(ctx)
 	if err != nil {
+		return nil, serrors.Wrap("loading local ISD-AS", err)
+	}
+	start, end, err := conn.PortRange(ctx)
+	if err != nil {
+		return nil, serrors.Wrap("loading port range", err)
+	}
+	t := &ReloadingTopology{
+		conn: conn,
+		baseTopology: snet.Topology{
+			LocalIA:   ia,
+			PortRange: snet.TopologyPortRange{Start: start, End: end},
+		},
+	}
+	if err := t.loadInterfaces(ctx); err != nil {
 		return nil, err
 	}
-	return &ReloadingTopology{
-		conn:         conn,
-		baseTopology: topo,
-	}, nil
+	return t, nil
 }
 
 func (t *ReloadingTopology) Topology() snet.Topology {
@@ -96,15 +109,12 @@ func (t *ReloadingTopology) Run(ctx context.Context, period time.Duration) {
 	defer ticker.Stop()
 
 	reload := func() {
-		intfs, err := t.conn.Interfaces(ctx)
-		if err != nil {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		defer cancel()
+		if err := t.loadInterfaces(ctx); err != nil {
 			log.FromCtx(ctx).Error("Failed to reload interfaces", "err", err)
 		}
-		for ifID, addr := range intfs {
-			t.interfaces.Store(ifID, addr)
-		}
 	}
-
 	reload()
 	for {
 		select {
@@ -114,4 +124,15 @@ func (t *ReloadingTopology) Run(ctx context.Context, period time.Duration) {
 			reload()
 		}
 	}
+}
+
+func (t *ReloadingTopology) loadInterfaces(ctx context.Context) error {
+	intfs, err := t.conn.Interfaces(ctx)
+	if err != nil {
+		return err
+	}
+	for ifID, addr := range intfs {
+		t.interfaces.Store(ifID, addr)
+	}
+	return nil
 }
