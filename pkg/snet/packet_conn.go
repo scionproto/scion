@@ -246,12 +246,8 @@ func (c *SCIONPacketConn) LocalAddr() net.Addr {
 // comes from *loopback:30041*.
 func (c *SCIONPacketConn) isShimDispatcher(udpAddr *net.UDPAddr) bool {
 	localAddr := c.LocalAddr().(*net.UDPAddr)
-	if udpAddr.IP.Equal(localAddr.IP) ||
-		udpAddr.IP.IsLoopback() &&
-			udpAddr.Port == underlay.EndhostPort {
-		return true
-	}
-	return false
+	return udpAddr.Port == underlay.EndhostPort &&
+		(udpAddr.IP.Equal(localAddr.IP) || udpAddr.IP.IsLoopback())
 }
 
 func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
