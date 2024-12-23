@@ -3,7 +3,7 @@ NAT IP/port discovery
 *********************
 
 - Author(s): Marc Frei, Jan Luan, Tilmann Zäschke
-- Last updated: 2024-12-11
+- Last updated: 2024-12-22
 - Status: **WIP**
 - Discussion at: :issue:`4517`
 
@@ -65,8 +65,12 @@ To avoid potential misunderstandings: this proposal only addresses the problem o
 the goal to also support NAT traversal techniques such as NAT hole punching SCION-based servers and peer-to-peer
 scenarios.
 
-Also note that the NAT issue only exists for traffic between separate ASes. If both the client and the server are located within
-the same AS, the server can simply send returning packets to the underlay source address of the client (which is visible to the server in this case).
+Furthermore, the proposed solution involving border routers is only necessary for traffic between separate ASes.
+For intra-AS traffic, the NAT problem can be solved by changing the endhost implentation such that returning packets are always sent back to the
+underlay source address (which may be a NAT'ed) instead of the SCION source address.
+This is possible since within the local AS, the underlay headers do not change during transit as opposed to the inter-AS case.
+We note that this only works for servers listening on ports that are not routed through a SHIM dispatcher.
+However, we hope that by the time our solution rolls out, SHIM dispatchers would have become obsolete.
 
 The implementation on the protocol level could be done in several ways:
 
@@ -234,15 +238,14 @@ Implementation
 Necessary border router and snet library modifications have been coded for three approaches proposed in the *Proposal* section:
 STUN/UDP/IP, STUN/SCION/UDP/IP, and SCMP message extension.
 It was agreed that a PR would be created for the STUN/UDP/IP variant.
-The STUN specification used is the newer specification (RFC5389).
+The STUN specification used is the newer specification (`RFC 5389 <https://datatracker.ietf.org/doc/html/rfc5389>`_).
 Support in client libraries (PAN, JPAN) will be added subsequently.
 
 Client Side Considerations
 --------------------------
 - AS local traffic:
   For communication within the same AS, the endhost should send returning packets to the underlay source address of the sender
-  simply by reversing src/dst addresses of the underlay in addition to reversing the src/dst addresses in the SCION header.
-  The sending endhost would then not need to use STUN.
+  instead of the SCION source address. The sending endhost would then not need to use STUN.
 
   Rationale: Since AS local communication does not involve a border router, it would be unclear which border router the client
   should choose, if it were to send a STUN request. The AS may be split into multiple subnets, with different border routers in each subnet.
