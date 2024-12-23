@@ -134,13 +134,21 @@ func (s server) run() {
 
 	sdConn := integration.SDConn()
 	defer sdConn.Close()
+
+	loadCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	topo, err := daemon.LoadTopology(loadCtx, sdConn)
+	if err != nil {
+		integration.LogFatal("Error loading topology", "err", err)
+	}
+
 	sn := &snet.SCIONNetwork{
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
 		PacketConnMetrics: scionPacketConnMetrics,
-		Topology:          sdConn,
+		Topology:          topo,
 	}
 	conn, err := sn.Listen(context.Background(), "udp", integration.Local.Host)
 	if err != nil {
@@ -233,13 +241,21 @@ func (c *client) run() int {
 	defer integration.Done(integration.Local.IA, remote.IA)
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
+
+	loadCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	topo, err := daemon.LoadTopology(loadCtx, c.sdConn)
+	if err != nil {
+		integration.LogFatal("Error loading topology", "err", err)
+	}
+
 	c.network = &snet.SCIONNetwork{
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
 		PacketConnMetrics: scionPacketConnMetrics,
-		Topology:          c.sdConn,
+		Topology:          topo,
 	}
 	log.Info("Send", "local",
 		fmt.Sprintf("%v,[%v] -> %v,[%v]",

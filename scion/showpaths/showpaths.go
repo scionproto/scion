@@ -309,10 +309,11 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		return nil, serrors.Wrap("connecting to the SCION Daemon", err, "addr", cfg.Daemon)
 	}
 	defer sdConn.Close()
-	localIA, err := sdConn.LocalIA(ctx)
+	topo, err := daemon.LoadTopology(ctx, sdConn)
 	if err != nil {
-		return nil, serrors.Wrap("determining local ISD-AS", err)
+		return nil, serrors.Wrap("loading topology", err)
 	}
+	localIA := topo.LocalIA
 	if dst == localIA {
 		return &Result{
 			LocalIA:     localIA,
@@ -355,7 +356,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			DstIA:    dst,
 			LocalIA:  localIA,
 			LocalIP:  cfg.Local,
-			Topology: sdConn,
+			Topology: topo,
 		}.GetStatuses(ctx, p, pathprobe.WithEPIC(cfg.Epic))
 		if err != nil {
 			return nil, serrors.Wrap("getting statuses", err)

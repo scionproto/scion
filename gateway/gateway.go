@@ -240,10 +240,16 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// *********************************************
 	// Initialize base SCION network information: IA
 	// *********************************************
-	localIA, err := g.Daemon.LocalIA(context.Background())
+	topoReloader, err := daemon.NewReloadingTopology(ctx, g.Daemon)
 	if err != nil {
-		return serrors.Wrap("unable to learn local ISD-AS number", err)
+		return serrors.Wrap("loading topology", err)
 	}
+	topo := topoReloader.Topology()
+	go func() {
+		defer log.HandlePanic()
+		topoReloader.Run(ctx, 10*time.Second)
+	}()
+	localIA := topo.LocalIA
 	logger.Info("Learned local IA from SCION Daemon", "ia", localIA)
 
 	// *************************************************************************
@@ -299,7 +305,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 					ProbesSendErrors:       probesSendErrors,
 					SCMPErrors:             g.Metrics.SCMPErrors,
 					SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
-					Topology:               g.Daemon,
+					Topology:               topo,
 				},
 				PathUpdateInterval: PathUpdateInterval(ctx),
 				PathFetchTimeout:   0, // using default for now
@@ -409,7 +415,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
 	// will cause the server's accepts to fail, we ignore SCMP.
 	scionNetworkNoSCMP := &snet.SCIONNetwork{
-		Topology: g.Daemon,
+		Topology: topo,
 		// Discard all SCMP propagation, to avoid accept/read errors on the
 		// QUIC server/client.
 		SCMPHandler: snet.SCMPPropagationStopper{
@@ -472,7 +478,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// scionNetwork is the network for all SCION connections, with the exception of the QUIC server
 	// and client connection.
 	scionNetwork := &snet.SCIONNetwork{
-		Topology: g.Daemon,
+		Topology: topo,
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: revocationHandler,
 			SCMPErrors:        g.Metrics.SCMPErrors,

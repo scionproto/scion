@@ -151,11 +151,12 @@ On other errors, ping will exit with code 2.
 			}
 			defer sd.Close()
 
-			info, err := app.QueryASInfo(traceCtx, sd)
+			topo, err := daemon.LoadTopology(ctx, sd)
 			if err != nil {
-				return err
+				return serrors.Wrap("loading topology", err)
 			}
-			span.SetTag("src.isd_as", info.IA)
+
+			span.SetTag("src.isd_as", topo.LocalIA)
 
 			opts := []path.Option{
 				path.WithInteractive(flags.interactive),
@@ -166,7 +167,7 @@ On other errors, ping will exit with code 2.
 			}
 			if flags.healthyOnly {
 				opts = append(opts, path.WithProbing(&path.ProbeConfig{
-					LocalIA: info.IA,
+					LocalIA: topo.LocalIA,
 					LocalIP: localIP,
 				}))
 			}
@@ -212,7 +213,7 @@ On other errors, ping will exit with code 2.
 				panic("Invalid Local IP address")
 			}
 			local := addr.Addr{
-				IA:   info.IA,
+				IA:   topo.LocalIA,
 				Host: addr.HostIP(asNetipAddr),
 			}
 			pldSize := int(flags.size)
@@ -266,7 +267,7 @@ On other errors, ping will exit with code 2.
 			}
 
 			stats, err := ping.Run(ctx, ping.Config{
-				Topology:    sd,
+				Topology:    topo,
 				Attempts:    count,
 				Interval:    flags.interval,
 				Timeout:     flags.timeout,
