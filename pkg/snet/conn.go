@@ -16,7 +16,6 @@
 package snet
 
 import (
-	"context"
 	"net"
 	"time"
 
@@ -65,20 +64,12 @@ func NewCookedConn(
 	options ...ConnOption,
 ) (*Conn, error) {
 	o := apply(options)
-	localIA, err := topo.LocalIA(context.Background())
-	if err != nil {
-		return nil, err
-	}
 	local := &UDPAddr{
-		IA:   localIA,
+		IA:   topo.LocalIA,
 		Host: pconn.LocalAddr().(*net.UDPAddr),
 	}
 	if local.Host == nil || local.Host.IP.IsUnspecified() {
 		return nil, serrors.New("nil or unspecified address is not supported.")
-	}
-	start, end, err := topo.PortRange(context.Background())
-	if err != nil {
-		return nil, err
 	}
 	return &Conn{
 		conn:   pconn,
@@ -89,8 +80,8 @@ func NewCookedConn(
 			buffer:              make([]byte, common.SupportedMTU),
 			local:               local,
 			remote:              o.remote,
-			dispatchedPortStart: start,
-			dispatchedPortEnd:   end,
+			dispatchedPortStart: topo.PortRange.Start,
+			dispatchedPortEnd:   topo.PortRange.End,
 		},
 		scionConnReader: scionConnReader{
 			conn:        pconn,
