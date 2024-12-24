@@ -38,10 +38,8 @@ package snet
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/netip"
-	"syscall"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -195,7 +193,7 @@ func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) 
 	// by longer-lived applications, e.g., server applications.
 	//
 	// Ideally we would only take a standard ephemeral range, e.g., 32768-65535,
-	// Unfortunately, this range was ocuppied by the old dispatcher.
+	// Unfortunately, this range was occupied by the old dispatcher.
 	// The default range for the dispatched ports is 31000-32767.
 	// By configuration other port ranges may be defined and restricting to the default
 	// range for applications may cause problems.
@@ -213,12 +211,12 @@ func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) 
 		if err == nil {
 			return pconn, nil
 		}
-		if errors.Is(err, syscall.EADDRINUSE) {
+		if errorIsAddrUnavailable(err) {
 			continue
 		}
 		return nil, err
 	}
-	return nil, serrors.Wrap("binding to port range", syscall.EADDRINUSE,
+	return nil, serrors.Wrap("binding to port range", ErrAddrInUse,
 		"start", restrictedStart, "end", end)
 
 }
