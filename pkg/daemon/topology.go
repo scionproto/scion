@@ -17,7 +17,7 @@ package daemon
 import (
 	"context"
 	"net/netip"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/scionproto/scion/pkg/log"
@@ -59,14 +59,12 @@ func LoadTopology(ctx context.Context, conn Connector) (snet.Topology, error) {
 type ReloadingTopology struct {
 	conn         Connector
 	baseTopology snet.Topology
-	interfaces   sync.Map
+	interfaces   atomic.Pointer[map[uint16]netip.AddrPort]
 }
 
 // NewReloadingTopology creates a new ReloadingTopology that reloads the
 // interface information periodically. The Run method must be called for
-// interface information to be populated. NOTE: The reloading topology does not
-// clean up old interface information, so if you have a lot of interface churn,
-// you may want to use a different implementation.
+// interface information to be populated.
 func NewReloadingTopology(ctx context.Context, conn Connector) (*ReloadingTopology, error) {
 	ia, err := conn.LocalIA(ctx)
 	if err != nil {
@@ -95,11 +93,12 @@ func (t *ReloadingTopology) Topology() snet.Topology {
 		LocalIA:   base.LocalIA,
 		PortRange: base.PortRange,
 		Interface: func(ifID uint16) (netip.AddrPort, bool) {
-			a, ok := t.interfaces.Load(ifID)
-			if !ok {
+			m := t.interfaces.Load()
+			if m == nil {
 				return netip.AddrPort{}, false
 			}
-			return a.(netip.AddrPort), true
+			a, ok := (*m)[ifID]
+			return a, ok
 		},
 	}
 }
@@ -131,8 +130,6 @@ func (t *ReloadingTopology) loadInterfaces(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for ifID, addr := range intfs {
-		t.interfaces.Store(ifID, addr)
-	}
+	t.interfaces.Store(&intfs)
 	return nil
 }

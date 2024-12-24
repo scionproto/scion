@@ -76,6 +76,8 @@ func TestReloadingTopology(t *testing.T) {
 	<-done
 	wantTopo.interfaces = interfacesLater
 	wantTopo.checkTopology(t, loader.Topology())
+	_, ok := loader.Topology().Interface(1)
+	assert.False(t, ok)
 }
 
 type testTopology struct {
