@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -48,15 +49,14 @@ type Service struct {
 }
 
 func (s Service) Connect(ctx context.Context) (Connector, error) {
-	a, err := net.ResolveTCPAddr("tcp", s.Address)
+	conn, err := grpc.NewClient(s.Address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		libgrpc.UnaryClientInterceptor(),
+		libgrpc.StreamClientInterceptor(),
+	)
 	if err != nil {
 		s.Metrics.incConnects(err)
-		return nil, serrors.Wrap("resolving addr", err)
-	}
-	conn, err := libgrpc.SimpleDialer{}.Dial(ctx, a)
-	if err != nil {
-		s.Metrics.incConnects(err)
-		return nil, serrors.Wrap("dialing", err)
+		return nil, serrors.Wrap("creating client", err)
 	}
 	s.Metrics.incConnects(nil)
 	return grpcConn{conn: conn, metrics: s.Metrics}, nil

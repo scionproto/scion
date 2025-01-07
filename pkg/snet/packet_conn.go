@@ -16,11 +16,11 @@ package snet
 
 import (
 	"net"
-	"net/netip"
 	"syscall"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -121,8 +121,9 @@ type SCIONPacketConn struct {
 	// SCMP message is received.
 	SCMPHandler SCMPHandler
 	// Metrics are the metrics exported by the conn.
-	Metrics      SCIONPacketConnMetrics
-	interfaceMap interfaceMap
+	Metrics SCIONPacketConnMetrics
+	// Topology provides interface information for the local AS.
+	Topology Topology
 }
 
 func (c *SCIONPacketConn) SetReadBuffer(bytes int) error {
@@ -168,6 +169,14 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 		if err != nil {
 			return err
 		}
+		if remoteAddr == nil {
+			// XXX(JordiSubira): The remote address of the underlay next host
+			// will not be nil unless there was an error while reading the
+			// SCION packet. If the err is nil, it means that it was a
+			// non-recoverable error (e.g., decoding the header) and we
+			// discard the packet and keep
+			continue
+		}
 		*ov = *remoteAddr
 		if scmp, ok := pkt.Payload.(SCMPPayload); ok {
 			if c.SCMPHandler == nil {
@@ -206,7 +215,11 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	pkt.Bytes = pkt.Bytes[:n]
 	if err := pkt.Decode(); err != nil {
 		metrics.CounterInc(c.Metrics.ParseErrors)
-		return nil, serrors.Wrap("decoding packet", err)
+		// XXX(JordiSubira): We avoid bubbling up parsing errors to the
+		// caller application to avoid problems with applications
+		// that don't expect this type of errors.
+		log.Debug("decoding packet", "error", err)
+		return nil, nil
 	}
 
 	udpRemoteAddr := remoteAddr.(*net.UDPAddr)
@@ -218,7 +231,11 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 		// *loopback:30041* `SCIONPacketConn.lastHop()` should yield the right next hop address.
 		lastHop, err = c.lastHop(pkt)
 		if err != nil {
-			return nil, serrors.Wrap("extracting last hop based on packet path", err)
+			// XXX(JordiSubira): We avoid bubbling up parsing errors to the
+			// caller application to avoid problems with applications
+			// that don't expect this type of errors.
+			log.Debug("extracting last hop based on packet path", "error", err)
+			return nil, nil
 		}
 	}
 	return lastHop, nil
@@ -246,12 +263,8 @@ func (c *SCIONPacketConn) LocalAddr() net.Addr {
 // comes from *loopback:30041*.
 func (c *SCIONPacketConn) isShimDispatcher(udpAddr *net.UDPAddr) bool {
 	localAddr := c.LocalAddr().(*net.UDPAddr)
-	if udpAddr.IP.Equal(localAddr.IP) ||
-		udpAddr.IP.IsLoopback() &&
-			udpAddr.Port == underlay.EndhostPort {
-		return true
-	}
-	return false
+	return udpAddr.Port == underlay.EndhostPort &&
+		(udpAddr.IP.Equal(localAddr.IP) || udpAddr.IP.IsLoopback())
 }
 
 func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
@@ -286,7 +299,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if !path.Info.ConsDir {
 			ifID = path.SecondHop.ConsEgress
 		}
-		return c.interfaceMap.get(ifID)
+		return c.ifIDToAddr(ifID)
 	case epic.PathType:
 		var path epic.Path
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
@@ -304,7 +317,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if !infoField.ConsDir {
 			ifID = hf.ConsEgress
 		}
-		return c.interfaceMap.get(ifID)
+		return c.ifIDToAddr(ifID)
 	case scion.PathType:
 		var path scion.Raw
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
@@ -322,10 +335,18 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if !infoField.ConsDir {
 			ifID = hf.ConsEgress
 		}
-		return c.interfaceMap.get(ifID)
+		return c.ifIDToAddr(ifID)
 	default:
 		return nil, serrors.New("unknown path type", "type", rpath.PathType.String())
 	}
+}
+
+func (c *SCIONPacketConn) ifIDToAddr(ifID uint16) (*net.UDPAddr, error) {
+	addrPort, ok := c.Topology.Interface(ifID)
+	if !ok {
+		return nil, serrors.New("interface number not found", "interface", ifID)
+	}
+	return net.UDPAddrFromAddrPort(addrPort), nil
 }
 
 type SerializationOptions struct {
@@ -341,14 +362,4 @@ type SerializationOptions struct {
 	// previous offsets. If it is set to false, then the fields are left
 	// unchanged.
 	InitializePaths bool
-}
-
-type interfaceMap map[uint16]netip.AddrPort
-
-func (m interfaceMap) get(id uint16) (*net.UDPAddr, error) {
-	addrPort, ok := m[id]
-	if !ok {
-		return nil, serrors.New("interface number not found", "interface", id)
-	}
-	return net.UDPAddrFromAddrPort(addrPort), nil
 }

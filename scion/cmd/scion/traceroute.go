@@ -125,11 +125,11 @@ On other errors, traceroute will exit with code 2.
 				return serrors.Wrap("connecting to SCION Daemon", err)
 			}
 			defer sd.Close()
-			info, err := app.QueryASInfo(traceCtx, sd)
+			topo, err := daemon.LoadTopology(ctx, sd)
 			if err != nil {
-				return err
+				return serrors.Wrap("loading topology", err)
 			}
-			span.SetTag("src.isd_as", info.IA)
+			span.SetTag("src.isd_as", topo.LocalIA)
 			path, err := path.Choose(traceCtx, sd, remote.IA,
 				path.WithInteractive(flags.interactive),
 				path.WithRefresh(flags.refresh),
@@ -180,14 +180,14 @@ On other errors, traceroute will exit with code 2.
 				panic("Invalid Local IP address")
 			}
 			local := addr.Addr{
-				IA:   info.IA,
+				IA:   topo.LocalIA,
 				Host: addr.HostIP(asNetipAddr),
 			}
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
 			var stats traceroute.Stats
 			var updates []traceroute.Update
 			cfg := traceroute.Config{
-				Topology:     sd,
+				Topology:     topo,
 				Remote:       remote,
 				NextHop:      nextHop,
 				MTU:          path.Metadata().MTU,
