@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Router is a SCION border router daemon
 package main
 
 import (
