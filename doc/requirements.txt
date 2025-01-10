@@ -310,11 +310,13 @@ pyyaml==6.0.1 \
     --hash=sha256:fca0e3a251908a499833aa292323f32437106001d436eca0e6e7833256674585 \
     --hash=sha256:fd1592b3fdf65fff2ad0004b5e363300ef59ced41c2e6b3a99d4089fa8c5435d \
     --hash=sha256:fd66fc5d0da6d9815ba2cebeb4205f95818ff4b79c3ebe268e75d961704af52f
-    # via sphinxcontrib-openapi
+    # via
+    #   sphinxcontrib-mermaid
+    #   sphinxcontrib-openapi
 recommonmark==0.7.1 \
     --hash=sha256:1b1db69af0231efce3fa21b94ff627ea33dee7079a01dd0a7f8482c3da148b3f \
     --hash=sha256:bdb4db649f2222dcd8d2d844f0006b958d627f732415d399791ee436a3686d67
-    # via -r requirements.in
+    # via -r doc/requirements.in
 referencing==0.34.0 \
     --hash=sha256:5773bd84ef41799a5a8ca72dc34590c041eb01bf9aa02632b4a973fb0181a844 \
     --hash=sha256:d53ae300ceddd3169f1ffa9caf2cb7b769e92657e4fafb23d34b93679116dfd4
@@ -539,7 +541,7 @@ sphinx==7.3.7 \
     --hash=sha256:413f75440be4cacf328f580b4274ada4565fb2187d696a84970c23f77b64d8c3 \
     --hash=sha256:a4a7db75ed37531c05002d56ed6948d4c42f473a36f46e1382b0bd76ca9627bc
     # via
-    #   -r requirements.in
+    #   -r doc/requirements.in
     #   recommonmark
     #   sphinx-autobuild
     #   sphinx-copybutton
@@ -547,23 +549,24 @@ sphinx==7.3.7 \
     #   sphinx-rtd-theme
     #   sphinxcontrib-httpdomain
     #   sphinxcontrib-jquery
+    #   sphinxcontrib-mermaid
     #   sphinxcontrib-openapi
 sphinx-autobuild==2024.4.16 \
     --hash=sha256:1c0ed37a1970eed197f9c5a66d65759e7c4e4cba7b5a5d77940752bf1a59f2c7 \
     --hash=sha256:f2522779d30fcbf0253e09714f274ce8c608cb6ebcd67922b1c54de59faba702
-    # via -r requirements.in
+    # via -r doc/requirements.in
 sphinx-copybutton==0.5.2 \
     --hash=sha256:4cf17c82fb9646d1bc9ca92ac280813a3b605d8c421225fd9913154103ee1fbd \
     --hash=sha256:fb543fd386d917746c9a2c50360c7905b605726b9355cd26e9974857afeae06e
-    # via -r requirements.in
+    # via -r doc/requirements.in
 sphinx-design==0.6.0 \
     --hash=sha256:e9bd07eecec82eb07ff72cb50fc3624e186b04f5661270bc7b62db86c7546e95 \
     --hash=sha256:ec8e3c5c59fed4049b3a5a2e209360feab31829346b5f6a0c7c342b894082192
-    # via -r requirements.in
+    # via -r doc/requirements.in
 sphinx-lint==0.9.1 \
     --hash=sha256:185cee19ff1129549c45e15a3b25404daeb47c54d15112dda589cedad82957aa \
     --hash=sha256:df34271ab65ce43676cbd90726f4dea5cd200b43b01448b2aee8f06e609edcbb
-    # via -r requirements.in
+    # via -r doc/requirements.in
 sphinx-mdinclude==0.6.0 \
     --hash=sha256:764b6aeee28002b9d02060758266761a2c724805594d264b19e6ceeaa3bad393 \
     --hash=sha256:b1cb4dfa22ce17ca20e90e34d4349d8a97c5052709d9c4eed051cdabb615b20b
@@ -571,7 +574,7 @@ sphinx-mdinclude==0.6.0 \
 sphinx-rtd-theme==2.0.0 \
     --hash=sha256:bd5d7b80622406762073a04ef8fadc5f9151261563d47027de09910ce03afe6b \
     --hash=sha256:ec93d0856dc280cf3aee9a4c9807c60e027c7f7b461b77aeffed682e68f0e586
-    # via -r requirements.in
+    # via -r doc/requirements.in
 sphinxcontrib-applehelp==1.0.8 \
     --hash=sha256:c40a4f96f3776c4393d933412053962fac2b84f4c99a7982ba42e09576a70619 \
     --hash=sha256:cb61eb0ec1b61f349e5cc36b2028e9e7ca765be05e49641c97241274753067b4
@@ -596,10 +599,14 @@ sphinxcontrib-jsmath==1.0.1 \
     --hash=sha256:2ec2eaebfb78f3f2078e73666b1415417a116cc848b72e5172e596c871103178 \
     --hash=sha256:a9925e4a4587247ed2191a22df5f6970656cb8ca2bd6284309578f2153e0c4b8
     # via sphinx
+sphinxcontrib-mermaid==1.0.0 \
+    --hash=sha256:2e8ab67d3e1e2816663f9347d026a8dee4a858acdd4ad32dd1c808893db88146 \
+    --hash=sha256:60b72710ea02087f212028feb09711225fbc2e343a10d34822fe787510e1caa3
+    # via -r doc/requirements.in
 sphinxcontrib-openapi==0.8.4 \
     --hash=sha256:50911c18d452d9390ee3a384ef8dc8bde6135f542ba55691f81e1fbc0b71014e \
     --hash=sha256:df883808a5b5e4b4113ad697185c43a3f42df3dce70453af78ba7076907e9a20
-    # via -r requirements.in
+    # via -r doc/requirements.in
 sphinxcontrib-qthelp==1.0.7 \
     --hash=sha256:053dedc38823a80a7209a80860b16b722e9e0209e32fea98c90e4e6624588ed6 \
     --hash=sha256:e2ae3b5c492d58fcbd73281fbd27e34b8393ec34a073c792642cd8e529288182
