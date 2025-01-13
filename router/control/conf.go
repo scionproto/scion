@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package control is the configuration API of the router and specifies the management interface
+// expected of the router.
 package control
 
 import (
@@ -27,8 +29,8 @@ import (
 	"github.com/scionproto/scion/private/topology"
 )
 
-// Dataplane is the interface that a dataplane has to support to be controlled
-// by this controller.
+// Dataplane is the interface that this controller or the http status handler expect from the
+// Dataplane.
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
@@ -66,13 +68,13 @@ type ObservableDataplane interface {
 	ListSiblingInterfaces() ([]SiblingInterface, error)
 }
 
-// InternalInterface represents the internal interface of a router.
+// InternalInterface represents the internal underlay interface of a router.
 type InternalInterface struct {
 	IA   addr.IA
 	Addr netip.AddrPort
 }
 
-// ExternalInterface represents an external interface of a router.
+// ExternalInterface represents an external underlay interface of a router.
 type ExternalInterface struct {
 	// InterfaceID is the identifier of the external interface.
 	IfID uint16
@@ -82,7 +84,8 @@ type ExternalInterface struct {
 	State InterfaceState
 }
 
-// SiblingInterface represents a sibling interface of a router.
+// SiblingInterface represents a sibling underlay interface of a router. A sibling interface
+// is an external interface owned by another router in the same AS.
 type SiblingInterface struct {
 	// InterfaceID is the identifier of the external interface.
 	IfID uint16
