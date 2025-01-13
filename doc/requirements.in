@@ -6,3 +6,4 @@ sphinx-autobuild
 sphinx-lint
 sphinx-rtd-theme
 sphinxcontrib-openapi
+sphinxcontrib-mermaid
