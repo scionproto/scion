@@ -21,6 +21,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/netip"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -63,9 +64,21 @@ func realMain(ctx context.Context) error {
 	defer daemon.Close()
 	localIA, err := daemon.LocalIA(ctx)
 	if err != nil {
-		return serrors.Wrap("retrieving local ISD-AS", err)
-	}
+		// May be we were too early. Wait and retry the whole shebang.
+		log.Info("Retying daemon connection")
+		time.Sleep(2 * time.Second)
+		daemon.Close()
+		daemon, err = daemonService.Connect(ctx)
+		if err != nil {
+			return serrors.Wrap("connecting to daemon", err)
+		}
 
+		localIA, err = daemon.LocalIA(ctx)
+		if err != nil {
+			return serrors.Wrap("retrieving local ISD-AS", err)
+		}
+		log.Info("This time it worked")
+	}
 	controlAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.CtrlAddr)
 	if err != nil {
 		return serrors.Wrap("parsing control address", err)
