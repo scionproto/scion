@@ -45,6 +45,15 @@ No matter what language you want to contribute to, one of the first steps to tak
 up a development environment. See :ref:`setting-up-the-development-environment` for the needed steps.
 If you encounter issues, please visit our :ref:`Slack <slack>` and ask for help.
 
+.. _code-map:
+
+Souce code map
+==============
+
+Because the code is mostly written in Go and hosted on a public repository, its inline documentation
+is rendered automatically at `<https://pkg.go.dev/github.com/scionproto/scion>`__ and includes a helpful
+index.
+
 .. _finding-an-issue-to-contribute-to:
 
 Finding an issue to contribute to
@@ -93,12 +102,13 @@ implementation projects.
 
 The current members of the TC Implementation are:
 
-* Jean-Christophe Hugly (|span-github| `@jiceatscion <https://github.com/jiceatscion>`_, |span-slack| @Jean-Christophe Hugly)
-* Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @roosd)
+* Jean-Christophe Hugly (|span-github| `@jiceatscion <https://github.com/jiceatscion>`_, |span-slack| @jiceatscion)
+* Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @Dominik Roos)
 * François Wirz (|span-github| `@FR4NK-W <https://github.com/FR4NK-W>`_, |span-slack| @frank)
 * Lukas Vogel (|span-github| `@lukedirtwalker <https://github.com/lukedirtwalker>`_, |span-slack| @luke)
 * Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
-* Jordi Subirà (|span-github| `@JordiSubira <https://github.com/JordiSubira>`_, |span-slack| @jordisubira)
+* Jordi Subirà (|span-github| `@JordiSubira <https://github.com/JordiSubira>`_, |span-slack| @Jordi Subirà-Nieto)
+* Markus Legner (|span-github| `@mlegner <https://github.com/mlegner>`_, |span-slack| @Markus Legner)
 
 
 .. rubric:: Responsibilities and Tasks

@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/router/control"
 )
 
-// Connector implements the Dataplane API of the router control process. It sets
+// Connector implements the Dataplane interface used by the router control API. It sets
 // up connections for the DataPlane.
 type Connector struct {
 	DataPlane DataPlane
