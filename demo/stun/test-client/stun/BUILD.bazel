@@ -1,0 +1,8 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["stun.go"],
+    importpath = "github.com/scionproto/scion/demo/stun/test-client/stun",
+    visibility = ["//visibility:public"],
+)

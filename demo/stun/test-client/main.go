@@ -11,7 +11,7 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/snet"
 
-	"tailscale.com/net/stun"
+	"github.com/scionproto/scion/demo/stun/test-client/stun"
 )
 
 func main() {
