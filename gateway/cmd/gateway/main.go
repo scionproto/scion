@@ -54,6 +54,9 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
+
+	const retryDelay = 2
+
 	daemonService := &daemon.Service{
 		Address: globalCfg.Daemon.Address,
 	}
@@ -65,8 +68,8 @@ func realMain(ctx context.Context) error {
 	localIA, err := daemon.LocalIA(ctx)
 	if err != nil {
 		// May be we were too early. Wait and retry the whole shebang.
-		log.Info("Retying daemon connection")
-		time.Sleep(2 * time.Second)
+		log.Info("Retying daemon connection", "retryDelay", retryDelay)
+		time.Sleep(retryDelay * time.Second)
 		daemon.Close()
 		daemon, err = daemonService.Connect(ctx)
 		if err != nil {
@@ -77,7 +80,7 @@ func realMain(ctx context.Context) error {
 		if err != nil {
 			return serrors.Wrap("retrieving local ISD-AS", err)
 		}
-		log.Info("This time it worked")
+		log.Info("Connected to daemon")
 	}
 	controlAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.CtrlAddr)
 	if err != nil {
