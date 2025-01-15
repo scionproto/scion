@@ -145,6 +145,21 @@ class Compose(object):
         """
         user = kwargs.get("user", "{}:{}".format(os.getuid(), os.getgid()))
         return self("exec", "-T", "--user", user, container,
+                    "timeout", "20s", *args, **kwargs)
+
+    def execute_detached(self, container, *args, **kwargs):
+        """Executes an arbitrary command in the specified container.
+
+        There's one minute timeout on the command so that tests don't get stuck.
+
+        Args:
+            container: the name of the container to execute the command in.
+
+        Returns:
+            The output of the command.
+        """
+        user = kwargs.get("user", "{}:{}".format(os.getuid(), os.getgid()))
+        return self("exec", "-d", "-T", "--user", user, container,
                     "timeout", "1m", *args, **kwargs)
 
     def execute_as_user(self, container, user, *args, **kwargs):
