@@ -9,6 +9,93 @@ Setting up the Development Environment
    docker and various other tools and scripts.
    See :doc:`build` for instructions focussing only on how to build the SCION executables.
 
+macOS (Apple silicon) Prerequisites
+-----------------------------------
+
+.. hint::
+
+   If you're not developing on a Mac, please skip this section and
+   go straight to :ref:`prerequisites`.
+
+To set up a development environment on a macOS 13 (or above) M-series Apple silicon macbook
+you'll need to set up a Linux virtual machine.
+We recommend you use `Lima <https://github.com/lima-vm/lima>`_ by following the instructions below.
+
+#. Install Lima VM:
+   
+   .. code-block:: bash
+   
+      brew install lima
+
+#. Create the shared workspace directory:
+
+   .. code-block:: bash
+      
+      mkdir /Users/username/limavm
+
+   Please change ``username`` to your respective macOS username.
+
+   .. hint::
+   
+      Use this workspace directory to host the ``scion`` repository.
+      By default, Lima mounts your home directory in read-only mode (recommended)
+      but this will cause issues when using ``make``.
+
+#. Configure the ``default`` Lima VM:
+
+   .. code-block:: bash
+      
+      limactl start
+   
+   If the above command opens an interactive prompt, select
+   ``Open an editor to review or modify the current configuration``,
+   otherwise manually edit ``~/.lima/default/lima.yaml``.
+
+   Change the following fields in your ``default`` VM configs.
+
+   .. code-block:: yaml
+
+      vmType: "vz"
+
+   .. code-block:: yaml
+
+      arch: "aarch64"
+   
+   Add a shared read-write mount that will serve as the main workspace:
+
+   .. code-block:: yaml
+
+      - location: /Users/username/limavm   # macOS directory
+        writable: true                     # Writable for the VM
+        mountPoint: /home/username/shared  # Directory inside the VM
+   
+   Please change ``username`` to your respective macOS username.
+
+   Adjust ``cpus``, ``memory`` and ``disk`` for optimal performance.
+
+#. Start the ``default`` VM:
+
+   .. code-block:: bash
+
+      limactl start default
+
+#. SSH into the VM:
+
+   .. code-block:: bash
+
+      lima
+
+#. Navigate to the workspace:
+
+   .. code-block:: bash
+
+      cd /home/<username>/shared
+
+   Now you're ready to continue with :ref:`prerequisites` to setup the Linux system running
+   within the Lima virtual machine.
+
+.. _prerequisites:
+
 Prerequisites
 -------------
 
