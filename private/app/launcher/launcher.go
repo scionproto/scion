@@ -22,9 +22,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
-	"syscall"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -34,7 +31,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/config"
 	libconfig "github.com/scionproto/scion/private/config"
@@ -50,8 +46,8 @@ const (
 	cfgConfigFile                = "config"
 )
 
-// Application models a SCION server application.
-type Application struct {
+// ApplicationBase provides common launcher functions for a SCION server application.
+type ApplicationBase struct {
 	// TOMLConfig holds the Go data structure for the application-specific
 	// TOML configuration. The Application launcher will check if the TOMLConfig
 	// supports additional methods (e.g., custom logging or instance ID) and
@@ -89,73 +85,14 @@ type Application struct {
 	config *viper.Viper
 }
 
-// Run sets up the common SCION server harness, and then passes control to the Main
-// function (if one exists).
-//
-// Run uses the following globals:
-//
-//	os.Args
-//
-// Run will exit the application if it encounters a fatal error.
-func (a *Application) Run() {
-	if err := a.run(); err != nil {
-		fmt.Fprintf(a.getErrorWriter(), "fatal error: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func (a *Application) run() error {
-	executable := filepath.Base(os.Args[0])
-	shortName := a.getShortName(executable)
-
-	cmd := newCommandTemplate(executable, shortName, a.TOMLConfig, a.Samplers...)
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		return a.executeCommand(cmd.Context(), shortName)
-	}
-	a.config = viper.New()
-	a.config.SetDefault(cfgLogConsoleLevel, log.DefaultConsoleLevel)
-	a.config.SetDefault(cfgLogConsoleFormat, "human")
-	a.config.SetDefault(cfgLogConsoleStacktraceLevel, log.DefaultStacktraceLevel)
-	a.config.SetDefault(cfgGeneralID, executable)
-	// The configuration file location is specified through command-line flags.
-	// Once the comand-line flags are parsed, we register the location of the
-	// config file with the viper config.
-	if err := a.config.BindPFlag(cfgConfigFile, cmd.Flags().Lookup(cfgConfigFile)); err != nil {
-		return err
-	}
-
-	// All servers accept SIGTERM to perform clean shutdown (for example, this
-	// is used behind the scenes by docker stop to cleanly shut down a container).
-	sigtermCtx := app.WithSignal(context.Background(), syscall.SIGTERM)
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go func() {
-		defer log.HandlePanic()
-		<-sigtermCtx.Done()
-		log.Info("Received SIGTERM signal, exiting...")
-
-		// If the main goroutine shuts down everything in time, this won't get
-		// a chance to run.
-		time.AfterFunc(5*time.Second, func() {
-			defer log.HandlePanic()
-			panic("Main goroutine did not shut down in time (waited 5s). " +
-				"It's probably stuck. Forcing shutdown.")
-		})
-
-		cancel()
-	}()
-
-	return cmd.ExecuteContext(ctx)
-}
-
-func (a *Application) getShortName(executable string) string {
+func (a *ApplicationBase) getShortName(executable string) string {
 	if a.ShortName != "" {
 		return a.ShortName
 	}
 	return executable
 }
 
-func (a *Application) executeCommand(ctx context.Context, shortName string) error {
+func (a *ApplicationBase) loadConfig() error {
 	os.Setenv("TZ", "UTC")
 
 	// Load launcher configurations from the same config file as the custom
@@ -174,7 +111,10 @@ func (a *Application) executeCommand(ctx context.Context, shortName string) erro
 
 	}
 	a.TOMLConfig.InitDefaults()
+	return nil
+}
 
+func (a *ApplicationBase) initLogging() error {
 	logEntriesTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "lib_log_emitted_entries_total",
@@ -187,10 +127,14 @@ func (a *Application) executeCommand(ctx context.Context, shortName string) erro
 		Info:  logEntriesTotal.With(prometheus.Labels{"level": "info"}),
 		Error: logEntriesTotal.With(prometheus.Labels{"level": "error"}),
 	})
-
 	if err := log.Setup(a.getLogging(), opt); err != nil {
 		return serrors.Wrap("initialize logging", err)
 	}
+	return nil
+}
+
+func (a *ApplicationBase) executeCommand(ctx context.Context, shortName string) error {
+
 	defer log.Flush()
 	if a.RequiredIPs != nil {
 		ips, err := a.RequiredIPs()
@@ -217,7 +161,7 @@ func (a *Application) executeCommand(ctx context.Context, shortName string) erro
 	return a.Main(ctx)
 }
 
-func (a *Application) getLogging() log.Config {
+func (a *ApplicationBase) getLogging() log.Config {
 	return log.Config{
 		Console: log.ConsoleConfig{
 			Level:           a.config.GetString(cfgLogConsoleLevel),
@@ -227,7 +171,7 @@ func (a *Application) getLogging() log.Config {
 	}
 }
 
-func (a *Application) getErrorWriter() io.Writer {
+func (a *ApplicationBase) getErrorWriter() io.Writer {
 	if a.ErrorWriter != nil {
 		return a.ErrorWriter
 	}

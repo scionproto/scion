@@ -47,10 +47,12 @@ var globalCfg config.Config
 
 func main() {
 	application := launcher.Application{
-		TOMLConfig:  &globalCfg,
-		ShortName:   "SCION Dispatcher",
-		RequiredIPs: requiredIPs,
-		Main:        realMain,
+		ApplicationBase: launcher.ApplicationBase{
+			TOMLConfig:  &globalCfg,
+			ShortName:   "SCION Dispatcher",
+			RequiredIPs: requiredIPs,
+			Main:        realMain,
+		},
 	}
 	application.Run()
 }

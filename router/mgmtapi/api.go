@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package mgmtapi implements the http status API of the router.
 package mgmtapi
 
 import (
@@ -23,7 +24,7 @@ import (
 	"github.com/scionproto/scion/router/control"
 )
 
-// Server implements the Control Service API.
+// Server implements the http status API of the router.
 type Server struct {
 	Config    http.HandlerFunc
 	Info      http.HandlerFunc

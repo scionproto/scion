@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Router is a SCION border router implementation as a system process.
 package main
 
 import (
@@ -42,9 +43,11 @@ var globalCfg config.Config
 
 func main() {
 	application := launcher.Application{
-		TOMLConfig: &globalCfg,
-		ShortName:  "SCION Router",
-		Main:       realMain,
+		ApplicationBase: launcher.ApplicationBase{
+			TOMLConfig: &globalCfg,
+			ShortName:  "SCION Router",
+			Main:       realMain,
+		},
 	}
 	application.Run()
 }

@@ -83,6 +83,10 @@ func Choose(
 	if err != nil {
 		return nil, serrors.Wrap("fetching paths", err)
 	}
+	topo, err := daemon.LoadTopology(ctx, conn)
+	if err != nil {
+		return nil, serrors.Wrap("loading topology", err)
+	}
 	if o.epic {
 		// Only use paths that support EPIC and intra-AS (empty) paths.
 		epicPaths := []snet.Path{}
@@ -102,7 +106,7 @@ func Choose(
 		paths = epicPaths
 	}
 	if o.probeCfg != nil {
-		paths, err = filterUnhealthy(ctx, paths, remote, conn, o.probeCfg, o.epic)
+		paths, err = filterUnhealthy(ctx, paths, remote, topo, o.probeCfg, o.epic)
 		if err != nil {
 			return nil, serrors.Wrap("probing paths", err)
 		}
@@ -121,7 +125,7 @@ func filterUnhealthy(
 	ctx context.Context,
 	paths []snet.Path,
 	remote addr.IA,
-	sd daemon.Connector,
+	topo snet.Topology,
 	cfg *ProbeConfig,
 	epic bool,
 ) ([]snet.Path, error) {
@@ -144,7 +148,7 @@ func filterUnhealthy(
 		LocalIA:                cfg.LocalIA,
 		LocalIP:                cfg.LocalIP,
 		SCIONPacketConnMetrics: cfg.SCIONPacketConnMetrics,
-		Topology:               sd,
+		Topology:               topo,
 	}.GetStatuses(subCtx, nonEmptyPaths, pathprobe.WithEPIC(epic))
 	if err != nil {
 		return nil, serrors.Wrap("probing paths", err)
@@ -214,7 +218,7 @@ func printAndChoose(paths []snet.Path, remote addr.IA, cs ColorScheme) (snet.Pat
 		if err != nil {
 			return nil, err
 		}
-		idx, err := strconv.Atoi(pathIndexStr[:len(pathIndexStr)-1])
+		idx, err := strconv.Atoi(strings.TrimRight(pathIndexStr, "\n\r"))
 		if err == nil && idx < len(paths) {
 			return paths[idx], nil
 		}
