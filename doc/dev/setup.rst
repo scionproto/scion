@@ -15,7 +15,7 @@ macOS (Apple silicon) Prerequisites
 .. hint::
 
    If you're not developing on a Mac, please skip this section and
-   go straight to :ref:`prerequisites`.
+   go straight to :ref:`linux_prerequisites`.
 
 To set up a development environment on a macOS 13 (or above) M-series Apple silicon macbook
 you'll need to set up a Linux virtual machine.
@@ -91,10 +91,10 @@ We recommend you use `Lima <https://github.com/lima-vm/lima>`_ by following the 
 
       cd /home/<username>/shared
 
-   Now you're ready to continue with :ref:`prerequisites` to setup the Linux system running
+   Now you're ready to continue with :ref:`linux_prerequisites` to setup the Linux system running
    within the Lima virtual machine.
 
-.. _prerequisites:
+.. _linux_prerequisites:
 
 Prerequisites
 -------------
