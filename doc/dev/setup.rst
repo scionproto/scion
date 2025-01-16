@@ -75,7 +75,7 @@ We recommend you use `Lima <https://github.com/lima-vm/lima>`_ by following the 
 
    Please change ``username`` to your respective macOS username.
 
-   Adjust ``cpus``, ``memory`` and ``disk`` for optimal performance.
+   Optionally, adjust ``cpus``, ``memory`` and ``disk`` as you see fit.
 
 #. Start the ``default`` VM:
 
