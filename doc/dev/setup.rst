@@ -17,6 +17,12 @@ macOS (Apple silicon) Prerequisites
    If you're not developing on a Mac, please skip this section and
    go straight to :ref:`linux_prerequisites`.
 
+.. Warning::
+
+   Currently, ARM64 isn't an officially supported development platform, and you may
+   face unresolved issues, particularly when executing integration tests.
+   Running Lima in QEMU x86_64 emulation will work, but is too slow for practical use.
+
 To set up a development environment on a macOS 13 (or above) M-series Apple silicon macbook
 you'll need to set up a Linux virtual machine.
 We recommend you use `Lima <https://github.com/lima-vm/lima>`_ by following the instructions below.
