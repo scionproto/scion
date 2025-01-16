@@ -37,9 +37,7 @@ We recommend you use `Lima <https://github.com/lima-vm/lima>`_ by following the 
 
    .. code-block:: bash
 
-      mkdir /Users/username/limavm
-
-   Please change ``username`` to your respective macOS username.
+      mkdir /Users/$USER/limavm
 
    .. hint::
 
