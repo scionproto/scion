@@ -69,11 +69,9 @@ We recommend you use `Lima <https://github.com/lima-vm/lima>`_ by following the 
 
    .. code-block:: yaml
 
-      - location: /Users/username/limavm   # macOS directory
-        writable: true                     # Writable for the VM
-        mountPoint: /home/username/shared  # Directory inside the VM
-
-   Please change ``username`` to your respective macOS username.
+      - location: /Users/{{.User}}/limavm   # macOS directory
+        writable: true                      # Writable for the VM
+        mountPoint: /home/{{.User}}/shared  # Directory inside the VM
 
    Optionally, adjust ``cpus``, ``memory`` and ``disk`` as you see fit.
 
@@ -93,7 +91,7 @@ We recommend you use `Lima <https://github.com/lima-vm/lima>`_ by following the 
 
    .. code-block:: bash
 
-      cd /home/<username>/shared
+      cd /home/$USER/shared
 
    Now you're ready to continue with :ref:`linux_prerequisites` to setup the Linux system running
    within the Lima virtual machine.
