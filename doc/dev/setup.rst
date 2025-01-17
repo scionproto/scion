@@ -176,6 +176,12 @@ Setup
       make test
       make test-integration
 
+   .. Warning::
+
+      Integration tests will fail to execute on ARM64 due to OpenWRT.
+      The current workaround is to remove the ``"integration"`` tag from
+      ``"openwrt_test"`` in ``dist/test/BUILD.bazel``.
+
 #. (Optional) If you already have some code you wish to contribute upstream, you can also run the
    linters locally with:
 
