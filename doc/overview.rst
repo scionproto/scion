@@ -108,18 +108,20 @@ The following diagram provides a visual summary of the topology of a SCION netwo
 Core links (in bright red) connect core ASes, thereby providing inter-ISD connectivity. Intra ISD
 links (in green) connect ASes within an ISD. AS-internal networks (in blue) connect the various
 hosts within an AS (including border routers). Peering links (in purple) provide restricted use
-shortcuts between ISDs. The dark red dashed arrows show examples of possible paths through the
-network.
+shortcuts between ISDs.
 
 This diagram attempts to illustrate the variety of valid configurations. For example, notice that:
 
 - There may be multiple core ASes per ISD.
-- There may be multiple connections between a non-core AS and its core-ASes.
+- There may be connections between a non-core AS and multiple core-ASes.
+- There may be multiple connections between any two ASes.
 - There may be multiple border routers per AS.
 - There may be any number of end-hosts (includng none) in an AS.
 - Border routers need not be dedicated to one particular kind of links.
 - Excludig core links, the ASes within an ISD form a directed acyclic graph (no other constraint).
 - The core ASes themselves form an arbitrary graph.
+
+The dark red dashed arrows show examples of possible paths through the network.
 
 Routing
 ^^^^^^^
