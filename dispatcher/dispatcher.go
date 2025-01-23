@@ -197,11 +197,11 @@ func (s *Server) processMsgNextHop(
 	switch s.decoded[len(s.decoded)-1] {
 	case slayers.LayerTypeSCMP:
 		// send response to BR
-		switch s.scmpLayer.TypeCode.Type() {
+		switch t := s.scmpLayer.TypeCode.Type(); t {
 		case slayers.SCMPTypeEchoRequest, slayers.SCMPTypeTracerouteRequest:
 			dstAddrPort = prevHop
 		case slayers.SCMPTypeEchoReply, slayers.SCMPTypeTracerouteReply:
-			dstAddrPort, err = s.getSCMPInfoReplyDst()
+			dstAddrPort, err = s.getSCMPInfoReplyDst(t)
 			if err != nil {
 				log.Error("Getting destination for SCMPInfo reply", "err", err)
 				return nil, netip.AddrPort{}, nil
@@ -213,7 +213,7 @@ func (s *Server) processMsgNextHop(
 				return nil, netip.AddrPort{}, nil
 			}
 		default:
-			dstAddrPort, err = s.getSCMPErrorDst()
+			dstAddrPort, err = s.getSCMPErrorDst(t)
 			if err != nil {
 				log.Debug("Getting destination for SCMP message",
 					"underlay", underlay,
@@ -223,8 +223,9 @@ func (s *Server) processMsgNextHop(
 			}
 			if dstAddrPort.Addr().Unmap().Compare(underlay.Unmap()) != 0 {
 				log.Debug("UDP/IP addr destination different from UDP/SCION addr",
-					"UDP/IP:", underlay.Unmap().String(),
-					"UDP/SCION:", dstAddrPort.Addr().Unmap().String())
+					"underlay_udp_ip", underlay.Unmap(),
+					"udp_scion", dstAddrPort.Addr().Unmap(),
+				)
 				return nil, netip.AddrPort{}, nil
 			}
 		}
@@ -236,8 +237,9 @@ func (s *Server) processMsgNextHop(
 		}
 		if dstAddrPort.Addr().Unmap().Compare(underlay.Unmap()) != 0 {
 			log.Error("UDP/IP addr destination different from UDP/SCION addr",
-				"UDP/IP:", underlay.Unmap().String(),
-				"UDP/SCION:", dstAddrPort.Addr().Unmap().String())
+				"underlay_udp_ip", underlay.Unmap(),
+				"udp_scion", dstAddrPort.Addr().Unmap(),
+			)
 			return nil, netip.AddrPort{}, nil
 		}
 	}
@@ -341,29 +343,29 @@ func (s *Server) reverseSCION() error {
 	return nil
 }
 
-func (s *Server) getSCMPInfoReplyDst() (netip.AddrPort, error) {
+func (s *Server) getSCMPInfoReplyDst(scmpType slayers.SCMPType) (netip.AddrPort, error) {
 	// Check if its SCMPEcho or SCMPTraceroute reply
-	if s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoReply {
+	switch scmpType {
+	case slayers.SCMPTypeEchoReply:
 		var scmpEcho slayers.SCMPEcho
 		err := scmpEcho.DecodeFromBytes(s.scmpLayer.Payload, gopacket.NilDecodeFeedback)
 		if err != nil {
 			return netip.AddrPort{}, err
 		}
 		return addrPortFromBytes(s.scionLayer.RawDstAddr, scmpEcho.Identifier)
-	}
-	if s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteReply {
+	case slayers.SCMPTypeTracerouteReply:
 		var scmpTraceroute slayers.SCMPTraceroute
 		err := scmpTraceroute.DecodeFromBytes(s.scmpLayer.Payload, gopacket.NilDecodeFeedback)
 		if err != nil {
 			return netip.AddrPort{}, err
 		}
 		return addrPortFromBytes(s.scionLayer.RawDstAddr, scmpTraceroute.Identifier)
+	default:
+		return netip.AddrPort{}, serrors.New("invalid code path")
 	}
-	return netip.AddrPort{}, serrors.New("invalid code path")
 }
 
-func (s *Server) getSCMPErrorDst() (netip.AddrPort, error) {
-	errorType := s.scmpLayer.TypeCode.Type()
+func (s *Server) getSCMPErrorDst(errorType slayers.SCMPType) (netip.AddrPort, error) {
 	// Drop unknown SCMP error messages.
 	if s.scmpLayer.NextLayerType() == gopacket.LayerTypePayload {
 		return netip.AddrPort{}, serrors.New("unsupported SCMP error message",
