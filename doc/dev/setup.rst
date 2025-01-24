@@ -9,6 +9,95 @@ Setting up the Development Environment
    docker and various other tools and scripts.
    See :doc:`build` for instructions focussing only on how to build the SCION executables.
 
+macOS (Apple silicon) Prerequisites
+-----------------------------------
+
+.. hint::
+
+   If you're not developing on a Mac, please skip this section and
+   go straight to :ref:`linux_prerequisites`.
+
+.. Warning::
+
+   Currently, ARM64 isn't an officially supported development platform, and you may
+   face unresolved issues, particularly when executing integration tests.
+   Running Lima in QEMU x86_64 emulation will work, but is too slow for practical use.
+
+To set up a development environment on a macOS 13 (or above) M-series Apple silicon macbook
+you'll need to set up a Linux virtual machine.
+We recommend you use `Lima <https://github.com/lima-vm/lima>`_ by following the instructions below.
+
+#. Install Lima VM:
+
+   .. code-block:: bash
+
+      brew install lima
+
+#. Create the shared workspace directory:
+
+   .. code-block:: bash
+
+      mkdir /Users/$USER/limavm
+
+   .. hint::
+
+      Use this workspace directory to host the ``scion`` repository.
+      By default, Lima mounts your home directory in read-only mode (recommended)
+      but this will cause issues when using ``make``.
+
+#. Configure the ``default`` Lima VM:
+
+   .. code-block:: bash
+
+      limactl start
+
+   If the above command opens an interactive prompt, select
+   ``Open an editor to review or modify the current configuration``,
+   otherwise manually edit ``~/.lima/default/lima.yaml``.
+
+   Change the following fields in your ``default`` VM configs.
+
+   .. code-block:: yaml
+
+      vmType: "vz"
+
+   .. code-block:: yaml
+
+      arch: "aarch64"
+
+   Add a shared read-write mount that will serve as the main workspace:
+
+   .. code-block:: yaml
+
+      - location: /Users/{{.User}}/limavm   # macOS directory
+        writable: true                      # Writable for the VM
+        mountPoint: /home/{{.User}}/shared  # Directory inside the VM
+
+   Optionally, adjust ``cpus``, ``memory`` and ``disk`` as you see fit.
+
+#. Start the ``default`` VM:
+
+   .. code-block:: bash
+
+      limactl start default
+
+#. SSH into the VM:
+
+   .. code-block:: bash
+
+      lima
+
+#. Navigate to the workspace:
+
+   .. code-block:: bash
+
+      cd /home/$USER/shared
+
+   Now you're ready to continue with :ref:`linux_prerequisites` to setup the Linux system running
+   within the Lima virtual machine.
+
+.. _linux_prerequisites:
+
 Prerequisites
 -------------
 
@@ -86,6 +175,12 @@ Setup
 
       make test
       make test-integration
+
+   .. Warning::
+
+      Integration tests will fail to execute on ARM64 due to OpenWRT.
+      The current workaround is to remove the ``"integration"`` tag from
+      ``"openwrt_test"`` in ``dist/test/BUILD.bazel``.
 
 #. (Optional) If you already have some code you wish to contribute upstream, you can also run the
    linters locally with:
