@@ -229,17 +229,17 @@ var (
 	unsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
 	unsupportedUnspecifiedAddress = errors.New("unsupported unspecified address")
 	noBFDSessionFound             = errors.New("no BFD session was found")
-	noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
-	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
-	errPeeringEmptySeg1           = errors.New("zero-length segment[1] in peering path")
-	errPeeringNonemptySeg2        = errors.New("non-zero-length segment[2] in peering path")
-	errShortPacket                = errors.New("Packet is too short")
-	errBFDSessionDown             = errors.New("bfd session down")
-	expiredHop                    = errors.New("expired hop")
-	ingressInterfaceInvalid       = errors.New("ingress interface invalid")
-	macVerificationFailed         = errors.New("MAC verification failed")
-	badPacketSize                 = errors.New("bad packet size")
-	notImplemented                = errors.New("Not Yet Implemented")
+	// noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
+	errPeeringEmptySeg0     = errors.New("zero-length segment[0] in peering path")
+	errPeeringEmptySeg1     = errors.New("zero-length segment[1] in peering path")
+	errPeeringNonemptySeg2  = errors.New("non-zero-length segment[2] in peering path")
+	errShortPacket          = errors.New("Packet is too short")
+	errBFDSessionDown       = errors.New("bfd session down")
+	expiredHop              = errors.New("expired hop")
+	ingressInterfaceInvalid = errors.New("ingress interface invalid")
+	macVerificationFailed   = errors.New("MAC verification failed")
+	badPacketSize           = errors.New("bad packet size")
+	//	notImplemented          = errors.New("Not Yet Implemented")
 
 	// zeroBuffer will be used to reset the Authenticator option in the
 	// scionPacketProcessor.OptAuth
@@ -650,12 +650,12 @@ func (d *DataPlane) Run(ctx context.Context) error {
 		if s == nil {
 			continue
 		}
-		go func() {
+		go func(a netip.AddrPort) {
 			defer log.HandlePanic()
 			if err := s.Run(ctx); err != nil && err != bfd.AlreadyRunning {
 				log.Error("BFD session failed to start", "remote address", a, "err", err)
 			}
-		}()
+		}(a)
 	}
 
 	d.mtx.Unlock()

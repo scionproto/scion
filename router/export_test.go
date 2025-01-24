@@ -60,7 +60,7 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 }
 
 func NewDP(
-	external map[uint16]struct{},
+	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
 	internalNextHops map[uint16]netip.AddrPort,
@@ -86,7 +86,7 @@ func NewDP(
 
 	// Make dummy external interfaces, as requested by the test. They are not actually used to send
 	// or receive. The blank address might cause issues, though.
-	for i, _ := range external {
+	for _, i := range external {
 		dp.interfaces[i] = dp.underlay.NewExternalLink(nil, 64, nil, netip.AddrPort{}, i)
 	}
 

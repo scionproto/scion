@@ -17,8 +17,6 @@ package underlayproviders
 import (
 	"net/netip"
 
-	// Until we switch to Go 1.23 and can use slices.Collect(maps.Values())
-
 	"github.com/scionproto/scion/router"
 )
 
@@ -113,7 +111,7 @@ func (u *udpConnection) IfID() uint16 {
 	return u.ifID
 }
 
-// todo(jiceatscion): use inheritence between implementations?
+// todo(jiceatscion): use inheritance between implementations?
 
 type externalLink struct {
 	queue      chan<- *router.Packet

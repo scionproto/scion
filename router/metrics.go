@@ -356,7 +356,9 @@ func newOutputMetrics(
 	return om
 }
 
-func interfaceLabels(id uint16, localIA addr.IA, scope LinkScope, neighbors map[uint16]addr.IA) prometheus.Labels {
+func interfaceLabels(
+	id uint16, localIA addr.IA, scope LinkScope, neighbors map[uint16]addr.IA) prometheus.Labels {
+
 	if id == 0 {
 		return prometheus.Labels{
 			"isd_as":          localIA.String(),

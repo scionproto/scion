@@ -209,7 +209,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 		d := &router.DataPlane{}
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
+		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
 		d.FakeStart()
 		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
 	})
@@ -217,21 +217,21 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 		d := &router.DataPlane{}
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
+		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
 		assert.Error(t, d.AddNextHop(45, l, nilAddrPort, nobfd, ""))
 	})
 	t.Run("setting nil src is not allowed", func(t *testing.T) {
 		d := &router.DataPlane{}
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
+		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
 		assert.Error(t, d.AddNextHop(45, nilAddrPort, r, nobfd, ""))
 	})
 	t.Run("normal add works", func(t *testing.T) {
 		d := &router.DataPlane{}
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
+		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
 		assert.NoError(t, d.AddNextHop(45, l, r, nobfd, ""))
 		assert.NoError(t, d.AddNextHop(43, l, r, nobfd, ""))
 	})
@@ -239,7 +239,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 		d := &router.DataPlane{}
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
+		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
 		assert.NoError(t, d.AddNextHop(45, l, r, nobfd, ""))
 		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
 	})
@@ -691,7 +691,7 @@ func TestProcessPkt(t *testing.T) {
 	// * The ingress interface has to exist. This fake map is good for most test cases.
 	//   Others need a custom one.
 	// * InternalNextHops may not be nil. Empty is ok (sufficient unless testing AS transit).
-	fakeExternalInterfaces := map[uint16]struct{}{1: struct{}{}, 2: struct{}{}, 3: struct{}{}}
+	fakeExternalInterfaces := []uint16{1, 2, 3}
 	fakeInternalNextHops := map[uint16]netip.AddrPort{}
 
 	testCases := map[string]struct {
@@ -773,9 +773,7 @@ func TestProcessPkt(t *testing.T) {
 		"outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(1): struct{}{},
-					},
+					[]uint16{1},
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
@@ -807,10 +805,7 @@ func TestProcessPkt(t *testing.T) {
 		"brtransit": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(1): struct{}{},
-						uint16(2): struct{}{},
-					},
+					[]uint16{1, 2},
 					map[uint16]topology.LinkType{
 						1: topology.Parent,
 						2: topology.Child,
@@ -842,10 +837,7 @@ func TestProcessPkt(t *testing.T) {
 		"brtransit non consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(1): struct{}{},
-						uint16(2): struct{}{},
-					},
+					[]uint16{1, 2},
 					map[uint16]topology.LinkType{
 						2: topology.Parent,
 						1: topology.Child,
@@ -878,10 +870,7 @@ func TestProcessPkt(t *testing.T) {
 		"brtransit peering consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(1): struct{}{},
-						uint16(2): struct{}{},
-					},
+					[]uint16{1, 2},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
 						2: topology.Child,
@@ -948,10 +937,7 @@ func TestProcessPkt(t *testing.T) {
 		"brtransit peering non consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(1): struct{}{},
-						uint16(2): struct{}{},
-					},
+					[]uint16{1, 2},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
 						2: topology.Child,
@@ -1025,10 +1011,7 @@ func TestProcessPkt(t *testing.T) {
 			// happens on the next hop.
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(1): struct{}{},
-						uint16(2): struct{}{},
-					},
+					[]uint16{1, 2},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
 						2: topology.Child,
@@ -1099,10 +1082,7 @@ func TestProcessPkt(t *testing.T) {
 		"peering non consdir upstream": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(1): struct{}{},
-						uint16(2): struct{}{},
-					},
+					[]uint16{1, 2},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
 						2: topology.Child,
@@ -1181,11 +1161,7 @@ func TestProcessPkt(t *testing.T) {
 		"astransit direct": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(1): struct{}{},
-						// Interface 3 isn't in the external interfaces of this router
-						// another router has it.
-					},
+					[]uint16{1}, // Interface 3 is in the external interfaces of a sibling router
 					map[uint16]topology.LinkType{
 						1: topology.Core,
 						3: topology.Core,
@@ -1218,9 +1194,7 @@ func TestProcessPkt(t *testing.T) {
 		"astransit xover": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(51): struct{}{},
-					},
+					[]uint16{51},
 					map[uint16]topology.LinkType{
 						51: topology.Child,
 						3:  topology.Core,
@@ -1417,9 +1391,7 @@ func TestProcessPkt(t *testing.T) {
 		"reversed onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(1): struct{}{},
-					},
+					[]uint16{1},
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
@@ -1477,9 +1449,7 @@ func TestProcessPkt(t *testing.T) {
 		"onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]struct{}{
-						uint16(2): struct{}{},
-					},
+					[]uint16{2},
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,

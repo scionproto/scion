@@ -33,8 +33,8 @@ const (
 // connection, with a bfdSession, a destination address, etc. It also allows the concrete send
 // operation to be delegated to different underlay implementations. The association between
 // link and underlay connection is a channel, on the sending side, and should be a demultiplexer on
-// the receiving side. The demultiplexer must have a src-addr:link map in all cases where links share
-// connections.
+// the receiving side. The demultiplexer must have a src-addr:link map in all cases where links
+// share connections.
 //
 // Regardless of underlay, links come in three scopes: internal, sibling, and external. The
 // difference in behaviour is hidden from the rest of the router. The router only needs to
