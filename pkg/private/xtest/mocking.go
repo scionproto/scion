@@ -30,6 +30,6 @@ type PanickingReporter struct {
 	*testing.T
 }
 
-func (reporter *PanickingReporter) Fatalf(format string, args ...interface{}) {
+func (reporter *PanickingReporter) Fatalf(format string, args ...any) {
 	panic(fmt.Sprintf(format, args...))
 }

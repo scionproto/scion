@@ -37,7 +37,7 @@ import (
 // ctxPair is one item of context info.
 type ctxPair struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
 // errorInfo is a base class for two implementations of error: basicError and joinedError.
@@ -102,7 +102,7 @@ func IsTemporary(err error) bool {
 	return errors.As(err, &t) && t.Temporary()
 }
 
-func mkErrorInfo(cause error, addStack bool, errCtx ...interface{}) errorInfo {
+func mkErrorInfo(cause error, addStack bool, errCtx ...any) errorInfo {
 	np := len(errCtx) / 2
 	ctx := make([]ctxPair, np)
 	for i := 0; i < np; i++ {
@@ -191,7 +191,7 @@ func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 //
 // Wrap may be useful to enrich sentinel errors if the main message needs to be different than
 // that supplied by the sentinel error.
-func Wrap(msg string, cause error, errCtx ...interface{}) error {
+func Wrap(msg string, cause error, errCtx ...any) error {
 	return basicError{
 		errorInfo: mkErrorInfo(cause, true, errCtx...),
 		msg:       msg,
@@ -200,7 +200,7 @@ func Wrap(msg string, cause error, errCtx ...interface{}) error {
 
 // WrapNoStack behaves like [Wrap], except that no stack dump is added, regardless of cause's
 // underlying type.
-func WrapNoStack(msg string, cause error, errCtx ...interface{}) error {
+func WrapNoStack(msg string, cause error, errCtx ...any) error {
 	return basicError{
 		errorInfo: mkErrorInfo(cause, false, errCtx...),
 		msg:       msg,
@@ -212,7 +212,7 @@ func WrapNoStack(msg string, cause error, errCtx ...interface{}) error {
 // Avoid using this in performance-critical code: it is the most expensive variant. If used to
 // construct other errors, such as with Join, the embedded stack trace and context serve no
 // purpose. Therefore, to make sentinel errors, errors.New() should be preferred.
-func New(msg string, errCtx ...interface{}) error {
+func New(msg string, errCtx ...any) error {
 	return &basicError{
 		errorInfo: mkErrorInfo(nil, true, errCtx...),
 		msg:       msg,
@@ -260,7 +260,7 @@ func (e joinedError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 // case the result is a sentinel error enriched with context. For such a purpose this is better than
 // [Wrap], since [Wrap] would retain any irrelevant context possibly attached to the sentinel error
 // and store a redundant message string.
-func Join(err, cause error, errCtx ...interface{}) error {
+func Join(err, cause error, errCtx ...any) error {
 	if err == nil && cause == nil {
 		// Pointless. Will not. Also, maintaining backward compatibility with
 		// a previous Join function.
@@ -274,7 +274,7 @@ func Join(err, cause error, errCtx ...interface{}) error {
 
 // JoinNoStack behaves like [Join] except that no stack dump is added regardless of cause's
 // underlying type.
-func JoinNoStack(err, cause error, errCtx ...interface{}) error {
+func JoinNoStack(err, cause error, errCtx ...any) error {
 	if err == nil && cause == nil {
 		// Pointless. Will not.
 		return nil

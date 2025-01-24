@@ -167,7 +167,7 @@ func (i CachingInspector) HasAttributes(ctx context.Context, ia addr.IA,
 	return hasAttributes, nil
 }
 
-func (i CachingInspector) cacheGet(key string, reqType string) (interface{}, bool) {
+func (i CachingInspector) cacheGet(key string, reqType string) (any, bool) {
 	if i.Cache == nil {
 		return nil, false
 	}
@@ -185,7 +185,7 @@ func (i CachingInspector) cacheGet(key string, reqType string) (interface{}, boo
 	return result, ok
 }
 
-func (i CachingInspector) cacheAdd(key string, value interface{}, d time.Duration) {
+func (i CachingInspector) cacheAdd(key string, value any, d time.Duration) {
 	if i.Cache == nil {
 		return
 	}

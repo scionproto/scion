@@ -122,9 +122,9 @@ type silentLogger struct {
 	log.Logger
 }
 
-func (s silentLogger) Info(msg string, ctx ...interface{}) {
+func (s silentLogger) Info(msg string, ctx ...any) {
 	s.Logger.Debug(msg, ctx...)
 }
-func (s silentLogger) Error(msg string, ctx ...interface{}) {
+func (s silentLogger) Error(msg string, ctx ...any) {
 	s.Logger.Debug(msg, ctx...)
 }

@@ -119,7 +119,7 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ interface{}) ([]beacon.Beacon, error) {
+				func(_, _ any) ([]beacon.Beacon, error) {
 					res := make([]beacon.Beacon, 0, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
@@ -210,7 +210,7 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ interface{}) ([]beacon.Beacon, error) {
+				func(_, _ any) ([]beacon.Beacon, error) {
 					res := make([]beacon.Beacon, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
@@ -313,7 +313,7 @@ func TestRegistrarRun(t *testing.T) {
 		require.NoError(t, err)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(),
 			seg.TypeDown).DoAndReturn(
-			func(_, _ interface{}) (<-chan beacon.Beacon, error) {
+			func(_, _ any) (<-chan beacon.Beacon, error) {
 				res := make(chan beacon.Beacon, 1)
 				b := testBeacon(g, []uint16{graph.If_120_X_111_B})
 				b.InIfID = 10

@@ -59,7 +59,7 @@ func RenderList(fset *token.FileSet, list []ast.Expr) string {
 }
 
 // Render renders the the expression.
-func Render(fset *token.FileSet, x interface{}) string {
+func Render(fset *token.FileSet, x any) string {
 	var buf bytes.Buffer
 	if err := printer.Fprint(&buf, fset, x); err != nil {
 		panic(err)

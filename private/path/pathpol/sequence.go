@@ -122,11 +122,11 @@ func (s *Sequence) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (s *Sequence) MarshalYAML() (interface{}, error) {
+func (s *Sequence) MarshalYAML() (any, error) {
 	return s.srcstr, nil
 }
 
-func (s *Sequence) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (s *Sequence) UnmarshalYAML(unmarshal func(any) error) error {
 	var str string
 	err := unmarshal(&str)
 	if err != nil {
@@ -145,7 +145,7 @@ type errorListener struct {
 	msg string
 }
 
-func (l *errorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line,
+func (l *errorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, line,
 	column int, msg string, e antlr.RecognitionException) {
 
 	//fmt.Printf("Error: %s\n", msg)

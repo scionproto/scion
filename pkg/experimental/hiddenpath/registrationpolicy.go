@@ -48,7 +48,7 @@ func (p RegistrationPolicy) Validate() error {
 }
 
 // MarshalYAML implements the yaml marshaller interface.
-func (p RegistrationPolicy) MarshalYAML() (interface{}, error) {
+func (p RegistrationPolicy) MarshalYAML() (any, error) {
 	collectedGroups := make(Groups)
 	policies := make(map[uint64][]string, len(p))
 	for ifID, ip := range p {
@@ -68,7 +68,7 @@ func (p RegistrationPolicy) MarshalYAML() (interface{}, error) {
 }
 
 // UnmarshalYAML implements YAML unmarshaling for the registration policy type.
-func (p RegistrationPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (p RegistrationPolicy) UnmarshalYAML(unmarshal func(any) error) error {
 	rawPolicy := &registrationPolicyInfo{}
 	if err := unmarshal(&rawPolicy); err != nil {
 		return serrors.Wrap("parsing yaml", err)

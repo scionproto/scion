@@ -249,8 +249,8 @@ func (e *executor) DeleteBeacon(ctx context.Context, partialID string) error {
 	return err
 }
 
-func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []interface{}) {
-	var args []interface{}
+func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []any) {
+	var args []any
 	query := "SELECT DISTINCT RowID, LastUpdated, Usage, Beacon, InIntfID FROM Beacons"
 	if params == nil {
 		return query, args

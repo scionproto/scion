@@ -158,13 +158,13 @@ func (d *Downloader) downloadArtifact(artifact buildkite.Artifact, file string) 
 
 }
 
-func (d *Downloader) info(format string, ctx ...interface{}) {
+func (d *Downloader) info(format string, ctx ...any) {
 	if d.StdOut != nil {
 		fmt.Fprintf(d.StdOut, format, ctx...)
 	}
 }
 
-func (d *Downloader) error(format string, ctx ...interface{}) {
+func (d *Downloader) error(format string, ctx ...any) {
 	if d.StdErr != nil {
 		fmt.Fprintf(d.StdErr, format, ctx...)
 	}

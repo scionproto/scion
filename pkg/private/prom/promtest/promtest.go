@@ -27,7 +27,7 @@ import (
 
 // CheckLabelsStruct checks that labels has a Values and Labels method. It also
 // checks that labels.Labels() returns the struct field names.
-func CheckLabelsStruct(t *testing.T, xLabels interface{}) {
+func CheckLabelsStruct(t *testing.T, xLabels any) {
 	v, ok := xLabels.(prom.Labels)
 	if !ok {
 		assert.Fail(t, "should implement labels interface")

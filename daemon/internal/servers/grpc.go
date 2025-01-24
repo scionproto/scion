@@ -117,7 +117,7 @@ func (s *DaemonServer) fetchPaths(
 ) ([]snet.Path, error) {
 
 	r, err, _ := group.Do(fmt.Sprintf("%s%s%t", src, dst, refresh),
-		func() (interface{}, error) {
+		func() (any, error) {
 			return s.Fetcher.GetPaths(ctx, src, dst, refresh)
 		},
 	)

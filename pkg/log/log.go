@@ -221,7 +221,7 @@ func (l httpLevel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // SafeNewLogger creates a new logger as a child of l only if l is not nil. If l is nil, then
 // nil is returned.
-func SafeNewLogger(l Logger, fields ...interface{}) Logger {
+func SafeNewLogger(l Logger, fields ...any) Logger {
 	if l != nil {
 		return l.New(fields...)
 	}
@@ -229,7 +229,7 @@ func SafeNewLogger(l Logger, fields ...interface{}) Logger {
 }
 
 // SafeDebug logs to l only if l is not nil.
-func SafeDebug(l Logger, msg string, fields ...interface{}) {
+func SafeDebug(l Logger, msg string, fields ...any) {
 	if l != nil {
 		if ll, ok := l.(*logger); ok {
 			ll.logger.Debug(msg, convertCtx(fields)...)
@@ -240,7 +240,7 @@ func SafeDebug(l Logger, msg string, fields ...interface{}) {
 }
 
 // SafeInfo logs to l only if l is not nil.
-func SafeInfo(l Logger, msg string, fields ...interface{}) {
+func SafeInfo(l Logger, msg string, fields ...any) {
 	if l != nil {
 		if ll, ok := l.(*logger); ok {
 			ll.logger.Info(msg, convertCtx(fields)...)
@@ -251,7 +251,7 @@ func SafeInfo(l Logger, msg string, fields ...interface{}) {
 }
 
 // SafeError logs to l only if l is not nil.
-func SafeError(l Logger, msg string, fields ...interface{}) {
+func SafeError(l Logger, msg string, fields ...any) {
 	if l != nil {
 		if ll, ok := l.(*logger); ok {
 			ll.logger.Error(msg, convertCtx(fields)...)
