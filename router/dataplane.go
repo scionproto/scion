@@ -78,7 +78,7 @@ const (
 	is32bit = 1 - (ptrSize-4)/4
 )
 
-type bfdSession interface {
+type BfdSession interface {
 	Run(ctx context.Context) error
 	ReceiveMessage(*layers.BFD)
 	IsUp() bool
@@ -91,27 +91,15 @@ type BatchConn interface {
 	Close() error
 }
 
-// LinkScope describes the kind (or scope) of a link: internal, sibling, or external.
-type linkScope int
+// underlay is a pointer to our underlay provider.
+//
+// incremental refactoring: this allows for a single underlay. In the future, each link could be
+// via a different underlay. That would have to be supported by the configuration code and there
+// would likely be a registry of underlays. For now, That's the whole registry.
+var newUnderlay func() UnderlayProvider
 
-const (
-	internal linkScope = iota // to/from end-hosts in the local AS
-	sibling                   // to/from (external interfaces owned by) a sibling router
-	external                  // to/from routers in another AS
-)
-
-// link embodies the router's idea of an underlay connection. It associates the underlay connection,
-// with a bfdSession, a destination address, (and more in the future). It also allows the send
-// operation to be underlay-dependant. It can be (in the future) registered with the underlay
-// implementation so incoming packets can be easily associated to a link.
-// TODO(jiceatscion): use inheritence between implementations.
-type link interface {
-	getScope() linkScope
-	getBfdSession() bfdSession
-	isUp() bool
-	getRemote() netip.AddrPort
-	getIfID() uint16
-	send(p *packet) bool
+func AddUnderlay(newProvider func() UnderlayProvider) {
+	newUnderlay = newProvider
 }
 
 type disposition int
@@ -123,7 +111,7 @@ const (
 	pDone
 )
 
-// packet aggregates buffers and ancillary metadata related to one packet.
+// Packet aggregates buffers and ancillary metadata related to one packet.
 // That is everything we need to pass-around while processing a packet. The motivation is to save on
 // copy (pass everything via one reference) AND garbage collection (reuse everything).
 // The buffer is allocated in a separate location (but still reused) to keep the packet structures
@@ -133,7 +121,7 @@ const (
 // arch) until Slowpath request which is 6 bytes long. The rest is in decreasing order of size and
 // size-aligned. We want to fit neatly into cache lines, so we need to fit in 64 bytes. The padding
 // required to occupy exactly 64 bytes depends on the architecture.
-type packet struct {
+type Packet struct {
 	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).
 	// It can be any portion of the full buffer; not necessarily the start.
 	rawPacket []byte
@@ -145,7 +133,7 @@ type packet struct {
 	srcAddr *net.UDPAddr
 	// The address to where we are forwarding the packet.
 	// Will be set by the processing routine; it is updated in-place.
-	dstAddr *net.UDPAddr
+	DstAddr *net.UDPAddr
 	// Additional metadata in case the packet is put on the slow path. Updated in-place.
 	slowPathRequest slowPathRequest
 	// The ingress on which this packet arrived. This is set by the receiver.
@@ -169,219 +157,40 @@ type slowPathRequest struct {
 }
 
 // Make sure that the packet structure has the size we expect.
-const _ uintptr = 64 - unsafe.Sizeof(packet{}) // assert 64 >= sizeof(packet)
-const _ uintptr = unsafe.Sizeof(packet{}) - 64 // assert sizeof(packet) >= 64
+const _ uintptr = 64 - unsafe.Sizeof(Packet{}) // assert 64 >= sizeof(Packet)
+const _ uintptr = unsafe.Sizeof(Packet{}) - 64 // assert sizeof(Packet) >= 64
 
 // initPacket configures the given blank packet (and returns it, for convenience).
-func (p *packet) init(buffer *[bufSize]byte) *packet {
+func (p *Packet) init(buffer *[bufSize]byte) *Packet {
 	p.buffer = buffer
 	p.rawPacket = p.buffer[:]
-	p.dstAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
+	p.DstAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
 	return p
 }
 
 // reset() makes the packet ready to receive a new underlay message.
 // A cleared dstAddr is represented with a zero-length IP so we keep reusing the IP storage bytes.
-func (p *packet) reset() {
-	p.dstAddr.IP = p.dstAddr.IP[0:0] // We're keeping the object, just blank it.
-	*p = packet{
+func (p *Packet) reset() {
+	p.DstAddr.IP = p.DstAddr.IP[0:0] // We're keeping the object, just blank it.
+	*p = Packet{
 		buffer:    p.buffer,    // keep the buffer
 		rawPacket: p.buffer[:], // restore the full packet capacity
-		dstAddr:   p.dstAddr,   // keep the dstAddr and so the IP slice and bytes
+		DstAddr:   p.DstAddr,   // keep the dstAddr and so the IP slice and bytes
 	}
 	// Everything else is reset to zero value.
-}
-
-// An external link is connection oriented. And is not shared. As a result, it has a defined
-// interfaceID and a fixed destination address.
-type externalLink struct {
-	// Each link has a queue, consumed by a forwarding task and fed by bfd senders
-	// and packet processors.
-	queue      chan *packet
-	bfdSession bfdSession
-	remote     netip.AddrPort
-	ifID       uint16
-}
-
-func newExternalLink(
-	queue chan *packet,
-	bfdSession bfdSession,
-	remote netip.AddrPort,
-	ifID uint16,
-) *externalLink {
-
-	return &externalLink{
-		queue:      queue,
-		bfdSession: bfdSession,
-		remote:     remote,
-		ifID:       ifID,
-	}
-}
-
-func (l *externalLink) getScope() linkScope {
-	return external
-}
-
-func (l *externalLink) getBfdSession() bfdSession {
-	return l.bfdSession
-}
-
-func (l *externalLink) isUp() bool {
-	return l.bfdSession == nil || l.bfdSession.IsUp()
-}
-
-func (l *externalLink) getRemote() netip.AddrPort {
-	return l.remote
-}
-
-func (l *externalLink) getIfID() uint16 {
-	return l.ifID
-}
-
-// The goal is to have send do those things that are dependent on the underlay connection type
-// such as updating the destination address of the pkt with the known bound one.
-// TODO(jiceatscion): indeed, do it.
-func (l *externalLink) send(p *packet) bool {
-	select {
-	case l.queue <- p:
-	default:
-		return false
-	}
-	return true
-}
-
-// A siblingLink is connection oriented. However, it may be shared between multiple interface IDs.
-// So, it has no defined interface ID but a fixed destination address.
-type siblingLink struct {
-	// Each link has a queue, consumed by a forwarding task and fed by bfd senders
-	// and packet processors.
-	queue      chan *packet
-	bfdSession bfdSession
-	remote     netip.AddrPort
-	ifID       uint16
-}
-
-func newSiblingLink(
-	queue chan *packet,
-	bfdSession bfdSession,
-	remote netip.AddrPort,
-) *siblingLink {
-
-	return &siblingLink{
-		queue:      queue,
-		bfdSession: bfdSession,
-		remote:     remote,
-	}
-}
-
-func (l *siblingLink) getScope() linkScope {
-	return sibling
-}
-func (l *siblingLink) getBfdSession() bfdSession {
-	return l.bfdSession
-}
-
-func (l *siblingLink) isUp() bool {
-	return l.bfdSession == nil || l.bfdSession.IsUp()
-}
-
-func (l *siblingLink) getRemote() netip.AddrPort {
-	return l.remote
-}
-
-func (l *siblingLink) getIfID() uint16 {
-	return 0
-}
-
-func (l *siblingLink) send(p *packet) bool {
-	select {
-	case l.queue <- p:
-	default:
-		return false
-	}
-	return true
-}
-
-// An internalLink is not connection oriented and it is not associated with an AS border interface.
-// So, it has no defined interface ID and no fixed destination address. It can't have a BFD session
-// either. So, it's a link only in name. May be, in the future, we find it more convenient to not
-// treat such connections as links. For now, it helps with code migration. Incoming packets are
-// associated with the link they came in through by way of the underlay source address.
-type internalLink struct {
-	// Each link has a queue, consumed by a forwarding task and fed by bfd senders
-	// and packet processors.
-	queue chan *packet
-}
-
-func newInternalLink(queue chan *packet) *internalLink {
-	return &internalLink{
-		queue: queue,
-	}
-}
-
-func (l *internalLink) getScope() linkScope {
-	return internal
-}
-
-func (l *internalLink) isUp() bool {
-	return true
-}
-
-func (l *internalLink) getBfdSession() bfdSession {
-	return nil
-}
-
-func (l *internalLink) getRemote() netip.AddrPort {
-	return netip.AddrPort{ /* fixme; we have a special value */ }
-}
-
-func (l *internalLink) getIfID() uint16 {
-	return 0
-}
-
-func (l *internalLink) send(p *packet) bool {
-	select {
-	case l.queue <- p:
-	default:
-		return false
-	}
-	return true
-}
-
-// Connections can be shared between links. So we keep a cannonical map.
-// Also, there must be one sending loop and one channel per connection. So that goes here.
-// This business should be moved to underlay implementations, but... one problem at a time.
-// So, this is a minimal implementation to support the single underlay we have today.
-type forwarder struct {
-	conn BatchConn
-	fwQ  chan *packet
-	ifID uint16 // non-zero only when not shared bw links.
-}
-
-func newForwarder(conn BatchConn, queueSize int, ifID uint16) *forwarder {
-	return &forwarder{
-		conn: conn,
-		fwQ:  make(chan *packet, queueSize),
-		ifID: ifID,
-	}
 }
 
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
 type DataPlane struct {
-	links               map[netip.AddrPort]link
-	forwarders          map[netip.AddrPort]*forwarder // We do this here as a refactoring step.
-	interfaces          map[uint16]link
-	external            map[uint16]struct{} // TODO: to be replaced w/ e.g. interfaces[x].getScope()
+	underlay            UnderlayProvider
+	interfaces          map[uint16]Link
 	linkTypes           map[uint16]topology.LinkType
 	neighborIAs         map[uint16]addr.IA
-	peerInterfaces      map[uint16]uint16
 	internalIP          netip.Addr
-	internalNextHops    map[uint16]netip.AddrPort
 	svc                 *services
 	macFactory          func() hash.Hash
-	bfdSessions         map[uint16]bfdSession
 	localIA             addr.IA
 	mtx                 sync.Mutex
 	running             atomic.Bool
@@ -401,7 +210,7 @@ type DataPlane struct {
 	// packet structure is fetched from the pool passed-around through the various channels and
 	// returned to the pool. To reduce the cost of copying, the packet structure is passed by
 	// reference.
-	packetPool chan *packet
+	packetPool chan *Packet
 }
 
 var (
@@ -535,18 +344,17 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 	if conn == nil {
 		return emptyValue
 	}
+	if d.underlay == nil {
+		d.underlay = newUnderlay()
+	}
 	if d.interfaces == nil {
-		d.interfaces = make(map[uint16]link)
-		d.forwarders = make(map[netip.AddrPort]*forwarder)
+		d.interfaces = make(map[uint16]Link)
 	} else if d.interfaces[0] != nil {
 		return alreadySet
 	}
 
-	f := newForwarder(conn, d.RunConfig.BatchSize, 0)
-	d.forwarders[netip.AddrPort{}] = f
-	d.interfaces[0] = newInternalLink(f.fwQ)
-	// That is not a real link => not in the links map; should be?
-
+	l := d.underlay.NewInternalLink(conn, d.RunConfig.BatchSize)
+	d.interfaces[0] = l
 	d.internalIP = ip
 
 	return nil
@@ -567,31 +375,21 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	if conn == nil || !src.Addr.IsValid() || !dst.Addr.IsValid() {
 		return emptyValue
 	}
+	if d.underlay == nil {
+		d.underlay = newUnderlay()
+	}
 	bfd, err := d.addExternalInterfaceBFD(ifID, src, dst, cfg)
 	if err != nil {
 		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
 	}
-	if d.external == nil {
-		d.external = make(map[uint16]struct{})
-	}
 	if d.interfaces == nil {
-		d.interfaces = make(map[uint16]link)
+		d.interfaces = make(map[uint16]Link)
 	}
-	if d.forwarders == nil {
-		d.forwarders = make(map[netip.AddrPort]*forwarder)
-	}
-	if _, exists := d.external[ifID]; exists {
+	if _, exists := d.interfaces[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
-	if d.forwarders[dst.Addr] != nil {
-		return serrors.JoinNoStack(alreadySet, nil, "dst Addr", dst.Addr)
-	}
-	fw := newForwarder(conn, d.RunConfig.BatchSize, ifID)
-	lk := newExternalLink(fw.fwQ, bfd, dst.Addr, ifID)
-	d.forwarders[dst.Addr] = fw
-	d.links[dst.Addr] = lk
+	lk := d.underlay.NewExternalLink(conn, d.RunConfig.BatchSize, bfd, dst.Addr, ifID)
 	d.interfaces[ifID] = lk
-	d.external[ifID] = struct{}{}
 	return nil
 }
 
@@ -636,27 +434,9 @@ func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 	return nil
 }
 
-// AddRemotePeer adds the remote peering interface ID for local
-// interface ID.  If the link type for the given ID is already set to
-// a different type, this method will return an error. This can only
-// be called on a not yet running dataplane.
-func (d *DataPlane) AddRemotePeer(local, remote uint16) error {
-	if t, ok := d.linkTypes[local]; ok && t != topology.Peer {
-		return serrors.JoinNoStack(unsupportedPathType, nil, "type", t)
-	}
-	if _, exists := d.peerInterfaces[local]; exists {
-		return serrors.JoinNoStack(alreadySet, nil, "local_interface", local)
-	}
-	if d.peerInterfaces == nil {
-		d.peerInterfaces = make(map[uint16]uint16)
-	}
-	d.peerInterfaces[local] = remote
-	return nil
-}
-
 // AddExternalInterfaceBFD adds the inter AS connection BFD session.
 func (d *DataPlane) addExternalInterfaceBFD(ifID uint16,
-	src, dst control.LinkEnd, cfg control.BFD) (bfdSession, error) {
+	src, dst control.LinkEnd, cfg control.BFD) (BfdSession, error) {
 
 	if *cfg.Disable {
 		return nil, nil
@@ -686,14 +466,14 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16,
 // returns InterfaceUp if the relevant bfdsession state is up, or if there is no BFD
 // session. Otherwise, it returns InterfaceDown.
 func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
-	if l := d.interfaces[ifID]; l != nil && !l.isUp() {
+	if l := d.interfaces[ifID]; l != nil && !l.IsUp() {
 		return control.InterfaceDown
 	}
 	return control.InterfaceUp
 }
 
 func (d *DataPlane) addBFDController(ifID uint16, s bfd.Sender, cfg control.BFD,
-	metrics bfd.Metrics) (bfdSession, error) {
+	metrics bfd.Metrics) (BfdSession, error) {
 
 	// Generate random discriminator. It can't be zero.
 	discInt, err := rand.Int(rand.Reader, big.NewInt(0xfffffffe))
@@ -767,27 +547,22 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 	if !dst.IsValid() || !src.IsValid() {
 		return emptyValue
 	}
+	if d.underlay == nil {
+		d.underlay = newUnderlay()
+	}
 	bfd, err := d.addNextHopBFD(ifID, src, dst, cfg, sibling)
 	if err != nil {
 		return serrors.Wrap("adding next hop BFD", err, "if_id", ifID)
 	}
-	if d.internalNextHops == nil {
-		d.internalNextHops = make(map[uint16]netip.AddrPort)
+	if d.interfaces == nil {
+		d.interfaces = make(map[uint16]Link)
 	}
-	if _, exists := d.internalNextHops[ifID]; exists {
+	if _, exists := d.interfaces[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 
-	// We have one link per unique dst address.
-	sib := d.links[dst]
-	if sib == nil {
-		// As a refactoring step, re-use the internal connection's forwarder, which is what we've
-		// been effectively doing so far.
-		sib := newSiblingLink(d.forwarders[netip.AddrPort{}].fwQ, bfd, dst)
-		d.links[dst] = sib
-	}
+	sib := d.underlay.NewSiblingLink(d.RunConfig.BatchSize, bfd, dst)
 	d.interfaces[ifID] = sib
-	d.internalNextHops[ifID] = dst
 	return nil
 }
 
@@ -795,7 +570,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
 func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
-	sibling string) (bfdSession, error) {
+	sibling string) (BfdSession, error) {
 
 	if *cfg.Disable {
 		return nil, nil
@@ -835,24 +610,28 @@ func (d *DataPlane) Run(ctx context.Context) error {
 	d.mtx.Lock()
 	d.initMetrics()
 
+	// incremental refactoring: we leave all the ingest work here for now, so we get the set of
+	// connections from the underlay.
+	underlayConnections := d.underlay.GetConnections()
 	processorQueueSize := max(
-		len(d.forwarders)*d.RunConfig.BatchSize/d.RunConfig.NumProcessors,
+		len(underlayConnections)*d.RunConfig.BatchSize/d.RunConfig.NumProcessors,
 		d.RunConfig.BatchSize)
 
 	d.initPacketPool(processorQueueSize)
 	procQs, slowQs := d.initQueues(processorQueueSize)
 
 	d.setRunning()
-	for _, f := range d.forwarders {
-		go func(f *forwarder) {
+	for _, c := range underlayConnections {
+		go func(c UnderlayConnection) {
 			defer log.HandlePanic()
-			d.runReceiver(f, procQs)
-		}(f)
-		go func(f *forwarder) {
+			d.runReceiver(c, procQs)
+		}(c)
+		go func(c UnderlayConnection) {
 			defer log.HandlePanic()
-			d.runForwarder(f)
-		}(f)
+			d.runForwarder(c)
+		}(c)
 	}
+
 	for i := 0; i < d.RunConfig.NumProcessors; i++ {
 		go func(i int) {
 			defer log.HandlePanic()
@@ -866,13 +645,17 @@ func (d *DataPlane) Run(ctx context.Context) error {
 		}(i)
 	}
 
-	for a, l := range d.links {
-		go func(a netip.AddrPort, s bfdSession) {
+	for a, l := range d.underlay.GetLinks() {
+		s := l.GetBfdSession()
+		if s == nil {
+			continue
+		}
+		go func() {
 			defer log.HandlePanic()
 			if err := s.Run(ctx); err != nil && err != bfd.AlreadyRunning {
 				log.Error("BFD session failed to start", "remote address", a, "err", err)
 			}
-		}(a, l.getBfdSession())
+		}()
 	}
 
 	d.mtx.Unlock()
@@ -888,32 +671,35 @@ func (d *DataPlane) initPacketPool(processorQueueSize int) {
 		len(d.interfaces)*(2*d.RunConfig.BatchSize)
 
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
-	d.packetPool = make(chan *packet, poolSize)
+	d.packetPool = make(chan *Packet, poolSize)
 	pktBuffers := make([][bufSize]byte, poolSize)
-	pktStructs := make([]packet, poolSize)
+	pktStructs := make([]Packet, poolSize)
 	for i := 0; i < poolSize; i++ {
 		d.packetPool <- pktStructs[i].init(&pktBuffers[i])
 	}
 }
 
 // initializes the processing routines and queues
-func (d *DataPlane) initQueues(processorQueueSize int) ([]chan *packet, []chan *packet) {
+func (d *DataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *Packet) {
 
-	procQs := make([]chan *packet, d.RunConfig.NumProcessors)
+	procQs := make([]chan *Packet, d.RunConfig.NumProcessors)
 	for i := 0; i < d.RunConfig.NumProcessors; i++ {
-		procQs[i] = make(chan *packet, processorQueueSize)
+		procQs[i] = make(chan *Packet, processorQueueSize)
 	}
-	slowQs := make([]chan *packet, d.RunConfig.NumSlowPathProcessors)
+	slowQs := make([]chan *Packet, d.RunConfig.NumSlowPathProcessors)
 	for i := 0; i < d.RunConfig.NumSlowPathProcessors; i++ {
-		slowQs[i] = make(chan *packet, processorQueueSize)
+		slowQs[i] = make(chan *Packet, processorQueueSize)
 	}
 	return procQs, slowQs
 }
 
-func (d *DataPlane) runReceiver(f *forwarder, procQs []chan *packet) {
+// runReceiver handles incoming traffic from the given connection.
+//
+// Incremental refactoring: we should not have direct knowledge of connections. Later we will move
+// parts of this to the connection itself, so that we don't have to know.
+func (d *DataPlane) runReceiver(c UnderlayConnection, procQs []chan *Packet) {
 
-	// TODO(jiceatscion): ifID isn't veyr unique. It is zero for internal and all sibling links.
-	log.Debug("Run receiver for", "interface", f.ifID)
+	log.Debug("Run receiver", "connection", c.Name())
 
 	// Each receiver (therefore each input interface) has a unique random seed for the procID hash
 	// function.
@@ -922,8 +708,8 @@ func (d *DataPlane) runReceiver(f *forwarder, procQs []chan *packet) {
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("Error while generating random value")
 	}
-	for _, c := range randomBytes {
-		hashSeed = hashFNV1a(hashSeed, c)
+	for _, b := range randomBytes {
+		hashSeed = hashFNV1a(hashSeed, b)
 	}
 
 	// A collection of socket messages, as the readBatch API expects them. We keep using the same
@@ -932,12 +718,12 @@ func (d *DataPlane) runReceiver(f *forwarder, procQs []chan *packet) {
 
 	// An array of corresponding packet references. Each corresponds to one msg.
 	// The packet owns the buffer that we set in the matching msg, plus the metadata that we'll add.
-	packets := make([]*packet, d.RunConfig.BatchSize)
+	packets := make([]*Packet, d.RunConfig.BatchSize)
 
-	numReusable := 0                       // unused buffers from previous loop
-	metrics := d.forwardingMetrics[f.ifID] // If receiver exists, fw metrics exist too.
+	numReusable := 0                         // unused buffers from previous loop
+	metrics := d.forwardingMetrics[c.IfID()] // If receiver exists, fw metrics exist too.
 
-	enqueueForProcessing := func(size int, srcAddr *net.UDPAddr, pkt *packet) {
+	enqueueForProcessing := func(size int, srcAddr *net.UDPAddr, pkt *Packet) {
 		sc := classOfSize(size)
 		metrics[sc].InputPacketsTotal.Inc()
 		metrics[sc].InputBytesTotal.Add(float64(size))
@@ -951,7 +737,10 @@ func (d *DataPlane) runReceiver(f *forwarder, procQs []chan *packet) {
 		}
 
 		pkt.rawPacket = pkt.rawPacket[:size] // Update size; readBatch does not.
-		pkt.ingress = f.ifID
+		// Incremental refactoring: We should begin with finding the link and get the ifID
+		// from there. We will do that once we actually move these pre-processing tasks directly
+		// into the underlay.
+		pkt.ingress = c.IfID()
 		pkt.srcAddr = srcAddr
 		select {
 		case procQs[procID] <- pkt:
@@ -973,10 +762,10 @@ func (d *DataPlane) runReceiver(f *forwarder, procQs []chan *packet) {
 		}
 
 		// Fill the packets
-		numPkts, err := f.conn.ReadBatch(msgs)
+		numPkts, err := c.Conn().ReadBatch(msgs)
 		numReusable = len(msgs) - numPkts
 		if err != nil {
-			log.Debug("Error while reading batch", "interfaceID", f.ifID, "err", err)
+			log.Debug("Error while reading batch", "interfaceID", c.IfID(), "err", err)
 			continue
 		}
 		for i, msg := range msgs[:numPkts] {
@@ -1012,15 +801,15 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	return s % uint32(numProcRoutines), nil
 }
 
-func (d *DataPlane) getPacketFromPool() *packet {
+func (d *DataPlane) getPacketFromPool() *Packet {
 	return <-d.packetPool
 }
 
-func (d *DataPlane) returnPacketToPool(pkt *packet) {
+func (d *DataPlane) returnPacketToPool(pkt *Packet) {
 	d.packetPool <- pkt
 }
 
-func (d *DataPlane) runProcessor(id int, q <-chan *packet, slowQ chan<- *packet) {
+func (d *DataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet) {
 
 	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
@@ -1066,14 +855,14 @@ func (d *DataPlane) runProcessor(id int, q <-chan *packet, slowQ chan<- *packet)
 			d.returnPacketToPool(p)
 			continue
 		}
-		if !fwLink.send(p) {
+		if !fwLink.Send(p) {
 			d.returnPacketToPool(p)
 			metrics.DroppedPacketsBusyForwarder.Inc()
 		}
 	}
 }
 
-func (d *DataPlane) runSlowPathProcessor(id int, q <-chan *packet) {
+func (d *DataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 
 	log.Debug("Initialize slow-path processor with", "id", id)
 	processor := newSlowPathProcessor(d)
@@ -1097,7 +886,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan *packet) {
 			d.returnPacketToPool(p)
 			continue
 		}
-		if !fwLink.send(p) {
+		if !fwLink.Send(p) {
 			d.returnPacketToPool(p)
 		}
 	}
@@ -1120,7 +909,7 @@ func newSlowPathProcessor(d *DataPlane) *slowPathPacketProcessor {
 
 type slowPathPacketProcessor struct {
 	d   *DataPlane
-	pkt *packet
+	pkt *Packet
 
 	scionLayer slayers.SCION
 	hbhLayer   slayers.HopByHopExtnSkipper
@@ -1147,7 +936,7 @@ func (p *slowPathPacketProcessor) reset() {
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
 }
 
-func (p *slowPathPacketProcessor) processPacket(pkt *packet) error {
+func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 	var err error
 	p.reset()
 	p.pkt = pkt
@@ -1205,7 +994,7 @@ func (p *slowPathPacketProcessor) processPacket(pkt *packet) error {
 	}
 }
 
-func updateOutputMetrics(metrics interfaceMetrics, packets []*packet) {
+func updateOutputMetrics(metrics interfaceMetrics, packets []*Packet) {
 	// We need to collect stats by traffic type and size class.
 	// Try to reduce the metrics lookup penalty by using some
 	// simpler staging data structure.
@@ -1228,14 +1017,28 @@ func updateOutputMetrics(metrics interfaceMetrics, packets []*packet) {
 	}
 }
 
-// It would make more sense for this to be part of Forwarder
-func (d *DataPlane) runForwarder(f *forwarder) {
+// Big issue with metrics and ifID. If an underlay connection must be shared between links
+// (for example, libling links), then we don't have a specific ifID in the connection per se. It
+// changes for each packet. As a result, in the shared case, either we account all metrics to
+// whatever placeholder ifID we have (i.e. 0), or we have to use pkt.egress and lookup the metrics
+// in the map for each packet. This is too expensive.
+//
+// Mitigations:
+//   - use ifID even if it is 0 for sibling links - no worse than before, since sibling links were
+//     already redirected to interface 0. Ok, until we have fully shared forwarders (like with an
+//     XDP underlay impl).
+//   - stage our own internal metrics map, sorted by ifID = pkt.egress, and batch update the
+//     metrics... might not be much cheaper than the naive way.
+//   - Use one fw queue per ifID in each connection... but then have to round-robin for fairness....
+//     smaller batches?
+//
+// For now, we do the first option.
+func (d *DataPlane) runForwarder(c UnderlayConnection) {
 
-	// TODO(jiceatscion): ifID isn't so informative; it is zero for internal and all sibling links.
-	log.Debug("Initialize forwarder for", "interface", f.ifID)
+	log.Debug("Run forwarder", "connection", c.Name())
 
 	// We use this somewhat like a ring buffer.
-	pkts := make([]*packet, d.RunConfig.BatchSize)
+	pkts := make([]*Packet, d.RunConfig.BatchSize)
 
 	// We use this as a temporary buffer, but allocate it just once
 	// to save on garbage handling.
@@ -1244,21 +1047,22 @@ func (d *DataPlane) runForwarder(f *forwarder) {
 		msgs[i].Buffers = make([][]byte, 1)
 	}
 
-	metrics := d.forwardingMetrics[f.ifID]
+	metrics := d.forwardingMetrics[c.IfID()]
 
 	toWrite := 0
 	for d.IsRunning() {
-		toWrite += readUpTo(f.fwQ, d.RunConfig.BatchSize-toWrite, toWrite == 0, pkts[toWrite:])
+		// Top-up our batch.
+		toWrite += readUpTo(c.Queue(), d.RunConfig.BatchSize-toWrite, toWrite == 0, pkts[toWrite:])
 
 		// Turn the packets into underlay messages that WriteBatch can send.
 		for i, p := range pkts[:toWrite] {
 			msgs[i].Buffers[0] = p.rawPacket
 			msgs[i].Addr = nil
-			if len(p.dstAddr.IP) != 0 {
-				msgs[i].Addr = p.dstAddr
+			if len(p.DstAddr.IP) != 0 {
+				msgs[i].Addr = p.DstAddr
 			}
 		}
-		written, _ := f.conn.WriteBatch(msgs[:toWrite], 0)
+		written, _ := c.Conn().WriteBatch(msgs[:toWrite], 0)
 		if written < 0 {
 			// WriteBatch returns -1 on error, we just consider this as
 			// 0 packets written
@@ -1288,7 +1092,7 @@ func (d *DataPlane) runForwarder(f *forwarder) {
 	}
 }
 
-func readUpTo(c <-chan *packet, n int, needsBlocking bool, pkts []*packet) int {
+func readUpTo(c <-chan *Packet, n int, needsBlocking bool, pkts []*Packet) int {
 	i := 0
 	if needsBlocking {
 		p, ok := <-c
@@ -1348,7 +1152,7 @@ func errorDiscard(ctx ...any) disposition {
 	return pDiscard
 }
 
-func (p *scionPacketProcessor) processPkt(pkt *packet) disposition {
+func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
 	if err := p.reset(); err != nil {
 		return errorDiscard("error", err)
 	}
@@ -1390,26 +1194,33 @@ func (p *scionPacketProcessor) processPkt(pkt *packet) disposition {
 }
 
 func (p *scionPacketProcessor) processInterBFD(oh *onehop.Path, data []byte) disposition {
-	if len(p.d.bfdSessions) == 0 {
-		return errorDiscard("error", noBFDSessionConfigured)
-	}
 
+	// If this is an inter-AS BFD, it can via an interface we own. So the ifID matches one link
+	// and the ifID better be valid. In the future that will be checked upstream from here.
+	l, exists := p.d.interfaces[p.pkt.ingress]
+	if !exists {
+		return errorDiscard("error", noBFDSessionFound)
+	}
+	session := l.GetBfdSession()
+	if session == nil {
+		return errorDiscard("error", noBFDSessionFound)
+	}
 	bfd := &p.bfdLayer
 	if err := bfd.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 		return errorDiscard("error", err)
 	}
-
-	if v, ok := p.d.bfdSessions[p.pkt.ingress]; ok {
-		v.ReceiveMessage(bfd)
-		return pDiscard // All's fine. That packet's journey ends here.
-	}
-
-	return errorDiscard("error", noBFDSessionFound)
+	session.ReceiveMessage(bfd)
+	return pDiscard // All's fine. That packet's journey ends here.
 }
 
 func (p *scionPacketProcessor) processIntraBFD(data []byte) disposition {
-	if len(p.d.bfdSessions) == 0 {
-		return errorDiscard("error", noBFDSessionConfigured)
+
+	// This packet came over a link that doesn't have a define ifID. We have to find it
+	// by srcAddress. We always find one. The internal link matches anything that is not known.
+	src := p.pkt.srcAddr.AddrPort() // POSSIBLY EXPENSIVE CONVERSION
+	session := p.d.underlay.GetLink(src).GetBfdSession()
+	if session == nil {
+		return errorDiscard("error", noBFDSessionFound)
 	}
 
 	bfd := &p.bfdLayer
@@ -1417,21 +1228,8 @@ func (p *scionPacketProcessor) processIntraBFD(data []byte) disposition {
 		return errorDiscard("error", err)
 	}
 
-	ifID := uint16(0)
-	src := p.pkt.srcAddr.AddrPort() // POSSIBLY EXPENSIVE CONVERSION
-	for k, v := range p.d.internalNextHops {
-		if src == v {
-			ifID = k
-			break
-		}
-	}
-
-	if v, ok := p.d.bfdSessions[ifID]; ok {
-		v.ReceiveMessage(bfd)
-		return pDiscard // All's fine. That packet's journey ends here.
-	}
-
-	return errorDiscard("error", noBFDSessionFound)
+	session.ReceiveMessage(bfd)
+	return pDiscard // All's fine. That packet's journey ends here.
 }
 
 func (p *scionPacketProcessor) processSCION() disposition {
@@ -1500,7 +1298,7 @@ type scionPacketProcessor struct {
 	// d is a reference to the dataplane instance that initiated this processor.
 	d *DataPlane
 	// pkt is the packet currently being processed by this processor.
-	pkt *packet
+	pkt *Packet
 	// mac is the hasher for the MAC computation.
 	mac hash.Hash
 
@@ -1568,7 +1366,7 @@ func (p *slowPathPacketProcessor) packSCMP(
 	// The original traffic type, if one had been set, no-longer applies.
 	p.pkt.trafficType = ttOther
 	p.pkt.egress = p.pkt.ingress
-	updateNetAddrFromNetAddr(p.pkt.dstAddr, p.pkt.srcAddr)
+	updateNetAddrFromNetAddr(p.pkt.DstAddr, p.pkt.srcAddr)
 	return nil
 }
 
@@ -1723,19 +1521,21 @@ func (p *scionPacketProcessor) respInvalidDstIA() disposition {
 // Provided that underlying network infrastructure prevents address spoofing,
 // this check prevents malicious end hosts in the local AS from bypassing the
 // SrcIA checks by disguising packets as transit traffic.
+//
+// Incremental refactoring: All or part of this check should move to the underlay.
 func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 	if p.path.IsFirstHop() || p.pkt.ingress != 0 {
 		// not a transit packet, nothing to check
 		return pForward
 	}
 	pktIngressID := p.ingressInterface()
-	expectedSrc, okE := p.d.internalNextHops[pktIngressID]
-	if !okE {
+	ingressLink := p.d.interfaces[pktIngressID]
+	if ingressLink.GetScope() != Sibling {
 		// Drop
 		return errorDiscard("error", invalidSrcAddrForTransit)
 	}
 	src, okS := netip.AddrFromSlice(p.pkt.srcAddr.IP)
-	if !(okS && expectedSrc.Addr() == src) {
+	if !(okS && ingressLink.GetRemote().Addr() == src) {
 		// Drop
 		return errorDiscard("error", invalidSrcAddrForTransit)
 	}
@@ -1751,12 +1551,13 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 // to another AS directly, or via a sibling router.
 func (p *scionPacketProcessor) validateEgressID() disposition {
 	egressID := p.pkt.egress
-	_, ih := p.d.internalNextHops[egressID]
-	_, eh := p.d.external[egressID]
+	link, found := p.d.interfaces[egressID]
+
 	// egress interface must be a known interface
+	// egress is never the internalInterface
 	// packet coming from internal interface, must go to an external interface
-	// packet coming from external interface can go to either internal or external interface
-	if !ih && !eh || (p.pkt.ingress == 0) && !eh {
+	// Note that, for now, ingress == 0 is also true for sibling interfaces. That might change.
+	if !found || (p.pkt.ingress == 0 && link.GetScope() == Sibling) {
 		errCode := slayers.SCMPCodeUnknownHopFieldEgress
 		if !p.infoField.ConsDir {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
@@ -1874,7 +1675,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() disposition {
 }
 
 func (p *scionPacketProcessor) resolveInbound() disposition {
-	err := p.d.resolveLocalDst(p.pkt.dstAddr, p.scionLayer, p.lastLayer)
+	err := p.d.resolveLocalDst(p.pkt.DstAddr, p.scionLayer, p.lastLayer)
 
 	switch err {
 	case nil:
@@ -1965,22 +1766,21 @@ func (p *scionPacketProcessor) egressInterface() uint16 {
 
 func (p *scionPacketProcessor) validateEgressUp() disposition {
 	egressID := p.pkt.egress
-	if v, ok := p.d.bfdSessions[egressID]; ok {
-		if !v.IsUp() {
-			log.Debug("SCMP response", "cause", errBFDSessionDown)
-			if _, external := p.d.external[p.pkt.egress]; !external {
-				p.pkt.slowPathRequest = slowPathRequest{
-					scmpType: slayers.SCMPTypeInternalConnectivityDown,
-					code:     0,
-				}
-			} else {
-				p.pkt.slowPathRequest = slowPathRequest{
-					scmpType: slayers.SCMPTypeExternalInterfaceDown,
-					code:     0,
-				}
+	egressLink := p.d.interfaces[egressID]
+	if !egressLink.IsUp() {
+		log.Debug("SCMP response", "cause", errBFDSessionDown)
+		if egressLink.GetScope() != External {
+			p.pkt.slowPathRequest = slowPathRequest{
+				scmpType: slayers.SCMPTypeInternalConnectivityDown,
+				code:     0,
 			}
-			return pSlowPath
+		} else {
+			p.pkt.slowPathRequest = slowPathRequest{
+				scmpType: slayers.SCMPTypeExternalInterfaceDown,
+				code:     0,
+			}
 		}
+		return pSlowPath
 	}
 	return pForward
 }
@@ -2015,7 +1815,7 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() disposition {
 	if !*alert {
 		return pForward
 	}
-	if _, ok := p.d.external[p.pkt.egress]; !ok {
+	if p.d.interfaces[p.pkt.egress].GetScope() != External {
 		// the egress router is not this one.
 		return pForward
 	}
@@ -2186,7 +1986,7 @@ func (p *scionPacketProcessor) process() disposition {
 	if disp := p.validateEgressUp(); disp != pForward {
 		return disp
 	}
-	if _, ok := p.d.external[egressID]; ok {
+	if p.d.interfaces[egressID].GetScope() == External {
 		// Not ASTransit in
 		if disp := p.processEgress(); disp != pForward {
 			return disp
@@ -2208,25 +2008,9 @@ func (p *scionPacketProcessor) process() disposition {
 	}
 
 	// ASTransit in: pkt leaving this AS through another BR.
-	if a, ok := p.d.internalNextHops[egressID]; ok {
-		p.pkt.trafficType = ttInTransit
-		updateNetAddrFromAddrPort(p.pkt.dstAddr, a)
-		// The packet must go to the other router via the internal interface.
-		p.pkt.egress = 0
-		return pForward
-	}
-
-	errCode := slayers.SCMPCodeUnknownHopFieldEgress
-	if !p.infoField.ConsDir {
-		errCode = slayers.SCMPCodeUnknownHopFieldIngress
-	}
-	log.Debug("SCMP response", "cause", cannotRoute)
-	p.pkt.slowPathRequest = slowPathRequest{
-		scmpType: slayers.SCMPTypeParameterProblem,
-		code:     errCode,
-		pointer:  p.currentHopPointer(),
-	}
-	return pSlowPath
+	// We already know the egressID is valid. The packet can go straight to forwarding.
+	p.pkt.trafficType = ttInTransit
+	return pForward
 }
 
 func (p *scionPacketProcessor) processOHP() disposition {
@@ -2291,7 +2075,7 @@ func (p *scionPacketProcessor) processOHP() disposition {
 	if err := updateSCIONLayer(p.pkt.rawPacket, s); err != nil {
 		return errorDiscard("error", err)
 	}
-	err := p.d.resolveLocalDst(p.pkt.dstAddr, s, p.lastLayer)
+	err := p.d.resolveLocalDst(p.pkt.DstAddr, s, p.lastLayer)
 	if err != nil {
 		return errorDiscard("error", err)
 	}
@@ -2322,7 +2106,7 @@ func (d *DataPlane) resolveLocalDst(
 		if a.Port() < d.dispatchedPortStart || a.Port() > d.dispatchedPortEnd {
 			updateNetAddrFromAddrAndPort(resolvedDst, a.Addr(), topology.EndhostPort)
 		} else {
-			updateNetAddrFromAddrPort(resolvedDst, a)
+			UpdateNetAddrFromAddrPort(resolvedDst, a)
 		}
 		return nil
 	case addr.HostTypeIP:
@@ -2617,10 +2401,10 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 
 	if b.ifID == 0 {
 		// Using the internal interface: must specify the destination address
-		updateNetAddrFromAddrPort(p.dstAddr, b.dstAddr)
+		UpdateNetAddrFromAddrPort(p.DstAddr, b.dstAddr)
 	}
 	// No need to specify pkt.egress. It isn't used downstream from here.
-	if !fwLink.send(p) {
+	if !fwLink.Send(p) {
 		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
 		// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
 		b.dataPlane.returnPacketToPool(p)
@@ -2687,8 +2471,8 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	}
 	// If the packet is sent to an external router, we need to increment the
 	// path to prepare it for the next hop.
-	_, external := p.d.external[p.pkt.ingress]
-	if external {
+	// This is an scmp response to pkt, so egress will be pkt.ingress.
+	if p.d.interfaces[p.pkt.ingress].GetScope() == External {
 		infoField := &revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir && !peering {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
@@ -2940,9 +2724,9 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 // forwarding.
 func (d *DataPlane) initMetrics() {
 	d.forwardingMetrics = make(map[uint16]interfaceMetrics)
-	d.forwardingMetrics[0] = newInterfaceMetrics(d.Metrics, 0, d.localIA, d.neighborIAs)
-	for ifID := range d.external {
-		d.forwardingMetrics[ifID] = newInterfaceMetrics(d.Metrics, ifID, d.localIA, d.neighborIAs)
+	for ifID, link := range d.interfaces {
+		d.forwardingMetrics[ifID] = newInterfaceMetrics(
+			d.Metrics, ifID, d.localIA, link.GetScope(), d.neighborIAs)
 	}
 
 	// Start our custom /proc/pid/stat collector to export iowait time and (in the future) other
@@ -2959,7 +2743,7 @@ func (d *DataPlane) initMetrics() {
 // given netip.AddrPort. newDst.Addr() returns the IP by value. The compiler may or
 // may not inline the call and optimize out the copy. It is doubtful that manually inlining
 // increases the chances that the copy get elided. TODO(jiceatscion): experiment.
-func updateNetAddrFromAddrPort(netAddr *net.UDPAddr, newDst netip.AddrPort) {
+func UpdateNetAddrFromAddrPort(netAddr *net.UDPAddr, newDst netip.AddrPort) {
 	updateNetAddrFromAddrAndPort(netAddr, newDst.Addr(), newDst.Port())
 }
 

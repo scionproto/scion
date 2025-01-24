@@ -47,6 +47,7 @@ import (
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/control"
 	"github.com/scionproto/scion/router/mock_router"
+	_ "github.com/scionproto/scion/router/underlayproviders"
 )
 
 var (
@@ -200,29 +201,45 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 	l := netip.AddrPortFrom(netip.IPv4Unspecified(), 0)
 	r := netip.AddrPortFrom(netip.IPv4Unspecified(), 0)
 	nilAddrPort := netip.AddrPort{}
+	nilAddr := netip.Addr{}
 
 	nobfd := control.BFD{Disable: ptr.To(true)}
 
 	t.Run("fails after serve", func(t *testing.T) {
 		d := &router.DataPlane{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
 		d.FakeStart()
 		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
 	})
 	t.Run("setting nil dst is not allowed", func(t *testing.T) {
 		d := &router.DataPlane{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
 		assert.Error(t, d.AddNextHop(45, l, nilAddrPort, nobfd, ""))
 	})
 	t.Run("setting nil src is not allowed", func(t *testing.T) {
 		d := &router.DataPlane{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
 		assert.Error(t, d.AddNextHop(45, nilAddrPort, r, nobfd, ""))
 	})
 	t.Run("normal add works", func(t *testing.T) {
 		d := &router.DataPlane{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
 		assert.NoError(t, d.AddNextHop(45, l, r, nobfd, ""))
 		assert.NoError(t, d.AddNextHop(43, l, r, nobfd, ""))
 	})
 	t.Run("overwrite fails", func(t *testing.T) {
 		d := &router.DataPlane{}
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr)
 		assert.NoError(t, d.AddNextHop(45, l, r, nobfd, ""))
 		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
 	})
@@ -238,7 +255,14 @@ func TestDataPlaneRun(t *testing.T) {
 	}{
 		"route 10 msg from external to internal": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{Metrics: metrics}
+				ret := &router.DataPlane{
+					Metrics: metrics,
+					RunConfig: router.RunConfig{
+						NumProcessors:         8,
+						BatchSize:             256,
+						NumSlowPathProcessors: 1,
+					},
+				}
 				key := []byte("testkey_xxxxxxxx")
 				local := addr.MustParseIA("1-ff00:0:110")
 
@@ -326,7 +350,14 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd bootstrap internal session": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{Metrics: metrics}
+				ret := &router.DataPlane{
+					Metrics: metrics,
+					RunConfig: router.RunConfig{
+						NumProcessors:         8,
+						BatchSize:             256,
+						NumSlowPathProcessors: 1,
+					},
+				}
 
 				postInternalBFD := func(id layers.BFDDiscriminator, src netip.AddrPort) []byte {
 					scn := &slayers.SCION{
@@ -405,7 +436,14 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd sender internal": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{Metrics: metrics}
+				ret := &router.DataPlane{
+					Metrics: metrics,
+					RunConfig: router.RunConfig{
+						NumProcessors:         8,
+						BatchSize:             256,
+						NumSlowPathProcessors: 1,
+					},
+				}
 				localAddr := netip.MustParseAddrPort("10.0.200.100:0")
 				remoteAddr := netip.MustParseAddrPort("10.0.200.200:0")
 				mInternal := mock_router.NewMockBatchConn(ctrl)
@@ -456,7 +494,15 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd sender external": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{Metrics: metrics}
+				ret := &router.DataPlane{
+					Metrics: metrics,
+					RunConfig: router.RunConfig{
+						NumProcessors:         8,
+						BatchSize:             256,
+						NumSlowPathProcessors: 1,
+					},
+				}
+
 				ifID := uint16(1)
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
@@ -508,7 +554,14 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd bootstrap external session": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{Metrics: metrics}
+				ret := &router.DataPlane{
+					Metrics: metrics,
+					RunConfig: router.RunConfig{
+						NumProcessors:         8,
+						BatchSize:             256,
+						NumSlowPathProcessors: 1,
+					},
+				}
 
 				postExternalBFD := func(id layers.BFDDiscriminator, fromIfID uint16) []byte {
 					scn := &slayers.SCION{
@@ -589,18 +642,13 @@ func TestDataPlaneRun(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			runConfig := &router.RunConfig{
-				NumProcessors:         8,
-				BatchSize:             256,
-				NumSlowPathProcessors: 1,
-			}
 			ch := make(chan struct{})
 			dp := tc.prepareDP(ctrl, ch)
 			errors := make(chan error)
 			ctx, cancelF := context.WithCancel(context.Background())
 			defer cancelF()
 			go func() {
-				errors <- dp.Run(ctx, runConfig)
+				errors <- dp.Run(ctx)
 			}()
 
 			for done := false; !done; {
@@ -1157,9 +1205,11 @@ func TestProcessPkt(t *testing.T) {
 				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
 				var dstAddr *net.UDPAddr
 				ingress := uint16(1)
-				egress := uint16(0) // Internal forward to the egress router
+				egress := uint16(0) // To make sure it gets updated.
 				if afterProcessing {
-					dstAddr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
+					egress = uint16(3) // The sibling router is locally mapped to the egress ifID.
+					// The link is specific to the sibling. It has the address. So we don't expect:
+					// dstAddr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
 				}
 				return router.NewPacket(toBytes(t, spkt, dpath), nil, dstAddr, ingress, egress)
 			},
@@ -1210,11 +1260,13 @@ func TestProcessPkt(t *testing.T) {
 
 				var dstAddr *net.UDPAddr
 				ingress := uint16(51) // == consEgress, bc non-consdir
-				egress := uint16(0)   // Cross-over. The egress happens in the next segment.
+				egress := uint16(0)   // To check that it is updated
 				if afterProcessing {
 					dpath.PathMeta.CurrHF++
 					dpath.PathMeta.CurrINF++
-					dstAddr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
+					egress = uint16(3) // Internal hop => egress points at sibling router.
+					// The link is specific to the sibling. It has the address. So we don't expect:
+					// dstAddr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
 				} else {
 					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[1].Mac)
 				}

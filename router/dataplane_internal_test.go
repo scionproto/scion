@@ -52,7 +52,15 @@ var (
 func TestReceiver(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	dp := &DataPlane{Metrics: metrics}
+	dp := &DataPlane{
+		underlay:   newUnderlay(),
+		interfaces: make(map[uint16]Link),
+		Metrics:    metrics,
+		RunConfig: RunConfig{
+			NumProcessors: 1,
+			BatchSize:     64,
+		},
+	}
 	counter := 0
 	mInternal := mock_router.NewMockBatchConn(ctrl)
 	done := make(chan bool)
@@ -79,17 +87,13 @@ func TestReceiver(t *testing.T) {
 
 	_ = dp.AddInternalInterface(mInternal, netip.Addr{})
 
-	runConfig := &RunConfig{
-		NumProcessors: 1,
-		BatchSize:     64,
-	}
-	dp.initPacketPool(runConfig, 64)
-	procCh, _, _ := initQueues(runConfig, dp.interfaces, 64)
+	dp.initPacketPool(64)
+	procCh, _ := dp.initQueues(64)
 	initialPoolSize := len(dp.packetPool)
 	dp.setRunning()
 	dp.initMetrics()
 	go func() {
-		dp.runReceiver(0, dp.interfaces[0], runConfig, procCh)
+		dp.runReceiver(dp.underlay.GetConnections()[netip.AddrPort{}], procCh)
 	}()
 	ptrMap := make(map[uintptr]struct{})
 	for i := 0; i < 21; i++ {
@@ -115,7 +119,7 @@ func TestReceiver(t *testing.T) {
 	}
 	<-done
 	// make sure that the packet pool has the expected size after the test
-	assert.Equal(t, initialPoolSize-runConfig.BatchSize-20, len(dp.packetPool))
+	assert.Equal(t, initialPoolSize-dp.RunConfig.BatchSize-20, len(dp.packetPool))
 }
 
 // TestForwarder sets up a mocked batchConn, starts the forwarder that will write to
@@ -127,7 +131,15 @@ func TestForwarder(t *testing.T) {
 	defer ctrl.Finish()
 	done := make(chan struct{})
 	prepareDP := func(ctrl *gomock.Controller) *DataPlane {
-		ret := &DataPlane{Metrics: metrics}
+		ret := &DataPlane{
+			underlay: newUnderlay(),
+			Metrics:  metrics,
+			RunConfig: RunConfig{
+				NumProcessors:         20,
+				BatchSize:             64,
+				NumSlowPathProcessors: 1,
+			},
+		}
 
 		mInternal := mock_router.NewMockBatchConn(ctrl)
 		totalCount := 0
@@ -173,16 +185,14 @@ func TestForwarder(t *testing.T) {
 		return ret
 	}
 	dp := prepareDP(ctrl)
-	runConfig := &RunConfig{
-		NumProcessors: 20,
-		BatchSize:     64,
-	}
-	dp.initPacketPool(runConfig, 64)
-	_, fwCh, _ := initQueues(runConfig, dp.interfaces, 64)
+	dp.initPacketPool(64)
+	dp.initQueues(64)
+	conn := dp.underlay.GetConnections()[netip.AddrPort{}]
+	intf := dp.interfaces[0]
 	initialPoolSize := len(dp.packetPool)
 	dp.setRunning()
 	dp.initMetrics()
-	go dp.runForwarder(0, dp.interfaces[0], runConfig, fwCh[0])
+	go dp.runForwarder(conn)
 
 	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 	for i := 0; i < 255; i++ {
@@ -191,19 +201,18 @@ func TestForwarder(t *testing.T) {
 		pkt.rawPacket = pkt.rawPacket[:1]
 		pkt.rawPacket[0] = byte(i)
 		if i < 100 {
-			pkt.dstAddr.IP = pkt.dstAddr.IP[:4]
-			copy(pkt.dstAddr.IP, dstAddr.IP)
+			pkt.DstAddr.IP = pkt.DstAddr.IP[:4]
+			copy(pkt.DstAddr.IP, dstAddr.IP)
 		}
 		pkt.srcAddr = &net.UDPAddr{} // Receiver always sets this.
 		pkt.ingress = 0
 
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
 
-		select {
-		case fwCh[0] <- pkt:
-		case <-done:
-		}
-
+		// Normal use would be
+		// intf.Send(pkt):
+		// However we want to exclude queue overflow from the test. So we want a blocking send.
+		intf.BlockSend(pkt)
 	}
 	select {
 	case <-done:
@@ -619,7 +628,7 @@ func TestSlowPathProcessing(t *testing.T) {
 			dp.initMetrics()
 
 			rp := tc.mockMsg()
-			pkt := packet{}
+			pkt := Packet{}
 			pkt.init(&[bufSize]byte{})
 			pkt.reset()
 			pkt.ingress = tc.srcInterface
