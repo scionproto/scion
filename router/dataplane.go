@@ -697,9 +697,9 @@ func (d *DataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *
 //
 // Incremental refactoring: we should not have direct knowledge of connections. Later we will move
 // parts of this to the connection itself, so that we don't have to know.
-func (d *DataPlane) runReceiver(c UnderlayConnection, procQs []chan *Packet) {
+func (d *DataPlane) runReceiver(u UnderlayConnection, procQs []chan *Packet) {
 
-	log.Debug("Run receiver", "connection", c.Name())
+	log.Debug("Run receiver", "connection", u.Name())
 
 	// Each receiver (therefore each input interface) has a unique random seed for the procID hash
 	// function.
@@ -708,8 +708,8 @@ func (d *DataPlane) runReceiver(c UnderlayConnection, procQs []chan *Packet) {
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("Error while generating random value")
 	}
-	for _, b := range randomBytes {
-		hashSeed = hashFNV1a(hashSeed, b)
+	for _, c := range randomBytes {
+		hashSeed = hashFNV1a(hashSeed, c)
 	}
 
 	// A collection of socket messages, as the readBatch API expects them. We keep using the same
@@ -720,8 +720,9 @@ func (d *DataPlane) runReceiver(c UnderlayConnection, procQs []chan *Packet) {
 	// The packet owns the buffer that we set in the matching msg, plus the metadata that we'll add.
 	packets := make([]*Packet, d.RunConfig.BatchSize)
 
-	numReusable := 0                         // unused buffers from previous loop
-	metrics := d.forwardingMetrics[c.IfID()] // If receiver exists, fw metrics exist too.
+	numReusable := 0 // unused buffers from previous loop
+	ifID := u.IfID()
+	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
 
 	enqueueForProcessing := func(size int, srcAddr *net.UDPAddr, pkt *Packet) {
 		sc := classOfSize(size)
@@ -740,7 +741,7 @@ func (d *DataPlane) runReceiver(c UnderlayConnection, procQs []chan *Packet) {
 		// Incremental refactoring: We should begin with finding the link and get the ifID
 		// from there. We will do that once we actually move these pre-processing tasks directly
 		// into the underlay.
-		pkt.ingress = c.IfID()
+		pkt.ingress = ifID
 		pkt.srcAddr = srcAddr
 		select {
 		case procQs[procID] <- pkt:
@@ -750,6 +751,7 @@ func (d *DataPlane) runReceiver(c UnderlayConnection, procQs []chan *Packet) {
 		}
 	}
 
+	conn := u.Conn()
 	for d.IsRunning() {
 		// collect packets.
 
@@ -762,10 +764,10 @@ func (d *DataPlane) runReceiver(c UnderlayConnection, procQs []chan *Packet) {
 		}
 
 		// Fill the packets
-		numPkts, err := c.Conn().ReadBatch(msgs)
+		numPkts, err := conn.ReadBatch(msgs)
 		numReusable = len(msgs) - numPkts
 		if err != nil {
-			log.Debug("Error while reading batch", "interfaceID", c.IfID(), "err", err)
+			log.Debug("Error while reading batch", "interfaceID", ifID, "err", err)
 			continue
 		}
 		for i, msg := range msgs[:numPkts] {
@@ -1033,9 +1035,9 @@ func updateOutputMetrics(metrics interfaceMetrics, packets []*Packet) {
 //     smaller batches?
 //
 // For now, we do the first option.
-func (d *DataPlane) runForwarder(c UnderlayConnection) {
+func (d *DataPlane) runForwarder(u UnderlayConnection) {
 
-	log.Debug("Run forwarder", "connection", c.Name())
+	log.Debug("Run forwarder", "connection", u.Name())
 
 	// We use this somewhat like a ring buffer.
 	pkts := make([]*Packet, d.RunConfig.BatchSize)
@@ -1047,12 +1049,13 @@ func (d *DataPlane) runForwarder(c UnderlayConnection) {
 		msgs[i].Buffers = make([][]byte, 1)
 	}
 
-	metrics := d.forwardingMetrics[c.IfID()]
-
+	c := u.Queue()
+	conn := u.Conn()
+	metrics := d.forwardingMetrics[u.IfID()]
 	toWrite := 0
 	for d.IsRunning() {
 		// Top-up our batch.
-		toWrite += readUpTo(c.Queue(), d.RunConfig.BatchSize-toWrite, toWrite == 0, pkts[toWrite:])
+		toWrite += readUpTo(c, d.RunConfig.BatchSize-toWrite, toWrite == 0, pkts[toWrite:])
 
 		// Turn the packets into underlay messages that WriteBatch can send.
 		for i, p := range pkts[:toWrite] {
@@ -1062,7 +1065,7 @@ func (d *DataPlane) runForwarder(c UnderlayConnection) {
 				msgs[i].Addr = p.DstAddr
 			}
 		}
-		written, _ := c.Conn().WriteBatch(msgs[:toWrite], 0)
+		written, _ := conn.WriteBatch(msgs[:toWrite], 0)
 		if written < 0 {
 			// WriteBatch returns -1 on error, we just consider this as
 			// 0 packets written
