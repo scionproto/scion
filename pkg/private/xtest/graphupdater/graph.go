@@ -39,7 +39,7 @@ type iface struct {
 	iface string
 }
 
-func (i *iface) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (i *iface) UnmarshalYAML(unmarshal func(any) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
 		return err

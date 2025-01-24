@@ -220,6 +220,6 @@ func benchmarkView(b *testing.B, view file.View) {
 }
 
 func pemKeyParse(b []byte) (any, error) {
-	// Change the return type from []byte to interface{}
+	// Change the return type from []byte to any
 	return scrypto.ParsePEMSymmetricKey(b)
 }
