@@ -174,7 +174,7 @@ func TestAPI(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 					gomock.Any()).AnyTimes().DoAndReturn(
-					func(_ interface{},
+					func(_ any,
 						msg []byte,
 						associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
 						inputHdr := &cryptopb.Header{

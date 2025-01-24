@@ -203,10 +203,10 @@ The template is expressed in JSON. A valid example::
 		RunE: func(cmd *cobra.Command, args []string) error {
 			certFile := args[0]
 			keyFile := args[1]
-			printErr := func(f string, ctx ...interface{}) {
+			printErr := func(f string, ctx ...any) {
 				fmt.Fprintf(cmd.ErrOrStderr(), f, ctx...)
 			}
-			printf := func(f string, ctx ...interface{}) {
+			printf := func(f string, ctx ...any) {
 				fmt.Fprintf(cmd.OutOrStdout(), f, ctx...)
 			}
 

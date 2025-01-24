@@ -139,7 +139,7 @@ func CopyFile(t testing.TB, src, dst string) {
 // MustMarshalJSONToFile marshals v and writes the result to file
 // testdata/baseName. If the file exists, it is truncated; if it doesn't exist,
 // it is created. On errors, t.Fatal() is called.
-func MustMarshalJSONToFile(t testing.TB, v interface{}, baseName string) {
+func MustMarshalJSONToFile(t testing.TB, v any, baseName string) {
 	t.Helper()
 
 	enc, err := json.MarshalIndent(v, "", "    ")

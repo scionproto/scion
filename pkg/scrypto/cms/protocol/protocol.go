@@ -209,7 +209,7 @@ type Attribute struct {
 }
 
 // NewAttribute creates a single-value Attribute.
-func NewAttribute(typ asn1.ObjectIdentifier, val interface{}) (Attribute, error) {
+func NewAttribute(typ asn1.ObjectIdentifier, val any) (Attribute, error) {
 	der, err := asn1.Marshal(val)
 	if err != nil {
 		return Attribute{}, err

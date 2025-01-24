@@ -259,7 +259,7 @@ type packetMatcher struct {
 	packet gopacket.Packet
 }
 
-func (pm *packetMatcher) Matches(x interface{}) bool {
+func (pm *packetMatcher) Matches(x any) bool {
 	packet := x.(gopacket.Packet)
 	return bytes.Equal(packet.Data(), pm.packet.Data())
 }

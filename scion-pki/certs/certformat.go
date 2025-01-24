@@ -44,7 +44,7 @@ type formatBuffer struct {
 }
 
 // Writef writes a string formated using fmt.Sprintf.
-func (b *formatBuffer) Writef(format string, args ...interface{}) (int, error) {
+func (b *formatBuffer) Writef(format string, args ...any) (int, error) {
 	return b.Buffer.WriteString(fmt.Sprintf(format, args...))
 }
 
@@ -202,7 +202,7 @@ func getProvisioner(cert *x509.Certificate) *provisioner {
 	return nil
 }
 
-func getPublicKeyAlgorithm(algorithm x509.PublicKeyAlgorithm, key interface{}) string {
+func getPublicKeyAlgorithm(algorithm x509.PublicKeyAlgorithm, key any) string {
 	var params string
 	switch pk := key.(type) {
 	case *ecdsa.PublicKey:

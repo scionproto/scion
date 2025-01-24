@@ -185,7 +185,7 @@ func Done(src, dst addr.IA) {
 }
 
 // LogFatal logs a critical error and exits with 1
-func LogFatal(msg string, a ...interface{}) {
+func LogFatal(msg string, a ...any) {
 	log.Error(msg, a...)
 	os.Exit(1)
 }

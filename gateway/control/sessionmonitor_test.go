@@ -45,7 +45,7 @@ type pktMatcher struct {
 }
 
 // Matches returns whether x is a match.
-func (m pktMatcher) Matches(x interface{}) bool {
+func (m pktMatcher) Matches(x any) bool {
 	other, ok := x.([]byte)
 	if !ok {
 		return false
@@ -69,7 +69,7 @@ type udpAddrMatcher struct {
 }
 
 // Matches returns whether x is a match.
-func (m udpAddrMatcher) Matches(x interface{}) bool {
+func (m udpAddrMatcher) Matches(x any) bool {
 	other, ok := x.(*snet.UDPAddr)
 	if !ok {
 		return false
