@@ -93,7 +93,7 @@ type BatchConn interface {
 
 // underlay is a pointer to our underlay provider.
 //
-// incremental refactoring: this allows for a single underlay. In the future, each link could be
+// TODO(multi_underlay): this allows for a single underlay. In the future, each link could be
 // via a different underlay. That would have to be supported by the configuration code and there
 // would likely be a registry of underlays. For now, That's the whole registry.
 var newUnderlay func() UnderlayProvider
@@ -229,17 +229,15 @@ var (
 	unsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
 	unsupportedUnspecifiedAddress = errors.New("unsupported unspecified address")
 	noBFDSessionFound             = errors.New("no BFD session was found")
-	// noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
-	errPeeringEmptySeg0     = errors.New("zero-length segment[0] in peering path")
-	errPeeringEmptySeg1     = errors.New("zero-length segment[1] in peering path")
-	errPeeringNonemptySeg2  = errors.New("non-zero-length segment[2] in peering path")
-	errShortPacket          = errors.New("Packet is too short")
-	errBFDSessionDown       = errors.New("bfd session down")
-	expiredHop              = errors.New("expired hop")
-	ingressInterfaceInvalid = errors.New("ingress interface invalid")
-	macVerificationFailed   = errors.New("MAC verification failed")
-	badPacketSize           = errors.New("bad packet size")
-	//	notImplemented          = errors.New("Not Yet Implemented")
+	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
+	errPeeringEmptySeg1           = errors.New("zero-length segment[1] in peering path")
+	errPeeringNonemptySeg2        = errors.New("non-zero-length segment[2] in peering path")
+	errShortPacket                = errors.New("Packet is too short")
+	errBFDSessionDown             = errors.New("bfd session down")
+	expiredHop                    = errors.New("expired hop")
+	ingressInterfaceInvalid       = errors.New("ingress interface invalid")
+	macVerificationFailed         = errors.New("MAC verification failed")
+	badPacketSize                 = errors.New("bad packet size")
 
 	// zeroBuffer will be used to reset the Authenticator option in the
 	// scionPacketProcessor.OptAuth
@@ -353,8 +351,7 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 		return alreadySet
 	}
 
-	l := d.underlay.NewInternalLink(conn, d.RunConfig.BatchSize)
-	d.interfaces[0] = l
+	d.interfaces[0] = d.underlay.NewInternalLink(conn, d.RunConfig.BatchSize)
 	d.internalIP = ip
 
 	return nil
@@ -388,8 +385,8 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	if _, exists := d.interfaces[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
-	lk := d.underlay.NewExternalLink(conn, d.RunConfig.BatchSize, bfd, dst.Addr, ifID)
-	d.interfaces[ifID] = lk
+	d.interfaces[ifID] = d.underlay.NewExternalLink(
+		conn, d.RunConfig.BatchSize, bfd, dst.Addr, ifID)
 	return nil
 }
 
@@ -466,7 +463,7 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16,
 // returns InterfaceUp if the relevant bfdsession state is up, or if there is no BFD
 // session. Otherwise, it returns InterfaceDown.
 func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
-	if l := d.interfaces[ifID]; l != nil && !l.IsUp() {
+	if link := d.interfaces[ifID]; link != nil && !link.IsUp() {
 		return control.InterfaceDown
 	}
 	return control.InterfaceUp
@@ -561,8 +558,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 
-	sib := d.underlay.NewSiblingLink(d.RunConfig.BatchSize, bfd, dst)
-	d.interfaces[ifID] = sib
+	d.interfaces[ifID] = d.underlay.NewSiblingLink(d.RunConfig.BatchSize, bfd, dst)
 	return nil
 }
 
@@ -610,7 +606,7 @@ func (d *DataPlane) Run(ctx context.Context) error {
 	d.mtx.Lock()
 	d.initMetrics()
 
-	// incremental refactoring: we leave all the ingest work here for now, so we get the set of
+	// TODO(multi_underlay): we leave all the ingest work here for now, so we get the set of
 	// connections from the underlay.
 	underlayConnections := d.underlay.GetConnections()
 	processorQueueSize := max(
@@ -645,17 +641,17 @@ func (d *DataPlane) Run(ctx context.Context) error {
 		}(i)
 	}
 
-	for a, l := range d.underlay.GetLinks() {
-		s := l.GetBfdSession()
+	for addr, link := range d.underlay.GetLinks() {
+		s := link.GetBfdSession()
 		if s == nil {
 			continue
 		}
-		go func(a netip.AddrPort) {
+		go func(addr netip.AddrPort) {
 			defer log.HandlePanic()
 			if err := s.Run(ctx); err != nil && err != bfd.AlreadyRunning {
-				log.Error("BFD session failed to start", "remote address", a, "err", err)
+				log.Error("BFD session failed to start", "remote address", addr, "err", err)
 			}
-		}(a)
+		}(addr)
 	}
 
 	d.mtx.Unlock()
@@ -695,7 +691,7 @@ func (d *DataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *
 
 // runReceiver handles incoming traffic from the given connection.
 //
-// Incremental refactoring: we should not have direct knowledge of connections. Later we will move
+// TODO(multi_underlay): we should not have direct knowledge of connections. Later we will move
 // parts of this to the connection itself, so that we don't have to know.
 func (d *DataPlane) runReceiver(u UnderlayConnection, procQs []chan *Packet) {
 
@@ -738,7 +734,7 @@ func (d *DataPlane) runReceiver(u UnderlayConnection, procQs []chan *Packet) {
 		}
 
 		pkt.rawPacket = pkt.rawPacket[:size] // Update size; readBatch does not.
-		// Incremental refactoring: We should begin with finding the link and get the ifID
+		// TODO(multi_underlay): We should begin with finding the link and get the ifID
 		// from there. We will do that once we actually move these pre-processing tasks directly
 		// into the underlay.
 		pkt.ingress = ifID
@@ -1019,22 +1015,23 @@ func updateOutputMetrics(metrics interfaceMetrics, packets []*Packet) {
 	}
 }
 
-// Big issue with metrics and ifID. If an underlay connection must be shared between links
-// (for example, libling links), then we don't have a specific ifID in the connection per se. It
-// changes for each packet. As a result, in the shared case, either we account all metrics to
-// whatever placeholder ifID we have (i.e. 0), or we have to use pkt.egress and lookup the metrics
-// in the map for each packet. This is too expensive.
+// TODO(jiceatscion): There is a big issue with metrics and ifID. If an underlay connection must be
+// shared between links (for example, sibling links), then we don't have a specific ifID in the
+// connection per se. It changes for each packet. As a result, in the shared case, either we account
+// all metrics to whatever placeholder ifID we have (i.e. 0), or we have to use pkt.egress and
+// lookup the metrics in the map for each packet. This is too expensive.
 //
 // Mitigations:
 //   - use ifID even if it is 0 for sibling links - no worse than before, since sibling links were
-//     already redirected to interface 0. Ok, until we have fully shared forwarders (like with an
+//     already redirected to interface 0 (...until we have fully shared forwarders - like with an
 //     XDP underlay impl).
 //   - stage our own internal metrics map, sorted by ifID = pkt.egress, and batch update the
 //     metrics... might not be much cheaper than the naive way.
 //   - Use one fw queue per ifID in each connection... but then have to round-robin for fairness....
 //     smaller batches?
 //
-// For now, we do the first option.
+// For now, we do the first option. Whether that is good enough is still TBD.
+
 func (d *DataPlane) runForwarder(u UnderlayConnection) {
 
 	log.Debug("Run forwarder", "connection", u.Name())
@@ -1200,11 +1197,11 @@ func (p *scionPacketProcessor) processInterBFD(oh *onehop.Path, data []byte) dis
 
 	// If this is an inter-AS BFD, it can via an interface we own. So the ifID matches one link
 	// and the ifID better be valid. In the future that will be checked upstream from here.
-	l, exists := p.d.interfaces[p.pkt.ingress]
+	link, exists := p.d.interfaces[p.pkt.ingress]
 	if !exists {
 		return errorDiscard("error", noBFDSessionFound)
 	}
-	session := l.GetBfdSession()
+	session := link.GetBfdSession()
 	if session == nil {
 		return errorDiscard("error", noBFDSessionFound)
 	}
@@ -1525,7 +1522,7 @@ func (p *scionPacketProcessor) respInvalidDstIA() disposition {
 // this check prevents malicious end hosts in the local AS from bypassing the
 // SrcIA checks by disguising packets as transit traffic.
 //
-// Incremental refactoring: All or part of this check should move to the underlay.
+// TODO(multi_underlay): All or part of this check should move to the underlay.
 func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 	if p.path.IsFirstHop() || p.pkt.ingress != 0 {
 		// not a transit packet, nothing to check
@@ -1545,7 +1542,7 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 	return pForward
 }
 
-// Validates the egress interface referenced by the current hop. This  is not called for
+// Validates the egress interface referenced by the current hop. This is not called for
 // packets to be delivered to the local AS, so pkt.egress is never 0.
 // If pkt.ingress is zero, the packet can be coming from either a local end-host or a
 // sibling router. In either of these cases, it must be leaving via a locally owned external

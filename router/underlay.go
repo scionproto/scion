@@ -30,7 +30,7 @@ const (
 )
 
 // Link embodies the router's idea of a point to point connection. A link associates the underlay
-// connection, with a bfdSession, a destination address, etc. It also allows the concrete send
+// connection with a bfdSession, a destination address, etc. It also allows the concrete send
 // operation to be delegated to different underlay implementations. The association between
 // link and underlay connection is a channel, on the sending side, and should be a demultiplexer on
 // the receiving side. The demultiplexer must have a src-addr:link map in all cases where links
@@ -45,7 +45,7 @@ type Link interface {
 	GetBfdSession() BfdSession
 	IsUp() bool
 	GetIfID() uint16
-	GetRemote() netip.AddrPort // incremental refactoring: using code will move to underlay.
+	GetRemote() netip.AddrPort // TODO(multi_underlay): using code will move to underlay.
 	Send(p *Packet) bool
 	BlockSend(p *Packet)
 }
@@ -55,7 +55,7 @@ type Link interface {
 // For any given underlay, there are three kinds of Link implementations to choose from.
 // The difference between them is the intent regarding addressing.
 //
-// Incremental refactoring: addresses are still explicitly IP/port. In the next step, we have to
+// TODO(multi_underlay): addresses are still explicitly IP/port. In the next step, we have to
 // make them opaque; to be interpreted only by the underlay implementation.
 type UnderlayProvider interface {
 
@@ -80,14 +80,14 @@ type UnderlayProvider interface {
 
 	// GetConnections returns the set of configured distinct connections in the provider.
 	//
-	// Incremental refactoring: this exists so most of the receiving code can stay in the main
+	// TODO(multi_underlay): this exists so most of the receiving code can stay in the main
 	// dataplane code for now. There may be fewer connections than links. For example, right now
 	// all sibling links and the internal link use a shared un-bound connection.
 	GetConnections() map[netip.AddrPort]UnderlayConnection
 
 	// GetLinks returns the set of configured distinct links in the provider.
 	//
-	// Incremental refactoring: this exists so most of the receiving code can stay in-here for now.
+	// TODO(multi_underlay): this exists so most of the receiving code can stay in-here for now.
 	// There may be fewer links than ifIDs. For example, all interfaces owned by one given sibling
 	// router are connected via the same link because the remote address is the same.
 	GetLinks() map[netip.AddrPort]Link
@@ -95,7 +95,7 @@ type UnderlayProvider interface {
 	// GetLink returns a link that matches the given source address. If the address is not that of
 	// a known link, then the internal link is returned.
 	//
-	// Increamental refactoring: This has to exist until incmoing packets are "demuxed" (i.e.
+	// TODO(multi_underlay): This has to exist until incmoing packets are "demuxed" (i.e.
 	// matched with a link), on ingest by the underlay. That would imply moving a part of the
 	// runReceiver routine to the underlay. We will do that in the next step.
 	GetLink(netip.AddrPort) Link
@@ -104,7 +104,7 @@ type UnderlayProvider interface {
 // UnderlayConnection defines the minimum interface that the router expects from an underlay
 // connection.
 //
-// Incremental refactoring: this will eventually be reduced to nothing at all because the sender
+// TODO(multi_underlay): this will eventually be reduced to nothing at all because the sender
 // receiver tasks will be part of the underlay.
 type UnderlayConnection interface {
 	Conn() BatchConn

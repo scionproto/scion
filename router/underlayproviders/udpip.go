@@ -24,7 +24,7 @@ import (
 //
 // This is currently the only implementation. The goal of splitting out this code from the router
 // is to enable other implementations. However, as a first step, we continue assuming that the
-// batchConn is given to us and is a Udp socket and that, in the case of externalLink, it is bound.
+// batchConn is given to us and is a UDP socket and that, in the case of externalLink, it is bound.
 type provider struct {
 	allLinks       map[netip.AddrPort]router.Link
 	allConnections map[netip.AddrPort]*udpConnection
@@ -46,9 +46,9 @@ func newProvider() router.UnderlayProvider {
 }
 
 func (u *provider) GetConnections() map[netip.AddrPort]router.UnderlayConnection {
-	// a map of interfaces and a map of concrete implementations aren't compatible.
-	// For the same reason, we cannot have the map of concrete as our return type; it
-	// does not satisfy the GetConnections interface (so much for the "don't return
+	// A map of interfaces and a map of concrete implementations aren't compatible.
+	// For the same reason, we cannot have the map of concrete implementations as our return type;
+	// it does not satisfy the GetConnections interface (so much for the "don't return
 	// interfaces" rule)... Brilliant, Go.
 	// Since we do not want to store our own things as interfaces, we have to translate.
 	// Good thing it doesn't happen often.
@@ -73,7 +73,7 @@ func (u *provider) GetLink(addr netip.AddrPort) router.Link {
 }
 
 // udpConnection is simply the combination of a BatchConn and sending queue (plus metadata for
-// logs and such). This allows udp connections to be shared between links. Bundling link and
+// logs and such). This allows UDP connections to be shared between links. Bundling link and
 // connection together is possible and simpler for the code here, but leaks more refactoring changes
 // in the main router code. Specifically, either:
 //   - sibling links would each need an independent socket to the sibling router, which
@@ -87,7 +87,7 @@ type udpConnection struct {
 	name  string // for logs. It's more informative than ifID.
 }
 
-// Incremental refactoring: The following implements UnderlayConnection so some of the code
+// TODO(multi_underlay): The following implements UnderlayConnection so some of the code
 // that needs to interact with it can stay in the main router code. This will be removed in the
 // next step
 
@@ -122,7 +122,7 @@ type externalLink struct {
 
 // NewExternalLink returns an external link over the UdpIpUnderlay.
 //
-// Incremental refactoring: we get the connection ready-made and require it to be bound. So, we
+// TODO(multi_underlay): we get the connection ready-made and require it to be bound. So, we
 // don't keep the remote address, but in the future, we will be making the connections, and
 // BatchConn will be gone.
 func (u *provider) NewExternalLink(
@@ -191,7 +191,7 @@ type siblingLink struct {
 
 // newSiblingLink returns a sibling link over the UdpIpUnderlay.
 //
-// Incremental refactoring: this can only be an improvement over internalLink if we have a bound
+// TODO(multi_underlay): this can only be an improvement over internalLink if we have a bound
 // batchConn with the sibling router. However, currently the caller doesn't have one to give us;
 // the main code has so far been reusing the internal connection. So, that's what we do for now.
 // As a result, we keep the remote address; as we need to supply it for every packet being sent
@@ -199,9 +199,9 @@ type siblingLink struct {
 // In the future we will be making one connection per remote address and we might even be able
 // to erase the separation between link and connection for this implementation. Side effect
 // of moving the address:link here: the router does not know if there is an existing link. As
-// a result it has to give us a bfdSession in all cases and if we might throuw it away (there
+// a result it has to give us a bfdSession in all cases and if we might throw it away (there
 // are no permanent resources attached to it). This will be fixed by moving some bfd related code
-// in-here; but later.
+// in-here.
 func (u *provider) NewSiblingLink(
 	qSize int, bfd router.BfdSession, remote netip.AddrPort) router.Link {
 
@@ -216,7 +216,8 @@ func (u *provider) NewSiblingLink(
 	// happens right now and it can't work if this is called before newInternalLink.
 	c, exists := u.allConnections[netip.AddrPort{}]
 	if !exists {
-		// That doesn't actually happen and we'll get rid of this soon.
+		// TODO(multi_underlay):That doesn't actually happen.
+		// It is only required until we stop sharing the internal connection.
 		panic("newSiblingLink called before newInternalLink")
 	}
 
@@ -274,7 +275,7 @@ type internalLink struct {
 
 // newSiblingLink returns a sibling link over the UdpIpUnderlay.
 //
-// Incremental refactoring: we get the connection ready made. In the future we will be making it
+// TODO(multi_underlay): we get the connection ready made. In the future we will be making it
 // and the conn argument will be gone.
 func (u *provider) NewInternalLink(conn router.BatchConn, qSize int) router.Link {
 	queue := make(chan *router.Packet, qSize)
