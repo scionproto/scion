@@ -20,11 +20,11 @@ import (
 	"net"
 	"time"
 
-	durationpb "github.com/golang/protobuf/ptypes/duration"
-	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/opentracing/opentracing-go"
 	"golang.org/x/sync/singleflight"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	drkey_daemon "github.com/scionproto/scion/daemon/drkey"
 	"github.com/scionproto/scion/daemon/fetcher"
@@ -178,7 +178,7 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		},
 		Interfaces:   interfaces,
 		Mtu:          uint32(meta.MTU),
-		Expiration:   &timestamppb.Timestamp{Seconds: meta.Expiry.Unix()},
+		Expiration:   timestamppb.New(meta.Expiry.Truncate(time.Second)),
 		Latency:      latency,
 		Bandwidth:    meta.Bandwidth,
 		Geo:          geo,

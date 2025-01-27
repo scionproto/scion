@@ -17,13 +17,12 @@ package grpc
 import (
 	"crypto/x509"
 
-	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
-
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/trust"
 	trustmetrics "github.com/scionproto/scion/private/trust/internal/metrics"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func chainQueryToReq(query trust.ChainQuery) *cppb.ChainsRequest {
