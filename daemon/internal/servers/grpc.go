@@ -178,7 +178,7 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		},
 		Interfaces:   interfaces,
 		Mtu:          uint32(meta.MTU),
-		Expiration:   timestamppb.New(meta.Expiry.Truncate(time.Second)),
+		Expiration:   &timestamppb.Timestamp{Seconds: meta.Expiry.Unix()},
 		Latency:      latency,
 		Bandwidth:    meta.Bandwidth,
 		Geo:          geo,
