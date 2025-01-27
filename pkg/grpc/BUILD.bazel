@@ -22,6 +22,7 @@ go_library(
         "@com_github_uber_jaeger_client_go//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//credentials:go_default_library",
+        "@org_golang_google_grpc//credentials/insecure:go_default_library",
         "@org_golang_google_grpc//resolver:go_default_library",
         "@org_golang_google_grpc//resolver/manual:go_default_library",
     ],
