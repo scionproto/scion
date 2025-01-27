@@ -124,7 +124,7 @@ type externalLink struct {
 //
 // TODO(multi_underlay): we get the connection ready-made and require it to be bound. So, we
 // don't keep the remote address, but in the future, we will be making the connections, and
-// BatchConn will be gone.
+// the conn argument will be gone.
 func (u *provider) NewExternalLink(
 	conn router.BatchConn,
 	qSize int,
@@ -199,7 +199,7 @@ type siblingLink struct {
 // In the future we will be making one connection per remote address and we might even be able
 // to erase the separation between link and connection for this implementation. Side effect
 // of moving the address:link here: the router does not know if there is an existing link. As
-// a result it has to give us a bfdSession in all cases and if we might throw it away (there
+// a result it has to give us a bfdSession in all cases and we might throw it away (there
 // are no permanent resources attached to it). This will be fixed by moving some bfd related code
 // in-here.
 func (u *provider) NewSiblingLink(
