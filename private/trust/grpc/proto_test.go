@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -44,11 +43,9 @@ func TestChainQueryToReq(t *testing.T) {
 	req := trustgrpc.ChainQueryToReq(query)
 	assert.Equal(t, uint64(query.IA), req.IsdAs)
 	assert.Equal(t, query.SubjectKeyID, req.SubjectKeyId)
-	validSince, err := ptypes.Timestamp(req.AtLeastValidSince)
-	assert.NoError(t, err)
+	validSince := req.AtLeastValidSince.AsTime()
 	assert.Equal(t, query.Validity.NotBefore, validSince)
-	validUntil, err := ptypes.Timestamp(req.AtLeastValidUntil)
-	assert.NoError(t, err)
+	validUntil := req.AtLeastValidUntil.AsTime()
 	assert.Equal(t, query.Validity.NotAfter, validUntil)
 }
 
