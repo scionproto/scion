@@ -28,7 +28,7 @@ type ErrorListener struct {
 	errorType string
 }
 
-func (l *ErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line,
+func (l *ErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, line,
 	column int, msg string, e antlr.RecognitionException) {
 	l.msg = msg
 	log.Debug(fmt.Sprintf("%s Error", l.errorType), "err", msg)

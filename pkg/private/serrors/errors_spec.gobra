@@ -26,4 +26,4 @@ package serrors
 // Calls to this method are assumed to always terminate.
 ensures err != nil
 decreases _
-func New(msg string, errCtx ...interface{}) (err error)
+func New(msg string, errCtx ...any) (err error)

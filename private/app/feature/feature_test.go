@@ -30,9 +30,9 @@ func TestParse(t *testing.T) {
 
 	testCases := map[string]struct {
 		Input          []string
-		FeatureSet     interface{}
+		FeatureSet     any
 		ErrorAssertion assert.ErrorAssertionFunc
-		Expected       interface{}
+		Expected       any
 	}{
 		"default": {
 			Input:          []string{"header_legacy"},
@@ -132,7 +132,7 @@ func TestString(t *testing.T) {
 	}
 
 	testCases := map[string]struct {
-		FeatureSet interface{}
+		FeatureSet any
 		Expected   string
 	}{
 		"default": {

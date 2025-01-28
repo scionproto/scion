@@ -33,7 +33,7 @@ import (
 
 func TestRoutingTable(t *testing.T) {
 	rt := &dataplane.RoutingTable{}
-	_, ok := interface{}(rt).(control.RoutingTable)
+	_, ok := any(rt).(control.RoutingTable)
 	if ok != true {
 		assert.Fail(t, "should implement the client interface")
 	}

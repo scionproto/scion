@@ -26,9 +26,9 @@ var _ Sqler = (*sql.Tx)(nil)
 
 // Sqler contains the common functions of *sql.DB and *sql.Tx.
 type Sqler interface {
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
-	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 // DoInTx executes the given action in a transaction. If db is already a transaction the action is
