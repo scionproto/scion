@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	mock_cp "github.com/scionproto/scion/pkg/proto/control_plane/mock_control_plane"
@@ -78,7 +79,7 @@ func TestAcceptLoopParallelism(t *testing.T) {
 
 				dialer := connDialer(t)
 				conn, err := grpc.DialContext(ctx, "server",
-					grpc.WithInsecure(),
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
 					grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 						return dialer.Dial(ctx, srvConn.LocalAddr())
 					}),
@@ -131,7 +132,7 @@ func TestGRPCQUIC(t *testing.T) {
 
 	dialer := connDialer(t)
 	conn, err := grpc.DialContext(context.Background(), "server",
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 			return dialer.Dial(ctx, srvConn.LocalAddr())
 		}),

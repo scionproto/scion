@@ -18,8 +18,8 @@ import (
 	"context"
 	"net"
 
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
