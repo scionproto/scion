@@ -24,8 +24,8 @@ go_library(
         "//private/app/command:go_default_library",
         "//private/app/path:go_default_library",
         "//tools/pktgen:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
-        "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//layers:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
     ],
 )

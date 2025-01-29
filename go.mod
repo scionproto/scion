@@ -15,7 +15,7 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/golang/mock v1.7.0-rc.1
 	github.com/google/go-cmp v0.6.0
-	github.com/google/gopacket v1.1.19
+	github.com/gopacket/gopacket v1.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
