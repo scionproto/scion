@@ -17,7 +17,7 @@ package snet
 import (
 	"math/rand"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"

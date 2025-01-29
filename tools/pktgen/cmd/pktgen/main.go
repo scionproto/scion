@@ -22,7 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/addr"

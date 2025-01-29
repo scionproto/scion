@@ -494,12 +494,6 @@ def go_deps():
         version = "v1.1.0",
     )
     go_repository(
-        name = "com_github_google_gopacket",
-        importpath = "github.com/google/gopacket",
-        sum = "h1:ves8RnFZPGiFnTS0uPQStjwru6uO6h+nlr9j6fL7kF8=",
-        version = "v1.1.19",
-    )
-    go_repository(
         name = "com_github_google_pprof",
         importpath = "github.com/google/pprof",
         sum = "h1:BvBLUD2hkvLI3dJTJMiopAq8/wp43AAZKTP7qdpptbU=",
@@ -534,6 +528,12 @@ def go_deps():
         importpath = "github.com/googleapis/google-cloud-go-testing",
         sum = "h1:zC34cGQu69FG7qzJ3WiKW244WfhDC3xxYMeNOX2gtUQ=",
         version = "v0.0.0-20210719221736-1c9a4c676720",
+    )
+    go_repository(
+        name = "com_github_gopacket_gopacket",
+        importpath = "github.com/gopacket/gopacket",
+        sum = "h1:ZppWyLrOJNZPe5XkdjLbtuTkfQoxQ0xyMJzQCqtqaPU=",
+        version = "v1.3.1",
     )
     go_repository(
         name = "com_github_gorilla_css",

@@ -19,7 +19,7 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 

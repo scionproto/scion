@@ -15,7 +15,7 @@
 package cases
 
 import (
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 )
 
 // We make the assumption os protocol sanity: the length and checksum fields are of fixed size

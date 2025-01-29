@@ -21,7 +21,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket/layers"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"

@@ -17,7 +17,7 @@ package bfd
 import (
 	"fmt"
 
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket/layers"
 )
 
 // state describes a BFD state machine state.
