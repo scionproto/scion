@@ -36,7 +36,7 @@ go_library(
         "//pkg/slayers/path/scion:go_default_library",
         "//private/topology:go_default_library",
         "//private/topology/underlay:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
     ],
 )
 

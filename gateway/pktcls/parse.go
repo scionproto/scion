@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket/layers"
 
 	"github.com/scionproto/scion/antlr/traffic_class"
 	"github.com/scionproto/scion/pkg/private/serrors"

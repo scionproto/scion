@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

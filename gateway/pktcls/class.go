@@ -17,7 +17,7 @@ package pktcls
 import (
 	"encoding/json"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 )
 
 var (
