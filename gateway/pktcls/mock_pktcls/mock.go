@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	gopacket "github.com/google/gopacket"
+	gopacket "github.com/gopacket/gopacket"
 )
 
 // MockCond is a mock of Cond interface.

@@ -37,14 +37,12 @@ const (
 
 type DB struct {
 	storage.TrustDB
-	Dir     string
-	cleanup []func()
+	Dir string
 }
 
 func (db *DB) Prepare(t *testing.T, _ context.Context) {
-	dir, cleanupF := xtest.MustTempDir("", "tmp")
+	dir := t.TempDir()
 	db.prepare(t, dir)
-	db.cleanup = append(db.cleanup, cleanupF)
 }
 
 func (db *DB) prepare(t *testing.T, dbDir string) {
@@ -61,9 +59,6 @@ func (db *DB) prepare(t *testing.T, dbDir string) {
 func TestDB(t *testing.T) {
 	testDB := &DB{}
 	dbtest.Run(t, testDB, dbtest.Config{})
-	for _, cleanup := range testDB.cleanup {
-		cleanup()
-	}
 }
 
 func TestInsertTRCWithFSPersistenceBadCfg(t *testing.T) {
@@ -147,10 +142,6 @@ func TestInsertTRCWithFSPersistence(t *testing.T) {
 		persistedTRC := xtest.LoadTRC(t, persistedTRCPath)
 		require.Equal(t, SignedTRC, persistedTRC)
 	})
-
-	for _, cleanup := range testDB.cleanup {
-		cleanup()
-	}
 }
 
 func getModTime(t *testing.T, file string) int64 {

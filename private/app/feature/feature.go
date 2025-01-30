@@ -30,7 +30,7 @@ import (
 // Parse parses the features from the input into the feature set. The provided
 // feature set should be a pointer to a struct. All boolean fields on that
 // struct are discovered as feature flags. Non-boolean fields are ignored.
-func Parse(input []string, featureSet interface{}) error {
+func Parse(input []string, featureSet any) error {
 	val := reflect.ValueOf(featureSet)
 	if !val.IsValid() || val.IsZero() {
 		return serrors.New("feature set must not be nil")
@@ -59,7 +59,7 @@ func ParseDefault(input []string) (Default, error) {
 }
 
 // Features lists the supported features.
-func Features(featureSet interface{}) []string {
+func Features(featureSet any) []string {
 	m := featureMap(featureSet)
 	var s []string
 	for k := range m {
@@ -70,11 +70,11 @@ func Features(featureSet interface{}) []string {
 }
 
 // String returns the features as a sorted list separated by the provided separator.
-func String(featureSet interface{}, sep string) string {
+func String(featureSet any, sep string) string {
 	return strings.Join(Features(featureSet), sep)
 }
 
-func featureMap(featureSet interface{}) map[string]int {
+func featureMap(featureSet any) map[string]int {
 	m := map[string]int{}
 	val := reflect.ValueOf(featureSet)
 	if !val.IsValid() {

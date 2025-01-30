@@ -34,9 +34,9 @@ import (
 
 var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
 
-func updateCert(goldenCert string) ([]byte, error) {
-	dir, cleanF := xtest.MustTempDir("", "safedir")
-	defer cleanF()
+func updateCert(t *testing.T, goldenCert string) ([]byte, error) {
+	t.Helper()
+	dir := t.TempDir()
 
 	cmd := exec.Command("sh", "-c", "./testdata/update_certs.sh")
 	cmd.Env = []string{
@@ -275,7 +275,7 @@ func TestValidateRoot(t *testing.T) {
 	testF := cppki.ValidateRoot
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, string(out))
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return
@@ -338,7 +338,7 @@ func TestValidateCA(t *testing.T) {
 	goldenCert := "cp-ca.crt"
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, string(out))
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return
@@ -386,7 +386,7 @@ func TestValidateAS(t *testing.T) {
 	goldenCert := "cp-as.crt"
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, string(out))
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return
@@ -542,7 +542,7 @@ func TestValidateRegular(t *testing.T) {
 	testF := cppki.ValidateRegular
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, out)
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return
@@ -597,7 +597,7 @@ func TestValidateSensitive(t *testing.T) {
 	testF := cppki.ValidateSensitive
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, out)
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return

@@ -20,7 +20,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/grpc"
-	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	dspb "github.com/scionproto/scion/pkg/proto/discovery"
 )
@@ -28,7 +27,7 @@ import (
 // Discoverer can be used to discover remote hidden path instances.
 type Discoverer struct {
 	// Dialer dials a new gRPC connection.
-	Dialer libgrpc.Dialer
+	Dialer grpc.Dialer
 }
 
 // Discover discovers hidden path services at the discovery service that is

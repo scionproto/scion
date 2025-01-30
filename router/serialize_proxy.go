@@ -15,7 +15,7 @@
 package router
 
 import (
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 )
 
 // serializeProxy implements gopacket.SerializeBuffer. It is a very simple implementation that

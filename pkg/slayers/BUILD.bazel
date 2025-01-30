@@ -24,7 +24,7 @@ go_library(
         "//pkg/slayers/path/epic:go_default_library",
         "//pkg/slayers/path/onehop:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
     ],
 )
 
@@ -50,7 +50,7 @@ go_test(
         "//pkg/slayers/path/empty:go_default_library",
         "//pkg/slayers/path/onehop:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],

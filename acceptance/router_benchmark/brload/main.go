@@ -25,9 +25,9 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/afpacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/afpacket"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/acceptance/router_benchmark/cases"

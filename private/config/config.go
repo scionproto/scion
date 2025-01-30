@@ -161,12 +161,12 @@ func InitAll(defaulters ...Defaulter) {
 }
 
 // Decode decodes a raw config.
-func Decode(raw []byte, cfg interface{}) error {
+func Decode(raw []byte, cfg any) error {
 	return toml.NewDecoder(bytes.NewReader(raw)).DisallowUnknownFields().Decode(cfg)
 }
 
 // LoadFile loads the config from file.
-func LoadFile(file string, cfg interface{}) error {
+func LoadFile(file string, cfg any) error {
 	raw, err := os.ReadFile(file)
 	if err != nil {
 		return err
@@ -194,7 +194,7 @@ func OverrideName(s Sampler, name string) Sampler {
 
 type formatDataSampler struct {
 	Sampler
-	data []interface{}
+	data []any
 }
 
 func (s formatDataSampler) Sample(dst io.Writer, path Path, ctx CtxMap) {
@@ -205,7 +205,7 @@ func (s formatDataSampler) Sample(dst io.Writer, path Path, ctx CtxMap) {
 
 // FormatData creates a sampler that will call fmt.Sprintf on the string returned
 // by s.Sample using the supplied argument information.
-func FormatData(s Sampler, a ...interface{}) Sampler {
+func FormatData(s Sampler, a ...any) Sampler {
 	return formatDataSampler{
 		Sampler: s,
 		data:    a,

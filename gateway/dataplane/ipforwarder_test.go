@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -259,7 +259,7 @@ type packetMatcher struct {
 	packet gopacket.Packet
 }
 
-func (pm *packetMatcher) Matches(x interface{}) bool {
+func (pm *packetMatcher) Matches(x any) bool {
 	packet := x.(gopacket.Packet)
 	return bytes.Equal(packet.Data(), pm.packet.Data())
 }

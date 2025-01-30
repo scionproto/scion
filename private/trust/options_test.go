@@ -27,7 +27,7 @@ type OptionsMatcher struct {
 	Server        net.Addr
 }
 
-func (m OptionsMatcher) Matches(x interface{}) bool {
+func (m OptionsMatcher) Matches(x any) bool {
 	var o options
 
 	if opts, ok := x.([]Option); ok {

@@ -299,7 +299,7 @@ type addrMatcher struct {
 	udp *snet.UDPAddr
 }
 
-func (m addrMatcher) Matches(other interface{}) bool {
+func (m addrMatcher) Matches(other any) bool {
 	if m.svc != nil {
 		svc, ok := other.(*snet.SVCAddr)
 		if !ok {

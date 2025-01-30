@@ -108,20 +108,6 @@ func MustTempFileName(dir, prefix string) string {
 	return name
 }
 
-// MustTempDir creates a new temporary directory under dir with the specified
-// prefix. If the function encounters an error it panics. The second return
-// value is a clean-up function that can be called to recursively delete the
-// entire directory.
-func MustTempDir(dir, prefix string) (string, func()) {
-	name, err := os.MkdirTemp(dir, prefix)
-	if err != nil {
-		panic(err)
-	}
-	return name, func() {
-		os.RemoveAll(name)
-	}
-}
-
 // SanitizedName sanitizes the test name such that it can be used as a file name.
 func SanitizedName(t testing.TB) string {
 	return strings.NewReplacer(" ", "_", "/", "_", "\\", "_", ":", "_").Replace(t.Name())
@@ -139,7 +125,7 @@ func CopyFile(t testing.TB, src, dst string) {
 // MustMarshalJSONToFile marshals v and writes the result to file
 // testdata/baseName. If the file exists, it is truncated; if it doesn't exist,
 // it is created. On errors, t.Fatal() is called.
-func MustMarshalJSONToFile(t testing.TB, v interface{}, baseName string) {
+func MustMarshalJSONToFile(t testing.TB, v any, baseName string) {
 	t.Helper()
 
 	enc, err := json.MarshalIndent(v, "", "    ")

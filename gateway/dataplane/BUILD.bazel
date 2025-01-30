@@ -31,8 +31,8 @@ go_library(
         "//pkg/snet:go_default_library",
         "//pkg/snet/path:go_default_library",
         "//private/ringbuf:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
-        "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//layers:go_default_library",
     ],
 )
 
@@ -66,8 +66,8 @@ go_test(
         "//pkg/snet/path:go_default_library",
         "//private/ringbuf:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
-        "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//layers:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
         "@org_uber_go_goleak//:go_default_library",

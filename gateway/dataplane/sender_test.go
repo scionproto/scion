@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -31,7 +31,7 @@ import (
 
 func expectFrames(conn *mock_net.MockPacketConn) *gomock.Call {
 	return conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(f []byte, _ interface{}) (int, error) {
+		func(f []byte, _ any) (int, error) {
 			// Slow down the sending to induce packet batching.
 			time.Sleep(10 * time.Millisecond)
 			return 0, nil

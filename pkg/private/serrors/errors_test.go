@@ -255,7 +255,7 @@ func TestEncoding(t *testing.T) {
 			logOut := sanitizeLog(b.Bytes())
 			// Parse the log output and marshal it again to sort it.
 			// The zap encoder is not deterministic for nested maps.
-			var parsed map[string]interface{}
+			var parsed map[string]any
 			require.NoError(t, json.Unmarshal(logOut, &parsed), string(logOut))
 			sorted, err := json.Marshal(parsed)
 			require.NoError(t, err)

@@ -365,7 +365,7 @@ func (t *topologyS) Writable() *RWTopology {
 	return t.Topology
 }
 
-func Digest(t interface{}) ([]byte, error) {
+func Digest(t any) ([]byte, error) {
 	h := sha256.New()
 	enc := json.NewEncoder(h)
 	if err := enc.Encode(t); err != nil {

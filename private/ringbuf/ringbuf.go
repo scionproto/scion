@@ -20,9 +20,9 @@ import (
 	"github.com/scionproto/scion/private/ringbuf/internal/metrics"
 )
 
-type Entry interface{}
+type Entry any
 type EntryList []Entry
-type NewEntryF func() interface{}
+type NewEntryF func() any
 
 // Ring is a classic generic ring buffer on top of a fixed-sized slice. It is thread-safe.
 type Ring struct {

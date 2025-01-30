@@ -18,7 +18,7 @@ import (
 	"encoding/binary"
 	"strconv"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 )
 
 var (

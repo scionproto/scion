@@ -75,7 +75,7 @@ type chainQueryMatcher struct {
 	skid []byte
 }
 
-func (m chainQueryMatcher) Matches(x interface{}) bool {
+func (m chainQueryMatcher) Matches(x any) bool {
 	v, ok := x.(trust.ChainQuery)
 	if !ok {
 		return false
@@ -89,7 +89,7 @@ func (m chainQueryMatcher) String() string {
 
 type ctxMatcher struct{}
 
-func (m ctxMatcher) Matches(x interface{}) bool {
+func (m ctxMatcher) Matches(x any) bool {
 	_, ok := x.(context.Context)
 	return ok
 }

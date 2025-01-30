@@ -57,7 +57,7 @@ func FromCtx(ctx context.Context) Logger {
 
 // WithLabels returns context with additional labels added to the logger.
 // For convenience it also returns the logger itself.
-func WithLabels(ctx context.Context, labels ...interface{}) (context.Context, Logger) {
+func WithLabels(ctx context.Context, labels ...any) (context.Context, Logger) {
 	logger := FromCtx(ctx).New(labels...)
 	ctx = CtxWith(ctx, logger)
 	return ctx, logger

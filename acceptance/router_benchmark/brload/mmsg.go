@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/google/gopacket/afpacket"
+	"github.com/gopacket/gopacket/afpacket"
 	"golang.org/x/sys/unix"
 )
 

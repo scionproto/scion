@@ -161,7 +161,7 @@ func (v *Verifier) getChains(ctx context.Context, q ChainQuery) ([][]*x509.Certi
 	return chains, nil
 }
 
-func (v *Verifier) cacheGet(key string, reqType string) (interface{}, bool) {
+func (v *Verifier) cacheGet(key string, reqType string) (any, bool) {
 	if v.Cache == nil {
 		return nil, false
 	}
@@ -179,7 +179,7 @@ func (v *Verifier) cacheGet(key string, reqType string) (interface{}, bool) {
 	return result, ok
 }
 
-func (v *Verifier) cacheAdd(key string, value interface{}, d time.Duration) {
+func (v *Verifier) cacheAdd(key string, value any, d time.Duration) {
 	if v.Cache == nil {
 		return
 	}

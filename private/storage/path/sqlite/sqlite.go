@@ -439,8 +439,8 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 	return res, nil
 }
 
-func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
-	var args []interface{}
+func (e *executor) buildQuery(params *query.Params) (string, []any) {
+	var args []any
 	query := []string{
 		"SELECT DISTINCT s.RowID, s.Segment, s.LastUpdated, group_concat(DISTINCT t.Type), " +
 			"group_concat(DISTINCT h.GroupID) FROM Segments s",

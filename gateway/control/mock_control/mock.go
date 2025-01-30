@@ -11,8 +11,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	gopacket "github.com/google/gopacket"
-	layers "github.com/google/gopacket/layers"
+	gopacket "github.com/gopacket/gopacket"
+	layers "github.com/gopacket/gopacket/layers"
 	control "github.com/scionproto/scion/gateway/control"
 	pathhealth "github.com/scionproto/scion/gateway/pathhealth"
 	policies "github.com/scionproto/scion/gateway/pathhealth/policies"
