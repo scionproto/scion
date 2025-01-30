@@ -35,8 +35,7 @@ func TestUpdateCerts(t *testing.T) {
 		t.Skip("Specify -update-non-deterministic to update certs")
 		return
 	}
-	dir, cleanF := xtest.MustTempDir("", "safedir")
-	defer cleanF()
+	dir := t.TempDir()
 
 	cmd := exec.Command("sh", "-c", "./testdata/update_certs.sh")
 	cmd.Env = []string{
