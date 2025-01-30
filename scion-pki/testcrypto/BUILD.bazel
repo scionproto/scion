@@ -36,7 +36,6 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//pkg/addr:go_default_library",
-        "//pkg/private/xtest:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
         "//scion-pki/trcs:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",

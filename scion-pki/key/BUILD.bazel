@@ -36,7 +36,6 @@ go_test(
     data = glob(["testdata/**"]),
     deps = [
         ":go_default_library",
-        "//pkg/private/xtest:go_default_library",
         "//private/app/command:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
