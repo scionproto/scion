@@ -16,9 +16,10 @@ package router
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"hash/fnv"
-	"math/rand"
+	mrand "math/rand/v2"
 	"net"
 	"net/netip"
 	"reflect"
@@ -140,7 +141,7 @@ func TestForwarder(t *testing.T) {
 				for i, m := range ms {
 					totalCount++
 					// 1/5 of the packets (randomly chosen) are errors
-					if rand.Intn(5) == 0 {
+					if mrand.IntN(5) == 0 {
 						expectedPktId++
 						ms = ms[:i]
 						break

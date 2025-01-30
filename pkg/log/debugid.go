@@ -16,7 +16,7 @@ package log
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 )
 
 // DebugID is used to correlate behavior in logs. A DebugID is allocated

@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	mrand "math/rand"
+	"math/rand/v2"
 	"sort"
 	"testing"
 	"time"
@@ -515,7 +515,7 @@ func AllocPathSegment(t *testing.T, ifs []uint64, infoTS uint32) (*seg.PathSegme
 		},
 	}
 
-	pseg, err := seg.CreateSegment(time.Unix(int64(infoTS), 0), uint16(mrand.Int()))
+	pseg, err := seg.CreateSegment(time.Unix(int64(infoTS), 0), uint16(rand.Int()))
 	require.NoError(t, err)
 	for _, ase := range ases {
 		signer := graph.NewSigner()

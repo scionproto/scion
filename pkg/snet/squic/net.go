@@ -19,7 +19,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	mrand "math/rand"
+	"math/rand/v2"
 	"net"
 	"sync"
 	"time"
@@ -398,7 +398,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 			return nil, serrors.Wrap("dialing QUIC/SCION", err)
 		}
 
-		jitter := time.Duration(mrand.Int63n(int64(5 * time.Millisecond)))
+		jitter := time.Duration(rand.Int64N(int64(5 * time.Millisecond)))
 		select {
 		case <-time.After(sleep + jitter):
 		case <-ctx.Done():

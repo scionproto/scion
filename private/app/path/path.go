@@ -18,7 +18,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"os"
 	"sort"
@@ -118,7 +118,7 @@ func Choose(
 		return printAndChoose(paths, remote, o.colorScheme)
 	}
 
-	return paths[rand.Intn(len(paths))], nil
+	return paths[rand.IntN(len(paths))], nil
 }
 
 func filterUnhealthy(
