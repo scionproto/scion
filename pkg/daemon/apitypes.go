@@ -16,7 +16,7 @@ package daemon
 
 import (
 	"context"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -77,7 +77,7 @@ func (h TopoQuerier) UnderlayAnycast(ctx context.Context, svc addr.SVC) (*net.UD
 	if !ok || len(entry) == 0 {
 		return nil, serrors.New("no entry found", "svc", svc, "services", r)
 	}
-	a, err := net.ResolveUDPAddr("udp", entry[rand.Intn(len(entry))])
+	a, err := net.ResolveUDPAddr("udp", entry[rand.IntN(len(entry))])
 	if err != nil {
 		return nil, err
 	}

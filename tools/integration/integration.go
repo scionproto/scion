@@ -21,7 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"os"
 	"path/filepath"
@@ -267,7 +267,7 @@ func loadAddr(ia addr.IA) *snet.UDPAddr {
 // interface kept similar to go 1.10
 func shuffle(n int, swap func(i, j int)) {
 	for i := n - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
+		j := rand.IntN(i + 1)
 		swap(i, j)
 	}
 }

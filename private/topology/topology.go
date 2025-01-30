@@ -18,7 +18,7 @@ package topology
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/netip"
 	"os"
@@ -666,7 +666,7 @@ func (s ServiceNames) GetRandom() (string, error) {
 	if numServers == 0 {
 		return "", serrors.New("No names present")
 	}
-	return s[rand.Intn(numServers)], nil
+	return s[rand.IntN(numServers)], nil
 }
 
 func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
