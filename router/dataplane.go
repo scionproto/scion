@@ -78,7 +78,7 @@ const (
 	is32bit = 1 - (ptrSize-4)/4
 )
 
-type BfdSession interface {
+type BFDSession interface {
 	Run(ctx context.Context) error
 	ReceiveMessage(*layers.BFD)
 	IsUp() bool
@@ -375,7 +375,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	if d.underlay == nil {
 		d.underlay = newUnderlay()
 	}
-	bfd, err := d.addExternalInterfaceBFD(ifID, src, dst, cfg)
+	bfd, err := d.newExternalInterfaceBFD(ifID, src, dst, cfg)
 	if err != nil {
 		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
 	}
@@ -432,8 +432,8 @@ func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 }
 
 // AddExternalInterfaceBFD adds the inter AS connection BFD session.
-func (d *DataPlane) addExternalInterfaceBFD(ifID uint16,
-	src, dst control.LinkEnd, cfg control.BFD) (BfdSession, error) {
+func (d *DataPlane) newExternalInterfaceBFD(ifID uint16,
+	src, dst control.LinkEnd, cfg control.BFD) (BFDSession, error) {
 
 	if *cfg.Disable {
 		return nil, nil
@@ -456,11 +456,11 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16,
 	if err != nil {
 		return nil, err
 	}
-	return d.addBFDController(ifID, s, cfg, m)
+	return newBFDController(ifID, s, cfg, m)
 }
 
 // getInterfaceState checks if there is a bfd session for the input interfaceID and
-// returns InterfaceUp if the relevant bfdsession state is up, or if there is no BFD
+// returns InterfaceUp if the relevant BFDSession state is up, or if there is no BFD
 // session. Otherwise, it returns InterfaceDown.
 func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 	if link := d.interfaces[ifID]; link != nil && !link.IsUp() {
@@ -469,8 +469,8 @@ func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 	return control.InterfaceUp
 }
 
-func (d *DataPlane) addBFDController(ifID uint16, s bfd.Sender, cfg control.BFD,
-	metrics bfd.Metrics) (BfdSession, error) {
+func newBFDController(ifID uint16, s bfd.Sender, cfg control.BFD,
+	metrics bfd.Metrics) (BFDSession, error) {
 
 	// Generate random discriminator. It can't be zero.
 	discInt, err := rand.Int(rand.Reader, big.NewInt(0xfffffffe))
@@ -547,7 +547,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 	if d.underlay == nil {
 		d.underlay = newUnderlay()
 	}
-	bfd, err := d.addNextHopBFD(ifID, src, dst, cfg, sibling)
+	bfd, err := d.newNextHopBFD(ifID, src, dst, cfg, sibling)
 	if err != nil {
 		return serrors.Wrap("adding next hop BFD", err, "if_id", ifID)
 	}
@@ -565,8 +565,8 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 // AddNextHopBFD adds the BFD session for the next hop address.
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
-func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
-	sibling string) (BfdSession, error) {
+func (d *DataPlane) newNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
+	sibling string) (BFDSession, error) {
 
 	if *cfg.Disable {
 		return nil, nil
@@ -586,7 +586,7 @@ func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg cont
 	if err != nil {
 		return nil, err
 	}
-	return d.addBFDController(ifID, s, cfg, m)
+	return newBFDController(ifID, s, cfg, m)
 }
 
 func max(a int, b int) int {
@@ -608,7 +608,7 @@ func (d *DataPlane) Run(ctx context.Context) error {
 
 	// TODO(multi_underlay): we leave all the ingest work here for now, so we get the set of
 	// connections from the underlay.
-	underlayConnections := d.underlay.GetConnections()
+	underlayConnections := d.underlay.Connections()
 	processorQueueSize := max(
 		len(underlayConnections)*d.RunConfig.BatchSize/d.RunConfig.NumProcessors,
 		d.RunConfig.BatchSize)
@@ -618,11 +618,11 @@ func (d *DataPlane) Run(ctx context.Context) error {
 
 	d.setRunning()
 	for _, c := range underlayConnections {
-		go func(c UnderlayConnection) {
+		go func(c UnderlayConn) {
 			defer log.HandlePanic()
 			d.runReceiver(c, procQs)
 		}(c)
-		go func(c UnderlayConnection) {
+		go func(c UnderlayConn) {
 			defer log.HandlePanic()
 			d.runForwarder(c)
 		}(c)
@@ -641,8 +641,8 @@ func (d *DataPlane) Run(ctx context.Context) error {
 		}(i)
 	}
 
-	for addr, link := range d.underlay.GetLinks() {
-		s := link.GetBfdSession()
+	for addr, link := range d.underlay.Links() {
+		s := link.BFDSession()
 		if s == nil {
 			continue
 		}
@@ -693,7 +693,7 @@ func (d *DataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *
 //
 // TODO(multi_underlay): we should not have direct knowledge of connections. Later we will move
 // parts of this to the connection itself, so that we don't have to know.
-func (d *DataPlane) runReceiver(u UnderlayConnection, procQs []chan *Packet) {
+func (d *DataPlane) runReceiver(u UnderlayConn, procQs []chan *Packet) {
 
 	log.Debug("Run receiver", "connection", u.Name())
 
@@ -1032,7 +1032,7 @@ func updateOutputMetrics(metrics interfaceMetrics, packets []*Packet) {
 //
 // For now, we do the first option. Whether that is good enough is still TBD.
 
-func (d *DataPlane) runForwarder(u UnderlayConnection) {
+func (d *DataPlane) runForwarder(u UnderlayConn) {
 
 	log.Debug("Run forwarder", "connection", u.Name())
 
@@ -1201,7 +1201,7 @@ func (p *scionPacketProcessor) processInterBFD(oh *onehop.Path, data []byte) dis
 	if !exists {
 		return errorDiscard("error", noBFDSessionFound)
 	}
-	session := link.GetBfdSession()
+	session := link.BFDSession()
 	if session == nil {
 		return errorDiscard("error", noBFDSessionFound)
 	}
@@ -1218,7 +1218,7 @@ func (p *scionPacketProcessor) processIntraBFD(data []byte) disposition {
 	// This packet came over a link that doesn't have a define ifID. We have to find it
 	// by srcAddress. We always find one. The internal link matches anything that is not known.
 	src := p.pkt.srcAddr.AddrPort() // POSSIBLY EXPENSIVE CONVERSION
-	session := p.d.underlay.GetLink(src).GetBfdSession()
+	session := p.d.underlay.Link(src).BFDSession()
 	if session == nil {
 		return errorDiscard("error", noBFDSessionFound)
 	}
@@ -1530,12 +1530,12 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 	}
 	pktIngressID := p.ingressInterface()
 	ingressLink := p.d.interfaces[pktIngressID]
-	if ingressLink.GetScope() != Sibling {
+	if ingressLink.Scope() != Sibling {
 		// Drop
 		return errorDiscard("error", invalidSrcAddrForTransit)
 	}
 	src, okS := netip.AddrFromSlice(p.pkt.srcAddr.IP)
-	if !(okS && ingressLink.GetRemote().Addr() == src) {
+	if !(okS && ingressLink.Remote().Addr() == src) {
 		// Drop
 		return errorDiscard("error", invalidSrcAddrForTransit)
 	}
@@ -1557,7 +1557,7 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 	// egress is never the internalInterface
 	// packet coming from internal interface, must go to an external interface
 	// Note that, for now, ingress == 0 is also true for sibling interfaces. That might change.
-	if !found || (p.pkt.ingress == 0 && link.GetScope() == Sibling) {
+	if !found || (p.pkt.ingress == 0 && link.Scope() == Sibling) {
 		errCode := slayers.SCMPCodeUnknownHopFieldEgress
 		if !p.infoField.ConsDir {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
@@ -1769,7 +1769,7 @@ func (p *scionPacketProcessor) validateEgressUp() disposition {
 	egressLink := p.d.interfaces[egressID]
 	if !egressLink.IsUp() {
 		log.Debug("SCMP response", "cause", errBFDSessionDown)
-		if egressLink.GetScope() != External {
+		if egressLink.Scope() != External {
 			p.pkt.slowPathRequest = slowPathRequest{
 				scmpType: slayers.SCMPTypeInternalConnectivityDown,
 				code:     0,
@@ -1815,7 +1815,7 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() disposition {
 	if !*alert {
 		return pForward
 	}
-	if p.d.interfaces[p.pkt.egress].GetScope() != External {
+	if p.d.interfaces[p.pkt.egress].Scope() != External {
 		// the egress router is not this one.
 		return pForward
 	}
@@ -1986,7 +1986,7 @@ func (p *scionPacketProcessor) process() disposition {
 	if disp := p.validateEgressUp(); disp != pForward {
 		return disp
 	}
-	if p.d.interfaces[egressID].GetScope() == External {
+	if p.d.interfaces[egressID].Scope() == External {
 		// Not ASTransit in
 		if disp := p.processEgress(); disp != pForward {
 			return disp
@@ -2471,8 +2471,8 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	}
 	// If the packet is sent to an external router, we need to increment the
 	// path to prepare it for the next hop.
-	// This is an scmp response to pkt, so egress will be pkt.ingress.
-	if p.d.interfaces[p.pkt.ingress].GetScope() == External {
+	// This is an SCMP response to pkt, so egress will be pkt.ingress.
+	if p.d.interfaces[p.pkt.ingress].Scope() == External {
 		infoField := &revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir && !peering {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
@@ -2598,7 +2598,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	}
 	p.pkt.rawPacket = serBuf.Bytes()
 
-	log.Debug("scmp", "typecode", scmpH.TypeCode)
+	log.Debug("SCMP", "typecode", scmpH.TypeCode)
 	return nil
 }
 
@@ -2726,7 +2726,7 @@ func (d *DataPlane) initMetrics() {
 	d.forwardingMetrics = make(map[uint16]interfaceMetrics)
 	for ifID, link := range d.interfaces {
 		d.forwardingMetrics[ifID] = newInterfaceMetrics(
-			d.Metrics, ifID, d.localIA, link.GetScope(), d.neighborIAs)
+			d.Metrics, ifID, d.localIA, link.Scope(), d.neighborIAs)
 	}
 
 	// Start our custom /proc/pid/stat collector to export iowait time and (in the future) other

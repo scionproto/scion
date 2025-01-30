@@ -93,7 +93,7 @@ func TestReceiver(t *testing.T) {
 	dp.setRunning()
 	dp.initMetrics()
 	go func() {
-		dp.runReceiver(dp.underlay.GetConnections()[netip.AddrPort{}], procCh)
+		dp.runReceiver(dp.underlay.Connections()[netip.AddrPort{}], procCh)
 	}()
 	ptrMap := make(map[uintptr]struct{})
 	for i := 0; i < 21; i++ {
@@ -187,7 +187,7 @@ func TestForwarder(t *testing.T) {
 	dp := prepareDP(ctrl)
 	dp.initPacketPool(64)
 	dp.initQueues(64)
-	conn := dp.underlay.GetConnections()[netip.AddrPort{}]
+	conn := dp.underlay.Connections()[netip.AddrPort{}]
 	intf := dp.interfaces[0]
 	initialPoolSize := len(dp.packetPool)
 	dp.setRunning()

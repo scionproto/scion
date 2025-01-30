@@ -15,6 +15,7 @@
 package underlayproviders
 
 import (
+	"maps"
 	"net/netip"
 
 	"github.com/scionproto/scion/router"
@@ -45,25 +46,25 @@ func newProvider() router.UnderlayProvider {
 	}
 }
 
-func (u *provider) GetConnections() map[netip.AddrPort]router.UnderlayConnection {
+func (u *provider) Connections() map[netip.AddrPort]router.UnderlayConn {
 	// A map of interfaces and a map of concrete implementations aren't compatible.
 	// For the same reason, we cannot have the map of concrete implementations as our return type;
-	// it does not satisfy the GetConnections interface (so much for the "don't return
+	// it does not satisfy the Connections() interface (so much for the "don't return
 	// interfaces" rule)... Brilliant, Go.
 	// Since we do not want to store our own things as interfaces, we have to translate.
 	// Good thing it doesn't happen often.
-	m := make(map[netip.AddrPort]router.UnderlayConnection)
+	m := make(map[netip.AddrPort]router.UnderlayConn)
 	for a, c := range u.allConnections {
 		m[a] = c // Yeah that's exactly as stupid as it looks.
 	}
 	return m
 }
 
-func (u *provider) GetLinks() map[netip.AddrPort]router.Link {
-	return u.allLinks
+func (u *provider) Links() map[netip.AddrPort]router.Link {
+	return maps.Clone(u.allLinks)
 }
 
-func (u *provider) GetLink(addr netip.AddrPort) router.Link {
+func (u *provider) Link(addr netip.AddrPort) router.Link {
 	// There is one link for every address. The internal Link catches all.
 	l, found := u.allLinks[addr]
 	if found {
@@ -87,7 +88,7 @@ type udpConnection struct {
 	name  string // for logs. It's more informative than ifID.
 }
 
-// TODO(multi_underlay): The following implements UnderlayConnection so some of the code
+// TODO(multi_underlay): The following implements UnderlayConn so some of the code
 // that needs to interact with it can stay in the main router code. This will be removed in the
 // next step
 
@@ -115,9 +116,9 @@ func (u *udpConnection) IfID() uint16 {
 
 type externalLink struct {
 	queue      chan<- *router.Packet
-	bfdSession router.BfdSession
+	bfdSession router.BFDSession
 	ifID       uint16
-	remote     netip.AddrPort // We keep this only for GetRemote
+	remote     netip.AddrPort // We keep this only for Remote()
 }
 
 // NewExternalLink returns an external link over the UdpIpUnderlay.
@@ -128,7 +129,7 @@ type externalLink struct {
 func (u *provider) NewExternalLink(
 	conn router.BatchConn,
 	qSize int,
-	bfd router.BfdSession,
+	bfd router.BFDSession,
 	remote netip.AddrPort,
 	ifID uint16,
 ) router.Link {
@@ -150,11 +151,11 @@ func (u *provider) NewExternalLink(
 	return l
 }
 
-func (l *externalLink) GetScope() router.LinkScope {
+func (l *externalLink) Scope() router.LinkScope {
 	return router.External
 }
 
-func (l *externalLink) GetBfdSession() router.BfdSession {
+func (l *externalLink) BFDSession() router.BFDSession {
 	return l.bfdSession
 }
 
@@ -162,11 +163,11 @@ func (l *externalLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
 
-func (l *externalLink) GetIfID() uint16 {
+func (l *externalLink) IfID() uint16 {
 	return l.ifID
 }
 
-func (l *externalLink) GetRemote() netip.AddrPort {
+func (l *externalLink) Remote() netip.AddrPort {
 	return l.remote
 }
 
@@ -185,7 +186,7 @@ func (l *externalLink) BlockSend(p *router.Packet) {
 
 type siblingLink struct {
 	queue      chan<- *router.Packet
-	bfdSession router.BfdSession
+	bfdSession router.BFDSession
 	remote     netip.AddrPort
 }
 
@@ -198,12 +199,12 @@ type siblingLink struct {
 // (something we will get rid of eventually).
 // In the future we will be making one connection per remote address and we might even be able
 // to erase the separation between link and connection for this implementation. Side effect
-// of moving the address:link here: the router does not know if there is an existing link. As
-// a result it has to give us a bfdSession in all cases and we might throw it away (there
-// are no permanent resources attached to it). This will be fixed by moving some bfd related code
+// of moving the address:link map here: the router does not know if there is an existing link. As
+// a result it has to give us a BFDSession in all cases and we might throw it away (there
+// are no permanent resources attached to it). This will be fixed by moving some BFD related code
 // in-here.
 func (u *provider) NewSiblingLink(
-	qSize int, bfd router.BfdSession, remote netip.AddrPort) router.Link {
+	qSize int, bfd router.BFDSession, remote netip.AddrPort) router.Link {
 
 	// There is exactly one sibling link per sibling router address.
 	l, exists := u.allLinks[remote]
@@ -230,11 +231,11 @@ func (u *provider) NewSiblingLink(
 	return s
 }
 
-func (l *siblingLink) GetScope() router.LinkScope {
+func (l *siblingLink) Scope() router.LinkScope {
 	return router.Sibling
 }
 
-func (l *siblingLink) GetBfdSession() router.BfdSession {
+func (l *siblingLink) BFDSession() router.BFDSession {
 	return l.bfdSession
 }
 
@@ -242,11 +243,11 @@ func (l *siblingLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
 
-func (l *siblingLink) GetIfID() uint16 {
+func (l *siblingLink) IfID() uint16 {
 	return 0
 }
 
-func (l *siblingLink) GetRemote() netip.AddrPort {
+func (l *siblingLink) Remote() netip.AddrPort {
 	return l.remote
 }
 
@@ -293,7 +294,7 @@ func (u *provider) NewInternalLink(conn router.BatchConn, qSize int) router.Link
 	return l
 }
 
-func (l *internalLink) GetScope() router.LinkScope {
+func (l *internalLink) Scope() router.LinkScope {
 	return router.Internal
 }
 
@@ -301,15 +302,15 @@ func (l *internalLink) IsUp() bool {
 	return true
 }
 
-func (l *internalLink) GetBfdSession() router.BfdSession {
+func (l *internalLink) BFDSession() router.BFDSession {
 	return nil
 }
 
-func (l *internalLink) GetIfID() uint16 {
+func (l *internalLink) IfID() uint16 {
 	return 0
 }
 
-func (l *internalLink) GetRemote() netip.AddrPort {
+func (l *internalLink) Remote() netip.AddrPort {
 	return netip.AddrPort{}
 }
 

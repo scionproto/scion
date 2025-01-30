@@ -30,7 +30,7 @@ const (
 )
 
 // Link embodies the router's idea of a point to point connection. A link associates the underlay
-// connection with a bfdSession, a destination address, etc. It also allows the concrete send
+// connection with a BFDSession, a destination address, etc. It also allows the concrete send
 // operation to be delegated to different underlay implementations. The association between
 // link and underlay connection is a channel, on the sending side, and should be a demultiplexer on
 // the receiving side. The demultiplexer must have a src-addr:link map in all cases where links
@@ -41,11 +41,11 @@ const (
 // associate an interface ID with a link. If the interface ID belongs to a sibling router, then
 // the link is a sibling link. If the interface ID is zero, then the link is the internal link.
 type Link interface {
-	GetScope() LinkScope
-	GetBfdSession() BfdSession
+	Scope() LinkScope
+	BFDSession() BFDSession
 	IsUp() bool
-	GetIfID() uint16
-	GetRemote() netip.AddrPort // TODO(multi_underlay): using code will move to underlay.
+	IfID() uint16
+	Remote() netip.AddrPort // TODO(multi_underlay): using code will move to underlay.
 	Send(p *Packet) bool
 	BlockSend(p *Packet)
 }
@@ -64,49 +64,49 @@ type UnderlayProvider interface {
 	// do not need an underlay destination as metadata. Incoming packets have a defined ingress
 	// ifID.
 	NewExternalLink(
-		conn BatchConn, qSize int, bfd BfdSession, remote netip.AddrPort, ifID uint16,
+		conn BatchConn, qSize int, bfd BFDSession, remote netip.AddrPort, ifID uint16,
 	) Link
 
 	// NewSinblingLink returns a link that addresses any number of remote ASes via a single sibling
 	// router. So, it is not given an ifID at creation, but it is given a remote underlay address:
 	// that of the sibling router. Outgoing packets do not need an underlay destination as metadata.
 	// Incoming packets have no defined ingress ifID.
-	NewSiblingLink(qSize int, bfd BfdSession, remote netip.AddrPort) Link
+	NewSiblingLink(qSize int, bfd BFDSession, remote netip.AddrPort) Link
 
 	// NewIternalLink returns a link that addresses any host internal to the enclosing AS, so it is
 	// given neither ifID nor address. Outgoing packets need to have a destination address as
 	// metadata. Incoming packets have no defined ingress ifID.
 	NewInternalLink(conn BatchConn, qSize int) Link
 
-	// GetConnections returns the set of configured distinct connections in the provider.
+	// Connections returns the set of configured distinct connections in the provider.
 	//
 	// TODO(multi_underlay): this exists so most of the receiving code can stay in the main
 	// dataplane code for now. There may be fewer connections than links. For example, right now
 	// all sibling links and the internal link use a shared un-bound connection.
-	GetConnections() map[netip.AddrPort]UnderlayConnection
+	Connections() map[netip.AddrPort]UnderlayConn
 
-	// GetLinks returns the set of configured distinct links in the provider.
+	// Links returns the set of configured distinct links in the provider.
 	//
 	// TODO(multi_underlay): this exists so most of the receiving code can stay in-here for now.
 	// There may be fewer links than ifIDs. For example, all interfaces owned by one given sibling
 	// router are connected via the same link because the remote address is the same.
-	GetLinks() map[netip.AddrPort]Link
+	Links() map[netip.AddrPort]Link
 
-	// GetLink returns a link that matches the given source address. If the address is not that of
+	// Link returns a link that matches the given source address. If the address is not that of
 	// a known link, then the internal link is returned.
 	//
-	// TODO(multi_underlay): This has to exist until incmoing packets are "demuxed" (i.e.
+	// TODO(multi_underlay): This has to exist until incoming packets are "demuxed" (i.e.
 	// matched with a link), on ingest by the underlay. That would imply moving a part of the
 	// runReceiver routine to the underlay. We will do that in the next step.
-	GetLink(netip.AddrPort) Link
+	Link(netip.AddrPort) Link
 }
 
-// UnderlayConnection defines the minimum interface that the router expects from an underlay
+// UnderlayConn defines the minimum interface that the router expects from an underlay
 // connection.
 //
 // TODO(multi_underlay): this will eventually be reduced to nothing at all because the sender
 // receiver tasks will be part of the underlay.
-type UnderlayConnection interface {
+type UnderlayConn interface {
 	Conn() BatchConn
 	Queue() <-chan *Packet
 	Name() string
