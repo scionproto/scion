@@ -23,7 +23,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/drkey/drkeytest"
 )
 
@@ -58,10 +57,8 @@ func testDRKeyLevel1(t *testing.T, db drkey.Level1DB) {
 	defer cancelF()
 
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: time.Now(),
-			NotAfter:  time.Now().Add(timeOffset),
-		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(timeOffset),
 	}
 	protoId := drkey.Protocol(0)
 	drkeyLevel1 := drkeytest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
