@@ -36,7 +36,7 @@ const (
 )
 
 // Epoch represents a validity period.
-type Epoch cppki.Validity
+type Epoch = cppki.Validity
 
 // NewEpoch constructs an Epoch from its uint32 encoded begin and end parts.
 func NewEpoch(begin, end uint32) Epoch {
