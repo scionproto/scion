@@ -47,7 +47,7 @@ type Link interface {
 	IfID() uint16
 	Remote() netip.AddrPort // TODO(multi_underlay): using code will move to underlay.
 	Send(p *Packet) bool
-	BlockSend(p *Packet)
+	SendBlocking(p *Packet)
 }
 
 // A provider of connectivity over some underlay implementation

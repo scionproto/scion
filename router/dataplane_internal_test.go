@@ -212,7 +212,7 @@ func TestForwarder(t *testing.T) {
 		// Normal use would be
 		// intf.Send(pkt):
 		// However we want to exclude queue overflow from the test. So we want a blocking send.
-		intf.BlockSend(pkt)
+		intf.SendBlocking(pkt)
 	}
 	select {
 	case <-done:

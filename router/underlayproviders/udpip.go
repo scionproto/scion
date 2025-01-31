@@ -180,7 +180,7 @@ func (l *externalLink) Send(p *router.Packet) bool {
 	return true
 }
 
-func (l *externalLink) BlockSend(p *router.Packet) {
+func (l *externalLink) SendBlocking(p *router.Packet) {
 	l.queue <- p
 }
 
@@ -263,7 +263,7 @@ func (l *siblingLink) Send(p *router.Packet) bool {
 	return true
 }
 
-func (l *siblingLink) BlockSend(p *router.Packet) {
+func (l *siblingLink) SendBlocking(p *router.Packet) {
 	// We use an unbound connection but we offer a connected-oriented service. So, we need to
 	// supply the packet's destination address.
 	router.UpdateNetAddrFromAddrPort(p.DstAddr, l.remote)
@@ -325,6 +325,6 @@ func (l *internalLink) Send(p *router.Packet) bool {
 }
 
 // The packet's destination is already in the packet's meta-data.
-func (l *internalLink) BlockSend(p *router.Packet) {
+func (l *internalLink) SendBlocking(p *router.Packet) {
 	l.queue <- p
 }
