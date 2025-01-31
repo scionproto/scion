@@ -16,7 +16,7 @@ package bfd
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 )
 
@@ -96,7 +96,7 @@ func (g defaultIntervalGenerator) Generate(x, y int) int {
 
 func (g defaultIntervalGenerator) intn(n int) int {
 	if g.Source == nil {
-		return rand.Intn(n)
+		return rand.IntN(n)
 	}
 	return g.Source.Intn(n)
 }

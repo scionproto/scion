@@ -17,7 +17,7 @@ package trust
 import (
 	"context"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -197,5 +197,5 @@ func (i CachingInspector) cacheExpiration() time.Duration {
 	if dur == 0 {
 		dur = defaultCacheExpiration
 	}
-	return time.Duration(rand.Int63n(int64(dur-(dur/2))) + int64(dur/2))
+	return time.Duration(rand.Int64N(int64(dur-(dur/2))) + int64(dur/2))
 }

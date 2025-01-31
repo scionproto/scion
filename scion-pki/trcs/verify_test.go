@@ -27,8 +27,7 @@ import (
 
 func TestVerify(t *testing.T) {
 	// prepare certificate bundle
-	dir, clean := xtest.MustTempDir("", "scion-pki-trcs-verify")
-	defer clean()
+	dir := t.TempDir()
 
 	testCases := map[string]struct {
 		Files        []string

@@ -16,7 +16,7 @@ package segfetcher
 
 import (
 	"context"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"time"
 
@@ -145,7 +145,7 @@ func (f *Fetcher) nextQuery(segs Segments) time.Time {
 // by the minimum and the configured query interval.
 func (f *Fetcher) nearestNextQueryTime(now, nextQuery time.Time) time.Time {
 	// Adding +-10% random jitter
-	jitterPercent := time.Duration(rand.Intn(20) - 10)
+	jitterPercent := time.Duration(rand.IntN(20) - 10)
 
 	if earliest := now.Add(minQueryInterval); nextQuery.Before(earliest) {
 		jitter := minQueryInterval * jitterPercent / 100

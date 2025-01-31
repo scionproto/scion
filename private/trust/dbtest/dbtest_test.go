@@ -31,8 +31,7 @@ func TestUpdateCrypto(t *testing.T) {
 		t.Skip("Only runs if -update-non-deterministic is specified")
 	}
 
-	dir, cleanF := xtest.MustTempDir("", "trustdbtest")
-	defer cleanF()
+	dir := t.TempDir()
 
 	testdata, err := filepath.Abs("./testdata")
 	require.NoError(t, err)

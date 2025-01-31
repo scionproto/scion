@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 	"github.com/scionproto/scion/scion-pki/trcs"
@@ -38,8 +37,7 @@ func TestUpdateExtend(t *testing.T) {
 	if _, bazel := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR"); bazel {
 		t.Skip("Test can't run through bazel because of symlinks and docker not playing nice")
 	}
-	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
-	defer cleanF()
+	outDir := t.TempDir()
 	topo := "./testdata/test.topo"
 
 	var buf bytes.Buffer
@@ -112,8 +110,7 @@ func TestUpdateReSign(t *testing.T) {
 	if _, bazel := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR"); bazel {
 		t.Skip("Test can't run through bazel because of symlinks and docker not playing nice")
 	}
-	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
-	defer cleanF()
+	outDir := t.TempDir()
 	topo := "./testdata/test.topo"
 
 	var buf bytes.Buffer
@@ -182,8 +179,7 @@ func TestUpdateReGen(t *testing.T) {
 	if _, bazel := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR"); bazel {
 		t.Skip("Test can't run through bazel because of symlinks and docker not playing nice")
 	}
-	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
-	defer cleanF()
+	outDir := t.TempDir()
 	topo := "./testdata/test.topo"
 
 	var buf bytes.Buffer
