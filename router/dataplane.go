@@ -24,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"math/big"
 	"net"
 	"net/netip"
 	"sync"
@@ -456,7 +455,7 @@ func (d *DataPlane) newExternalInterfaceBFD(ifID uint16,
 	if err != nil {
 		return nil, err
 	}
-	return newBFDController(ifID, s, cfg, m)
+	return bfd.NewBFDSession(ifID, s, cfg, m)
 }
 
 // getInterfaceState checks if there is a bfd session for the input interfaceID and
@@ -467,26 +466,6 @@ func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 		return control.InterfaceDown
 	}
 	return control.InterfaceUp
-}
-
-func newBFDController(ifID uint16, s bfd.Sender, cfg control.BFD,
-	metrics bfd.Metrics) (BFDSession, error) {
-
-	// Generate random discriminator. It can't be zero.
-	discInt, err := rand.Int(rand.Reader, big.NewInt(0xfffffffe))
-	if err != nil {
-		return nil, err
-	}
-	disc := layers.BFDDiscriminator(uint32(discInt.Uint64()) + 1)
-	return &bfd.Session{
-		Sender:                s,
-		DetectMult:            layers.BFDDetectMultiplier(cfg.DetectMult),
-		DesiredMinTxInterval:  cfg.DesiredMinTxInterval,
-		RequiredMinRxInterval: cfg.RequiredMinRxInterval,
-		LocalDiscriminator:    disc,
-		ReceiveQueueSize:      10,
-		Metrics:               metrics,
-	}, nil
 }
 
 // AddSvc adds the address for the given service. This can be called multiple
@@ -586,7 +565,7 @@ func (d *DataPlane) newNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg cont
 	if err != nil {
 		return nil, err
 	}
-	return newBFDController(ifID, s, cfg, m)
+	return bfd.NewBFDSession(ifID, s, cfg, m)
 }
 
 func max(a int, b int) int {

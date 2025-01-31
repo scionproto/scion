@@ -16,8 +16,10 @@ package bfd
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"math"
+	"math/big"
 	"sync"
 	"time"
 
@@ -25,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/router/control"
 )
 
 const (
@@ -159,6 +162,26 @@ type Session struct {
 	// periodic events that would in production environment clog the logs. Use
 	// this field only in tests.
 	testLogger log.Logger
+}
+
+func NewBFDSession(ifID uint16, s Sender, cfg control.BFD,
+	metrics Metrics) (*Session, error) {
+
+	// Generate random discriminator. It can't be zero.
+	discInt, err := rand.Int(rand.Reader, big.NewInt(0xfffffffe))
+	if err != nil {
+		return nil, err
+	}
+	disc := layers.BFDDiscriminator(uint32(discInt.Uint64()) + 1)
+	return &Session{
+		Sender:                s,
+		DetectMult:            layers.BFDDetectMultiplier(cfg.DetectMult),
+		DesiredMinTxInterval:  cfg.DesiredMinTxInterval,
+		RequiredMinRxInterval: cfg.RequiredMinRxInterval,
+		LocalDiscriminator:    disc,
+		ReceiveQueueSize:      10,
+		Metrics:               metrics,
+	}, nil
 }
 
 func (s *Session) String() string {
