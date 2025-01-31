@@ -92,22 +92,18 @@ type udpConnection struct {
 // that needs to interact with it can stay in the main router code. This will be removed in the
 // next step
 
-// Name returns the name (for logging) associated with a connection.
 func (u *udpConnection) Conn() router.BatchConn {
 	return u.conn
 }
 
-// Name returns the name (for logging) associated with a connection.
 func (u *udpConnection) Queue() <-chan *router.Packet {
 	return u.queue
 }
 
-// Name returns the name (for logging) associated with a connection.
 func (u *udpConnection) Name() string {
 	return u.name
 }
 
-// Name returns the name (for logging) associated with a connection.
 func (u *udpConnection) IfID() uint16 {
 	return u.ifID
 }
@@ -252,7 +248,7 @@ func (l *siblingLink) Remote() netip.AddrPort {
 }
 
 func (l *siblingLink) Send(p *router.Packet) bool {
-	// We use an unbound connection but we offer a connected-oriented service. So, we need to
+	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address.
 	router.UpdateNetAddrFromAddrPort(p.DstAddr, l.remote)
 	select {
@@ -264,7 +260,7 @@ func (l *siblingLink) Send(p *router.Packet) bool {
 }
 
 func (l *siblingLink) SendBlocking(p *router.Packet) {
-	// We use an unbound connection but we offer a connected-oriented service. So, we need to
+	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address.
 	router.UpdateNetAddrFromAddrPort(p.DstAddr, l.remote)
 	l.queue <- p

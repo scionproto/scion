@@ -107,8 +107,12 @@ type UnderlayProvider interface {
 // TODO(multi_underlay): this will eventually be reduced to nothing at all because the sender
 // receiver tasks will be part of the underlay.
 type UnderlayConn interface {
+	// Conn returns the BatchConn associated with the connection.
 	Conn() BatchConn
+	// Queue returns the channel associated with the connection.
 	Queue() <-chan *Packet
+	// Name returns the name (for logging) associated with the connection.
 	Name() string
+	// IfID returns the IfID associated with the connection.
 	IfID() uint16
 }
