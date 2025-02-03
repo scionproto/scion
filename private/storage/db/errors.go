@@ -15,7 +15,6 @@
 package db
 
 import (
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -32,27 +31,27 @@ var (
 	ErrTx = serrors.New("db: transaction error")
 )
 
-func NewTxError(msg common.ErrMsg, err error, logCtx ...any) error {
+func NewTxError(msg string, err error, logCtx ...any) error {
 	return serrors.JoinNoStack(ErrTx, err,
 		append([]any{"detailMsg", msg}, logCtx...)...)
 }
 
-func NewInputDataError(msg common.ErrMsg, err error, logCtx ...any) error {
+func NewInputDataError(msg string, err error, logCtx ...any) error {
 	return serrors.JoinNoStack(ErrInvalidInputData, err,
 		append([]any{"detailMsg", msg}, logCtx...)...)
 }
 
-func NewDataError(msg common.ErrMsg, err error, logCtx ...any) error {
+func NewDataError(msg string, err error, logCtx ...any) error {
 	return serrors.JoinNoStack(ErrDataInvalid, err,
 		append([]any{"detailMsg", msg}, logCtx...)...)
 }
 
-func NewReadError(msg common.ErrMsg, err error, logCtx ...any) error {
+func NewReadError(msg string, err error, logCtx ...any) error {
 	return serrors.JoinNoStack(ErrReadFailed, err,
 		append([]any{"detailMsg", msg}, logCtx...)...)
 }
 
-func NewWriteError(msg common.ErrMsg, err error, logCtx ...any) error {
+func NewWriteError(msg string, err error, logCtx ...any) error {
 	return serrors.JoinNoStack(ErrWriteFailed, err,
 		append([]any{"detailMsg", msg}, logCtx...)...)
 }

@@ -16,12 +16,12 @@ package keyconf
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -33,10 +33,10 @@ const (
 )
 
 // Errors
-const (
-	ErrOpen    common.ErrMsg = "Unable to load key"
-	ErrParse   common.ErrMsg = "Unable to parse key file"
-	ErrUnknown common.ErrMsg = "Unknown algorithm"
+var (
+	ErrOpen    = errors.New("unable to load key")
+	ErrParse   = errors.New("unable to parse key file")
+	ErrUnknown = errors.New("unknown algorithm")
 )
 
 // loadKey decodes a base64 encoded key stored in file and returns the raw bytes.

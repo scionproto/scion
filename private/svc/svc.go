@@ -16,6 +16,7 @@
 package svc
 
 import (
+	"errors"
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -25,7 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 )
 
-const ErrHandler common.ErrMsg = "Unable to handle SVC request"
+var ErrHandler = errors.New("unable to handle SVC request")
 
 // Result is used to inform Handler users on the outcome of handler execution.
 type Result int
