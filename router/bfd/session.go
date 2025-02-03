@@ -164,8 +164,15 @@ type Session struct {
 	testLogger log.Logger
 }
 
-func NewBFDSession(ifID uint16, s Sender, cfg control.BFD,
-	metrics Metrics) (*Session, error) {
+// NewSession returns a new BFD session, configured as specified and updating the
+// given metrics. BFD packets are transmitted via the given Sender. Up to 10 incoming BFD packets
+// per session can be queued waiting for processing; excess traffic will be blocked.
+// A random discriminator is generated automatically. This can be used by the recipient to route
+// packets to the correct session.
+//
+// TODO(jiceatscion): blocking incoming traffic (*all of it*) when the BFD queue is full is
+// probably the wrong thing to do, but this is what we have been doing so far.
+func NewSession(s Sender, cfg control.BFD, metrics Metrics) (*Session, error) {
 
 	// Generate random discriminator. It can't be zero.
 	discInt, err := rand.Int(rand.Reader, big.NewInt(0xfffffffe))

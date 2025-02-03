@@ -455,7 +455,7 @@ func (d *DataPlane) newExternalInterfaceBFD(ifID uint16,
 	if err != nil {
 		return nil, err
 	}
-	return bfd.NewBFDSession(ifID, s, cfg, m)
+	return bfd.NewSession(s, cfg, m)
 }
 
 // getInterfaceState checks if there is a bfd session for the input interfaceID and
@@ -565,7 +565,7 @@ func (d *DataPlane) newNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg cont
 	if err != nil {
 		return nil, err
 	}
-	return bfd.NewBFDSession(ifID, s, cfg, m)
+	return bfd.NewSession(s, cfg, m)
 }
 
 func max(a int, b int) int {
