@@ -21,7 +21,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"hash"
-	mrand "math/rand"
+	mrand "math/rand/v2"
 	"testing"
 	"time"
 

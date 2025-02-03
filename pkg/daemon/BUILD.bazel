@@ -23,7 +23,6 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//pkg/proto/daemon:go_default_library",
         "//pkg/proto/drkey:go_default_library",
-        "//pkg/scrypto/cppki:go_default_library",
         "//pkg/segment/iface:go_default_library",
         "//pkg/snet:go_default_library",
         "//pkg/snet/path:go_default_library",

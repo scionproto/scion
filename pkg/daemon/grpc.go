@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
@@ -355,10 +354,8 @@ func getASHostKeyFromReply(rep *sdpb.DRKeyASHostResponse,
 		return drkey.ASHostKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
+		NotBefore: rep.EpochBegin.AsTime(),
+		NotAfter:  rep.EpochEnd.AsTime(),
 	}
 
 	returningKey := drkey.ASHostKey{
@@ -399,10 +396,8 @@ func getHostASKeyFromReply(rep *sdpb.DRKeyHostASResponse,
 		return drkey.HostASKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
+		NotBefore: rep.EpochBegin.AsTime(),
+		NotAfter:  rep.EpochEnd.AsTime(),
 	}
 
 	returningKey := drkey.HostASKey{
@@ -443,10 +438,8 @@ func getHostHostKeyFromReply(rep *sdpb.DRKeyHostHostResponse,
 		return drkey.HostHostKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
+		NotBefore: rep.EpochBegin.AsTime(),
+		NotAfter:  rep.EpochEnd.AsTime(),
 	}
 
 	returningKey := drkey.HostHostKey{
