@@ -5,9 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@types/jsonpath-plus': '>=10.0.0'
+  '@types/jsonpath-plus': '>=10.0.7'
 
-packageExtensionsChecksum: 12431cddfbc961e47dea32fc33af3a5c
+packageExtensionsChecksum: sha256-aUnoCsg+/7D3MfbKHX/YBBMLt7iUQrOeUaOXDeGB2tU=
 
 importers:
 
