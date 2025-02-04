@@ -17,41 +17,20 @@ package db
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestErrFmt(t *testing.T) {
-	tests := []struct {
-		Err      error
-		Expected string
-	}{
-		{
-			Err:      NewTxError("test", nil),
-			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrTx),
-		},
-		{
-			Err:      NewInputDataError("test", nil),
-			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrInvalidInputData),
-		},
-		{
-			Err:      NewDataError("test", nil),
-			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrDataInvalid),
-		},
-		{
-			Err:      NewReadError("test", nil),
-			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrReadFailed),
-		},
-		{
-			Err:      NewWriteError("test", nil),
-			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrWriteFailed),
-		},
+	f := func(t *testing.T, expect error, err error) {
+		t.Helper()
+		expectedMsg := fmt.Sprintf("%s {detailMsg=test}", expect)
+		require.Equal(t, expectedMsg, err.Error())
 	}
-	for _, test := range tests {
-		checkStringEq(t, test.Err.Error(), test.Expected)
-	}
-}
 
-func checkStringEq(t *testing.T, actual, expected string) {
-	if actual != expected {
-		t.Fatalf("Expected %s to be %s", actual, expected)
-	}
+	f(t, ErrTx, NewTxError("test", nil))
+	f(t, ErrInvalidInputData, NewInputDataError("test", nil))
+	f(t, ErrDataInvalid, NewDataError("test", nil))
+	f(t, ErrReadFailed, NewReadError("test", nil))
+	f(t, ErrWriteFailed, NewWriteError("test", nil))
 }

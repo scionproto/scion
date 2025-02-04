@@ -142,11 +142,11 @@ func (e *executor) CandidateBeacons(
 		var rawBeacon sql.RawBytes
 		var inIfID iface.ID
 		if err = rows.Scan(&rawBeacon, &inIfID); err != nil {
-			return nil, db.NewReadError(beacon.ErrReadingRows, err)
+			return nil, db.NewReadError("failed to read rows", err)
 		}
 		s, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
-			return nil, db.NewDataError(beacon.ErrParse, err)
+			return nil, db.NewDataError("failed to parse entry", err)
 		}
 		beacons = append(beacons, beacon.Beacon{Segment: s, InIfID: uint16(inIfID)})
 	}
