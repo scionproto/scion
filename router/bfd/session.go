@@ -16,8 +16,10 @@ package bfd
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"math"
+	"math/big"
 	"sync"
 	"time"
 
@@ -25,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/router/control"
 )
 
 const (
@@ -159,6 +162,33 @@ type Session struct {
 	// periodic events that would in production environment clog the logs. Use
 	// this field only in tests.
 	testLogger log.Logger
+}
+
+// NewSession returns a new BFD session, configured as specified and updating the
+// given metrics. BFD packets are transmitted via the given Sender. Up to 10 incoming BFD packets
+// per session can be queued waiting for processing; excess traffic will be blocked.
+// A random discriminator is generated automatically. This can be used by the recipient to route
+// packets to the correct session.
+//
+// TODO(jiceatscion): blocking incoming traffic (*all of it*) when the BFD queue is full is
+// probably the wrong thing to do, but this is what we have been doing so far.
+func NewSession(s Sender, cfg control.BFD, metrics Metrics) (*Session, error) {
+
+	// Generate random discriminator. It can't be zero.
+	discInt, err := rand.Int(rand.Reader, big.NewInt(0xfffffffe))
+	if err != nil {
+		return nil, err
+	}
+	disc := layers.BFDDiscriminator(uint32(discInt.Uint64()) + 1)
+	return &Session{
+		Sender:                s,
+		DetectMult:            layers.BFDDetectMultiplier(cfg.DetectMult),
+		DesiredMinTxInterval:  cfg.DesiredMinTxInterval,
+		RequiredMinRxInterval: cfg.RequiredMinRxInterval,
+		LocalDiscriminator:    disc,
+		ReceiveQueueSize:      10,
+		Metrics:               metrics,
+	}, nil
 }
 
 func (s *Session) String() string {

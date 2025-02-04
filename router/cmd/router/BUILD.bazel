@@ -17,6 +17,7 @@ go_library(
         "//router/config:go_default_library",
         "//router/control:go_default_library",
         "//router/mgmtapi:go_default_library",
+        "//router/underlayproviders:go_default_library",
         "@com_github_go_chi_chi_v5//:go_default_library",
         "@com_github_go_chi_cors//:go_default_library",
         "@org_golang_x_sync//errgroup:go_default_library",

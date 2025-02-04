@@ -282,9 +282,10 @@ func newInterfaceMetrics(
 	metrics *Metrics,
 	id uint16,
 	localIA addr.IA,
+	scope LinkScope,
 	neighbors map[uint16]addr.IA) interfaceMetrics {
 
-	ifLabels := interfaceLabels(id, localIA, neighbors)
+	ifLabels := interfaceLabels(id, localIA, scope, neighbors)
 	m := interfaceMetrics{}
 	for sc := minSizeClass; sc < maxSizeClass; sc++ {
 		scLabels := prometheus.Labels{"sizeclass": sc.String()}
@@ -355,7 +356,9 @@ func newOutputMetrics(
 	return om
 }
 
-func interfaceLabels(id uint16, localIA addr.IA, neighbors map[uint16]addr.IA) prometheus.Labels {
+func interfaceLabels(
+	id uint16, localIA addr.IA, scope LinkScope, neighbors map[uint16]addr.IA) prometheus.Labels {
+
 	if id == 0 {
 		return prometheus.Labels{
 			"isd_as":          localIA.String(),
@@ -363,10 +366,16 @@ func interfaceLabels(id uint16, localIA addr.IA, neighbors map[uint16]addr.IA) p
 			"neighbor_isd_as": localIA.String(),
 		}
 	}
+	viaSibling := "->"
+	neighbor := "unknown"
+	if scope == External {
+		viaSibling = ""
+		neighbor = neighbors[id].String()
+	}
 	return prometheus.Labels{
 		"isd_as":          localIA.String(),
-		"interface":       strconv.FormatUint(uint64(id), 10),
-		"neighbor_isd_as": neighbors[id].String(),
+		"interface":       viaSibling + strconv.FormatUint(uint64(id), 10),
+		"neighbor_isd_as": neighbor,
 	}
 }
 

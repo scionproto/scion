@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 	api "github.com/scionproto/scion/router/mgmtapi"
+	_ "github.com/scionproto/scion/router/underlayproviders"
 )
 
 var globalCfg config.Config
@@ -64,6 +65,11 @@ func realMain(ctx context.Context) error {
 		DataPlane: router.DataPlane{
 			Metrics:                        metrics,
 			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
+			RunConfig: router.RunConfig{
+				NumProcessors:         globalCfg.Router.NumProcessors,
+				NumSlowPathProcessors: globalCfg.Router.NumSlowPathProcessors,
+				BatchSize:             globalCfg.Router.BatchSize,
+			},
 		},
 		ReceiveBufferSize:   globalCfg.Router.ReceiveBufferSize,
 		SendBufferSize:      globalCfg.Router.SendBufferSize,
@@ -131,12 +137,7 @@ func realMain(ctx context.Context) error {
 	})
 	g.Go(func() error {
 		defer log.HandlePanic()
-		runConfig := &router.RunConfig{
-			NumProcessors:         globalCfg.Router.NumProcessors,
-			NumSlowPathProcessors: globalCfg.Router.NumSlowPathProcessors,
-			BatchSize:             globalCfg.Router.BatchSize,
-		}
-		if err := dp.DataPlane.Run(errCtx, runConfig); err != nil {
+		if err := dp.DataPlane.Run(errCtx); err != nil {
 			return serrors.Wrap("running dataplane", err)
 		}
 		return nil
