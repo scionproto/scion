@@ -28,10 +28,8 @@ var (
 	dispatchedPortEnd   = 1<<16 - 1
 )
 
-var metrics = NewMetrics()
-
 func GetMetrics() *Metrics {
-	return metrics
+	return theMetrics
 }
 
 var NewServices = newServices
@@ -43,19 +41,19 @@ const PDiscard = Disposition(pDiscard)
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	p := Packet{
 		DstAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
-		srcAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
-		rawPacket: make([]byte, len(raw)),
-		ingress:   ingress,
+		SrcAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
+		RawPacket: make([]byte, len(raw)),
+		Ingress:   ingress,
 		egress:    egress,
 	}
 
 	if src != nil {
-		p.srcAddr = src
+		p.SrcAddr = src
 	}
 	if dst != nil {
 		p.DstAddr = dst
 	}
-	copy(p.rawPacket, raw)
+	copy(p.RawPacket, raw)
 	return &p
 }
 
@@ -70,7 +68,6 @@ func NewDP(
 	key []byte) *DataPlane {
 
 	dp := &DataPlane{
-		underlay:            newUnderlay(),
 		interfaces:          make(map[uint16]Link),
 		localIA:             local,
 		linkTypes:           linkTypes,
@@ -79,26 +76,36 @@ func NewDP(
 		dispatchedPortEnd:   uint16(dispatchedPortEnd),
 		svc:                 &services{m: svc},
 		internalIP:          netip.MustParseAddr("198.51.100.1"),
-		Metrics:             metrics,
+		Metrics:             theMetrics,
+		forwardingMetrics:   make(map[uint16]InterfaceMetrics),
 	}
+	dp.underlay = newUnderlay(64)
+	dp.addForwardingMetrics(0, Internal)
+	dp.interfaces[0] = dp.underlay.NewInternalLink(internal, 64, dp.forwardingMetrics[0])
 
-	dp.interfaces[0] = dp.underlay.NewInternalLink(internal, 64)
-
-	// Make dummy external interfaces, as requested by the test. They are not actually used to send
-	// or receive. The blank address might cause issues, though.
+	// Make dummy external and sibling interfaces, as requested by the test. They are not actually
+	// used to send or receive.
 	for _, i := range external {
-		dp.interfaces[i] = dp.underlay.NewExternalLink(nil, 64, nil, netip.AddrPort{}, i)
+		dp.addForwardingMetrics(i, External)
+		dp.interfaces[i] = dp.underlay.NewExternalLink(
+			nil, 64, nil, netip.AddrPort{}, i, dp.forwardingMetrics[i])
 	}
-
-	// Make dummy sibling interfaces, as requestes by the test.
 	for i, addr := range internalNextHops {
-		dp.interfaces[i] = dp.underlay.NewSiblingLink(64, nil, addr)
+		dp.addForwardingMetrics(i, External)
+		dp.interfaces[i] = dp.underlay.NewSiblingLink(64, nil, addr, dp.forwardingMetrics[i])
 	}
 
 	if err := dp.SetKey(key); err != nil {
 		panic(err)
 	}
-	dp.initMetrics()
+
+	// The rest is left up to the invoker:
+	// No packet pool
+	// No ProcQs
+	// No SlowQs
+	// Not running
+	// Underlay not Started
+
 	return dp
 }
 

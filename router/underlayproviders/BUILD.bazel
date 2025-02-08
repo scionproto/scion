@@ -1,9 +1,0 @@
-load("//tools/lint:go.bzl", "go_library")
-
-go_library(
-    name = "go_default_library",
-    srcs = ["udpip.go"],
-    importpath = "github.com/scionproto/scion/router/underlayproviders",
-    visibility = ["//visibility:public"],
-    deps = ["//router:go_default_library"],
-)

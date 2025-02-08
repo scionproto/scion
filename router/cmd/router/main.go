@@ -37,7 +37,7 @@ import (
 	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 	api "github.com/scionproto/scion/router/mgmtapi"
-	_ "github.com/scionproto/scion/router/underlayproviders"
+	_ "github.com/scionproto/scion/router/underlayproviders/udpip"
 )
 
 var globalCfg config.Config
@@ -59,18 +59,15 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 	g, errCtx := errgroup.WithContext(ctx)
-	metrics := router.NewMetrics()
-
 	dp := &router.Connector{
-		DataPlane: router.DataPlane{
-			Metrics:                        metrics,
-			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
-			RunConfig: router.RunConfig{
+		DataPlane: router.MakeDataPlane(
+			router.RunConfig{
 				NumProcessors:         globalCfg.Router.NumProcessors,
 				NumSlowPathProcessors: globalCfg.Router.NumSlowPathProcessors,
 				BatchSize:             globalCfg.Router.BatchSize,
 			},
-		},
+			globalCfg.Features.ExperimentalSCMPAuthentication,
+		),
 		ReceiveBufferSize:   globalCfg.Router.ReceiveBufferSize,
 		SendBufferSize:      globalCfg.Router.SendBufferSize,
 		BFD:                 globalCfg.Router.BFD,
