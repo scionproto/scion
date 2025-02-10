@@ -61,6 +61,8 @@ const (
 	// theory, PayloadLen in SCION header is 16 bits long, supporting a maximum
 	// payload size of 64KB. At the moment we are limited by Ethernet size
 	// usually ~1500B, but 9000B to support jumbo frames.
+	// TODO(multi_underlay): The buffer size should be a function of the collection of
+	// underlays (the largest frame size of all the enabled ones).
 	bufSize = 9000
 
 	// hopFieldDefaultExpTime is the default validity of the hop field
@@ -257,7 +259,7 @@ type drkeyProvider interface {
 // newDataPlane returns a zero-valued data plane structure. The difference between
 // that and &DataPlane{} is that there are no nil pointers (i.e. maps are empty but exist and some
 // key objects like the underlay provider have been created) except for such things that cannot be
-// initialized at the begining (i.e. packet pool and macFactory). Do not use a true zero valued
+// initialized at the beginning (i.e. packet pool and macFactory). Do not use a true zero valued
 // struct for anything. Support for lazy initialization has been removed. It was much too
 // bug-friendly.
 func NewDataPlane(runConfig RunConfig, authSCMP bool) *DataPlane {
@@ -266,7 +268,7 @@ func NewDataPlane(runConfig RunConfig, authSCMP bool) *DataPlane {
 }
 
 // makeDataPlane returns a zero-valued data plane structure. This is the same as newDataPlane
-// but retuns by value to facilitate the initialization of composed structs without an temporary
+// but returns by value to facilitate the initialization of composed structs without an temporary
 // copy.
 func MakeDataPlane(runConfig RunConfig, authSCMP bool) DataPlane {
 	return DataPlane{
@@ -374,7 +376,8 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 		return alreadySet
 	}
 	d.addForwardingMetrics(0, Internal)
-	d.interfaces[0] = d.underlay.NewInternalLink(conn, d.RunConfig.BatchSize, d.forwardingMetrics[0])
+	d.interfaces[0] = d.underlay.NewInternalLink(
+		conn, d.RunConfig.BatchSize, d.forwardingMetrics[0])
 	d.internalIP = ip
 
 	return nil

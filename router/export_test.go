@@ -1,5 +1,6 @@
 // Copyright 2020 Anapaya Systems
 // Copyright 2023 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -67,24 +68,40 @@ func NewDP(
 	neighbors map[uint16]addr.IA,
 	key []byte) *DataPlane {
 
-	dp := &DataPlane{
-		interfaces:          make(map[uint16]Link),
-		localIA:             local,
-		linkTypes:           linkTypes,
-		neighborIAs:         neighbors,
-		dispatchedPortStart: uint16(dispatchedPortStart),
-		dispatchedPortEnd:   uint16(dispatchedPortEnd),
-		svc:                 &services{m: svc},
-		internalIP:          netip.MustParseAddr("198.51.100.1"),
-		Metrics:             theMetrics,
-		forwardingMetrics:   make(map[uint16]InterfaceMetrics),
-	}
-	dp.underlay = newUnderlay(64)
-	dp.addForwardingMetrics(0, Internal)
-	dp.interfaces[0] = dp.underlay.NewInternalLink(internal, 64, dp.forwardingMetrics[0])
+	dp := NewDataPlane(RunConfig{NumProcessors: 1, BatchSize: 64}, false)
 
-	// Make dummy external and sibling interfaces, as requested by the test. They are not actually
-	// used to send or receive.
+	if err := dp.SetIA(local); err != nil {
+		panic(err)
+	}
+	for i, t := range linkTypes {
+		if err := dp.AddLinkType(i, t); err != nil {
+			panic(err)
+		}
+	}
+	for i, n := range neighbors {
+		if err := dp.AddNeighborIA(i, n); err != nil {
+			panic(err)
+		}
+	}
+	dp.SetPortRange(uint16(dispatchedPortStart), uint16(dispatchedPortEnd))
+
+	for id, addresses := range svc {
+		for _, addr := range addresses {
+			if err := dp.AddSvc(id, addr); err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	// Make dummy interfaces, as requested by the test. Only the internal interface is ever used to
+	// send or receive and then, not always. So tests can set a nil connections and an empty
+	// address. We do it by hand as the Add*Interface methods do not tolerate nil connections and
+	// empty addresses. It only makes sense in unit tests.
+	dp.addForwardingMetrics(0, Internal)
+	dp.interfaces[0] = dp.underlay.NewInternalLink(
+		internal, dp.RunConfig.BatchSize, dp.forwardingMetrics[0])
+	dp.internalIP = netip.MustParseAddr("198.51.100.1")
+
 	for _, i := range external {
 		dp.addForwardingMetrics(i, External)
 		dp.interfaces[i] = dp.underlay.NewExternalLink(
@@ -99,12 +116,12 @@ func NewDP(
 		panic(err)
 	}
 
-	// The rest is left up to the invoker:
-	// No packet pool
-	// No ProcQs
-	// No SlowQs
-	// Not running
-	// Underlay not Started
+	// The rest is normally done by Run(); it is up to the invoking test:
+	// add packet pool
+	// add procQs slowQs
+	// setRunning
+	// start processor and slowPath processor
+	// start underlay
 
 	return dp
 }

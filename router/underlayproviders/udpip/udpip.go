@@ -78,7 +78,8 @@ func (u *provider) NumConnections() int {
 
 // The queues to be used by the receiver task are supplied at this point because they must be
 // sized according to the number of connections that will be started.
-func (u *provider) Start(ctx context.Context, pool chan *router.Packet, procQs []chan *router.Packet) {
+func (u *provider) Start(
+	ctx context.Context, pool chan *router.Packet, procQs []chan *router.Packet) {
 	u.mu.Lock()
 	connSnapShot := maps.Clone(u.allConnections)
 	linkSnapShot := maps.Clone(u.allLinks)
