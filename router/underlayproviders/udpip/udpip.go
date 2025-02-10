@@ -441,10 +441,6 @@ func (l *externalLink) BFDSession() router.BFDSession {
 	return l.bfdSession
 }
 
-func (l *externalLink) IfID() uint16 {
-	return l.ifID
-}
-
 func (l *externalLink) Remote() netip.AddrPort {
 	return l.remote
 }
@@ -546,10 +542,6 @@ func (l *siblingLink) BFDSession() router.BFDSession {
 	return l.bfdSession
 }
 
-func (l *siblingLink) IfID() uint16 {
-	return 0
-}
-
 func (l *siblingLink) Remote() netip.AddrPort {
 	return l.remote
 }
@@ -622,10 +614,6 @@ func (l *internalLink) IsUp() bool {
 
 func (l *internalLink) BFDSession() router.BFDSession {
 	return nil
-}
-
-func (l *internalLink) IfID() uint16 {
-	return 0
 }
 
 func (l *internalLink) Remote() netip.AddrPort {

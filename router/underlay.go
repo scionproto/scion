@@ -45,7 +45,6 @@ type Link interface {
 	Scope() LinkScope
 	BFDSession() BFDSession
 	IsUp() bool
-	IfID() uint16
 	Remote() netip.AddrPort // TODO(multi_underlay): using code will move to underlay.
 	Send(p *Packet) bool
 	SendBlocking(p *Packet)
