@@ -22,7 +22,7 @@ of services among other things.
 - "authoritative" -- boolean
 - "issuing" -- boolean, whether the AS is an issuing AS
 - "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6, seed does not support IPv6 underlay
-- "cert_issuer" -- string, the issuer IA of the CA. This attribute is necessary if AS is not core
+- "cert_issuer" -- string, the issuer IA of the CA. This attribute is necessary if AS is not issuing
 - "MTU" -- integer, the internal MTU of the AS *
 - "latency" -- integer, the internal latency in ms of the AS used by seed emulator
 - "bw" -- integer, the internal bandwidth in bit/s of the AS used by seed emulator
@@ -63,7 +63,7 @@ In the example above, two links are defined resulting in:
 - "b" -- string, mandatory, see above
 - "linkAtoB" -- string, mandatory, the type of link, can be CORE, PEER, CHILD
 - "mtu" -- integer, the MTU of the link *
-- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6, seed doesn't support IPv6
+- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6
 - "bw" -- integer, the bandwidth in bit/s of the link *
 - "latency" -- integer, the latency in ms of the link *
 - "drop" -- float, the drop rate (% in range(0.0,1.0)) of the link *
