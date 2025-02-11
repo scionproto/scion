@@ -226,7 +226,7 @@ The basic usage is ``./scion.sh topology -s -c /path/to/topology/file``.
 
 This will generate the following files in the gen directory:
 
-1. A seed emulation file called ``scion-seed.py``. This file contains the seed emulation
+1. A seed emulation file called ``scion-seed.py``. This file contains the seed emulation.
 
 2. A seed emulation dump file called ``scion-seed.bin``.
    This is a binary dump of the seed emulation.

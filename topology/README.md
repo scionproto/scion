@@ -21,15 +21,16 @@ of services among other things.
 - "voting" -- boolean
 - "authoritative" -- boolean
 - "issuing" -- boolean, whether the AS is an issuing AS
-- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6, seed does not support IPv6 underlay
-- "cert_issuer" -- string, the issuer IA of the CA. This attribute is necessary if AS is not issuing
+- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6 *
+- "cert_issuer" -- string, the issuer IA of the CA. This attribute is necessary if AS is not issuing.
 - "MTU" -- integer, the internal MTU of the AS *
-- "latency" -- integer, the internal latency in ms of the AS used by seed emulator
-- "bw" -- integer, the internal bandwidth in bit/s of the AS used by seed emulator
-- "drop" -- float, the internal drop rate (% in range(0.0,1.0)) of the AS used by seed emulator
-- "note" -- string, a note for the AS seed emulator will include this in the beacons
+- "latency" -- integer, the internal latency in ms of the AS *
+- "bw" -- integer, the internal bandwidth in bit/s of the AS *
+- "drop" -- float, the internal drop rate (% in range(0.0,1.0)) of the AS *
+- "note" -- string, a note to be included in the beacons *
 
-Fields marked with * are used by the seed emulator for setting link properties.
+Fields marked with * are used by the seed emulator for setting link properties,
+with the limitation that seed does not support IPv6.
 
 ## Links Section
 
@@ -48,8 +49,11 @@ the element ID.
 
 Consider the following example:
 
+```yaml
+links:
 - {a: "1-ff00:0:110",   b: "1-ff00:0:120-1", linkAtoB: CORE}
-- {a: "1-ff00:0:120-1", b: "1-ff00:0:130", linkAtoB: CORE}
+  - {a: "1-ff00:0:120-1", b: "1-ff00:0:130", linkAtoB: CORE, mtu: 1280}
+```
 
 In the example above, two links are defined resulting in:
 
@@ -63,12 +67,13 @@ In the example above, two links are defined resulting in:
 - "b" -- string, mandatory, see above
 - "linkAtoB" -- string, mandatory, the type of link, can be CORE, PEER, CHILD
 - "mtu" -- integer, the MTU of the link *
-- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6
+- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6 *
 - "bw" -- integer, the bandwidth in bit/s of the link *
 - "latency" -- integer, the latency in ms of the link *
 - "drop" -- float, the drop rate (% in range(0.0,1.0)) of the link *
 
-Fields marked with * are used by the seed emulator for setting link properties.
+Fields marked with * are used by the seed emulator for setting link properties,
+with the limitation that seed does not support IPv6.
 
 ## Border Router Properties Section
 
@@ -128,7 +133,7 @@ to the same BorderRouter like *"1-ff00:0:120-B#3"*
 geo has three arguments latitude, longitude and address.
 This will be added to the staticInfoConfig.json by the seed emulator if set
 - "note" -- a string that can contain any string.
-This will be added as a note to the Border Router Node by the seed emulator
+This will be added as a note to the Border Router Node by the seed emulator.
 
 ## Examples
 
