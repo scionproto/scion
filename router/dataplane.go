@@ -275,6 +275,7 @@ func MakeDataPlane(runConfig RunConfig, authSCMP bool) DataPlane {
 		underlay:                       newUnderlay(runConfig.BatchSize),
 		interfaces:                     make(map[uint16]Link),
 		linkTypes:                      make(map[uint16]topology.LinkType),
+		neighborIAs:                    make(map[uint16]addr.IA),
 		svc:                            newServices(),
 		Metrics:                        theMetrics,
 		forwardingMetrics:              make(map[uint16]InterfaceMetrics),
@@ -425,9 +426,6 @@ func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	}
 	if _, exists := d.neighborIAs[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
-	}
-	if d.neighborIAs == nil {
-		d.neighborIAs = make(map[uint16]addr.IA)
 	}
 	d.neighborIAs[ifID] = remote
 	return nil
