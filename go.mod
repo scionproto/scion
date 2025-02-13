@@ -1,6 +1,6 @@
 module github.com/scionproto/scion
 
-go 1.23.6
+go 1.24.0
 
 require (
 	connectrpc.com/connect v1.16.2
