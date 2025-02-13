@@ -16,6 +16,7 @@ package svc
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 
@@ -34,14 +35,14 @@ import (
 
 // Internal resolver errors. These are implementation details and can change,
 // and calling code should not depend on them.
-const (
-	errNilPacket      common.ErrMsg = "packet is nil"
-	errNilUnderlay    common.ErrMsg = "underlay is nil"
-	errUnsupportedPld common.ErrMsg = "unsupported payload type"
-	errRegistration   common.ErrMsg = "unable to open conn"
-	errWrite          common.ErrMsg = "unable to write"
-	errRead           common.ErrMsg = "unable to read"
-	errDecode         common.ErrMsg = "decode failed"
+var (
+	errNilPacket      = errors.New("packet is nil")
+	errNilUnderlay    = errors.New("underlay is nil")
+	errUnsupportedPld = errors.New("unsupported payload type")
+	errRegistration   = errors.New("unable to open conn")
+	errWrite          = errors.New("unable to write")
+	errRead           = errors.New("unable to read")
+	errDecode         = errors.New("decode failed")
 )
 
 // For now, the request payload does not need to be dynamic. We initialize it
