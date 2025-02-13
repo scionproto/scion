@@ -31,6 +31,7 @@ go_library(
         "//pkg/slayers/path/scion:go_default_library",
         "//pkg/spao:go_default_library",
         "//private/drkey/drkeyutil:go_default_library",
+        "//private/env:go_default_library",
         "//private/topology:go_default_library",
         "//private/underlay/conn:go_default_library",
         "//router/bfd:go_default_library",

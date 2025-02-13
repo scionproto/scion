@@ -58,7 +58,8 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 	return &p
 }
 
-func NewDP(
+// makeDP initializes a dataplane structure configured per the test requirements.
+func makeDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
@@ -66,9 +67,9 @@ func NewDP(
 	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
-	key []byte) *DataPlane {
+	key []byte) (dp dataPlane) {
 
-	dp := NewDataPlane(RunConfig{NumProcessors: 1, BatchSize: 64}, false)
+	dp = makeDataPlane(RunConfig{NumProcessors: 1, BatchSize: 64}, false)
 
 	if err := dp.SetIA(local); err != nil {
 		panic(err)
@@ -123,7 +124,58 @@ func NewDP(
 	// start processor and slowPath processor
 	// start underlay
 
-	return dp
+	return
+}
+
+// newDP constructs a dataPlane structure with makeDataPlane and returns it by reference. It
+// returns a pointer to the unexported type, which is usable by internal tests.
+func newDP(
+	external []uint16,
+	linkTypes map[uint16]topology.LinkType,
+	internal BatchConn,
+	internalNextHops map[uint16]netip.AddrPort,
+	svc map[addr.SVC][]netip.AddrPort,
+	local addr.IA,
+	neighbors map[uint16]addr.IA,
+	key []byte) *dataPlane {
+
+	dp := makeDP(external, linkTypes, internal, internalNextHops, svc, local, neighbors, key)
+	return &dp
+}
+
+// dataPlane is a dataplane structure as an exported type for use by non-internal tests.
+type DataPlane struct {
+	dataPlane
+}
+
+// NewDP constructs a DataPlane structure with makeDataPlane and returns it by reference. It
+// returns a pointer to the exported type, which is usable by non-internal tests. A couple of
+// methods are added to the exported type.
+func NewDP(
+	external []uint16,
+	linkTypes map[uint16]topology.LinkType,
+	internal BatchConn,
+	internalNextHops map[uint16]netip.AddrPort,
+	svc map[addr.SVC][]netip.AddrPort,
+	local addr.IA,
+	neighbors map[uint16]addr.IA,
+	key []byte) *DataPlane {
+
+	edp := &DataPlane{
+		makeDP(external, linkTypes, internal, internalNextHops, svc, local, neighbors, key),
+	}
+	return edp
+}
+
+// NewDPraw constructs a minimaly initialized DataPlane and returns it by reference. This is useful
+// to non-internal tests that do not want any dataplane configuration beyond the strictly necessary.
+// This is equivalent to router.NewDataPlane, but returns an exported type.
+func NewDPraw(runConfig RunConfig, authSCMP bool) *DataPlane {
+
+	edp := &DataPlane{
+		makeDataPlane(runConfig, authSCMP),
+	}
+	return edp
 }
 
 func (d *DataPlane) FakeStart() {
@@ -132,7 +184,7 @@ func (d *DataPlane) FakeStart() {
 
 func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
 
-	p := newPacketProcessor(d)
+	p := newPacketProcessor(&d.dataPlane)
 	disp := p.processPkt(pkt)
 	// Erase trafficType; we don't set it in the expected results.
 	pkt.trafficType = ttOther

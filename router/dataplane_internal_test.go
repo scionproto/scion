@@ -132,7 +132,7 @@ func TestForwarder(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	done := make(chan struct{})
-	prepareDP := func(ctrl *gomock.Controller) *DataPlane {
+	prepareDP := func(ctrl *gomock.Controller) *dataPlane {
 		ret := NewDataPlane(
 			RunConfig{NumProcessors: 20, BatchSize: 64, NumSlowPathProcessors: 1}, false)
 		mInternal := mock_router.NewMockBatchConn(ctrl)
@@ -242,14 +242,14 @@ func TestSlowPathProcessing(t *testing.T) {
 
 	testCases := map[string]struct {
 		mockMsg                 func() []byte
-		prepareDP               func(*gomock.Controller) *DataPlane
+		prepareDP               func(*gomock.Controller) *dataPlane
 		expectedSlowPathRequest slowPathRequest
 		srcInterface            uint16
 		expectedLayerType       gopacket.LayerType
 	}{
 		"svc nobackend": {
-			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(fakeExternalInterfaces,
+			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
+				return newDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
@@ -272,8 +272,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
 		},
 		"svc invalid": {
-			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(fakeExternalInterfaces,
+			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
+				return newDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
@@ -295,8 +295,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
 		},
 		"invalid dest": {
-			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(fakeExternalInterfaces,
+			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
+				return newDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
@@ -318,8 +318,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
 		"invalid dest addr": {
-			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(fakeExternalInterfaces,
+			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
+				return newDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
@@ -341,8 +341,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
 		"invalid dest v4mapped": {
-			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(fakeExternalInterfaces,
+			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
+				return newDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
@@ -366,8 +366,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
 		"invalid dest unspecified": {
-			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(fakeExternalInterfaces,
+			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
+				return newDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
@@ -389,8 +389,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
 		"invalid src v4mapped": {
-			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(fakeExternalInterfaces,
+			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
+				return newDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,

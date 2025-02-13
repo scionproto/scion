@@ -184,7 +184,7 @@ func (p *Packet) Reset() {
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
-type DataPlane struct {
+type dataPlane struct {
 	underlay            UnderlayProvider
 	interfaces          map[uint16]Link
 	linkTypes           map[uint16]topology.LinkType
@@ -256,22 +256,22 @@ type drkeyProvider interface {
 	) (drkey.ASHostKey, error)
 }
 
-// newDataPlane returns a zero-valued data plane structure. The difference between
-// that and &DataPlane{} is that there are no nil pointers (i.e. maps are empty but exist and some
+// NewDataPlane returns a zero-valued data plane structure. The difference between
+// that and &dataPlane{} is that there are no nil pointers (i.e. maps are empty but exist and some
 // key objects like the underlay provider have been created) except for such things that cannot be
 // initialized at the beginning (i.e. packet pool and macFactory). Do not use a true zero valued
 // struct for anything. Support for lazy initialization has been removed. It was much too
 // bug-friendly.
-func NewDataPlane(runConfig RunConfig, authSCMP bool) *DataPlane {
-	x := MakeDataPlane(runConfig, authSCMP)
+func NewDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
+	x := makeDataPlane(runConfig, authSCMP)
 	return &x
 }
 
-// makeDataPlane returns a zero-valued data plane structure. This is the same as newDataPlane
+// MakeDataPlane returns a zero-valued data plane structure. This is the same as newDataPlane
 // but returns by value to facilitate the initialization of composed structs without an temporary
 // copy.
-func MakeDataPlane(runConfig RunConfig, authSCMP bool) DataPlane {
-	return DataPlane{
+func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
+	return dataPlane{
 		underlay:                       newUnderlay(runConfig.BatchSize),
 		interfaces:                     make(map[uint16]Link),
 		linkTypes:                      make(map[uint16]topology.LinkType),
@@ -286,13 +286,13 @@ func MakeDataPlane(runConfig RunConfig, authSCMP bool) DataPlane {
 
 // setRunning() Configures the running state of the data plane to true. setRunning() is called once
 // the dataplane is finished initializing and is ready to process packets.
-func (d *DataPlane) setRunning() {
+func (d *dataPlane) setRunning() {
 	d.running.Store(true)
 }
 
 // setStopping() Configures the running state of the data plane to false. This should not be called
 // during the dataplane initialization. Calling this before initialization starts has no effect.
-func (d *DataPlane) setStopping() {
+func (d *dataPlane) setStopping() {
 	d.running.Store(false)
 }
 
@@ -300,13 +300,13 @@ func (d *DataPlane) setStopping() {
 // and ready to process or already processing packets. In this case some configuration changes are
 // not permitted. If false, the data plane is not ready to process packets yet, or is shutting
 // down.
-func (d *DataPlane) isRunning() bool {
+func (d *dataPlane) isRunning() bool {
 	return d.running.Load()
 }
 
 // Shutdown() causes the dataplane to stop accepting packets and then terminate. Note that
 // in that case the router is committed to shutting down. There is no mechanism to restart it.
-func (d *DataPlane) Shutdown() {
+func (d *dataPlane) Shutdown() {
 	d.mtx.Lock() // make sure we're not racing with initialization.
 	defer d.mtx.Unlock()
 	d.underlay.Stop()
@@ -314,7 +314,7 @@ func (d *DataPlane) Shutdown() {
 }
 
 // SetIA sets the local IA for the dataplane.
-func (d *DataPlane) SetIA(ia addr.IA) error {
+func (d *dataPlane) SetIA(ia addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
@@ -332,7 +332,7 @@ func (d *DataPlane) SetIA(ia addr.IA) error {
 
 // SetKey sets the key used for MAC verification. The key provided here should
 // already be derived as in scrypto.HFMacFactory.
-func (d *DataPlane) SetKey(key []byte) error {
+func (d *dataPlane) SetKey(key []byte) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
@@ -355,7 +355,7 @@ func (d *DataPlane) SetKey(key []byte) error {
 	return nil
 }
 
-func (d *DataPlane) SetPortRange(start, end uint16) {
+func (d *dataPlane) SetPortRange(start, end uint16) {
 	d.dispatchedPortStart = start
 	d.dispatchedPortEnd = end
 }
@@ -364,7 +364,7 @@ func (d *DataPlane) SetPortRange(start, end uint16) {
 // send/receive traffic in the local AS. This can only be called once; future
 // calls will return an error. This can only be called on a not yet running
 // dataplane.
-func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
+func (d *dataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
@@ -387,7 +387,7 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 // AddExternalInterface adds the inter AS connection for the given interface ID.
 // If a connection for the given ID is already set this method will return an
 // error. This can only be called on a not yet running dataplane.
-func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
+func (d *dataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	src, dst control.LinkEnd, cfg control.BFD) error {
 
 	d.mtx.Lock()
@@ -415,7 +415,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 // AddNeighborIA adds the neighboring IA for a given interface ID. If an IA for
 // the given ID is already set, this method will return an error. This can only
 // be called on a not yet running dataplane.
-func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
+func (d *dataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
@@ -434,7 +434,7 @@ func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 // AddLinkType adds the link type for a given interface ID. If a link type for
 // the given ID is already set, this method will return an error. This can only
 // be called on a not yet running dataplane.
-func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
+func (d *dataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
@@ -448,7 +448,7 @@ func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 }
 
 // newExternalInterfaceBFD adds the inter AS connection BFD session.
-func (d *DataPlane) newExternalInterfaceBFD(ifID uint16,
+func (d *dataPlane) newExternalInterfaceBFD(ifID uint16,
 	src, dst control.LinkEnd, cfg control.BFD) (BFDSession, error) {
 
 	if *cfg.Disable {
@@ -478,7 +478,7 @@ func (d *DataPlane) newExternalInterfaceBFD(ifID uint16,
 // getInterfaceState checks if there is a bfd session for the input interfaceID and
 // returns InterfaceUp if the relevant BFDSession state is up, or if there is no BFD
 // session. Otherwise, it returns InterfaceDown.
-func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
+func (d *dataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 	if link := d.interfaces[ifID]; link != nil && !link.IsUp() {
 		return control.InterfaceDown
 	}
@@ -488,7 +488,7 @@ func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 // AddSvc adds the address for the given service. This can be called multiple
 // times for the same service, with the address added to the list of addresses
 // that provide the service.
-func (d *DataPlane) AddSvc(svc addr.SVC, a netip.AddrPort) error {
+func (d *dataPlane) AddSvc(svc addr.SVC, a netip.AddrPort) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if !a.IsValid() {
@@ -504,7 +504,7 @@ func (d *DataPlane) AddSvc(svc addr.SVC, a netip.AddrPort) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (d *DataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
+func (d *dataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if !a.IsValid() {
@@ -522,7 +522,7 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
 // AddNextHop sets the next hop address for the given interface ID. If the
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
-func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
+func (d *dataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
 	sibling string) error {
 
 	d.mtx.Lock()
@@ -550,7 +550,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 // AddNextHopBFD adds the BFD session for the next hop address.
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
-func (d *DataPlane) newNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
+func (d *dataPlane) newNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
 	sibling string) (BFDSession, error) {
 
 	if *cfg.Disable {
@@ -587,7 +587,7 @@ type RunConfig struct {
 	BatchSize             int
 }
 
-func (d *DataPlane) Run(ctx context.Context) error {
+func (d *dataPlane) Run(ctx context.Context) error {
 	d.mtx.Lock()
 	if len(d.interfaces) == 0 {
 		// Not stritcly an error but we really can't do anything; most maps aren't even allocated,
@@ -632,7 +632,7 @@ func (d *DataPlane) Run(ctx context.Context) error {
 
 // initializePacketPool calculates the size of the packet pool based on the
 // current dataplane settings and allocates all the buffers
-func (d *DataPlane) initPacketPool(processorQueueSize int) {
+func (d *dataPlane) initPacketPool(processorQueueSize int) {
 	poolSize := len(d.interfaces)*d.RunConfig.BatchSize +
 		(d.RunConfig.NumProcessors+d.RunConfig.NumSlowPathProcessors)*(processorQueueSize+1) +
 		len(d.interfaces)*(2*d.RunConfig.BatchSize)
@@ -647,7 +647,7 @@ func (d *DataPlane) initPacketPool(processorQueueSize int) {
 }
 
 // initializes the processing routines and queues
-func (d *DataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *Packet) {
+func (d *dataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *Packet) {
 
 	procQs := make([]chan *Packet, d.RunConfig.NumProcessors)
 	for i := 0; i < d.RunConfig.NumProcessors; i++ {
@@ -660,15 +660,15 @@ func (d *DataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *
 	return procQs, slowQs
 }
 
-func (d *DataPlane) getPacketFromPool() *Packet {
+func (d *dataPlane) getPacketFromPool() *Packet {
 	return <-d.packetPool
 }
 
-func (d *DataPlane) returnPacketToPool(pkt *Packet) {
+func (d *dataPlane) returnPacketToPool(pkt *Packet) {
 	d.packetPool <- pkt
 }
 
-func (d *DataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet) {
+func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet) {
 
 	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
@@ -721,7 +721,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 	}
 }
 
-func (d *DataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
+func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 
 	log.Debug("Initialize slow-path processor with", "id", id)
 	processor := newSlowPathProcessor(d)
@@ -751,7 +751,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 	}
 }
 
-func newSlowPathProcessor(d *DataPlane) *slowPathPacketProcessor {
+func newSlowPathProcessor(d *dataPlane) *slowPathPacketProcessor {
 	p := &slowPathPacketProcessor{
 		d:              d,
 		macInputBuffer: make([]byte, spao.MACBufferSize),
@@ -767,7 +767,7 @@ func newSlowPathProcessor(d *DataPlane) *slowPathPacketProcessor {
 }
 
 type slowPathPacketProcessor struct {
-	d   *DataPlane
+	d   *dataPlane
 	pkt *Packet
 
 	scionLayer slayers.SCION
@@ -853,7 +853,7 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 	}
 }
 
-func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
+func newPacketProcessor(d *dataPlane) *scionPacketProcessor {
 	p := &scionPacketProcessor{
 		d:              d,
 		mac:            d.macFactory(),
@@ -1033,7 +1033,7 @@ func (p *scionPacketProcessor) processEPIC() disposition {
 // mutable state and context information which should be reused.
 type scionPacketProcessor struct {
 	// d is a reference to the dataplane instance that initiated this processor.
-	d *DataPlane
+	d *dataPlane
 	// pkt is the packet currently being processed by this processor.
 	pkt *Packet
 	// mac is the hasher for the MAC computation.
@@ -1820,7 +1820,7 @@ func (p *scionPacketProcessor) processOHP() disposition {
 	return pForward
 }
 
-func (d *DataPlane) resolveLocalDst(
+func (d *dataPlane) resolveLocalDst(
 	resolvedDst *net.UDPAddr,
 	s slayers.SCION,
 	lastLayer gopacket.DecodingLayer,
@@ -1864,7 +1864,7 @@ func (d *DataPlane) resolveLocalDst(
 	}
 }
 
-func (d *DataPlane) addEndhostPort(
+func (d *dataPlane) addEndhostPort(
 	resolvedDst *net.UDPAddr,
 	lastLayer gopacket.DecodingLayer,
 	dst netip.Addr,
@@ -2028,7 +2028,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
 }
 
 type bfdSend struct {
-	dataPlane        *DataPlane
+	dataPlane        *dataPlane
 	ifID             uint16
 	srcAddr, dstAddr netip.AddrPort
 	scn              *slayers.SCION
@@ -2038,7 +2038,7 @@ type bfdSend struct {
 }
 
 // newBFDSend creates and initializes a BFD Sender
-func newBFDSend(d *DataPlane, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrPort,
+func newBFDSend(d *dataPlane, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrPort,
 	ifID uint16, mac hash.Hash) (*bfdSend, error) {
 
 	scn := &slayers.SCION{
@@ -2458,7 +2458,7 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 
 // addForwardingMetrics adds interface-specific metrics for the given ifID.
 // These merics are used by the dataplane and all the underlay providers.
-func (d *DataPlane) addForwardingMetrics(ifID uint16, scope LinkScope) {
+func (d *dataPlane) addForwardingMetrics(ifID uint16, scope LinkScope) {
 	d.forwardingMetrics[ifID] = newInterfaceMetrics(
 		d.Metrics, ifID, d.localIA, scope, d.neighborIAs)
 }

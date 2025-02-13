@@ -60,21 +60,7 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 	g, errCtx := errgroup.WithContext(ctx)
-	dp := &router.Connector{
-		DataPlane: router.MakeDataPlane(
-			router.RunConfig{
-				NumProcessors:         globalCfg.Router.NumProcessors,
-				NumSlowPathProcessors: globalCfg.Router.NumSlowPathProcessors,
-				BatchSize:             globalCfg.Router.BatchSize,
-			},
-			globalCfg.Features.ExperimentalSCMPAuthentication,
-		),
-		ReceiveBufferSize:   globalCfg.Router.ReceiveBufferSize,
-		SendBufferSize:      globalCfg.Router.SendBufferSize,
-		BFD:                 globalCfg.Router.BFD,
-		DispatchedPortStart: globalCfg.Router.DispatchedPortStart,
-		DispatchedPortEnd:   globalCfg.Router.DispatchedPortEnd,
-	}
+	dp := router.NewConnector(globalCfg.Router, globalCfg.Features)
 	iaCtx := &control.IACtx{
 		Config: controlConfig,
 		DP:     dp,

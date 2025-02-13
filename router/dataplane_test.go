@@ -61,7 +61,7 @@ func TestDataPlaneAddInternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		d.FakeStart()
 		assert.Error(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), internalIP))
 	})
@@ -69,21 +69,21 @@ func TestDataPlaneAddInternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.Error(t, d.AddInternalInterface(nil, netip.Addr{}))
 	})
 	t.Run("single set works", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), internalIP))
 	})
 	t.Run("double set fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), internalIP))
 		assert.Error(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), internalIP))
 	})
@@ -91,21 +91,21 @@ func TestDataPlaneAddInternalInterface(t *testing.T) {
 
 func TestDataPlaneSetKey(t *testing.T) {
 	t.Run("fails after serve", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		d.FakeStart()
 		assert.Error(t, d.SetKey([]byte("dummy")))
 	})
 	t.Run("setting nil value is not allowed", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		d.FakeStart()
 		assert.Error(t, d.SetKey(nil))
 	})
 	t.Run("single set works", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.NoError(t, d.SetKey([]byte("dummy key xxxxxx")))
 	})
 	t.Run("double set fails", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.NoError(t, d.SetKey([]byte("dummy key xxxxxx")))
 		assert.Error(t, d.SetKey([]byte("dummy key xxxxxx")))
 	})
@@ -125,7 +125,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		d.FakeStart()
 		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
 	})
@@ -133,14 +133,14 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.Error(t, d.AddExternalInterface(42, nil, l, r, nobfd))
 	})
 	t.Run("setting blank src is not allowed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl),
 			control.LinkEnd{}, r, nobfd))
 	})
@@ -148,7 +148,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl),
 			l, control.LinkEnd{}, nobfd))
 	})
@@ -156,7 +156,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.NoError(t,
 			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
 		assert.NoError(t,
@@ -166,7 +166,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.NoError(t,
 			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
 		assert.Error(t,
@@ -176,21 +176,21 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 
 func TestDataPlaneAddSVC(t *testing.T) {
 	t.Run("succeeds after serve", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		d.FakeStart()
 		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
 	})
 	t.Run("adding empty value is not allowed", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.Error(t, d.AddSvc(addr.SvcCS, netip.AddrPort{}))
 	})
 	t.Run("normal set works", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
 		assert.NoError(t, d.AddSvc(addr.SvcDS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
 	})
 	t.Run("set multiple times works", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
 		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
 	})
@@ -205,7 +205,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 	nobfd := control.BFD{Disable: ptr.To(true)}
 
 	t.Run("fails after serve", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
@@ -213,21 +213,21 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
 	})
 	t.Run("setting nil dst is not allowed", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
 		assert.Error(t, d.AddNextHop(45, l, nilAddrPort, nobfd, ""))
 	})
 	t.Run("setting nil src is not allowed", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
 		assert.Error(t, d.AddNextHop(45, nilAddrPort, r, nobfd, ""))
 	})
 	t.Run("normal add works", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
@@ -235,7 +235,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 		assert.NoError(t, d.AddNextHop(43, l, r, nobfd, ""))
 	})
 	t.Run("overwrite fails", func(t *testing.T) {
-		d := router.NewDataPlane(router.RunConfig{}, false)
+		d := router.NewDPraw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), nilAddr))
@@ -254,7 +254,7 @@ func TestDataPlaneRun(t *testing.T) {
 	}{
 		"route 10 msg from external to internal": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := router.NewDataPlane(
+				ret := router.NewDPraw(
 					router.RunConfig{
 						NumProcessors:         8,
 						BatchSize:             256,
@@ -349,7 +349,7 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd bootstrap internal session": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := router.NewDataPlane(
+				ret := router.NewDPraw(
 					router.RunConfig{
 						NumProcessors:         8,
 						BatchSize:             256,
@@ -435,7 +435,7 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd sender internal": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := router.NewDataPlane(
+				ret := router.NewDPraw(
 					router.RunConfig{
 						NumProcessors:         8,
 						BatchSize:             256,
@@ -493,7 +493,7 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd sender external": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := router.NewDataPlane(
+				ret := router.NewDPraw(
 					router.RunConfig{
 						NumProcessors:         8,
 						BatchSize:             256,
@@ -553,7 +553,7 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd bootstrap external session": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := router.NewDataPlane(
+				ret := router.NewDPraw(
 					router.RunConfig{
 						NumProcessors:         8,
 						BatchSize:             256,
