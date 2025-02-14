@@ -322,7 +322,7 @@ func TestSignerGenGenerate(t *testing.T) {
 		"rsa key": {
 			keyRing: func(mctrl *gomock.Controller) trust.KeyRing {
 				ring := mock_trust.NewMockKeyRing(mctrl)
-				priv, err := rsa.GenerateKey(rand.Reader, 512)
+				priv, err := rsa.GenerateKey(rand.Reader, 1024)
 				require.NoError(t, err)
 
 				ring.EXPECT().PrivateKeys(gomock.Any()).Return(
