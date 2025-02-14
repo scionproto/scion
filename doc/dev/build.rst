@@ -29,7 +29,7 @@ Prerequisites
    .. literalinclude:: /../WORKSPACE
       :start-at: go_register_toolchains(
       :end-at: )
-      :emphasize-lines: 3
+      :emphasize-lines: 1
 
    Building with newer go versions *usually* works.
 
