@@ -9,6 +9,8 @@ V6 compatible SCION addresses
 
 
 .. _`Discussions/4324`: https://github.com/scionproto/scion/discussions/4324
+.. _`Papers/magdeburg_scitra`: https://drive.google.com/file/d/1DoG1_NbpeOVQ6alT6KGYWkBlMn8orY_C/view
+.. _`Papers/ethz_ipv6_scion_viability`: https://drive.google.com/file/d/1G20A_EkRXjnSK_xyLOdeTS9_wBvGQDLB/view
 
 Abstract
 ========
@@ -46,6 +48,14 @@ This includes all relevant aspects:
 
 Background
 ==========
+This topic is related to other parallel initiatives:
+
+* A proposal to implement SCION as an IPV6 extention, which implies the use of IPV6
+  addresses as SCION addresses, thus prompting this proposal. (`Discussions/4324`_)
+* An experimental implementation of an IP to SCION translator, which is triggered by the use
+  of identifiable SCION mapped IPV6 addresses: (`Papers/magdeburg_scitra`_)
+* A study of the viability of using IPV6 addresses and extension headers to represent SCION
+  (`Papers/ethz_ipv6_scion_viability`_)
 
 Currently SCION addresses are specified to be as large as as 192 bits. As a result they
 are both logically and physically incompatible with IPV6 addresses. Although nothing says
@@ -119,7 +129,6 @@ We can't count on getting it today, so we just need to be able to move.
 
 So, it seems like explicitly supporting changes in prefix and address structure is a good
 investment that will make it easier for us to move several times.
-
 
 Proposal
 ========
@@ -278,7 +287,6 @@ and the only valid one is known by config otherwise. There is one caveat, though
 The destination router must use the one that the destination host is using. This
 could cause some difficulties that deserve closer examination.
 
-
 Rationale
 =========
 
@@ -352,8 +360,9 @@ transition to V6 addresses for our own client code (i.e. the control server, pin
 
 So, to make that possible we must first give our application some API that allows them
 to treat an address as just that: a bunch of random bits plus, may be a port; something
-equivalent to bind([addr]), connect(addr [,routespec]), or sendto(addr, stuff, [,routespec]),
-where addr does not need to include the next hop and where routespec is entirely optional.
+equivalent to :code:`bind([addr])`, :code:`connect(addr [,routespec])`, or
+:code:`sendto(addr, stuff, [,routespec])`, where :code:`addr` does not need to include
+the next hop and where routespec is entirely optional.
 
 Once we have that, we can start enabling the use of V6 addresses as the addr argument.
 
