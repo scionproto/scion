@@ -77,14 +77,29 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
         package = package,
     )
 
+    # Strip the build id to prevent binaries having the same ID and failing rpmbuild.
+    # Since Go 1.24, the linker writes a build id to the binary, before 1.24 it didn't.
+    native.genrule(
+        name = "%s_strip_buildid" % name,
+        srcs = executables.keys(),
+        outs = ["%s_stripped_execs" % name for name in executables.values()],
+        cmd = """
+        for f in $(SRCS); do
+            stripped_file=$(basename $$f)
+            cp $$f $(RULEDIR)/$$stripped_file
+            objcopy --remove-section .note.gnu.build-id $(RULEDIR)/$$stripped_file
+        done
+        """,
+    )
+
     # Note that our "executables" parameter is a dictionary label->file_name; exactly what pkg_files
     # wants for its "renames" param.
     pkg_files(name = "%s_configs" % name, prefix = "/etc/scion/", srcs = configs)
     pkg_files(name = "%s_systemds" % name, prefix = "/lib/systemd/system/", srcs = systemds)
     pkg_files(
-        name = "%s_execs" % name,
+        name = "%s_stripped_execs" % name,
         prefix = "/usr/bin/",
-        srcs = executables.keys(),
+        srcs = ["%s_stripped_execs" % name for name in executables.values()], # Use stripped versions
         attributes = pkg_attributes(mode = "0755"),
         renames = executables,
     )
