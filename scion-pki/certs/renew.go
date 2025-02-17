@@ -173,7 +173,7 @@ issued the unverifiable certificate chain.
 The resulting certificate chain is written to the file system, either to
 <chain-file> or to \--out, if specified.
 
-The fresh private key is is written to the file stystem, either to <key-file>
+The fresh private key is is written to the file system, either to <key-file>
 or to \--out-key, if specified.
 
 Files are not allowed to be overwritten, by default. Either you have to specify
@@ -587,7 +587,7 @@ The template is expressed in JSON. A valid example::
 		"Remaining time threshold for renewal",
 	)
 	cmd.Flags().BoolVar(&flags.force, "force", false,
-		"Force overwritting existing files",
+		"Force overwriting existing files",
 	)
 	cmd.Flags().BoolVar(&flags.backup, "backup", false,
 		"Back up existing files before overwriting",
@@ -729,7 +729,7 @@ func (r *renewer) requestRemote(
 				return nil, serrors.Wrap("resolving local address", err)
 			}
 		} else {
-			if localIP, err = addrutil.DefaultLocalIP(ctx, r.Daemon); err != nil {
+			if localIP, err = addrutil.DefaultLocalIP(ctx, daemon.TopoQuerier{Connector: r.Daemon}); err != nil {
 				return nil, serrors.Wrap("resolving default address", err)
 			}
 		}
