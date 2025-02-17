@@ -729,7 +729,10 @@ func (r *renewer) requestRemote(
 				return nil, serrors.Wrap("resolving local address", err)
 			}
 		} else {
-			if localIP, err = addrutil.DefaultLocalIP(ctx, daemon.TopoQuerier{Connector: r.Daemon}); err != nil {
+			if localIP, err = addrutil.DefaultLocalIP(
+				ctx,
+				daemon.TopoQuerier{Connector: r.Daemon},
+			); err != nil {
 				return nil, serrors.Wrap("resolving default address", err)
 			}
 		}
