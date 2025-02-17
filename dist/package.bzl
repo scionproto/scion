@@ -85,7 +85,7 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
         outs = ["%s_%s_stripped" % (name, executable) for executable in executables.values()],
         cmd = """
         for f in $(SRCS); do
-            stripped_file=$(basename $$f)
+            stripped_file=$$(basename $$f)
             objcopy --remove-section .note.gnu.build-id $$f -o $(RULEDIR)/%s_$$stripped_file
         done
         """ % name,
