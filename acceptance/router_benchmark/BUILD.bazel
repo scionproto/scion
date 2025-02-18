@@ -38,10 +38,10 @@ raw_test(
     args = args,
     data = data,
     homedir = "$(rootpath //docker:router.tarball)",
+    imports = ["."],
     # This test uses sudo and accesses /var/run/netns.
     local = True,
     deps = ["benchmarklib"],
-    imports = ["."],
 )
 
 py_library(
@@ -61,10 +61,10 @@ py_binary(
     data = [
         "//acceptance/router_benchmark/brload",
     ],
+    imports = ["."],
     visibility = ["//visibility:public"],
     deps = [
         "benchmarklib",
         requirement("plumbum"),
     ],
-    imports = ["."],
 )
