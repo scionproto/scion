@@ -11,6 +11,7 @@ linters:
     - typecheck
     - unused
     # Extended linters.
+    # - copyloopvar
     - rowserrcheck
     - sqlclosecheck
     - unconvert
