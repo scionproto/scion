@@ -63,6 +63,7 @@ py_binary(
         requirement("plumbum"),
         requirement("pyyaml"),
     ],
+    imports = ["."],
 )
 
 py_binary(

@@ -1,5 +1,6 @@
 load("//tools/lint:go.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
+load("//:gendocs.bzl", "gendocs")
 
 go_library(
     name = "go_default_library",
@@ -48,10 +49,8 @@ scion_go_binary(
     visibility = ["//visibility:public"],
 )
 
-genrule(
+gendocs(
     name = "gendocs",
-    outs = ["docs"],
-    cmd = "$(location :scion) gendocs $@",
-    tools = [":scion"],
+    tool = ":scion",
     visibility = ["//visibility:public"],
 )

@@ -1,5 +1,6 @@
 load("//tools/lint:go.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
+load("//:gendocs.bzl", "gendocs")
 
 scion_go_binary(
     name = "scion-pki",
@@ -31,10 +32,9 @@ go_library(
     ],
 )
 
-genrule(
+gendocs(
     name = "gendocs",
-    outs = ["docs"],
-    cmd = "$(location :scion-pki) gendocs $@",
-    tools = [":scion-pki"],
+    # outs = ["docs"],
+    tool = ":scion-pki",
     visibility = ["//visibility:public"],
 )

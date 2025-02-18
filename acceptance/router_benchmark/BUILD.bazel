@@ -41,6 +41,7 @@ raw_test(
     # This test uses sudo and accesses /var/run/netns.
     local = True,
     deps = ["benchmarklib"],
+    imports = ["."],
 )
 
 py_library(
@@ -65,4 +66,5 @@ py_binary(
         "benchmarklib",
         requirement("plumbum"),
     ],
+    imports = ["."],
 )

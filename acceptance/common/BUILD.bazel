@@ -30,6 +30,9 @@ py_library(
 py_library(
     name = "scion",
     srcs = ["scion.py"],
+    data = [
+        "//tools/topology:py_default_library",
+    ],
     deps = [
         requirement("plumbum"),
         requirement("toml"),
