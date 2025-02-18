@@ -72,7 +72,7 @@ type Connector interface {
 	// Paths requests from the daemon a set of end to end paths between the source and destination.
 	Paths(ctx context.Context, dst, src addr.IA, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from the daemon information about AS ia, the zero IA can be
-	// use to detect the local IA.
+	// used to detect the local IA.
 	ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error)
 	// SVCInfo requests from the daemon information about addresses and ports of
 	// infrastructure services.  Slice svcTypes contains a list of desired

@@ -1885,6 +1885,16 @@ func (d *dataPlane) addEndhostPort(
 		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
 			port = topology.EndhostPort
 		}
+	case slayers.L4TCP:
+		if len(lastLayer.LayerPayload()) < 20 {
+			// TODO: Treat this as a parameter problem
+			return serrors.New("SCION/TCP header len too small", "length",
+				len(lastLayer.LayerPayload()))
+		}
+		port = binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
+		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
+			port = topology.EndhostPort
+		}
 	case slayers.L4SCMP:
 		var scmpLayer slayers.SCMP
 		err := scmpLayer.DecodeFromBytes(lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
