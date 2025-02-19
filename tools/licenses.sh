@@ -16,7 +16,7 @@ rm -rf $DSTDIR
 # dependency names; they're redundant and often match a .gitignore entry so
 # not included in a commit.
 
-(cd $EXECROOT/external; find -L . -iregex '.*\(LICENSE\|COPYING\).*') | egrep -v "^./[^/]*~" | while IFS= read -r path ; do
+(cd $EXECROOT/external; find -L . -iregex '.*\(LICENSE\|COPYING\).*') | grep -E -v "^./[^/]*~" | while IFS= read -r path ; do
     # skip over node JS stuff, this is only used during build time.
     if [[ "$path" =~ "node_modules" || "$path" =~ "nodejs" || "$path" =~ "rules_license" ]]; then
         continue
