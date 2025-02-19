@@ -1,7 +1,7 @@
 load("//tools/lint:go.bzl", "go_library")
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@io_bazel_rules_go//go:def.bzl", "go_binary")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 go_library(
@@ -28,7 +28,7 @@ copy_file(
     visibility = ["//visibility:public"],
 )
 
-oci_tarball(
+oci_load(
     name = "udpproxy.load",
     format = "docker",
     image = ":udpproxy_image",

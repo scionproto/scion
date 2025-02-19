@@ -1,6 +1,8 @@
 ### common options for all subcommands (help, query, build, ...)
 common --show_timestamps --enable_platform_specific_config
 
+common:bzlmod --enable_bzlmod
+
 # connect to buchgr/bazel-remote cache
 # These flags can unfortunately not be specified for `common`, as they are not accepted by all subcommands (help, version, dump)
 # The --experimental_remote_downloader_local_fallback is used as workaround for issue with rules_oci (https://github.com/bazel-contrib/rules_oci/issues/275).
