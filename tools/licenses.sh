@@ -12,7 +12,11 @@ EXECROOT=$(bazel info execution_root 2>/dev/null)
 
 rm -rf $DSTDIR
 
-(cd $EXECROOT/external; find -L . -iregex '.*\(LICENSE\|COPYING\).*') | while IFS= read -r path ; do
+# We exclude dependencies named <something>~<something>. These are cannonical
+# dependency names; they're redundant and often match a .gitignore entry so
+# not included in a commit.
+
+(cd $EXECROOT/external; find -L . -iregex '.*\(LICENSE\|COPYING\).*') | egrep -v "^./[^/]*~" | while IFS= read -r path ; do
     # skip over node JS stuff, this is only used during build time.
     if [[ "$path" =~ "node_modules" || "$path" =~ "nodejs" || "$path" =~ "rules_license" ]]; then
         continue
