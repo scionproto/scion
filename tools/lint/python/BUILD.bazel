@@ -1,5 +1,5 @@
 load("@rules_python//python:defs.bzl", "py_binary")
-load("@com_github_scionproto_scion_python_lint_deps//:requirements.bzl", "entry_point", "requirement")
+load("@scion_python_lint_deps//:requirements.bzl", "entry_point", "requirement")
 load("@rules_python//python:pip.bzl", "compile_pip_requirements")
 
 compile_pip_requirements(

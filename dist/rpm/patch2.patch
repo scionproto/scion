@@ -1,0 +1,55 @@
+--- pkg/rpm_pfg.bzl
++++ okg/rpm_pfg.bzl
+@@ -501,7 +501,7 @@
+         package_file_name = _make_rpm_filename(
+             rpm_name,
+             ctx.attr.version,
+-            ctx.attr.architecture,
++            ctx.attr.architecture if ctx.attr.architecture else ctx.attr.target_architecture,
+             release = ctx.attr.release,
+         )
+
+@@ -705,6 +705,8 @@
+     )
+
+     rpm_ctx.make_rpm_args.append("--out_file=" + output_file.path)
++    if ctx.attr.target_architecture:
++        rpm_ctx.make_rpm_args.append("--target_arch=" + ctx.attr.target_architecture)
+     rpm_ctx.output_rpm_files.append(output_file)
+
+     if ctx.attr.debug:
+@@ -1003,21 +1005,30 @@
+         # funny if it's not provided.  The contents of the RPM are believed to
+         # be set as expected, though.
+         "architecture": attr.string(
+-            doc = """Package architecture.
++            doc = """Host architecture.
+
+             This currently sets the `BuildArch` tag, which influences the output
+             architecture of the package.
+
+             Typically, `BuildArch` only needs to be set when the package is
+-            known to be cross-platform (e.g. written in an interpreted
+-            language), or, less common, when it is known that the application is
+-            only valid for specific architectures.
++            not architecture dependent (e.g. written in an interpreted
++            language).
+
+             When no attribute is provided, this will default to your host's
+             architecture.  This is usually what you want.
+
+             """,
+         ),
++        "target_architecture": attr.string(
++            doc = """Package architecture.
++
++            This currently sets the value for the "--target" argument to "rpmbuild"
++            to specify platform package is built for.
++
++            When no attribute is provided, this will default to your host's
++            architecture.
++            """,
++        ),
+         "license": attr.string(
+             doc = """RPM "License" tag.
+

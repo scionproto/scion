@@ -126,6 +126,13 @@ pip.parse(
 )
 use_repo(pip, "scion_python_lint_deps")
 
+pip.parse(
+    hub_name = "scion_python_doc_deps",
+    python_version = "3.11",
+    requirements_lock = "//doc:requirements.txt"
+)
+use_repo(pip, "scion_python_doc_deps")
+
 # Rules for container image building
 bazel_dep(name = "rules_oci", version = "2.2.2")
 
@@ -150,7 +157,12 @@ use_repo(
 )
 
 # RPM packaging
+# TODO rename (and possibly merge) patches
 bazel_dep(name = "rules_pkg", version = "1.0.1")
+single_version_override(
+    module_name = "rules_pkg",
+    patches = ["//dist:rpm/patch1.patch", "//dist:rpm/patch2.patch"],
+)
 
 find_rpm = use_extension("@rules_pkg//toolchains/rpm:rpmbuild_configure.bzl", "find_system_rpmbuild_bzlmod")
 use_repo(find_rpm, "rules_pkg_rpmbuild")
@@ -171,6 +183,7 @@ use_repo(
     "rules_antlr",
     "openwrt_x86_64_SDK",
     "buf",
+    "rules_debian_packages",
 )
 
 # Support cross building and packaging for openwrt_amd64 via the openwrt SDK
@@ -180,3 +193,9 @@ register_toolchains(
     "//dist/openwrt:x86_64_openwrt_toolchain",
 )
 
+debian_package_repo = use_extension(":debian_package_module.bzl", "debian_package_repo")
+
+use_repo(
+    debian_package_repo,
+    "tester_debian10_packages",
+)
