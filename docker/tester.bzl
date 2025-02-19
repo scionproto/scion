@@ -1,5 +1,5 @@
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@tester_debian10_packages//:packages.bzl", "debian_package_layer")
 
@@ -62,7 +62,7 @@ def scion_tester_image():
         labels = ":labels",
         visibility = ["//visibility:public"],
     )
-    oci_tarball(
+    oci_load(
         name = "tester.load",
         format = "docker",
         image = "tester",
