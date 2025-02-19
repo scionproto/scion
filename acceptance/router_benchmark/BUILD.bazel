@@ -38,7 +38,6 @@ raw_test(
     args = args,
     data = data,
     homedir = "$(rootpath //docker:router.tarball)",
-    imports = ["."],
     # This test uses sudo and accesses /var/run/netns.
     local = True,
     deps = ["benchmarklib"],

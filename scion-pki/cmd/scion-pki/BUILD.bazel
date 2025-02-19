@@ -34,7 +34,6 @@ go_library(
 
 gendocs(
     name = "gendocs",
-    # outs = ["docs"],
     tool = ":scion-pki",
     visibility = ["//visibility:public"],
 )
