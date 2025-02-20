@@ -230,7 +230,6 @@ func TestLoaderRun(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()

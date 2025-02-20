@@ -91,7 +91,6 @@ func TestSCIONSCMP(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run("decode", func(t *testing.T) {
 			t.Parallel()
 			if *update {
@@ -153,7 +152,6 @@ func TestSCIONSCMP(t *testing.T) {
 		})
 
 		t.Run("serialize", func(t *testing.T) {
-			name, tc := name, tc
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				opts := gopacket.SerializeOptions{
@@ -166,7 +164,7 @@ func TestSCIONSCMP(t *testing.T) {
 				err := gopacket.SerializeLayers(got, opts, tc.decodedLayers...)
 				require.NoError(t, err)
 				if *update {
-					err := os.WriteFile(tc.rawFile, got.Bytes(), 0644)
+					err := os.WriteFile(tc.rawFile, got.Bytes(), 0o644)
 					require.NoError(t, err)
 					return
 				}
@@ -244,7 +242,6 @@ func TestPaths(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run("decode: "+name, func(t *testing.T) {
 			t.Parallel()
 			if *update {
@@ -288,7 +285,7 @@ func TestPaths(t *testing.T) {
 			err := gopacket.SerializeLayers(got, opts, tc.decodedLayers(t)...)
 			require.NoError(t, err)
 			if *update {
-				err := os.WriteFile(tc.rawFile, got.Bytes(), 0644)
+				err := os.WriteFile(tc.rawFile, got.Bytes(), 0o644)
 				require.NoError(t, err)
 				return
 			}
@@ -332,7 +329,6 @@ func TestDecodeSCIONUDP(t *testing.T) {
 	appLayer := packet.ApplicationLayer()
 	require.NotNil(t, appLayer, "Application Layer should exist")
 	assert.Equal(t, mkPayload(1024), appLayer.Payload(), "Payload")
-
 }
 
 func TestSerializeSCIONUPDExtn(t *testing.T) {
@@ -360,7 +356,7 @@ func TestSerializeSCIONUPDExtn(t *testing.T) {
 
 	assert.NoError(t, gopacket.SerializeLayers(b, opts, s, hbh, e2e, u, pld), "Serialize")
 	if *update {
-		err := os.WriteFile("testdata/"+rawFullPktFilename, b.Bytes(), 0644)
+		err := os.WriteFile("testdata/"+rawFullPktFilename, b.Bytes(), 0o644)
 		require.NoError(t, err)
 		return
 	}

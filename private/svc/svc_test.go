@@ -158,7 +158,6 @@ func TestSVCResolutionServer(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -189,7 +188,6 @@ func TestSVCResolutionServer(t *testing.T) {
 }
 
 func TestDefaultHandler(t *testing.T) {
-
 	testCases := map[string]struct {
 		ReplySource    snet.SCIONAddress
 		ReplyPayload   []byte

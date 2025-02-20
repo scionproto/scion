@@ -191,7 +191,6 @@ func TestSCIONLayerString(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			sc.PathType = tc.pathType
 			sc.Path = tc.path
@@ -282,7 +281,6 @@ func TestSetAndGetAddr(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			s := slayers.SCION{}
@@ -333,7 +331,6 @@ func TestPackAddr(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, len(tc.rawAddr), tc.addrType.Length()) // sanity check
@@ -379,7 +376,6 @@ func TestParseAddr(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.addrType.Length(), len(tc.rawAddr)) // sanity check
@@ -391,7 +387,6 @@ func TestParseAddr(t *testing.T) {
 }
 
 func TestUnkownAddrType(t *testing.T) {
-
 	testCases := []struct {
 		addrType slayers.AddrType
 		rawAddr  []byte
@@ -450,7 +445,6 @@ func TestUnkownAddrType(t *testing.T) {
 			assert.Equal(t, tc.rawAddr, got.RawDstAddr)
 		})
 	}
-
 }
 
 func BenchmarkDecodePreallocNoParse(b *testing.B) {
@@ -607,7 +601,6 @@ func TestSCIONComputeChecksum(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			s := tc.Header(t)
 

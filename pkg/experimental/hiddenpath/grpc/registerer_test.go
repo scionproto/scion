@@ -94,7 +94,6 @@ func TestRegistererRegisterSegment(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -117,7 +116,6 @@ func TestRegistererRegisterSegment(t *testing.T) {
 			tc.assertErr(t, err)
 		})
 	}
-
 }
 
 func createSeg(t *testing.T) seg.Meta {

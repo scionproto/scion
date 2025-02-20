@@ -56,7 +56,6 @@ func TestPolicyCopy(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := tc.policy.Copy()
@@ -68,7 +67,6 @@ func TestPolicyCopy(t *testing.T) {
 }
 
 func TestNetworkMatch(t *testing.T) {
-
 	acceptAll := func() *routing.Policy {
 		return &routing.Policy{
 			DefaultAction: routing.Accept,
@@ -188,7 +186,6 @@ func TestNetworkMatch(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ia := addr.MustParseIA("1-ff00:0:110")

@@ -30,8 +30,10 @@ var (
 	BuildRoutingChains = buildRoutingChains
 )
 
-type ConjunctionPathPol = conjuctionPathPol
-type Diff = diff
+type (
+	ConjunctionPathPol = conjuctionPathPol
+	Diff               = diff
+)
 
 func (w *GatewayWatcher) RunOnce(ctx context.Context) {
 	w.run(ctx)
@@ -40,7 +42,6 @@ func (w *GatewayWatcher) RunOnce(ctx context.Context) {
 func (w *GatewayWatcher) RunAllPrefixWatchersOnceForTest(ctx context.Context) error {
 	var eg errgroup.Group
 	for _, wi := range w.currentWatchers {
-		wi := wi
 		wi.prefixWatcher.resetRunMarker()
 		eg.Go(func() error {
 			return wi.prefixWatcher.Run(ctx)
