@@ -22,15 +22,16 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/segment/iface"
+	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 )
 
 // Connector implements the Dataplane interface used by the router control API. It sets
-// up connections for the DataPlane.
+// up connections for the data plane.
 type Connector struct {
-	DataPlane DataPlane
+	DataPlane dataPlane
 
 	ia                 addr.IA
 	mtx                sync.Mutex
@@ -46,6 +47,26 @@ type Connector struct {
 }
 
 var errMultiIA = serrors.New("different IA not allowed")
+
+// NewConnector returns a new connector: a data plane decorated with
+// a configuration interface.
+func NewConnector(config config.RouterConfig, features env.Features) *Connector {
+	return &Connector{
+		DataPlane: makeDataPlane(
+			RunConfig{
+				NumProcessors:         config.NumProcessors,
+				NumSlowPathProcessors: config.NumSlowPathProcessors,
+				BatchSize:             config.BatchSize,
+			},
+			features.ExperimentalSCMPAuthentication,
+		),
+		ReceiveBufferSize:   config.ReceiveBufferSize,
+		SendBufferSize:      config.SendBufferSize,
+		BFD:                 config.BFD,
+		DispatchedPortStart: config.DispatchedPortStart,
+		DispatchedPortEnd:   config.DispatchedPortEnd,
+	}
+}
 
 // CreateIACtx creates the context for ISD-AS.
 func (c *Connector) CreateIACtx(ia addr.IA) error {
