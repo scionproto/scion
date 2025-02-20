@@ -58,8 +58,8 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 	return &p
 }
 
-// makeDP initializes a dataplane structure configured per the test requirements.
-func makeDP(
+// mustMakeDP initializes a dataplane structure configured per the test requirements.
+func mustMakeDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
@@ -139,7 +139,7 @@ func newDP(
 	neighbors map[uint16]addr.IA,
 	key []byte) *dataPlane {
 
-	dp := makeDP(external, linkTypes, internal, internalNextHops, svc, local, neighbors, key)
+	dp := mustMakeDP(external, linkTypes, internal, internalNextHops, svc, local, neighbors, key)
 	return &dp
 }
 
@@ -161,10 +161,9 @@ func NewDP(
 	neighbors map[uint16]addr.IA,
 	key []byte) *DataPlane {
 
-	edp := &DataPlane{
+	return &DataPlane{
 		makeDP(external, linkTypes, internal, internalNextHops, svc, local, neighbors, key),
 	}
-	return edp
 }
 
 // NewDPRaw constructs a minimaly initialized DataPlane and returns it by reference. This is useful
