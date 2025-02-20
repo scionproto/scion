@@ -262,7 +262,6 @@ func TestComputeDiff(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -277,7 +276,6 @@ func udp(t *testing.T, addr string) *net.UDPAddr {
 	u, err := net.ResolveUDPAddr("udp", addr)
 	require.NoError(t, err)
 	return u
-
 }
 
 func cidr(t *testing.T, network string) *net.IPNet {

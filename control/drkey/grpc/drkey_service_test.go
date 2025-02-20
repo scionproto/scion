@@ -43,8 +43,10 @@ var (
 	tcpHost2 = netip.MustParseAddrPort("127.0.0.2:12345")
 )
 
-var _ cppb.DRKeyInterServiceServer = &dk_grpc.Server{}
-var _ cppb.DRKeyIntraServiceServer = &dk_grpc.Server{}
+var (
+	_ cppb.DRKeyInterServiceServer = &dk_grpc.Server{}
+	_ cppb.DRKeyIntraServiceServer = &dk_grpc.Server{}
+)
 
 func TestDRKeySV(t *testing.T) {
 	sv, targetResp := getSVandResp(t)
@@ -100,7 +102,6 @@ func TestDRKeySV(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-
 		})
 		server := dk_grpc.Server{
 			LocalIA:            ia111,
@@ -160,9 +161,7 @@ func TestValidateASHost(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			err := dk_grpc.ValidateASHostReq(tc.req, tc.LocalIA, tc.peerAddr)
 			tc.assertErr(t, err)
 		})
@@ -216,9 +215,7 @@ func TestValidateHostASReq(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			err := dk_grpc.ValidateHostASReq(tc.req, tc.LocalIA, tc.peerAddr)
 			tc.assertErr(t, err)
 		})
@@ -286,9 +283,7 @@ func TestValidateHostHostReq(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			err := dk_grpc.ValidateHostHostReq(tc.req, tc.LocalIA, tc.peerAddr)
 			tc.assertErr(t, err)
 		})
