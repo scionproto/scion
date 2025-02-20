@@ -388,7 +388,7 @@ func serviceLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
 }
 
 // UpdateOutputMetrics updates the given InterfaceMetrics in bulk according
-// to the given set of just sent packets. This much faster than looking up
+// to the given set of just sent packets. This is much faster than looking up
 // the right set of metrics by size class and traffic type for each packet.
 func UpdateOutputMetrics(metrics InterfaceMetrics, packets []*Packet) {
 	// We need to collect stats by traffic type and size class.

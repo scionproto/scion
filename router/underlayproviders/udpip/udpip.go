@@ -149,18 +149,18 @@ func (u *udpConnection) start(
 		return
 	}
 
-	// Receiver
+	// Receiver task
 	go func() {
 		defer log.HandlePanic()
-		u.receiver(batchSize, pool, procQs)
+		u.receive(batchSize, pool, procQs)
 		close(u.receiverDone)
 
 	}()
 
-	// Forwarder
+	// Forwarder task
 	go func() {
 		defer log.HandlePanic()
-		u.sender(batchSize, pool)
+		u.send(batchSize, pool)
 		close(u.senderDone)
 	}()
 }
@@ -179,13 +179,13 @@ func (u *udpConnection) stop() {
 	}
 }
 
-func (u *udpConnection) receiver(
+func (u *udpConnection) receive(
 	batchSize int, pool chan *router.Packet, procQs []chan *router.Packet) {
 
-	log.Debug("Run receiver", "connection", u.name)
+	log.Debug("Receive", "connection", u.name)
 
-	// Each receiver (therefore each input interface) has a unique random seed for the procID hash
-	// function.
+	// Each receive loop (therefore each input interface) has a unique random seed for the procID
+	// hash function.
 	hashSeed := fnv1aOffset32
 	randomBytes := make([]byte, 4)
 	if _, err := rand.Read(randomBytes); err != nil {
@@ -306,8 +306,8 @@ func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*ro
 //
 // For now, we do the first option. Whether that is good enough is still TBD.
 
-func (u *udpConnection) sender(batchSize int, pool chan *router.Packet) {
-	log.Debug("Run forwarder", "connection", u.name)
+func (u *udpConnection) send(batchSize int, pool chan *router.Packet) {
+	log.Debug("Send", "connection", u.name)
 
 	// We use this somewhat like a ring buffer.
 	pkts := make([]*router.Packet, batchSize)

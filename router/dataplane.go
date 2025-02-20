@@ -243,7 +243,7 @@ var (
 	// scionPacketProcessor.OptAuth
 	zeroBuffer = make([]byte, 16)
 
-	theMetrics = NewMetrics() // There can be only one.
+	metrics = NewMetrics() // There can be only one currently.
 )
 
 type drkeyProvider interface {
@@ -267,7 +267,7 @@ func NewDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
 	return &x
 }
 
-// MakeDataPlane returns a zero-valued data plane structure. This is the same as newDataPlane
+// makeDataPlane returns a zero-valued data plane structure. This is the same as NewDataPlane
 // but returns by value to facilitate the initialization of composed structs without an temporary
 // copy.
 func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
@@ -277,7 +277,7 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 		linkTypes:                      make(map[uint16]topology.LinkType),
 		neighborIAs:                    make(map[uint16]addr.IA),
 		svc:                            newServices(),
-		Metrics:                        theMetrics,
+		Metrics:                        metrics,
 		forwardingMetrics:              make(map[uint16]InterfaceMetrics),
 		ExperimentalSCMPAuthentication: authSCMP,
 		RunConfig:                      runConfig,

@@ -30,7 +30,7 @@ var (
 )
 
 func GetMetrics() *Metrics {
-	return theMetrics
+	return metrics
 }
 
 var NewServices = newServices
@@ -109,7 +109,7 @@ func makeDP(
 			nil, 64, nil, netip.AddrPort{}, i, dp.forwardingMetrics[i])
 	}
 	for i, addr := range internalNextHops {
-		dp.addForwardingMetrics(i, External)
+		dp.addForwardingMetrics(i, Sibling)
 		dp.interfaces[i] = dp.underlay.NewSiblingLink(64, nil, addr, dp.forwardingMetrics[i])
 	}
 
@@ -167,10 +167,10 @@ func NewDP(
 	return edp
 }
 
-// NewDPraw constructs a minimaly initialized DataPlane and returns it by reference. This is useful
+// NewDPRaw constructs a minimaly initialized DataPlane and returns it by reference. This is useful
 // to non-internal tests that do not want any dataplane configuration beyond the strictly necessary.
 // This is equivalent to router.NewDataPlane, but returns an exported type.
-func NewDPraw(runConfig RunConfig, authSCMP bool) *DataPlane {
+func NewDPRaw(runConfig RunConfig, authSCMP bool) *DataPlane {
 
 	edp := &DataPlane{
 		makeDataPlane(runConfig, authSCMP),
