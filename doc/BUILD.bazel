@@ -43,6 +43,7 @@ py_console_script_binary(
     script = "sphinx-lint",
     deps = [r for r in all_requirements if r != requirement("sphinx-lint")],
 )
+
 sphinx_lint_test(
     name = "sphinx_lint_test",
     srcs = glob([
