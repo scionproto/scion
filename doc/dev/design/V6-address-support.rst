@@ -366,8 +366,8 @@ the next hop and where routespec is entirely optional.
 
 Once we have that, we can start enabling the use of V6 addresses as the addr argument.
 
-The netsec tree also offers a number of scion-enabled apps. Those rely on "pan", a custom
+The netsec tree also offers a number of SCION-enabled apps. Those rely on "pan", a custom
 API-like layer. It would be good to try and converge pan and the new API contemplated
-above, so that eventually, these scion-enabled apps are able to use plain IPV6 addresses
+above, so that eventually, these SCION-enabled apps are able to use plain IPV6 addresses
 too.
 
