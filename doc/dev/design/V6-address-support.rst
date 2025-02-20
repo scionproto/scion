@@ -322,8 +322,8 @@ address of the destination host is identical to its SCION address; this means th
   is partially redundantly encoded as the HOST portion of the wire format SCION address.
 * That address is a real IPV6 address, reachable by the destination border router.
 
-Until we reach the point where scion routing is part of the normal network stack (and therefore
-scion addresses need to be distinguished from other V6 addresses) we can get away with using
+Until we reach the point where SCION routing is part of the normal network stack (and therefore
+SCION addresses need to be distinguished from other V6 addresses) we can get away with using
 arbitrary IPV6 addresses in the unique local range. After that, we need to start using real
 assigned IPV6 addresses from a block supplied by IANA.
 
