@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/sync/errgroup"
 

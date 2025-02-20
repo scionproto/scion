@@ -22,9 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
@@ -66,13 +65,9 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 	if err := checkPubKeyAlgo(hdr.SignatureAlgorithm, signer.Public()); err != nil {
 		return nil, err
 	}
-	var ts *timestamp.Timestamp
+	var ts *timestamppb.Timestamp
 	if !hdr.Timestamp.IsZero() {
-		var err error
-		ts, err = ptypes.TimestampProto(hdr.Timestamp)
-		if err != nil {
-			return nil, serrors.Wrap("converting timestamp", err)
-		}
+		ts = timestamppb.New(hdr.Timestamp)
 	}
 
 	inputHdr := &cryptopb.Header{
@@ -220,10 +215,7 @@ func extractHeaderAndBody(signed *cryptopb.SignedMessage) (*Header, []byte, erro
 	}
 	var ts time.Time
 	if hdr.Timestamp != nil {
-		var err error
-		if ts, err = ptypes.Timestamp(hdr.Timestamp); err != nil {
-			return nil, nil, err
-		}
+		ts = hdr.Timestamp.AsTime()
 	}
 	return &Header{
 		SignatureAlgorithm:   signatureAlgorithmFromPB(hdr.SignatureAlgorithm),

@@ -28,7 +28,7 @@ import (
 	"crypto/elliptic"
 	crand "crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"sort"
 	"sync"
 	"time"

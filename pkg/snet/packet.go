@@ -15,9 +15,9 @@
 package snet
 
 import (
-	"math/rand"
+	"math/rand/v2"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -214,7 +214,7 @@ const (
 // WARNING: This is a transitional helper function, which will be removed
 // in the dispatcher-less snet; then, the underlay port must be used as identifier.
 func RandomSCMPIdentifer() uint16 {
-	id := SCMPIdentifierStart + rand.Int31n(SCMPIdentifierEnd-SCMPIdentifierStart+1)
+	id := SCMPIdentifierStart + rand.Int32N(SCMPIdentifierEnd-SCMPIdentifierStart+1)
 	return uint16(id)
 }
 

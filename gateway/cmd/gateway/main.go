@@ -21,6 +21,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/netip"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -30,7 +31,7 @@ import (
 	"github.com/scionproto/scion/gateway/config"
 	"github.com/scionproto/scion/gateway/dataplane"
 	api "github.com/scionproto/scion/gateway/mgmtapi"
-	"github.com/scionproto/scion/pkg/daemon"
+	dpkg "github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
@@ -53,7 +54,10 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	daemonService := &daemon.Service{
+
+	const retryDelay = 2
+
+	daemonService := &dpkg.Service{
 		Address: globalCfg.Daemon.Address,
 	}
 	daemon, err := daemonService.Connect(ctx)
@@ -63,15 +67,27 @@ func realMain(ctx context.Context) error {
 	defer daemon.Close()
 	localIA, err := daemon.LocalIA(ctx)
 	if err != nil {
-		return serrors.Wrap("retrieving local ISD-AS", err)
-	}
+		// Maybe we were too early. Wait and retry the whole shebang.
+		log.Info("Retying daemon connection", "retryDelay", retryDelay)
+		time.Sleep(retryDelay * time.Second)
+		daemon.Close()
+		daemon, err = daemonService.Connect(ctx)
+		if err != nil {
+			return serrors.Wrap("connecting to daemon", err)
+		}
 
+		localIA, err = daemon.LocalIA(ctx)
+		if err != nil {
+			return serrors.Wrap("retrieving local ISD-AS", err)
+		}
+		log.Info("Connected to daemon")
+	}
 	controlAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.CtrlAddr)
 	if err != nil {
 		return serrors.Wrap("parsing control address", err)
 	}
 	if len(controlAddress.IP) == 0 {
-		controlAddress.IP, err = addrutil.DefaultLocalIP(ctx, daemon)
+		controlAddress.IP, err = addrutil.DefaultLocalIP(ctx, dpkg.TopoQuerier{Connector: daemon})
 		if err != nil {
 			return serrors.Wrap("determine default local IP", err)
 		}

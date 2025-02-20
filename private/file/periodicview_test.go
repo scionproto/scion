@@ -164,7 +164,7 @@ type syncFileView struct {
 	Path string
 }
 
-func (v *syncFileView) Get() (interface{}, error) {
+func (v *syncFileView) Get() (any, error) {
 	b, err := os.ReadFile(v.Path)
 	if err != nil {
 		return nil, err
@@ -191,7 +191,7 @@ type cachedFileView struct {
 	view *file.PeriodicView
 }
 
-func (v *cachedFileView) Get() (interface{}, error) {
+func (v *cachedFileView) Get() (any, error) {
 	b, err := v.view.Get()
 	if err != nil {
 		return nil, err
@@ -219,7 +219,7 @@ func benchmarkView(b *testing.B, view file.View) {
 	}
 }
 
-func pemKeyParse(b []byte) (interface{}, error) {
-	// Change the return type from []byte to interface{}
+func pemKeyParse(b []byte) (any, error) {
+	// Change the return type from []byte to any
 	return scrypto.ParsePEMSymmetricKey(b)
 }

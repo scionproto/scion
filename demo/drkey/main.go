@@ -23,6 +23,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -33,7 +34,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/snet"
 	env "github.com/scionproto/scion/private/app/flag"
 )
@@ -270,7 +270,9 @@ func (s Server) FetchSV(
 	}
 
 	// Contact CS directly for SV
-	conn, err := grpc.DialContext(ctx, cs[0], grpc.WithInsecure())
+	conn, err := grpc.DialContext(
+		ctx, cs[0], grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		return drkey.SecretValue{}, serrors.Wrap("dialing control service", err)
 	}
@@ -305,10 +307,8 @@ func getSecretFromReply(
 		return drkey.SecretValue{}, err
 	}
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
+		NotBefore: rep.EpochBegin.AsTime(),
+		NotAfter:  rep.EpochEnd.AsTime(),
 	}
 	returningKey := drkey.SecretValue{
 		ProtoId: proto,

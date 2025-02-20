@@ -125,7 +125,7 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 }
 
 // NewConfigStatusPage returns a page with the specified TOML config.
-func NewConfigStatusPage(config interface{}) StatusPage {
+func NewConfigStatusPage(config any) StatusPage {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
 		err := toml.NewEncoder(&buf).Encode(config)

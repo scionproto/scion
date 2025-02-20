@@ -109,7 +109,7 @@ func genCrypto(t *testing.T) string {
 	return dir
 }
 
-func writeKey(t *testing.T, file string, key interface{}) {
+func writeKey(t *testing.T, file string, key any) {
 	t.Helper()
 	raw, err := x509.MarshalPKCS8PrivateKey(key)
 	require.NoError(t, err)

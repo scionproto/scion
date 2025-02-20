@@ -28,7 +28,7 @@ const (
 	TimeFmtSecs  = "2006-01-02 15:04:05-0700"
 )
 
-func TypeOf(v interface{}) string {
+func TypeOf(v any) string {
 	t := reflect.TypeOf(v)
 	if t != nil {
 		return t.String()

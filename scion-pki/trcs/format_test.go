@@ -21,15 +21,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/app/command"
 )
 
 var NewFormatCmd = newFormatCmd
 
 func TestNewFormatCmd(t *testing.T) {
-	dir, cleanup := xtest.MustTempDir("", "format-trc-test")
-	defer cleanup()
+	dir := t.TempDir()
 
 	testCases := map[string]struct {
 		Prepare      func(t *testing.T)

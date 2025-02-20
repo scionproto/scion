@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	trustgrpc "github.com/scionproto/scion/control/trust/grpc"
 	"github.com/scionproto/scion/pkg/addr"
@@ -31,10 +31,8 @@ import (
 
 func TestReqToChainQuery(t *testing.T) {
 	now := time.Now().UTC()
-	validUntil, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
-	validSince, err := ptypes.TimestampProto(now.Add(-time.Hour))
-	require.NoError(t, err)
+	validUntil := timestamppb.New(now)
+	validSince := timestamppb.New(now.Add(-time.Hour))
 
 	req := &cppb.ChainsRequest{
 		IsdAs:             uint64(addr.MustParseIA("1-ff00:0:110")),

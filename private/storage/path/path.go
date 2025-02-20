@@ -23,7 +23,7 @@ import (
 
 type GroupIDs []uint64
 
-func (g *GroupIDs) Scan(src interface{}) error {
+func (g *GroupIDs) Scan(src any) error {
 	var group string
 	switch src := src.(type) {
 	case string:
@@ -46,7 +46,7 @@ func (g *GroupIDs) Scan(src interface{}) error {
 
 type SegTypes []seg.Type
 
-func (t *SegTypes) Scan(src interface{}) error {
+func (t *SegTypes) Scan(src any) error {
 	var group string
 	switch src := src.(type) {
 	case string:

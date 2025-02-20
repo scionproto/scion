@@ -152,7 +152,7 @@ func (g Groups) Validate() error {
 }
 
 // UnmarshalYAML implements the yaml unmarshaller for the Groups type.
-func (g Groups) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (g Groups) UnmarshalYAML(unmarshal func(any) error) error {
 	yg := &registrationPolicyInfo{}
 	if err := unmarshal(&yg); err != nil {
 		return serrors.Wrap("unmarshaling YAML", err)
@@ -171,7 +171,7 @@ func (g Groups) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // MarshalYAML implements yaml marshalling.
-func (g Groups) MarshalYAML() (interface{}, error) {
+func (g Groups) MarshalYAML() (any, error) {
 	return &registrationPolicyInfo{
 		Groups: marshalGroups(g),
 	}, nil

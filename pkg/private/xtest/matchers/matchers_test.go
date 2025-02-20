@@ -38,7 +38,7 @@ type testPartial2 struct {
 func TestPartialStructMatches(t *testing.T) {
 	testCases := map[string]struct {
 		Matcher     gomock.Matcher
-		Input       interface{}
+		Input       any
 		ExpectMatch bool
 	}{
 		"exact match": {

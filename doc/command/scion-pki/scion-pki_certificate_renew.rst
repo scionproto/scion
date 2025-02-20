@@ -35,7 +35,7 @@ issued the unverifiable certificate chain.
 The resulting certificate chain is written to the file system, either to
 <chain-file> or to \--out, if specified.
 
-The fresh private key is is written to the file stystem, either to <key-file>
+The fresh private key is is written to the file system, either to <key-file>
 or to \--out-key, if specified.
 
 Files are not allowed to be overwritten, by default. Either you have to specify
@@ -122,7 +122,7 @@ Options
       --curve string           The elliptic curve to use (P-256|P-384|P-521) (default "P-256")
       --expires-in string      Remaining time threshold for renewal
       --features strings       enable development features ()
-      --force                  Force overwritting existing files
+      --force                  Force overwriting existing files
   -h, --help                   help for renew
   -i, --interactive            interactive mode
       --isd-as isd-as          The local ISD-AS to use. (default 0-0)

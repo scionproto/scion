@@ -99,7 +99,7 @@ return an error if parts of a TRC fail to decode, enable the strict mode.
 	return cmd
 }
 
-func getEncoder(w io.Writer, format string) (interface{ Encode(v interface{}) error }, error) {
+func getEncoder(w io.Writer, format string) (interface{ Encode(v any) error }, error) {
 	switch format {
 	case "yaml", "yml":
 		return yaml.NewEncoder(w), nil

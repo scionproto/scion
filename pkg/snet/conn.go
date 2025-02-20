@@ -16,6 +16,7 @@
 package snet
 
 import (
+	"fmt"
 	"net"
 	"time"
 
@@ -35,7 +36,10 @@ func (e *OpError) RevInfo() *path_mgmt.RevInfo {
 }
 
 func (e *OpError) Error() string {
-	return e.typeCode.String()
+	if e.revInfo == nil {
+		return e.typeCode.String()
+	}
+	return fmt.Sprintf("%s (%s)", e.typeCode, e.revInfo)
 }
 
 var _ net.Conn = (*Conn)(nil)

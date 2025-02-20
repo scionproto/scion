@@ -27,5 +27,5 @@ type View interface {
 	// However, Get implementations are free to return different objects or
 	// return references to the same object, so callers should not assume
 	// they see the same object across different calls.
-	Get() (interface{}, error)
+	Get() (any, error)
 }

@@ -20,8 +20,8 @@ go_library(
         "//private/tracing:go_default_library",
         "//private/trust:go_default_library",
         "//private/trust/internal/metrics:go_default_library",
-        "@com_github_golang_protobuf//ptypes/timestamp",
         "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@org_golang_google_protobuf//types/known/timestamppb:go_default_library",
     ],
 )
 
@@ -47,7 +47,6 @@ go_test(
         "//private/trust/internal/metrics:go_default_library",
         "//scion-pki/testcrypto:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
-        "@com_github_golang_protobuf//ptypes:go_default_library_gen",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],

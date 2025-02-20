@@ -57,7 +57,7 @@ const (
 )
 
 // generic container for marshaling custom data
-type jsonContainer map[string]interface{}
+type jsonContainer map[string]any
 
 func marshalInterface(t Typer) ([]byte, error) {
 	return json.Marshal(jsonContainer{t.Type(): t})

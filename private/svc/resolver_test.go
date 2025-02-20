@@ -73,7 +73,7 @@ func TestResolver(t *testing.T) {
 		mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
 		mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Do(
-			func(_, _ interface{}, pkt *snet.Packet, _ interface{}) {
+			func(_, _ any, pkt *snet.Packet, _ any) {
 				pld := pkt.Payload.(snet.UDPPayload)
 				require.NoError(t, proto.Unmarshal(pld.Payload, &cppb.ServiceResolutionRequest{}))
 			})

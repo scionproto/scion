@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
 func secretRequestToMeta(req *cppb.DRKeySecretValueRequest) (drkey.SecretValueMeta, error) {
@@ -65,10 +64,8 @@ func getLevel1KeyFromReply(
 		return drkey.Level1Key{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
+		NotBefore: rep.EpochBegin.AsTime(),
+		NotAfter:  rep.EpochEnd.AsTime(),
 	}
 	returningKey := drkey.Level1Key{
 		SrcIA:   meta.SrcIA,

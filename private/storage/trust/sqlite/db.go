@@ -88,7 +88,7 @@ func (e *executor) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedT
 	sqlQuery := `SELECT trc FROM trcs WHERE isd_id=$1
 				ORDER BY base DESC, serial DESC
 				LIMIT 1`
-	args := []interface{}{id.ISD}
+	args := []any{id.ISD}
 	if !id.Base.IsLatest() {
 		sqlQuery = `SELECT trc FROM trcs WHERE isd_id=$1 AND base=$2 AND serial=$3`
 		args = append(args, id.Base, id.Serial)
@@ -150,7 +150,7 @@ func (e *executor) Chains(ctx context.Context,
 	defer e.RUnlock()
 
 	sqlQuery := []string{"SELECT as_cert, ca_cert FROM chains"}
-	var args []interface{}
+	var args []any
 	var filters []string
 
 	if len(query.SubjectKeyID) != 0 {
@@ -274,7 +274,7 @@ func (e *executor) SignedTRCs(ctx context.Context,
 	defer e.RUnlock()
 
 	var filter string
-	var args []interface{}
+	var args []any
 	if len(query.ISD) > 0 {
 		subQ := make([]string, 0, len(query.ISD))
 		for _, ISD := range query.ISD {

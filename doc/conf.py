@@ -33,6 +33,7 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx.ext.extlinks",
     "sphinxcontrib.openapi",
+    "sphinxcontrib.mermaid",
 ]
 
 copybutton_prompt_text = r"\w*\$ "  # matches e.g. <hostname>$

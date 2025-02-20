@@ -69,11 +69,11 @@ func (a *ACL) UnmarshalJSON(b []byte) error {
 	return validateACL(a.Entries)
 }
 
-func (a *ACL) MarshalYAML() (interface{}, error) {
+func (a *ACL) MarshalYAML() (any, error) {
 	return a.Entries, nil
 }
 
-func (a *ACL) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (a *ACL) UnmarshalYAML(unmarshal func(any) error) error {
 	if err := unmarshal(&a.Entries); err != nil {
 		return err
 	}
@@ -168,11 +168,11 @@ func (ae *ACLEntry) UnmarshalJSON(b []byte) error {
 	return ae.LoadFromString(str)
 }
 
-func (ae *ACLEntry) MarshalYAML() (interface{}, error) {
+func (ae *ACLEntry) MarshalYAML() (any, error) {
 	return ae.String(), nil
 }
 
-func (ae *ACLEntry) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (ae *ACLEntry) UnmarshalYAML(unmarshal func(any) error) error {
 	var str string
 	err := unmarshal(&str)
 	if err != nil {
