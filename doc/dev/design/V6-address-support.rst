@@ -300,7 +300,7 @@ Alternatives considered (regarding hidding SCION-specifcs from apps):
   * Are we planning on providing replacement for all the applications and libraries
     using internet today? Is someone else?
 
-* Map IPV6 addresses to scion ISD-AS downstream from the application:
+* Map IPV6 addresses to SCION ISD-AS downstream from the application:
   That's only a temporary patch see the same issue with the gateway.
 
 Compatibility
