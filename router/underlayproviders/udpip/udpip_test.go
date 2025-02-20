@@ -47,7 +47,7 @@ func computeMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopField)
 }
 
 // Prepares a message that is arriving at its last hop, incoming through interface 1.
-func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
+func prepBaseMsg(t *testing.T, flowId uint32) *slayers.SCION {
 	spkt := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
@@ -136,7 +136,7 @@ func TestComputeProcId(t *testing.T) {
 			return []ret{
 				{
 					payload: payload,
-					s:       prepBaseMsg(t, payload, (1<<20)-1),
+					s:       prepBaseMsg(t, (1<<20)-1),
 				},
 			}
 		},
@@ -145,7 +145,7 @@ func TestComputeProcId(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				rets[i].payload = make([]byte, 100)
 				_, err := rand.Read(rets[i].payload)
-				spkt := prepBaseMsg(t, rets[i].payload, 1)
+				spkt := prepBaseMsg(t, 1)
 				assert.NoError(t, err)
 				rets[i].s = spkt
 			}
@@ -156,7 +156,7 @@ func TestComputeProcId(t *testing.T) {
 			payload := make([]byte, 100)
 			for i := 0; i < 16; i++ {
 				rets[i].payload = payload
-				spkt := prepBaseMsg(t, rets[i].payload, 1)
+				spkt := prepBaseMsg(t, 1)
 				spkt.TrafficClass = uint8(i)
 				rets[i].s = spkt
 			}
@@ -164,7 +164,7 @@ func TestComputeProcId(t *testing.T) {
 		},
 		"ipv4 to ipv4": func(t *testing.T) []ret {
 			payload := make([]byte, 100)
-			spkt := prepBaseMsg(t, payload, 1)
+			spkt := prepBaseMsg(t, 1)
 			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
 			_ = spkt.SetSrcAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
@@ -178,7 +178,7 @@ func TestComputeProcId(t *testing.T) {
 		},
 		"ipv6 to ipv4": func(t *testing.T) []ret {
 			payload := make([]byte, 100)
-			spkt := prepBaseMsg(t, payload, 1)
+			spkt := prepBaseMsg(t, 1)
 			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
 			_ = spkt.SetSrcAddr(addr.HostIP(netip.MustParseAddr("2001:db8::68")))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
@@ -192,7 +192,7 @@ func TestComputeProcId(t *testing.T) {
 		},
 		"svc to ipv4": func(t *testing.T) []ret {
 			payload := make([]byte, 100)
-			spkt := prepBaseMsg(t, payload, 1)
+			spkt := prepBaseMsg(t, 1)
 			spkt.DstAddrType = slayers.T4Ip
 			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
 			_ = spkt.SetSrcAddr(addr.HostSVC(addr.SvcWildcard))
