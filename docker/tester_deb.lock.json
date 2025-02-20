@@ -56,6 +56,73 @@
 			"arch": "amd64",
 			"dependencies": [
 				{
+					"key": "debianutils_4.8.6.1_amd64",
+					"name": "debianutils",
+					"version": "4.8.6.1"
+				},
+				{
+					"key": "libc6_2.28-10-p-deb10u1_amd64",
+					"name": "libc6",
+					"version": "2.28-10+deb10u1"
+				},
+				{
+					"key": "libgcc1_1-8.3.0-6_amd64",
+					"name": "libgcc1",
+					"version": "1:8.3.0-6"
+				},
+				{
+					"key": "gcc-8-base_8.3.0-6_amd64",
+					"name": "gcc-8-base",
+					"version": "8.3.0-6"
+				},
+				{
+					"key": "base-files_10.3-p-deb10u13_amd64",
+					"name": "base-files",
+					"version": "10.3+deb10u13"
+				},
+				{
+					"key": "libtinfo6_6.1-p-20181013-2-p-deb10u2_amd64",
+					"name": "libtinfo6",
+					"version": "6.1+20181013-2+deb10u2"
+				}
+			],
+			"key": "bash_5.0-4_amd64",
+			"name": "bash",
+			"sha256": "d07f3528c615545bb182269362926bc171adab565dade3e8c35cb3bae8ad9e5e",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/b/bash/bash_5.0-4_amd64.deb",
+			"version": "5.0-4"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "debianutils_4.8.6.1_amd64",
+			"name": "debianutils",
+			"sha256": "a61f69765e0871d1d9c1f9915d0c7fbd2d5365d02f2fe99039f3dff64fd527e9",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/d/debianutils/debianutils_4.8.6.1_amd64.deb",
+			"version": "4.8.6.1"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "base-files_10.3-p-deb10u13_amd64",
+			"name": "base-files",
+			"sha256": "6c618aa2a6806cefa0091e07409f7e2a9a0c9abbffd1e8eb0112bf54038e93b6",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/b/base-files/base-files_10.3+deb10u13_amd64.deb",
+			"version": "10.3+deb10u13"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "libtinfo6_6.1-p-20181013-2-p-deb10u2_amd64",
+			"name": "libtinfo6",
+			"sha256": "7f39c7a7b02c3373a427aa276830a6e1e0c4cc003371f34e2e50e9992aa70e1a",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/n/ncurses/libtinfo6_6.1+20181013-2+deb10u2_amd64.deb",
+			"version": "6.1+20181013-2+deb10u2"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [
+				{
 					"key": "libssl1.1_1.1.1n-0-p-deb10u3_amd64",
 					"name": "libssl1.1",
 					"version": "1.1.1n-0+deb10u3"
@@ -973,15 +1040,6 @@
 			"sha256": "2dd69416c4e8decda8a9ed56e36275df7645aea7851b05eb16d42fed61b6a12f",
 			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/l/lsb/lsb-base_10.2019051400_all.deb",
 			"version": "10.2019051400"
-		},
-		{
-			"arch": "amd64",
-			"dependencies": [],
-			"key": "libtinfo6_6.1-p-20181013-2-p-deb10u2_amd64",
-			"name": "libtinfo6",
-			"sha256": "7f39c7a7b02c3373a427aa276830a6e1e0c4cc003371f34e2e50e9992aa70e1a",
-			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/n/ncurses/libtinfo6_6.1+20181013-2+deb10u2_amd64.deb",
-			"version": "6.1+20181013-2+deb10u2"
 		},
 		{
 			"arch": "amd64",
@@ -2111,6 +2169,55 @@
 			"version": "10.32-5"
 		},
 		{
+			"arch": "amd64",
+			"dependencies": [
+				{
+					"key": "libtinfo6_6.1-p-20181013-2-p-deb10u2_amd64",
+					"name": "libtinfo6",
+					"version": "6.1+20181013-2+deb10u2"
+				},
+				{
+					"key": "libc6_2.28-10-p-deb10u1_amd64",
+					"name": "libc6",
+					"version": "2.28-10+deb10u1"
+				},
+				{
+					"key": "libgcc1_1-8.3.0-6_amd64",
+					"name": "libgcc1",
+					"version": "1:8.3.0-6"
+				},
+				{
+					"key": "gcc-8-base_8.3.0-6_amd64",
+					"name": "gcc-8-base",
+					"version": "8.3.0-6"
+				},
+				{
+					"key": "libcap2_1-2.25-2_amd64",
+					"name": "libcap2",
+					"version": "1:2.25-2"
+				},
+				{
+					"key": "zsh-common_5.7.1-1-p-deb10u1_amd64",
+					"name": "zsh-common",
+					"version": "5.7.1-1+deb10u1"
+				}
+			],
+			"key": "zsh_5.7.1-1-p-deb10u1_amd64",
+			"name": "zsh",
+			"sha256": "89cd7d28a5e86087c5a57f21af117e868c488d27e82dc1e905aa124aab242d61",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/z/zsh/zsh_5.7.1-1+deb10u1_amd64.deb",
+			"version": "5.7.1-1+deb10u1"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "zsh-common_5.7.1-1-p-deb10u1_amd64",
+			"name": "zsh-common",
+			"sha256": "3f0a99094085e16e2f0d9c93f20f7cc93efb673518f51dcea37c392cff79ef02",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/z/zsh/zsh-common_5.7.1-1+deb10u1_all.deb",
+			"version": "5.7.1-1+deb10u1"
+		},
+		{
 			"arch": "arm64",
 			"dependencies": [
 				{
@@ -2161,6 +2268,73 @@
 			"sha256": "41456860e929beec8ead5282cf6891db8fe213af86d46967e77f9b13b1c44bf2",
 			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/g/gcc-8/gcc-8-base_8.3.0-6_arm64.deb",
 			"version": "8.3.0-6"
+		},
+		{
+			"arch": "arm64",
+			"dependencies": [
+				{
+					"key": "debianutils_4.8.6.1_arm64",
+					"name": "debianutils",
+					"version": "4.8.6.1"
+				},
+				{
+					"key": "libc6_2.28-10-p-deb10u1_arm64",
+					"name": "libc6",
+					"version": "2.28-10+deb10u1"
+				},
+				{
+					"key": "libgcc1_1-8.3.0-6_arm64",
+					"name": "libgcc1",
+					"version": "1:8.3.0-6"
+				},
+				{
+					"key": "gcc-8-base_8.3.0-6_arm64",
+					"name": "gcc-8-base",
+					"version": "8.3.0-6"
+				},
+				{
+					"key": "base-files_10.3-p-deb10u13_arm64",
+					"name": "base-files",
+					"version": "10.3+deb10u13"
+				},
+				{
+					"key": "libtinfo6_6.1-p-20181013-2-p-deb10u2_arm64",
+					"name": "libtinfo6",
+					"version": "6.1+20181013-2+deb10u2"
+				}
+			],
+			"key": "bash_5.0-4_arm64",
+			"name": "bash",
+			"sha256": "d2e229308dcb7108d29644d31a283f7450853652b3a02d8a5ae737086ccb2c22",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/b/bash/bash_5.0-4_arm64.deb",
+			"version": "5.0-4"
+		},
+		{
+			"arch": "arm64",
+			"dependencies": [],
+			"key": "debianutils_4.8.6.1_arm64",
+			"name": "debianutils",
+			"sha256": "158c77fcdb2b402eee6437b241b6ef2a475e58ecdfa5a267e8caf794166ef8f1",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/d/debianutils/debianutils_4.8.6.1_arm64.deb",
+			"version": "4.8.6.1"
+		},
+		{
+			"arch": "arm64",
+			"dependencies": [],
+			"key": "base-files_10.3-p-deb10u13_arm64",
+			"name": "base-files",
+			"sha256": "c7f645eded56a4b70618720b54fcc322634d4dd14596f2b93e2e97a1ad8d9c95",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/b/base-files/base-files_10.3+deb10u13_arm64.deb",
+			"version": "10.3+deb10u13"
+		},
+		{
+			"arch": "arm64",
+			"dependencies": [],
+			"key": "libtinfo6_6.1-p-20181013-2-p-deb10u2_arm64",
+			"name": "libtinfo6",
+			"sha256": "1b0533fcee638b5c76a07fb6ce3a64e6cb67d5e81574d6541486c0b2130430d5",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/n/ncurses/libtinfo6_6.1+20181013-2+deb10u2_arm64.deb",
+			"version": "6.1+20181013-2+deb10u2"
 		},
 		{
 			"arch": "arm64",
@@ -3083,15 +3257,6 @@
 			"sha256": "2dd69416c4e8decda8a9ed56e36275df7645aea7851b05eb16d42fed61b6a12f",
 			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/l/lsb/lsb-base_10.2019051400_all.deb",
 			"version": "10.2019051400"
-		},
-		{
-			"arch": "arm64",
-			"dependencies": [],
-			"key": "libtinfo6_6.1-p-20181013-2-p-deb10u2_arm64",
-			"name": "libtinfo6",
-			"sha256": "1b0533fcee638b5c76a07fb6ce3a64e6cb67d5e81574d6541486c0b2130430d5",
-			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/n/ncurses/libtinfo6_6.1+20181013-2+deb10u2_arm64.deb",
-			"version": "6.1+20181013-2+deb10u2"
 		},
 		{
 			"arch": "arm64",
@@ -4219,6 +4384,55 @@
 			"sha256": "46267ec57661cfee72b9289db853f8ec9386e6ef2296b490a3807f68729ca918",
 			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/p/pcre2/libpcre2-8-0_10.32-5_arm64.deb",
 			"version": "10.32-5"
+		},
+		{
+			"arch": "arm64",
+			"dependencies": [
+				{
+					"key": "libtinfo6_6.1-p-20181013-2-p-deb10u2_arm64",
+					"name": "libtinfo6",
+					"version": "6.1+20181013-2+deb10u2"
+				},
+				{
+					"key": "libc6_2.28-10-p-deb10u1_arm64",
+					"name": "libc6",
+					"version": "2.28-10+deb10u1"
+				},
+				{
+					"key": "libgcc1_1-8.3.0-6_arm64",
+					"name": "libgcc1",
+					"version": "1:8.3.0-6"
+				},
+				{
+					"key": "gcc-8-base_8.3.0-6_arm64",
+					"name": "gcc-8-base",
+					"version": "8.3.0-6"
+				},
+				{
+					"key": "libcap2_1-2.25-2_arm64",
+					"name": "libcap2",
+					"version": "1:2.25-2"
+				},
+				{
+					"key": "zsh-common_5.7.1-1-p-deb10u1_arm64",
+					"name": "zsh-common",
+					"version": "5.7.1-1+deb10u1"
+				}
+			],
+			"key": "zsh_5.7.1-1-p-deb10u1_arm64",
+			"name": "zsh",
+			"sha256": "0be9aa877fab7ccd1d54632a75d9e9176590a0094c30e22e0e5197b5a8d1bfcb",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/z/zsh/zsh_5.7.1-1+deb10u1_arm64.deb",
+			"version": "5.7.1-1+deb10u1"
+		},
+		{
+			"arch": "arm64",
+			"dependencies": [],
+			"key": "zsh-common_5.7.1-1-p-deb10u1_arm64",
+			"name": "zsh-common",
+			"sha256": "3f0a99094085e16e2f0d9c93f20f7cc93efb673518f51dcea37c392cff79ef02",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/z/zsh/zsh-common_5.7.1-1+deb10u1_all.deb",
+			"version": "5.7.1-1+deb10u1"
 		}
 	],
 	"version": 1

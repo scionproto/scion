@@ -20,6 +20,7 @@ archs:
 
 packages:
   - bridge-utils
+  - bash
   - iperf3
   - iptables
   - netcat-openbsd
@@ -29,3 +30,4 @@ packages:
   - telnet
   - tshark
   - wget
+  - zsh
