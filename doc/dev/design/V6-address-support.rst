@@ -77,7 +77,7 @@ it, simply as a result of:
 * Opening a UDP/TCP connection to said address via the regular socket API. This would imply
   the existence of SCION-aware code below the socket API that:
 
-  * Recognizes scion addresses and handles the traffic accordingly.
+  * Recognizes SCION addresses and handles the traffic accordingly.
   * Performs some default route selection on behalf of the oblivious application.
 
 This proposal does not cover the last topic. However resolving the first two is a
