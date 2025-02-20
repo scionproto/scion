@@ -67,9 +67,7 @@ func TestDeriveASHostGeneric(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			key, err := drkeytest.DeriveASHostGeneric(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
@@ -78,7 +76,7 @@ func TestDeriveASHostGeneric(t *testing.T) {
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
 				keyStr := hex.EncodeToString(key.Key[:])
-				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0o666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
@@ -114,9 +112,7 @@ func TestDeriveGenericHostAS(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			key, err := drkeytest.DeriveHostASGeneric(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
@@ -125,7 +121,7 @@ func TestDeriveGenericHostAS(t *testing.T) {
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
 				keyStr := hex.EncodeToString(key.Key[:])
-				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0o666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
@@ -172,9 +168,7 @@ func TestDeriveGenericHostHost(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			key, err := drkeytest.DeriveHostHostGeneric(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
@@ -183,7 +177,7 @@ func TestDeriveGenericHostHost(t *testing.T) {
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
 				keyStr := hex.EncodeToString(key.Key[:])
-				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0o666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)

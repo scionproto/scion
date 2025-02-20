@@ -136,7 +136,6 @@ func TestChachingPolicyGenGenerate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
@@ -160,7 +159,6 @@ func TestChachingPolicyGenGenerate(t *testing.T) {
 }
 
 func TestLoadingPolicyGenGenerate(t *testing.T) {
-
 	ca := xtest.LoadChain(t, "testdata/common/ISD1/ASff00_0_110/crypto/ca/ISD1-ASff00_0_110.ca.crt")
 	key := loadKey(t, "testdata/common/ISD1/ASff00_0_110/crypto/ca/cp-ca.key")
 
@@ -272,7 +270,6 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
@@ -293,10 +290,8 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 			assert.Equal(t, time.Hour, p.Validity)
 			assert.Equal(t, key, p.Signer)
 			assert.Equal(t, ca[0], p.Certificate)
-
 		})
 	}
-
 }
 
 func TestCACertLoaderCACerts(t *testing.T) {
@@ -332,7 +327,7 @@ func TestCACertLoaderCACerts(t *testing.T) {
 			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
 				dir := defaultGen(t)
 				trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
-				err := os.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0666)
+				err := os.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0o666)
 				require.NoError(t, err)
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1}).Return(trc, nil)
@@ -382,7 +377,6 @@ func TestCACertLoaderCACerts(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)

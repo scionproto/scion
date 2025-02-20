@@ -167,7 +167,6 @@ func TestTRCVerifyUpdate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -304,7 +303,6 @@ func TestTRCVerifyBase(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			signed := tc.SignedTRC(t)
 			err := signed.Verify(tc.Predecessor)

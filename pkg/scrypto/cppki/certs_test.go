@@ -320,7 +320,6 @@ func TestValidateRoot(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -330,7 +329,6 @@ func TestValidateRoot(t *testing.T) {
 			tc.assertErr(t, err)
 		})
 	}
-
 }
 
 func TestValidateCA(t *testing.T) {
@@ -369,7 +367,6 @@ func TestValidateCA(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -463,7 +460,6 @@ func TestValidateAS(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -580,7 +576,6 @@ func TestValidateRegular(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -635,7 +630,6 @@ func TestValidateSensitive(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -696,7 +690,6 @@ func TestValidateCert(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", tc.CertFile))
@@ -772,7 +765,6 @@ func TestValidateChain(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			chain, err := cppki.ReadPEMCerts(validChainFile)
@@ -940,7 +932,6 @@ func TestVerifyChain(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			err := cppki.VerifyChain(tc.chain, tc.opts)

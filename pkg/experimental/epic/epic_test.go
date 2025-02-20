@@ -51,7 +51,6 @@ func TestPrepareMacInput(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			inputBuffer := make([]byte, libepic.MACBufferSize)
 			inputLength, err := libepic.PrepareMacInput(e.PktID, tc.ScionHeader, ts,
@@ -118,7 +117,6 @@ func TestCreateTimestamp(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			epicTS, err := libepic.CreateTimestamp(tc.Timestamp, now)
 			tc.errorFunc(t, err)
@@ -180,7 +178,6 @@ func TestVerifyTimestamp(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			// Verify the timestamp now
 			err := libepic.VerifyTimestamp(timeInfoCreation, tc.EpicTS, now)
@@ -317,7 +314,6 @@ func TestVerifyHVF(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			err = libepic.VerifyHVF(tc.Authenticator, tc.PktID,
 				tc.ScionHeader, tc.Timestamp, tc.HVF,
@@ -346,7 +342,6 @@ func TestPktCounterFromCore(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			got := libepic.PktCounterFromCore(tc.CoreID, tc.CoreCounter)
 			assert.Equal(t, tc.Want, got)
@@ -368,7 +363,6 @@ func TestCoreFromPktCounter(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			coreID, coreCounter := libepic.CoreFromPktCounter(tc.PktCounter)
 			assert.Equal(t, tc.WantCoreID, coreID)

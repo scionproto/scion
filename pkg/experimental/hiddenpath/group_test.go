@@ -36,7 +36,6 @@ func TestGroupIDUint64Conversion(t *testing.T) {
 		{OwnerAS: addr.MustParseAS("ff00:0:112"), Suffix: 0},
 	}
 	for i, id := range testCases {
-		i, id := i, id
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			raw := id.ToUint64()
 			assert.Equal(t, id, hiddenpath.GroupIDFromUint64(raw))
@@ -98,14 +97,13 @@ func TestNewGroup(t *testing.T) {
 	}
 
 	for name, tc := range testcases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			if *update {
 				raw, err := yaml.Marshal(tc.want)
 				require.NoError(t, err)
-				err = os.WriteFile(tc.input, raw, 0666)
+				err = os.WriteFile(tc.input, raw, 0o666)
 				require.NoError(t, err)
 				return
 			}
@@ -187,7 +185,6 @@ func TestGroupValidate(t *testing.T) {
 	}
 
 	for name, tc := range testcases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

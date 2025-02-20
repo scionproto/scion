@@ -148,7 +148,6 @@ func TestRegistrationResolverResolve(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -162,7 +161,6 @@ func TestRegistrationResolverResolve(t *testing.T) {
 			got, err := r.Resolve(context.Background(), addr.MustParseIA("1-ff00:0:110"))
 			tc.assertErr(t, err)
 			assert.Equal(t, tc.want, got)
-
 		})
 	}
 }

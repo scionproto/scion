@@ -168,11 +168,9 @@ func TestRoutingTableRouteIPv4(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			for i, input := range tc.input {
-				i, input := i, input
 				t.Run(strconv.Itoa(i), func(t *testing.T) {
 					t.Parallel()
 					got := tc.rt().RouteIPv4(input)
@@ -237,7 +235,6 @@ func TestRoutingTableRouteIPv6(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := tc.rt().RouteIPv6(tc.input)

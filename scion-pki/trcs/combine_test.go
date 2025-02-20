@@ -72,7 +72,7 @@ func TestCombine(t *testing.T) {
 		})
 		raw, err := signed.Encode()
 		require.NoError(t, err)
-		require.NoError(t, os.WriteFile("./testdata/admin/ISD1-B1-S1.trc", raw, 0644))
+		require.NoError(t, os.WriteFile("./testdata/admin/ISD1-B1-S1.trc", raw, 0o644))
 	}
 
 	dir := t.TempDir()
@@ -173,7 +173,6 @@ func TestCombineSignerInfos(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			infos, err := trcs.CombineSignerInfos(tc.partialTRCs(t))
@@ -217,7 +216,6 @@ func TestCombineDigestAlgorithms(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

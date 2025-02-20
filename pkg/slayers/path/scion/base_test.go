@@ -64,9 +64,7 @@ func TestIncPath(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		for i := range tc.inIdxs {
-			i := i
 			t.Run(fmt.Sprintf("%s case %d", name, i+1), func(t *testing.T) {
 				t.Parallel()
 				s := scion.Base{
@@ -86,7 +84,6 @@ func TestIncPath(t *testing.T) {
 					assert.Equal(t, uint8(tc.wantIdxs[i][0]), s.PathMeta.CurrINF, "CurrINF")
 					assert.Equal(t, uint8(tc.wantIdxs[i][1]), s.PathMeta.CurrHF, "CurrHF")
 				}
-
 			})
 		}
 	}
@@ -132,9 +129,7 @@ func TestBaseIsXOver(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		for i := range tc.xover {
-			i := i
 			s := scion.Base{
 				PathMeta: scion.MetaHdr{
 					CurrINF: uint8(tc.inIdxs[i][0]),

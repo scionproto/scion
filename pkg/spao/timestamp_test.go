@@ -44,9 +44,7 @@ func TestTimestamp(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			rt, err := spao.RelativeTimestamp(tc.epoch, tc.currentTime)
 			tc.assertErr(t, err)
 			if err != nil {

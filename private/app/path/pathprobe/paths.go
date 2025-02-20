@@ -134,8 +134,8 @@ func WithEPIC(epic bool) Option {
 // returned map is keyed with path.Path.FwdPath. The input should only be
 // non-empty paths.
 func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
-	opts ...Option) (map[string]Status, error) {
-
+	opts ...Option,
+) (map[string]Status, error) {
 	o := applyOption(opts)
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -192,7 +192,6 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 	var seq int32
 	g, _ := errgroup.WithContext(ctx)
 	for localIP, paths := range pathsPerIP {
-		localIP, paths := localIP, paths
 		g.Go(func() error {
 			defer log.HandlePanic()
 

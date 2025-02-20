@@ -293,7 +293,6 @@ func TestComputeAuthMac(t *testing.T) {
 			},
 			pld: fooPayload,
 			rawMACInput: append([]byte{
-
 				// 1. Authenticator Option Metadata
 				0x1d, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
 				0x0, 0x0, // Algorithm | RSV
@@ -329,9 +328,7 @@ func TestComputeAuthMac(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			optAuth, err := slayers.NewPacketAuthOption(tc.optionParameter)
 			assert.NoError(t, err)
 

@@ -59,7 +59,6 @@ func TestSCMPDecodeFromBytes(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := &slayers.SCMP{}
@@ -115,7 +114,6 @@ func TestSCMPSerializeTo(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			tc.decoded.Contents = tc.raw[:4]
@@ -323,7 +321,8 @@ func TestSCMP(t *testing.T) {
 		"echo request": {
 			raw: append([]byte{
 				0x80, 0x00, 0x1a, 0x8c, // header SCMP
-				0x00, 0x2a, 0x05, 0x39}, // start header SCMP msg
+				0x00, 0x2a, 0x05, 0x39,
+			}, // start header SCMP msg
 				bytes.Repeat([]byte{0xff}, 15)...), // final payload
 			decodedLayers: []gopacket.SerializableLayer{
 				&slayers.SCMP{
@@ -332,7 +331,8 @@ func TestSCMP(t *testing.T) {
 							0x80, 0x0, 0x1a, 0x8c,
 						},
 						Payload: append([]byte{
-							0x00, 0x2a, 0x05, 0x39},
+							0x00, 0x2a, 0x05, 0x39,
+						},
 							bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
@@ -355,7 +355,8 @@ func TestSCMP(t *testing.T) {
 		"echo reply": {
 			raw: append([]byte{
 				0x81, 0x00, 0x19, 0x8c, // header SCMP
-				0x00, 0x2a, 0x05, 0x39}, // start header SCMP msg
+				0x00, 0x2a, 0x05, 0x39,
+			}, // start header SCMP msg
 				bytes.Repeat([]byte{0xff}, 15)...), // final payload
 			decodedLayers: []gopacket.SerializableLayer{
 				&slayers.SCMP{
@@ -364,7 +365,8 @@ func TestSCMP(t *testing.T) {
 							0x81, 0x0, 0x19, 0x8c,
 						},
 						Payload: append([]byte{
-							0x00, 0x2a, 0x05, 0x39},
+							0x00, 0x2a, 0x05, 0x39,
+						},
 							bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoReply, 0),
@@ -391,7 +393,8 @@ func TestSCMP(t *testing.T) {
 				0x00, 0x01, 0xff, 0x00,
 				0x00, 0x00, 0x01, 0x11,
 				0x00, 0x00, 0x00, 0x00,
-				0x00, 0x00, 0x00, 0x05},
+				0x00, 0x00, 0x00, 0x05,
+			},
 				bytes.Repeat([]byte{0xff}, 15)...), // final payload
 			decodedLayers: []gopacket.SerializableLayer{
 				&slayers.SCMP{
@@ -404,7 +407,8 @@ func TestSCMP(t *testing.T) {
 							0x00, 0x01, 0xff, 0x00,
 							0x00, 0x00, 0x01, 0x11,
 							0x00, 0x00, 0x00, 0x00,
-							0x00, 0x00, 0x00, 0x05},
+							0x00, 0x00, 0x00, 0x05,
+						},
 							bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
@@ -437,7 +441,8 @@ func TestSCMP(t *testing.T) {
 				0x00, 0x01, 0xff, 0x00,
 				0x00, 0x00, 0x01, 0x11,
 				0x00, 0x00, 0x00, 0x00,
-				0x00, 0x00, 0x00, 0x05},
+				0x00, 0x00, 0x00, 0x05,
+			},
 				bytes.Repeat([]byte{0xff}, 15)...), // final payload
 			decodedLayers: []gopacket.SerializableLayer{
 				&slayers.SCMP{
@@ -450,7 +455,8 @@ func TestSCMP(t *testing.T) {
 							0x00, 0x01, 0xff, 0x00,
 							0x00, 0x00, 0x01, 0x11,
 							0x00, 0x00, 0x00, 0x00,
-							0x00, 0x00, 0x00, 0x05},
+							0x00, 0x00, 0x00, 0x05,
+						},
 							bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
@@ -479,7 +485,6 @@ func TestSCMP(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			t.Run("decode", func(t *testing.T) {

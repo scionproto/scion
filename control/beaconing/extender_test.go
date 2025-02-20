@@ -90,7 +90,6 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		},
 	}
 	for name, tc := range testsCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
@@ -332,7 +331,6 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			},
 		}
 		for name, tc := range testCases {
-			name, tc := name, tc
 			t.Run(name, func(t *testing.T) {
 				mctrl := gomock.NewController(t)
 				defer mctrl.Finish()

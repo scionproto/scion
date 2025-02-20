@@ -145,7 +145,8 @@ func TestAPI(t *testing.T) {
 				q := query.Params{
 					SegIDs: [][]byte{
 						xtest.MustParseHexString(id1),
-						xtest.MustParseHexString(id2)},
+						xtest.MustParseHexString(id2),
+					},
 				}
 				s := &Server{
 					Segments: seg,
@@ -176,7 +177,8 @@ func TestAPI(t *testing.T) {
 					gomock.Any()).AnyTimes().DoAndReturn(
 					func(_ any,
 						msg []byte,
-						associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
+						associatedData ...[]byte,
+					) (*cryptopb.SignedMessage, error) {
 						inputHdr := &cryptopb.Header{
 							SignatureAlgorithm: 3,
 							VerificationKeyId:  []byte("id"),
@@ -231,7 +233,6 @@ func TestAPI(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
@@ -249,7 +250,7 @@ func TestAPI(t *testing.T) {
 				return
 			}
 			if *update {
-				require.NoError(t, os.WriteFile(tc.ResponseFile, rr.Body.Bytes(), 0666))
+				require.NoError(t, os.WriteFile(tc.ResponseFile, rr.Body.Bytes(), 0o666))
 			}
 			golden, err := os.ReadFile(tc.ResponseFile)
 			require.NoError(t, err)
@@ -262,7 +263,8 @@ func createSegs(t *testing.T, signer seg.Signer) query.Results {
 	asEntry1 := seg.ASEntry{
 		Local: addr.MustParseIA("1-ff00:0:110"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: [path.MacLen]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11},
+			HopField: seg.HopField{
+				MAC:        [path.MacLen]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11},
 				ConsEgress: 1,
 			},
 		},
@@ -270,16 +272,20 @@ func createSegs(t *testing.T, signer seg.Signer) query.Results {
 	asEntry2 := seg.ASEntry{
 		Local: addr.MustParseIA("1-ff00:0:111"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: [path.MacLen]byte{0x12, 0x12, 0x12, 0x12, 0x12, 0x12},
+			HopField: seg.HopField{
+				MAC:         [path.MacLen]byte{0x12, 0x12, 0x12, 0x12, 0x12, 0x12},
 				ConsIngress: 1,
-				ConsEgress:  2},
+				ConsEgress:  2,
+			},
 		},
 	}
 	asEntry3 := seg.ASEntry{
 		Local: addr.MustParseIA("1-ff00:0:113"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: [path.MacLen]byte{0x13, 0x13, 0x13, 0x13, 0x13, 0x13},
-				ConsIngress: 2},
+			HopField: seg.HopField{
+				MAC:         [path.MacLen]byte{0x13, 0x13, 0x13, 0x13, 0x13, 0x13},
+				ConsIngress: 2,
+			},
 		},
 	}
 	ps1, _ := seg.CreateSegment(time.Unix(1611051121, 0).UTC(), 1337)

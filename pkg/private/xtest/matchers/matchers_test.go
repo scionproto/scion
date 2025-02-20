@@ -108,7 +108,6 @@ func TestPartialStructMatches(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			am := tc.Matcher.Matches(tc.Input)
 			assert.Equal(t, tc.ExpectMatch, am, tc.Matcher.String())

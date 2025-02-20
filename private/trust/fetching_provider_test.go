@@ -110,7 +110,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
 					ia:   query.IA,
-					skid: query.SubjectKeyID}).Return(all, nil)
+					skid: query.SubjectKeyID,
+				}).Return(all, nil)
 				return db
 			},
 			Recurser: func(t *testing.T, ctrl *gomock.Controller) trust.Recurser {
@@ -135,7 +136,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
 					ia:   query.IA,
-					skid: query.SubjectKeyID}).Return(all, nil)
+					skid: query.SubjectKeyID,
+				}).Return(all, nil)
 				return db
 			},
 			Recurser: func(t *testing.T, ctrl *gomock.Controller) trust.Recurser {
@@ -157,7 +159,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
 					ia:   query.IA,
-					skid: query.SubjectKeyID}).Return(all, nil)
+					skid: query.SubjectKeyID,
+				}).Return(all, nil)
 				db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).Return(trc, nil)
 				return db
 			},
@@ -180,7 +183,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
 					ia:   query.IA,
-					skid: query.SubjectKeyID}).Return(nil, nil)
+					skid: query.SubjectKeyID,
+				}).Return(nil, nil)
 				db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).Return(trc, nil)
 				db.EXPECT().InsertChain(gomock.Any(), valid).Return(true, nil)
 				return db
@@ -214,7 +218,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
 					ia:   query.IA,
-					skid: query.SubjectKeyID}).Return(nil, nil)
+					skid: query.SubjectKeyID,
+				}).Return(nil, nil)
 				db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).Return(trc, nil)
 				db.EXPECT().InsertChain(gomock.Any(), valid).Return(true, nil)
 				return db
@@ -242,7 +247,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
 					ia:   query.IA,
-					skid: query.SubjectKeyID}).Return(nil, nil)
+					skid: query.SubjectKeyID,
+				}).Return(nil, nil)
 				db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).Return(trc, nil)
 				return db
 			},
@@ -421,7 +427,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
 					ia:   query.IA,
-					skid: query.SubjectKeyID}).Return(nil, nil)
+					skid: query.SubjectKeyID,
+				}).Return(nil, nil)
 				db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).Return(trc, nil)
 				return db
 			},
@@ -448,7 +455,6 @@ func TestFetchingProviderGetChains(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
@@ -767,7 +773,6 @@ func TestFetchingProviderNotifyTRC(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

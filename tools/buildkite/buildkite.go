@@ -63,8 +63,6 @@ type Downloader struct {
 func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 	jobGroup, ctx := errgroup.WithContext(context.Background())
 	for _, job := range build.Jobs {
-		job := job
-
 		if job.ArtifactsURL == nil {
 			d.info("Ignoring job without artifacts: %s\n", *job.ID)
 			continue
@@ -90,8 +88,6 @@ func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 
 			artifactsGroup, _ := errgroup.WithContext(ctx)
 			for _, a := range artifacts {
-				a := a
-
 				if a.DownloadURL == nil {
 					d.info("Ignoring artifact %s without download URL\n", *a.ID)
 					continue
@@ -116,7 +112,7 @@ func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 					start = time.Now()
 					dir := filepath.Join(d.Dir, base)
 					d.info("Start unpacking: %s\n", dir)
-					if err := os.MkdirAll(dir, 0755); err != nil {
+					if err := os.MkdirAll(dir, 0o755); err != nil {
 						return err
 					}
 					cmd := exec.Command("tar", "-xf", file, "-C", dir, "--strip-components", "1")
@@ -155,7 +151,6 @@ func (d *Downloader) downloadArtifact(artifact buildkite.Artifact, file string) 
 	defer f.Close()
 	_, err = d.Client.Artifacts.DownloadArtifactByURL(*artifact.DownloadURL, f)
 	return err
-
 }
 
 func (d *Downloader) info(format string, ctx ...any) {

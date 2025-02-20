@@ -80,7 +80,6 @@ func (r *DefaultRequester) Request(ctx context.Context, reqs Requests) <-chan Re
 		close(replies)
 	}()
 	for i := range reqs {
-		i := i
 		go func() {
 			defer log.HandlePanic()
 			defer wg.Done()
@@ -92,8 +91,8 @@ func (r *DefaultRequester) Request(ctx context.Context, reqs Requests) <-chan Re
 
 // requestWorker processes request i of reqs, and writes the result to the replies channel.
 func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i int,
-	replies chan<- ReplyOrErr) {
-
+	replies chan<- ReplyOrErr,
+) {
 	req := reqs[i]
 	span, ctx := opentracing.StartSpanFromContext(ctx, "segfetcher.requester",
 		opentracing.Tags{

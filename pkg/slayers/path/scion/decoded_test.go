@@ -169,9 +169,7 @@ func TestDecodedSerializeDecode(t *testing.T) {
 
 func TestDecodedReverse(t *testing.T) {
 	for name, tc := range pathReverseCases {
-		name, tc := name, tc
 		for i := range tc.inIdxs {
-			i := i
 			t.Run(fmt.Sprintf("%s case %d", name, i+1), func(t *testing.T) {
 				t.Parallel()
 				inputPath := mkDecodedPath(t, tc.input, uint8(tc.inIdxs[i][0]),

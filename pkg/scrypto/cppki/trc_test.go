@@ -130,7 +130,8 @@ func TestTRCValidateInvariant(t *testing.T) {
 			trc: func() *cppki.TRC {
 				trc := newBaseTRC(t)
 				trc.Certificates = []*x509.Certificate{
-					loadCert(t, "./testdata/sensitive-voting.crt")}
+					loadCert(t, "./testdata/sensitive-voting.crt"),
+				}
 				return trc
 			},
 			err: cppki.ErrNotEnoughVoters,
@@ -179,7 +180,6 @@ func TestTRCValidateInvariant(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			err := tc.trc().Validate()
@@ -637,7 +637,6 @@ func TestTRCValidateUpdate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -652,7 +651,6 @@ func TestTRCValidateUpdate(t *testing.T) {
 			assert.ElementsMatch(t, expected.NewVoters, update.NewVoters)
 			assert.ElementsMatch(t, expected.RootAcknowledgments, update.RootAcknowledgments)
 			assert.ElementsMatch(t, expected.Votes, update.Votes)
-
 		})
 	}
 }

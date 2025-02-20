@@ -144,7 +144,6 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 	}
 
 	for name, tc := range tests {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
@@ -170,7 +169,6 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 				}
 				assert.Equal(t, expected, metrics.CounterValue(ctr.With("test_tag", res)), res)
 			}
-
 		})
 	}
 }
@@ -232,7 +230,6 @@ func signCert(
 	subjectKey crypto.PublicKey,
 	issuerKey crypto.PrivateKey,
 ) *x509.Certificate {
-
 	raw, err := x509.CreateCertificate(rand.Reader, tmpl, issuer, subjectKey, issuerKey)
 	require.NoError(t, err)
 	cert, err := x509.ParseCertificate(raw)

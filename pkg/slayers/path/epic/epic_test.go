@@ -145,7 +145,6 @@ func TestSerialize(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			b := make([]byte, len(tc.Serialized))
 			err := tc.Path.SerializeTo(b)
@@ -177,7 +176,6 @@ func TestDecode(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			got := epic.Path{}
 			assert.NoError(t, got.DecodeFromBytes(tc.Serialized))
@@ -278,7 +276,6 @@ func TestReverse(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			got, err := tc.Path.Reverse()
 			assert.NoError(t, err)
@@ -309,7 +306,6 @@ func TestSerializePktID(t *testing.T) {
 	}
 
 	for name, tc := range testCasesSerialize {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			bNew := make([]byte, epic.PktIDLen)
 			tc.PktID.SerializeTo(bNew)
@@ -340,7 +336,6 @@ func TestDecodePktID(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			pktIDNew := epic.PktID{}
 			pktIDNew.DecodeFromBytes(tc.Serialized)

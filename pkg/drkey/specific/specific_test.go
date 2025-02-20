@@ -68,9 +68,7 @@ func TestDeriveASHostSpecific(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			key, err := drkeytest.DeriveASHostSpecific(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
@@ -79,7 +77,7 @@ func TestDeriveASHostSpecific(t *testing.T) {
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
 				keyStr := hex.EncodeToString(key.Key[:])
-				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0o666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
@@ -115,9 +113,7 @@ func TestDeriveSpecificHostAS(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			key, err := drkeytest.DeriveHostASSpecific(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
@@ -126,7 +122,7 @@ func TestDeriveSpecificHostAS(t *testing.T) {
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
 				keyStr := hex.EncodeToString(key.Key[:])
-				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0o666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
@@ -173,9 +169,7 @@ func TestDeriveSpecificHostHost(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-
 			key, err := drkeytest.DeriveHostHostSpecific(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
@@ -184,7 +178,7 @@ func TestDeriveSpecificHostHost(t *testing.T) {
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
 				keyStr := hex.EncodeToString(key.Key[:])
-				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0o666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
@@ -207,8 +201,10 @@ func TestDeriveLevel1(t *testing.T) {
 
 	dstIA := addr.MustParseIA("1-ff00:0:112")
 
-	level1Target := drkey.Key{0xa8, 0x23, 0xf5, 0xb9, 0x56, 0xde,
-		0x7c, 0xc, 0xbc, 0x5a, 0x69, 0x42, 0xf5, 0xb6, 0xfc, 0x10}
+	level1Target := drkey.Key{
+		0xa8, 0x23, 0xf5, 0xb9, 0x56, 0xde,
+		0x7c, 0xc, 0xbc, 0x5a, 0x69, 0x42, 0xf5, 0xb6, 0xfc, 0x10,
+	}
 
 	key, err := deriver.DeriveLevel1(dstIA, sv.Key)
 	require.NoError(t, err)
@@ -220,5 +216,4 @@ func TestDeriveLevel1(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, level1Target, key)
-
 }

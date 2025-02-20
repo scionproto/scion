@@ -111,8 +111,6 @@ func (p *Propagator) run(ctx context.Context) error {
 			continue
 		}
 		wg.Add(1)
-		intf := intf
-		beacons := beacons
 		go func() {
 			defer log.HandlePanic()
 			defer wg.Done()
@@ -162,7 +160,6 @@ func (p *Propagator) beaconsPerInterface(
 	ctx context.Context,
 	intfs []*ifstate.Interface,
 ) (map[*ifstate.Interface][]beacon.Beacon, error) {
-
 	allBeacons, err := p.Provider.BeaconsToPropagate(ctx)
 	if err != nil {
 		return nil, serrors.Wrap("fetching beacons to propagate", err)
@@ -207,7 +204,6 @@ func (p *Propagator) logCandidateBeacons(
 	logger log.Logger,
 	beaconsPerInterface map[*ifstate.Interface][]beacon.Beacon,
 ) {
-
 	if !logger.Enabled(log.DebugLevel) {
 		return
 	}
@@ -282,7 +278,6 @@ func (p *propagator) Propagate(ctx context.Context) error {
 	var wg sync.WaitGroup
 	for _, b := range p.beacons {
 		wg.Add(1)
-		b := b
 		go func() {
 			defer log.HandlePanic()
 			defer wg.Done()

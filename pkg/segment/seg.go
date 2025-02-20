@@ -226,8 +226,8 @@ func (ps *PathSegment) MinExpiry() time.Time {
 }
 
 func (ps *PathSegment) expiry(initTTL time.Duration,
-	compare func(time.Duration, time.Duration) bool) time.Time {
-
+	compare func(time.Duration, time.Duration) bool,
+) time.Time {
 	ttl := initTTL
 	for _, asEntry := range ps.ASEntries {
 		hfTTL := path.ExpTimeToDuration(asEntry.HopEntry.HopField.ExpTime)
@@ -276,7 +276,6 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 		Extensions:  extensionsToPB(asEntry.Extensions),
 	}
 	for _, peer := range asEntry.PeerEntries {
-		peer := peer
 		asEntryPB.PeerEntries = append(asEntryPB.PeerEntries,
 			&cppb.PeerEntry{
 				PeerIsdAs:     uint64(peer.Peer),

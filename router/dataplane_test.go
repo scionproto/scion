@@ -622,7 +622,6 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ch := make(chan struct{})
@@ -1261,8 +1260,10 @@ func TestProcessPkt(t *testing.T) {
 				ingress := uint16(1)
 				egress := uint16(0)
 				if afterProcessing {
-					dstAddr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(),
-						Port: dstUDPPort}
+					dstAddr = &net.UDPAddr{
+						IP:   net.ParseIP("10.0.200.200").To4(),
+						Port: dstUDPPort,
+					}
 				}
 				return router.NewPacket(toBytes(t, spkt, dpath), nil, dstAddr, ingress, egress)
 			},
@@ -1545,7 +1546,6 @@ func TestProcessPkt(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			dp := tc.prepareDP(ctrl)
@@ -1607,8 +1607,8 @@ func prepBaseMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
 }
 
 func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
-	epicTS uint32, now time.Time) (*slayers.SCION, *epic.Path, *scion.Decoded) {
-
+	epicTS uint32, now time.Time,
+) (*slayers.SCION, *epic.Path, *scion.Decoded) {
 	spkt, dpath := prepBaseMsg(now)
 	spkt.PathType = epic.PathType
 
@@ -1616,7 +1616,7 @@ func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
 	dpath.HopFields = []path.HopField{
 		{ConsIngress: 41, ConsEgress: 40},
 		{ConsIngress: 31, ConsEgress: 30},
-		{ConsIngress: 01, ConsEgress: 0},
+		{ConsIngress: 0o1, ConsEgress: 0},
 	}
 	dpath.Base.PathMeta.CurrHF = 2
 	dpath.Base.PathMeta.CurrINF = 0
@@ -1639,8 +1639,8 @@ func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
 }
 
 func prepareEpicCrypto(t *testing.T, spkt *slayers.SCION,
-	epicpath *epic.Path, dpath *scion.Decoded, key []byte) {
-
+	epicpath *epic.Path, dpath *scion.Decoded, key []byte,
+) {
 	// Calculate SCION MAC
 	dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 	scionPath, err := dpath.ToRaw()
@@ -1664,7 +1664,6 @@ func toIP(
 	afterProcessing bool,
 	ingress, egress uint16,
 ) *router.Packet {
-
 	// Encapsulate in IPv4
 	var dstAddr *net.UDPAddr
 	dst := addr.MustParseHost("10.0.100.100")

@@ -90,7 +90,6 @@ func TestCSRTemplate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			subject, err := createSubject(tc.File, tc.CommonName)
@@ -249,7 +248,6 @@ func TestSelectLatestTRCs(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			_ = tc
 			t.Parallel()
