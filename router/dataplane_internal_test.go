@@ -51,7 +51,7 @@ var (
 func TestReceiver(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	dp := NewDataPlane(RunConfig{NumProcessors: 1, BatchSize: 64}, false)
+	dp := newDataPlane(RunConfig{NumProcessors: 1, BatchSize: 64}, false)
 	counter := 0
 	mInternal := mock_router.NewMockBatchConn(ctrl)
 	done := make(chan bool)
@@ -133,7 +133,7 @@ func TestForwarder(t *testing.T) {
 	defer ctrl.Finish()
 	done := make(chan struct{})
 	prepareDP := func(ctrl *gomock.Controller) *dataPlane {
-		ret := NewDataPlane(
+		ret := newDataPlane(
 			RunConfig{NumProcessors: 20, BatchSize: 64, NumSlowPathProcessors: 1}, false)
 		mInternal := mock_router.NewMockBatchConn(ctrl)
 		totalCount := 0

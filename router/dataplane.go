@@ -256,18 +256,18 @@ type drkeyProvider interface {
 	) (drkey.ASHostKey, error)
 }
 
-// NewDataPlane returns a zero-valued data plane structure. The difference between
+// newDataPlane returns a zero-valued data plane structure. The difference between
 // that and &dataPlane{} is that there are no nil pointers (i.e. maps are empty but exist and some
 // key objects like the underlay provider have been created) except for such things that cannot be
 // initialized at the beginning (i.e. packet pool and macFactory). Do not use a true zero valued
 // struct for anything. Support for lazy initialization has been removed. It was much too
 // bug-friendly.
-func NewDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
+func newDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
 	x := makeDataPlane(runConfig, authSCMP)
 	return &x
 }
 
-// makeDataPlane returns a zero-valued data plane structure. This is the same as NewDataPlane
+// makeDataPlane returns a zero-valued data plane structure. This is the same as newDataPlane
 // but returns by value to facilitate the initialization of composed structs without an temporary
 // copy.
 func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {

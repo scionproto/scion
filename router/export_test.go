@@ -162,13 +162,13 @@ func NewDP(
 	key []byte) *DataPlane {
 
 	return &DataPlane{
-		makeDP(external, linkTypes, internal, internalNextHops, svc, local, neighbors, key),
+		mustMakeDP(external, linkTypes, internal, internalNextHops, svc, local, neighbors, key),
 	}
 }
 
 // NewDPRaw constructs a minimaly initialized DataPlane and returns it by reference. This is useful
 // to non-internal tests that do not want any dataplane configuration beyond the strictly necessary.
-// This is equivalent to router.NewDataPlane, but returns an exported type.
+// This is equivalent to router.newDataPlane, but returns an exported type.
 func NewDPRaw(runConfig RunConfig, authSCMP bool) *DataPlane {
 
 	edp := &DataPlane{
