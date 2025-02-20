@@ -17,6 +17,7 @@
 package router
 
 import (
+	"context"
 	"net/netip"
 )
 
@@ -44,7 +45,6 @@ type Link interface {
 	Scope() LinkScope
 	BFDSession() BFDSession
 	IsUp() bool
-	IfID() uint16
 	Remote() netip.AddrPort // TODO(multi_underlay): using code will move to underlay.
 	Send(p *Packet) bool
 	SendBlocking(p *Packet)
@@ -59,38 +59,44 @@ type Link interface {
 // make them opaque; to be interpreted only by the underlay implementation.
 type UnderlayProvider interface {
 
+	// NumConnections returns the current number of configured connections.
+	NumConnections() int
+
+	// Start puts the provider in the running state. In that state, the provider can deliver
+	// incoming packets to its output channels and will send packets present on its input
+	// channels. Only connection in existence at the time of calling Start() will be
+	// started. Calling Start has no effect on already running connections.
+	Start(ctx context.Context, pool chan *Packet, proQs []chan *Packet)
+
+	// Stop puts the provider in the stopped state. In that state, the provider no longer delivers
+	// incoming packets and ignores packets present on its input channels. The provider is fully
+	// stopped when this method returns. Only connections in existence at the time of calling Stop
+	// will be stopped. Calling Stop() has no effect on already stopped connections.
+	Stop()
+
 	// NewExternalLink returns a link that addresses a single remote AS at a unique underlay
 	// address. So, it is given an ifID and a underlay remote address at creation. Outgoing packets
 	// do not need an underlay destination as metadata. Incoming packets have a defined ingress
 	// ifID.
 	NewExternalLink(
-		conn BatchConn, qSize int, bfd BFDSession, remote netip.AddrPort, ifID uint16,
+		conn BatchConn,
+		qSize int,
+		bfd BFDSession,
+		remote netip.AddrPort,
+		ifID uint16,
+		metrics InterfaceMetrics,
 	) Link
 
 	// NewSinblingLink returns a link that addresses any number of remote ASes via a single sibling
 	// router. So, it is not given an ifID at creation, but it is given a remote underlay address:
 	// that of the sibling router. Outgoing packets do not need an underlay destination as metadata.
 	// Incoming packets have no defined ingress ifID.
-	NewSiblingLink(qSize int, bfd BFDSession, remote netip.AddrPort) Link
+	NewSiblingLink(qSize int, bfd BFDSession, remote netip.AddrPort, metrics InterfaceMetrics) Link
 
 	// NewIternalLink returns a link that addresses any host internal to the enclosing AS, so it is
 	// given neither ifID nor address. Outgoing packets need to have a destination address as
 	// metadata. Incoming packets have no defined ingress ifID.
-	NewInternalLink(conn BatchConn, qSize int) Link
-
-	// Connections returns the set of configured distinct connections in the provider.
-	//
-	// TODO(multi_underlay): this exists so most of the receiving code can stay in the main
-	// dataplane code for now. There may be fewer connections than links. For example, right now
-	// all sibling links and the internal link use a shared un-bound connection.
-	Connections() map[netip.AddrPort]UnderlayConn
-
-	// Links returns the set of configured distinct links in the provider.
-	//
-	// TODO(multi_underlay): this exists so most of the receiving code can stay in-here for now.
-	// There may be fewer links than ifIDs. For example, all interfaces owned by one given sibling
-	// router are connected via the same link because the remote address is the same.
-	Links() map[netip.AddrPort]Link
+	NewInternalLink(conn BatchConn, qSize int, metrics InterfaceMetrics) Link
 
 	// Link returns a link that matches the given source address. If the address is not that of
 	// a known link, then the internal link is returned.
@@ -99,20 +105,4 @@ type UnderlayProvider interface {
 	// matched with a link), on ingest by the underlay. That would imply moving a part of the
 	// runReceiver routine to the underlay. We will do that in the next step.
 	Link(netip.AddrPort) Link
-}
-
-// UnderlayConn defines the minimum interface that the router expects from an underlay
-// connection.
-//
-// TODO(multi_underlay): this will eventually be reduced to nothing at all because the sender
-// receiver tasks will be part of the underlay.
-type UnderlayConn interface {
-	// Conn returns the BatchConn associated with the connection.
-	Conn() BatchConn
-	// Queue returns the channel associated with the connection.
-	Queue() <-chan *Packet
-	// Name returns the name (for logging) associated with the connection.
-	Name() string
-	// IfID returns the IfID associated with the connection.
-	IfID() uint16
 }
