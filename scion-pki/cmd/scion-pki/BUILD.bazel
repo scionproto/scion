@@ -1,5 +1,6 @@
 load("//tools/lint:go.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
+load("@aspect_bazel_lib//lib:run_binary.bzl", "run_binary")
 
 scion_go_binary(
     name = "scion-pki",
@@ -31,10 +32,13 @@ go_library(
     ],
 )
 
-genrule(
+run_binary(
     name = "gendocs",
-    outs = ["docs"],
-    cmd = "$(location :scion-pki) gendocs $@",
-    tools = [":scion-pki"],
+    args = [
+        "gendocs",
+        "$@",
+    ],
+    out_dirs = ["docs"],
+    tool = ":scion-pki",
     visibility = ["//visibility:public"],
 )

@@ -1,5 +1,6 @@
 load("//tools/lint:go.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
+load("@aspect_bazel_lib//lib:run_binary.bzl", "run_binary")
 
 go_library(
     name = "go_default_library",
@@ -48,10 +49,13 @@ scion_go_binary(
     visibility = ["//visibility:public"],
 )
 
-genrule(
+run_binary(
     name = "gendocs",
-    outs = ["docs"],
-    cmd = "$(location :scion) gendocs $@",
-    tools = [":scion"],
+    args = [
+        "gendocs",
+        "$@",
+    ],
+    out_dirs = ["docs"],
+    tool = ":scion",
     visibility = ["//visibility:public"],
 )
