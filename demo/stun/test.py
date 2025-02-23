@@ -59,9 +59,30 @@ class Test(base.TestTopogen):
         with open (self.artifacts / "gen/scion-dc.yml", "w") as file:
             yaml.dump(scion_dc, file)
 
-        cmd.cp(local.cwd / "demo/stun/sciond_addresses_nat.json", self.artifacts / "gen/sciond_addresses.json")
-        cmd.cp(local.cwd / "demo/stun/networks_nat.conf", self.artifacts / "gen/networks.conf")
-        cmd.cp(local.cwd / "demo/stun/sd_nat.toml", self.artifacts / "gen/ASff00_0_111/sd.toml")
+        with open (self.artifacts / "gen/networks.conf", "r") as file:
+            filecontent = file.read()
+
+        filecontent = filecontent.replace("sd1-ff00_0_111", "nat-ff00_0_111")
+        filecontent = filecontent.replace("tester_1-ff00_0_111 = 172.20.0.29", "[192.168.123.0/24]\nnat-ff00_0_111 = 192.168.123.2\nsd1-ff00_0_111 = 192.168.123.3\ntester_1-ff00_0_111 = 192.168.123.4")
+
+        with open (self.artifacts / "gen/networks.conf", "w") as file:
+            file.write(filecontent)
+
+        with open (self.artifacts / "gen/sciond_addresses.json", "r") as file:
+            filecontent = file.read()
+
+        filecontent = filecontent.replace("172.20.0.28", "192.168.123.4")
+
+        with open (self.artifacts / "gen/sciond_addresses.json", "w") as file:
+            file.write(filecontent)
+
+        with open (self.artifacts / "gen/ASff00_0_111/sd.toml", "r") as file:
+            filecontent = file.read()
+
+        filecontent = filecontent.replace("172.20.0.28", "192.168.123.3")
+
+        with open (self.artifacts / "gen/ASff00_0_111/sd.toml", "w") as file:
+            file.write(filecontent)
 
     def _run(self):
         time.sleep(20) # wait for everything to start up
