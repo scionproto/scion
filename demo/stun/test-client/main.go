@@ -85,13 +85,13 @@ func main() {
 
 		log.Println("sent stun packet")
 
-		var stunBuf [1024]byte
-		n, _, err := conn.ReadFromUDPAddrPort(stunBuf[:])
+		buf := make([]byte, 1024)
+		n, _, err := conn.ReadFromUDPAddrPort(buf[:])
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		tid, stunResponse, err := stun.ParseResponse(stunBuf[:n])
+		tid, stunResp, err := stun.ParseResponse(buf[:n])
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -99,10 +99,10 @@ func main() {
 			log.Fatalf("txid mismatch: got %v, want %v", tid, txID)
 		}
 
-		log.Printf("stun response: %v", stunResponse)
+		log.Printf("stun response: %v", stunResp)
 
-		srcAddr = stunResponse.Addr()
-		srcPort = stunResponse.Port()
+		srcAddr = stunResp.Addr()
+		srcPort = stunResp.Port()
 	}
 
 	dstAddr, ok := netip.AddrFromSlice(remoteAddr.Host.IP)
