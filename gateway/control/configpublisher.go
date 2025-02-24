@@ -48,7 +48,6 @@ func (n *ConfigPublisher) Publish(sp SessionPolicies, rp *routing.Policy) {
 		n.sessionPolicies = sp.Copy()
 		wg.Add(len(n.sessionPoliciesSubscribers))
 		for _, c := range n.sessionPoliciesSubscribers {
-			c := c
 			go func() {
 				defer log.HandlePanic()
 				defer wg.Done()
@@ -57,7 +56,6 @@ func (n *ConfigPublisher) Publish(sp SessionPolicies, rp *routing.Policy) {
 		}
 		wg.Add(len(n.remoteIAsSubscribers))
 		for _, c := range n.remoteIAsSubscribers {
-			c := c
 			go func() {
 				defer log.HandlePanic()
 				defer wg.Done()
@@ -69,7 +67,6 @@ func (n *ConfigPublisher) Publish(sp SessionPolicies, rp *routing.Policy) {
 		n.routingPolicy = rp.Copy()
 		wg.Add(len(n.routingPoliciesSubscribers))
 		for _, c := range n.routingPoliciesSubscribers {
-			c := c
 			go func() {
 				defer log.HandlePanic()
 				defer wg.Done()

@@ -168,7 +168,6 @@ accept    1-ff00:0:113    1-ff00:0:110    10.3.0.0/25`))
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)

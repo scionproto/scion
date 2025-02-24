@@ -544,7 +544,6 @@ func TestBuildRoutingChains(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			chains, sm := control.BuildRoutingChains(tc.Input)
 			assert.Equal(t, tc.Chains, chains)

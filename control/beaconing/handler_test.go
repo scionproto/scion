@@ -160,7 +160,6 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				}
 				b.Segment.ASEntries[b.Segment.MaxIdx()].Local = addr.MustParseIA("1-ff00:0:111")
 				return b
-
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
@@ -255,7 +254,6 @@ func TestHandlerHandleBeacon(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)

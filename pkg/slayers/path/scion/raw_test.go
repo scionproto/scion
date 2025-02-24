@@ -96,9 +96,7 @@ func TestOverlongSerializeDecode(t *testing.T) {
 
 func TestRawReverse(t *testing.T) {
 	for name, tc := range pathReverseCases {
-		name, tc := name, tc
 		for i := range tc.inIdxs {
-			i := i
 			t.Run(fmt.Sprintf("%s case %d", name, i+1), func(t *testing.T) {
 				t.Parallel()
 				input := mkRawPath(t, tc.input, uint8(tc.inIdxs[i][0]), uint8(tc.inIdxs[i][1]))
@@ -146,7 +144,6 @@ func TestGetInfoField(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got, err := rawTestPath.GetInfoField(tc.idx)
@@ -179,7 +176,6 @@ func TestGetHopField(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got, err := rawTestPath.GetHopField(tc.idx)
@@ -213,7 +209,6 @@ func TestSetInfoField(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			raw := &scion.Raw{}
@@ -254,7 +249,6 @@ func TestSetHopField(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			raw := &scion.Raw{}

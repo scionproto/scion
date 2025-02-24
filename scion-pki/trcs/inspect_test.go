@@ -77,7 +77,6 @@ func TestGetHumanEncoding(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
@@ -89,7 +88,7 @@ func TestGetHumanEncoding(t *testing.T) {
 			require.NoError(t, err)
 
 			if *updateNonDeterministic {
-				err := os.WriteFile(tc.Golden, buf.Bytes(), 0644)
+				err := os.WriteFile(tc.Golden, buf.Bytes(), 0o644)
 				require.NoError(t, err)
 				return
 			}
@@ -99,5 +98,4 @@ func TestGetHumanEncoding(t *testing.T) {
 			assert.Equal(t, string(raw), buf.String())
 		})
 	}
-
 }

@@ -62,12 +62,10 @@ func TestTRCIDValidate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			err := tc.ID.Validate()
 			assert.ErrorIs(t, err, tc.Err)
-
 		})
 	}
 }
@@ -101,7 +99,6 @@ func TestNewTRCID(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			trcID, err := cppki.TRCIDFromString(tc.trcStr)
