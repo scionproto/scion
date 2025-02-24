@@ -11,9 +11,6 @@ topogen_test(
         "--executable=test-server-demo:$(location //demo/stun:test-server-demo)",
     ],
     data = [
-        "networks_nat.conf",
-        "sciond_addresses_nat.json",
-        "sd_nat.toml",
         "//demo/stun:test-client-demo",
         "//demo/stun:test-server-demo",
     ],
