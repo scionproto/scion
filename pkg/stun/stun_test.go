@@ -137,27 +137,15 @@ func TestIs(t *testing.T) {
 		{"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", false},
 		{"\x00\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", false},
 		{"\x00\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", true},
+		{"\x00\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00foo", true},
 		// high bits set:
 		{"\xf0\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", false},
 		{"\x40\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", false},
 		// first byte non-zero, but not high bits:
 		{"\x20\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", true},
 	}
-	// without fingerprint
 	for i, tt := range tests {
 		pkt := []byte(tt.in)
-		got := stun.Is(pkt)
-		if got != false {
-			t.Errorf("%d. In(%q (%v)) = %v; want %v", i, pkt, pkt, got, false)
-		}
-	}
-	// with fingerprint
-	for i, tt := range tests {
-		pkt := []byte(tt.in)
-		fp := fingerPrint(pkt)
-		pkt = appendU16(pkt, attrNumFingerprint)
-		pkt = appendU16(pkt, 4)
-		pkt = appendU32(pkt, fp)
 		got := stun.Is(pkt)
 		if got != tt.want {
 			t.Errorf("%d. In(%q (%v)) = %v; want %v", i, pkt, pkt, got, tt.want)
