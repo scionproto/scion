@@ -1,6 +1,6 @@
 {
     "dependencies": {
-        "@redocly/cli": "1.0.2",
+        "@redocly/cli": "1.30.0",
         "@stoplight/spectral-cli": "^6.14.2"
     },
     "pnpm": {
@@ -20,7 +20,7 @@
                     "node-fetch": "2.6.7"
                 }
             },
-            "redoc@~2.0.0": {
+            "redoc@~2.4.0": {
                 "dependencies": {
                     "call-me-maybe": "1.0.2",
                     "yaml": "2.1.3",
