@@ -41,7 +41,8 @@ def scion_tester_image():
     tar(
         name = "tester_layer_sh_symlink",
         mtree = [
-            "./usr/local/bin/sh type=link link=/bin/bash",
+            "./usr/bin/sh type=link link=/usr/bin/bash",
+            "./bin type=link link=usr/bin mode=0777 uid=0 gid=0",
         ],
     )
 
