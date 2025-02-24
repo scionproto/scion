@@ -38,7 +38,7 @@ func updateCert(t *testing.T, goldenCert string) ([]byte, error) {
 	t.Helper()
 	dir := t.TempDir()
 
-	cmd := exec.Command("bash", "-c", "./testdata/update_certs.sh")
+	cmd := exec.Command("sh", "-c", "./testdata/update_certs.sh")
 	cmd.Env = []string{
 		"SAFEDIR=" + dir,
 		"STARTDATE=20200624120000Z",
@@ -52,7 +52,7 @@ func updateCert(t *testing.T, goldenCert string) ([]byte, error) {
 
 	src, dst := filepath.Join(dir, goldenCert), filepath.Join("./testdata", goldenCert)
 	command := fmt.Sprintf("mv %s %s", src, dst)
-	return exec.Command("bash", "-c", command).CombinedOutput()
+	return exec.Command("sh", "-c", command).CombinedOutput()
 }
 
 type testCase struct {

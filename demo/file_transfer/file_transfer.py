@@ -93,7 +93,7 @@ class Test(base.TestTopogen):
                 "source": os.path.realpath("demo/file_transfer/tc_setup.sh"),
                 "target": "/share/tc_setup.sh",
             }],
-            "entrypoint": ["/bin/sh", "-exc",
+            "entrypoint": ["sh", "-exc",
                            "ls -l /share; /share/tc_setup.sh scn_000 16.0mbit ;"
                            " /share/tc_setup.sh scn_001 16.0mbit"],
             "depends_on": ["br1-ff00_0_111-1", "br1-ff00_0_111-2"],

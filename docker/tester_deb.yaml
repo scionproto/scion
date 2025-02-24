@@ -19,8 +19,8 @@ archs:
   - "arm64"
 
 packages:
-  - bridge-utils
   - bash
+  - bridge-utils
   - iperf3
   - iptables
   - netcat-openbsd
@@ -30,4 +30,3 @@ packages:
   - telnet
   - tshark
   - wget
-  - zsh

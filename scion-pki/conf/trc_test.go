@@ -37,7 +37,7 @@ func TestUpdateCerts(t *testing.T) {
 	}
 	dir := t.TempDir()
 
-	cmd := exec.Command("bash", "-c", "./testdata/update_certs.sh")
+	cmd := exec.Command("sh", "-c", "./testdata/update_certs.sh")
 	cmd.Env = []string{
 		"SAFEDIR=" + dir,
 		"STARTDATE=20200624120000Z",

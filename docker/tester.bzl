@@ -8,9 +8,8 @@ load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 # We could potentially generate this with a buildozer rule if it becomes
 # too cumbersome to maintain.
 PACKAGES = [
-    "@tester_deb//bridge-utils",
     "@tester_deb//bash",
-    "@tester_deb//zsh",
+    "@tester_deb//bridge-utils",
     "@tester_deb//iperf3",
     "@tester_deb//iptables",
     "@tester_deb//netcat-openbsd",
@@ -40,18 +39,9 @@ def scion_tester_image():
     )
 
     tar(
-        name = "sh",
+        name = "tester_layer_sh_symlink",
         mtree = [
-            # needed as dpkg assumes sh is installed in a typical debian installation.
-            "./bin/sh type=link link=/bin/bash",
-        ],
-    )
-
-    tar(
-        name = "link_bash",
-        mtree = [
-
-            "./usr/bin/bash type=link link=/bin/bash",
+            "./usr/local/bin/sh type=link link=/bin/bash",
         ],
     )
 
@@ -95,9 +85,8 @@ def scion_tester_image():
         workdir = "/share",
         cmd = ["tail", "-f", "/dev/null"],
         tars = [
-            ":sh",
-            ":link_bash",
             ":tester_layer_deb_remapped",
+            ":tester_layer_sh_symlink",
             ":tester_layer_share",
             ":tester_layer_tools_integration",
             ":tester_layer_bin",

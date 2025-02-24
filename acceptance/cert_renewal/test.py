@@ -120,7 +120,7 @@ class Test(base.TestTopogen):
             "--trc",
             docker_dir / "certs/ISD1-B1-S1.trc",
             "--sciond",
-            self.execute_tester(isd_as, "bash", "-c",
+            self.execute_tester(isd_as, "sh", "-c",
                                 "echo $SCION_DAEMON").strip(),
             *self._local_flags(isd_as),
         ]
@@ -215,7 +215,7 @@ class Test(base.TestTopogen):
     def _local_flags(self, isd_as: ISD_AS) -> List[str]:
         return [
             "--local",
-            self.execute_tester(isd_as, "bash", "-c",
+            self.execute_tester(isd_as, "sh", "-c",
                                 "echo $SCION_LOCAL_ADDR").strip(),
         ]
 
