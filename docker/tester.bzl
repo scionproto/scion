@@ -42,7 +42,7 @@ def scion_tester_image():
         name = "tester_layer_sh_symlink",
         mtree = [
             "./usr/bin/sh type=link link=/usr/bin/bash",
-            "./bin type=link link=usr/bin mode=0777 uid=0 gid=0",
+            "./bin type=link link=/usr/bin mode=0777 uid=0 gid=0",
         ],
     )
 
