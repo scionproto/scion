@@ -217,12 +217,12 @@ func run(cmd *cobra.Command) int {
 	numPkt := 0
 	for time.Since(begin) < testDuration {
 		// we break every 1000 batches to check the time
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			// Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
 			// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
 			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
 			// more than 64K flows).
-			for j := 0; j < batchSize; j++ {
+			for j := range batchSize {
 				binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
 				numPkt++
 			}

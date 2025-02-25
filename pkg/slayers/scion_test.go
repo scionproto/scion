@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -450,30 +451,34 @@ func TestUnkownAddrType(t *testing.T) {
 func BenchmarkDecodePreallocNoParse(b *testing.B) {
 	raw := prepRawPacket(b)
 	s := &slayers.SCION{}
-	for i := 0; i < b.N; i++ {
-		err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback)
-		require.NoError(b, err)
+	for b.Loop() {
+		if err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
 func BenchmarkDecodeNoPreallocNoParse(b *testing.B) {
 	raw := prepRawPacket(b)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		s := &slayers.SCION{}
-		err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback)
-		require.NoError(b, err)
+		if err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
 func BenchmarkDecodePreallocFull(b *testing.B) {
 	raw := prepRawPacket(b)
 	s := &slayers.SCION{}
-	for i := 0; i < b.N; i++ {
-		err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback)
-		require.NoError(b, err)
+	for b.Loop() {
+		if err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 		p := s.Path.(*scion.Raw)
-		_, err = p.ToDecoded()
-		require.NoError(b, err)
+		if _, err := p.ToDecoded(); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
@@ -481,21 +486,24 @@ func BenchmarkSerializeReuseBuffer(b *testing.B) {
 	s := prepPacket(b, slayers.L4UDP)
 	buffer := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths: true}
-	for i := 0; i < b.N; i++ {
-		err := s.SerializeTo(buffer, opts)
-		require.NoError(b, err)
-		err = buffer.Clear()
-		require.NoError(b, err)
+	for b.Loop() {
+		if err := s.SerializeTo(buffer, opts); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
+		if err := buffer.Clear(); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
 func BenchmarkSerializeNoReuseBuffer(b *testing.B) {
 	s := prepPacket(b, slayers.L4UDP)
 	opts := gopacket.SerializeOptions{FixLengths: true}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		buffer := gopacket.NewSerializeBuffer()
-		err := s.SerializeTo(buffer, opts)
-		require.NoError(b, err)
+		if err := s.SerializeTo(buffer, opts); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
