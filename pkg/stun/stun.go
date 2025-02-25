@@ -4,7 +4,6 @@
 // Copied from https://github.com/tailscale/tailscale/blob/main/net/stun/stun.go
 // Modifications:
 // - Remove requirement for "software" attribute
-// - Use "fingerprint" attribute as identifying feature in Is() method
 // - Remove unused methods
 
 // Package STUN parses STUN binding request packets and generates response packets.
