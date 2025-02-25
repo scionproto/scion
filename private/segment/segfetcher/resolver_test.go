@@ -118,7 +118,6 @@ func (rt resolverTest) run(t *testing.T) {
 
 func TestResolver(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
 	futureT := time.Now().Add(2 * time.Minute)
 
@@ -354,7 +353,6 @@ func TestResolver(t *testing.T) {
 
 func TestResolverCacheBypass(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 	// tg := newTestGraph(rootCtrl)
 	// futureT := time.Now().Add(2 * time.Minute)
 
@@ -382,7 +380,6 @@ func TestResolverCacheBypass(t *testing.T) {
 
 func TestResolverWithRevocations(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
 	futureT := time.Now().Add(2 * time.Minute)
 

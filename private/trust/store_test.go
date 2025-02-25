@@ -215,7 +215,6 @@ func TestLoadChains(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctlr := gomock.NewController(t)
-			defer ctlr.Finish()
 
 			dir := tc.genCrypto(t)
 

@@ -62,7 +62,6 @@ var (
 
 func TestRequester(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
 	const maxRetries = 13
 

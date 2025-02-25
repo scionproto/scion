@@ -59,7 +59,6 @@ func (f *TestableFetcher) Fetcher() *segfetcher.Fetcher {
 
 func TestFetcher(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
 	testErr := errors.New("Test err")
 
