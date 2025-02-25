@@ -453,7 +453,7 @@ func TestPacketDecodeIsInverseOfSerialize(t *testing.T) {
 func BenchmarkDecodeEager(b *testing.B) {
 	raw := xtest.MustReadFromFile(b, rawUDPPktFilename)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		gopacket.NewPacket(raw, slayers.LayerTypeSCION, gopacket.Default)
 	}
 }
@@ -470,7 +470,7 @@ func BenchmarkDecodeLayerParser(b *testing.B) {
 		slayers.LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp, &pld,
 	)
 	decoded := []gopacket.LayerType{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := parser.DecodeLayers(raw, &decoded); err != nil {
 			b.Fatalf("error: %v\n", err)
 		}
@@ -489,7 +489,7 @@ func BenchmarkDecodeLayerParserExtn(b *testing.B) {
 		slayers.LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp, &pld,
 	)
 	decoded := []gopacket.LayerType{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := parser.DecodeLayers(raw, &decoded); err != nil {
 			b.Fatalf("error: %v\n", err)
 		}
@@ -508,7 +508,7 @@ func BenchmarkDecodeLayerParserExtnSkipper(b *testing.B) {
 		slayers.LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp, &pld,
 	)
 	decoded := []gopacket.LayerType{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := parser.DecodeLayers(raw, &decoded); err != nil {
 			b.Fatalf("error: %v\n", err)
 		}
@@ -517,7 +517,7 @@ func BenchmarkDecodeLayerParserExtnSkipper(b *testing.B) {
 
 func mkPayload(plen int) []byte {
 	b := make([]byte, plen)
-	for i := 0; i < plen; i++ {
+	for i := range b {
 		b[i] = uint8(i % 256)
 	}
 	return b
