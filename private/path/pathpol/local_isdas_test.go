@@ -27,7 +27,6 @@ import (
 
 func TestLocalISDASEval(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
 	paths212 := pp.GetPaths(addr.MustParseIA("2-ff00:0:212"), addr.MustParseIA("2-ff00:0:220"))
 	paths220 := pp.GetPaths(addr.MustParseIA("2-ff00:0:220"), addr.MustParseIA("2-ff00:0:212"))

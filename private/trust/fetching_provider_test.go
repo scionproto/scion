@@ -458,7 +458,6 @@ func TestFetchingProviderGetChains(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			p := trust.FetchingProvider{
 				DB:       tc.DB(t, mctrl),
 				Recurser: tc.Recurser(t, mctrl),
@@ -777,7 +776,6 @@ func TestFetchingProviderNotifyTRC(t *testing.T) {
 			t.Parallel()
 
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			p := trust.FetchingProvider{
 				DB:       tc.DB(t, mctrl),
 				Recurser: tc.Recurser(t, mctrl),

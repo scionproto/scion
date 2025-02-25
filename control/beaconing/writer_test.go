@@ -87,7 +87,6 @@ func TestRegistrarRun(t *testing.T) {
 	for _, test := range testsLocal {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			topo, err := topology.FromJSONFile(test.fn)
 			require.NoError(t, err)
 			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
@@ -173,7 +172,6 @@ func TestRegistrarRun(t *testing.T) {
 	for _, test := range testsRemote {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 
 			topo, err := topology.FromJSONFile(test.fn)
 			require.NoError(t, err)
@@ -275,7 +273,6 @@ func TestRegistrarRun(t *testing.T) {
 
 	t.Run("Faulty beacons are not sent", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 
 		topo, err := topology.FromJSONFile(topoNonCore)
 		require.NoError(t, err)

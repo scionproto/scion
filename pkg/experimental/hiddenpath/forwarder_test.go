@@ -106,7 +106,6 @@ func TestForwardServerSegments(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			resolver := mock_hiddenpath.NewMockAddressResolver(ctrl)
 			resolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(&net.UDPAddr{}, nil).

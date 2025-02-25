@@ -226,7 +226,6 @@ func TestNewPolicyHandler(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			ht := tc(t, ctrl)
 			handler := routing.NewPolicyHandler(ht.Publisher, ht.Path)

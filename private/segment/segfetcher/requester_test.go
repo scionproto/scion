@@ -62,7 +62,6 @@ var (
 
 func TestRequester(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
 	const maxRetries = 13
 
@@ -192,7 +191,6 @@ func TestRequester(t *testing.T) {
 			ctx, cancelF := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancelF()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			dstProvider := mock_segfetcher.NewMockDstProvider(ctrl)
 			dstProvider.EXPECT().Dst(gomock.Any(), gomock.Any()).AnyTimes()
 			rpc := mock_segfetcher.NewMockRPC(ctrl)

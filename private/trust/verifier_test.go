@@ -182,7 +182,6 @@ func TestVerify(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 
 			v := &trust.Verifier{
 				BoundIA:     tc.boundIA,

@@ -215,7 +215,6 @@ func TestLoadChains(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctlr := gomock.NewController(t)
-			defer ctlr.Finish()
 
 			dir := tc.genCrypto(t)
 
@@ -243,7 +242,6 @@ func TestLoadTRCs(t *testing.T) {
 	dir := genCrypto(t)
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	testCases := map[string]struct {
 		inputDir   string

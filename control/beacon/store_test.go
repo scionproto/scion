@@ -48,7 +48,6 @@ func testStoreSelection(t *testing.T,
 	methodToTest func(store *beacon.Store) ([]beacon.Beacon, error)) {
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	g := graph.NewDefaultGraph(mctrl)
 
 	// Ensure remote out if is set in last AS entry.
@@ -111,7 +110,6 @@ func testStoreSelection(t *testing.T,
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			db := mock_beacon.NewMockDB(mctrl)
 			policies := beacon.Policies{
 				Prop:    beacon.Policy{BestSetSize: test.bestSize},
@@ -158,7 +156,6 @@ func testCoreStoreSelection(t *testing.T,
 	methodToTest func(store *beacon.CoreStore) ([]beacon.Beacon, error)) {
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	g := graph.NewDefaultGraph(mctrl)
 
 	// Ensure remote out if is set in last AS entry.
@@ -228,7 +225,6 @@ func testCoreStoreSelection(t *testing.T,
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			db := mock_beacon.NewMockDB(mctrl)
 			policies := beacon.CorePolicies{
 				Prop:    beacon.Policy{BestSetSize: test.bestSize},

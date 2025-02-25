@@ -64,8 +64,10 @@ func newTestGraph(ctrl *gomock.Controller) *testGraph {
 
 	seg210_120 := g.Beacon([]uint16{graph.If_210_X_110_X, graph.If_110_X_120_A})
 	seg210_130 := g.Beacon([]uint16{graph.If_210_X_110_X, graph.If_110_X_130_A})
-	seg210_130_2 := g.Beacon([]uint16{graph.If_210_X_220_X,
-		graph.If_220_X_120_B, graph.If_120_A_130_B})
+	seg210_130_2 := g.Beacon([]uint16{
+		graph.If_210_X_220_X,
+		graph.If_220_X_120_B, graph.If_120_A_130_B,
+	})
 	seg210_211 := g.Beacon([]uint16{graph.If_210_X_211_A})
 	seg210_212 := g.Beacon([]uint16{graph.If_210_X_211_A, graph.If_211_A_212_X})
 
@@ -100,7 +102,6 @@ type resolverTest struct {
 
 func (rt resolverTest) run(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	db := mock_pathdb.NewMockDB(ctrl)
 	rt.ExpectCalls(db)
@@ -119,7 +120,6 @@ func (rt resolverTest) run(t *testing.T) {
 
 func TestResolver(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
 	futureT := time.Now().Add(2 * time.Minute)
 
@@ -228,8 +228,10 @@ func TestResolver(t *testing.T) {
 					StartsAt: []addr.IA{core_110}, EndsAt: []addr.IA{core_130},
 				})).Return(resultsFromSegs(tg.seg110_130_core), nil)
 			},
-			ExpectedSegments: segfetcher.Segments{tg.seg120_111_up, tg.seg130_111_up,
-				tg.seg110_120_core, tg.seg110_130_core},
+			ExpectedSegments: segfetcher.Segments{
+				tg.seg120_111_up, tg.seg130_111_up,
+				tg.seg110_120_core, tg.seg110_130_core,
+			},
 			ExpectedFetchReqs: nil,
 		},
 		"Up down": {
@@ -341,8 +343,10 @@ func TestResolver(t *testing.T) {
 				})).Return(resultsFromSegs(tg.seg120_111_down, tg.seg130_111_down), nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), isd2, isd1)
 			},
-			ExpectedSegments: segfetcher.Segments{tg.seg210_211_up,
-				tg.seg120_111_down, tg.seg130_111_down},
+			ExpectedSegments: segfetcher.Segments{
+				tg.seg210_211_up,
+				tg.seg120_111_down, tg.seg130_111_down,
+			},
 			ExpectedFetchReqs: segfetcher.Requests{
 				segfetcher.Request{SegType: Core, Src: isd2, Dst: isd1},
 			},
@@ -354,8 +358,7 @@ func TestResolver(t *testing.T) {
 }
 
 func TestResolverCacheBypass(t *testing.T) {
-	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
+	// rootCtrl := gomock.NewController(t)
 	// tg := newTestGraph(rootCtrl)
 	// futureT := time.Now().Add(2 * time.Minute)
 
@@ -383,7 +386,6 @@ func TestResolverCacheBypass(t *testing.T) {
 
 func TestResolverWithRevocations(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
 	futureT := time.Now().Add(2 * time.Minute)
 

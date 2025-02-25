@@ -177,7 +177,6 @@ func TestRegistryRegister(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			h := hiddenpath.RegistryServer{
 				Groups:   groups,

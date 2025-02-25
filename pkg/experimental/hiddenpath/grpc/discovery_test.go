@@ -72,7 +72,6 @@ func TestDiscovererDiscover(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			svc := xtest.NewGRPCService()
 			dspb.RegisterDiscoveryServiceServer(svc.Server(), tc.server(ctrl))

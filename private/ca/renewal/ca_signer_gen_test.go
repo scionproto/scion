@@ -273,7 +273,6 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			g := renewal.LoadingPolicyGen{
 				Validity:     time.Hour,
 				CertProvider: tc.CertProvider(t, mctrl),
@@ -380,7 +379,6 @@ func TestCACertLoaderCACerts(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			dir, db := tc.prepare(t, ctrl)
 			loader := renewal.CACertLoader{

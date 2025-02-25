@@ -29,7 +29,6 @@ import (
 
 func TestRequestSplitter(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	t.Run("multi-cores", func(t *testing.T) {
 		cores := map[addr.IA]struct{}{

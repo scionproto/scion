@@ -59,7 +59,6 @@ func TestRedirectQUIC(t *testing.T) {
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			router := mock_snet.NewMockRouter(ctrl)
 			router.EXPECT().Route(gomock.Any(), gomock.Any()).Times(0)
 			resolver := mock_infraenv.NewMockResolver(ctrl)
@@ -78,7 +77,6 @@ func TestRedirectQUIC(t *testing.T) {
 
 	t.Run("valid SVCAddr, returns no error and UPDAddr", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		resolver := mock_infraenv.NewMockResolver(ctrl)
 		resolver.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
@@ -115,7 +113,6 @@ func TestRedirectQUIC(t *testing.T) {
 func TestBuildFullAddress(t *testing.T) {
 	t.Run("snet address without path, error retrieving path", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		remoteIA := addr.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
@@ -131,7 +128,6 @@ func TestBuildFullAddress(t *testing.T) {
 
 	t.Run("snet address with path", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		remoteIA := addr.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
@@ -152,7 +148,6 @@ func TestBuildFullAddress(t *testing.T) {
 
 	t.Run("snet address without path, successful retrieving path", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		remoteIA := addr.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
@@ -182,7 +177,6 @@ func TestBuildFullAddress(t *testing.T) {
 
 	t.Run("snet address in local AS, underlay address extraction succeeds", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		localIA := addr.MustParseIA("1-ff00:0:1")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
@@ -218,7 +212,6 @@ func TestBuildFullAddress(t *testing.T) {
 
 	t.Run("snet address in local AS, underlay address extraction fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		localIA := addr.MustParseIA("1-ff00:0:1")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
@@ -281,7 +274,6 @@ func TestResolve(t *testing.T) {
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			resolver := mock_infraenv.NewMockResolver(ctrl)
 			path := mock_snet.NewMockPath(ctrl)
 			path.EXPECT().Destination().Return(addr.IA(0)).AnyTimes()

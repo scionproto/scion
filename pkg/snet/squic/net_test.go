@@ -44,7 +44,6 @@ func TestAcceptLoopParallelism(t *testing.T) {
 	}
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	handler := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 	handler.EXPECT().TRC( // nolint - name from published protobuf
@@ -112,7 +111,6 @@ func TestAcceptLoopParallelism(t *testing.T) {
 
 func TestGRPCQUIC(t *testing.T) {
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	handler := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 	handler.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(

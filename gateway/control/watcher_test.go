@@ -33,7 +33,6 @@ import (
 
 func TestGatewayWatcherRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	fetcherCounts := metrics.NewTestCounter()
 	discoveryCounts := metrics.NewTestCounter()
@@ -124,7 +123,6 @@ func TestGatewayWatcherRun(t *testing.T) {
 
 func TestPrefixWatcherRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	fetcherCounts := metrics.NewTestCounter()
 	consumerCounts := metrics.NewTestCounter()

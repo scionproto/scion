@@ -47,7 +47,6 @@ func TestHandlerHandleBeacon(t *testing.T) {
 
 	validBeacon := func() beacon.Beacon {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
 		return beacon.Beacon{
 			Segment: testSegment(g, []uint16{graph.If_220_X_120_B, graph.If_120_A_110_X}),
@@ -257,7 +256,6 @@ func TestHandlerHandleBeacon(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 
 			handler := beaconing.Handler{
 				LocalIA:    localIA,

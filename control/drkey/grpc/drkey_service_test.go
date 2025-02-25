@@ -52,7 +52,6 @@ func TestDRKeySV(t *testing.T) {
 	sv, targetResp := getSVandResp(t)
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	serviceStore := mock_grpc.NewMockEngine(ctrl)
 	serviceStore.EXPECT().GetSecretValue(gomock.Any(), gomock.Any()).Return(sv, nil)
@@ -305,7 +304,6 @@ func TestLevel1(t *testing.T) {
 
 func TestASHost(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	engine := mock_grpc.NewMockEngine(ctrl)
 	engine.EXPECT().DeriveASHost(gomock.Any(), gomock.Any()).Return(
@@ -336,7 +334,6 @@ func TestASHost(t *testing.T) {
 
 func TestHostAS(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	engine := mock_grpc.NewMockEngine(ctrl)
 	engine.EXPECT().DeriveHostAS(gomock.Any(), gomock.Any()).Return(
@@ -367,7 +364,6 @@ func TestHostAS(t *testing.T) {
 
 func TestHostHost(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	engine := mock_grpc.NewMockEngine(ctrl)
 	engine.EXPECT().DeriveHostHost(gomock.Any(), gomock.Any()).Return(
