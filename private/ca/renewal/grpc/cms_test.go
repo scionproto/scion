@@ -205,7 +205,6 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			ctr := metrics.NewTestCounter()
 			s := &grpc.CMS{
 				Verifier:     tc.Verifier(ctrl),

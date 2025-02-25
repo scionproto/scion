@@ -38,7 +38,6 @@ func TestRouterClose(t *testing.T) {
 
 func TestRouterRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	rt := mock_control.NewMockRoutingTable(ctrl)
 	logger := mock_log.NewMockLogger(ctrl)
 	logger.EXPECT().Debug(gomock.Any(), gomock.Any()).AnyTimes()

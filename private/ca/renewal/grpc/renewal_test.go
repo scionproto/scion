@@ -148,7 +148,6 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 			ctr := metrics.NewTestCounter()
-			defer ctrl.Finish()
 			s := &grpc.RenewalServer{
 				CMSHandler: tc.cmsHandler(ctrl),
 				CMSSigner:  tc.cmsSigner(ctrl),

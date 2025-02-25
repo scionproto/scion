@@ -213,7 +213,6 @@ func TestForwarderClassify(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			f := ForwardingLookup{LocalIA: test.LocalIA, CoreChecker: newMockCoreChecker(ctrl)}
 			segType, err := f.classify(context.Background(), test.Request.Src, test.Request.Dst)

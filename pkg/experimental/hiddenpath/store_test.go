@@ -87,7 +87,6 @@ func TestStorerGet(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			s := hiddenpath.Storer{
 				DB: tc.db(ctrl),
@@ -139,7 +138,6 @@ func TestStorerPut(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			s := hiddenpath.Storer{
 				DB: tc.db(ctrl),

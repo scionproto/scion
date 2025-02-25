@@ -104,7 +104,6 @@ func TestDeriveHostAS(t *testing.T) {
 	defer lvl1db.Close()
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	fetcher := mock_drkey.NewMockFetcher(mctrl)
 	fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -182,7 +181,6 @@ func TestGetLevel1Key(t *testing.T) {
 	copy(secondLevel1Key.Key[:], k)
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	fetcher := mock_drkey.NewMockFetcher(mctrl)
 	gomock.InOrder(

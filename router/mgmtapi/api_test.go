@@ -127,7 +127,6 @@ func TestAPI(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			req, err := http.NewRequest("GET", tc.RequestURL, nil)
 			require.NoError(t, err)

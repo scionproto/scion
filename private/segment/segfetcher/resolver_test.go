@@ -100,7 +100,6 @@ type resolverTest struct {
 
 func (rt resolverTest) run(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	db := mock_pathdb.NewMockDB(ctrl)
 	rt.ExpectCalls(db)

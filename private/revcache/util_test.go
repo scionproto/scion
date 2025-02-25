@@ -42,7 +42,6 @@ var (
 func TestNoRevokedHopIntf(t *testing.T) {
 	now := time.Now()
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	seg210_222_1 := createSeg(ctrl)

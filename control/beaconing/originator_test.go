@@ -63,7 +63,6 @@ func TestOriginatorRun(t *testing.T) {
 	}
 	t.Run("run originates ifID packets on all active interfaces", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 		senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 		o := beaconing.Originator{
@@ -126,7 +125,6 @@ func TestOriginatorRun(t *testing.T) {
 	})
 	t.Run("Fast recovery", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 		senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 		sender := mock_beaconing.NewMockSender(mctrl)

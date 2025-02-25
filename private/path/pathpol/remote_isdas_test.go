@@ -71,7 +71,6 @@ func TestRemoteISDASEval(t *testing.T) {
 	}
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
 	paths1_110 := pp.GetPaths(addr.MustParseIA("2-ff00:0:210"), addr.MustParseIA("1-ff00:0:110"))
 	paths2_212 := pp.GetPaths(addr.MustParseIA("2-ff00:0:210"), addr.MustParseIA("2-ff00:0:212"))

@@ -93,7 +93,6 @@ func TestFetcher(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 			defer cancelF()
 			f := NewTestFetcher(ctrl)

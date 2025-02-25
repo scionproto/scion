@@ -243,7 +243,6 @@ func TestLoadTRCs(t *testing.T) {
 	dir := genCrypto(t)
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	testCases := map[string]struct {
 		inputDir   string

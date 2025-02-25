@@ -220,7 +220,6 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			s := hpgrpc.RegistrationServer{
 				Registry: tc.registry(ctrl),

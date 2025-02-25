@@ -38,7 +38,6 @@ import (
 
 func TestResolver(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	srcIA := addr.MustParseIA("1-ff00:0:1")
 	dstIA := addr.MustParseIA("1-ff00:0:2")
@@ -173,7 +172,6 @@ func TestRoundTripper(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			conn := mock_snet.NewMockPacketConn(ctrl)
 
 			if tc.ConnSetup != nil {

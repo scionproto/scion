@@ -35,7 +35,6 @@ var TestTimeout = time.Second
 // TestReplyHandlerEmptyReply test that we can handle an empty SegReply.
 func TestReplyHandlerEmptyReply(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	ctx, cancelF := context.WithTimeout(context.Background(), TestTimeout)
 	defer cancelF()
 
@@ -65,7 +64,6 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 // are properly stored in the result struct and that the result sets the Err.
 func TestHandleAllVerificationsFail(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	ctx, cancelF := context.WithTimeout(context.Background(), TestTimeout)
 	defer cancelF()
 
@@ -116,7 +114,6 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 // segments and 1 revocation are successfully verified and stored.
 func TestReplyHandlerNoErrors(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	ctx, cancelF := context.WithTimeout(context.Background(), TestTimeout)
 	defer cancelF()
 
@@ -163,7 +160,6 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 
 func TestReplyHandlerStorageError(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	ctx, cancelF := context.WithTimeout(context.Background(), TestTimeout)
 	defer cancelF()
 

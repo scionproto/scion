@@ -42,7 +42,6 @@ func TestIPForwarderRun(t *testing.T) {
 	t.Run("nil routing table", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		ipForwarder := &dataplane.IPForwarder{
 			Reader: mock_io.NewMockReader(ctrl),
@@ -54,7 +53,6 @@ func TestIPForwarderRun(t *testing.T) {
 	t.Run("nil packet reader", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		ipForwarder := &dataplane.IPForwarder{
 			RoutingTable: mock_control.NewMockRoutingTable(ctrl),
@@ -112,7 +110,6 @@ func TestIPForwarderRun(t *testing.T) {
 				t.Parallel()
 
 				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
 				reader := mock_io.NewMockReader(ctrl)
 
 				ipForwarder := &dataplane.IPForwarder{
@@ -145,7 +142,6 @@ func TestIPForwarderRun(t *testing.T) {
 	t.Run("successful run", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		reader := mock_io.NewMockReader(ctrl)
 		rt := dataplane.NewRoutingTable([]*control.RoutingChain{

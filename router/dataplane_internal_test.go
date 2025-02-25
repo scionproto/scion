@@ -48,7 +48,6 @@ var testKey = []byte("testkey_xxxxxxxx")
 // the same number of packets as the receiver received.
 func TestReceiver(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	dp := newDataPlane(RunConfig{NumProcessors: 1, BatchSize: 64}, false)
 	counter := 0
 	mInternal := mock_router.NewMockBatchConn(ctrl)
@@ -128,7 +127,6 @@ func TestReceiver(t *testing.T) {
 // and that the buffers have been returned to the buffer pool.
 func TestForwarder(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	done := make(chan struct{})
 	prepareDP := func(ctrl *gomock.Controller) *dataPlane {
 		ret := newDataPlane(

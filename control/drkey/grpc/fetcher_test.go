@@ -60,7 +60,6 @@ func TestLevel1KeyFetching(t *testing.T) {
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	lvl1db := mock_grpc.NewMockEngine(ctrl)
 	lvl1db.EXPECT().DeriveLevel1(gomock.Any()).AnyTimes().Return(drkey.Level1Key{}, nil)

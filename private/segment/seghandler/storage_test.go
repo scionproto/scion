@@ -130,7 +130,6 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			storage := seghandler.DefaultStorage{
 				PathDB: test.PathDB(ctrl),
 			}

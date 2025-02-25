@@ -35,7 +35,6 @@ func TestEngineControllerRun(t *testing.T) {
 	t.Run("double run", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		configurationUpdates := make(chan []*control.SessionConfig)
 		routingTableSwapper := mock_control.NewMockRoutingTableSwapper(ctrl)
@@ -63,7 +62,6 @@ func TestEngineControllerRun(t *testing.T) {
 	t.Run("nil configuration updates", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		routingTableSwapper := mock_control.NewMockRoutingTableSwapper(ctrl)
 		routingTableFactory := mock_control.NewMockRoutingTableFactory(ctrl)
@@ -82,7 +80,6 @@ func TestEngineControllerRun(t *testing.T) {
 	t.Run("nil routing table swapper", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		configurationUpdates := make(chan []*control.SessionConfig)
 		routingTableFactory := mock_control.NewMockRoutingTableFactory(ctrl)
@@ -101,7 +98,6 @@ func TestEngineControllerRun(t *testing.T) {
 	t.Run("nil routing table factory", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		configurationUpdates := make(chan []*control.SessionConfig)
 		routingTableSwapper := mock_control.NewMockRoutingTableSwapper(ctrl)
@@ -120,7 +116,6 @@ func TestEngineControllerRun(t *testing.T) {
 	t.Run("nil engine factory", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		configurationUpdates := make(chan []*control.SessionConfig)
 		routingTableSwapper := mock_control.NewMockRoutingTableSwapper(ctrl)

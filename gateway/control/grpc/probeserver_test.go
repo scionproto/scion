@@ -35,7 +35,6 @@ import (
 
 func TestControlDispatcher(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	src := &snet.UDPAddr{IA: addr.MustParseIA("1-ff00:0:110")}
 

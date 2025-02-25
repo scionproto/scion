@@ -98,7 +98,6 @@ func TestRegistererRegisterSegment(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			svc := xtest.NewGRPCService()
 			hspb.RegisterHiddenSegmentRegistrationServiceServer(svc.Server(), tc.hpServer(ctrl))

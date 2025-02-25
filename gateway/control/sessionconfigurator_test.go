@@ -80,7 +80,6 @@ func TestSessionConfigurator(t *testing.T) {
 	})
 	t.Run("test Run", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		tpChan := make(chan control.SessionPolicies)
 		ruChan := make(chan control.RemoteGateways)
 		cfgChan := make(chan []*control.SessionConfig)

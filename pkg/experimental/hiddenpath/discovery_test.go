@@ -152,7 +152,6 @@ func TestRegistrationResolverResolve(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			r := hiddenpath.RegistrationResolver{
 				Router:     tc.router(ctrl),

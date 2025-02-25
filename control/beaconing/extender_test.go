@@ -92,7 +92,6 @@ func TestDefaultExtenderExtend(t *testing.T) {
 	for name, tc := range testsCases {
 		t.Run(name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			// Setup interfaces with active parent, child and one peer interface.
 			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 			for _, peer := range tc.peers {
@@ -168,7 +167,6 @@ func TestDefaultExtenderExtend(t *testing.T) {
 	}
 	t.Run("the maximum expiration time is respected", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 		require.NoError(t, err)
 		ext := &beaconing.DefaultExtender{
@@ -262,7 +260,6 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		for name, tc := range testCases {
 			t.Run(name, func(t *testing.T) {
 				mctrl := gomock.NewController(t)
-				defer mctrl.Finish()
 				intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 				require.NoError(t, err)
 				ext := &beaconing.DefaultExtender{
@@ -333,7 +330,6 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		for name, tc := range testCases {
 			t.Run(name, func(t *testing.T) {
 				mctrl := gomock.NewController(t)
-				defer mctrl.Finish()
 				intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 				ext := &beaconing.DefaultExtender{
 					IA: topo.IA(),

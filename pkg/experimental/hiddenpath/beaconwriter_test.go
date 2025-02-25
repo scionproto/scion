@@ -190,7 +190,6 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 
 			w := &hiddenpath.BeaconWriter{
