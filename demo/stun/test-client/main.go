@@ -11,7 +11,7 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/snet"
 
-	"github.com/scionproto/scion/demo/stun/test-client/stun"
+	"tailscale.com/net/stun"
 )
 
 func main() {
@@ -31,31 +31,31 @@ func main() {
 
 	dc, err := daemon.NewService(daemonAddr).Connect(ctx)
 	if err != nil {
-		log.Fatal("Failed to create SCION daemon connector:", err)
+		log.Fatalf("Failed to create SCION daemon connector: %v", err)
 	}
 
 	ps, err := dc.Paths(ctx, remoteAddr.IA, localAddr.IA, daemon.PathReqFlags{Refresh: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup paths: %v:", err)
+		log.Fatalf("Failed to lookup paths: %v", err)
 	}
 
 	if len(ps) == 0 {
 		log.Fatalf("No paths to %v available", remoteAddr.IA)
 	}
 
-	log.Printf("Available paths to %v:\n", remoteAddr.IA)
+	log.Printf("Available paths to %v:", remoteAddr.IA)
 	for _, p := range ps {
-		log.Printf("\t%v\n", p)
+		log.Printf("\t%v", p)
 	}
 
 	sp := ps[0]
 
-	log.Printf("Selected path to %v:\n", remoteAddr.IA)
-	log.Printf("\t%v\n", sp)
+	log.Printf("Selected path to %v:", remoteAddr.IA)
+	log.Printf("\t%v", sp)
 
 	conn, err := net.ListenUDP("udp", localAddr.Host)
 	if err != nil {
-		log.Fatalf("Failed to bind UDP connection: %v\n", err)
+		log.Fatalf("Failed to bind UDP connection: %v", err)
 	}
 	defer conn.Close()
 
@@ -67,8 +67,9 @@ func main() {
 	if nextHop == nil && remoteAddr.IA.Equal(localAddr.IA) {
 		srcAddr, ok = netip.AddrFromSlice(localAddr.Host.IP)
 		if !ok {
-			log.Fatalf("Unexpected address type\n")
+			log.Fatalf("Unexpected source address type")
 		}
+		srcAddr = srcAddr.Unmap()
 		srcPort = uint16(localAddr.Host.Port)
 		nextHop = remoteAddr.Host
 	} else {
@@ -80,26 +81,26 @@ func main() {
 
 		_, err = conn.WriteToUDP(req, &stunAddr)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to write STUN packet: %v", err)
 		}
 
-		log.Println("sent stun packet")
+		log.Print("Sent STUN request")
 
 		buf := make([]byte, 1024)
 		n, _, err := conn.ReadFromUDPAddrPort(buf[:])
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to read STUN packet: %v", err)
 		}
 
 		tid, stunResp, err := stun.ParseResponse(buf[:n])
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to decode STUN packet: %v", err)
 		}
 		if tid != txID {
 			log.Fatalf("txid mismatch: got %v, want %v", tid, txID)
 		}
 
-		log.Printf("stun response: %v", stunResp)
+		log.Printf("Received STUN response: %v", stunResp)
 
 		srcAddr = stunResp.Addr()
 		srcPort = stunResp.Port()
@@ -107,7 +108,7 @@ func main() {
 
 	dstAddr, ok := netip.AddrFromSlice(remoteAddr.Host.IP)
 	if !ok {
-		log.Fatalf("Unexpected address type\n")
+		log.Fatal("Unexpected destination address type")
 	}
 	dstAddr = dstAddr.Unmap()
 
@@ -132,29 +133,29 @@ func main() {
 
 	err = pkt.Serialize()
 	if err != nil {
-		log.Fatalf("Failed to serialize SCION packet: %v\n", err)
+		log.Fatalf("Failed to serialize SCION packet: %v", err)
 	}
 
 	_, err = conn.WriteTo(pkt.Bytes, nextHop)
 	if err != nil {
-		log.Fatalf("Failed to write packet: %v\n", err)
+		log.Fatalf("Failed to write SCION packet: %v", err)
 	}
 
 	pkt.Prepare()
 	n, _, err := conn.ReadFrom(pkt.Bytes)
 	if err != nil {
-		log.Fatalf("Failed to read packet: %v\n", err)
+		log.Fatalf("Failed to read SCION packet: %v", err)
 	}
 	pkt.Bytes = pkt.Bytes[:n]
 
 	err = pkt.Decode()
 	if err != nil {
-		log.Fatalf("Failed to decode packet: %v\n", err)
+		log.Fatalf("Failed to decode SCION packet: %v", err)
 	}
 
 	pld, ok := pkt.Payload.(snet.UDPPayload)
 	if !ok {
-		log.Fatalf("Failed to read packet payload\n")
+		log.Fatal("Failed to read packet payload")
 	}
 
 	log.Printf("Received data: \"%s\"", string(pld.Payload))

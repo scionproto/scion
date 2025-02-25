@@ -111,18 +111,18 @@ class Test(base.TestTopogen):
             file.write(filecontent)
 
     def _run(self):
-        time.sleep(20) # wait for everything to start up
+        time.sleep(10) # wait for everything to start up
 
         # copy test executables to test container
-        stun_client = local["realpath"](self.get_executable("test-client-demo").executable).strip()
-        stun_server = local["realpath"](self.get_executable("test-server-demo").executable).strip()
+        stun_client = local["realpath"](self.get_executable("test-client").executable).strip()
+        stun_server = local["realpath"](self.get_executable("test-server").executable).strip()
         self.dc("cp", stun_server, "tester_1-ff00_0_110" + ":/bin/")
         self.dc("cp", stun_client, "tester_1-ff00_0_111" + ":/bin/")
 
         # run tests (located in test-client/main.go and test-server/main.go)
-        self.dc.execute_detached("tester_1-ff00_0_110", "sh", "-c", "test-server-demo -local 1-ff00:0:110,172.20.0.22:31000")
+        self.dc.execute_detached("tester_1-ff00_0_110", "sh", "-c", "test-server -local 1-ff00:0:110,172.20.0.22:31000")
         time.sleep(3)
-        result = self.dc.execute("tester_1-ff00_0_111", "sh", "-c", 'test-client-demo -daemon 192.168.123.3:30255 -local 1-ff00:0:111,192.168.123.4:31000 -remote 1-ff00:0:110,172.20.0.22:31000 -data "abc"')
+        result = self.dc.execute("tester_1-ff00_0_111", "sh", "-c", 'test-client -daemon 192.168.123.3:30255 -local 1-ff00:0:111,192.168.123.4:31000 -remote 1-ff00:0:110,172.20.0.22:31000 -data "abc"')
         print(result)
 
 if __name__ == "__main__":
