@@ -1,4 +1,5 @@
 // Copyright 2022 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +35,7 @@ type Fetcher interface {
 // Level1PrefetchListKeeper maintains a list for those level1 keys
 // that are recently/frequently used.
 type Level1PrefetchListKeeper interface {
-	//Update updates the keys in Level1Cache based on the Level1Key metadata.
+	// Update updates the keys in Level1Cache based on the Level1Key metadata.
 	Update(key Level1PrefetchInfo)
 	// GetLevel1InfoArray retrieves an array whose members contains information regarding
 	// level1 keys to prefetch.
@@ -63,7 +64,6 @@ func (s *ServiceEngine) GetSecretValue(
 	ctx context.Context,
 	meta drkey.SecretValueMeta,
 ) (drkey.SecretValue, error) {
-
 	return s.SecretBackend.getSecretValue(ctx, meta)
 }
 
@@ -73,7 +73,6 @@ func (s *ServiceEngine) GetLevel1Key(
 	ctx context.Context,
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
-
 	key, err := s.getLevel1Key(ctx, meta)
 	if err == nil && ctx.Value(fromPrefetcher{}) == nil && meta.SrcIA != s.LocalIA {
 		keyInfo := Level1PrefetchInfo{
@@ -91,8 +90,8 @@ func (s *ServiceEngine) GetLevel1PrefetchInfo() []Level1PrefetchInfo {
 }
 
 // DeriveLevel1 returns a Level1 key based on the presented information.
-func (s *ServiceEngine) DeriveLevel1(meta drkey.Level1Meta) (drkey.Level1Key, error) {
-	sv, err := s.GetSecretValue(context.Background(), drkey.SecretValueMeta{
+func (s *ServiceEngine) DeriveLevel1(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error) {
+	sv, err := s.GetSecretValue(ctx, drkey.SecretValueMeta{
 		ProtoId:  meta.ProtoId,
 		Validity: meta.Validity,
 	})
@@ -111,7 +110,6 @@ func (s *ServiceEngine) DeriveASHost(
 	ctx context.Context,
 	meta drkey.ASHostMeta,
 ) (drkey.ASHostKey, error) {
-
 	var key drkey.Key
 	var err error
 
@@ -146,7 +144,6 @@ func (s *ServiceEngine) DeriveHostAS(
 	ctx context.Context,
 	meta drkey.HostASMeta,
 ) (drkey.HostASKey, error) {
-
 	var key drkey.Key
 	var err error
 
@@ -182,7 +179,6 @@ func (s *ServiceEngine) DeriveHostHost(
 	ctx context.Context,
 	meta drkey.HostHostMeta,
 ) (drkey.HostHostKey, error) {
-
 	hostASMeta := drkey.HostASMeta{
 		ProtoId:  meta.ProtoId,
 		Validity: meta.Validity,
@@ -238,9 +234,8 @@ func (s *ServiceEngine) getLevel1Key(
 	ctx context.Context,
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
-
 	if meta.SrcIA == s.LocalIA {
-		return s.DeriveLevel1(meta)
+		return s.DeriveLevel1(ctx, meta)
 	}
 
 	if meta.DstIA != s.LocalIA {
@@ -278,7 +273,6 @@ func (s *ServiceEngine) obtainLevel1Key(
 	srcIA addr.IA,
 	dstIA addr.IA,
 ) (drkey.Level1Key, error) {
-
 	if !proto.IsPredefined() {
 		proto = drkey.Generic
 	}
@@ -289,7 +283,6 @@ func (s *ServiceEngine) obtainLevel1Key(
 		ProtoId:  proto,
 	}
 	return s.GetLevel1Key(ctx, level1Meta)
-
 }
 
 type fromPrefetcher struct{}

@@ -1,4 +1,5 @@
 // Copyright 2022 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,7 +63,7 @@ func TestLevel1KeyFetching(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	lvl1db := mock_grpc.NewMockEngine(ctrl)
-	lvl1db.EXPECT().DeriveLevel1(gomock.Any()).AnyTimes().Return(drkey.Level1Key{}, nil)
+	lvl1db.EXPECT().DeriveLevel1(gomock.Any(), gomock.Any()).AnyTimes().Return(drkey.Level1Key{}, nil)
 
 	db := mock_trust.NewMockDB(ctrl)
 	db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).AnyTimes().Return(trc, nil)
@@ -94,7 +95,6 @@ func TestLevel1KeyFetching(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-
 			// TODO(matzf): change xtest library to allow specifying the client
 			// credentials for individual calls so that server does not need to be
 			// recreated here.
