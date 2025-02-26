@@ -1,6 +1,8 @@
 // Copyright (c) Tailscale Inc & AUTHORS
 // SPDX-License-Identifier: BSD-3-Clause
 
+// Copied and modified from https://github.com/tailscale/tailscale/blob/main/net/stun/stun_test.go
+
 package stun_test
 
 import (
@@ -17,6 +19,7 @@ import (
 )
 
 const (
+	attrNumSoftware      = 0x8022
 	attrNumFingerprint   = 0x8028
 	attrMappedAddress    = 0x0001
 	attrXorMappedAddress = 0x0020
@@ -24,6 +27,7 @@ const (
 	magicCookie          = "\x21\x12\xa4\x42"
 	lenFingerprint       = 8 // 2+byte header + 2-byte length + 4-byte crc32
 	headerLen            = 20
+	software             = "blahblah"
 )
 
 var (
@@ -49,6 +53,103 @@ func request(tID stun.TxID) []byte {
 	b = appendU16(b, uint16(lenFingerprint)) // number of bytes following header
 	b = append(b, magicCookie...)
 	b = append(b, tID[:]...)
+
+	// Attribute FINGERPRINT, RFC5389 Section 15.5.
+	fp := fingerPrint(b)
+	b = appendU16(b, attrNumFingerprint)
+	b = appendU16(b, 4)
+	b = appendU32(b, fp)
+
+	return b
+}
+
+func requestWithoutFingerprint(tID stun.TxID) []byte {
+	// STUN header, RFC5389 Section 6.
+	b := make([]byte, 0, headerLen+lenFingerprint)
+	b = append(b, bindingRequest...)
+	b = append(b, magicCookie...)
+	b = append(b, tID[:]...)
+
+	return b
+}
+
+func requestWrongFingerprint(tID stun.TxID) []byte {
+	// STUN header, RFC5389 Section 6.
+	b := make([]byte, 0, headerLen+lenFingerprint)
+	b = append(b, bindingRequest...)
+	b = appendU16(b, uint16(lenFingerprint)) // number of bytes following header
+	b = append(b, magicCookie...)
+	b = append(b, tID[:]...)
+
+	// Attribute FINGERPRINT, RFC5389 Section 15.5.
+	fp := uint32(10)
+	b = appendU16(b, attrNumFingerprint)
+	b = appendU16(b, 4)
+	b = appendU32(b, fp)
+
+	return b
+}
+
+func requestUnknownAttribute(tID stun.TxID) []byte {
+	// STUN header, RFC5389 Section 6.
+	const lenAttrSoftware = 4 + len(software)
+	b := make([]byte, 0, headerLen+lenFingerprint)
+	b = append(b, bindingRequest...)
+	b = appendU16(b, uint16(lenFingerprint+lenAttrSoftware)) // number of bytes following header
+	b = append(b, magicCookie...)
+	b = append(b, tID[:]...)
+
+	// Attribute SOFTWARE, RFC5389 Section 15.5.
+	b = appendU16(b, attrNumSoftware)
+	b = appendU16(b, uint16(len(software)))
+	b = append(b, software...)
+
+	// Attribute FINGERPRINT, RFC5389 Section 15.5.
+	fp := fingerPrint(b)
+	b = appendU16(b, attrNumFingerprint)
+	b = appendU16(b, 4)
+	b = appendU32(b, fp)
+
+	return b
+}
+
+func requestFingerprintNotLastAttribute(tID stun.TxID) []byte {
+	// STUN header, RFC5389 Section 6.
+	const lenAttrSoftware = 4 + len(software)
+	b := make([]byte, 0, headerLen+lenFingerprint)
+	b = append(b, bindingRequest...)
+	b = appendU16(b, uint16(lenFingerprint+lenAttrSoftware)) // number of bytes following header
+	b = append(b, magicCookie...)
+	b = append(b, tID[:]...)
+
+	// Attribute FINGERPRINT, RFC5389 Section 15.5.
+	fp := fingerPrint(b)
+	b = appendU16(b, attrNumFingerprint)
+	b = appendU16(b, 4)
+	b = appendU32(b, fp)
+
+	// Attribute SOFTWARE, RFC5389 Section 15.5.
+	b = appendU16(b, attrNumSoftware)
+	b = appendU16(b, uint16(len(software)))
+	b = append(b, software...)
+
+	return b
+}
+
+func requestMalformedAttribute(tID stun.TxID) []byte {
+	// STUN header, RFC5389 Section 6.
+	const lenAttrSoftware = 4 + len(software)
+	b := make([]byte, 0, headerLen+lenFingerprint)
+	b = append(b, bindingRequest...)
+	b = appendU16(b, uint16(lenFingerprint+lenAttrSoftware)+1) // number of bytes following header
+	b = append(b, magicCookie...)
+	b = append(b, tID[:]...)
+
+	// Attribute SOFTWARE, RFC5389 Section 15.5.
+	b = appendU16(b, attrNumSoftware)
+	b = appendU16(b, uint16(len(software)))
+	b = append(b, software...)
+	b = append(b, byte(200))
 
 	// Attribute FINGERPRINT, RFC5389 Section 15.5.
 	fp := fingerPrint(b)
@@ -162,6 +263,51 @@ func TestParseBindingRequest(t *testing.T) {
 	}
 	if gotTx != tx {
 		t.Errorf("original txID %q != got txID %q", tx, gotTx)
+	}
+
+	req = []byte("\x00\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00") // not STUN
+	gotTx, err = stun.ParseBindingRequest(req)
+	if err == nil {
+		t.Error("Expected error \"malformed STUN packet\". No error thrown.")
+	}
+
+	tx = newTxID()
+	req = requestWithoutFingerprint(tx)
+	gotTx, err = stun.ParseBindingRequest(req)
+	if err == nil {
+		t.Error("Expected error \"STUN request didn't end in fingerprint\". No error thrown.")
+	}
+
+	tx = newTxID()
+	req = requestWrongFingerprint(tx)
+	gotTx, err = stun.ParseBindingRequest(req)
+	if err == nil {
+		t.Error("Expected error \"STUN request had bogus fingerprint\". No error thrown.")
+	}
+
+	tx = newTxID()
+	req = requestUnknownAttribute(tx)
+	gotTx, err = stun.ParseBindingRequest(req)
+	if err != nil {
+		// Unknown comprehension-optional attributes MUST be ignored by the agent. - RFC8489
+		t.Errorf("Expected no error. Got error:%v", err)
+	}
+	if gotTx != tx {
+		t.Errorf("original txID %q != got txID %q", tx, gotTx)
+	}
+
+	tx = newTxID()
+	req = requestFingerprintNotLastAttribute(tx)
+	gotTx, err = stun.ParseBindingRequest(req)
+	if err == nil {
+		t.Error("Expected error \"STUN request didn't end in fingerprint\". No error thrown.")
+	}
+
+	tx = newTxID()
+	req = requestMalformedAttribute(tx)
+	gotTx, err = stun.ParseBindingRequest(req)
+	if err == nil {
+		t.Error("Expected error \"STUN response has malformed attributes\". No error thrown.")
 	}
 }
 
