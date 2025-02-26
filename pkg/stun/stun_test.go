@@ -27,7 +27,7 @@ const (
 	magicCookie          = "\x21\x12\xa4\x42"
 	lenFingerprint       = 8 // 2+byte header + 2-byte length + 4-byte crc32
 	headerLen            = 20
-	software             = "blahblah"
+	software             = "test1234"
 )
 
 var (
