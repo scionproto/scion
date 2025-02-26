@@ -1,4 +1,5 @@
 // Copyright 2018 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -115,6 +116,8 @@ func Start(task Task, period, timeout time.Duration) *Runner {
 
 // StartWithMetrics is identical to Start but allows the caller to
 // specify the metric or no metric at all to be used.
+//
+//nolint:contextcheck // Providing a context is not necessary in this case.
 func StartWithMetrics(task Task, metric *Metrics, period, timeout time.Duration) *Runner {
 	ctx, cancelF := context.WithCancel(context.Background())
 	logger := log.New("debug_id", log.NewDebugID())

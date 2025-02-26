@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -151,7 +152,7 @@ func realMain(ctx context.Context) error {
 			[]string{"driver", "operation", prom.LabelResult},
 		),
 	})
-	engine, err := daemon.TrustEngine(globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer)
+	engine, err := daemon.TrustEngine(ctx, globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer)
 	if err != nil {
 		return serrors.Wrap("creating trust engine", err)
 	}
@@ -361,8 +362,8 @@ func realMain(ctx context.Context) error {
 type acceptAllVerifier struct{}
 
 func (acceptAllVerifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
-	associatedData ...[]byte) (*signed.Message, error) {
-
+	associatedData ...[]byte,
+) (*signed.Message, error) {
 	return nil, nil
 }
 
