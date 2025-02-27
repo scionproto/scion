@@ -36,6 +36,7 @@ func TestNewSigner(t *testing.T) {
 	require.NoError(t, err)
 
 	signer := cs.NewSigner(
+		context.Background(),
 		addr.MustParseIA("1-ff00:0:110"),
 		db,
 		filepath.Join(dir, "/ISD1/ASff00_0_110"),
@@ -59,7 +60,7 @@ func testCrypto(t *testing.T) string {
 
 	raw, err := os.ReadFile(filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
 	require.NoError(t, err)
-	err = os.WriteFile(filepath.Join(dir, "ISD1/ASff00_0_110/certs/ISD1-B1-S1.trc"), raw, 0666)
+	err = os.WriteFile(filepath.Join(dir, "ISD1/ASff00_0_110/certs/ISD1-B1-S1.trc"), raw, 0o666)
 	require.NoError(t, err)
 	return dir
 }
