@@ -37,7 +37,6 @@ func (pm *PathMonitor) Register(
 	policies *policies.Policies,
 	policyID string,
 ) control.PathMonitorRegistration {
-
 	reg := pm.Monitor.Register(remote, &pathhealth.FilteringPathSelector{
 		PathPolicy:      policies.PathPolicy,
 		PathCount:       policies.PathCount,

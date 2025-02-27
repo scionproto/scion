@@ -78,13 +78,10 @@ func NewTLSCertificateLoader(
 }
 
 // NewSigner creates a renewing signer backed by a certificate chain.
-func NewSigner(ia addr.IA, db trust.DB, cfgDir string) cstrust.RenewingSigner {
+func NewSigner(ctx context.Context, ia addr.IA, db trust.DB, cfgDir string) cstrust.RenewingSigner {
 	signer := cstrust.RenewingSigner{
 		SignerGen: newCachingSignerGen(ia, x509.ExtKeyUsageAny, db, cfgDir),
 	}
-
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
 	if _, err := signer.SignerGen.Generate(ctx); err != nil {
 		log.Debug("Initial signer generation failed", "err", err)
 	}

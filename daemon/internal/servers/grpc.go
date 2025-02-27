@@ -71,8 +71,8 @@ type DaemonServer struct {
 
 // Paths serves the paths request.
 func (s *DaemonServer) Paths(ctx context.Context,
-	req *sdpb.PathsRequest) (*sdpb.PathsResponse, error) {
-
+	req *sdpb.PathsRequest,
+) (*sdpb.PathsResponse, error) {
 	start := time.Now()
 	dstI := addr.IA(req.DestinationIsdAs).ISD()
 	response, err := s.paths(ctx, req)
@@ -84,8 +84,8 @@ func (s *DaemonServer) Paths(ctx context.Context,
 }
 
 func (s *DaemonServer) paths(ctx context.Context,
-	req *sdpb.PathsRequest) (*sdpb.PathsResponse, error) {
-
+	req *sdpb.PathsRequest,
+) (*sdpb.PathsResponse, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancelF context.CancelFunc
 		ctx, cancelF = context.WithTimeout(ctx, 10*time.Second)
@@ -115,7 +115,6 @@ func (s *DaemonServer) fetchPaths(
 	src, dst addr.IA,
 	refresh bool,
 ) ([]snet.Path, error) {
-
 	r, err, _ := group.Do(fmt.Sprintf("%s%s%t", src, dst, refresh),
 		func() (any, error) {
 			return s.Fetcher.GetPaths(ctx, src, dst, refresh)
@@ -187,7 +186,6 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		Notes:        meta.Notes,
 		EpicAuths:    epicAuths,
 	}
-
 }
 
 func linkTypeToPB(lt snet.LinkType) sdpb.LinkType {
@@ -210,7 +208,7 @@ func (s *DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA
 		// the original context is large enough no need to spin a background fetch.
 		return
 	}
-	ctx, cancelF := context.WithTimeout(context.Background(), backgroundTimeout)
+	ctx, cancelF := context.WithTimeout(origCtx, backgroundTimeout)
 	defer cancelF()
 	var spanOpts []opentracing.StartSpanOption
 	if span := opentracing.SpanFromContext(origCtx); span != nil {
@@ -259,8 +257,8 @@ func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 
 // Interfaces serves the interfaces request.
 func (s *DaemonServer) Interfaces(ctx context.Context,
-	req *sdpb.InterfacesRequest) (*sdpb.InterfacesResponse, error) {
-
+	req *sdpb.InterfacesRequest,
+) (*sdpb.InterfacesResponse, error) {
 	start := time.Now()
 	response, err := s.interfaces(ctx, req)
 	s.Metrics.InterfacesRequests.inc(
@@ -271,8 +269,8 @@ func (s *DaemonServer) Interfaces(ctx context.Context,
 }
 
 func (s *DaemonServer) interfaces(ctx context.Context,
-	_ *sdpb.InterfacesRequest) (*sdpb.InterfacesResponse, error) {
-
+	_ *sdpb.InterfacesRequest,
+) (*sdpb.InterfacesResponse, error) {
 	reply := &sdpb.InterfacesResponse{
 		Interfaces: make(map[uint64]*sdpb.Interface),
 	}
@@ -293,8 +291,8 @@ func (s *DaemonServer) interfaces(ctx context.Context,
 
 // Services serves the services request.
 func (s *DaemonServer) Services(ctx context.Context,
-	req *sdpb.ServicesRequest) (*sdpb.ServicesResponse, error) {
-
+	req *sdpb.ServicesRequest,
+) (*sdpb.ServicesResponse, error) {
 	start := time.Now()
 	respsonse, err := s.services(ctx, req)
 	s.Metrics.ServicesRequests.inc(
@@ -305,8 +303,8 @@ func (s *DaemonServer) Services(ctx context.Context,
 }
 
 func (s *DaemonServer) services(ctx context.Context,
-	_ *sdpb.ServicesRequest) (*sdpb.ServicesResponse, error) {
-
+	_ *sdpb.ServicesRequest,
+) (*sdpb.ServicesResponse, error) {
 	reply := &sdpb.ServicesResponse{
 		Services: make(map[string]*sdpb.ListService),
 	}
@@ -321,8 +319,8 @@ func (s *DaemonServer) services(ctx context.Context,
 
 // NotifyInterfaceDown notifies the server about an interface that is down.
 func (s *DaemonServer) NotifyInterfaceDown(ctx context.Context,
-	req *sdpb.NotifyInterfaceDownRequest) (*sdpb.NotifyInterfaceDownResponse, error) {
-
+	req *sdpb.NotifyInterfaceDownRequest,
+) (*sdpb.NotifyInterfaceDownResponse, error) {
 	start := time.Now()
 	response, err := s.notifyInterfaceDown(ctx, req)
 	s.Metrics.InterfaceDownNotifications.inc(
@@ -333,8 +331,8 @@ func (s *DaemonServer) NotifyInterfaceDown(ctx context.Context,
 }
 
 func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
-	req *sdpb.NotifyInterfaceDownRequest) (*sdpb.NotifyInterfaceDownResponse, error) {
-
+	req *sdpb.NotifyInterfaceDownRequest,
+) (*sdpb.NotifyInterfaceDownResponse, error) {
 	revInfo := &path_mgmt.RevInfo{
 		RawIsdas:     addr.IA(req.IsdAs),
 		IfID:         iface.ID(req.Id),
@@ -358,7 +356,6 @@ func (s *DaemonServer) PortRange(
 	_ context.Context,
 	_ *emptypb.Empty,
 ) (*sdpb.PortRangeResponse, error) {
-
 	startPort, endPort := s.Topology.PortRange()
 	return &sdpb.PortRangeResponse{
 		DispatchedPortStart: uint32(startPort),
@@ -370,7 +367,6 @@ func (s *DaemonServer) DRKeyASHost(
 	ctx context.Context,
 	req *pb_daemon.DRKeyASHostRequest,
 ) (*pb_daemon.DRKeyASHostResponse, error) {
-
 	if s.DRKeyClient == nil {
 		return nil, serrors.New("DRKey is not available")
 	}
@@ -395,7 +391,6 @@ func (s *DaemonServer) DRKeyHostAS(
 	ctx context.Context,
 	req *pb_daemon.DRKeyHostASRequest,
 ) (*pb_daemon.DRKeyHostASResponse, error) {
-
 	if s.DRKeyClient == nil {
 		return nil, serrors.New("DRKey is not available")
 	}
@@ -420,7 +415,6 @@ func (s *DaemonServer) DRKeyHostHost(
 	ctx context.Context,
 	req *pb_daemon.DRKeyHostHostRequest,
 ) (*pb_daemon.DRKeyHostHostResponse, error) {
-
 	if s.DRKeyClient == nil {
 		return nil, serrors.New("DRKey is not available")
 	}
