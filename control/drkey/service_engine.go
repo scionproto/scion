@@ -90,7 +90,9 @@ func (s *ServiceEngine) GetLevel1PrefetchInfo() []Level1PrefetchInfo {
 }
 
 // DeriveLevel1 returns a Level1 key based on the presented information.
-func (s *ServiceEngine) DeriveLevel1(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error) {
+func (s *ServiceEngine) DeriveLevel1(
+	ctx context.Context, meta drkey.Level1Meta,
+) (drkey.Level1Key, error) {
 	sv, err := s.GetSecretValue(ctx, drkey.SecretValueMeta{
 		ProtoId:  meta.ProtoId,
 		Validity: meta.Validity,
