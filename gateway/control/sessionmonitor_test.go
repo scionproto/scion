@@ -84,7 +84,6 @@ func (m udpAddrMatcher) String() string {
 
 func TestSessionMonitorTestProbing(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	conn := mock_net.NewMockPacketConn(ctrl)
 	pathReg := mock_control.NewMockPathMonitorRegistration(ctrl)
 	sessMon := control.SessionMonitor{
@@ -137,7 +136,6 @@ func TestSessionMonitorTestProbing(t *testing.T) {
 
 func TestSessionMonitorTestEvents(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	conn := mock_net.NewMockPacketConn(ctrl)
 	events := make(chan control.SessionEvent, 50)
 	pathReg := mock_control.NewMockPathMonitorRegistration(ctrl)

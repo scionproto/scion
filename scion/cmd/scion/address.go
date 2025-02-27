@@ -74,7 +74,7 @@ case, the host could have multiple SCION addresses.
 				return err
 			}
 
-			localIP, err := addrutil.DefaultLocalIP(ctx, sd)
+			localIP, err := addrutil.DefaultLocalIP(ctx, daemon.TopoQuerier{Connector: sd})
 			if err != nil {
 				return err
 			}

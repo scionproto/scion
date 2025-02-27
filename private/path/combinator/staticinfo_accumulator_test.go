@@ -31,7 +31,6 @@ import (
 
 func TestStaticinfo(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 
 	testCases := []struct {

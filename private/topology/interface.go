@@ -17,7 +17,7 @@ package topology
 import (
 	"crypto/sha256"
 	"encoding/json"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"sort"
 
@@ -230,7 +230,7 @@ func (t *topologyS) Anycast(svc addr.SVC) (*net.UDPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return addrs[rand.Intn(len(addrs))], nil
+	return addrs[rand.IntN(len(addrs))], nil
 }
 
 func (t *topologyS) Multicast(svc addr.SVC) ([]*net.UDPAddr, error) {

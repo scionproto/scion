@@ -105,11 +105,9 @@ func TestRequesterSegments(t *testing.T) {
 		}
 
 		for name, tc := range testCases {
-			name, tc := name, tc
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
 
 				server := mock_hidden_segment.NewMockHiddenSegmentLookupServiceServer(ctrl)
 				server.EXPECT().HiddenSegments(gomock.Any(), gomock.Any()).
@@ -158,8 +156,8 @@ func TestAuthoritativeRequesterHiddenSegments(t *testing.T) {
 				return s
 			},
 			server: func(
-				ctrl *gomock.Controller) hspb.AuthoritativeHiddenSegmentLookupServiceServer {
-
+				ctrl *gomock.Controller,
+			) hspb.AuthoritativeHiddenSegmentLookupServiceServer {
 				s := mock_hidden_segment.NewMockAuthoritativeHiddenSegmentLookupServiceServer(ctrl)
 				s.EXPECT().AuthoritativeHiddenSegments(gomock.Any(), gomock.Any()).
 					Return(&hspb.AuthoritativeHiddenSegmentsResponse{
@@ -173,11 +171,9 @@ func TestAuthoritativeRequesterHiddenSegments(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			svc := xtest.NewGRPCService()
 			hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(svc.Server(),

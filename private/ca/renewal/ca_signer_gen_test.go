@@ -136,7 +136,6 @@ func TestChachingPolicyGenGenerate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
@@ -160,7 +159,6 @@ func TestChachingPolicyGenGenerate(t *testing.T) {
 }
 
 func TestLoadingPolicyGenGenerate(t *testing.T) {
-
 	ca := xtest.LoadChain(t, "testdata/common/ISD1/ASff00_0_110/crypto/ca/ISD1-ASff00_0_110.ca.crt")
 	key := loadKey(t, "testdata/common/ISD1/ASff00_0_110/crypto/ca/cp-ca.key")
 
@@ -272,11 +270,9 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			g := renewal.LoadingPolicyGen{
 				Validity:     time.Hour,
 				CertProvider: tc.CertProvider(t, mctrl),
@@ -293,15 +289,13 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 			assert.Equal(t, time.Hour, p.Validity)
 			assert.Equal(t, key, p.Signer)
 			assert.Equal(t, ca[0], p.Certificate)
-
 		})
 	}
-
 }
 
 func TestCACertLoaderCACerts(t *testing.T) {
-	defaultGen := func(t *testing.T) (string, func()) {
-		dir, cleanF := xtest.MustTempDir("", "trust_ca_cert_loader_ca_certs")
+	defaultGen := func(t *testing.T) string {
+		dir := t.TempDir()
 
 		cmd := testcrypto.Cmd(command.StringPather(""))
 		cmd.SetArgs([]string{
@@ -312,42 +306,42 @@ func TestCACertLoaderCACerts(t *testing.T) {
 		})
 		err := cmd.Execute()
 		require.NoError(t, err)
-		return dir, cleanF
+		return dir
 	}
 	noFiles := func(string) []*x509.Certificate { return nil }
 	testCases := map[string]struct {
-		prepare   func(t *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB)
+		prepare   func(t *testing.T, ctrl *gomock.Controller) (string, trust.DB)
 		expected  func(string) []*x509.Certificate
 		assertErr assert.ErrorAssertionFunc
 	}{
 		"non-existing/empty dir": {
-			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB) {
+			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
 				db := mock_trust.NewMockDB(ctrl)
-				return "not-existing-dir", func() {}, db
+				return "not-existing-dir", db
 			},
 			assertErr: assert.Error,
 			expected:  noFiles,
 		},
 		"invalid chain": {
-			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB) {
-				dir, cleanF := defaultGen(t)
+			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
+				dir := defaultGen(t)
 				trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
-				err := os.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0666)
+				err := os.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0o666)
 				require.NoError(t, err)
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1}).Return(trc, nil)
-				return filepath.Join(dir), cleanF, db
+				return filepath.Join(dir), db
 			},
 			assertErr: assert.NoError,
 			expected:  noFiles,
 		},
 		"valid single CA cert": {
-			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB) {
-				dir, cleanF := defaultGen(t)
+			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
+				dir := defaultGen(t)
 				trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1}).Return(trc, nil)
-				return filepath.Join(dir, "ISD1/ASff00_0_110/crypto/ca"), cleanF, db
+				return filepath.Join(dir, "ISD1/ASff00_0_110/crypto/ca"), db
 			},
 			expected: func(dir string) []*x509.Certificate {
 				return xtest.LoadChain(t,
@@ -356,8 +350,8 @@ func TestCACertLoaderCACerts(t *testing.T) {
 			assertErr: assert.NoError,
 		},
 		"CA cert in grace period": {
-			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB) {
-				dir, cleanF := defaultGen(t)
+			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
+				dir := defaultGen(t)
 				cmd := testcrypto.Cmd(command.StringPather(""))
 				cmd.SetArgs([]string{
 					"update",
@@ -373,7 +367,7 @@ func TestCACertLoaderCACerts(t *testing.T) {
 				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1, Serial: 1, Base: 1}).
 					Return(trc1, nil)
 				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1}).Return(trc2, nil)
-				return filepath.Join(dir, "certs"), cleanF, db
+				return filepath.Join(dir, "certs"), db
 			},
 			expected: func(dir string) []*x509.Certificate {
 				return xtest.LoadChain(t, filepath.Join(dir, "ISD1-ASff00_0_110.ca.crt"))
@@ -382,14 +376,11 @@ func TestCACertLoaderCACerts(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
-			dir, cleanF, db := tc.prepare(t, ctrl)
-			defer cleanF()
+			dir, db := tc.prepare(t, ctrl)
 			loader := renewal.CACertLoader{
 				IA:  addr.MustParseIA("1-ff00:0:110"),
 				Dir: dir,

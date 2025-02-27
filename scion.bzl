@@ -11,6 +11,8 @@ def scion_go_binary(name, visibility, *args, **kwargs):
         x_defs = x_defs,
         name = name,
         visibility = visibility,
+        # disable automatically setting the build id since Go 1.24
+        gc_linkopts = ["-B", "none"],
         *args,
         **kwargs
     )

@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build linux
+
 package runner
 
 import (
@@ -24,10 +27,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/afpacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcapgo"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/afpacket"
+	"github.com/gopacket/gopacket/layers"
+	"github.com/gopacket/gopacket/pcapgo"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -106,7 +109,6 @@ type ExpectedPacket struct {
 // the expected packet and no other packet is received nil is returned.
 // Otherwise details of what went wrong are returned in the error.
 func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacketFn) error {
-
 	timerCh := time.After(pkt.Timeout)
 	c.packetChans[len(c.deviceNames)] = reflect.SelectCase{
 		Dir:  reflect.SelectRecv,
@@ -170,21 +172,6 @@ func (c *RunConfig) Close() {
 	c.handles = nil
 }
 
-type NormalizePacketFn func(gopacket.Packet)
-
-// Case represents a border router test case.
-type Case struct {
-	Name              string
-	WriteTo, ReadFrom string
-	Input, Want       []byte
-	StoreDir          string
-	IgnoreNonMatching bool
-	// NormalizePacket is a function that will be called both on actual and
-	// expected packet. It can modify the packet fields so that unpredictable
-	// values are zeroed out and the packets match.
-	NormalizePacket NormalizePacketFn
-}
-
 // Run executes a test case. It writes input pkt to interface `WriteTo` and
 // listens for want pkt in interface `ReadFrom`. It stores all the packets
 // in the artifact directory for further debug.
@@ -224,7 +211,6 @@ func (t *Case) Run(cfg *RunConfig) error {
 	}
 	return serrors.Wrap("Errors were found", err,
 		"Packets are stored in", t.StoreDir)
-
 }
 
 type packetStorer struct {
@@ -238,7 +224,7 @@ func (s *packetStorer) storePkt(fileName string, packet gopacket.Packet) {
 		return
 	}
 	filename := filepath.Join(s.StoreDir, fileName+".pcap")
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		log.Error(s.TestName, "err", err)
 		return

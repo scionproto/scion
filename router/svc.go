@@ -15,7 +15,7 @@
 package router
 
 import (
-	mrand "math/rand"
+	"math/rand/v2"
 	"net/netip"
 	"slices"
 	"sync"
@@ -65,5 +65,5 @@ func (s *services) Any(svc addr.SVC) (netip.AddrPort, bool) {
 	if len(addrs) == 0 {
 		return netip.AddrPort{}, false
 	}
-	return addrs[mrand.Intn(len(addrs))], true
+	return addrs[rand.IntN(len(addrs))], true
 }

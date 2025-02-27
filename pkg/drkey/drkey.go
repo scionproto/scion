@@ -36,17 +36,13 @@ const (
 )
 
 // Epoch represents a validity period.
-type Epoch struct {
-	cppki.Validity
-}
+type Epoch = cppki.Validity
 
 // NewEpoch constructs an Epoch from its uint32 encoded begin and end parts.
 func NewEpoch(begin, end uint32) Epoch {
 	return Epoch{
-		cppki.Validity{
-			NotBefore: util.SecsToTime(begin),
-			NotAfter:  util.SecsToTime(end),
-		},
+		NotBefore: util.SecsToTime(begin),
+		NotAfter:  util.SecsToTime(end),
 	}
 }
 

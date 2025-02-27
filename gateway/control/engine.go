@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/scionproto/scion/gateway/pathhealth"

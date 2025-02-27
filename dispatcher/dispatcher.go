@@ -15,11 +15,12 @@
 package dispatcher
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
@@ -32,7 +33,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
-const ErrUnsupportedL4 common.ErrMsg = "unsupported SCION L4 protocol"
+var ErrUnsupportedL4 = errors.New("unsupported SCION L4 protocol")
 
 // Server is the main object allowing to forward SCION packets coming
 // from legacy BR to the final endhost application and to handle SCMP

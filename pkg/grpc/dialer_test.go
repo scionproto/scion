@@ -120,7 +120,6 @@ func TestTCPDial(t *testing.T) {
 		}
 
 		for name, tc := range testCases {
-			name, tc := name, tc
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 
@@ -159,8 +158,8 @@ type server struct {
 
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context,
-	in *helloworldpb.HelloRequest) (*helloworldpb.HelloReply, error) {
-
+	in *helloworldpb.HelloRequest,
+) (*helloworldpb.HelloReply, error) {
 	log.Printf("Received: %v", in.GetName())
 	return &helloworldpb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }

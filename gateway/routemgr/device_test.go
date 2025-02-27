@@ -43,7 +43,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
@@ -64,7 +63,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
@@ -88,7 +86,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
@@ -112,7 +109,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
 		mockDeviceOpener.EXPECT().Open(gomock.Any(), gomock.Any()).
@@ -131,7 +127,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
@@ -152,7 +147,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
@@ -174,7 +168,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
@@ -226,7 +219,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
@@ -259,7 +251,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
@@ -301,7 +292,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
@@ -342,7 +332,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		t.Parallel()
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockDeviceHandle1 := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)

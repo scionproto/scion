@@ -5,13 +5,11 @@ go_library(
     srcs = [
         "mac.go",
         "pem.go",
-        "rand.go",
         "version.go",
     ],
     importpath = "github.com/scionproto/scion/pkg/scrypto",
     visibility = ["//visibility:public"],
     deps = [
-        "//pkg/private/common:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "@com_github_dchest_cmac//:go_default_library",
         "@org_golang_x_crypto//pbkdf2:go_default_library",

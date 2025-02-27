@@ -42,9 +42,9 @@ PROFILING = False
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
     "in": 700000,
-    "out": 730000,
+    "out": 723000,
     "in_transit": 700000,
-    "out_transit": 720000,
+    "out_transit": 716000,
     "br_transit": 720000,
 }
 

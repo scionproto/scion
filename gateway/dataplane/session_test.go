@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -35,7 +35,6 @@ import (
 
 func TestNoPath(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	frameChan := make(chan ([]byte))
 	sess := createSession(t, ctrl, frameChan)
@@ -47,7 +46,6 @@ func TestNoPath(t *testing.T) {
 
 func TestSinglePath(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	frameChan := make(chan ([]byte))
 	sess := createSession(t, ctrl, frameChan)
@@ -59,7 +57,6 @@ func TestSinglePath(t *testing.T) {
 
 func TestTwoPaths(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	// Unbuffered channel guarantees that the frames won't be sent out
 	// immediately, but only when waitFrames is called.
@@ -88,7 +85,6 @@ func TestNoLeak(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	frameChan := make(chan ([]byte))
 	sess := createSession(t, ctrl, frameChan)

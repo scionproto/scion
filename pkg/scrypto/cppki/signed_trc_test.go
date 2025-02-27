@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cms/oid"
 	"github.com/scionproto/scion/pkg/scrypto/cms/protocol"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -37,8 +36,7 @@ func TestUpdateTRCs(t *testing.T) {
 		t.Skip("Specify -update-non-deterministic to update TRCs")
 	}
 
-	dir, cleanF := xtest.MustTempDir("", "safedir")
-	defer cleanF()
+	dir := t.TempDir()
 
 	root, err := filepath.Abs("../../../../")
 	require.NoError(t, err)
@@ -169,7 +167,6 @@ func TestTRCVerifyUpdate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -306,7 +303,6 @@ func TestTRCVerifyBase(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			signed := tc.SignedTRC(t)
 			err := signed.Verify(tc.Predecessor)

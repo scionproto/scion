@@ -55,7 +55,6 @@ func (f *Prefetcher) Run(ctx context.Context) {
 	logger.Debug("Prefetching level 1 DRKeys", "AS, proto:", keysMeta)
 	when := time.Now().Add(f.KeyDuration)
 	for _, key := range keysMeta {
-		key := key
 		wg.Add(1)
 		go func() {
 			defer log.HandlePanic()
@@ -73,7 +72,6 @@ func getLevel1Key(
 	proto drkey.Protocol,
 	valTime time.Time,
 ) {
-
 	meta := drkey.Level1Meta{
 		Validity: valTime,
 		SrcIA:    srcIA,

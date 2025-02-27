@@ -53,7 +53,6 @@ func TestBeaconDiversity(t *testing.T) {
 		},
 	}
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	g := graph.NewDefaultGraph(mctrl)
 	bseg := testBeacon(g, tests[0].beacon...)

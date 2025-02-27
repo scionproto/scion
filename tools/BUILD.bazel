@@ -52,6 +52,7 @@ py_binary(
         "//scion-pki/cmd/scion-pki",
         "//tools:docker_ip",
     ],
+    imports = ["."],
     main = "topogen.py",
     python_version = "PY3",
     srcs_version = "PY3",

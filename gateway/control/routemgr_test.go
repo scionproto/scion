@@ -88,7 +88,6 @@ func TestRouteString(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			assert.Equal(t, tc.String, tc.Route.String())
 		})

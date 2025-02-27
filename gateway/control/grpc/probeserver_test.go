@@ -35,7 +35,6 @@ import (
 
 func TestControlDispatcher(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	src := &snet.UDPAddr{IA: addr.MustParseIA("1-ff00:0:110")}
 
@@ -58,7 +57,6 @@ func TestControlDispatcher(t *testing.T) {
 
 	conn := mock_net.NewMockPacketConn(ctrl)
 	for _, raw := range requests {
-		raw := raw
 		conn.EXPECT().ReadFrom(gomock.Any()).DoAndReturn(
 			func(buf []byte) (int, net.Addr, error) {
 				copy(buf, raw)
@@ -67,7 +65,6 @@ func TestControlDispatcher(t *testing.T) {
 		)
 	}
 	for _, raw := range requests[:3] {
-		raw := raw
 		// Use the fact that protobuf serializes this to the same wire format.
 		conn.EXPECT().WriteTo(raw, src)
 	}
@@ -96,5 +93,4 @@ func TestControlDispatcher(t *testing.T) {
 
 	// Make sure that the dispatcher shuts down.
 	<-done
-
 }

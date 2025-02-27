@@ -42,8 +42,8 @@ func TestLoadChains(t *testing.T) {
 		}
 	}
 	noFiles := func(_ string) []string { return nil }
-	defaultGen := func(t *testing.T) (string, func()) {
-		dir, cleanF := xtest.MustTempDir("", "trust_load_chains")
+	defaultGen := func(t *testing.T) string {
+		dir := t.TempDir()
 
 		cmd := testcrypto.Cmd(command.StringPather(""))
 		cmd.SetArgs([]string{
@@ -54,22 +54,19 @@ func TestLoadChains(t *testing.T) {
 		})
 		err := cmd.Execute()
 		require.NoError(t, err)
-		err = os.WriteFile(filepath.Join(dir, "certs", "dummy.pem"), []byte{}, 0666)
+		err = os.WriteFile(filepath.Join(dir, "certs", "dummy.pem"), []byte{}, 0o666)
 		require.NoError(t, err)
-		return dir, cleanF
+		return dir
 	}
 	testCases := map[string]struct {
-		genCrypto  func(t *testing.T) (string, func())
+		genCrypto  func(t *testing.T) string
 		setupDB    func(*gomock.Controller, string) trust.DB
 		assertFunc assert.ErrorAssertionFunc
 		ignored    func(dir string) []string
 		loaded     func(dir string) []string
 	}{
 		"valid": {
-			genCrypto: func(t *testing.T) (string, func()) {
-				dir, cleanF := defaultGen(t)
-				return dir, cleanF
-			},
+			genCrypto: defaultGen,
 			setupDB: func(ctlr *gomock.Controller, dir string) trust.DB {
 				db := mock_trust.NewMockDB(ctlr)
 				trc := xtest.LoadTRC(t, filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"))
@@ -94,10 +91,10 @@ func TestLoadChains(t *testing.T) {
 			},
 		},
 		"valid with grace period": {
-			genCrypto: func(t *testing.T) (string, func()) {
+			genCrypto: func(t *testing.T) string {
 				// note that defaultGen already does a simple testcrypto update,
 				// but we want a full re-gen.
-				dir, cleanF := defaultGen(t)
+				dir := defaultGen(t)
 				cmd := testcrypto.Cmd(command.StringPather(""))
 				cmd.SetArgs([]string{
 					"update",
@@ -106,7 +103,7 @@ func TestLoadChains(t *testing.T) {
 				})
 				err := cmd.Execute()
 				require.NoError(t, err)
-				return dir, cleanF
+				return dir
 			},
 			setupDB: func(ctlr *gomock.Controller, dir string) trust.DB {
 				db := mock_trust.NewMockDB(ctlr)
@@ -134,9 +131,7 @@ func TestLoadChains(t *testing.T) {
 			},
 		},
 		"invalid dir": {
-			genCrypto: func(t *testing.T) (string, func()) {
-				return "./path/to/nowhere", func() {}
-			},
+			genCrypto: func(t *testing.T) string { return "./path/to/nowhere" },
 			setupDB: func(ctlr *gomock.Controller, _ string) trust.DB {
 				return mock_trust.NewMockDB(ctlr)
 			},
@@ -217,14 +212,11 @@ func TestLoadChains(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctlr := gomock.NewController(t)
-			defer ctlr.Finish()
 
-			dir, cleanF := tc.genCrypto(t)
-			defer cleanF()
+			dir := tc.genCrypto(t)
 
 			db := tc.setupDB(ctlr, dir)
 			res, err := trust.LoadChains(context.Background(), filepath.Join(dir, "certs"), db)
@@ -250,7 +242,6 @@ func TestLoadTRCs(t *testing.T) {
 	dir := genCrypto(t)
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	testCases := map[string]struct {
 		inputDir   string
@@ -302,7 +293,6 @@ func TestLoadTRCs(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			res, err := trust.LoadTRCs(context.Background(), tc.inputDir, tc.setupDB())
@@ -346,7 +336,6 @@ func TestTRCLoaderLoad(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)

@@ -284,7 +284,6 @@ func TestACLEval(t *testing.T) {
 		},
 	}
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -303,7 +302,6 @@ func TestACLPanic(t *testing.T) {
 	}
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
 	paths := pp.GetPaths(addr.MustParseIA("2-ff00:0:212"), addr.MustParseIA("2-ff00:0:211"))
 	assert.Panics(t, func() { acl.Eval(paths) })

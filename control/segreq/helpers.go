@@ -16,7 +16,7 @@ package segreq
 
 import (
 	"context"
-	"math/rand"
+	"math/rand/v2"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -71,7 +71,7 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 	if len(segs) < 1 {
 		return nil, serrors.New("no segments found")
 	}
-	seg := segs[rand.Intn(len(segs))]
+	seg := segs[rand.IntN(len(segs))]
 
 	svcaddr, err := s.Pather.GetPath(addr.SvcCS, seg)
 	// odd interface, builds address not path. Use GetPath to convert to snet.Path

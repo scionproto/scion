@@ -1,4 +1,5 @@
 // Copyright 2021 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,9 +29,7 @@ import (
 	"github.com/scionproto/scion/private/file"
 )
 
-var (
-	update = xtest.UpdateGoldenFiles()
-)
+var update = xtest.UpdateGoldenFiles()
 
 const (
 	// fileName points to the PEM test file used for both some tests and benchmarks. Only
@@ -48,7 +47,7 @@ func TestPeriodicViewWithParser(t *testing.T) {
 	if *update {
 		b, err := scrypto.EncodePEMSymmetricKey(key)
 		require.NoError(t, err)
-		err = os.WriteFile(fileName, b, 0644)
+		err = os.WriteFile(fileName, b, 0o644)
 		require.NoError(t, err)
 	}
 
@@ -68,7 +67,7 @@ func TestPeriodicViewWithoutParser(t *testing.T) {
 	f := "testdata/data.raw"
 	b := []byte{1, 2, 3, 4}
 	if *update {
-		err := os.WriteFile(f, b, 0644)
+		err := os.WriteFile(f, b, 0o644)
 		require.NoError(t, err)
 	}
 	view := &file.PeriodicView{
@@ -86,7 +85,7 @@ func TestPeriodicViewTwoReaders(t *testing.T) {
 	f := "testdata/two.raw"
 	b := []byte{1, 2, 3, 4}
 	if *update {
-		err := os.WriteFile(f, b, 0644)
+		err := os.WriteFile(f, b, 0o644)
 		require.NoError(t, err)
 	}
 	viewOne := &file.PeriodicView{
@@ -125,7 +124,7 @@ func TestPeriodicViewMultipleReads(t *testing.T) {
 	f := "testdata/multiple.raw"
 	b := []byte{1, 2, 3, 4}
 	if *update {
-		err := os.WriteFile(f, b, 0644)
+		err := os.WriteFile(f, b, 0o644)
 		require.NoError(t, err)
 	}
 	view := &file.PeriodicView{
@@ -211,7 +210,7 @@ func BenchmarkPeriodicView(b *testing.B) {
 }
 
 func benchmarkView(b *testing.B, view file.View) {
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := view.Get()
 		if err != nil {
 			b.Fatalf("Error: %v", err)

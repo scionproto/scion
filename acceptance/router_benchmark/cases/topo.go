@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/mdlayher/arp"
 	"github.com/mdlayher/ethernet"
 

@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
 const (
@@ -57,10 +56,8 @@ func testDB(t *testing.T, db drkey.SecretValueDB) {
 	defer cancelF()
 
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: time.Now(),
-			NotAfter:  time.Now().Add(timeOffset),
-		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(timeOffset),
 	}
 	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7}
 	asSecret = append(asSecret, byte(srcIA))

@@ -20,7 +20,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -97,6 +96,11 @@ func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error
 
 }
 
+// TopoQuerier can be used to get topology information from the SCION Daemon.
+type TopoQuerier interface {
+	UnderlayAnycast(ctx context.Context, svc addr.SVC) (*net.UDPAddr, error)
+}
+
 // DefaultLocalIP returns _an_ IP of this host in the local AS.
 //
 // This returns a sensible but arbitrary local IP. In the general case the
@@ -107,9 +111,9 @@ func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error
 // This is a simple workaround for not being able to use wildcard addresses
 // with snet. Once available, a wildcard address should be used instead and
 // this should be removed.
-func DefaultLocalIP(ctx context.Context, sdConn daemon.Connector) (net.IP, error) {
+func DefaultLocalIP(ctx context.Context, tq TopoQuerier) (net.IP, error) {
 	// Choose CS as default routing "target". Using any of the interfaces would also make sense.
-	csAddr, err := daemon.TopoQuerier{Connector: sdConn}.UnderlayAnycast(ctx, addr.SvcCS)
+	csAddr, err := tq.UnderlayAnycast(ctx, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}
