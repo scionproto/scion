@@ -144,7 +144,7 @@ type Packet struct {
 	// The type of traffic. This is used for metrics at the forwarding stage, but is most
 	// economically determined at the processing stage. So store it here. It's 2 bytes long.
 	trafficType trafficType
-	// Pad to 64 bytes. For 64bit arch, add 12 bytes. For 32bit arch, add 32 bytes.
+	// Pad to 64 bytes. For 64bit arch, add 4 bytes. For 32bit arch, add 28 bytes.
 	_ [4 + is32bit*24]byte
 }
 
