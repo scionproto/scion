@@ -1258,8 +1258,6 @@ func (p *scionPacketProcessor) respInvalidDstIA() disposition {
 // Provided that underlying network infrastructure prevents address spoofing,
 // this check prevents malicious end hosts in the local AS from bypassing the
 // SrcIA checks by disguising packets as transit traffic.
-//
-// TODO(multi_underlay): All or part of this check should move to the underlay.
 func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 	if p.path.IsFirstHop() || p.pkt.Ingress != 0 {
 		// not a transit packet, nothing to check
@@ -1271,6 +1269,8 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 		// Drop
 		return errorDiscard("error", invalidSrcAddrForTransit)
 	}
+
+	// TODO(multi_underlay): This check should move to the underlay, in siblingLink.
 	src, okS := netip.AddrFromSlice(p.pkt.SrcAddr.IP)
 	if !(okS && ingressLink.Remote().Addr() == src) {
 		// Drop

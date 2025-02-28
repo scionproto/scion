@@ -491,7 +491,6 @@ func (l *externalLink) SendBlocking(p *router.Packet) {
 	l.egressQ <- p
 }
 
-// TODO(multi_underlay): try and move code common to all links back into the router.
 func (l *externalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(size)
@@ -506,7 +505,6 @@ func (l *externalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packe
 		return
 	}
 
-	pkt.RawPacket = pkt.RawPacket[:size] // Update size; readBatch does not.
 	pkt.Ingress = l.ifID
 	pkt.SrcAddr = srcAddr
 	// TODO(multi_underlay): would an expected/src check be useful here?
@@ -642,7 +640,6 @@ func (l *siblingLink) SendBlocking(p *router.Packet) {
 	l.egressQ <- p
 }
 
-// TODO(multi_underlay): try and move code common to all links back into the router.
 func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(size)
@@ -656,7 +653,6 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet
 		metrics[sc].DroppedPacketsInvalid.Inc()
 	}
 
-	pkt.RawPacket = pkt.RawPacket[:size]
 	pkt.Ingress = 0
 	pkt.SrcAddr = srcAddr
 	// TODO(multi_underlay): can move expected/src check here.
@@ -773,7 +769,6 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packe
 		return
 	}
 
-	pkt.RawPacket = pkt.RawPacket[:size] // Update size; readBatch does not.
 	pkt.Ingress = 0
 	pkt.SrcAddr = srcAddr
 	select {
