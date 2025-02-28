@@ -144,7 +144,7 @@ type Packet struct {
 	// The type of traffic. This is used for metrics at the forwarding stage, but is most
 	// economically determined at the processing stage. So store it here. It's 2 bytes long.
 	trafficType trafficType
-	// Pad to 64 bytes. For 64bit arch, add 12 bytes. For 32bit arch, add 32 bytes.
+	// Pad to 64 bytes. For 64bit arch, add 4 bytes. For 32bit arch, add 28 bytes.
 	_ [4 + is32bit*24]byte
 }
 
@@ -1258,8 +1258,6 @@ func (p *scionPacketProcessor) respInvalidDstIA() disposition {
 // Provided that underlying network infrastructure prevents address spoofing,
 // this check prevents malicious end hosts in the local AS from bypassing the
 // SrcIA checks by disguising packets as transit traffic.
-//
-// TODO(multi_underlay): All or part of this check should move to the underlay.
 func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 	if p.path.IsFirstHop() || p.pkt.Ingress != 0 {
 		// not a transit packet, nothing to check
@@ -1271,6 +1269,8 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 		// Drop
 		return errorDiscard("error", invalidSrcAddrForTransit)
 	}
+
+	// TODO(multi_underlay): This check should move to the underlay, in siblingLink.
 	src, okS := netip.AddrFromSlice(p.pkt.SrcAddr.IP)
 	if !(okS && ingressLink.Remote().Addr() == src) {
 		// Drop
