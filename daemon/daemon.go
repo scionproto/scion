@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,13 +55,14 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 
 // TrustEngine builds the trust engine backed by the trust database.
 func TrustEngine(
+	ctx context.Context,
 	cfgDir string,
 	ia addr.IA,
 	db trust.DB,
 	dialer libgrpc.Dialer,
 ) (trust.Engine, error) {
 	certsDir := filepath.Join(cfgDir, "certs")
-	loaded, err := trust.LoadTRCs(context.Background(), certsDir, db)
+	loaded, err := trust.LoadTRCs(ctx, certsDir, db)
 	if err != nil {
 		return trust.Engine{}, serrors.Wrap("loading TRCs", err)
 	}
@@ -72,11 +74,10 @@ func TrustEngine(
 		}
 		log.Info("Ignoring non-TRC", "file", f, "reason", r)
 	}
-	loaded, err = trust.LoadChains(context.Background(), certsDir, db)
+	loaded, err = trust.LoadChains(ctx, certsDir, db)
 	if err != nil {
 		return trust.Engine{}, serrors.Wrap("loading certificate chains",
 			err)
-
 	}
 	log.Info("Certificate chains loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
