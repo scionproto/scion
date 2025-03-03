@@ -15,6 +15,7 @@
 package udpip
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -328,8 +329,16 @@ func (u *udpConnection) send(batchSize int, pool chan *router.Packet) {
 		for i, p := range pkts[:toWrite] {
 			msgs[i].Buffers[0] = p.RawPacket
 			msgs[i].Addr = nil
-			if len(p.DstAddr.IP) != 0 {
-				msgs[i].Addr = p.DstAddr
+			// If we're a bound connection we do not need to specify the address. In fact
+			// we really should not as it can cause unnecessary route queries. If we're
+			// an unbound connection, we *must* specify the address, of course.
+			if u.link == nil {
+				// TODO(multi_underlay): bug compatibility w/ test! We must pretend
+				// that we're a bound connection when the sender says so (by not setting
+				// the destination)... change the test.
+				if len(p.RemoteAddr.IP) != 0 {
+					msgs[i].Addr = p.RemoteAddr
+				}
 			}
 		}
 
@@ -382,8 +391,7 @@ type externalLink struct {
 	procQs     []chan *router.Packet
 	metrics    router.InterfaceMetrics
 	ifID       uint16
-	bfdSession router.BFDSession
-	remote     netip.AddrPort
+	bfdSession *bfd.Session
 	pool       chan *router.Packet
 	seed       uint32
 }
@@ -396,7 +404,7 @@ type externalLink struct {
 func (u *provider) NewExternalLink(
 	conn router.BatchConn,
 	qSize int,
-	bfd router.BFDSession,
+	bfd *bfd.Session,
 	remote netip.AddrPort,
 	ifID uint16,
 	metrics router.InterfaceMetrics,
@@ -446,7 +454,7 @@ func (l *externalLink) start(ctx context.Context, procQs []chan *router.Packet, 
 	go func() {
 		defer log.HandlePanic()
 		if err := l.bfdSession.Run(ctx); err != nil && err != bfd.AlreadyRunning {
-			log.Error("BFD session failed to start", "remote address", l.remote, "err", err)
+			log.Error("BFD session failed to start", "external interface", l.ifID, "err", err)
 		}
 	}()
 }
@@ -466,16 +474,14 @@ func (l *externalLink) Scope() router.LinkScope {
 	return router.External
 }
 
+// This is called for packets pretending to be in transit. So, an external link always
+// checks false.
+func (l *externalLink) CheckPktSrc(_ *router.Packet) bool {
+	return false
+}
+
 func (l *externalLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
-}
-
-func (l *externalLink) BFDSession() router.BFDSession {
-	return l.bfdSession
-}
-
-func (l *externalLink) Remote() netip.AddrPort {
-	return l.remote
 }
 
 func (l *externalLink) Send(p *router.Packet) bool {
@@ -505,10 +511,11 @@ func (l *externalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packe
 		return
 	}
 
+	// TODO(multi_underlay): This is temporary. The only use of src addr for external links
+	// is a useless check that should be removed.
+	// router.UpdateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
 	pkt.Ingress = l.ifID
-	pkt.SrcAddr = srcAddr
-	// TODO(multi_underlay): would an expected/src check be useful here?
-	// Could re-use the known netip.AddrPort for pkt.SrcAddr instead of a net.UDPADDR.
+	pkt.BfdSession = l.bfdSession
 	select {
 	case l.procQs[procID] <- pkt:
 	default:
@@ -521,8 +528,8 @@ type siblingLink struct {
 	egressQ    chan<- *router.Packet
 	procQs     []chan *router.Packet
 	metrics    router.InterfaceMetrics
-	bfdSession router.BFDSession
-	remote     netip.AddrPort
+	bfdSession *bfd.Session
+	remote     *net.UDPAddr
 	pool       chan *router.Packet
 	seed       uint32
 }
@@ -538,11 +545,11 @@ type siblingLink struct {
 // to erase the separation between link and connection for this implementation. Side effect
 // of moving the address:link map here: the router does not know if there is an existing link. As
 // a result it has to give us a BFDSession in all cases and we might throw it away (there
-// are no permanent resources attached to it). This will be fixed by moving some BFD related code
+// are no permanent resources attached to it). This could be fixed by moving some BFD related code
 // in-here.
 func (u *provider) NewSiblingLink(
 	qSize int,
-	bfd router.BFDSession,
+	bfd *bfd.Session,
 	remote netip.AddrPort,
 	metrics router.InterfaceMetrics,
 ) router.Link {
@@ -570,7 +577,7 @@ func (u *provider) NewSiblingLink(
 		egressQ:    c.queue, // And therefore we do not use qsize for now.
 		metrics:    metrics,
 		bfdSession: bfd,
-		remote:     remote,
+		remote:     net.UDPAddrFromAddrPort(remote),
 		seed:       u.internalLink.hashSeed(), // per connection, but used only by link.
 	}
 	c.links[remote] = sl
@@ -609,22 +616,18 @@ func (l *siblingLink) Scope() router.LinkScope {
 	return router.Sibling
 }
 
+func (l *siblingLink) CheckPktSrc(pkt *router.Packet) bool {
+	return bytes.Equal(pkt.RemoteAddr.IP, l.remote.IP)
+}
+
 func (l *siblingLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
-}
-
-func (l *siblingLink) BFDSession() router.BFDSession {
-	return l.bfdSession
-}
-
-func (l *siblingLink) Remote() netip.AddrPort {
-	return l.remote
 }
 
 func (l *siblingLink) Send(p *router.Packet) bool {
 	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address.
-	router.UpdateNetAddrFromAddrPort(p.DstAddr, l.remote)
+	router.UpdateNetAddrFromNetAddr(p.RemoteAddr, l.remote)
 	select {
 	case l.egressQ <- p:
 	default:
@@ -636,7 +639,7 @@ func (l *siblingLink) Send(p *router.Packet) bool {
 func (l *siblingLink) SendBlocking(p *router.Packet) {
 	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address.
-	router.UpdateNetAddrFromAddrPort(p.DstAddr, l.remote)
+	router.UpdateNetAddrFromNetAddr(p.RemoteAddr, l.remote)
 	l.egressQ <- p
 }
 
@@ -645,6 +648,7 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
+
 	procID, err := computeProcID(pkt.RawPacket, len(l.procQs), l.seed)
 
 	if err != nil {
@@ -653,10 +657,9 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet
 		metrics[sc].DroppedPacketsInvalid.Inc()
 	}
 
+	router.UpdateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
 	pkt.Ingress = 0
-	pkt.SrcAddr = srcAddr
-	// TODO(multi_underlay): can move expected/src check here.
-	// Could also, re-use the known netip.AddrPort for pkt.SrcAddr instead of a net.UDPADDR.
+	pkt.BfdSession = l.bfdSession
 	select {
 	case l.procQs[procID] <- pkt:
 	default:
@@ -729,16 +732,14 @@ func (l *internalLink) Scope() router.LinkScope {
 	return router.Internal
 }
 
+// This is called for packets pretending to be in transit. So, an internal link always
+// checks false.
+func (l *internalLink) CheckPktSrc(_ *router.Packet) bool {
+	return false
+}
+
 func (l *internalLink) IsUp() bool {
 	return true
-}
-
-func (l *internalLink) BFDSession() router.BFDSession {
-	return nil
-}
-
-func (l *internalLink) Remote() netip.AddrPort {
-	return netip.AddrPort{}
 }
 
 // The packet's destination is already in the packet's meta-data.
@@ -769,8 +770,11 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packe
 		return
 	}
 
+	// This is an unbound link. We must record the src address in case the packet
+	// is turned around by SCMP.
+	router.UpdateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
 	pkt.Ingress = 0
-	pkt.SrcAddr = srcAddr
+	// No bfd session for internal links
 	select {
 	case l.procQs[procID] <- pkt:
 	default:

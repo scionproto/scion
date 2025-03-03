@@ -41,18 +41,16 @@ const PDiscard = Disposition(pDiscard)
 
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	p := Packet{
-		DstAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
-		SrcAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
-		RawPacket: make([]byte, len(raw)),
-		Ingress:   ingress,
-		egress:    egress,
+		RemoteAddr: &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
+		RawPacket:  make([]byte, len(raw)),
+		Ingress:    ingress,
+		egress:     egress,
 	}
-
 	if src != nil {
-		p.SrcAddr = src
+		p.RemoteAddr = src
 	}
 	if dst != nil {
-		p.DstAddr = dst
+		p.RemoteAddr = dst
 	}
 	copy(p.RawPacket, raw)
 	return &p

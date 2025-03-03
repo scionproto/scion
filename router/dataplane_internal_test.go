@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/netip"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,12 +32,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
+	"github.com/scionproto/scion/router/control"
 	"github.com/scionproto/scion/router/mock_router"
 )
 
@@ -100,7 +103,7 @@ func TestReceiver(t *testing.T) {
 			// make sure that the packet has the right size
 			assert.Equal(t, 84+i%10*18, len(pkt.RawPacket))
 			// make sure that the source address was set correctly
-			assert.Equal(t, net.UDPAddr{IP: net.IP{10, 0, 200, 200}}, *pkt.SrcAddr)
+			assert.Equal(t, net.UDPAddr{IP: net.IP{10, 0, 200, 200}}, *pkt.RemoteAddr)
 			// make sure that the received pkt buffer has not been seen before
 			ptr := reflect.ValueOf(pkt.RawPacket).Pointer()
 			assert.NotContains(t, ptrMap, ptr)
@@ -131,21 +134,22 @@ func TestForwarder(t *testing.T) {
 	prepareDP := func(ctrl *gomock.Controller) *dataPlane {
 		ret := newDataPlane(
 			RunConfig{NumProcessors: 20, BatchSize: 64, NumSlowPathProcessors: 1}, false)
-		mInternal := mock_router.NewMockBatchConn(ctrl)
+		mFakeConn := mock_router.NewMockBatchConn(ctrl)
 		totalCount := 0
 		expectedPktId := byte(0)
 		closeChan := make(chan struct{})
-		mInternal.EXPECT().Close().DoAndReturn(
+		var once sync.Once
+		mFakeConn.EXPECT().Close().DoAndReturn(
 			func() error {
-				close(closeChan)
+				once.Do(func() { close(closeChan) })
 				return nil
 			}).AnyTimes()
-		mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
+		mFakeConn.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 			func(ms underlayconn.Messages) (int, error) {
 				<-closeChan
 				return 0, nil
 			}).AnyTimes()
-		mInternal.EXPECT().WriteBatch(gomock.Any(), 0).DoAndReturn(
+		mFakeConn.EXPECT().WriteBatch(gomock.Any(), 0).DoAndReturn(
 			func(ms underlayconn.Messages, flags int) (int, error) {
 				if totalCount == 255 {
 					return 0, nil
@@ -164,9 +168,14 @@ func TestForwarder(t *testing.T) {
 								"expected", expectedPktId, "got", pktId, "ms", ms)
 						}
 						if totalCount <= 100 {
+							// The first 100 packets are sent through the internal link
+							// They carry an explicit destination address.
 							assert.NotNil(t, m.Addr)
 						} else {
-							// stronger check than assert.Nil
+							// The other packets are sent through th external link. The
+							// destination is implicit and must not be copied to the batch
+							// messages.
+							// Addr == nil is a stronger check than assert.Nil
 							assert.True(t, m.Addr == nil)
 						}
 						expectedPktId++
@@ -181,7 +190,18 @@ func TestForwarder(t *testing.T) {
 
 				return len(ms), nil
 			}).AnyTimes()
-		_ = ret.AddInternalInterface(mInternal, netip.Addr{})
+		_ = ret.AddInternalInterface(mFakeConn, netip.Addr{})
+		l := control.LinkEnd{
+			IA:   addr.MustParseIA("1-ff00:0:1"),
+			Addr: netip.MustParseAddrPort("10.0.0.100:0"),
+		}
+		r := control.LinkEnd{
+			IA:   addr.MustParseIA("1-ff00:0:3"),
+			Addr: netip.MustParseAddrPort("10.0.0.200:0"),
+		}
+		nobfd := control.BFD{Disable: ptr.To(true)}
+
+		_ = ret.AddExternalInterface(42, mFakeConn, l, r, nobfd)
 		return ret
 	}
 	dp := prepareDP(ctrl)
@@ -198,10 +218,9 @@ func TestForwarder(t *testing.T) {
 		pkt.RawPacket = pkt.RawPacket[:1]
 		pkt.RawPacket[0] = byte(i)
 		if i < 100 {
-			pkt.DstAddr.IP = pkt.DstAddr.IP[:4]
-			copy(pkt.DstAddr.IP, dstAddr.IP)
+			pkt.RemoteAddr.IP = pkt.RemoteAddr.IP[:4]
+			copy(pkt.RemoteAddr.IP, dstAddr.IP)
 		}
-		pkt.SrcAddr = &net.UDPAddr{} // Receiver always sets this.
 		pkt.Ingress = 0
 
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
@@ -422,7 +441,6 @@ func TestSlowPathProcessing(t *testing.T) {
 			pkt.init(&[bufSize]byte{})
 			pkt.Reset()
 			pkt.Ingress = tc.srcInterface
-			pkt.SrcAddr = &net.UDPAddr{} // The receiver always sets this.
 			pkt.RawPacket = pkt.RawPacket[:len(rp)]
 			copy(pkt.RawPacket, rp)
 
