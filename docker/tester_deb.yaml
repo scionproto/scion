@@ -22,10 +22,13 @@ packages:
   - bash
   - bridge-utils
   - iperf3
+  - iproute2
   - iptables
+  - iputils-ping
+  - net-tools
   - netcat-openbsd
-  - openssh-server
   - openssh-client
+  - openssh-server
   - procps
   - telnet
   - tshark
