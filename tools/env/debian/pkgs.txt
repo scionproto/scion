@@ -1,3 +1,4 @@
+bash
 ethtool
 gawk
 bridge-utils
