@@ -45,7 +45,7 @@ def scion_tester_image():
     tar(
         name = "tester_layer_sh_symlink",
         mtree = [
-            "./usr/bin/sh type=link link=/usr/bin/bash",
+            "./usr/bin/sh type=link link=bash",
             "./bin type=link link=/usr/bin mode=0777 uid=0 gid=0",
         ],
     )
@@ -131,17 +131,9 @@ def remap_deb_tars(name, src, out):
             "REALOUT=$$(realpath $@)",
             "mkdir -p $$SCRATCH/bundle",
             "echo $$SCRATCH/bundle",
-            "echo katyas debug",
             "tar -xf $(location " + src + ") -C $$SCRATCH/bundle",
             "cd $$SCRATCH/bundle",
-            "[ -e bin ] && rsync -av --safe-links bin/ usr/bin/ && rm -rf bin && ln -s /usr/bin bin || true",
-#            "rm -rf /usr/bin/sh",
-#            "ln -s /usr/bin/bash /usr/bin/sh",
-#            "ls /usr/bin",
-            "echo usr bin",
-            "ls -l /usr/bin/sh*",
-            "echo bin",
-            "ls -l /bin/sh*",
+            "[ -e bin ] && rsync -av bin/ usr/bin/ && rm -rf bin && ln -s /usr/bin bin || true",
             "[ -e sbin ] && rsync -av sbin/ usr/sbin/ && rm -rf sbin && ln -s /usr/sbin sbin || true",
             "[ -e lib ] && rsync -av lib/ usr/lib/ && rm -rf lib && ln -s /usr/lib lib || true",
             "[ -e lib64 ] && rsync -av lib64/ usr/lib64/ && rm -rf lib64 && ln -s /usr/lib64 lib64 || true",
