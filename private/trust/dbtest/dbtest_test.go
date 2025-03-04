@@ -39,7 +39,7 @@ func TestUpdateCrypto(t *testing.T) {
 	require.NoError(t, err)
 	playground, err := filepath.Abs(filepath.Join(root, "tools", "cryptoplayground"))
 	require.NoError(t, err)
-	cmd := exec.Command("sh", "-c", filepath.Join("testdata", "update_certs.sh"))
+	cmd := exec.Command("bash", "-c", filepath.Join("testdata", "update_certs.sh"))
 	cmd.Env = []string{
 		"SCION_ROOT=" + root,
 		"PLAYGROUND=" + playground,

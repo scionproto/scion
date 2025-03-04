@@ -45,7 +45,7 @@ func TestCombine(t *testing.T) {
 		playground, err := filepath.Abs(filepath.Join(root, "tools", "cryptoplayground"))
 		require.NoError(t, err)
 
-		cmd := exec.Command("sh", "-c", filepath.Join(playground, "trc_ceremony.sh"))
+		cmd := exec.Command("bash", "-c", filepath.Join(playground, "trc_ceremony.sh"))
 		cmd.Env = []string{
 			"SCION_ROOT=" + root,
 			"PLAYGROUND=" + playground,
@@ -60,8 +60,8 @@ func TestCombine(t *testing.T) {
 			out, err := cmd.CombinedOutput()
 			require.NoError(t, err, string(out))
 		}
-		runCmd("sh", "-c", "rm -rf testdata/admin")
-		runCmd("sh", "-c", fmt.Sprintf("cp -a %s testdata/", filepath.Join(dir, "admin/.")))
+		runCmd("bash", "-c", "rm -rf testdata/admin")
+		runCmd("bash", "-c", fmt.Sprintf("cp -a %s testdata/", filepath.Join(dir, "admin/.")))
 
 		// Sort signer infos for deterministic result.
 		signed, err := trcs.DecodeFromFile("./testdata/admin/ISD1-B1-S1.trc")
