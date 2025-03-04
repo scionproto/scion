@@ -19,6 +19,7 @@ PACKAGES = [
     "@tester_deb//openssh-client",
     "@tester_deb//openssh-server",
     "@tester_deb//procps",
+    "@tester_deb//rsync",
     "@tester_deb//telnet",
     "@tester_deb//tshark",
     "@tester_deb//wget",
@@ -116,7 +117,7 @@ def scion_tester_image():
 def remap_deb_tars(name, src, out):
     # The tars created by rules_distroless have proper directories instead of symlinks
     # which overwrite the symlinks in the base image. This will result in a broken image.
-    # To counter this, we move the contents of the supposedly symlinke sources to the
+    # To counter this, we move the contents of the supposedly symlinked sources to the
     # symlink target directories, remove the source directories and create symlinks to the
     # target directories.
     #

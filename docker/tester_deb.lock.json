@@ -1555,6 +1555,110 @@
 			"arch": "amd64",
 			"dependencies": [
 				{
+					"key": "libpopt0_1.16-12_amd64",
+					"name": "libpopt0",
+					"version": "1.16-12"
+				},
+				{
+					"key": "libc6_2.28-10-p-deb10u1_amd64",
+					"name": "libc6",
+					"version": "2.28-10+deb10u1"
+				},
+				{
+					"key": "libgcc1_1-8.3.0-6_amd64",
+					"name": "libgcc1",
+					"version": "1:8.3.0-6"
+				},
+				{
+					"key": "gcc-8-base_8.3.0-6_amd64",
+					"name": "gcc-8-base",
+					"version": "8.3.0-6"
+				},
+				{
+					"key": "libattr1_1-2.4.48-4_amd64",
+					"name": "libattr1",
+					"version": "1:2.4.48-4"
+				},
+				{
+					"key": "libacl1_2.2.53-4_amd64",
+					"name": "libacl1",
+					"version": "2.2.53-4"
+				},
+				{
+					"key": "lsb-base_10.2019051400_amd64",
+					"name": "lsb-base",
+					"version": "10.2019051400"
+				},
+				{
+					"key": "init-system-helpers_1.56-p-nmu1_amd64",
+					"name": "init-system-helpers",
+					"version": "1.56+nmu1"
+				},
+				{
+					"key": "perl-base_5.28.1-6-p-deb10u1_amd64",
+					"name": "perl-base",
+					"version": "5.28.1-6+deb10u1"
+				},
+				{
+					"key": "dpkg_1.19.8_amd64",
+					"name": "dpkg",
+					"version": "1.19.8"
+				},
+				{
+					"key": "tar_1.30-p-dfsg-6_amd64",
+					"name": "tar",
+					"version": "1.30+dfsg-6"
+				},
+				{
+					"key": "libselinux1_2.8-1-p-b1_amd64",
+					"name": "libselinux1",
+					"version": "2.8-1+b1"
+				},
+				{
+					"key": "libpcre3_2-8.39-12_amd64",
+					"name": "libpcre3",
+					"version": "2:8.39-12"
+				},
+				{
+					"key": "zlib1g_1-1.2.11.dfsg-1-p-deb10u1_amd64",
+					"name": "zlib1g",
+					"version": "1:1.2.11.dfsg-1+deb10u1"
+				},
+				{
+					"key": "liblzma5_5.2.4-1-p-deb10u1_amd64",
+					"name": "liblzma5",
+					"version": "5.2.4-1+deb10u1"
+				},
+				{
+					"key": "libbz2-1.0_1.0.6-9.2_deb10u1_amd64",
+					"name": "libbz2-1.0",
+					"version": "1.0.6-9.2~deb10u1"
+				},
+				{
+					"key": "base-files_10.3-p-deb10u13_amd64",
+					"name": "base-files",
+					"version": "10.3+deb10u13"
+				}
+			],
+			"key": "rsync_3.1.3-6_amd64",
+			"name": "rsync",
+			"sha256": "8174360edf75f3dd3a12e8bd4dc0c502a470acdb6e41057672ca3f6d696a79d1",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/r/rsync/rsync_3.1.3-6_amd64.deb",
+			"version": "3.1.3-6"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "libpopt0_1.16-12_amd64",
+			"name": "libpopt0",
+			"sha256": "6eab4706e8f484eefcd708b0fb26a1ae27c01442a6ca2fc1affb0197afbadab1",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/p/popt/libpopt0_1.16-12_amd64.deb",
+			"version": "1.16-12"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [
+				{
 					"key": "libstdc-p--p-6_8.3.0-6_amd64",
 					"name": "libstdc++6",
 					"version": "8.3.0-6"
@@ -3877,6 +3981,110 @@
 			"sha256": "8aedc549e97e42fd21429d82a18ead489399ff4c15c6c688cdedea591eed9a66",
 			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/p/pam/libpam-runtime_1.3.1-5_all.deb",
 			"version": "1.3.1-5"
+		},
+		{
+			"arch": "arm64",
+			"dependencies": [
+				{
+					"key": "libpopt0_1.16-12_arm64",
+					"name": "libpopt0",
+					"version": "1.16-12"
+				},
+				{
+					"key": "libc6_2.28-10-p-deb10u1_arm64",
+					"name": "libc6",
+					"version": "2.28-10+deb10u1"
+				},
+				{
+					"key": "libgcc1_1-8.3.0-6_arm64",
+					"name": "libgcc1",
+					"version": "1:8.3.0-6"
+				},
+				{
+					"key": "gcc-8-base_8.3.0-6_arm64",
+					"name": "gcc-8-base",
+					"version": "8.3.0-6"
+				},
+				{
+					"key": "libattr1_1-2.4.48-4_arm64",
+					"name": "libattr1",
+					"version": "1:2.4.48-4"
+				},
+				{
+					"key": "libacl1_2.2.53-4_arm64",
+					"name": "libacl1",
+					"version": "2.2.53-4"
+				},
+				{
+					"key": "lsb-base_10.2019051400_arm64",
+					"name": "lsb-base",
+					"version": "10.2019051400"
+				},
+				{
+					"key": "init-system-helpers_1.56-p-nmu1_arm64",
+					"name": "init-system-helpers",
+					"version": "1.56+nmu1"
+				},
+				{
+					"key": "perl-base_5.28.1-6-p-deb10u1_arm64",
+					"name": "perl-base",
+					"version": "5.28.1-6+deb10u1"
+				},
+				{
+					"key": "dpkg_1.19.8_arm64",
+					"name": "dpkg",
+					"version": "1.19.8"
+				},
+				{
+					"key": "tar_1.30-p-dfsg-6_arm64",
+					"name": "tar",
+					"version": "1.30+dfsg-6"
+				},
+				{
+					"key": "libselinux1_2.8-1-p-b1_arm64",
+					"name": "libselinux1",
+					"version": "2.8-1+b1"
+				},
+				{
+					"key": "libpcre3_2-8.39-12_arm64",
+					"name": "libpcre3",
+					"version": "2:8.39-12"
+				},
+				{
+					"key": "zlib1g_1-1.2.11.dfsg-1-p-deb10u1_arm64",
+					"name": "zlib1g",
+					"version": "1:1.2.11.dfsg-1+deb10u1"
+				},
+				{
+					"key": "liblzma5_5.2.4-1-p-deb10u1_arm64",
+					"name": "liblzma5",
+					"version": "5.2.4-1+deb10u1"
+				},
+				{
+					"key": "libbz2-1.0_1.0.6-9.2_deb10u1_arm64",
+					"name": "libbz2-1.0",
+					"version": "1.0.6-9.2~deb10u1"
+				},
+				{
+					"key": "base-files_10.3-p-deb10u13_arm64",
+					"name": "base-files",
+					"version": "10.3+deb10u13"
+				}
+			],
+			"key": "rsync_3.1.3-6_arm64",
+			"name": "rsync",
+			"sha256": "78960c556a0b8ca7f53f809582fb559ac487b641e4c3f2ed8c72b2c85f81994c",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/r/rsync/rsync_3.1.3-6_arm64.deb",
+			"version": "3.1.3-6"
+		},
+		{
+			"arch": "arm64",
+			"dependencies": [],
+			"key": "libpopt0_1.16-12_arm64",
+			"name": "libpopt0",
+			"sha256": "26fa7a3413182077bf16557f03515dc0397bcb811497c3f5ccb885f90cd9dfcf",
+			"url": "https://snapshot.debian.org/archive/debian/20240311T214105Z/pool/main/p/popt/libpopt0_1.16-12_arm64.deb",
+			"version": "1.16-12"
 		},
 		{
 			"arch": "arm64",
