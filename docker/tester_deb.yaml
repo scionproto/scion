@@ -30,7 +30,6 @@ packages:
   - openssh-client
   - openssh-server
   - procps
-  - rsync
   - telnet
   - tshark
   - wget

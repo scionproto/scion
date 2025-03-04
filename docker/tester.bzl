@@ -19,7 +19,6 @@ PACKAGES = [
     "@tester_deb//openssh-client",
     "@tester_deb//openssh-server",
     "@tester_deb//procps",
-    "@tester_deb//rsync",
     "@tester_deb//telnet",
     "@tester_deb//tshark",
     "@tester_deb//wget",
