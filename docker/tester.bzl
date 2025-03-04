@@ -42,14 +42,6 @@ def scion_tester_image():
         ],
     )
 
-    tar(
-        name = "tester_layer_sh_symlink",
-        mtree = [
-            "./usr/bin/sh type=link link=/usr/bin/bash",
-            "./bin type=link link=/usr/bin mode=0777 uid=0 gid=0",
-        ],
-    )
-
     remap_deb_tars(
         name = "tester_layer_deb_remapped",
         src = "tester_layer_deb",
@@ -91,7 +83,6 @@ def scion_tester_image():
         cmd = ["tail", "-f", "/dev/null"],
         tars = [
             ":tester_layer_deb_remapped",
-            ":tester_layer_sh_symlink",
             ":tester_layer_share",
             ":tester_layer_tools_integration",
             ":tester_layer_bin",
