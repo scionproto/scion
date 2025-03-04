@@ -136,7 +136,7 @@ def remap_deb_tars(name, src, out):
             "tar -xf $(location " + src + ") -C $$SCRATCH/bundle",
             "cd $$SCRATCH/bundle",
             "[ -e bin ] && rsync -av bin/ usr/bin/ && rm -rf bin && ln -s /usr/bin bin || true",
-            "ln -s /usr/bin/sh /usr/bin/bash",
+            "ln -s /usr/bin/bash /usr/bin/sh",
             "ls /usr/bin",
             "[ -e sbin ] && rsync -av sbin/ usr/sbin/ && rm -rf sbin && ln -s /usr/sbin sbin || true",
             "[ -e lib ] && rsync -av lib/ usr/lib/ && rm -rf lib && ln -s /usr/lib lib || true",
