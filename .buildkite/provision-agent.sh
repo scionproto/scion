@@ -2,13 +2,6 @@
 
 set -euo pipefail
 
-echo "~~~ PATH"
-echo $PATH
-echo "~~~ /bin"
-ls /bin
-echo "~~~ /usr/bin"
-ls /usr/bin
-
 # The installation scripts are no-ops when nothing has changed.
 # To circumvent running any checks (and cluttering the output), we only
 # rerun the scripts if any of them have changed since the last run.

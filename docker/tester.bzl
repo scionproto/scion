@@ -131,6 +131,8 @@ def remap_deb_tars(name, src, out):
             "REALOUT=$$(realpath $@)",
             "mkdir -p $$SCRATCH/bundle",
             "echo $$SCRATCH/bundle",
+            "echo debug",
+            "echo $PATH",
             "tar -xf $(location " + src + ") -C $$SCRATCH/bundle",
             "cd $$SCRATCH/bundle",
             "[ -e bin ] && rsync -av bin/ usr/bin/ && rm -rf bin && ln -s /usr/bin bin || true",
