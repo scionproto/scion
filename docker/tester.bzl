@@ -47,8 +47,6 @@ def scion_tester_image():
         mtree = [
             "./usr/bin/sh type=link link=bash",
             "./bin type=link link=/usr/bin mode=0777 uid=0 gid=0",
-            "bin/bash uid=0 gid=0 type=link link=/usr/bin/bash",
-            "bin/sh uid=0 gid=0 type=link link=/bin/bash",
         ],
     )
 
