@@ -164,12 +164,10 @@ func TestFetcherChains(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 
 			svc := xtest.NewGRPCService()
 			cppb.RegisterTrustMaterialServiceServer(svc.Server(), tc.Server(mctrl))
@@ -251,12 +249,10 @@ func TestFetcherTRC(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 
 			svc := xtest.NewGRPCService()
 			cppb.RegisterTrustMaterialServiceServer(svc.Server(), tc.Server(mctrl))

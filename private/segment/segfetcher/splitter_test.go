@@ -29,7 +29,6 @@ import (
 
 func TestRequestSplitter(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	t.Run("multi-cores", func(t *testing.T) {
 		cores := map[addr.IA]struct{}{
@@ -150,7 +149,6 @@ func TestRequestSplitter(t *testing.T) {
 			},
 		}
 		for name, test := range tests {
-			name, test := name, test
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 

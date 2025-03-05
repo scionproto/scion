@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -79,8 +78,6 @@ func TestSessionConfigurator(t *testing.T) {
 		assert.Error(t, sc.Run(context.Background()))
 	})
 	t.Run("test Run", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		tpChan := make(chan control.SessionPolicies)
 		ruChan := make(chan control.RemoteGateways)
 		cfgChan := make(chan []*control.SessionConfig)
@@ -340,7 +337,6 @@ func TestBuildSessionConfigs(t *testing.T) {
 			},
 			RoutingUpdate: control.RemoteGateways{
 				Gateways: map[addr.IA][]control.RemoteGateway{
-
 					addr.MustParseIA("1-ff00:0:110"): {
 						{
 							Gateway: control.Gateway{
@@ -492,7 +488,6 @@ func TestBuildSessionConfigs(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -650,7 +645,6 @@ func TestConjuctionPolicy(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			pol := control.ConjunctionPathPol{Pol1: tc.Pol1, Pol2: tc.Pol2}
 			acceptedPaths := pol.Filter(tc.InputPaths)
@@ -723,7 +717,6 @@ func TestNewPathPolForEnteringAS(t *testing.T) {
 					},
 				},
 				path.Path{
-
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
 							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
@@ -776,7 +769,6 @@ func TestNewPathPolForEnteringAS(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			pol := control.NewPathPolForEnteringAS(tc.IA, tc.Interfaces)

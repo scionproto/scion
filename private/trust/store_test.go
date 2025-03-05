@@ -54,7 +54,7 @@ func TestLoadChains(t *testing.T) {
 		})
 		err := cmd.Execute()
 		require.NoError(t, err)
-		err = os.WriteFile(filepath.Join(dir, "certs", "dummy.pem"), []byte{}, 0666)
+		err = os.WriteFile(filepath.Join(dir, "certs", "dummy.pem"), []byte{}, 0o666)
 		require.NoError(t, err)
 		return dir
 	}
@@ -212,11 +212,9 @@ func TestLoadChains(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctlr := gomock.NewController(t)
-			defer ctlr.Finish()
 
 			dir := tc.genCrypto(t)
 
@@ -244,7 +242,6 @@ func TestLoadTRCs(t *testing.T) {
 	dir := genCrypto(t)
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	testCases := map[string]struct {
 		inputDir   string
@@ -296,7 +293,6 @@ func TestLoadTRCs(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			res, err := trust.LoadTRCs(context.Background(), tc.inputDir, tc.setupDB())
@@ -340,7 +336,6 @@ func TestTRCLoaderLoad(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)

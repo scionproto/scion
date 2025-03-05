@@ -68,12 +68,10 @@ func TestDiscovererDiscover(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			svc := xtest.NewGRPCService()
 			dspb.RegisterDiscoveryServiceServer(svc.Server(), tc.server(ctrl))

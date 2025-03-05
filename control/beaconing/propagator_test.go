@@ -52,7 +52,6 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	}
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	topo, err := topology.FromJSONFile(topoNonCore)
 	require.NoError(t, err)
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
@@ -126,7 +125,6 @@ func TestPropagatorRunCore(t *testing.T) {
 	}
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	topo, err := topology.FromJSONFile(topoCore)
 	require.NoError(t, err)
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
@@ -212,7 +210,6 @@ func TestPropagatorFastRecovery(t *testing.T) {
 		{graph.If_130_B_120_A, graph.If_120_A_110_X},
 	}
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	topo, err := topology.FromJSONFile(topoCore)
 	require.NoError(t, err)
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})

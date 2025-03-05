@@ -61,7 +61,7 @@ class DockerUtilsGenerator(object):
         entry = {
             'image': docker_image(self.args, 'tester'),
             'privileged': True,
-            'entrypoint': 'sh tester.sh',
+            'entrypoint': 'bash tester.sh',
             'environment': {},
             # 'user': self.user,
             'volumes': [

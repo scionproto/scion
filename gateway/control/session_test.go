@@ -33,7 +33,6 @@ import (
 func TestSessionRun(t *testing.T) {
 	t.Run("50ms poll interval", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		path := mock_snet.NewMockPath(ctrl)
 		pathMonitorRegistration := mock_control.NewMockPathMonitorRegistration(ctrl)

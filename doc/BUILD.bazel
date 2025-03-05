@@ -37,9 +37,11 @@ py_console_script_binary(
 )
 
 # sphinx-lint
-alias(
+py_console_script_binary(
     name = "sphinx-lint",
-    actual = entry_point("sphinx-lint"),
+    pkg = requirement("sphinx-lint"),
+    script = "sphinx-lint",
+    deps = [r for r in all_requirements if r != requirement("sphinx-lint")],
 )
 
 sphinx_lint_test(

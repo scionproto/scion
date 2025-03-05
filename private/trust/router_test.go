@@ -139,7 +139,6 @@ func TestCSRouterChooseServer(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			db := mock_trust.NewMockDB(mctrl)
 			r, p := mock_snet.NewMockRouter(mctrl), mock_snet.NewMockPath(mctrl)
 			test.Expect(db, r, p)

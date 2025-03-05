@@ -78,14 +78,13 @@ func TestRegistrationPolicyUnmarshalYAML(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			if *update {
 				raw, err := yaml.Marshal(tc.want)
 				require.NoError(t, err)
-				err = os.WriteFile(tc.input, raw, 0666)
+				err = os.WriteFile(tc.input, raw, 0o666)
 				require.NoError(t, err)
 				return
 			}

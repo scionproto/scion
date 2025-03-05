@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package router
+package udpip
 
 // fnv1aOffset32 is an initial offset that can be used as initial state when calling
 // hashFNV1a.
@@ -22,7 +22,7 @@ const fnv1aOffset32 uint32 = 2166136261
 // To get a hash for a sequence of bytes, invoke for each byte, passing the returned value
 // of one call as the state for the next. Example. s1 = hashFNV1a(fnv1aOffset, byte1)
 // s2 = hashFNV1a(s1, byte2) etc. It is valid and recommended to use a value obtained
-// from calla to hashFNV1a() as the initial state rather than fnv1aOffset32 itself.
+// from calls to hashFNV1a() as the initial state rather than fnv1aOffset32 itself.
 func hashFNV1a(state uint32, c byte) uint32 {
 	const prime32 = 16777619
 	return (state ^ uint32(c)) * prime32

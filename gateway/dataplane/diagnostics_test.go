@@ -29,9 +29,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
-var (
-	update = xtest.UpdateGoldenFiles()
-)
+var update = xtest.UpdateGoldenFiles()
 
 func TestDiagnosticWriter(t *testing.T) {
 	testCases := map[string]struct {
@@ -64,13 +62,12 @@ func TestDiagnosticWriter(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
 			tc.prepareDW(t).DiagnosticsWrite(&buf)
 			if *update {
-				err := os.WriteFile(tc.wantFile, buf.Bytes(), 0644)
+				err := os.WriteFile(tc.wantFile, buf.Bytes(), 0o644)
 				require.NoError(t, err)
 				return
 			}

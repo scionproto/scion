@@ -55,10 +55,8 @@ func TestTLSCryptoVerifierVerifyServerCertificate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			db := tc.db(ctrl)
 			verifier := trust.TLSCryptoVerifier{
@@ -95,10 +93,8 @@ func TestTLSCryptoVerifierVerifyClientCertificate(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			db := tc.db(ctrl)
 			verifier := trust.TLSCryptoVerifier{
@@ -115,7 +111,6 @@ func TestTLSCryptoVerifierVerifyClientCertificate(t *testing.T) {
 func TestHandshake(t *testing.T) {
 	dir := genCrypto(t)
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
 	crt111File := filepath.Join(dir, "certs/ISD1-ASff00_0_111.pem")
