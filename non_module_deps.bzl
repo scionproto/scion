@@ -37,12 +37,6 @@ def _non_module_deps_impl(
         strip_prefix = "buf/bin",
         urls = ["https://github.com/bufbuild/buf/releases/download/v1.32.2/buf-Linux-x86_64.tar.gz"],
     )
-    http_archive(
-        name = "rules_debian_packages",
-        sha256 = "0ae3b332f9d894e57693ce900769d2bd1b693e1f5ea1d9cdd82fa4479c93bcc8",
-        strip_prefix = "rules_debian_packages-0.2.0",
-        url = "https://github.com/bazel-contrib/rules_debian_packages/releases/download/v0.2.0/rules_debian_packages-v0.2.0.tar.gz",
-    )
 
 non_module_deps = module_extension(
     implementation = _non_module_deps_impl,

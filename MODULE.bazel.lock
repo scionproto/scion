@@ -17,6 +17,7 @@
     "https://bcr.bazel.build/modules/aspect_bazel_lib/2.13.0/MODULE.bazel": "af4a546cb88c618f2e241721d2d76b70b7ecfaa1d58fe27b9187d3edb9e418da",
     "https://bcr.bazel.build/modules/aspect_bazel_lib/2.13.0/source.json": "5538ef77a1ecff41c119e040d4bc0148c83e9e79464a165ec86a1aa3171a5535",
     "https://bcr.bazel.build/modules/aspect_bazel_lib/2.7.2/MODULE.bazel": "780d1a6522b28f5edb7ea09630748720721dfe27690d65a2d33aa7509de77e07",
+    "https://bcr.bazel.build/modules/aspect_bazel_lib/2.7.9/MODULE.bazel": "06e54f2b345b8eb7adceed2329b273da00d0368e28a9ebd9dfc75b4a052dac85",
     "https://bcr.bazel.build/modules/aspect_bazel_lib/2.8.1/MODULE.bazel": "812d2dd42f65dca362152101fbec418029cc8fd34cbad1a2fde905383d705838",
     "https://bcr.bazel.build/modules/aspect_rules_js/2.1.3/MODULE.bazel": "47cc48eec374d69dced3cf9b9e5926beac2f927441acfb1a3568bbb709b25666",
     "https://bcr.bazel.build/modules/aspect_rules_js/2.1.3/source.json": "6b0fe67780c101430be087381b7a79d75eeebe1a1eae6a2cee937713603634ac",
@@ -97,6 +98,8 @@
     "https://bcr.bazel.build/modules/rules_cc/0.0.6/MODULE.bazel": "abf360251023dfe3efcef65ab9d56beefa8394d4176dd29529750e1c57eaa33f",
     "https://bcr.bazel.build/modules/rules_cc/0.0.8/MODULE.bazel": "964c85c82cfeb6f3855e6a07054fdb159aced38e99a5eecf7bce9d53990afa3e",
     "https://bcr.bazel.build/modules/rules_cc/0.0.9/MODULE.bazel": "836e76439f354b89afe6a911a7adf59a6b2518fafb174483ad78a2a2fde7b1c5",
+    "https://bcr.bazel.build/modules/rules_distroless/0.3.8/MODULE.bazel": "7d7cf5b71d0f05ea30308c379ee7c3e69caddb2c94878796799333ffcd6aa840",
+    "https://bcr.bazel.build/modules/rules_distroless/0.3.8/source.json": "a2421c594d7685202be9a18e89e88fb0c8e1acfea55d0e0cf0452244cb1bf250",
     "https://bcr.bazel.build/modules/rules_foreign_cc/0.9.0/MODULE.bazel": "c9e8c682bf75b0e7c704166d79b599f93b72cfca5ad7477df596947891feeef6",
     "https://bcr.bazel.build/modules/rules_fuzzing/0.5.2/MODULE.bazel": "40c97d1144356f52905566c55811f13b299453a14ac7769dfba2ac38192337a8",
     "https://bcr.bazel.build/modules/rules_fuzzing/0.5.2/source.json": "c8b1e2c717646f1702290959a3302a178fb639d987ab61d548105019f11e527e",
@@ -209,7 +212,7 @@
     },
     "//:non_module_deps.bzl%non_module_deps": {
       "general": {
-        "bzlTransitiveDigest": "DlJjwvrj/lZP+d2whJDQ6TFs0NIzjG9oLEtJY8djZFQ=",
+        "bzlTransitiveDigest": "Yxp3rEhT806a1CLrwroHDOnmfY7mtofY/eofGxr9JZA=",
         "usagesDigest": "5s12WgUgDcGvexJfl0bIS7GJ14+1NKrsFrPySvayGSw=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -265,15 +268,6 @@
               "urls": [
                 "https://github.com/bufbuild/buf/releases/download/v1.32.2/buf-Linux-x86_64.tar.gz"
               ]
-            }
-          },
-          "rules_debian_packages": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_archive",
-            "attributes": {
-              "sha256": "0ae3b332f9d894e57693ce900769d2bd1b693e1f5ea1d9cdd82fa4479c93bcc8",
-              "strip_prefix": "rules_debian_packages-0.2.0",
-              "url": "https://github.com/bazel-contrib/rules_debian_packages/releases/download/v0.2.0/rules_debian_packages-v0.2.0.tar.gz"
             }
           }
         },

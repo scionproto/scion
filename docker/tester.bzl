@@ -1,7 +1,7 @@
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@rules_distroless//apt:index.bzl", "deb_index")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 # NOTE: This list needs to be in-sync with tester_deb.yaml
@@ -90,7 +90,7 @@ def scion_tester_image():
         labels = ":labels",
         visibility = ["//visibility:public"],
     )
-    oci_tarball(
+    oci_load(
         name = "tester.load",
         format = "docker",
         image = "tester",
