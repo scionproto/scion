@@ -25,13 +25,6 @@ PACKAGES = [
     "@tester_deb//wget",
 ]
 
-def declare_tester_deb():
-    deb_index(
-        name = "tester_deb",
-        lock = "//docker:tester_deb.lock.json",
-        manifest = "//docker:tester_deb.yaml",
-    )
-
 def scion_tester_image():
     # Required to avoid https://github.com/GoogleContainerTools/rules_distroless/issues/36
     pkg_tar(
