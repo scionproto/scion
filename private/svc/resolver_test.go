@@ -38,7 +38,6 @@ import (
 
 func TestResolver(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	srcIA := addr.MustParseIA("1-ff00:0:1")
 	dstIA := addr.MustParseIA("1-ff00:0:2")
@@ -60,15 +59,16 @@ func TestResolver(t *testing.T) {
 		reply, err := resolver.LookupSVC(context.Background(), mockPath, addr.SvcCS)
 		assert.Error(t, err)
 		assert.Nil(t, reply)
-
 	})
 	t.Run("Local machine information is used to build conns", func(t *testing.T) {
 		mockNet := mock_snet.NewMockNetwork(ctrl)
 		mockConn := mock_snet.NewMockPacketConn(ctrl)
 		mockConn.EXPECT().LocalAddr().Return(&net.UDPAddr{
-			IP: net.IP{192, 0, 2, 1}, Port: 30001})
+			IP: net.IP{192, 0, 2, 1}, Port: 30001,
+		})
 		mockNet.EXPECT().OpenRaw(gomock.Any(), &net.UDPAddr{
-			IP: net.IP{192, 0, 2, 1}}).Return(mockConn, nil)
+			IP: net.IP{192, 0, 2, 1},
+		}).Return(mockConn, nil)
 		mockConn.EXPECT().Close().Return(nil)
 		mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
 		mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
@@ -168,12 +168,10 @@ func TestRoundTripper(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.Description, func(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			conn := mock_snet.NewMockPacketConn(ctrl)
 
 			if tc.ConnSetup != nil {

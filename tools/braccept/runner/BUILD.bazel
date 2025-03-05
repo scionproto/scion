@@ -5,21 +5,32 @@ go_library(
     srcs = [
         "compare.go",
         "print.go",
-        "run.go",
+        "run_linux.go",
+        "runner.go",
     ],
     importpath = "github.com/scionproto/scion/tools/braccept/runner",
     visibility = ["//visibility:public"],
     deps = [
-        "//pkg/log:go_default_library",
-        "//pkg/private/common:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "@com_github_gopacket_gopacket//:go_default_library",
-        "@com_github_gopacket_gopacket//afpacket:go_default_library",
         "@com_github_gopacket_gopacket//layers:go_default_library",
-        "@com_github_gopacket_gopacket//pcapgo:go_default_library",
         "@com_github_mattn_go_isatty//:go_default_library",
         "@com_github_sergi_go_diff//diffmatchpatch:go_default_library",
-    ],
+    ] + select({
+        "@io_bazel_rules_go//go/platform:android": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/common:go_default_library",
+            "@com_github_gopacket_gopacket//afpacket:go_default_library",
+            "@com_github_gopacket_gopacket//pcapgo:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:linux": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/common:go_default_library",
+            "@com_github_gopacket_gopacket//afpacket:go_default_library",
+            "@com_github_gopacket_gopacket//pcapgo:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 go_test(

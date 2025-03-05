@@ -13,6 +13,7 @@ def raw_test(
         deps = [],
         data = [],
         tags = [],
+        imports = ["."],
         homedir = "",
         local = False):
     py_library(
@@ -33,6 +34,7 @@ def raw_test(
         args = ["setup"] + args,
         main = src,
         deps = [":%s_lib" % name],
+        imports = imports,
         data = data,
     )
 
@@ -42,6 +44,7 @@ def raw_test(
         args = ["run"] + args,
         main = src,
         deps = [":%s_lib" % name],
+        imports = imports,
         data = data,
     )
 
@@ -51,6 +54,7 @@ def raw_test(
         args = ["teardown"],
         main = src,
         deps = [":%s_lib" % name],
+        imports = imports,
         data = data,
     )
 
@@ -61,6 +65,7 @@ def raw_test(
         main = src,
         args = args,
         deps = [":%s_lib" % name],
+        imports = imports,
         data = data,
         tags = tags + ["integration", "exclusive"],
         local = local,

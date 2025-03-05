@@ -419,11 +419,9 @@ func TestSignerGenGenerate(t *testing.T) {
 	metrics.Signer.Signers.Reset()
 	t.Run("cases", func(t *testing.T) {
 		for name, tc := range testCases {
-			name, tc := name, tc
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				mctrl := gomock.NewController(t)
-				defer mctrl.Finish()
 
 				gen := trust.SignerGen{
 					IA:      addr.MustParseIA("1-ff00:0:110"),
@@ -438,7 +436,6 @@ func TestSignerGenGenerate(t *testing.T) {
 	})
 	t.Run("metrics", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 		// Ensure the gauge is set to the expected value.
 		ring := mock_trust.NewMockKeyRing(mctrl)
 		ring.EXPECT().PrivateKeys(gomock.Any()).Return([]crypto.Signer{key}, nil)

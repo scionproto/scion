@@ -46,7 +46,6 @@ func TestBasicPolicy(t *testing.T) {
 		},
 	}
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -251,7 +250,6 @@ func TestOptionsEval(t *testing.T) {
 		},
 	}
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -571,7 +569,6 @@ func TestFilterOpt(t *testing.T) {
 		},
 	}
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
 	src := addr.MustParseIA("1-ff00:0:110")
 	dst := addr.MustParseIA("2-ff00:0:220")

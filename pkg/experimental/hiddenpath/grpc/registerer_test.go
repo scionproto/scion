@@ -94,12 +94,10 @@ func TestRegistererRegisterSegment(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			svc := xtest.NewGRPCService()
 			hspb.RegisterHiddenSegmentRegistrationServiceServer(svc.Server(), tc.hpServer(ctrl))
@@ -117,7 +115,6 @@ func TestRegistererRegisterSegment(t *testing.T) {
 			tc.assertErr(t, err)
 		})
 	}
-
 }
 
 func createSeg(t *testing.T) seg.Meta {

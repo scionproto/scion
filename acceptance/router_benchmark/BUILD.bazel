@@ -60,6 +60,7 @@ py_binary(
     data = [
         "//acceptance/router_benchmark/brload",
     ],
+    imports = ["."],
     visibility = ["//visibility:public"],
     deps = [
         "benchmarklib",

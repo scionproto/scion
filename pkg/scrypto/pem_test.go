@@ -25,9 +25,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto"
 )
 
-var (
-	update = xtest.UpdateGoldenFiles()
-)
+var update = xtest.UpdateGoldenFiles()
 
 func TestPEMSymmetricKey(t *testing.T) {
 	testCases := map[string]struct {
@@ -56,8 +54,6 @@ func TestPEMSymmetricKey(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		tc := tc
-		name := name
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -66,7 +62,7 @@ func TestPEMSymmetricKey(t *testing.T) {
 				b, err := scrypto.EncodePEMSymmetricKey(tc.Key)
 				require.NoError(t, err)
 
-				err = os.WriteFile(fileName, b, 0644)
+				err = os.WriteFile(fileName, b, 0o644)
 				require.NoError(t, err)
 			}
 

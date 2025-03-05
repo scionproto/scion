@@ -158,12 +158,10 @@ func TestSVCResolutionServer(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			pconn, err := tc.Network(ctrl).OpenRaw(
 				context.Background(),
@@ -189,7 +187,6 @@ func TestSVCResolutionServer(t *testing.T) {
 }
 
 func TestDefaultHandler(t *testing.T) {
-
 	testCases := map[string]struct {
 		ReplySource    snet.SCIONAddress
 		ReplyPayload   []byte
@@ -296,7 +293,6 @@ func TestDefaultHandler(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			conn := mock_snet.NewMockPacketConn(ctrl)
 			if !tc.ExpectedError {
@@ -323,7 +319,6 @@ func TestDefaultHandler(t *testing.T) {
 
 	t.Run("Underlay addresses are forwarded", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		conn := mock_snet.NewMockPacketConn(ctrl)
 		packet := &snet.Packet{

@@ -27,7 +27,6 @@ import (
 
 func TestAtomicRoutingTable(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	art := &dataplane.AtomicRoutingTable{}
 

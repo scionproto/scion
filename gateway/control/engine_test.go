@@ -32,7 +32,6 @@ func TestEngineRun(t *testing.T) {
 	t.Run("double run", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		engine := &control.Engine{
 			SessionConfigs:          nil,
@@ -55,7 +54,6 @@ func TestEngineRun(t *testing.T) {
 	t.Run("nil routing table", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		engine := &control.Engine{
 			PathMonitor:             mock_control.NewMockPathMonitor(ctrl),
@@ -69,7 +67,6 @@ func TestEngineRun(t *testing.T) {
 	t.Run("nil path monitor", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		engine := &control.Engine{
 			SessionConfigs:          nil,
@@ -84,7 +81,6 @@ func TestEngineRun(t *testing.T) {
 	t.Run("nil probe conn factory", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		engine := &control.Engine{
 			SessionConfigs:          nil,
@@ -99,7 +95,6 @@ func TestEngineRun(t *testing.T) {
 	t.Run("nil dataplane session factory", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		engine := &control.Engine{
 			SessionConfigs:   nil,
@@ -114,7 +109,6 @@ func TestEngineRun(t *testing.T) {
 	t.Run("close before run", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		engine := &control.Engine{
 			SessionConfigs:          nil,

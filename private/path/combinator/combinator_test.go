@@ -45,7 +45,6 @@ var (
 
 func TestBadPeering(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	// Test that paths are not constructed across peering links where the IFIDs
 	// on both ends do not match.
 	g := graph.NewDefaultGraph(ctrl)
@@ -98,7 +97,6 @@ func TestBadPeering(t *testing.T) {
 
 func TestMiscPeering(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 	// Add a core-core peering link. It can be used in some cases.
 	g.AddLink("1-ff00:0:130", 4001, "2-ff00:0:210", 4002, true)
@@ -165,7 +163,6 @@ func TestMiscPeering(t *testing.T) {
 
 func TestSameCoreParent(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 
 	testCases := []struct {
@@ -208,7 +205,6 @@ func TestSameCoreParent(t *testing.T) {
 
 func TestLoops(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 	testCases := []struct {
 		Name     string
@@ -259,7 +255,6 @@ func TestLoops(t *testing.T) {
 
 func TestComputePath(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 
 	testCases := []struct {

@@ -35,7 +35,6 @@ var _ sd_drkey.Fetcher = (*sd_grpc.Fetcher)(nil)
 
 func TestGetHostHost(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	now := time.Now().UTC()
 	epochBegin := timestamppb.New(now)

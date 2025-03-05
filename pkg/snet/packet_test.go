@@ -211,7 +211,6 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			assert.NoError(t, tc.Serialize())
@@ -324,7 +323,6 @@ func TestPacketSerialize(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			tc.assertErr(t, tc.input.Serialize())

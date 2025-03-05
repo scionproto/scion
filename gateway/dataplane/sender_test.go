@@ -101,7 +101,6 @@ func TestSender(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			conn := mock_net.NewMockPacketConn(ctrl)
 			conn.EXPECT().LocalAddr().Return(
 				&snet.UDPAddr{Host: &net.UDPAddr{IP: net.IP{192, 168, 1, 1}}},
