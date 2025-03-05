@@ -109,7 +109,7 @@ pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
 use_repo(pnpm, "pnpm")
 
 # Python rules
-bazel_dep(name = "rules_python", version = "1.1.0")
+bazel_dep(name = "rules_python", version = "0.26.0")
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
@@ -191,11 +191,4 @@ bazel_dep(name = "platforms", version = "0.0.11")
 
 register_toolchains(
     "//dist/openwrt:x86_64_openwrt_toolchain",
-)
-
-debian_package_repo = use_extension(":debian_package_module.bzl", "debian_package_repo")
-
-use_repo(
-    debian_package_repo,
-    "tester_debian10_packages",
 )
