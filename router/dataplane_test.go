@@ -126,7 +126,8 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		d.FakeStart()
-		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r1, nobfd))
+		assert.Error(t, d.AddExternalInterface(
+			42, mock_router.NewMockBatchConn(ctrl), l, r1, nobfd))
 	})
 	t.Run("setting nil conn is not allowed", func(t *testing.T) {
 		gomock.NewController(t)

@@ -99,7 +99,9 @@ func mustMakeDP(
 	// Make dummy interfaces, as requested by the test. Only the internal interface is ever used to
 	// send or receive and then, not always. The external interfaces are given non-zero
 	// addresses in order to satisfy constraints.
-	dp.AddInternalInterface(internal, netip.MustParseAddr("198.51.100.1"))
+	if err := dp.AddInternalInterface(internal, netip.MustParseAddr("198.51.100.1")); err != nil {
+		panic(err)
+	}
 	yes := true
 	dummySrc := netip.AddrFrom4([4]byte{203, 0, 113, 0})
 	for _, i := range external {
