@@ -78,13 +78,6 @@ const (
 	is32bit = 1 - (ptrSize-4)/4
 )
 
-// type BFDSession interface {
-// 	Run(ctx context.Context) error
-//	ReceiveMessage(*layers.BFD)
-//	Close() error
-//	IsUp() bool
-// }
-
 // BatchConn is a connection that supports batch reads and writes.
 type BatchConn interface {
 	ReadBatch(underlayconn.Messages) (int, error)
