@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/router/control"
 )
 
 var (
@@ -57,6 +58,9 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 }
 
 // mustMakeDP initializes a dataplane structure configured per the test requirements.
+// external interfaces are given arbitrary addresses in the range 203.0.113/24 block and
+// are not meant to actually carry traffic. The underlying connection is the same as
+// the internal one, just to satisfy constraints.
 func mustMakeDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
@@ -93,22 +97,33 @@ func mustMakeDP(
 	}
 
 	// Make dummy interfaces, as requested by the test. Only the internal interface is ever used to
-	// send or receive and then, not always. So tests can set a nil connections and an empty
-	// address. We do it by hand as the Add*Interface methods do not tolerate nil connections and
-	// empty addresses. It only makes sense in unit tests.
-	dp.addForwardingMetrics(0, Internal)
-	dp.interfaces[0] = dp.underlay.NewInternalLink(
-		internal, dp.RunConfig.BatchSize, dp.forwardingMetrics[0])
-	dp.internalIP = netip.MustParseAddr("198.51.100.1")
-
+	// send or receive and then, not always. The external interfaces are given non-zero
+	// addresses in order to satisfy constraints.
+	dp.AddInternalInterface(internal, netip.MustParseAddr("198.51.100.1"))
+	yes := true
+	dummySrc := netip.AddrFrom4([4]byte{203, 0, 113, 0})
 	for _, i := range external {
-		dp.addForwardingMetrics(i, External)
-		dp.interfaces[i] = dp.underlay.NewExternalLink(
-			nil, 64, nil, netip.AddrPort{}, i, dp.forwardingMetrics[i])
+		dummyDst := netip.AddrFrom4([4]byte{203, 0, 113, byte(i)})
+		if err := dp.AddExternalInterface(
+			i,
+			internal, // Just so it isn't nil... do not use!
+			control.LinkEnd{Addr: netip.AddrPortFrom(dummySrc, 3333)},
+			control.LinkEnd{Addr: netip.AddrPortFrom(dummyDst, 3333)},
+			control.BFD{Disable: &yes},
+		); err != nil {
+			panic(err)
+		}
 	}
 	for i, addr := range internalNextHops {
-		dp.addForwardingMetrics(i, Sibling)
-		dp.interfaces[i] = dp.underlay.NewSiblingLink(64, nil, addr, dp.forwardingMetrics[i])
+		if err := dp.AddNextHop(
+			i,
+			netip.MustParseAddrPort("198.51.100.1:3333"),
+			addr,
+			control.BFD{Disable: &yes},
+			"dummy",
+		); err != nil {
+			panic(err)
+		}
 	}
 
 	if err := dp.SetKey(key); err != nil {

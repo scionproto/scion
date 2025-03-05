@@ -407,9 +407,9 @@ func (d *dataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	d.addForwardingMetrics(ifID, External)
-	d.interfaces[ifID] = d.underlay.NewExternalLink(
+	d.interfaces[ifID], err = d.underlay.NewExternalLink(
 		conn, d.RunConfig.BatchSize, bfd, dst.Addr, ifID, d.forwardingMetrics[ifID])
-	return nil
+	return err
 }
 
 // AddNeighborIA adds the neighboring IA for a given interface ID. If an IA for

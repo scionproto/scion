@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
@@ -45,7 +46,7 @@ type provider struct {
 	allLinks           map[netip.AddrPort]udpLink
 	allConnections     []*udpConnection
 	internalConnection *udpConnection // Because we share it w/ siblinglinks
-	internalLink       *internalLink  // Because we share it's hashseed w/ siblinglinks
+	internalHashSeed   uint32         // As a result, this too is shared.
 }
 
 var (
@@ -56,7 +57,6 @@ type udpLink interface {
 	router.Link
 	start(ctx context.Context, procQs []chan *router.Packet, pool chan *router.Packet)
 	stop()
-	hashSeed() uint32 // We copy the hashSeed from the internal connection to sibling connections.
 	receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet)
 }
 
@@ -92,7 +92,7 @@ func (u *provider) Start(
 		return
 	}
 	connSnapShot := slices.Clone(u.allConnections)
-	linkSnapShot := append(slices.Collect(maps.Values(u.allLinks)), u.internalLink)
+	linkSnapShot := slices.Collect(maps.Values(u.allLinks))
 	u.mu.Unlock()
 
 	// Links MUST be started before connections. They need procQs and pool to process
@@ -109,7 +109,7 @@ func (u *provider) Start(
 func (u *provider) Stop() {
 	u.mu.Lock()
 	connSnapShot := slices.Clone(u.allConnections)
-	linkSnapShot := append(slices.Collect(maps.Values(u.allLinks)), u.internalLink)
+	linkSnapShot := slices.Collect(maps.Values(u.allLinks))
 	u.mu.Unlock()
 
 	for _, c := range connSnapShot {
@@ -118,18 +118,6 @@ func (u *provider) Stop() {
 	for _, l := range linkSnapShot {
 		l.stop()
 	}
-}
-
-func (u *provider) Link(addr netip.AddrPort) router.Link {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-
-	// There is one link for every address. The internal Link catches all.
-	l, found := u.allLinks[addr]
-	if found {
-		return l
-	}
-	return u.internalLink
 }
 
 // udpConnection is essentially a BatchConn with a sending queue. The rest is about logs and
@@ -149,7 +137,7 @@ type udpConnection struct {
 	running      atomic.Bool
 	receiverDone chan struct{}
 	senderDone   chan struct{}
-	link         *externalLink              // Link that has exclusive use of this. Only ExternalLink.
+	link         *externalLink              // External Link with exclusive use of the connection.
 	links        map[netip.AddrPort]udpLink // Links that share this connection
 }
 
@@ -399,8 +387,8 @@ type externalLink struct {
 // NewExternalLink returns an external link over the UdpIpUnderlay.
 //
 // TODO(multi_underlay): we get the connection ready-made and require it to be bound. So, we
-// don't keep the remote address, but in the future, we will be making the connections, and
-// the conn argument will be gone.
+// don't keep the remote address, but in the future, we will be making the connections (and
+// the conn argument will be gone), so we will need the address for that.
 func (u *provider) NewExternalLink(
 	conn router.BatchConn,
 	qSize int,
@@ -408,16 +396,20 @@ func (u *provider) NewExternalLink(
 	remote netip.AddrPort,
 	ifID uint16,
 	metrics router.InterfaceMetrics,
-) router.Link {
+) (router.Link, error) {
+
+	if remote == (netip.AddrPort{}) {
+		// The router doesn't do this. This is an internal error.
+		panic("Zero address not supported")
+	}
 
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	// Note: tests do create external links with identical (zero) addresses. For consistency
-	// with siblingLinks, we silently dedupe the links. Such tests just need the ifID to map
-	// to something. This has the potential to hide a missconfiguration in the router, though.
-	if l, _ := u.allLinks[remote]; l != nil {
-		return l
+	if l := u.allLinks[remote]; l != nil {
+		// This is a really bad idea. We can't just panic because it may be a configuration error.
+		// So, we have to return an error.
+		return nil, serrors.New("remote address reused")
 	}
 
 	queue := make(chan *router.Packet, qSize)
@@ -440,10 +432,14 @@ func (u *provider) NewExternalLink(
 	}
 	u.allConnections = append(u.allConnections, c)
 	u.allLinks[remote] = el
-	return el
+	return el, nil
 }
 
-func (l *externalLink) start(ctx context.Context, procQs []chan *router.Packet, pool chan *router.Packet) {
+func (l *externalLink) start(
+	ctx context.Context,
+	procQs []chan *router.Packet,
+	pool chan *router.Packet,
+) {
 	// procQs and pool are never known before all configured links have been instantiated.  So we
 	// get then only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
@@ -464,10 +460,6 @@ func (l *externalLink) stop() {
 		return
 	}
 	l.bfdSession.Close()
-}
-
-func (l *externalLink) hashSeed() uint32 {
-	return l.seed
 }
 
 func (l *externalLink) Scope() router.LinkScope {
@@ -554,12 +546,17 @@ func (u *provider) NewSiblingLink(
 	metrics router.InterfaceMetrics,
 ) router.Link {
 
+	if remote == (netip.AddrPort{}) {
+		// The router doesn't do this. This is an internal error.
+		panic("Zero address not supported")
+	}
+
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
 	// We silently deduplicate sibling links, so the router doesn't need to be aware or keep track
 	// of link sharing.
-	if l, _ := u.allLinks[remote]; l != nil {
+	if l := u.allLinks[remote]; l != nil {
 		return l
 	}
 
@@ -568,8 +565,8 @@ func (u *provider) NewSiblingLink(
 	// happens right now and it can't work if this is called before newInternalLink.
 	c := u.internalConnection
 	if c == nil {
-		// TODO(multi_underlay):That doesn't actually happen.
-		// It is only required until we stop sharing the internal connection.
+		// The router isn't supposed to do this. This is an internal error.
+		// TODO(multi_underlay): This will go away when we stop sharing the internal connection.
 		panic("newSiblingLink called before newInternalLink")
 	}
 
@@ -578,14 +575,18 @@ func (u *provider) NewSiblingLink(
 		metrics:    metrics,
 		bfdSession: bfd,
 		remote:     net.UDPAddrFromAddrPort(remote),
-		seed:       u.internalLink.hashSeed(), // per connection, but used only by link.
+		seed:       u.internalHashSeed, // per connection, but used only by link.
 	}
 	c.links[remote] = sl
 	u.allLinks[remote] = sl
 	return sl
 }
 
-func (l *siblingLink) start(ctx context.Context, procQs []chan *router.Packet, pool chan *router.Packet) {
+func (l *siblingLink) start(
+	ctx context.Context,
+	procQs []chan *router.Packet,
+	pool chan *router.Packet,
+) {
 	// procQs and pool are never known before all configured links have been instantiated.  So we
 	// get then only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
@@ -606,10 +607,6 @@ func (l *siblingLink) stop() {
 		return
 	}
 	l.bfdSession.Close()
-}
-
-func (l *siblingLink) hashSeed() uint32 {
-	return l.seed
 }
 
 func (l *siblingLink) Scope() router.LinkScope {
@@ -686,16 +683,17 @@ func (u *provider) NewInternalLink(
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	if u.internalLink != nil {
-		// We don't want to support this and the router doesn't do it.
+	if u.internalConnection != nil {
+		// We don't want to support this and the router doesn't do it. This is an internal error.
 		panic("More than one internal link")
 	}
 
+	u.internalHashSeed = makeHashSeed()
 	queue := make(chan *router.Packet, qSize)
 	il := &internalLink{
 		egressQ: queue,
 		metrics: metrics,
-		seed:    makeHashSeed(),
+		seed:    u.internalHashSeed,
 	}
 	c := &udpConnection{
 		conn:         conn,
@@ -708,13 +706,17 @@ func (u *provider) NewInternalLink(
 		links:        make(map[netip.AddrPort]udpLink),
 	}
 	c.links[netip.AddrPort{}] = il
+	u.allLinks[netip.AddrPort{}] = il
 	u.internalConnection = c
 	u.allConnections = append(u.allConnections, c)
-	u.internalLink = il
 	return il
 }
 
-func (l *internalLink) start(ctx context.Context, procQs []chan *router.Packet, pool chan *router.Packet) {
+func (l *internalLink) start(
+	ctx context.Context,
+	procQs []chan *router.Packet,
+	pool chan *router.Packet,
+) {
 	// procQs and pool are never known before all configured links have been instantiated. So we
 	// get then only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
@@ -722,10 +724,6 @@ func (l *internalLink) start(ctx context.Context, procQs []chan *router.Packet, 
 }
 
 func (l *internalLink) stop() {
-}
-
-func (l *internalLink) hashSeed() uint32 {
-	return l.seed
 }
 
 func (l *internalLink) Scope() router.LinkScope {

@@ -86,24 +86,21 @@ type UnderlayProvider interface {
 		remote netip.AddrPort,
 		ifID uint16,
 		metrics InterfaceMetrics,
-	) Link
+	) (Link, error)
 
 	// NewSinblingLink returns a link that addresses any number of remote ASes via a single sibling
 	// router. So, it is not given an ifID at creation, but it is given a remote underlay address:
 	// that of the sibling router. Outgoing packets do not need an underlay destination as metadata.
 	// Incoming packets have no defined ingress ifID.
-	NewSiblingLink(qSize int, bfd *bfd.Session, remote netip.AddrPort, metrics InterfaceMetrics) Link
+	NewSiblingLink(
+		qSize int,
+		bfd *bfd.Session,
+		remote netip.AddrPort,
+		metrics InterfaceMetrics,
+	) Link
 
 	// NewIternalLink returns a link that addresses any host internal to the enclosing AS, so it is
 	// given neither ifID nor address. Outgoing packets need to have a destination address as
 	// metadata. Incoming packets have no defined ingress ifID.
 	NewInternalLink(conn BatchConn, qSize int, metrics InterfaceMetrics) Link
-
-	// Link returns a link that matches the given source address. If the address is not that of
-	// a known link, then the internal link is returned.
-	//
-	// TODO(multi_underlay): This has to exist until incoming packets are "demuxed" (i.e.
-	// matched with a link), on ingest by the underlay. That would imply moving a part of the
-	// runReceiver routine to the underlay. We will do that in the next step.
-	Link(netip.AddrPort) Link
 }

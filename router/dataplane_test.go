@@ -112,9 +112,13 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		IA:   addr.MustParseIA("1-ff00:0:1"),
 		Addr: netip.MustParseAddrPort("10.0.0.100:0"),
 	}
-	r := control.LinkEnd{
+	r1 := control.LinkEnd{
 		IA:   addr.MustParseIA("1-ff00:0:3"),
 		Addr: netip.MustParseAddrPort("10.0.0.200:0"),
+	}
+	r2 := control.LinkEnd{
+		IA:   addr.MustParseIA("1-ff00:0:4"),
+		Addr: netip.MustParseAddrPort("10.0.0.201:0"),
 	}
 	nobfd := control.BFD{Disable: ptr.To(true)}
 	t.Run("fails after serve", func(t *testing.T) {
@@ -122,20 +126,20 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		d.FakeStart()
-		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r1, nobfd))
 	})
 	t.Run("setting nil conn is not allowed", func(t *testing.T) {
 		gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		assert.Error(t, d.AddExternalInterface(42, nil, l, r, nobfd))
+		assert.Error(t, d.AddExternalInterface(42, nil, l, r1, nobfd))
 	})
 	t.Run("setting blank src is not allowed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl),
-			control.LinkEnd{}, r, nobfd))
+			control.LinkEnd{}, r1, nobfd))
 	})
 	t.Run("setting blank dst is not allowed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -149,18 +153,27 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		assert.NoError(t,
-			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r1, nobfd))
 		assert.NoError(t,
-			d.AddExternalInterface(45, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+			d.AddExternalInterface(45, mock_router.NewMockBatchConn(ctrl), l, r2, nobfd))
 	})
-	t.Run("overwrite fails", func(t *testing.T) {
+	t.Run("overwrite ifID fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		assert.NoError(t,
-			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r1, nobfd))
 		assert.Error(t,
-			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r1, nobfd))
+	})
+	t.Run("reuse dst addr fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		d := router.NewDPRaw(router.RunConfig{}, false)
+		assert.NoError(t,
+			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r1, nobfd))
+		assert.Error(t,
+			d.AddExternalInterface(45, mock_router.NewMockBatchConn(ctrl), l, r1, nobfd))
 	})
 }
 
@@ -682,8 +695,10 @@ func TestProcessPkt(t *testing.T) {
 	}{
 		"inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return router.NewDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -712,8 +727,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"inbound_longpath": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return router.NewDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -758,7 +775,7 @@ func TestProcessPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -791,7 +808,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Parent,
 						2: topology.Child,
 					},
-					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -822,7 +839,8 @@ func TestProcessPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						2: topology.Parent,
 						1: topology.Child,
-					}, nil,
+					},
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -856,7 +874,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -923,7 +941,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -997,7 +1015,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1068,7 +1086,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1232,8 +1250,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"svc": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return router.NewDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					map[addr.SVC][]netip.AddrPort{
 						addr.SvcCS: {
@@ -1336,7 +1356,8 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
 					fakeExternalInterfaces,
-					nil, nil,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
@@ -1474,8 +1495,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"epic inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return router.NewDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1490,8 +1513,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"epic malformed path": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return router.NewDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1507,8 +1532,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"epic invalid timestamp": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return router.NewDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1526,8 +1553,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"epic invalid LHVF": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return router.NewDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},

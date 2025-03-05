@@ -264,8 +264,10 @@ func TestSlowPathProcessing(t *testing.T) {
 	}{
 		"svc nobackend": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"),
@@ -288,8 +290,10 @@ func TestSlowPathProcessing(t *testing.T) {
 		},
 		"svc invalid": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -311,8 +315,10 @@ func TestSlowPathProcessing(t *testing.T) {
 		},
 		"invalid dest": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -334,8 +340,10 @@ func TestSlowPathProcessing(t *testing.T) {
 		},
 		"invalid dest addr": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -357,8 +365,10 @@ func TestSlowPathProcessing(t *testing.T) {
 		},
 		"invalid dest v4mapped": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -382,8 +392,10 @@ func TestSlowPathProcessing(t *testing.T) {
 		},
 		"invalid dest unspecified": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -405,8 +417,10 @@ func TestSlowPathProcessing(t *testing.T) {
 		},
 		"invalid src v4mapped": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
