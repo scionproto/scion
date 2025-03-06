@@ -44,8 +44,10 @@ const (
 // associate an interface ID with a link. If the interface ID belongs to a sibling router, then
 // the link is a sibling link. If the interface ID is zero, then the link is the internal link.
 type Link interface {
-	Scope() LinkScope
 	IsUp() bool
+	IfID() uint16
+	Scope() LinkScope
+	BFDSession() *bfd.Session
 	CheckPktSrc(pkt *Packet) bool
 	Send(p *Packet) bool
 	SendBlocking(p *Packet)

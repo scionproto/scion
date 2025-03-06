@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/router/bfd"
 	"github.com/scionproto/scion/router/control"
 )
 
@@ -40,12 +41,31 @@ type Disposition disposition
 
 const PDiscard = Disposition(pDiscard)
 
+// Implements the link interface minimally
+type FakeLink struct {
+	ifID uint16
+}
+
+func (l *FakeLink) IsUp() bool                   { return true }
+func (l *FakeLink) IfID() uint16                 { return l.ifID }
+func (l *FakeLink) Scope() LinkScope             { return Internal }
+func (l *FakeLink) BFDSession() *bfd.Session     { return nil }
+func (l *FakeLink) CheckPktSrc(pkt *Packet) bool { return true }
+func (l *FakeLink) Send(p *Packet) bool          { return true }
+func (l *FakeLink) SendBlocking(p *Packet)       {}
+
+func newFakeLink(ingress uint16) Link { return &FakeLink{ifID: ingress} }
+
+// NewPacket makes a fake packet. It has one shortcoming which makes it unsuited for some tests:
+// The packet buffer is strictly no bigger than the supplied bytes; which means that it cannot
+// be used to respond via SCMP. Also, it refers to a fake link that has the scope Internal, yet
+// will confirm being the carrier of any kind of packet.
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	p := Packet{
 		RemoteAddr: &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
 		RawPacket:  make([]byte, len(raw)),
-		Ingress:    ingress,
 		egress:     egress,
+		Link:       newFakeLink(ingress),
 	}
 	if src != nil {
 		p.RemoteAddr = src

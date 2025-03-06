@@ -221,7 +221,6 @@ func TestForwarder(t *testing.T) {
 			pkt.RemoteAddr.IP = pkt.RemoteAddr.IP[:4]
 			copy(pkt.RemoteAddr.IP, dstAddr.IP)
 		}
-		pkt.Ingress = 0
 
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
 
@@ -282,9 +281,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeDestinationUnreachable,
-				code:     slayers.SCMPCodeNoRoute,
+				spType: slowPathType(slayers.SCMPTypeDestinationUnreachable),
+				code:   slayers.SCMPCodeNoRoute,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
 		},
@@ -307,9 +305,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeDestinationUnreachable,
-				code:     slayers.SCMPCodeNoRoute,
+				spType: slowPathType(slayers.SCMPTypeDestinationUnreachable),
+				code:   slayers.SCMPCodeNoRoute,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
 		},
@@ -331,10 +328,9 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidDestinationAddress,
-				pointer:  0xc,
+				spType:  slowPathType(slayers.SCMPTypeParameterProblem),
+				code:    slayers.SCMPCodeInvalidDestinationAddress,
+				pointer: 0xc,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
@@ -357,9 +353,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidDestinationAddress,
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidDestinationAddress,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
@@ -384,9 +379,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidDestinationAddress,
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidDestinationAddress,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
@@ -409,9 +403,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidDestinationAddress,
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidDestinationAddress,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
@@ -437,9 +430,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 0,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidSourceAddress,
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidSourceAddress,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
@@ -451,10 +443,11 @@ func TestSlowPathProcessing(t *testing.T) {
 			dp := tc.prepareDP(ctrl)
 
 			rp := tc.mockMsg()
+			// Cannot use NewPacket. We need a packet that can grow to accommodate SCMP w/ quote.
 			pkt := Packet{}
 			pkt.init(&[bufSize]byte{})
 			pkt.Reset()
-			pkt.Ingress = tc.srcInterface
+			pkt.Link = newFakeLink(tc.srcInterface)
 			pkt.RawPacket = pkt.RawPacket[:len(rp)]
 			copy(pkt.RawPacket, rp)
 
@@ -470,7 +463,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			// header and typecodes.
 			packet := gopacket.NewPacket(pkt.RawPacket, slayers.LayerTypeSCION, gopacket.Default)
 			scmp := packet.Layer(slayers.LayerTypeSCMP).(*slayers.SCMP)
-			expectedTypeCode := slayers.CreateSCMPTypeCode(tc.expectedSlowPathRequest.scmpType,
+			expectedTypeCode := slayers.CreateSCMPTypeCode(
+				slayers.SCMPType(tc.expectedSlowPathRequest.spType),
 				tc.expectedSlowPathRequest.code)
 			assert.Equal(t, expectedTypeCode, scmp.TypeCode)
 			assert.NotNil(t, packet.Layer(tc.expectedLayerType))

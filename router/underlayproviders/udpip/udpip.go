@@ -132,7 +132,6 @@ type udpConnection struct {
 	conn         router.BatchConn
 	queue        chan *router.Packet
 	metrics      router.InterfaceMetrics
-	ifID         uint16 // TODO(multi_underlay): temorary (is 0 for sibling and internal links)
 	name         string // for logs. It's more informative than ifID.
 	running      atomic.Bool
 	receiverDone chan struct{}
@@ -424,7 +423,6 @@ func (u *provider) NewExternalLink(
 		conn:         conn,
 		queue:        queue,
 		metrics:      metrics, // send() needs them :-(
-		ifID:         ifID,
 		name:         remote.String(),
 		receiverDone: make(chan struct{}),
 		senderDone:   make(chan struct{}),
@@ -462,8 +460,16 @@ func (l *externalLink) stop() {
 	l.bfdSession.Close()
 }
 
+func (l *externalLink) IfID() uint16 {
+	return l.ifID
+}
+
 func (l *externalLink) Scope() router.LinkScope {
 	return router.External
+}
+
+func (l *externalLink) BFDSession() *bfd.Session {
+	return l.bfdSession
 }
 
 // This is called for packets pretending to be in transit. So, an external link always
@@ -503,11 +509,8 @@ func (l *externalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packe
 		return
 	}
 
-	// TODO(multi_underlay): This is temporary. The only use of src addr for external links
-	// is a useless check that should be removed.
-	// router.UpdateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
-	pkt.Ingress = l.ifID
-	pkt.BfdSession = l.bfdSession
+	pkt.Link = l
+	// The src address does not need to be recorded in the packet. Even SCMP won't need it.
 	select {
 	case l.procQs[procID] <- pkt:
 	default:
@@ -609,8 +612,16 @@ func (l *siblingLink) stop() {
 	l.bfdSession.Close()
 }
 
+func (l *siblingLink) IfID() uint16 {
+	return 0
+}
+
 func (l *siblingLink) Scope() router.LinkScope {
 	return router.Sibling
+}
+
+func (l *siblingLink) BFDSession() *bfd.Session {
+	return l.bfdSession
 }
 
 func (l *siblingLink) CheckPktSrc(pkt *router.Packet) bool {
@@ -654,9 +665,13 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet
 		metrics[sc].DroppedPacketsInvalid.Inc()
 	}
 
+	pkt.Link = l
+	// TODO(multi_underlay): We need to record the src address so that packets can be turned-around
+	// by SCMP. To not require this we would need to:
+	// * Use bound sockets for sibling links.
+	// * Have SCMP use the link reference rather than rely on the ingress ifID which points at the
+	//   the internal link.
 	router.UpdateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
-	pkt.Ingress = 0
-	pkt.BfdSession = l.bfdSession
 	select {
 	case l.procQs[procID] <- pkt:
 	default:
@@ -675,7 +690,7 @@ type internalLink struct {
 
 // NewInternalLink returns a internal link over the UdpIpUnderlay.
 //
-// TODO(multi_underlay): we get the connection ready made. In the future we will be making it
+// TODO(multi_underlay): we get the connection-ready made. In the future we will be making it
 // and the conn argument will be gone.
 func (u *provider) NewInternalLink(
 	conn router.BatchConn, qSize int, metrics router.InterfaceMetrics) router.Link {
@@ -700,7 +715,6 @@ func (u *provider) NewInternalLink(
 		queue:        queue,
 		metrics:      metrics, // send() needs them :-(
 		name:         "internal",
-		ifID:         0,
 		receiverDone: make(chan struct{}),
 		senderDone:   make(chan struct{}),
 		links:        make(map[netip.AddrPort]udpLink),
@@ -726,8 +740,16 @@ func (l *internalLink) start(
 func (l *internalLink) stop() {
 }
 
+func (l *internalLink) IfID() uint16 {
+	return 0
+}
+
 func (l *internalLink) Scope() router.LinkScope {
 	return router.Internal
+}
+
+func (l *internalLink) BFDSession() *bfd.Session {
+	return nil
 }
 
 // This is called for packets pretending to be in transit. So, an internal link always
@@ -768,11 +790,10 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packe
 		return
 	}
 
+	pkt.Link = l
 	// This is an unbound link. We must record the src address in case the packet
 	// is turned around by SCMP.
 	router.UpdateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
-	pkt.Ingress = 0
-	// No bfd session for internal links
 	select {
 	case l.procQs[procID] <- pkt:
 	default:
