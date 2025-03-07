@@ -47,7 +47,7 @@
         },
         "4": {
           "underlay": {
-            "local": ":50035",
+            "local": "scion03:50035",
             "remote": "scion05:50035"
           },
           "isd_as": "42-ffaa:1:5",

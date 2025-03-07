@@ -106,8 +106,8 @@ Execute the following commands on each VM:
 .. code-block:: sh
 
    cd /tmp/
-   wget https://github.com/scionproto/scion/releases/download/v0.11.0/scion_v0.11.0_deb_amd64.tar.gz
-   tar xfz scion_v0.11.0_deb_amd64.tar.gz
+   wget https://github.com/scionproto/scion/releases/download/v0.12.0/scion_v0.12.0_deb_amd64.tar.gz
+   tar xfz scion_v0.12.0_deb_amd64.tar.gz
 
    sudo apt install ./scion*.deb
 
