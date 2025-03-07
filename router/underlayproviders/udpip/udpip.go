@@ -15,7 +15,6 @@
 package udpip
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -472,12 +471,6 @@ func (l *externalLink) BFDSession() *bfd.Session {
 	return l.bfdSession
 }
 
-// This is called for packets pretending to be in transit. So, an external link always
-// checks false.
-func (l *externalLink) CheckPktSrc(_ *router.Packet) bool {
-	return false
-}
-
 func (l *externalLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
@@ -624,10 +617,6 @@ func (l *siblingLink) BFDSession() *bfd.Session {
 	return l.bfdSession
 }
 
-func (l *siblingLink) CheckPktSrc(pkt *router.Packet) bool {
-	return bytes.Equal(pkt.RemoteAddr.IP, l.remote.IP)
-}
-
 func (l *siblingLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
@@ -750,12 +739,6 @@ func (l *internalLink) Scope() router.LinkScope {
 
 func (l *internalLink) BFDSession() *bfd.Session {
 	return nil
-}
-
-// This is called for packets pretending to be in transit. So, an internal link always
-// checks false.
-func (l *internalLink) CheckPktSrc(_ *router.Packet) bool {
-	return false
 }
 
 func (l *internalLink) IsUp() bool {

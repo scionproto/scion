@@ -1231,19 +1231,20 @@ func (p *scionPacketProcessor) respInvalidDstIA() disposition {
 }
 
 // validateTransitUnderlaySrc prevents malicious end hosts in the local AS from bypassing the SrcIA
-// checks by disguising packets as transit traffic: sibling links do ensure the src address is that
-// of the expected sibling router. But we must verify that a sibling link was used in the first
-// place.
+// checks by disguising packets as transit traffic: each sibling link ensures that the src address
+// of a packet is that of their expected sibling router. But we must verify that the right sibling
+// link was used in the first place.
 func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 	if p.path.IsFirstHop() || p.linkIngress != 0 {
 		// Locally originated traffic, or came in via an external link. Not our concern.
 		return pForward
 	}
-	pktIngressID := p.ingressInterface()        // Where this was supposed to enter the AS
-	ingressLink := p.d.interfaces[pktIngressID] // Our own link to that sibling router
+	pktIngressID := p.ingressInterface()        // Where this was *supposed* to enter the AS
+	ingressLink := p.d.interfaces[pktIngressID] // Our own link to *that* sibling router
 
-	// Is that the same link? The link can confirm by the pkt src.
-	if !ingressLink.CheckPktSrc(p.pkt) {
+	// Is that the link that the packet came through (e.g. not the internal link)? The
+	// comparison should be cheap. Links are implemented by pointers.
+	if ingressLink != p.pkt.Link {
 		// Drop
 		return errorDiscard("error", invalidSrcAddrForTransit)
 	}

@@ -48,7 +48,6 @@ type Link interface {
 	IfID() uint16
 	Scope() LinkScope
 	BFDSession() *bfd.Session
-	CheckPktSrc(pkt *Packet) bool
 	Send(p *Packet) bool
 	SendBlocking(p *Packet)
 }
