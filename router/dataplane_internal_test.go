@@ -22,6 +22,8 @@ import (
 	"net"
 	"net/netip"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -31,12 +33,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
+	"github.com/scionproto/scion/router/control"
 	"github.com/scionproto/scion/router/mock_router"
 )
 
@@ -100,7 +104,7 @@ func TestReceiver(t *testing.T) {
 			// make sure that the packet has the right size
 			assert.Equal(t, 84+i%10*18, len(pkt.RawPacket))
 			// make sure that the source address was set correctly
-			assert.Equal(t, net.UDPAddr{IP: net.IP{10, 0, 200, 200}}, *pkt.SrcAddr)
+			assert.Equal(t, net.UDPAddr{IP: net.IP{10, 0, 200, 200}}, *pkt.RemoteAddr)
 			// make sure that the received pkt buffer has not been seen before
 			ptr := reflect.ValueOf(pkt.RawPacket).Pointer()
 			assert.NotContains(t, ptrMap, ptr)
@@ -131,48 +135,54 @@ func TestForwarder(t *testing.T) {
 	prepareDP := func(ctrl *gomock.Controller) *dataPlane {
 		ret := newDataPlane(
 			RunConfig{NumProcessors: 20, BatchSize: 64, NumSlowPathProcessors: 1}, false)
-		mInternal := mock_router.NewMockBatchConn(ctrl)
-		totalCount := 0
-		expectedPktId := byte(0)
+		mFakeConn := mock_router.NewMockBatchConn(ctrl)
+		totalCount := atomic.Int32{}
+		expectedPktId := atomic.Int32{}
 		closeChan := make(chan struct{})
-		mInternal.EXPECT().Close().DoAndReturn(
+		var once sync.Once
+		mFakeConn.EXPECT().Close().DoAndReturn(
 			func() error {
-				close(closeChan)
+				once.Do(func() { close(closeChan) })
 				return nil
 			}).AnyTimes()
-		mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
+		mFakeConn.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 			func(ms underlayconn.Messages) (int, error) {
 				<-closeChan
 				return 0, nil
 			}).AnyTimes()
-		mInternal.EXPECT().WriteBatch(gomock.Any(), 0).DoAndReturn(
+		mFakeConn.EXPECT().WriteBatch(gomock.Any(), 0).DoAndReturn(
 			func(ms underlayconn.Messages, flags int) (int, error) {
-				if totalCount == 255 {
+				if totalCount.Load() == 255 {
 					return 0, nil
 				}
 				for i, m := range ms {
-					totalCount++
+					totalCount.Add(1)
 					// 1/5 of the packets (randomly chosen) are errors
 					if mrand.IntN(5) == 0 {
-						expectedPktId++
+						expectedPktId.Add(1)
 						ms = ms[:i]
 						break
 					} else {
-						pktId := m.Buffers[0][0]
-						if !assert.Equal(t, expectedPktId, pktId) {
+						pktId := int32(m.Buffers[0][0])
+						if !assert.Equal(t, expectedPktId.Load(), pktId) {
 							t.Log("packets got reordered.",
-								"expected", expectedPktId, "got", pktId, "ms", ms)
+								"expected", expectedPktId.Load(), "got", pktId, "ms", ms)
 						}
-						if totalCount <= 100 {
+						if totalCount.Load() <= 100 {
+							// The first 100 packets are sent through the internal link
+							// They carry an explicit destination address.
 							assert.NotNil(t, m.Addr)
 						} else {
-							// stronger check than assert.Nil
+							// The other packets are sent through the external link. The
+							// destination is implicit and must not be copied to the batch
+							// messages.
+							// Addr == nil is a stronger check than assert.Nil
 							assert.True(t, m.Addr == nil)
 						}
-						expectedPktId++
+						expectedPktId.Add(1)
 					}
 				}
-				if totalCount == 255 {
+				if totalCount.Load() == 255 {
 					done <- struct{}{}
 				}
 				if len(ms) == 0 {
@@ -181,13 +191,25 @@ func TestForwarder(t *testing.T) {
 
 				return len(ms), nil
 			}).AnyTimes()
-		_ = ret.AddInternalInterface(mInternal, netip.Addr{})
+		_ = ret.AddInternalInterface(mFakeConn, netip.Addr{})
+		l := control.LinkEnd{
+			IA:   addr.MustParseIA("1-ff00:0:1"),
+			Addr: netip.MustParseAddrPort("10.0.0.100:0"),
+		}
+		r := control.LinkEnd{
+			IA:   addr.MustParseIA("1-ff00:0:3"),
+			Addr: netip.MustParseAddrPort("10.0.0.200:0"),
+		}
+		nobfd := control.BFD{Disable: ptr.To(true)}
+
+		_ = ret.AddExternalInterface(42, mFakeConn, l, r, nobfd)
 		return ret
 	}
 	dp := prepareDP(ctrl)
 	dp.initPacketPool(64)
 	procQs, _ := dp.initQueues(64)
 	intf := dp.interfaces[0]
+	extf := dp.interfaces[42]
 	initialPoolSize := len(dp.packetPool)
 	dp.setRunning()
 	dp.underlay.Start(context.Background(), dp.packetPool, procQs)
@@ -198,18 +220,25 @@ func TestForwarder(t *testing.T) {
 		pkt.RawPacket = pkt.RawPacket[:1]
 		pkt.RawPacket[0] = byte(i)
 		if i < 100 {
-			pkt.DstAddr.IP = pkt.DstAddr.IP[:4]
-			copy(pkt.DstAddr.IP, dstAddr.IP)
+			pkt.RemoteAddr.IP = pkt.RemoteAddr.IP[:4]
+			copy(pkt.RemoteAddr.IP, dstAddr.IP)
 		}
-		pkt.SrcAddr = &net.UDPAddr{} // Receiver always sets this.
-		pkt.Ingress = 0
 
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
 
 		// Normal use would be
 		// intf.Send(pkt):
 		// However we want to exclude queue overflow from the test. So we want a blocking send.
-		intf.SendBlocking(pkt)
+		if i < 100 {
+			intf.SendBlocking(pkt)
+		} else {
+			if i == 100 {
+				// take a short break, else the two links will run in parallel and our ordering
+				// check will see it.
+				time.Sleep(200 * time.Millisecond)
+			}
+			extf.SendBlocking(pkt)
+		}
 	}
 
 	select {
@@ -245,8 +274,10 @@ func TestSlowPathProcessing(t *testing.T) {
 	}{
 		"svc nobackend": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"),
@@ -261,16 +292,17 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeDestinationUnreachable,
-				code:     slayers.SCMPCodeNoRoute,
+				spType: slowPathType(slayers.SCMPTypeDestinationUnreachable),
+				code:   slayers.SCMPCodeNoRoute,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
 		},
 		"svc invalid": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -284,16 +316,17 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeDestinationUnreachable,
-				code:     slayers.SCMPCodeNoRoute,
+				spType: slowPathType(slayers.SCMPTypeDestinationUnreachable),
+				code:   slayers.SCMPCodeNoRoute,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
 		},
 		"invalid dest": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -306,17 +339,18 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidDestinationAddress,
-				pointer:  0xc,
+				spType:  slowPathType(slayers.SCMPTypeParameterProblem),
+				code:    slayers.SCMPCodeInvalidDestinationAddress,
+				pointer: 0xc,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
 		"invalid dest addr": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -330,16 +364,17 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidDestinationAddress,
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidDestinationAddress,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
 		"invalid dest v4mapped": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -355,16 +390,17 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidDestinationAddress,
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidDestinationAddress,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
 		"invalid dest unspecified": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
@@ -378,16 +414,17 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 1,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidDestinationAddress,
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidDestinationAddress,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
 		"invalid src v4mapped": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
-				return newDP(fakeExternalInterfaces,
-					nil, mock_router.NewMockBatchConn(ctrl),
+				return newDP(
+					fakeExternalInterfaces,
+					nil,
+					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
 					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
@@ -404,9 +441,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			srcInterface: 0,
 			expectedSlowPathRequest: slowPathRequest{
-				typ:      slowPathSCMP,
-				scmpType: slayers.SCMPTypeParameterProblem,
-				code:     slayers.SCMPCodeInvalidSourceAddress,
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidSourceAddress,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
@@ -418,11 +454,11 @@ func TestSlowPathProcessing(t *testing.T) {
 			dp := tc.prepareDP(ctrl)
 
 			rp := tc.mockMsg()
+			// Cannot use NewPacket. We need a packet that can grow to accommodate SCMP w/ quote.
 			pkt := Packet{}
 			pkt.init(&[bufSize]byte{})
 			pkt.Reset()
-			pkt.Ingress = tc.srcInterface
-			pkt.SrcAddr = &net.UDPAddr{} // The receiver always sets this.
+			pkt.Link = newFakeLink(tc.srcInterface)
 			pkt.RawPacket = pkt.RawPacket[:len(rp)]
 			copy(pkt.RawPacket, rp)
 
@@ -438,7 +474,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			// header and typecodes.
 			packet := gopacket.NewPacket(pkt.RawPacket, slayers.LayerTypeSCION, gopacket.Default)
 			scmp := packet.Layer(slayers.LayerTypeSCMP).(*slayers.SCMP)
-			expectedTypeCode := slayers.CreateSCMPTypeCode(tc.expectedSlowPathRequest.scmpType,
+			expectedTypeCode := slayers.CreateSCMPTypeCode(
+				slayers.SCMPType(tc.expectedSlowPathRequest.spType),
 				tc.expectedSlowPathRequest.code)
 			assert.Equal(t, expectedTypeCode, scmp.TypeCode)
 			assert.NotNil(t, packet.Layer(tc.expectedLayerType))
