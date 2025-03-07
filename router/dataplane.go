@@ -1255,7 +1255,7 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 // packets to be delivered to the local AS, so pkt.egress is never 0.
 // If pkt.Ingress is zero, the packet can be coming from either a local end-host or a
 // sibling router. In either of these cases, it must be leaving via a locally owned external
-// interface (i.e. it can be going to a sibling router or to a local end-host). On the other
+// interface (i.e. it can't be going to a sibling router or to a local end-host). On the other
 // hand, a packet coming directly from another AS can be going anywhere: local delivery,
 // to another AS directly, or via a sibling router.
 func (p *scionPacketProcessor) validateEgressID() disposition {
@@ -1263,7 +1263,7 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 	link, found := p.d.interfaces[egressID]
 
 	// egress interface must be a known interface
-	// egress is never the internalInterface
+	// egress is never the internal interface (already checked)
 	// packet coming from internal interface, must go to an external interface
 	// Note that, for now, ingress == 0 is also true for sibling interfaces. That might change.
 	if !found || (p.linkIngress == 0 && link.Scope() == Sibling) {
@@ -1795,6 +1795,10 @@ func (p *scionPacketProcessor) processOHP() disposition {
 	return pForward
 }
 
+// resolveLocalDst translates a SCION address (host or service) into an underlay address. With
+// significant effort, we could remove the assumption that a SCION host address is a bit-for-bit
+// copy of the local IP. That would, among other things, require that the underlay performs any
+// necessary address resolution.
 func (d *dataPlane) resolveLocalDst(
 	resolvedDst *net.UDPAddr,
 	s slayers.SCION,
@@ -1818,7 +1822,7 @@ func (d *dataPlane) resolveLocalDst(
 		if a.Port() < d.dispatchedPortStart || a.Port() > d.dispatchedPortEnd {
 			updateNetAddrFromAddrAndPort(resolvedDst, a.Addr(), topology.EndhostPort)
 		} else {
-			UpdateNetAddrFromAddrPort(resolvedDst, a)
+			updateNetAddrFromAddrPort(resolvedDst, a)
 		}
 		return nil
 	case addr.HostTypeIP:
@@ -2123,7 +2127,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 
 	if b.ifID == 0 {
 		// Using the internal interface: must specify the destination address
-		UpdateNetAddrFromAddrPort(p.RemoteAddr, b.dstAddr)
+		updateNetAddrFromAddrPort(p.RemoteAddr, b.dstAddr)
 	}
 
 	if !fwLink.Send(p) {
@@ -2194,7 +2198,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	// If the packet is sent to an external router, we need to increment the
 	// path to prepare it for the next hop.
 	// This is an SCMP response to pkt, so the egress link will be the ingress link.
-	if p.d.interfaces[p.linkIngress].Scope() == External {
+	if p.pkt.Link.Scope() == External {
 		infoField := &revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir && !peering {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
@@ -2452,7 +2456,7 @@ func (d *dataPlane) addForwardingMetrics(ifID uint16, scope LinkScope) {
 // given netip.AddrPort. newDst.Addr() returns the IP by value. The compiler may or
 // may not inline the call and optimize out the copy. It is doubtful that manually inlining
 // increases the chances that the copy get elided. TODO(jiceatscion): experiment.
-func UpdateNetAddrFromAddrPort(netAddr *net.UDPAddr, newDst netip.AddrPort) {
+func updateNetAddrFromAddrPort(netAddr *net.UDPAddr, newDst netip.AddrPort) {
 	updateNetAddrFromAddrAndPort(netAddr, newDst.Addr(), newDst.Port())
 }
 
@@ -2482,14 +2486,4 @@ func updateNetAddrFromAddrAndPort(netAddr *net.UDPAddr, addr netip.Addr, port ui
 		// To that end, we cannot make it nil. We have to make its length zero.
 		netAddr.IP = netAddr.IP[0:0]
 	}
-}
-
-// UpdateNetAddrFromNetAddr() copies fromNetAddr into netAddr while re-using the IP slice
-// embedded in netAddr. This is to avoid giving work to the GC. Nil IPs get
-// converted into empty slices. The backing array isn't discarded.
-func UpdateNetAddrFromNetAddr(netAddr *net.UDPAddr, fromNetAddr *net.UDPAddr) {
-	netAddr.Port = fromNetAddr.Port
-	netAddr.Zone = fromNetAddr.Zone
-	netAddr.IP = netAddr.IP[0:len(fromNetAddr.IP)]
-	copy(netAddr.IP, fromNetAddr.IP)
 }

@@ -172,7 +172,7 @@ func TestForwarder(t *testing.T) {
 							// They carry an explicit destination address.
 							assert.NotNil(t, m.Addr)
 						} else {
-							// The other packets are sent through th external link. The
+							// The other packets are sent through the external link. The
 							// destination is implicit and must not be copied to the batch
 							// messages.
 							// Addr == nil is a stronger check than assert.Nil
@@ -208,6 +208,7 @@ func TestForwarder(t *testing.T) {
 	dp.initPacketPool(64)
 	procQs, _ := dp.initQueues(64)
 	intf := dp.interfaces[0]
+	extf := dp.interfaces[42]
 	initialPoolSize := len(dp.packetPool)
 	dp.setRunning()
 	dp.underlay.Start(context.Background(), dp.packetPool, procQs)
@@ -227,7 +228,16 @@ func TestForwarder(t *testing.T) {
 		// Normal use would be
 		// intf.Send(pkt):
 		// However we want to exclude queue overflow from the test. So we want a blocking send.
-		intf.SendBlocking(pkt)
+		if i < 100 {
+			intf.SendBlocking(pkt)
+		} else {
+			if i == 100 {
+				// take a short break, else the two links will run in parallel and our ordering
+				// check will see it.
+				time.Sleep(200 * time.Millisecond)
+			}
+			extf.SendBlocking(pkt)
+		}
 	}
 
 	select {

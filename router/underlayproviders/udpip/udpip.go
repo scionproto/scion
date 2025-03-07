@@ -245,7 +245,6 @@ func (u *udpConnection) receive(
 	}
 }
 
-// TODO(multi_underlay): simplify this a bit by making it a method of udpConnection.
 func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*router.Packet) int {
 	i := 0
 	if needsBlocking {
@@ -319,12 +318,7 @@ func (u *udpConnection) send(batchSize int, pool chan *router.Packet) {
 			// we really should not as it can cause unnecessary route queries. If we're
 			// an unbound connection, we *must* specify the address, of course.
 			if u.link == nil {
-				// TODO(multi_underlay): bug compatibility w/ test! We must pretend
-				// that we're a bound connection when the sender says so (by not setting
-				// the destination)... change the test.
-				if len(p.RemoteAddr.IP) != 0 {
-					msgs[i].Addr = p.RemoteAddr
-				}
+				msgs[i].Addr = p.RemoteAddr
 			}
 		}
 
@@ -624,7 +618,7 @@ func (l *siblingLink) IsUp() bool {
 func (l *siblingLink) Send(p *router.Packet) bool {
 	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address.
-	router.UpdateNetAddrFromNetAddr(p.RemoteAddr, l.remote)
+	updateNetAddrFromNetAddr(p.RemoteAddr, l.remote)
 	select {
 	case l.egressQ <- p:
 	default:
@@ -636,7 +630,7 @@ func (l *siblingLink) Send(p *router.Packet) bool {
 func (l *siblingLink) SendBlocking(p *router.Packet) {
 	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address.
-	router.UpdateNetAddrFromNetAddr(p.RemoteAddr, l.remote)
+	updateNetAddrFromNetAddr(p.RemoteAddr, l.remote)
 	l.egressQ <- p
 }
 
@@ -656,11 +650,8 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet
 
 	pkt.Link = l
 	// TODO(multi_underlay): We need to record the src address so that packets can be turned-around
-	// by SCMP. To not require this we would need to:
-	// * Use bound sockets for sibling links.
-	// * Have SCMP use the link reference rather than rely on the ingress ifID which points at the
-	//   the internal link.
-	router.UpdateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
+	// by SCMP. To not require this we would need to use bound sockets for sibling links.
+	updateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
 	select {
 	case l.procQs[procID] <- pkt:
 	default:
@@ -776,7 +767,7 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packe
 	pkt.Link = l
 	// This is an unbound link. We must record the src address in case the packet
 	// is turned around by SCMP.
-	router.UpdateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
+	updateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
 	select {
 	case l.procQs[procID] <- pkt:
 	default:
@@ -785,7 +776,6 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packe
 	}
 }
 
-// TODO(multi_underlay): For bound connections we could make this cheaper.
 func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, error) {
 	if len(data) < slayers.CmnHdrLen {
 		return 0, errShortPacket
@@ -811,4 +801,14 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	}
 
 	return s % uint32(numProcRoutines), nil
+}
+
+// updateNetAddrFromNetAddr() copies fromNetAddr into netAddr while re-using the IP slice
+// embedded in netAddr. This is to avoid giving work to the GC. Nil IPs get
+// converted into empty slices. The backing array isn't discarded.
+func updateNetAddrFromNetAddr(netAddr *net.UDPAddr, fromNetAddr *net.UDPAddr) {
+	netAddr.Port = fromNetAddr.Port
+	netAddr.Zone = fromNetAddr.Zone
+	netAddr.IP = netAddr.IP[0:len(fromNetAddr.IP)]
+	copy(netAddr.IP, fromNetAddr.IP)
 }
