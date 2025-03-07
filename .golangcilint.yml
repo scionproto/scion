@@ -19,6 +19,7 @@ linters:
     - lll
     - misspell
     - goheader
+    - contextcheck
 linters-settings:
   # ...
   forbidigo:

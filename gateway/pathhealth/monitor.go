@@ -63,6 +63,8 @@ type Monitor struct {
 }
 
 // Register starts monitoring given AS under the specified selector.
+//
+//nolint:contextcheck // Internal context is only used for remoteWatcherItem
 func (m *Monitor) Register(remote addr.IA, selector PathSelector) *Registration {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
@@ -73,6 +75,7 @@ func (m *Monitor) Register(remote addr.IA, selector PathSelector) *Registration 
 	// Otherwise, increase its reference count.
 	item := m.remoteWatchers[remote]
 	if item == nil {
+		//nolint:contextcheck
 		ctx, cancel := context.WithCancel(context.Background())
 		item = &remoteWatcherItem{
 			RemoteWatcher: m.RemoteWatcherFactory.New(remote),
