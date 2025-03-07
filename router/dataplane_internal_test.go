@@ -23,6 +23,7 @@ import (
 	"net/netip"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -135,8 +136,8 @@ func TestForwarder(t *testing.T) {
 		ret := newDataPlane(
 			RunConfig{NumProcessors: 20, BatchSize: 64, NumSlowPathProcessors: 1}, false)
 		mFakeConn := mock_router.NewMockBatchConn(ctrl)
-		totalCount := 0
-		expectedPktId := byte(0)
+		totalCount := atomic.Int32{}
+		expectedPktId := atomic.Int32{}
 		closeChan := make(chan struct{})
 		var once sync.Once
 		mFakeConn.EXPECT().Close().DoAndReturn(
@@ -151,23 +152,23 @@ func TestForwarder(t *testing.T) {
 			}).AnyTimes()
 		mFakeConn.EXPECT().WriteBatch(gomock.Any(), 0).DoAndReturn(
 			func(ms underlayconn.Messages, flags int) (int, error) {
-				if totalCount == 255 {
+				if totalCount.Load() == 255 {
 					return 0, nil
 				}
 				for i, m := range ms {
-					totalCount++
+					totalCount.Add(1)
 					// 1/5 of the packets (randomly chosen) are errors
 					if mrand.IntN(5) == 0 {
-						expectedPktId++
+						expectedPktId.Add(1)
 						ms = ms[:i]
 						break
 					} else {
-						pktId := m.Buffers[0][0]
-						if !assert.Equal(t, expectedPktId, pktId) {
+						pktId := int32(m.Buffers[0][0])
+						if !assert.Equal(t, expectedPktId.Load(), pktId) {
 							t.Log("packets got reordered.",
-								"expected", expectedPktId, "got", pktId, "ms", ms)
+								"expected", expectedPktId.Load(), "got", pktId, "ms", ms)
 						}
-						if totalCount <= 100 {
+						if totalCount.Load() <= 100 {
 							// The first 100 packets are sent through the internal link
 							// They carry an explicit destination address.
 							assert.NotNil(t, m.Addr)
@@ -178,10 +179,10 @@ func TestForwarder(t *testing.T) {
 							// Addr == nil is a stronger check than assert.Nil
 							assert.True(t, m.Addr == nil)
 						}
-						expectedPktId++
+						expectedPktId.Add(1)
 					}
 				}
-				if totalCount == 255 {
+				if totalCount.Load() == 255 {
 					done <- struct{}{}
 				}
 				if len(ms) == 0 {
