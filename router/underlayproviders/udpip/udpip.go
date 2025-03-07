@@ -649,9 +649,6 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet
 	}
 
 	pkt.Link = l
-	// TODO(multi_underlay): We need to record the src address so that packets can be turned-around
-	// by SCMP. To not require this we would need to use bound sockets for sibling links.
-	updateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
 	select {
 	case l.procQs[procID] <- pkt:
 	default:
