@@ -1,5 +1,5 @@
 --- pkg/rpm_pfg.bzl
-+++ okg/rpm_pfg.bzl
++++ pkg/rpm_pfg.bzl
 @@ -501,7 +501,7 @@
          package_file_name = _make_rpm_filename(
              rpm_name,

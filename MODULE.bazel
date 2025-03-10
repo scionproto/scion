@@ -28,9 +28,9 @@ go_sdk.download(version = "1.24.0")
 go_sdk.nogo(nogo = "@//:nogo")
 
 # Gazelle
-bazel_dep(name = "gazelle", version = "0.42.0", repo_name = "bazel_gazelle")
+bazel_dep(name = "gazelle", version = "0.42.0")
 
-go_deps = use_extension("@bazel_gazelle//:extensions.bzl", "go_deps")
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
 
 use_repo(
@@ -134,7 +134,7 @@ pip.parse(
 use_repo(pip, "scion_python_doc_deps")
 
 # Rules for container image building
-bazel_dep(name = "rules_oci", version = "1.7.4")
+bazel_dep(name = "rules_oci", version = "1.8.0")
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 
@@ -157,7 +157,6 @@ use_repo(
 )
 
 # RPM packaging
-# TODO rename (and possibly merge) patches
 bazel_dep(name = "rules_pkg", version = "1.0.1")
 single_version_override(
     module_name = "rules_pkg",
@@ -179,27 +178,22 @@ apt.install(
 )
 use_repo(apt, "tester_deb")
 
-# Other dependencies
-bazel_dep(name = "bazel_skylib", version = "1.7.1")
-bazel_dep(name = "aspect_bazel_lib", version = "2.13.0")
-bazel_dep(name = "rules_proto", version = "7.1.0")
-bazel_dep(name = "rules_proto_grpc", version = "5.0.1")
-bazel_dep(name = "protobuf", version = "29.3", repo_name = "com_google_protobuf")
-bazel_dep(name = "rules_cc", version = "0.1.1")
-
 # Dependencies that are not available in Bazel registry yet
 non_module_deps = use_extension(":non_module_deps.bzl", "non_module_deps")
 use_repo(
     non_module_deps,
     "com_github_bazelbuild_buildtools",
     "rules_antlr",
-    "openwrt_x86_64_SDK",
     "buf",
 )
 
 # Support cross building and packaging for openwrt_amd64 via the openwrt SDK
 bazel_dep(name = "platforms", version = "0.0.11")
+bazel_dep(name = "rules_cc", version = "0.1.1")
 
-register_toolchains(
-    "//dist/openwrt:x86_64_openwrt_toolchain",
-)
+# Other dependencies
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "aspect_bazel_lib", version = "2.13.0")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "rules_proto_grpc", version = "5.0.1")
+bazel_dep(name = "protobuf", version = "29.3", repo_name = "com_google_protobuf")

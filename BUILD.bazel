@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
-load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@gazelle//:def.bzl", "gazelle")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
 load("//tools/lint:go_config.bzl", "go_lint_config")
@@ -113,16 +113,6 @@ gazelle(
         "diff",
         "-go_naming_convention",
         "go_default_library",
-    ],
-)
-
-gazelle(
-    name = "gazelle_update_repos",
-    command = "update-repos",
-    extra_args = [
-        "-prune",
-        "-from_file=go.mod",
-        "-to_macro=go_deps.bzl%go_deps",
     ],
 )
 

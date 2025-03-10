@@ -44,7 +44,7 @@ dist-rpm:
 # Use NOTPARALLEL to force correct order.
 # Note: From GNU make 4.4, this still allows building any other targets (e.g. lint) in parallel.
 .NOTPARALLEL: all
-all: go_deps.bzl protobuf mocks gazelle build-dev antlr write_all_source_files licenses
+all: protobuf mocks gazelle build-dev antlr write_all_source_files licenses
 
 clean:
 	bazel clean
@@ -65,11 +65,6 @@ test-integration:
 go.mod:
 	bazel run --config=quiet @go_sdk//:bin/go -- mod tidy
 
-go_deps.bzl: go.mod
-	bazel run --verbose_failures --config=quiet //:gazelle_update_repos
-	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
-	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
-
 docker-images:
 	@echo "Build images"
 	bazel build //docker:prod //docker:test
@@ -89,10 +84,6 @@ mocks:
 
 mocksdiff:
 	bazel run //tools:gomocks -- diff
-
-gazelle: go_deps.bzl
-	bazel run //:gazelle --verbose_failures --config=quiet
-	./tools/buildrill/go_integration_test_sync
 
 licenses:
 	tools/licenses.sh
