@@ -56,7 +56,7 @@ type udpLink interface {
 	router.Link
 	start(ctx context.Context, procQs []chan *router.Packet, pool chan *router.Packet)
 	stop()
-	receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet)
+	receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 }
 
 func init() {
@@ -90,31 +90,31 @@ func (u *provider) Start(
 		// Pointless to run without any processor of incoming traffic
 		return
 	}
-	connSnapShot := slices.Clone(u.allConnections)
-	linkSnapShot := slices.Collect(maps.Values(u.allLinks))
+	connSnapshot := slices.Clone(u.allConnections)
+	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
 	u.mu.Unlock()
 
 	// Links MUST be started before connections. They need procQs and pool to process
 	// incoming packets. Given that this is an internal mater, we don't pay the
 	// price of checking at use time.
-	for _, l := range linkSnapShot {
+	for _, l := range linkSnapshot {
 		l.start(ctx, procQs, pool)
 	}
-	for _, c := range connSnapShot {
+	for _, c := range connSnapshot {
 		c.start(u.batchSize, pool)
 	}
 }
 
 func (u *provider) Stop() {
 	u.mu.Lock()
-	connSnapShot := slices.Clone(u.allConnections)
-	linkSnapShot := slices.Collect(maps.Values(u.allLinks))
+	connSnapshot := slices.Clone(u.allConnections)
+	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
 	u.mu.Unlock()
 
-	for _, c := range connSnapShot {
+	for _, c := range connSnapshot {
 		c.stop()
 	}
-	for _, l := range linkSnapShot {
+	for _, l := range linkSnapshot {
 		l.stop()
 	}
 }
@@ -178,8 +178,7 @@ func (u *udpConnection) stop() {
 	}
 }
 
-func (u *udpConnection) receive(
-	batchSize int, pool chan *router.Packet) {
+func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
 
 	log.Debug("Receive", "connection", u.name)
 
@@ -214,16 +213,16 @@ func (u *udpConnection) receive(
 
 			// Update size; readBatch does not.
 			size := msg.N
-			pkt := packets[i]
-			pkt.RawPacket = pkt.RawPacket[:size]
+			p := packets[i]
+			p.RawPacket = p.RawPacket[:size]
 
 			// Find the right link. For unshared connections, it's easy: we know the link.
-			// TODO(multi_underlay): this may justify creating multiple udpConnections
+			// TODO(multi_underlay): this may justify creating multiple udpConnection
 			// implementations?. For example, converting the srcAddr to a netip.AddrPort
 			// is expensive; we could pass it to receive, but we wouldn't want to do it
 			// for bound connections.
 			if u.link != nil {
-				u.link.receive(size, msg.Addr.(*net.UDPAddr), pkt)
+				u.link.receive(size, msg.Addr.(*net.UDPAddr), p)
 				continue
 			}
 
@@ -234,14 +233,14 @@ func (u *udpConnection) receive(
 				// Anything else is the internal link.
 				l = u.links[netip.AddrPort{}]
 			}
-			l.receive(size, msg.Addr.(*net.UDPAddr), pkt)
+			l.receive(size, msg.Addr.(*net.UDPAddr), p)
 		}
 	}
 
 	// We have to stop receiving. Return the unsent packets to the pool to avoid creating
 	// a memory leak (it is likely but not required that the process will exit).
-	for _, pkt := range packets[batchSize-numReusable : batchSize] {
-		pool <- pkt
+	for _, p := range packets[batchSize-numReusable : batchSize] {
+		pool <- p
 	}
 }
 
@@ -432,7 +431,7 @@ func (l *externalLink) start(
 	pool chan *router.Packet,
 ) {
 	// procQs and pool are never known before all configured links have been instantiated.  So we
-	// get then only now. We didn't need it earlier since the connections have not been started yet.
+	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
 	if l.bfdSession == nil {
@@ -482,26 +481,26 @@ func (l *externalLink) SendBlocking(p *router.Packet) {
 	l.egressQ <- p
 }
 
-func (l *externalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet) {
+func (l *externalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID, err := computeProcID(pkt.RawPacket, len(l.procQs), l.seed)
+	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
-		l.pool <- pkt
+		l.pool <- p
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
 
-	pkt.Link = l
+	p.Link = l
 	// The src address does not need to be recorded in the packet. Even SCMP won't need it.
 	select {
-	case l.procQs[procID] <- pkt:
+	case l.procQs[procID] <- p:
 	default:
-		l.pool <- pkt
+		l.pool <- p
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
 }
@@ -578,7 +577,7 @@ func (l *siblingLink) start(
 	pool chan *router.Packet,
 ) {
 	// procQs and pool are never known before all configured links have been instantiated.  So we
-	// get then only now. We didn't need it earlier since the connections have not been started yet.
+	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
 	if l.bfdSession == nil {
@@ -618,7 +617,7 @@ func (l *siblingLink) IsUp() bool {
 func (l *siblingLink) Send(p *router.Packet) bool {
 	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address.
-	updateNetAddrFromNetAddr(p.RemoteAddr, l.remote)
+	updateRemoteAddr(p, l.remote)
 	select {
 	case l.egressQ <- p:
 	default:
@@ -630,29 +629,29 @@ func (l *siblingLink) Send(p *router.Packet) bool {
 func (l *siblingLink) SendBlocking(p *router.Packet) {
 	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address.
-	updateNetAddrFromNetAddr(p.RemoteAddr, l.remote)
+	updateRemoteAddr(p, l.remote)
 	l.egressQ <- p
 }
 
-func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet) {
+func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
 
-	procID, err := computeProcID(pkt.RawPacket, len(l.procQs), l.seed)
+	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
-		l.pool <- pkt
+		l.pool <- p
 		metrics[sc].DroppedPacketsInvalid.Inc()
 	}
 
-	pkt.Link = l
+	p.Link = l
 	select {
-	case l.procQs[procID] <- pkt:
+	case l.procQs[procID] <- p:
 	default:
-		l.pool <- pkt
+		l.pool <- p
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
 }
@@ -709,7 +708,7 @@ func (l *internalLink) start(
 	pool chan *router.Packet,
 ) {
 	// procQs and pool are never known before all configured links have been instantiated. So we
-	// get then only now. We didn't need it earlier since the connections have not been started yet.
+	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
 }
@@ -748,27 +747,27 @@ func (l *internalLink) SendBlocking(p *router.Packet) {
 	l.egressQ <- p
 }
 
-func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, pkt *router.Packet) {
+func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID, err := computeProcID(pkt.RawPacket, len(l.procQs), l.seed)
+	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
-		l.pool <- pkt
+		l.pool <- p
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
 
-	pkt.Link = l
+	p.Link = l
 	// This is an unbound link. We must record the src address in case the packet
 	// is turned around by SCMP.
-	updateNetAddrFromNetAddr(pkt.RemoteAddr, srcAddr)
+	updateRemoteAddr(p, srcAddr)
 	select {
-	case l.procQs[procID] <- pkt:
+	case l.procQs[procID] <- p:
 	default:
-		l.pool <- pkt
+		l.pool <- p
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
 }
@@ -800,12 +799,15 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	return s % uint32(numProcRoutines), nil
 }
 
-// updateNetAddrFromNetAddr() copies fromNetAddr into netAddr while re-using the IP slice
-// embedded in netAddr. This is to avoid giving work to the GC. Nil IPs get
-// converted into empty slices. The backing array isn't discarded.
-func updateNetAddrFromNetAddr(netAddr *net.UDPAddr, fromNetAddr *net.UDPAddr) {
-	netAddr.Port = fromNetAddr.Port
-	netAddr.Zone = fromNetAddr.Zone
-	netAddr.IP = netAddr.IP[0:len(fromNetAddr.IP)]
-	copy(netAddr.IP, fromNetAddr.IP)
+// updateRemoteAddr() copies newAddr into the packet's RemoteAddr while re-using the IP slice
+// embedded in it. This is to avoid giving work to the GC. Nil IPs get converted into empty slices.
+// The backing array isn't discarded. A packet's remoteAddr is pre-initialized by the router with
+// enough capacity for either V6 or V4 addresses. In the future it should become a generic storage
+// area independent from any specific address family.
+func updateRemoteAddr(p *router.Packet, newAddr *net.UDPAddr) {
+	rAddr := p.RemoteAddr
+	rAddr.Port = newAddr.Port
+	rAddr.Zone = newAddr.Zone
+	rAddr.IP = rAddr.IP[0:len(newAddr.IP)]
+	copy(rAddr.IP, newAddr.IP)
 }

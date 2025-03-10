@@ -42,30 +42,30 @@ type Disposition disposition
 const PDiscard = Disposition(pDiscard)
 
 // Implements the link interface minimally
-type FakeLink struct {
+type MockLink struct {
 	ifID uint16
 }
 
-func (l *FakeLink) IsUp() bool                   { return true }
-func (l *FakeLink) IfID() uint16                 { return l.ifID }
-func (l *FakeLink) Scope() LinkScope             { return Internal }
-func (l *FakeLink) BFDSession() *bfd.Session     { return nil }
-func (l *FakeLink) CheckPktSrc(pkt *Packet) bool { return true }
-func (l *FakeLink) Send(p *Packet) bool          { return true }
-func (l *FakeLink) SendBlocking(p *Packet)       {}
+func (l *MockLink) IsUp() bool                   { return true }
+func (l *MockLink) IfID() uint16                 { return l.ifID }
+func (l *MockLink) Scope() LinkScope             { return Internal }
+func (l *MockLink) BFDSession() *bfd.Session     { return nil }
+func (l *MockLink) CheckPktSrc(pkt *Packet) bool { return true }
+func (l *MockLink) Send(p *Packet) bool          { return true }
+func (l *MockLink) SendBlocking(p *Packet)       {}
 
-func newFakeLink(ingress uint16) Link { return &FakeLink{ifID: ingress} }
+func newMockLink(ingress uint16) Link { return &MockLink{ifID: ingress} }
 
-// NewPacket makes a fake packet. It has one shortcoming which makes it unsuited for some tests:
+// NewPacket makes a mock packet. It has one shortcoming which makes it unsuited for some tests:
 // The packet buffer is strictly no bigger than the supplied bytes; which means that it cannot
-// be used to respond via SCMP. Also, it refers to a fake link that has the scope Internal, yet
+// be used to respond via SCMP. Also, it refers to a mock link that has the scope Internal, yet
 // will confirm being the carrier of any kind of packet.
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	p := Packet{
 		RemoteAddr: &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
 		RawPacket:  make([]byte, len(raw)),
 		egress:     egress,
-		Link:       newFakeLink(ingress),
+		Link:       newMockLink(ingress),
 	}
 	if src != nil {
 		p.RemoteAddr = src
@@ -212,7 +212,7 @@ func NewDPRaw(runConfig RunConfig, authSCMP bool) *DataPlane {
 	return edp
 }
 
-func (d *DataPlane) FakeStart() {
+func (d *DataPlane) MockStart() {
 	d.setRunning()
 }
 

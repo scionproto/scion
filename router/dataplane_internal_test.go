@@ -135,22 +135,22 @@ func TestForwarder(t *testing.T) {
 	prepareDP := func(ctrl *gomock.Controller) *dataPlane {
 		ret := newDataPlane(
 			RunConfig{NumProcessors: 20, BatchSize: 64, NumSlowPathProcessors: 1}, false)
-		mFakeConn := mock_router.NewMockBatchConn(ctrl)
+		mConn := mock_router.NewMockBatchConn(ctrl)
 		totalCount := atomic.Int32{}
 		expectedPktId := atomic.Int32{}
 		closeChan := make(chan struct{})
 		var once sync.Once
-		mFakeConn.EXPECT().Close().DoAndReturn(
+		mConn.EXPECT().Close().DoAndReturn(
 			func() error {
 				once.Do(func() { close(closeChan) })
 				return nil
 			}).AnyTimes()
-		mFakeConn.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
+		mConn.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 			func(ms underlayconn.Messages) (int, error) {
 				<-closeChan
 				return 0, nil
 			}).AnyTimes()
-		mFakeConn.EXPECT().WriteBatch(gomock.Any(), 0).DoAndReturn(
+		mConn.EXPECT().WriteBatch(gomock.Any(), 0).DoAndReturn(
 			func(ms underlayconn.Messages, flags int) (int, error) {
 				if totalCount.Load() == 255 {
 					return 0, nil
@@ -191,7 +191,7 @@ func TestForwarder(t *testing.T) {
 
 				return len(ms), nil
 			}).AnyTimes()
-		_ = ret.AddInternalInterface(mFakeConn, netip.Addr{})
+		_ = ret.AddInternalInterface(mConn, netip.Addr{})
 		l := control.LinkEnd{
 			IA:   addr.MustParseIA("1-ff00:0:1"),
 			Addr: netip.MustParseAddrPort("10.0.0.100:0"),
@@ -202,7 +202,7 @@ func TestForwarder(t *testing.T) {
 		}
 		nobfd := control.BFD{Disable: ptr.To(true)}
 
-		_ = ret.AddExternalInterface(42, mFakeConn, l, r, nobfd)
+		_ = ret.AddExternalInterface(42, mConn, l, r, nobfd)
 		return ret
 	}
 	dp := prepareDP(ctrl)
@@ -259,11 +259,11 @@ func TestSlowPathProcessing(t *testing.T) {
 	payload := []byte("actualpayloadbytes")
 
 	// ProcessPacket assumes some pre-conditions:
-	// * The ingress interface has to exist. This fake map is good for the test cases we have.
+	// * The ingress interface has to exist. This mock map is good for the test cases we have.
 	// * InternalNextHops may not be nil. Empty is ok for all the test cases we have.
-	fakeExternalInterfaces := []uint16{1}
-	fakeInternalNextHops := map[uint16]netip.AddrPort{}
-	fakeServices := map[addr.SVC][]netip.AddrPort{}
+	mockExternalInterfaces := []uint16{1}
+	mockInternalNextHops := map[uint16]netip.AddrPort{}
+	mockServices := map[addr.SVC][]netip.AddrPort{}
 
 	testCases := map[string]struct {
 		mockMsg                 func() []byte
@@ -275,11 +275,11 @@ func TestSlowPathProcessing(t *testing.T) {
 		"svc nobackend": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
 				return newDP(
-					fakeExternalInterfaces,
+					mockExternalInterfaces,
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
-					fakeInternalNextHops,
-					fakeServices,
+					mockInternalNextHops,
+					mockServices,
 					addr.MustParseIA("1-ff00:0:110"),
 					nil, testKey)
 			},
@@ -300,11 +300,11 @@ func TestSlowPathProcessing(t *testing.T) {
 		"svc invalid": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
 				return newDP(
-					fakeExternalInterfaces,
+					mockExternalInterfaces,
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
-					fakeInternalNextHops,
-					fakeServices,
+					mockInternalNextHops,
+					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -324,11 +324,11 @@ func TestSlowPathProcessing(t *testing.T) {
 		"invalid dest": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
 				return newDP(
-					fakeExternalInterfaces,
+					mockExternalInterfaces,
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
-					fakeInternalNextHops,
-					fakeServices,
+					mockInternalNextHops,
+					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -348,11 +348,11 @@ func TestSlowPathProcessing(t *testing.T) {
 		"invalid dest addr": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
 				return newDP(
-					fakeExternalInterfaces,
+					mockExternalInterfaces,
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
-					fakeInternalNextHops,
-					fakeServices,
+					mockInternalNextHops,
+					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -372,11 +372,11 @@ func TestSlowPathProcessing(t *testing.T) {
 		"invalid dest v4mapped": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
 				return newDP(
-					fakeExternalInterfaces,
+					mockExternalInterfaces,
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
-					fakeInternalNextHops,
-					fakeServices,
+					mockInternalNextHops,
+					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -398,11 +398,11 @@ func TestSlowPathProcessing(t *testing.T) {
 		"invalid dest unspecified": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
 				return newDP(
-					fakeExternalInterfaces,
+					mockExternalInterfaces,
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
-					fakeInternalNextHops,
-					fakeServices,
+					mockInternalNextHops,
+					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -422,11 +422,11 @@ func TestSlowPathProcessing(t *testing.T) {
 		"invalid src v4mapped": {
 			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
 				return newDP(
-					fakeExternalInterfaces,
+					mockExternalInterfaces,
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
-					fakeInternalNextHops,
-					fakeServices,
+					mockInternalNextHops,
+					mockServices,
 					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -458,7 +458,7 @@ func TestSlowPathProcessing(t *testing.T) {
 			pkt := Packet{}
 			pkt.init(&[bufSize]byte{})
 			pkt.Reset()
-			pkt.Link = newFakeLink(tc.srcInterface)
+			pkt.Link = newMockLink(tc.srcInterface)
 			pkt.RawPacket = pkt.RawPacket[:len(rp)]
 			copy(pkt.RawPacket, rp)
 
