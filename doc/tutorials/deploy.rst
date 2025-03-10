@@ -51,7 +51,7 @@ Infrastructure Prerequisites
 
 This deployment requires five virtual machines (VMs) - one for each AS. We recommend using Ubuntu VMs for this.
 
-- 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_.
+- 5 VMs - **Ubuntu** 22.04.5 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_.
 - Each VM should have at least one IP address reachable by the other VMs. (If on AWS, be sure to set up the appropriate security groups.)
 - Each VM will need internet access to download the required files (or you will need an alternate way to download the SCION binaries).
 - One VM (scion01) should have SSH access (password or SSH keys) to the other hosts scion{02-05} to copy generated configuration files and keys.
@@ -106,8 +106,8 @@ Execute the following commands on each VM:
 .. code-block:: sh
 
    cd /tmp/
-   wget https://github.com/scionproto/scion/releases/download/v0.11.0/scion_v0.11.0_deb_amd64.tar.gz
-   tar xfz scion_v0.11.0_deb_amd64.tar.gz
+   wget https://github.com/scionproto/scion/releases/download/v0.12.0/scion_0.12.0_deb_amd64.tar.gz
+   tar xfz scion_0.12.0_deb_amd64.tar.gz
 
    sudo apt install ./scion*.deb
 
