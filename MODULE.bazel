@@ -134,7 +134,7 @@ pip.parse(
 use_repo(pip, "scion_python_doc_deps")
 
 # Rules for container image building
-bazel_dep(name = "rules_oci", version = "2.2.2")
+bazel_dep(name = "rules_oci", version = "1.7.4")
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 

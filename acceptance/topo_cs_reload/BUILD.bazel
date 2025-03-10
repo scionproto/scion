@@ -1,6 +1,6 @@
 load("//tools/lint:go.bzl", "go_test")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 
 go_test(
     name = "go_default_test",
@@ -36,7 +36,7 @@ go_test(
 )
 
 # control container
-oci_load(
+oci_tarball(
     name = "control.tar",
     format = "docker",
     image = ":control_image",

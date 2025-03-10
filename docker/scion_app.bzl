@@ -1,5 +1,5 @@
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 # Defines a common base image for all app images.
@@ -66,7 +66,7 @@ def scion_app_image(name, src, entrypoint, appdir = "/app", workdir = "/share", 
     )
 
     ### XXX(matzf):
-    # This oci_load rule does two things: with `bazel build` it  _builds_ the tarball, and with `bazel run` it _loads_ it into docker.
+    # This oci_tarball rule does two things: with `bazel build` it  _builds_ the tarball, and with `bazel run` it _loads_ it into docker.
     # Weirdly, "$(location //path/name.load)" expands to the shell script to _load_ the tarball but only the actual tarball file is symlinked into the test directories.
     # This seems quite messed up and useless.
     # One workaround is to wrap it in a filegroup; this only leaves the desired .tar file.
@@ -78,7 +78,7 @@ def scion_app_image(name, src, entrypoint, appdir = "/app", workdir = "/share", 
         out = name + ".tar",
         visibility = ["//visibility:public"],
     )
-    oci_load(
+    oci_tarball(
         name = name + ".load",
         format = "docker",
         image = name,
