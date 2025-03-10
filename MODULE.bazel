@@ -16,13 +16,13 @@ linter.configure(name = "flake8", config = "//:flake8_lint_config")
 use_repo(linter, "apple_linters")
 
 # Bazel rules for Golang
-bazel_dep(name = "rules_go", version = "0.53.0", repo_name = "io_bazel_rules_go")
+bazel_dep(name = "rules_go", version = "0.53.0")
 single_version_override(
     module_name = "rules_go",
-    patches = ["//patches:io_bazel_rules_go/import.patch"],
+    patches = ["//patches:rules_go/import.patch"],
 )
 
-go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(version = "1.24.0")
 
 go_sdk.nogo(nogo = "@//:nogo")
@@ -196,4 +196,4 @@ bazel_dep(name = "bazel_skylib", version = "1.7.1")
 bazel_dep(name = "aspect_bazel_lib", version = "2.13.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_proto_grpc", version = "5.0.1")
-bazel_dep(name = "protobuf", version = "29.3", repo_name = "com_google_protobuf")
+bazel_dep(name = "protobuf", version = "29.3")

@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 load("//tools/lint:write_source_files.bzl", "write_source_files")
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@aspect_bazel_lib//lib:directory_path.bzl", "make_directory_path")
