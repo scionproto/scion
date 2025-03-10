@@ -18,5 +18,6 @@ software-properties-common
 sqlite3
 sudo
 tzdata
+rsync
 zlib1g-dev
 zip

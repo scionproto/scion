@@ -44,13 +44,13 @@ Agents
 Machine Image
 -------------
 
-We use the default machine image of the *Elastic CI Stack for AWS* release `v6.7.1 <https://github.com/buildkite/elastic-ci-stack-for-aws/releases/tag/v6.7.1>`_.
+We use the default machine image of the *Elastic CI Stack for AWS* release `v6.33.0 <https://github.com/buildkite/elastic-ci-stack-for-aws/releases/tag/v6.33.0>`_.
 `What's on each machine <https://buildkite.com/docs/agent/v3/elastic-ci-aws#before-you-start-whats-on-each-machine>`_:
 
 - Amazon Linux 2023
-- Buildkite Agent v3.50.2
-- Docker v20.10.25
-- Docker Compose v2.20.3
+- Buildkite Agent v3.89.0
+- Docker
+- Docker Compose v2.31.0
 - AWS CLI
 - jq
 
@@ -112,3 +112,19 @@ Excerpt of the most relevant parameters:
    ScaleInIdlePeriod: 600  # shut down after 10 minutes idle
    ScaleOutFactor: 1.0
    OnDemandPercentage: 0   # use only spot instances
+
+Cluster upgrade/downgrade
+-------------------------
+
+1. Go to AWS CloudFormation. Select the stack ``buildkite-scionproto``.
+2. Click "Update" and select "Replace existing template".
+   Insert the URL that is provided in the `release description <https://github.com/buildkite/elastic-ci-stack-for-aws/releases>`_
+   (for example, ``https://s3.amazonaws.com/buildkite-aws-stack/v6.33.0/aws-stack.yml``). Click "Next".
+3. Scroll through the parameters provided at the next step. Don't change anything: the previous settings are remembered. Click "Next".
+4. Confirm all "I acknowledge..." checkboxes at the next step. Click "Next".
+5. Click "Submit".
+6. Wait until the status changes to ``UPDATE_COMPLETE``.
+7. Go to AWS EC2, and then to "Auto scaling groups".
+8. Select the group with the name like ``buildkite-scionproto-AgentAutoScaleGroup-DeL3rs9TIbn7`` (the id at the end might be different).
+9. Scroll to "Instance purchase options" and check that "Include On-Demand base capacity" is set to ``Designate the first 4 instances as On-Demand``.
+   If it's not the case, click "Edit" to set it up.
