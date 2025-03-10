@@ -19,4 +19,4 @@ RUN head -c 16 /dev/urandom | base64 > /etc/scion/keys/master0.key && \
 # Expose ports. (30041,50000 = underlay; 30441 = monitoring).
 EXPOSE 30041 50000 30441
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.bash"]
