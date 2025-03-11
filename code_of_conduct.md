@@ -48,6 +48,28 @@ comments, commits, code, wiki edits, issues, and other contributions that are
 not aligned to this Code of Conduct, and will communicate reasons for moderation
 decisions when appropriate.
 
+"Community leaders" are the members of the SCION Technical Committee, implementation.
+A regularly updated list of members can be found
+[here](https://docs.scion.org/en/latest/dev/contribute.html#governance-tc-implementation)
+
+## Conflict Resolution
+
+We do not believe that all conflict is bad; healthy debate and disagreement often
+yield positive results. However, it is never okay to engage in behavior that violates
+the project’s code of conduct.
+
+If you see someone violating the code of conduct, you are encouraged to address the
+behavior directly with those involved. Many issues can be resolved quickly and
+easily, and this gives people more control over the outcome of their dispute. If you
+are unable to resolve the matter for any reason, or if the behavior is threatening or
+harassing, report it. We are dedicated to providing an environment where participants
+feel welcome and safe.
+
+Reports should be directed to the community leaders at conduct@scion.org. If, for any
+reason you are uncomfortable reaching out to the community leaders, or if you are one of
+the community leaders and cannot resolve the issue, please email the SCION Association's
+CEO at luzius.cameron@scion.org.
+
 ## Scope
 
 This Code of Conduct applies within all community spaces, and also applies when
@@ -121,6 +143,8 @@ version 2.1, available at
 Community Impact Guidelines were inspired by
 [Mozilla's code of conduct enforcement ladder][Mozilla CoC].
 
+Conflict Resolution Guidelines were inspired by [Go Community Code of Conduct][Go CoC]
+
 For answers to common questions about this code of conduct, see the FAQ at
 [https://www.contributor-covenant.org/faq][FAQ]. Translations are available at
 [https://www.contributor-covenant.org/translations][translations].
@@ -130,4 +154,4 @@ For answers to common questions about this code of conduct, see the FAQ at
 [Mozilla CoC]: https://github.com/mozilla/diversity
 [FAQ]: https://www.contributor-covenant.org/faq
 [translations]: https://www.contributor-covenant.org/translations
-
+[Go CoC]: https://go.dev/conduct
