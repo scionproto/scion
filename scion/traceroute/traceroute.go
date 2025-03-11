@@ -17,6 +17,7 @@ package traceroute
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/netip"
 	"time"
@@ -114,9 +115,10 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		return Stats{}, err
 	}
 	// Get our real local address.
-	asNetipAddr, ok := netip.AddrFromSlice(conn.LocalAddr().(*net.UDPAddr).IP)
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	asNetipAddr, ok := netip.AddrFromSlice(localAddr.IP)
 	if !ok {
-		panic("Invalid Local IP address")
+		panic(fmt.Errorf("invalid local IP address: %v", localAddr.IP))
 	}
 	local := cfg.Local
 	local.Host = addr.HostIP(asNetipAddr)
@@ -129,7 +131,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		replies:       replies,
 		errHandler:    cfg.ErrHandler,
 		updateHandler: cfg.UpdateHandler,
-		id:            uint16(conn.LocalAddr().(*net.UDPAddr).Port),
+		id:            uint16(localAddr.Port),
 		path:          cfg.PathEntry,
 		nextHop:       cfg.NextHop,
 		epic:          cfg.EPIC,

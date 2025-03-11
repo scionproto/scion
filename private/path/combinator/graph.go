@@ -38,11 +38,9 @@ const (
 	maxTimestamp = math.MaxUint32
 )
 
-var (
-	// MaxExpirationTime is the maximum absolute expiration time of SCION hop
-	// fields.
-	maxExpirationTime = time.Unix(maxTimestamp, 0).Add(path.ExpTimeToDuration(math.MaxUint8))
-)
+// MaxExpirationTime is the maximum absolute expiration time of SCION hop
+// fields.
+var maxExpirationTime = time.Unix(maxTimestamp, 0).Add(path.ExpTimeToDuration(math.MaxUint8))
 
 // vertexInfo maps destination vertices to the list of edges that point towards
 // them.
@@ -300,8 +298,8 @@ func vertexFromIA(ia addr.IA) vertex {
 }
 
 func vertexFromPeering(upIA addr.IA, upIfID iface.ID,
-	downIA addr.IA, downIfID iface.ID) vertex {
-
+	downIA addr.IA, downIfID iface.ID,
+) vertex {
 	return vertex{UpIA: upIA, UpIfID: upIfID, DownIA: downIA, DownIfID: downIfID}
 }
 
@@ -530,7 +528,6 @@ func reverseEpicAuths(s [][]byte) {
 }
 
 func calculateBeta(se *solutionEdge) uint16 {
-
 	// If this is a peer hop, we need to set beta[i] = beta[i+1]. That is, the SegID
 	// accumulator must correspond to the next (in construction order) hop.
 	//
@@ -595,7 +592,7 @@ func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 	case proto.PathSegType_down:
 		return false
 	default:
-		panic(fmt.Sprintf("Invalid segment type: %v", currSeg.Type))
+		panic(fmt.Sprintf("Invalid segment type: %d", currSeg.Type))
 	}
 }
 

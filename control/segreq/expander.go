@@ -16,6 +16,7 @@ package segreq
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -34,8 +35,8 @@ type WildcardExpander struct {
 }
 
 func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
-	req segfetcher.Request) (segfetcher.Requests, error) {
-
+	req segfetcher.Request,
+) (segfetcher.Requests, error) {
 	if req.Src.AS() != 0 {
 		return segfetcher.Requests{req}, nil
 	}
@@ -55,7 +56,10 @@ func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 		return requestsSrcsToDst(cores, req.Dst, req.SegType), nil
 	default:
 		// no wildcard source for up requests
-		panic("Unexpected wildcard for up segment request, should not have passed validation")
+		panic(fmt.Errorf(
+			"unexpected wildcard for up segment request, should not have passed validation: %d",
+			req.SegType,
+		))
 	}
 }
 
@@ -71,7 +75,6 @@ func (e *WildcardExpander) coreASes(ctx context.Context, isd addr.ISD) ([]addr.I
 // providerCoreASes returns the core ASes that are providers of this AS, i.e.
 // those core ASes that are directly reachable with an up segment
 func (e *WildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IA, error) {
-
 	if e.Core {
 		return []addr.IA{e.LocalIA}, nil
 	}

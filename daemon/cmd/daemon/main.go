@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -126,7 +127,7 @@ func realMain(ctx context.Context) error {
 	dialer := &libgrpc.TCPDialer{
 		SvcResolver: func(dst addr.SVC) []resolver.Address {
 			if base := dst.Base(); base != addr.SvcCS {
-				panic("Unsupported address type, implementation error?")
+				panic(fmt.Errorf("unsupported address type, possible implementation error: %d", addr.SvcCS))
 			}
 			targets := []resolver.Address{}
 			for _, entry := range topo.ControlServiceAddresses() {
@@ -361,8 +362,8 @@ func realMain(ctx context.Context) error {
 type acceptAllVerifier struct{}
 
 func (acceptAllVerifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
-	associatedData ...[]byte) (*signed.Message, error) {
-
+	associatedData ...[]byte,
+) (*signed.Message, error) {
 	return nil, nil
 }
 

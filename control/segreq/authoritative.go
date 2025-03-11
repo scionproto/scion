@@ -16,6 +16,7 @@ package segreq
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -35,8 +36,8 @@ type AuthoritativeLookup struct {
 }
 
 func (a AuthoritativeLookup) LookupSegments(ctx context.Context, src,
-	dst addr.IA) (segfetcher.Segments, error) {
-
+	dst addr.IA,
+) (segfetcher.Segments, error) {
 	segType, err := a.classify(ctx, src, dst)
 	if err != nil {
 		return nil, err
@@ -48,14 +49,14 @@ func (a AuthoritativeLookup) LookupSegments(ctx context.Context, src,
 	case seg.TypeCore:
 		return getCoreSegments(ctx, a.PathDB, a.LocalIA, dst)
 	default:
-		panic("unexpected segType")
+		panic(fmt.Errorf("unexpected segType: %d", segType))
 	}
 }
 
 // classify validates the request and determines the segment type for the request
 func (a AuthoritativeLookup) classify(ctx context.Context,
-	src, dst addr.IA) (seg.Type, error) {
-
+	src, dst addr.IA,
+) (seg.Type, error) {
 	switch {
 	case src != a.LocalIA:
 		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
@@ -84,8 +85,8 @@ func (a AuthoritativeLookup) classify(ctx context.Context,
 // getCoreSegments loads core segments from localIA to dstIA from the path DB.
 // Wildcard dstIA is allowed.
 func getCoreSegments(ctx context.Context, pathDB pathdb.DB,
-	localIA, dstIA addr.IA) (segfetcher.Segments, error) {
-
+	localIA, dstIA addr.IA,
+) (segfetcher.Segments, error) {
 	res, err := pathDB.Get(ctx, &query.Params{
 		StartsAt: []addr.IA{dstIA},
 		EndsAt:   []addr.IA{localIA},
@@ -100,8 +101,8 @@ func getCoreSegments(ctx context.Context, pathDB pathdb.DB,
 // getDownSegments loads down segments from localIA to dstIA from the path DB.
 // Wildcard dstIA is _not_ allowed.
 func getDownSegments(ctx context.Context, pathDB pathdb.DB,
-	localIA, dstIA addr.IA) (segfetcher.Segments, error) {
-
+	localIA, dstIA addr.IA,
+) (segfetcher.Segments, error) {
 	res, err := pathDB.Get(ctx, &query.Params{
 		StartsAt: []addr.IA{localIA},
 		EndsAt:   []addr.IA{dstIA},
