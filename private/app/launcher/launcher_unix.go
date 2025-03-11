@@ -83,10 +83,13 @@ func (a *Application) run() error {
 
 		// If the main goroutine shuts down everything in time, this won't get
 		// a chance to run.
-		time.AfterFunc(5*time.Second, func() {
+		waitDur := 5 * time.Second
+		time.AfterFunc(waitDur, func() {
 			defer log.HandlePanic()
-			panic("Main goroutine did not shut down in time (waited 5s). " +
-				"It's probably stuck. Forcing shutdown.")
+			panic(fmt.Errorf(
+				"main goroutine did not shut down in time (waited for %s). "+
+					"It's probably stuck. Forcing shutdown",
+				waitDur.String()))
 		})
 
 		cancel()
@@ -96,7 +99,6 @@ func (a *Application) run() error {
 }
 
 func (a *Application) executeCommand(ctx context.Context, shortName string) error {
-
 	if err := a.ApplicationBase.loadConfig(); err != nil {
 		return err
 	}

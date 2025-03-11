@@ -71,7 +71,7 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 		format      string
 	}
 
-	var cmd = &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "traceroute [flags] <remote>",
 		Aliases: []string{"tr"},
 		Short:   "Trace the SCION route to a remote SCION AS using SCMP traceroute packets",
@@ -177,7 +177,7 @@ On other errors, traceroute will exit with code 2.
 			span.SetTag("src.host", localIP)
 			asNetipAddr, ok := netip.AddrFromSlice(localIP)
 			if !ok {
-				panic("Invalid Local IP address")
+				panic(fmt.Errorf("invalid local IP address: %v", localIP))
 			}
 			local := addr.Addr{
 				IA:   topo.LocalIA,
