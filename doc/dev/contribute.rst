@@ -6,10 +6,7 @@ Contribution Guide
 
 Welcome to the SCION contribution guide! If you are interested in contributing to
 the project, this page will help you out on your journey to your first SCION commit.
-.. Attention::
-   In all your interactions with the SCION developper
-   community you agree to be bound by our
-   `Code of Conduct <https://github.com/scionproto/scion>`__.
+.. Attention:: In all your interactions with the SCION developper community you agree to be bound by our `Code of Conduct <https://github.com/scionproto/scion>`__.
 
 .. _slack:
 
