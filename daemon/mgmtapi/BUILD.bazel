@@ -1,5 +1,5 @@
-load("//tools/lint:go.bzl", "go_library")
 load("//private/mgmtapi:api.bzl", "openapi_docs", "openapi_generate_go")
+load("//tools/lint:go.bzl", "go_library")
 
 openapi_docs(
     name = "doc",

@@ -1,6 +1,6 @@
+load("@scion_python_deps//:requirements.bzl", "requirement")
 load("//acceptance/common:raw.bzl", "raw_test")
 load("//tools/lint:py.bzl", "py_binary", "py_library")
-load("@scion_python_deps//:requirements.bzl", "requirement")
 
 exports_files(
     [

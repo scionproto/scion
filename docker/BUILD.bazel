@@ -1,6 +1,6 @@
+load(":labels.bzl", "scion_labels")
 load(":scion_app.bzl", "scion_app_base", "scion_app_image")
 load(":tester.bzl", "scion_tester_image")
-load(":labels.bzl", "scion_labels")
 
 filegroup(
     name = "prod",

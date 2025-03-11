@@ -1,5 +1,5 @@
-load("//tools/lint:py.bzl", "py_library")
 load("@scion_python_deps//:requirements.bzl", "requirement")
+load("//tools/lint:py.bzl", "py_library")
 
 package(default_visibility = ["//visibility:public"])
 
