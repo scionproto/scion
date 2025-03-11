@@ -65,10 +65,15 @@ are unable to resolve the matter for any reason, or if the behavior is threateni
 harassing, report it. We are dedicated to providing an environment where participants
 feel welcome and safe.
 
-Reports should be directed to the community leaders at conduct@scion.org. If, for any
+Reports should be directed to the community leaders at <conduct@scion.org>. If, for any
 reason you are uncomfortable reaching out to the community leaders, or if you are one of
 the community leaders and cannot resolve the issue, please email the SCION Association's
-CEO at luzius.cameron@scion.org.
+CEO at <luzius.cameron@scion.org>.
+
+All complaints will be reviewed and investigated promptly and fairly.
+
+All community leaders and SCION association staff members are obligated to
+respect the privacy and security of the reporter of any incident.
 
 ## Scope
 
@@ -77,16 +82,6 @@ an individual is officially representing the community in public spaces.
 Examples of representing our community include using an official email address,
 posting via an official social media account, or acting as an appointed
 representative at an online or offline event.
-
-## Enforcement
-
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-nic@scion.org. All complaints will be reviewed and investigated promptly and
-fairly.
-
-All community leaders are obligated to respect the privacy and security of the
-reporter of any incident.
 
 ## Enforcement Guidelines
 
