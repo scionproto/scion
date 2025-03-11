@@ -46,6 +46,8 @@ type MockLink struct {
 	ifID uint16
 }
 
+var _ Link = new(MockLink)
+
 func (l *MockLink) IsUp() bool                   { return true }
 func (l *MockLink) IfID() uint16                 { return l.ifID }
 func (l *MockLink) Scope() LinkScope             { return Internal }
