@@ -1948,7 +1948,7 @@ func (p *SequenceParser) Sempred(localctx antlr.RuleContext, ruleIndex, predInde
 		return p.Sequence_Sempred(t, predIndex)
 
 	default:
-		panic(fmt.Errorf("no rule with index: %d", ruleIndex))
+		panic("No predicate with index: " + fmt.Sprint(ruleIndex))
 	}
 }
 
@@ -1970,6 +1970,6 @@ func (p *SequenceParser) Sequence_Sempred(localctx antlr.RuleContext, predIndex 
 		return p.Precpred(p.GetParserRuleContext(), 5)
 
 	default:
-		panic(fmt.Errorf("no predicate with index: %d", predIndex))
+		panic("No predicate with index: " + fmt.Sprint(predIndex))
 	}
 }
