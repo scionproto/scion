@@ -5,14 +5,18 @@ module(
 
 # Linter rules
 bazel_dep(name = "apple_rules_lint", version = "0.4.0")
+
 linter = use_extension("@apple_rules_lint//lint:extensions.bzl", "linter")
-
 linter.register(name = "go")
-linter.configure(name = "go", config = "//:go_lint_config")
-
+linter.configure(
+    name = "go",
+    config = "//:go_lint_config",
+)
 linter.register(name = "flake8")
-linter.configure(name = "flake8", config = "//:flake8_lint_config")
-
+linter.configure(
+    name = "flake8",
+    config = "//:flake8_lint_config",
+)
 use_repo(linter, "apple_linters")
 
 # Bazel rules for Golang
@@ -24,8 +28,8 @@ single_version_override(
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(version = "1.24.0")
-
 use_repo(go_sdk, "go_toolchains")
+
 register_toolchains("@go_toolchains//:all")
 
 go_sdk.nogo(nogo = "@//:nogo")
@@ -35,7 +39,6 @@ bazel_dep(name = "gazelle", version = "0.42.0")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
-
 use_repo(
     go_deps,
     "at_zgo_zcache_v2",
@@ -98,7 +101,7 @@ bazel_dep(name = "rules_nodejs", version = "6.3.0")
 bazel_dep(name = "aspect_rules_js", version = "2.1.3")
 
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
-node.toolchain(node_version = "16.19.0") # use DEFAULT_NODE_VERSION from previous version rules_nodejs; the current version links against too new glibc
+node.toolchain(node_version = "16.19.0")  # use DEFAULT_NODE_VERSION from previous version rules_nodejs; the current version links against too new glibc
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
 npm.npm_translate_lock(
@@ -118,21 +121,19 @@ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     hub_name = "scion_python_deps",
     python_version = "3.11",
-    requirements_lock = "//tools/env/pip3:requirements.txt"
+    requirements_lock = "//tools/env/pip3:requirements.txt",
 )
 use_repo(pip, "scion_python_deps")
-
 pip.parse(
     hub_name = "scion_python_lint_deps",
     python_version = "3.11",
-    requirements_lock = "//tools/lint/python:requirements.txt"
+    requirements_lock = "//tools/lint/python:requirements.txt",
 )
 use_repo(pip, "scion_python_lint_deps")
-
 pip.parse(
     hub_name = "scion_python_doc_deps",
     python_version = "3.11",
-    requirements_lock = "//doc:requirements.txt"
+    requirements_lock = "//doc:requirements.txt",
 )
 use_repo(pip, "scion_python_doc_deps")
 
@@ -140,34 +141,35 @@ use_repo(pip, "scion_python_doc_deps")
 bazel_dep(name = "rules_oci", version = "1.8.0")
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
-
 oci.pull(
     name = "distroless_base_debian10",
     digest = "sha256:72d496b69d121960b98ac7078cbacd7678f1941844b90b5e1cac337b91309d9d",
     image = "gcr.io/distroless/base-debian10",
 )
-
 oci.pull(
     name = "debian10",
     digest = "sha256:60cb30babcd1740309903c37d3d408407d190cf73015aeddec9086ef3f393a5d",
     image = "index.docker.io/library/debian",
 )
-
 use_repo(
     oci,
-    "distroless_base_debian10",
     "debian10",
+    "distroless_base_debian10",
 )
 
 # RPM packaging
 bazel_dep(name = "rules_pkg", version = "1.0.1")
 single_version_override(
     module_name = "rules_pkg",
-    patches = ["//dist:rpm/patch1.patch", "//dist:rpm/patch2.patch"],
+    patches = [
+        "//dist:rpm/patch1.patch",
+        "//dist:rpm/patch2.patch",
+    ],
 )
 
 find_rpm = use_extension("@rules_pkg//toolchains/rpm:rpmbuild_configure.bzl", "find_system_rpmbuild_bzlmod")
 use_repo(find_rpm, "rules_pkg_rpmbuild")
+
 register_toolchains("@rules_pkg_rpmbuild//:all")
 
 # Debian rules
@@ -185,9 +187,9 @@ use_repo(apt, "tester_deb")
 non_module_deps = use_extension(":non_module_deps.bzl", "non_module_deps")
 use_repo(
     non_module_deps,
+    "buf",
     "com_github_bazelbuild_buildtools",
     "rules_antlr",
-    "buf",
 )
 
 # Support cross building and packaging for openwrt_amd64 via the openwrt SDK
