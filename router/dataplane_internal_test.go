@@ -136,8 +136,7 @@ func TestForwarder(t *testing.T) {
 		ret := newDataPlane(
 			RunConfig{NumProcessors: 20, BatchSize: 64, NumSlowPathProcessors: 1}, false)
 		mConn := mock_router.NewMockBatchConn(ctrl)
-		totalCount := atomic.Int32{}
-		expectedPktId := atomic.Int32{}
+		var totalCount, expectedPktId atomic.Int32
 		closeChan := make(chan struct{})
 		var once sync.Once
 		mConn.EXPECT().Close().DoAndReturn(
@@ -191,7 +190,9 @@ func TestForwarder(t *testing.T) {
 
 				return len(ms), nil
 			}).AnyTimes()
-		_ = ret.AddInternalInterface(mConn, netip.Addr{})
+		if err := ret.AddInternalInterface(mConn, netip.Addr{}); err != nil {
+			panic(err)
+		}
 		l := control.LinkEnd{
 			IA:   addr.MustParseIA("1-ff00:0:1"),
 			Addr: netip.MustParseAddrPort("10.0.0.100:0"),
@@ -201,8 +202,9 @@ func TestForwarder(t *testing.T) {
 			Addr: netip.MustParseAddrPort("10.0.0.200:0"),
 		}
 		nobfd := control.BFD{Disable: ptr.To(true)}
-
-		_ = ret.AddExternalInterface(42, mConn, l, r, nobfd)
+		if err := ret.AddExternalInterface(42, mConn, l, r, nobfd); err != nil {
+			panic(err)
+		}
 		return ret
 	}
 	dp := prepareDP(ctrl)

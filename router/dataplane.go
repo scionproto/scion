@@ -523,7 +523,7 @@ func (d *dataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 	if !dst.IsValid() || !src.IsValid() {
 		return emptyValue
 	}
-	bfd, err := d.newNextHopBFD(ifID, src, dst, cfg, sibling)
+	bfd, err := d.newNextHopBFD(src, dst, cfg, sibling)
 	if err != nil {
 		return serrors.Wrap("adding next hop BFD", err, "if_id", ifID)
 	}
@@ -531,15 +531,16 @@ func (d *dataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	d.addForwardingMetrics(ifID, Sibling)
+	// Note that a link to the same sibling router might already exist. If so, it will be
+	// returned instead of creating a new one. As a result, the bfd session will be remain unused,
+	// and since isn't started it will simply be garbage collected.
 	d.interfaces[ifID] = d.underlay.NewSiblingLink(
 		d.RunConfig.BatchSize, bfd, dst, d.forwardingMetrics[ifID])
 	return nil
 }
 
 // AddNextHopBFD adds the BFD session for the next hop address.
-// If the remote ifID belongs to an existing address, the existing
-// BFD session will be re-used.
-func (d *dataPlane) newNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
+func (d *dataPlane) newNextHopBFD(src, dst netip.AddrPort, cfg control.BFD,
 	sibling string) (*bfd.Session, error) {
 
 	if *cfg.Disable {
@@ -842,7 +843,7 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 			layer = &slayers.SCMPInternalConnectivityDown{IA: p.d.localIA,
 				Ingress: uint64(p.ingressFromLink), Egress: uint64(p.pkt.egress)}
 		default:
-			panic("Unsupported slow-path type")
+			panic(fmt.Errorf("Unsupported slow-path type: %d", scmpType))
 		}
 		return p.packSCMP(scmpType, s.code, layer, true)
 	}
@@ -1321,7 +1322,7 @@ func (p *scionPacketProcessor) updateNonConsDirIngressSegID() disposition {
 	// against construction dir the ingress router updates the SegID, ifID == 0
 	// means this comes from this AS itself, so nothing has to be done.
 	// For packets destined to peer links this shouldn't be updated.
-	if !p.infoField.ConsDir && p.ingressFromLink != 0 && !p.peering {
+	if !(p.infoField.ConsDir || p.ingressFromLink == 0 || p.peering) {
 		p.infoField.UpdateSegID(p.hopField.Mac)
 		if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
 			return errorDiscard("error", err)

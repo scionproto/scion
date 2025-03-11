@@ -203,12 +203,13 @@ func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
 		}
 
 		// Fill the packets
+		numReusable = len(msgs)
 		numPkts, err := u.conn.ReadBatch(msgs)
-		numReusable = len(msgs) - numPkts
 		if err != nil {
 			log.Debug("Error while reading batch", "connection", u.name, "err", err)
 			continue
 		}
+		numReusable -= numPkts
 		for i, msg := range msgs[:numPkts] {
 
 			// Update size; readBatch does not.
@@ -227,7 +228,7 @@ func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
 			}
 
 			// Ok then, find it by remote address. We have a map of *our* links, so it's short.
-			srcAddr := msg.Addr.(*net.UDPAddr).AddrPort() // POSSIBLY EXPENSIVE CONVERSION
+			srcAddr := msg.Addr.(*net.UDPAddr).AddrPort()
 			l, found := u.links[srcAddr]
 			if !found {
 				// Anything else is the internal link.
@@ -366,13 +367,13 @@ func makeHashSeed() uint32 {
 // TODO(jiceatscion): use more inheritance between implementations?
 
 type externalLink struct {
-	egressQ    chan<- *router.Packet
 	procQs     []chan *router.Packet
+	egressQ    chan<- *router.Packet
 	metrics    router.InterfaceMetrics
-	ifID       uint16
-	bfdSession *bfd.Session
 	pool       chan *router.Packet
+	bfdSession *bfd.Session
 	seed       uint32
+	ifID       uint16
 }
 
 // NewExternalLink returns an external link over the UdpIpUnderlay.
@@ -439,7 +440,7 @@ func (l *externalLink) start(
 	}
 	go func() {
 		defer log.HandlePanic()
-		if err := l.bfdSession.Run(ctx); err != nil && err != bfd.AlreadyRunning {
+		if err := l.bfdSession.Run(ctx); err != nil && !errors.Is(err, bfd.AlreadyRunning) {
 			log.Error("BFD session failed to start", "external interface", l.ifID, "err", err)
 		}
 	}()
@@ -506,12 +507,12 @@ func (l *externalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 }
 
 type siblingLink struct {
-	egressQ    chan<- *router.Packet
 	procQs     []chan *router.Packet
+	egressQ    chan<- *router.Packet
 	metrics    router.InterfaceMetrics
+	pool       chan *router.Packet
 	bfdSession *bfd.Session
 	remote     *net.UDPAddr
-	pool       chan *router.Packet
 	seed       uint32
 }
 
@@ -585,7 +586,7 @@ func (l *siblingLink) start(
 	}
 	go func() {
 		defer log.HandlePanic()
-		if err := l.bfdSession.Run(ctx); err != nil && err != bfd.AlreadyRunning {
+		if err := l.bfdSession.Run(ctx); err != nil && !errors.Is(err, bfd.AlreadyRunning) {
 			log.Error("BFD session failed to start", "remote address", l.remote, "err", err)
 		}
 	}()
@@ -657,9 +658,9 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) 
 }
 
 type internalLink struct {
+	procQs  []chan *router.Packet
 	egressQ chan *router.Packet
 	metrics router.InterfaceMetrics
-	procQs  []chan *router.Packet
 	pool    chan *router.Packet
 	seed    uint32
 }
