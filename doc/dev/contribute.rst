@@ -113,7 +113,7 @@ The current members of the TC Implementation are:
 * Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
 * Markus Legner (|span-github| `@mlegner <https://github.com/mlegner>`_, |span-slack| @Markus Legner)
 * Roman Sharkov  (|span-github| `@romshark <https://github.com/romshark>`_, |span-slack| @Roman Scharkov)
-* Tilmann Zächke (|span-github| `@tzaeschke <https://github.com/tzaeschke>`_, |span-slack| @Tilmann Zäschke)
+* Tilmann Zäschke (|span-github| `@tzaeschke <https://github.com/tzaeschke>`_, |span-slack| @Tilmann Zäschke)
 
 .. rubric:: Responsibilities and Tasks
 
