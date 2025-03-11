@@ -127,7 +127,10 @@ func realMain(ctx context.Context) error {
 	dialer := &libgrpc.TCPDialer{
 		SvcResolver: func(dst addr.SVC) []resolver.Address {
 			if base := dst.Base(); base != addr.SvcCS {
-				panic(fmt.Errorf("unsupported address type, possible implementation error: %d", addr.SvcCS))
+				panic(fmt.Errorf(
+					"unsupported address type, possible implementation error: %d",
+					addr.SvcCS,
+				))
 			}
 			targets := []resolver.Address{}
 			for _, entry := range topo.ControlServiceAddresses() {
