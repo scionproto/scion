@@ -90,7 +90,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		format      string
 	}
 
-	var cmd = &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "ping [flags] <remote>",
 		Short: "Test connectivity to a remote SCION host using SCMP echo packets",
 		Example: fmt.Sprintf(`  %[1]s ping 1-ff00:0:110,10.0.0.1
@@ -202,7 +202,6 @@ On other errors, ping will exit with code 2.
 				}
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.Wrap("resolving local address", err)
-
 				}
 				printf("Resolved local address:\n  %s\n", localIP)
 			}
@@ -210,7 +209,7 @@ On other errors, ping will exit with code 2.
 			span.SetTag("src.host", localIP)
 			asNetipAddr, ok := netip.AddrFromSlice(localIP)
 			if !ok {
-				panic("Invalid Local IP address")
+				panic(fmt.Errorf("invalid local IP address: %v", localIP))
 			}
 			local := addr.Addr{
 				IA:   topo.LocalIA,
