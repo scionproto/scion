@@ -25,6 +25,9 @@ single_version_override(
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(version = "1.24.0")
 
+use_repo(go_sdk, "go_toolchains")
+register_toolchains("@go_toolchains//:all")
+
 go_sdk.nogo(nogo = "@//:nogo")
 
 # Gazelle
