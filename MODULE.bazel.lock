@@ -3738,10 +3738,10 @@
         "bzlTransitiveDigest": "b6NDXhzy0tECm8a6UC+1dT91pxWzMY5s/MjM9+dRfxc=",
         "usagesDigest": "0ioRyM5Dh7c7f8Y/IJSaBviH77YczJcWIgXmbjuAPwE=",
         "recordedFileInputs": {
-          "@@//doc/requirements.txt": "77e0f3ffde8cc4f16ac50a70ae272d9291225db7f644f40b5eb048d580c8f087",
-          "@@//tools/lint/python/requirements.txt": "3e4bd3b1d4cb0e37b9471d48c9992a77aae667f3772993d3eaa5cdad262733e9",
+          "@@//doc/requirements.txt": "549652ff1520d9f413ca67ad9d99eb57b05f93d24f527db84cf5d73d268e494d",
+          "@@//tools/lint/python/requirements.txt": "cbcec97ce913afdc8b3ebe15cbc5f05cfa6f639a4193187fe313c1c04c2e3968",
           "@@rules_fuzzing~//fuzzing/requirements.txt": "ab04664be026b632a0d2a2446c4f65982b7654f5b6851d2f9d399a19b7242a5b",
-          "@@//tools/env/pip3/requirements.txt": "c9e8045b64254de6835c92d727907ab4dc3ea02c112fc79ed4b72de910c3b0b0",
+          "@@//tools/env/pip3/requirements.txt": "b72bb0f6030acb854b18b8d995ed3af92e2785dc4946183dd32a5914641000e7",
           "@@protobuf~//python/requirements.txt": "983be60d3cec4b319dcab6d48aeb3f5b2f7c3350f26b3a9e97486c37967c73c5"
         },
         "recordedDirentsInputs": {},
@@ -4280,30 +4280,6 @@
             "ruleClassName": "whl_library",
             "attributes": {
               "requirement": "docutils==0.20.1     --hash=sha256:96f387a2c5562db4476f09f13bbab2192e764cac08ebbf3a34a95d9b1e4a59d6     --hash=sha256:f08a4e276c3a1583a86dce3e34aba3fe04d02bba2dd51ed16106244e8a923e3b",
-              "repo": "scion_python_doc_deps_311",
-              "repo_prefix": "scion_python_doc_deps_311_",
-              "whl_patches": {},
-              "experimental_target_platforms": [],
-              "python_interpreter": "",
-              "python_interpreter_target": "@@rules_python~~python~python_3_11_host//:python",
-              "quiet": true,
-              "timeout": 600,
-              "isolated": true,
-              "extra_pip_args": [],
-              "download_only": false,
-              "pip_data_exclude": [],
-              "enable_implicit_namespace_pkgs": false,
-              "environment": {},
-              "envsubst": [],
-              "group_name": "",
-              "group_deps": []
-            }
-          },
-          "scion_python_doc_deps_311_exceptiongroup": {
-            "bzlFile": "@@rules_python~//python/pip_install:pip_repository.bzl",
-            "ruleClassName": "whl_library",
-            "attributes": {
-              "requirement": "exceptiongroup==1.2.1     --hash=sha256:5258b9ed329c5bbdd31a309f53cbfb0b155341807f6ff7606a1e801a891b29ad     --hash=sha256:a4785e48b045528f5bfe627b6ad554ff32def154f42372786903b7abcfe1aa16",
               "repo": "scion_python_doc_deps_311",
               "repo_prefix": "scion_python_doc_deps_311_",
               "whl_patches": {},
@@ -5259,54 +5235,6 @@
               "group_deps": []
             }
           },
-          "scion_python_doc_deps_311_tomli": {
-            "bzlFile": "@@rules_python~//python/pip_install:pip_repository.bzl",
-            "ruleClassName": "whl_library",
-            "attributes": {
-              "requirement": "tomli==2.0.1     --hash=sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc     --hash=sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f",
-              "repo": "scion_python_doc_deps_311",
-              "repo_prefix": "scion_python_doc_deps_311_",
-              "whl_patches": {},
-              "experimental_target_platforms": [],
-              "python_interpreter": "",
-              "python_interpreter_target": "@@rules_python~~python~python_3_11_host//:python",
-              "quiet": true,
-              "timeout": 600,
-              "isolated": true,
-              "extra_pip_args": [],
-              "download_only": false,
-              "pip_data_exclude": [],
-              "enable_implicit_namespace_pkgs": false,
-              "environment": {},
-              "envsubst": [],
-              "group_name": "",
-              "group_deps": []
-            }
-          },
-          "scion_python_doc_deps_311_typing_extensions": {
-            "bzlFile": "@@rules_python~//python/pip_install:pip_repository.bzl",
-            "ruleClassName": "whl_library",
-            "attributes": {
-              "requirement": "typing-extensions==4.11.0     --hash=sha256:83f085bd5ca59c80295fc2a82ab5dac679cbe02b9f33f7d83af68e241bea51b0     --hash=sha256:c1f94d72897edaf4ce775bb7558d5b79d8126906a14ea5ed1635921406c0387a",
-              "repo": "scion_python_doc_deps_311",
-              "repo_prefix": "scion_python_doc_deps_311_",
-              "whl_patches": {},
-              "experimental_target_platforms": [],
-              "python_interpreter": "",
-              "python_interpreter_target": "@@rules_python~~python~python_3_11_host//:python",
-              "quiet": true,
-              "timeout": 600,
-              "isolated": true,
-              "extra_pip_args": [],
-              "download_only": false,
-              "pip_data_exclude": [],
-              "enable_implicit_namespace_pkgs": false,
-              "environment": {},
-              "envsubst": [],
-              "group_name": "",
-              "group_deps": []
-            }
-          },
           "scion_python_doc_deps_311_urllib3": {
             "bzlFile": "@@rules_python~//python/pip_install:pip_repository.bzl",
             "ruleClassName": "whl_library",
@@ -6075,9 +6003,6 @@
                 "docutils": [
                   "3.11"
                 ],
-                "exceptiongroup": [
-                  "3.11"
-                ],
                 "h11": [
                   "3.11"
                 ],
@@ -6193,12 +6118,6 @@
                   "3.11"
                 ],
                 "starlette": [
-                  "3.11"
-                ],
-                "tomli": [
-                  "3.11"
-                ],
-                "typing_extensions": [
                   "3.11"
                 ],
                 "urllib3": [
