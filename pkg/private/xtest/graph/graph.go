@@ -124,8 +124,8 @@ func (g *Graph) GetSigner(ia string) *Signer {
 // xIfID in xIA and yIfID in yIA. If xIA or yIA are not valid string
 // representations of an ISD-AS, AddLink panics.
 func (g *Graph) AddLink(xIA string, xIfID uint16,
-	yIA string, yIfID uint16, peer bool) {
-
+	yIA string, yIfID uint16, peer bool,
+) {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 	x := MustParseIA(xIA)
@@ -259,7 +259,7 @@ func (g *Graph) beacon(ifIDs []uint16, addStaticInfo bool) *seg.PathSegment {
 	}
 
 	if _, ok := g.parents[ifIDs[0]]; !ok {
-		panic(fmt.Sprintf("%d unknown ifID", ifIDs[0]))
+		panic(fmt.Sprintf("unknown ifID: %d", ifIDs[0]))
 	}
 
 	segment, err := seg.CreateSegment(time.Now(), uint16(rand.Int()))
@@ -274,7 +274,7 @@ func (g *Graph) beacon(ifIDs []uint16, addStaticInfo bool) *seg.PathSegment {
 			var ok bool
 			outIF = ifIDs[i]
 			if remoteOutIF, ok = g.links[outIF]; !ok {
-				panic(fmt.Sprintf("%d unknown ifID", outIF))
+				panic(fmt.Sprintf("unknown ifID: %d", outIF))
 			}
 			outIA = g.parents[remoteOutIF]
 		case i == len(ifIDs):
@@ -376,7 +376,7 @@ func (g *Graph) Bandwidth(a, b uint16) uint64 {
 func (g *Graph) GeoCoordinates(ifID uint16) staticinfo.GeoCoordinates {
 	ia, ok := g.parents[ifID]
 	if !ok {
-		panic("unknown interface")
+		panic(fmt.Errorf("unknown interface: %d", ifID))
 	}
 	return staticinfo.GeoCoordinates{
 		Latitude:  float32(ifID),
@@ -461,8 +461,8 @@ func NewSigner(opts ...SignerOption) *Signer {
 }
 
 func (s Signer) Sign(ctx context.Context, msg []byte,
-	associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
-
+	associatedData ...[]byte,
+) (*cryptopb.SignedMessage, error) {
 	var l int
 	for _, d := range associatedData {
 		l += len(d)
@@ -505,7 +505,7 @@ type AS struct {
 // Delete removes ifID from as.
 func (as *AS) Delete(ifID uint16) {
 	if _, ok := as.IfIDs[ifID]; !ok {
-		panic("ifID not found")
+		panic(fmt.Errorf("ifID not found: %d", ifID))
 	}
 	delete(as.IfIDs, ifID)
 }

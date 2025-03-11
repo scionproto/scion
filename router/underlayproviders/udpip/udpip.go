@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"maps"
 	"net"
 	"net/netip"
@@ -44,9 +45,7 @@ type provider struct {
 	allConnections map[netip.AddrPort]*udpConnection
 }
 
-var (
-	errShortPacket = errors.New("Packet is too short")
-)
+var errShortPacket = errors.New("Packet is too short")
 
 type udpLink interface {
 	router.Link
@@ -79,7 +78,8 @@ func (u *provider) NumConnections() int {
 // The queues to be used by the receiver task are supplied at this point because they must be
 // sized according to the number of connections that will be started.
 func (u *provider) Start(
-	ctx context.Context, pool chan *router.Packet, procQs []chan *router.Packet) {
+	ctx context.Context, pool chan *router.Packet, procQs []chan *router.Packet,
+) {
 	u.mu.Lock()
 	connSnapShot := maps.Clone(u.allConnections)
 	linkSnapShot := maps.Clone(u.allLinks)
@@ -142,8 +142,8 @@ type udpConnection struct {
 // start puts the connection in the running state. In that state, the connection can deliver
 // incoming packets and ignores packets present on its input channel.
 func (u *udpConnection) start(
-	batchSize int, pool chan *router.Packet, procQs []chan *router.Packet) {
-
+	batchSize int, pool chan *router.Packet, procQs []chan *router.Packet,
+) {
 	wasRunning := u.running.Swap(true)
 	if wasRunning || len(procQs) == 0 { // Pointless to receive without any processor.
 		return
@@ -154,7 +154,6 @@ func (u *udpConnection) start(
 		defer log.HandlePanic()
 		u.receive(batchSize, pool, procQs)
 		close(u.receiverDone)
-
 	}()
 
 	// Forwarder task
@@ -180,8 +179,8 @@ func (u *udpConnection) stop() {
 }
 
 func (u *udpConnection) receive(
-	batchSize int, pool chan *router.Packet, procQs []chan *router.Packet) {
-
+	batchSize int, pool chan *router.Packet, procQs []chan *router.Packet,
+) {
 	log.Debug("Receive", "connection", u.name)
 
 	// Each receive loop (therefore each input interface) has a unique random seed for the procID
@@ -189,7 +188,7 @@ func (u *udpConnection) receive(
 	hashSeed := fnv1aOffset32
 	randomBytes := make([]byte, 4)
 	if _, err := rand.Read(randomBytes); err != nil {
-		panic("Error while generating random value")
+		panic(fmt.Errorf("generating random value: %w", err))
 	}
 	for _, c := range randomBytes {
 		hashSeed = hashFNV1a(hashSeed, c)
@@ -284,7 +283,6 @@ func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*ro
 		default:
 			return i
 		}
-
 	}
 	return i
 }
@@ -385,7 +383,6 @@ func (u *provider) NewExternalLink(
 	ifID uint16,
 	metrics router.InterfaceMetrics,
 ) router.Link {
-
 	queue := make(chan *router.Packet, qSize)
 	c := &udpConnection{
 		conn:         conn,
@@ -482,7 +479,6 @@ func (u *provider) NewSiblingLink(
 	remote netip.AddrPort,
 	metrics router.InterfaceMetrics,
 ) router.Link {
-
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
@@ -574,8 +570,8 @@ type internalLink struct {
 // TODO(multi_underlay): we get the connection ready made. In the future we will be making it
 // and the conn argument will be gone.
 func (u *provider) NewInternalLink(
-	conn router.BatchConn, qSize int, metrics router.InterfaceMetrics) router.Link {
-
+	conn router.BatchConn, qSize int, metrics router.InterfaceMetrics,
+) router.Link {
 	queue := make(chan *router.Packet, qSize)
 	c := &udpConnection{
 		conn:         conn,

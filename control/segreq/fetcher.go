@@ -167,7 +167,6 @@ type dstProvider struct {
 // Dsts provides the address of and the path to the authoritative server for
 // this request.
 func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {
-
 	// The request is directed to the AS at the start of the requested segment:
 	dst := req.Src
 
@@ -198,8 +197,8 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		}
 		path = paths[rand.IntN(len(paths))]
 	default:
-		panic(fmt.Errorf("Unsupported segment type for request forwarding. "+
-			"Up segment should have been resolved locally. SegType: %s", req.SegType))
+		panic(fmt.Errorf("unsupported segment type for request forwarding: "+
+			"up segment should have been resolved locally: %d", req.SegType))
 	}
 	addr := &snet.SVCAddr{
 		IA:      path.Destination(),
