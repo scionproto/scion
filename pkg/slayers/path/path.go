@@ -75,8 +75,7 @@ type Metadata struct {
 func RegisterPath(pathMeta Metadata) {
 	pm := registeredPaths[pathMeta.Type]
 	if pm.inUse {
-		panic(fmt.Errorf("path type already registered: %s",
-			pathMeta.Type.String()))
+		panic("path type already registered: " + pathMeta.Type.String())
 	}
 	registeredPaths[pathMeta.Type].inUse = true
 	registeredPaths[pathMeta.Type].Metadata = pathMeta

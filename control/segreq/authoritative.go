@@ -16,7 +16,6 @@ package segreq
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -49,7 +48,7 @@ func (a AuthoritativeLookup) LookupSegments(
 	case seg.TypeCore:
 		return getCoreSegments(ctx, a.PathDB, a.LocalIA, dst)
 	default:
-		panic(fmt.Errorf("unexpected segType: %s", segType.String()))
+		panic("unexpected segType: " + segType.String())
 	}
 }
 
