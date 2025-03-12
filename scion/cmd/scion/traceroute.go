@@ -177,7 +177,7 @@ On other errors, traceroute will exit with code 2.
 			span.SetTag("src.host", localIP)
 			asNetipAddr, ok := netip.AddrFromSlice(localIP)
 			if !ok {
-				panic(fmt.Errorf("invalid local IP address: %v", localIP))
+				panic("invalid local IP address: " + localIP.String())
 			}
 			local := addr.Addr{
 				IA:   topo.LocalIA,
