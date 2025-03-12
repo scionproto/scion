@@ -90,6 +90,8 @@ licenses:
 
 antlr:
 	antlr/generate.sh fix
+	bazel run @rules_go//go -- fmt antlr/sequence/*.go
+	bazel run @rules_go//go -- fmt antlr/traffic_class/*.go
 
 write_all_source_files:
 	bazel run //:write_all_source_files

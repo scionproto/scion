@@ -39,6 +39,16 @@ bazel_dep(name = "gazelle", version = "0.42.0")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
+go_deps.module(
+    path = "github.com/pavius/impi",
+    sum = "h1:DND6MzU+BLABhOZXbELR3FU8b+zDgcq4dOCNLhiTYuI=",
+    version = "v0.0.3",
+)
+go_deps.module(
+    path = "github.com/Oncilla/ineffassign",
+    sum = "h1:zrpB8NIzy1hkO1dz2S+YWiOymA/2kL3Rk24uDg8DVUM=",
+    version = "v0.0.0-20190618100136-198c6a326229",
+)
 use_repo(
     go_deps,
     "at_zgo_zcache_v2",
@@ -66,8 +76,10 @@ use_repo(
     "com_github_mdlayher_ethernet",
     "com_github_oapi_codegen_runtime",
     "com_github_olekukonko_tablewriter",
+    "com_github_oncilla_ineffassign",
     "com_github_opentracing_opentracing_go",
     "com_github_patrickmn_go_cache",
+    "com_github_pavius_impi",
     "com_github_pelletier_go_toml_v2",
     "com_github_pkg_errors",
     "com_github_prometheus_client_golang",
@@ -189,12 +201,14 @@ use_repo(
     non_module_deps,
     "buf",
     "com_github_bazelbuild_buildtools",
-    "rules_antlr",
 )
 
 # Support cross building and packaging for openwrt_amd64 via the openwrt SDK
 bazel_dep(name = "platforms", version = "0.0.11")
 bazel_dep(name = "rules_cc", version = "0.1.1")
+
+# Antlr
+bazel_dep(name = "rules_java", version = "8.10.0")
 
 # Other dependencies
 bazel_dep(name = "bazel_skylib", version = "1.7.1")

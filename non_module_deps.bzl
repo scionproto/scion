@@ -12,14 +12,6 @@ def _non_module_deps_impl(
         strip_prefix = "buildtools-8.0.3",
         urls = ["https://github.com/bazelbuild/buildtools/archive/v8.0.3.tar.gz"],
     )
-    http_archive(
-        name = "rules_antlr",
-        # XXX(roosd): This hash is not guaranteed to be stable by GitHub.
-        # See: https://github.blog/changelog/2023-01-30-git-archive-checksums-may-change
-        sha256 = "a9b2f98aae1fb26e9608be1e975587e6271a3287e424ced28cbc77f32190ec41",
-        strip_prefix = "rules_antlr-0.6.1",
-        urls = ["https://github.com/bacek/rules_antlr/archive/refs/tags/0.6.1.tar.gz"],
-    )
     # Buf CLI
     http_archive(
         name = "buf",

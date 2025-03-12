@@ -113,10 +113,11 @@
     "https://bcr.bazel.build/modules/rules_java/6.5.2/MODULE.bazel": "1d440d262d0e08453fa0c4d8f699ba81609ed0e9a9a0f02cd10b3e7942e61e31",
     "https://bcr.bazel.build/modules/rules_java/7.10.0/MODULE.bazel": "530c3beb3067e870561739f1144329a21c851ff771cd752a49e06e3dc9c2e71a",
     "https://bcr.bazel.build/modules/rules_java/7.12.2/MODULE.bazel": "579c505165ee757a4280ef83cda0150eea193eed3bef50b1004ba88b99da6de6",
-    "https://bcr.bazel.build/modules/rules_java/7.12.2/source.json": "b0890f9cda8ff1b8e691a3ac6037b5c14b7fd4134765a3946b89f31ea02e5884",
     "https://bcr.bazel.build/modules/rules_java/7.2.0/MODULE.bazel": "06c0334c9be61e6cef2c8c84a7800cef502063269a5af25ceb100b192453d4ab",
     "https://bcr.bazel.build/modules/rules_java/7.6.1/MODULE.bazel": "2f14b7e8a1aa2f67ae92bc69d1ec0fa8d9f827c4e17ff5e5f02e91caa3b2d0fe",
     "https://bcr.bazel.build/modules/rules_java/7.6.5/MODULE.bazel": "481164be5e02e4cab6e77a36927683263be56b7e36fef918b458d7a8a1ebadb1",
+    "https://bcr.bazel.build/modules/rules_java/8.10.0/MODULE.bazel": "e604c472505b76889e07975fc88aeb1afb230f63ace5b0a9168c6175be8312e3",
+    "https://bcr.bazel.build/modules/rules_java/8.10.0/source.json": "de2ce41fba5f8809ee497b5333f9f5e9150c53edf274a87684fbbfbeb50e86b2",
     "https://bcr.bazel.build/modules/rules_jvm_external/4.4.2/MODULE.bazel": "a56b85e418c83eb1839819f0b515c431010160383306d13ec21959ac412d2fe7",
     "https://bcr.bazel.build/modules/rules_jvm_external/5.1/MODULE.bazel": "33f6f999e03183f7d088c9be518a63467dfd0be94a11d0055fe2d210f89aa909",
     "https://bcr.bazel.build/modules/rules_jvm_external/5.2/MODULE.bazel": "d9351ba35217ad0de03816ef3ed63f89d411349353077348a45348b096615036",
@@ -174,7 +175,7 @@
   "moduleExtensions": {
     "//:non_module_deps.bzl%non_module_deps": {
       "general": {
-        "bzlTransitiveDigest": "2uFogjZnmmb0xSZLN0tIl2mJ3tas3zCnT79WYHLZwMU=",
+        "bzlTransitiveDigest": "syhdW8uQhw+xLsk9k3CtJTWNwXGdMzjPRZ4XAIaMWJY=",
         "usagesDigest": "5s12WgUgDcGvexJfl0bIS7GJ14+1NKrsFrPySvayGSw=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -188,17 +189,6 @@
               "strip_prefix": "buildtools-8.0.3",
               "urls": [
                 "https://github.com/bazelbuild/buildtools/archive/v8.0.3.tar.gz"
-              ]
-            }
-          },
-          "rules_antlr": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_archive",
-            "attributes": {
-              "sha256": "a9b2f98aae1fb26e9608be1e975587e6271a3287e424ced28cbc77f32190ec41",
-              "strip_prefix": "rules_antlr-0.6.1",
-              "urls": [
-                "https://github.com/bacek/rules_antlr/archive/refs/tags/0.6.1.tar.gz"
               ]
             }
           },
