@@ -14,7 +14,7 @@ def _openapi_generate_go(ctx):
         generate_kind = k
         if generate_kind == "server":
             generate_kind = "chi-server"
-        cmd = "{bin} -package {package} -generate {generate} -o {out}".format(
+        cmd = "{bin} -package {package} -generate {generate},skip-fmt -o {out}".format(
             bin = ctx.executable._oapi_codegen.path,
             package = shell.quote(ctx.attr.package),
             generate = generate_kind,
