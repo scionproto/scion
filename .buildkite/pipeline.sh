@@ -16,6 +16,8 @@ export SINGLE_TEST=
 # Modify this value to run each step multiple times.
 export PARALLELISM=1
 
+export PATH="/usr/sbin:/sbin:$PATH"
+
 . ./.buildkite/pipeline_lib.sh
 
 cat .buildkite/pipeline.yml
