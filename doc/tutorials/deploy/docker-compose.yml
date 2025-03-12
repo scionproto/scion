@@ -1,0 +1,60 @@
+# This docker compose file defines the setup described in
+# https://docs.scion.org/en/latest/tutorials/deploy.html
+
+services:
+    scion01:
+        platform: linux/amd64
+        image: scion01:1.0
+        container_name: scion01
+        hostname: scion01
+        networks:
+            scion_net:
+                ipv4_address: 10.0.0.1
+        volumes:
+            - ./configs/scion01:/etc/scion
+    scion02:
+        platform: linux/amd64
+        image: scion02:1.0
+        container_name: scion02
+        hostname: scion02
+        networks:
+            scion_net:
+                ipv4_address: 10.0.0.2
+        volumes:
+            - ./configs/scion02:/etc/scion
+    scion03:
+        platform: linux/amd64
+        image: scion03:1.0
+        container_name: scion03
+        hostname: scion03
+        networks:
+            scion_net:
+                ipv4_address: 10.0.0.3
+        volumes:
+            - ./configs/scion03:/etc/scion
+    scion04:
+        platform: linux/amd64
+        image: scion04:1.0
+        container_name: scion04
+        hostname: scion04
+        networks:
+            scion_net:
+                ipv4_address: 10.0.0.4
+        volumes:
+            - ./configs/scion04:/etc/scion
+    scion05:
+        platform: linux/amd64
+        image: scion05:1.0
+        container_name: scion05
+        hostname: scion05
+        networks:
+            scion_net:
+                ipv4_address: 10.0.0.5
+        volumes:
+            - ./configs/scion05:/etc/scion
+networks:
+    scion_net:
+        driver: bridge
+        ipam:
+            config:
+                - subnet: 10.0.0.0/24
