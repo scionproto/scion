@@ -128,8 +128,8 @@ func realMain(ctx context.Context) error {
 		SvcResolver: func(dst addr.SVC) []resolver.Address {
 			if base := dst.Base(); base != addr.SvcCS {
 				panic(fmt.Errorf(
-					"unsupported address type, possible implementation error: %d",
-					addr.SvcCS,
+					"unsupported address type, possible implementation error: %d (%s)",
+					base, base.String(),
 				))
 			}
 			targets := []resolver.Address{}
