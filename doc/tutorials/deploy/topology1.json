@@ -3,6 +3,7 @@
     "core"
   ],
   "isd_as": "42-ffaa:1:1",
+  "dispatched_ports": "31000-32767",
   "mtu": 1472,
   "control_service": {
     "cs": {

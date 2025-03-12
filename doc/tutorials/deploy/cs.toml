@@ -3,7 +3,6 @@
 [general]
 id = "cs"
 config_dir = "/etc/scion"
-reconnect_to_dispatcher = true
 
 [log.console]
 level = "info"
