@@ -199,8 +199,8 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 	default:
 		panic(fmt.Errorf(
 			"unsupported segment type for request forwarding: "+
-				"up segment should have been resolved locally: %d (%s)",
-			req.SegType, req.SegType.String(),
+				"up segment should have been resolved locally: %s",
+			req.SegType.String(),
 		))
 	}
 	addr := &snet.SVCAddr{

@@ -99,7 +99,7 @@ func (h Host) Type() HostAddrType {
 // Panics if h.Type() is not HostTypeIP.
 func (h Host) IP() netip.Addr {
 	if h.t != HostTypeIP {
-		panic(fmt.Errorf("IP called on non-IP address: %d (%s)", h.t, h.t.String()))
+		panic(fmt.Errorf("IP called on non-IP address: %s", h.t.String()))
 	}
 	return h.ip
 }
@@ -108,7 +108,7 @@ func (h Host) IP() netip.Addr {
 // Panics if h.Type() is not HostTypeSVC.
 func (h Host) SVC() SVC {
 	if h.t != HostTypeSVC {
-		panic(fmt.Errorf("SVC called on non-SVC address: %d (%s)", h.t, h.t.String()))
+		panic(fmt.Errorf("SVC called on non-SVC address: %s", h.t.String()))
 	}
 	return h.svc
 }
@@ -122,7 +122,7 @@ func (h Host) String() string {
 	case HostTypeSVC:
 		return h.svc.String()
 	default:
-		panic(fmt.Errorf("unsupported host type: %d (%s)", t, t.String()))
+		panic(fmt.Errorf("unsupported host type: %s", t.String()))
 	}
 }
 
