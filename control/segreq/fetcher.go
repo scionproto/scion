@@ -197,8 +197,11 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		}
 		path = paths[rand.IntN(len(paths))]
 	default:
-		panic(fmt.Errorf("unsupported segment type for request forwarding: "+
-			"up segment should have been resolved locally: %d", req.SegType))
+		panic(fmt.Errorf(
+			"unsupported segment type for request forwarding: "+
+				"up segment should have been resolved locally: %d (%s)",
+			req.SegType, req.SegType.String(),
+		))
 	}
 	addr := &snet.SVCAddr{
 		IA:      path.Destination(),
