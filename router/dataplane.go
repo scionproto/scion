@@ -842,7 +842,8 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 		case slayers.SCMPTypeInternalConnectivityDown:
 			layer = &slayers.SCMPInternalConnectivityDown{
 				IA:      p.d.localIA,
-				Ingress: uint64(p.ingressFromLink), Egress: uint64(p.pkt.egress),
+				Ingress: uint64(p.ingressFromLink),
+				Egress:  uint64(p.pkt.egress),
 			}
 		default:
 			panic(fmt.Errorf("unsupported slow-path type: %d", scmpType))
