@@ -1814,7 +1814,8 @@ func (d *dataPlane) resolveLocalDst(
 		}
 		return d.addEndhostPort(resolvedDst, lastLayer, dstIP)
 	default:
-		panic(fmt.Errorf("unexpected address type returned from DstAddr: %d", dstType))
+		panic(fmt.Errorf("unexpected address type returned from DstAddr: %d (%s)",
+			dstType, dstType.String()))
 	}
 }
 
