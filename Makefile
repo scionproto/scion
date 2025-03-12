@@ -63,7 +63,7 @@ test-integration:
 	bazel test --config=integration_all
 
 go.mod:
-	bazel run --config=quiet @go_sdk//:bin/go -- mod tidy
+	bazel run --config=quiet @rules_go//go -- mod tidy
 
 docker-images:
 	@echo "Build images"
