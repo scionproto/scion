@@ -18,6 +18,9 @@ rm -rf $DSTDIR
         continue
     fi
     clean_path=$(echo "$path" | sed 's/.*~//')
+    if [[ "$clean_path" =~ "scion__download_0" ]]; then
+        clean_path=$(echo "$clean_path" | sed 's/scion__download_0/go_sdk/')
+    fi
     dst=$DSTDIR/$(dirname $clean_path)
     mkdir -p $dst
     cp $EXECROOT/external/$path $dst
