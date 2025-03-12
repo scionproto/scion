@@ -49,7 +49,7 @@ func (a AuthoritativeLookup) LookupSegments(
 	case seg.TypeCore:
 		return getCoreSegments(ctx, a.PathDB, a.LocalIA, dst)
 	default:
-		panic(fmt.Errorf("unexpected segType: %d", segType))
+		panic(fmt.Errorf("unexpected segType: %d (%s)", segType, segType.String()))
 	}
 }
 
