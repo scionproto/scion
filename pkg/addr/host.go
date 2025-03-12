@@ -99,7 +99,7 @@ func (h Host) Type() HostAddrType {
 // Panics if h.Type() is not HostTypeIP.
 func (h Host) IP() netip.Addr {
 	if h.t != HostTypeIP {
-		panic("IP called on non-IP address")
+		panic("IP called on non-IP address: " + h.t.String())
 	}
 	return h.ip
 }
@@ -108,21 +108,22 @@ func (h Host) IP() netip.Addr {
 // Panics if h.Type() is not HostTypeSVC.
 func (h Host) SVC() SVC {
 	if h.t != HostTypeSVC {
-		panic("SVC called on non-SVC address")
+		panic("SVC called on non-SVC address: " + h.t.String())
 	}
 	return h.svc
 }
 
 func (h Host) String() string {
-	switch h.Type() {
+	switch t := h.Type(); t {
 	case HostTypeNone:
 		return "<None>"
 	case HostTypeIP:
 		return h.ip.String()
 	case HostTypeSVC:
 		return h.svc.String()
+	default:
+		panic("unsupported host type: " + t.String())
 	}
-	panic("unsupported host type")
 }
 
 // Set implements flag.Value interface

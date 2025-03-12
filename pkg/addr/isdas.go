@@ -149,9 +149,11 @@ func (as *AS) UnmarshalText(text []byte) error {
 	return nil
 }
 
-var _ fmt.Stringer = IA(0)
-var _ encoding.TextUnmarshaler = (*IA)(nil)
-var _ flag.Value = (*IA)(nil)
+var (
+	_ fmt.Stringer             = IA(0)
+	_ encoding.TextUnmarshaler = (*IA)(nil)
+	_ flag.Value               = (*IA)(nil)
+)
 
 // IA represents the ISD (ISolation Domain) and AS (Autonomous System) Id of a given SCION AS.
 // The highest 16 bit form the ISD number and the lower 48 bits form the AS number.
@@ -163,7 +165,7 @@ type IA uint64
 func MustIAFrom(isd ISD, as AS) IA {
 	ia, err := IAFrom(isd, as)
 	if err != nil {
-		panic(fmt.Sprintf("parsing ISD-AS: %s", err))
+		panic(fmt.Sprintf("parsing ISD-AS: %v", err))
 	}
 	return ia
 }

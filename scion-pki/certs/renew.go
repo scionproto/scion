@@ -104,8 +104,7 @@ type SubjectVars struct {
 	StreetAddress      string  `json:"street_address,omitempty"`
 }
 
-type Features struct {
-}
+type Features struct{}
 
 func newRenewCmd(pather command.Pather) *cobra.Command {
 	var envFlags flag.SCIONEnvironment
@@ -373,7 +372,7 @@ The template is expressed in JSON. A valid example::
 					Type:  "CERTIFICATE REQUEST",
 					Bytes: csr,
 				})
-				err = file.WriteFile(flags.outCSR, pemCSR, 0666, opts...)
+				err = file.WriteFile(flags.outCSR, pemCSR, 0o666, opts...)
 				if err != nil {
 					// The CSR is not important, carry on with execution.
 					printErr("Failed to write CSR: %s\n", err.Error())
@@ -413,7 +412,7 @@ The template is expressed in JSON. A valid example::
 					Type:  "CMS",
 					Bytes: req.CmsSignedRequest,
 				})
-				err = file.WriteFile(flags.outCMS, pemReq, 0666, opts...)
+				err = file.WriteFile(flags.outCMS, pemReq, 0o666, opts...)
 				if err != nil {
 					// The CMS request is not important, carry on with execution.
 					printErr("Failed to write CMS request: %s\n", err.Error())
@@ -474,7 +473,7 @@ The template is expressed in JSON. A valid example::
 					certFile := outCertFile + suffix
 					printErr("Writing unverified chain: %q\n", certFile)
 					pem := encodeChain(chain)
-					if err := file.WriteFile(certFile, pem, 0644, opts...); err != nil {
+					if err := file.WriteFile(certFile, pem, 0o644, opts...); err != nil {
 						fmt.Println("Failed to write unverified chain: ", err)
 					}
 
@@ -482,7 +481,7 @@ The template is expressed in JSON. A valid example::
 					if pemPrivNext != nil {
 						keyFile := outKeyFile + suffix
 						printErr("Writing private key for unverified chain: %q\n", keyFile)
-						if err := file.WriteFile(keyFile, pemPrivNext, 0600, opts...); err != nil {
+						if err := file.WriteFile(keyFile, pemPrivNext, 0o600, opts...); err != nil {
 							fmt.Println("Failed to write private key for unverified chain: ", err)
 						}
 					}
@@ -529,12 +528,12 @@ The template is expressed in JSON. A valid example::
 			pemRenewed := encodeChain(renewed)
 
 			if pemPrivNext != nil {
-				if err := file.WriteFile(outKeyFile, pemPrivNext, 0600, opts...); err != nil {
+				if err := file.WriteFile(outKeyFile, pemPrivNext, 0o600, opts...); err != nil {
 					return serrors.Wrap("writing fresh private key", err)
 				}
 				printf("Private key successfully written to %q\n", outKeyFile)
 			}
-			if err := file.WriteFile(outCertFile, pemRenewed, 0644, opts...); err != nil {
+			if err := file.WriteFile(outCertFile, pemRenewed, 0o644, opts...); err != nil {
 				return serrors.Wrap("writing renewed certificate chain", err)
 			}
 			printf("Certificate chain successfully written to %q\n", outCertFile)
@@ -630,7 +629,6 @@ func (r *renewer) Request(
 	remote net.Addr,
 	ca addr.IA,
 ) ([]*x509.Certificate, error) {
-
 	ctx, cancel := context.WithTimeout(ctx, r.Timeout)
 	defer cancel()
 
@@ -645,7 +643,6 @@ func (r *renewer) requestLocal(
 	req *cppb.ChainRenewalRequest,
 	remote net.Addr,
 ) ([]*x509.Certificate, error) {
-
 	dialer := &grpc.TCPDialer{
 		SvcResolver: func(hs addr.SVC) []resolver.Address {
 			// Do the SVC resolution
@@ -695,7 +692,6 @@ func (r *renewer) requestRemote(
 	remote net.Addr,
 	ca addr.IA,
 ) ([]*x509.Certificate, error) {
-
 	path, err := path.Choose(ctx, r.Daemon, ca, r.PathOptions()...)
 	if err != nil {
 		return nil, err
@@ -717,7 +713,7 @@ func (r *renewer) requestRemote(
 			NextHop: path.UnderlayNextHop(),
 		}
 	default:
-		panic(fmt.Sprintf("unsupported remote address: %s", remote))
+		panic(fmt.Sprintf("unsupported remote address: %#v", remote))
 	}
 
 	localIP := r.LocalIP
@@ -793,7 +789,6 @@ func (r *renewer) doRequest(
 	remote net.Addr,
 	req *cppb.ChainRenewalRequest,
 ) ([]*x509.Certificate, error) {
-
 	c, err := dialer.Dial(ctx, remote)
 	if err != nil {
 		return nil, serrors.Wrap("dialing gRPC connection", err, "remote", remote)
@@ -815,7 +810,7 @@ func encodeChain(chain []*x509.Certificate) []byte {
 	var buffer bytes.Buffer
 	for _, c := range chain {
 		if err := pem.Encode(&buffer, &pem.Block{Type: "CERTIFICATE", Bytes: c.Raw}); err != nil {
-			panic(err.Error())
+			panic(err)
 		}
 	}
 	return buffer.Bytes()

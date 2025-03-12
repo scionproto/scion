@@ -124,13 +124,14 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 
 	// Get our real local address and the port number we got.
 	// We use the port as identifier on the handler.
-	asNetipAddr, ok := netip.AddrFromSlice(conn.LocalAddr().(*net.UDPAddr).IP)
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	asNetipAddr, ok := netip.AddrFromSlice(localAddr.IP)
 	if !ok {
-		panic("Invalid Local IP address")
+		panic("invalid local IP address: " + localAddr.IP.String())
 	}
 	local := cfg.Local
 	local.Host = addr.HostIP(asNetipAddr)
-	id := conn.LocalAddr().(*net.UDPAddr).Port
+	id := localAddr.Port
 	scmpHandler.SetId(id)
 
 	// we need to have at least 8 bytes to store the request time in the
@@ -182,7 +183,6 @@ func (p *pinger) Ping(
 	dPath snet.DataplanePath,
 	nextHop *net.UDPAddr,
 ) (Stats, error) {
-
 	p.sentSequence, p.receivedSequence = -1, -1
 	send := time.NewTicker(p.interval)
 	defer send.Stop()
@@ -256,7 +256,6 @@ func (p *pinger) send(remote addr.Addr, dPath snet.DataplanePath, nextHop *net.U
 			Port: underlay.EndhostPort,
 			Zone: remote.Host.IP().Zone(),
 		}
-
 	}
 	if err := p.conn.WriteTo(pkt, nextHop); err != nil {
 		return err
