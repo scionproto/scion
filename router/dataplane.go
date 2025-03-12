@@ -841,7 +841,8 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 		case slayers.SCMPTypeInternalConnectivityDown:
 			layer = &slayers.SCMPInternalConnectivityDown{
 				IA:      p.d.localIA,
-				Ingress: uint64(p.pkt.Ingress), Egress: uint64(p.pkt.egress),
+				Ingress: uint64(p.pkt.Ingress),
+				Egress:  uint64(p.pkt.egress),
 			}
 		}
 		return p.packSCMP(s.scmpType, s.code, layer, true)
