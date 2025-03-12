@@ -7,7 +7,7 @@ pathadd() {
 }
 pathadd ~/.local/bin
 pathadd /usr/sbin
-pathadd /sbin
+pathadd /usr/local/sbin
 printenv PATH
 
 # Install build tools on first job for this runner.
