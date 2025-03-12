@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -94,10 +95,10 @@ func TestOriginatorRun(t *testing.T) {
 
 				sender := mock_beaconing.NewMockSender(mctrl)
 				sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-					func(_ context.Context, b *seg.PathSegment) error {
+					func(ctx context.Context, b *seg.PathSegment) error {
 						// Check the beacon is valid and verifiable.
 						assert.NoError(t, b.Validate(seg.ValidateBeacon))
-						assert.NoError(t, b.VerifyASEntry(context.Background(),
+						assert.NoError(t, b.VerifyASEntry(ctx,
 							segVerifier{pubKey: pub}, b.MaxIdx()))
 						// Extract the hop field from the current AS entry to compare.
 						hopF := b.ASEntries[b.MaxIdx()].HopEntry.HopField

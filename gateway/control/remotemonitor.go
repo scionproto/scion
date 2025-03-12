@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -106,7 +107,7 @@ func (rm *RemoteMonitor) run(ctx context.Context) error {
 	for {
 		select {
 		case ias := <-rm.IAs:
-			rm.process(ctx, ias)
+			rm.process(log.FromCtx(ctx), ias)
 		case <-rm.workerBase.GetDoneChan():
 			rm.cancel()
 			return nil
@@ -114,10 +115,10 @@ func (rm *RemoteMonitor) run(ctx context.Context) error {
 	}
 }
 
-func (rm *RemoteMonitor) process(ctx context.Context, ias []addr.IA) {
+//nolint:contextcheck // Providing a context is not necessary in this case.
+func (rm *RemoteMonitor) process(logger log.Logger, ias []addr.IA) {
 	rm.stateMtx.Lock()
 	defer rm.stateMtx.Unlock()
-	logger := log.FromCtx(ctx)
 	newWatchers := make(map[addr.IA]watcherEntry)
 	for _, ia := range ias {
 		we, ok := rm.currentWatchers[ia]
