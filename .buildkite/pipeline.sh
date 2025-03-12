@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo dnf -y install golang
+
 set -eou pipefail
 
 if [ -n "${BUILDKITE_PULL_REQUEST_BASE_BRANCH:-}" ]; then
@@ -20,5 +22,3 @@ export PARALLELISM=1
 
 cat .buildkite/pipeline.yml
 gen_bazel_test_steps
-
-sudo dnf -y install golang
