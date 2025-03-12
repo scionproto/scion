@@ -35,8 +35,8 @@ type AuthoritativeLookup struct {
 	PathDB      pathdb.DB
 }
 
-func (a AuthoritativeLookup) LookupSegments(ctx context.Context, src,
-	dst addr.IA,
+func (a AuthoritativeLookup) LookupSegments(
+	ctx context.Context, src, dst addr.IA,
 ) (segfetcher.Segments, error) {
 	segType, err := a.classify(ctx, src, dst)
 	if err != nil {
