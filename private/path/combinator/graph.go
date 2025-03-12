@@ -592,7 +592,7 @@ func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 	case proto.PathSegType_down:
 		return false
 	default:
-		panic(fmt.Sprintf("Invalid segment type: %d", currSeg.Type))
+		panic(fmt.Sprintf("Invalid segment type: %s", currSeg.Type.String()))
 	}
 }
 

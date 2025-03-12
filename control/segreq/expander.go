@@ -57,8 +57,8 @@ func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 	default:
 		// no wildcard source for up requests
 		panic(fmt.Errorf(
-			"unexpected wildcard for up segment request, should not have passed validation: %d",
-			req.SegType,
+			"unexpected wildcard for up segment request, should not have passed validation: %s",
+			req.SegType.String(),
 		))
 	}
 }
