@@ -8,8 +8,8 @@ proto_library(
     visibility = ["//visibility:public"],
     deps = [
         "//proto/drkey/v1:drkey",
-        "@protobuf//:duration_proto",
-        "@protobuf//:empty_proto",
-        "@protobuf//:timestamp_proto",
+        "@com_google_protobuf//:duration_proto",
+        "@com_google_protobuf//:empty_proto",
+        "@com_google_protobuf//:timestamp_proto",
     ],
 )

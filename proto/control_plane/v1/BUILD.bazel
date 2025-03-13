@@ -15,6 +15,6 @@ proto_library(
         "//proto/control_plane/experimental/v1:experimental",
         "//proto/crypto/v1:crypto",
         "//proto/drkey/v1:drkey",
-        "@protobuf//:timestamp_proto",
+        "@com_google_protobuf//:timestamp_proto",
     ],
 )
