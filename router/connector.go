@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/env"
-	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 )
@@ -38,9 +37,9 @@ type Connector struct {
 	internalInterfaces []control.InternalInterface
 	externalInterfaces map[uint16]control.ExternalInterface
 	siblingInterfaces  map[uint16]control.SiblingInterface
+	ReceiveBufferSize  int
+	SendBufferSize     int
 
-	ReceiveBufferSize   int
-	SendBufferSize      int
 	BFD                 config.BFD
 	DispatchedPortStart *int
 	DispatchedPortEnd   *int
@@ -57,6 +56,8 @@ func NewConnector(config config.RouterConfig, features env.Features) *Connector 
 				NumProcessors:         config.NumProcessors,
 				NumSlowPathProcessors: config.NumSlowPathProcessors,
 				BatchSize:             config.BatchSize,
+				ReceiveBufferSize:     config.ReceiveBufferSize,
+				SendBufferSize:        config.SendBufferSize,
 			},
 			features.ExperimentalSCMPAuthentication,
 		),
@@ -88,21 +89,16 @@ func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 	if !c.ia.Equal(ia) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", ia)
 	}
-	connection, err := conn.New(local, netip.AddrPort{},
-		&conn.Config{ReceiveBufferSize: c.ReceiveBufferSize, SendBufferSize: c.SendBufferSize})
-	if err != nil {
-		return err
-	}
 	c.internalInterfaces = append(c.internalInterfaces, control.InternalInterface{
 		IA:   ia,
 		Addr: local,
 	})
-	return c.DataPlane.AddInternalInterface(connection, local.Addr())
+	return c.DataPlane.AddInternalInterface(local)
 }
 
 // AddExternalInterface adds a link between the local and remote address.
-func (c *Connector) AddExternalInterface(localIfID iface.ID, link control.LinkInfo,
-	owned bool) error {
+func (c *Connector) AddExternalInterface(
+	localIfID iface.ID, link control.LinkInfo, localHost, remoteHost addr.Host, owned bool) error {
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
@@ -118,46 +114,35 @@ func (c *Connector) AddExternalInterface(localIfID iface.ID, link control.LinkIn
 	if !c.ia.Equal(link.Local.IA) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", link.Local.IA)
 	}
-	if err := c.DataPlane.AddLinkType(intf, link.LinkTo); err != nil {
-		return serrors.Wrap("adding link type", err, "if_id", localIfID)
-	}
 	if err := c.DataPlane.AddNeighborIA(intf, link.Remote.IA); err != nil {
 		return serrors.Wrap("adding neighboring IA", err, "if_id", localIfID)
 	}
 
 	link.BFD = c.applyBFDDefaults(link.BFD)
-	if owned {
-		if len(c.externalInterfaces) == 0 {
-			c.externalInterfaces = make(map[uint16]control.ExternalInterface)
-		}
-		c.externalInterfaces[intf] = control.ExternalInterface{
-			IfID:  intf,
-			Link:  link,
-			State: control.InterfaceDown,
-		}
-	} else {
+	if !owned {
 		if len(c.siblingInterfaces) == 0 {
 			c.siblingInterfaces = make(map[uint16]control.SiblingInterface)
 		}
 		c.siblingInterfaces[intf] = control.SiblingInterface{
 			IfID:              intf,
-			InternalInterface: link.Remote.Addr,
+			InternalInterface: link.Remote.Addr, // internal address of the sibling router
 			Relationship:      link.LinkTo,
 			MTU:               link.MTU,
 			NeighborIA:        link.Remote.IA,
 			State:             control.InterfaceDown,
 		}
-		return c.DataPlane.AddNextHop(intf, link.Local.Addr, link.Remote.Addr,
-			link.BFD, link.Instance)
+		return c.DataPlane.AddNextHop(intf, link, localHost, remoteHost)
 	}
 
-	connection, err := conn.New(link.Local.Addr, link.Remote.Addr,
-		&conn.Config{ReceiveBufferSize: c.ReceiveBufferSize, SendBufferSize: c.SendBufferSize})
-	if err != nil {
-		return err
+	if len(c.externalInterfaces) == 0 {
+		c.externalInterfaces = make(map[uint16]control.ExternalInterface)
 	}
-
-	return c.DataPlane.AddExternalInterface(intf, connection, link.Local, link.Remote, link.BFD)
+	c.externalInterfaces[intf] = control.ExternalInterface{
+		IfID:  intf,
+		Link:  link,
+		State: control.InterfaceDown,
+	}
+	return c.DataPlane.AddExternalInterface(intf, link, localHost, remoteHost)
 }
 
 // AddSvc adds the service address for the given ISD-AS.

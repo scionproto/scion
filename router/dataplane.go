@@ -85,15 +85,17 @@ type BatchConn interface {
 	Close() error
 }
 
-// underlay is a pointer to our underlay provider.
-//
-// TODO(multi_underlay): this allows for a single underlay. In the future, each link could be
-// via a different underlay. That would have to be supported by the configuration code and there
-// would likely be a registry of underlays. For now, That's the whole registry.
-var newUnderlay func(int) UnderlayProvider
+// underlayProviders is a map of our underlay providers. Each entry associates a name with a factory
+// function that creates a new instance of the named provider. A new instance is created every time
+// so multiple dataplane instances can co-exist (as is routinely done by tests).
+var underlayProviders map[string]func(int, int, int) UnderlayProvider
 
-func AddUnderlay(newProvider func(int) UnderlayProvider) {
-	newUnderlay = newProvider
+// AddUnderlay registers the named factory function.
+func AddUnderlay(name string, newProvider func(int, int, int) UnderlayProvider) {
+	if underlayProviders == nil {
+		underlayProviders = make(map[string]func(int, int, int) UnderlayProvider)
+	}
+	underlayProviders[name] = newProvider
 }
 
 type disposition int
@@ -174,7 +176,7 @@ func (p *Packet) Reset() {
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
 type dataPlane struct {
-	underlay            UnderlayProvider
+	underlays           map[string]UnderlayProvider
 	interfaces          map[uint16]Link
 	linkTypes           map[uint16]topology.LinkType
 	neighborIAs         map[uint16]addr.IA
@@ -260,8 +262,8 @@ func newDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
 // but returns by value to facilitate the initialization of composed structs without an temporary
 // copy.
 func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
-	return dataPlane{
-		underlay:                       newUnderlay(runConfig.BatchSize),
+	d := dataPlane{
+		underlays:                      make(map[string]UnderlayProvider),
 		interfaces:                     make(map[uint16]Link),
 		linkTypes:                      make(map[uint16]topology.LinkType),
 		neighborIAs:                    make(map[uint16]addr.IA),
@@ -271,6 +273,14 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 		ExperimentalSCMPAuthentication: authSCMP,
 		RunConfig:                      runConfig,
 	}
+
+	// Currently there is no dataplane without the udpip provider.
+	d.underlays["udpip"] = underlayProviders["udpip"](
+		runConfig.SendBufferSize,
+		runConfig.ReceiveBufferSize,
+		runConfig.BatchSize)
+
+	return d
 }
 
 // setRunning() Configures the running state of the data plane to true. setRunning() is called once
@@ -298,7 +308,9 @@ func (d *dataPlane) isRunning() bool {
 func (d *dataPlane) Shutdown() {
 	d.mtx.Lock() // make sure we're not racing with initialization.
 	defer d.mtx.Unlock()
-	d.underlay.Stop()
+	for _, u := range d.underlays {
+		u.Stop()
+	}
 	d.setStopping()
 }
 
@@ -353,22 +365,23 @@ func (d *dataPlane) SetPortRange(start, end uint16) {
 // send/receive traffic in the local AS. This can only be called once; future
 // calls will return an error. This can only be called on a not yet running
 // dataplane.
-func (d *dataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
+func (d *dataPlane) AddInternalInterface(local netip.AddrPort) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
 		return modifyExisting
 	}
-	if conn == nil {
-		return emptyValue
-	}
 	if d.interfaces[0] != nil {
 		return alreadySet
 	}
 	d.addForwardingMetrics(0, Internal)
-	d.interfaces[0] = d.underlay.NewInternalLink(
-		conn, d.RunConfig.BatchSize, d.forwardingMetrics[0])
-	d.internalIP = ip
+	lk, err := d.underlays["udpip"].NewInternalLink(
+		local, d.RunConfig.BatchSize, d.forwardingMetrics[0])
+	if err != nil {
+		return err
+	}
+	d.interfaces[0] = lk
+	d.internalIP = local.Addr()
 
 	return nil
 }
@@ -376,8 +389,8 @@ func (d *dataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 // AddExternalInterface adds the inter AS connection for the given interface ID.
 // If a connection for the given ID is already set this method will return an
 // error. This can only be called on a not yet running dataplane.
-func (d *dataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
-	src, dst control.LinkEnd, cfg control.BFD) error {
+func (d *dataPlane) AddExternalInterface(
+	ifID uint16, link control.LinkInfo, remoteHost, localHost addr.Host) error {
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -385,19 +398,19 @@ func (d *dataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	if d.isRunning() {
 		return modifyExisting
 	}
-	if conn == nil || !src.Addr.IsValid() || !dst.Addr.IsValid() {
-		return emptyValue
-	}
-	bfd, err := d.newExternalInterfaceBFD(ifID, src, dst, cfg)
+	bfd, err := d.newExternalInterfaceBFD(ifID, link, remoteHost, localHost)
 	if err != nil {
 		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
 	}
 	if _, exists := d.interfaces[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
+	if err := d.AddLinkType(ifID, link.LinkTo); err != nil {
+		return serrors.Wrap("adding link type", err, "if_id", ifID)
+	}
 	d.addForwardingMetrics(ifID, External)
-	d.interfaces[ifID], err = d.underlay.NewExternalLink(
-		conn, d.RunConfig.BatchSize, bfd, dst.Addr, ifID, d.forwardingMetrics[ifID])
+	d.interfaces[ifID], err = d.underlays[link.Provider].NewExternalLink(
+		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, ifID, d.forwardingMetrics[ifID])
 	return err
 }
 
@@ -437,10 +450,10 @@ func (d *dataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 }
 
 // newExternalInterfaceBFD adds the inter AS connection BFD session.
-func (d *dataPlane) newExternalInterfaceBFD(ifID uint16,
-	src, dst control.LinkEnd, cfg control.BFD) (*bfd.Session, error) {
+func (d *dataPlane) newExternalInterfaceBFD(
+	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host) (*bfd.Session, error) {
 
-	if *cfg.Disable {
+	if *link.BFD.Disable {
 		return nil, nil
 	}
 	var m bfd.Metrics
@@ -448,7 +461,7 @@ func (d *dataPlane) newExternalInterfaceBFD(ifID uint16,
 		labels := prometheus.Labels{
 			"interface":       fmt.Sprint(ifID),
 			"isd_as":          d.localIA.String(),
-			"neighbor_isd_as": dst.IA.String(),
+			"neighbor_isd_as": link.Remote.IA.String(),
 		}
 		m = bfd.Metrics{
 			Up:              d.Metrics.InterfaceUp.With(labels),
@@ -457,11 +470,11 @@ func (d *dataPlane) newExternalInterfaceBFD(ifID uint16,
 			PacketsReceived: d.Metrics.BFDPacketsReceived.With(labels),
 		}
 	}
-	s, err := newBFDSend(d, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
+	s, err := newBFDSend(d, link, localHost, remoteHost, ifID, false, d.macFactory())
 	if err != nil {
 		return nil, err
 	}
-	return bfd.NewSession(s, cfg, m)
+	return bfd.NewSession(s, link.BFD, m)
 }
 
 // getInterfaceState checks if there is a bfd session for the input interfaceID and
@@ -511,8 +524,11 @@ func (d *dataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
 // AddNextHop sets the next hop address for the given interface ID. If the
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
-func (d *dataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
-	sibling string) error {
+func (d *dataPlane) AddNextHop(
+	ifID uint16,
+	link control.LinkInfo,
+	localHost, remoteHost addr.Host,
+) error {
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -520,35 +536,40 @@ func (d *dataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 	if d.isRunning() {
 		return modifyExisting
 	}
-	if !dst.IsValid() || !src.IsValid() {
-		return emptyValue
-	}
-	bfd, err := d.newNextHopBFD(src, dst, cfg, sibling)
+	bfd, err := d.newNextHopBFD(ifID, link, localHost, remoteHost)
 	if err != nil {
 		return serrors.Wrap("adding next hop BFD", err, "if_id", ifID)
 	}
 	if _, exists := d.interfaces[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
+	d.AddLinkType(ifID, link.LinkTo)
 	d.addForwardingMetrics(ifID, Sibling)
 	// Note that a link to the same sibling router might already exist. If so, it will be
-	// returned instead of creating a new one. As a result, the bfd session will be remain unused,
-	// and since isn't started it will simply be garbage collected.
-	d.interfaces[ifID] = d.underlay.NewSiblingLink(
-		d.RunConfig.BatchSize, bfd, dst, d.forwardingMetrics[ifID])
+	// returned instead of creating a new one. As a result, the bfd session will be ignored,
+	// and since it isn't started it will simply be garbage collected.
+	lk, err := d.underlays[link.Provider].NewSiblingLink(
+		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, d.forwardingMetrics[ifID])
+	if err != nil {
+		return err
+	}
+	d.interfaces[ifID] = lk
 	return nil
 }
 
 // AddNextHopBFD adds the BFD session for the next hop address.
-func (d *dataPlane) newNextHopBFD(src, dst netip.AddrPort, cfg control.BFD,
-	sibling string) (*bfd.Session, error) {
+func (d *dataPlane) newNextHopBFD(
+	ifID uint16,
+	link control.LinkInfo,
+	localHost, remoteHost addr.Host,
+) (*bfd.Session, error) {
 
-	if *cfg.Disable {
+	if *link.BFD.Disable {
 		return nil, nil
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
-		labels := prometheus.Labels{"isd_as": d.localIA.String(), "sibling": sibling}
+		labels := prometheus.Labels{"isd_as": d.localIA.String(), "sibling": link.Instance}
 		m = bfd.Metrics{
 			Up:              d.Metrics.SiblingReachable.With(labels),
 			StateChanges:    d.Metrics.SiblingBFDStateChanges.With(labels),
@@ -557,11 +578,11 @@ func (d *dataPlane) newNextHopBFD(src, dst netip.AddrPort, cfg control.BFD,
 		}
 	}
 
-	s, err := newBFDSend(d, d.localIA, d.localIA, src, dst, 0, d.macFactory())
+	s, err := newBFDSend(d, link, localHost, remoteHost, ifID, true, d.macFactory())
 	if err != nil {
 		return nil, err
 	}
-	return bfd.NewSession(s, cfg, m)
+	return bfd.NewSession(s, link.BFD, m)
 }
 
 func max(a int, b int) int {
@@ -575,6 +596,8 @@ type RunConfig struct {
 	NumProcessors         int
 	NumSlowPathProcessors int
 	BatchSize             int
+	ReceiveBufferSize     int
+	SendBufferSize        int
 }
 
 func (d *dataPlane) Run(ctx context.Context) error {
@@ -594,14 +617,20 @@ func (d *dataPlane) Run(ctx context.Context) error {
 		log.Error("Could not initialize processmetrics", "err", err)
 	}
 
+	numConnections := 0
+	for _, u := range d.underlays {
+		numConnections += u.NumConnections()
+	}
 	processorQueueSize := max(
-		d.underlay.NumConnections()*d.RunConfig.BatchSize/d.RunConfig.NumProcessors,
-		d.RunConfig.BatchSize)
+		numConnections*d.RunConfig.BatchSize/d.RunConfig.NumProcessors,
+		d.RunConfig.BatchSize,
+	)
 	d.initPacketPool(processorQueueSize)
 	procQs, slowQs := d.initQueues(processorQueueSize)
 	d.setRunning()
-	d.underlay.Start(ctx, d.packetPool, procQs)
-
+	for _, u := range d.underlays {
+		u.Start(ctx, d.packetPool, procQs)
+	}
 	for i := 0; i < d.RunConfig.NumProcessors; i++ {
 		go func(i int) {
 			defer log.HandlePanic()
@@ -1996,48 +2025,48 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
 }
 
 type bfdSend struct {
-	dataPlane        *dataPlane
-	ifID             uint16
-	srcAddr, dstAddr netip.AddrPort
-	scn              *slayers.SCION
-	ohp              *onehop.Path
-	mac              hash.Hash
-	macBuffer        []byte
+	dataPlane *dataPlane
+	name      string // for logs
+	ifID      uint16
+	srcAddr   netip.AddrPort
+	scn       *slayers.SCION
+	ohp       *onehop.Path
+	mac       hash.Hash
+	macBuffer []byte
 }
 
 // newBFDSend creates and initializes a BFD Sender
-func newBFDSend(d *dataPlane, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrPort,
-	ifID uint16, mac hash.Hash) (*bfdSend, error) {
+func newBFDSend(
+	d *dataPlane,
+	link control.LinkInfo,
+	localHost, remoteHost addr.Host,
+	ifID uint16,
+	isIntraAS bool,
+	mac hash.Hash,
+) (*bfdSend, error) {
 
 	scn := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4BFD,
-		SrcIA:        srcIA,
-		DstIA:        dstIA,
+		SrcIA:        link.Local.IA,
 	}
-
-	if !srcAddr.IsValid() {
-		return nil, serrors.New("invalid source IP", "ip", srcAddr)
+	if err := scn.SetSrcAddr(localHost); err != nil {
+		panic(err)
 	}
-	if !dstAddr.IsValid() {
-		return nil, serrors.New("invalid source IP", "ip", srcAddr)
+	if err := scn.SetDstAddr(remoteHost); err != nil {
+		panic(err)
 	}
-
-	srcAddrIP := srcAddr.Addr()
-	dstAddrIP := dstAddr.Addr()
-	if err := scn.SetSrcAddr(addr.HostIP(srcAddrIP)); err != nil {
-		panic(err) // Must work
-	}
-	if err := scn.SetDstAddr(addr.HostIP(dstAddrIP)); err != nil {
-		panic(err) // Must work
-	}
-
-	var ohp *onehop.Path
 	if ifID == 0 {
+		// There is no reason to support this any more.
+		panic("Sending BFD packets on the internal link")
+	}
+	var ohp *onehop.Path
+	if isIntraAS {
 		scn.PathType = empty.PathType
 		scn.Path = &empty.Path{}
+		scn.DstIA = scn.SrcIA
 	} else {
 		ohp = &onehop.Path{
 			Info: path.InfoField{
@@ -2051,6 +2080,7 @@ func newBFDSend(d *dataPlane, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrP
 		}
 		scn.PathType = onehop.PathType
 		scn.Path = ohp
+		scn.DstIA = link.Remote.IA
 	}
 
 	// bfdSend includes a reference to the dataplane. In general this must not be used until the
@@ -2059,9 +2089,8 @@ func newBFDSend(d *dataPlane, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrP
 
 	return &bfdSend{
 		dataPlane: d,
+		name:      link.Local.Addr,
 		ifID:      ifID,
-		srcAddr:   srcAddr,
-		dstAddr:   dstAddr,
 		scn:       scn,
 		ohp:       ohp,
 		mac:       mac,
@@ -2103,11 +2132,6 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	// BfdControllers and fwQs are initialized from the same set of ifIDs. So not finding
 	// the forwarding queue is an serious internal error. Let that panic.
 	fwLink := b.dataPlane.interfaces[b.ifID]
-
-	if b.ifID == 0 {
-		// Using the internal interface: must specify the destination address
-		updateNetAddrFromAddrPort(p.RemoteAddr, b.dstAddr)
-	}
 
 	if !fwLink.Send(p) {
 		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,

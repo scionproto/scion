@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/private/underlay/conn"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
@@ -46,6 +47,8 @@ type provider struct {
 	allConnections     []*udpConnection
 	internalConnection *udpConnection // Because we share it w/ siblinglinks
 	internalHashSeed   uint32         // As a result, this too is shared.
+	receiveBufferSize  int
+	sendBufferSize     int
 }
 
 var (
@@ -63,14 +66,16 @@ func init() {
 	// Register ourselves as an underlay provider. The registration consists of a constructor, not
 	// a provider object, because multiple router instances each must have their own underlay
 	// provider. The provider is not re-entrant.
-	router.AddUnderlay(newProvider)
+	router.AddUnderlay("udpip", newProvider)
 }
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
-func newProvider(batchSize int) router.UnderlayProvider {
+func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
 	return &provider{
-		batchSize: batchSize,
-		allLinks:  make(map[netip.AddrPort]udpLink),
+		batchSize:         batchSize,
+		receiveBufferSize: receiveBufferSize,
+		sendBufferSize:    sendBufferSize,
+		allLinks:          make(map[netip.AddrPort]udpLink),
 	}
 }
 
@@ -382,15 +387,26 @@ type externalLink struct {
 // don't keep the remote address, but in the future, we will be making the connections (and
 // the conn argument will be gone), so we will need the address for that.
 func (u *provider) NewExternalLink(
-	conn router.BatchConn,
 	qSize int,
 	bfd *bfd.Session,
-	remote netip.AddrPort,
+	local string,
+	remote string,
 	ifID uint16,
 	metrics router.InterfaceMetrics,
 ) (router.Link, error) {
 
-	if remote == (netip.AddrPort{}) {
+	localAddr, err := netip.ParseAddrPort(local)
+	if err != nil {
+		return nil, err
+	}
+	remoteAddr, err := netip.ParseAddrPort(remote)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := conn.New(localAddr, remoteAddr,
+		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
+	if remoteAddr == (netip.AddrPort{}) {
 		// The router doesn't do this. This is an internal error.
 		panic("Zero address not supported")
 	}
@@ -398,7 +414,7 @@ func (u *provider) NewExternalLink(
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
-	if l := u.allLinks[remote]; l != nil {
+	if l := u.allLinks[remoteAddr]; l != nil {
 		// This is a really bad idea. We can't just panic because it may be a configuration error.
 		// So, we have to return an error.
 		return nil, serrors.New("remote address reused")
@@ -416,13 +432,13 @@ func (u *provider) NewExternalLink(
 		conn:         conn,
 		queue:        queue,
 		metrics:      metrics, // send() needs them :-(
-		name:         remote.String(),
+		name:         remote,
 		receiverDone: make(chan struct{}),
 		senderDone:   make(chan struct{}),
 		link:         el,
 	}
 	u.allConnections = append(u.allConnections, c)
-	u.allLinks[remote] = el
+	u.allLinks[remoteAddr] = el
 	return el, nil
 }
 
@@ -519,24 +535,29 @@ type siblingLink struct {
 // newSiblingLink returns a sibling link over the UdpIpUnderlay.
 //
 // TODO(multi_underlay): this can only be an improvement over internalLink if we have a bound
-// batchConn with the sibling router. However, currently the caller doesn't have one to give us;
-// the main code has so far been reusing the internal connection. So, that's what we do for now.
-// As a result, we keep the remote address; as we need to supply it for every packet being sent
-// (something we will get rid of eventually).
-// In the future we will be making one connection per remote address and we might even be able
-// to erase the separation between link and connection for this implementation. Side effect
-// of moving the address:link map here: the router does not know if there is an existing link. As
-// a result it has to give us a BFDSession in all cases and we might throw it away (there
+// batchConn with the sibling router. This is coming. Now the router gives us what we need
+// to make the connection ourselves, but we still reuse the internal one.
+// The router gives us a BFDSession in all cases and we might throw it away (there
 // are no permanent resources attached to it). This could be fixed by moving some BFD related code
 // in-here.
 func (u *provider) NewSiblingLink(
 	qSize int,
 	bfd *bfd.Session,
-	remote netip.AddrPort,
+	local string,
+	remote string,
 	metrics router.InterfaceMetrics,
-) router.Link {
+) (router.Link, error) {
 
-	if remote == (netip.AddrPort{}) {
+	// localAddr, err := netip.ParseAddrPort(local)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	remoteAddr, err := netip.ParseAddrPort(remote)
+	if err != nil {
+		return nil, err
+	}
+
+	if remoteAddr == (netip.AddrPort{}) {
 		// The router doesn't do this. This is an internal error.
 		panic("Zero address not supported")
 	}
@@ -546,8 +567,8 @@ func (u *provider) NewSiblingLink(
 
 	// We silently deduplicate sibling links, so the router doesn't need to be aware or keep track
 	// of link sharing.
-	if l := u.allLinks[remote]; l != nil {
-		return l
+	if l := u.allLinks[remoteAddr]; l != nil {
+		return l, nil
 	}
 
 	// All sibling links re-use the internal connection. This used to be a late binding (packets to
@@ -564,12 +585,12 @@ func (u *provider) NewSiblingLink(
 		egressQ:    c.queue, // And therefore we do not use qsize for now.
 		metrics:    metrics,
 		bfdSession: bfd,
-		remote:     net.UDPAddrFromAddrPort(remote),
+		remote:     net.UDPAddrFromAddrPort(remoteAddr),
 		seed:       u.internalHashSeed, // per connection, but used only by link.
 	}
-	c.links[remote] = sl
-	u.allLinks[remote] = sl
-	return sl
+	c.links[remoteAddr] = sl
+	u.allLinks[remoteAddr] = sl
+	return sl, nil
 }
 
 func (l *siblingLink) start(
@@ -667,10 +688,10 @@ type internalLink struct {
 
 // NewInternalLink returns a internal link over the UdpIpUnderlay.
 //
-// TODO(multi_underlay): we get the connection-ready made. In the future we will be making it
-// and the conn argument will be gone.
+// TODO(multi_underlay): We still go with the assumption that internal links are always
+// udpip, so we don't expect a string here. That will change.
 func (u *provider) NewInternalLink(
-	conn router.BatchConn, qSize int, metrics router.InterfaceMetrics) router.Link {
+	localAddr netip.AddrPort, qSize int, metrics router.InterfaceMetrics) (router.Link, error) {
 
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -680,6 +701,13 @@ func (u *provider) NewInternalLink(
 		panic("More than one internal link")
 	}
 
+	conn, err := conn.New(
+		localAddr, netip.AddrPort{},
+		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
+
+	if err != nil {
+		return nil, err
+	}
 	u.internalHashSeed = makeHashSeed()
 	queue := make(chan *router.Packet, qSize)
 	il := &internalLink{
@@ -700,7 +728,7 @@ func (u *provider) NewInternalLink(
 	u.allLinks[netip.AddrPort{}] = il
 	u.internalConnection = c
 	u.allConnections = append(u.allConnections, c)
-	return il
+	return il, nil
 }
 
 func (l *internalLink) start(

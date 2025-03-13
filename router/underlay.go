@@ -81,10 +81,10 @@ type UnderlayProvider interface {
 	// do not need an underlay destination as metadata. Incoming packets have a defined ingress
 	// ifID.
 	NewExternalLink(
-		conn BatchConn,
 		qSize int,
 		bfd *bfd.Session,
-		remote netip.AddrPort,
+		local string,
+		remote string,
 		ifID uint16,
 		metrics InterfaceMetrics,
 	) (Link, error)
@@ -96,12 +96,13 @@ type UnderlayProvider interface {
 	NewSiblingLink(
 		qSize int,
 		bfd *bfd.Session,
-		remote netip.AddrPort,
+		local string,
+		remote string,
 		metrics InterfaceMetrics,
-	) Link
+	) (Link, error)
 
 	// NewIternalLink returns a link that addresses any host internal to the enclosing AS, so it is
-	// given neither ifID nor address. Outgoing packets need to have a destination address as
+	// given neither ifID nor remote address. Outgoing packets need to have a destination address as
 	// metadata. Incoming packets have no defined ingress ifID.
-	NewInternalLink(conn BatchConn, qSize int, metrics InterfaceMetrics) Link
+	NewInternalLink(localAddr netip.AddrPort, qSize int, metrics InterfaceMetrics) (Link, error)
 }
