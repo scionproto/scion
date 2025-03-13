@@ -43,7 +43,8 @@ rm -rf $DSTDIR/python_3_11_x86_64-unknown-linux-gnu/
 rm -rf $DSTDIR/aspect_bazel_lib/
 rm -rf $DSTDIR/aspect_rules_js/
 rm -rf $DSTDIR/npm__*/
-rm $DSTDIR/LICENSE # coming from folderns named like rules_pkg~, rules_cc~ and so on
+rm $DSTDIR/LICENSE # coming from folders named like rules_pkg~, rules_cc~ and so on
+rm $DSTDIR/LICENSE.txt # coming from folders named like rules_pkg~, rules_cc~ and so on
 find $DSTDIR/ -name "*.go" -type f -delete
 find $DSTDIR/ -name "*.sh" -type f -delete
 find $DSTDIR/ -path "*/testdata/*" -type f -delete
