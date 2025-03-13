@@ -92,7 +92,7 @@ type (
 	// struct.
 	BRInfo struct {
 		Name string
-		// InternalAddr is the local data-plane address.
+		// InternalAddr is the local data-plane address (for now it has to be a UDP underlay).
 		InternalAddr netip.AddrPort
 		// IfIDs is a sorted list of the interface IDs.
 		IfIDs []iface.ID
@@ -105,19 +105,28 @@ type (
 
 	// IFInfo describes a border router link to another AS, including the internal data-plane
 	// address applications should send traffic to and information about the link itself and the
-	// remote side of it.
+	// remote side of it. The fields can be confusing. Remember that this describes a connection
+	// to a remote AS. There are three routers and three addresses involved.
+	// * The router that is configured by using this IFInfo: local router.
+	// * The other router in the same AS that owns the interface: owning router.
+	// * The router in the remote AS, at the end of the connection: far router.
+	// * The internal addr of the owning router: internal address.
+	// * The address on the link on the owning router's side: local address.
+	// * The address on the link on the far router's side: remote address.
+	// None of this describes the local router itself. Notably, InternalAddr is NOT that of the
+	// local router.
 	IFInfo struct {
-		// ID is the interface ID. It is unique per AS.
-		ID           iface.ID
-		BRName       string
-		InternalAddr netip.AddrPort
-		Local        netip.AddrPort
-		Remote       netip.AddrPort
-		RemoteIfID   iface.ID
-		IA           addr.IA
-		LinkType     LinkType
-		MTU          int
-		BFD          BFD
+		ID           iface.ID       // ID of this interface in the local AS.
+		BRName       string         // of the owning router
+		InternalAddr netip.AddrPort // of the owning router. It must be a udpip address.
+		Provider     string         // Underlay provider name
+		Local        string         // Underlay addr on owning router side
+		Remote       string         // Underlay addr on far router side
+		RemoteIfID   iface.ID       // ID of this interface for the far router
+		IA           addr.IA        // IA number of the remote AS
+		LinkType     LinkType       // (Child, Parent, Core or Peering)
+		MTU          int            // of the link (configured - could be wrong and needs update)
+		BFD          BFD            // (configuration of)
 	}
 
 	// IDAddrMap maps process IDs to their topology addresses.
@@ -309,16 +318,12 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				t.IFInfoMap[ifID] = ifinfo
 				continue
 			}
-			if ifinfo.Local, err = rawBRIntfLocalAddr(&rawIntf.Underlay); err != nil {
-				return serrors.Wrap("unable to extract "+
-					"underlay external data-plane local address", err)
-
+			ifinfo.Provider = rawIntf.Underlay.Provider
+			if ifinfo.Provider == "" { // Backward compatible with older configs
+				ifinfo.Provider = "udpip"
 			}
-			if ifinfo.Remote, err = resolveAddrPort(rawIntf.Underlay.Remote); err != nil {
-				return serrors.Wrap("unable to extract "+
-					"underlay external data-plane remote address", err)
-
-			}
+			ifinfo.Local = rawIntf.Underlay.Local
+			ifinfo.Remote = rawIntf.Underlay.Remote
 			brInfo.IFs[ifID] = &ifinfo
 			t.IFInfoMap[ifID] = ifinfo
 		}

@@ -34,7 +34,8 @@ import (
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
-	AddExternalInterface(localIfID iface.ID, info LinkInfo, owned bool) error
+	AddExternalInterface(
+		localIfID iface.ID, info LinkInfo, localHost, remoteHost addr.Host, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	SetKey(ia addr.IA, index int, key []byte) error
@@ -47,6 +48,7 @@ type BFD topology.BFD
 // LinkInfo contains the information about a link between an internal and
 // external router.
 type LinkInfo struct {
+	Provider string
 	Local    LinkEnd
 	Remote   LinkEnd
 	Instance string
@@ -58,8 +60,14 @@ type LinkInfo struct {
 // LinkEnd represents one end of a link.
 type LinkEnd struct {
 	IA   addr.IA
-	Addr netip.AddrPort
+	Addr string
 	IfID iface.ID
+}
+
+// AddrInfo describes an Address in a underlay-independent format.
+type AddrInfo struct {
+	underlay string // The underlay provider that can use the address
+	address  string // String representation that the underlay can interpret.
 }
 
 type ObservableDataplane interface {
@@ -71,7 +79,7 @@ type ObservableDataplane interface {
 // InternalInterface represents the internal underlay interface of a router.
 type InternalInterface struct {
 	IA   addr.IA
-	Addr netip.AddrPort
+	Addr netip.AddrPort // Still restricted to UDP/IP for now.
 }
 
 // ExternalInterface represents an external underlay interface of a router.
@@ -91,7 +99,7 @@ type SiblingInterface struct {
 	IfID uint16
 	// InternalInterfaces is the local address (internal interface)
 	// of the sibling router that owns this interface.
-	InternalInterface netip.AddrPort
+	InternalInterface string // Underlay agnostic address format
 	// Relationship describes the type of inter-AS links.
 	Relationship topology.LinkType
 	// MTU is the maximum Transmission Unit for SCION packets.
@@ -135,6 +143,8 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	// Add internal interfaces
 	if cfg.BR != nil {
 		if cfg.BR.InternalAddr != (netip.AddrPort{}) {
+			// TODO: Investigate what legitimate reason there would be to not have an internal addr.
+			// Currently the router would panic upon Run().
 			if err := dp.AddInternalInterface(cfg.IA, cfg.BR.InternalAddr); err != nil {
 				return err
 			}
@@ -181,6 +191,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 	for _, ifID := range ifIDs {
 		iface := infoMap[ifID]
 		linkInfo := LinkInfo{
+			Provider: iface.Provider,
 			Local: LinkEnd{
 				IA:   cfg.IA,
 				Addr: iface.Local,
@@ -197,21 +208,41 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			MTU:      iface.MTU,
 		}
 
+		// Host addresses are currently constructed from a hosts's internal underlay address
+		// under the assumption that it is always a UDP/IP address. These might have nothing
+		// to do with the local end of external or sibling links.
+		// TODO(multi_underlay): for now, we have no way to know the remote host address, so
+		// until the configuration schema catches up we have to assume that the remote address
+		// of the link is a udpip address and that it makes an acceptable scion Host address, as
+		// it has been so far. Routers do not need to resolve their own Host addresses but it
+		// needs to be valid. May be we should have an "unspecified" address for such purposes.
+		localHost := addr.HostIP(cfg.BR.InternalAddr.Addr())
+		remoteAddr, err := netip.ParseAddrPort(linkInfo.Remote.Addr)
+		if err != nil {
+			return err
+		}
+		remoteHost := addr.HostIP(remoteAddr.Addr())
+
 		_, owned := cfg.BR.IFs[ifID]
 		if !owned {
-			// The current implementation effectively uses IP/UDP tunnels to create the SCION
-			// network as an overlay, with forwarding to local hosts being a special case. When
-			// setting up external interfaces that belong to other routers in the AS, they are
-			// basically IP/UDP tunnels between the two border routers. Those are described as a
-			// link from the internal address of the local router to the internal address of the
-			// sibling router; and not to the router in the remote AS.
-			linkInfo.Local.Addr = cfg.BR.InternalAddr
-			linkInfo.Remote.Addr = iface.InternalAddr // i.e. via sibling router.
+			// When an interface is not "owned", it means that it's proximal end is at another
+			// router in the same AS (the owning router a.k.a. the sibling router). From the
+			// point-of-view of the local router, the traffic must go through an intermediate
+			// link that connects the local router to its sibling. Until the config schema catches
+			// up, we use internal interfaces for sibling links.
+			linkInfo.Provider = "udpip" // For now, all internal interfaces use udp/ip.
+			linkInfo.Local.Addr = cfg.BR.InternalAddr.String()
+			linkInfo.Remote.Addr = iface.InternalAddr.String() // i.e. via sibling router.
+
+			// The link is between two AS-local routers. TODO(multi_underlay): double check it's
+			// not used for other purposes where the far router's AS is expected.
+			// If not, we should add: linkInfo.Remote.IA = linkInfo.Local.IA
+
 			// For internal BFD always use the default configuration.
 			linkInfo.BFD = BFD{}
 		}
 
-		if err := dp.AddExternalInterface(ifID, linkInfo, owned); err != nil {
+		if err := dp.AddExternalInterface(ifID, linkInfo, localHost, remoteHost, owned); err != nil {
 			return err
 		}
 	}

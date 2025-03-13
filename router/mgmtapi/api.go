@@ -106,7 +106,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 			InterfaceId:       int(intf.IfID), // nolint - name from published API.
 			InternalInterface: findInternalInterface(intf.Link.Local.IA),
 			Neighbor: InterfaceNeighbor{
-				Address: intf.Link.Remote.Addr.String(),
+				Address: intf.Link.Remote.Addr,
 				IsdAs:   intf.Link.Remote.IA.String(),
 			},
 			Relationship: LinkRelationship(intf.Link.LinkTo.String()),
@@ -120,7 +120,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 	for _, intf := range siblingInterfaces {
 		siblingInterface := SiblingInterface{
 			InterfaceId:       int(intf.IfID), // nolint - name from published API.
-			InternalInterface: intf.InternalInterface.String(),
+			InternalInterface: intf.InternalInterface,
 			Neighbor: SiblingNeighbor{
 				IsdAs: intf.NeighborIA.String(),
 			},

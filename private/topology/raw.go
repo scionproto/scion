@@ -21,35 +21,7 @@ import (
 	"strconv"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
-	jsontopo "github.com/scionproto/scion/private/topology/json"
 )
-
-func rawBRIntfLocalAddr(u *jsontopo.Underlay) (netip.AddrPort, error) {
-	if (u.DeprecatedPublic != "" || u.DeprecatedBind != "") && u.Local != "" {
-		return netip.AddrPort{},
-			serrors.New(`deprecated "public" and "bind" fields cannot be combined with "local"`,
-				"underlay", u)
-	}
-
-	// handle _deprecated_ "public" and "bind" fields
-	if u.DeprecatedPublic != "" {
-		ret, err := resolveAddrPort(u.DeprecatedPublic)
-		if err != nil {
-			return netip.AddrPort{}, err
-		}
-		if u.DeprecatedBind != "" {
-			bindIP, err := netip.ParseAddr(u.DeprecatedBind)
-			if err != nil {
-				return netip.AddrPort{}, err
-			}
-			ret = netip.AddrPortFrom(bindIP.Unmap(), ret.Port())
-		}
-		return ret, nil
-	}
-
-	// the new normal, parse "local"
-	return resolveAddrPortOrPort(u.Local)
-}
 
 // resolveAddrPortOrPort parses a string in the format "IP:port", "hostname:port" or just ":port".
 func resolveAddrPortOrPort(s string) (netip.AddrPort, error) {
