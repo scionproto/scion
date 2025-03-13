@@ -10,15 +10,6 @@ pathadd /usr/sbin
 pathadd /usr/local/sbin
 printenv PATH
 
-echo "~~~ ls /bin"
-ls /bin
-
-echo "~~~ ls /usr/bin"
-ls /usr/bin
-
-echo "~~~ ls /usr/local/bin"
-ls /usr/local/bin
-
 # Install build tools on first job for this runner.
 .buildkite/provision-agent.sh
 
