@@ -17,7 +17,13 @@ rm -rf $DSTDIR
     if [[ "$path" =~ "node_modules" || "$path" =~ "nodejs" || "$path" =~ "rules_license" ]]; then
         continue
     fi
-    clean_path=$(echo "$path" | sed 's/.*~//')
+    if [[ "$path" == *~~* ]]; then
+        # paths like ./gazelle~~go_deps~com_github_antlr4_go_antlr_v4/LICENSE
+        clean_path=$(echo "$path" | sed 's/.*~//')
+    else
+        # paths like ./zlib~/contrib/dotzlib/LICENSE_1_0.txt
+        clean_path=$(echo "$path" | sed 's|^\./||' | sed 's/~//')
+    fi
     if [[ "$clean_path" =~ "scion__download_0" ]]; then
         clean_path=$(echo "$clean_path" | sed 's/scion__download_0/go_sdk/')
     fi
@@ -43,8 +49,6 @@ rm -rf $DSTDIR/python_3_11_x86_64-unknown-linux-gnu/
 rm -rf $DSTDIR/aspect_bazel_lib/
 rm -rf $DSTDIR/aspect_rules_js/
 rm -rf $DSTDIR/npm__*/
-rm $DSTDIR/LICENSE # coming from folders named like rules_pkg~, rules_cc~ and so on
-rm $DSTDIR/LICENSE.txt # coming from folders named like rules_pkg~, rules_cc~ and so on
 find $DSTDIR/ -name "*.go" -type f -delete
 find $DSTDIR/ -name "*.sh" -type f -delete
 find $DSTDIR/ -path "*/testdata/*" -type f -delete
