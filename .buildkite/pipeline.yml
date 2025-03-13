@@ -85,14 +85,12 @@ steps:
     timeout_in_minutes: 20
   - label: "Check Generated :bash:"
     command:
-      - echo "--- go_deps.bzl"
+      - echo "--- go.mod"
       - mkdir -p /tmp/test-artifacts
-      - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
+      - cp go.mod go.sum /tmp/test-artifacts/
       - make go.mod
-      - make go_deps.bzl -B
       - diff -u /tmp/test-artifacts/go.mod go.mod
       - diff -u /tmp/test-artifacts/go.sum go.sum
-      - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
       - echo "--- protobuf"
       - cp -R pkg/proto/ /tmp/test-artifacts
       - make protobuf

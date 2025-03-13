@@ -1,4 +1,5 @@
 Patch is copied from https://github.com/abitofhelp/connect-go-example/blob/main/import.patch
+and updated to reflect the changes in 0.53.0.
 
 It is required because of the issue described in https://github.com/bazelbuild/rules_go/issues/3951.
 The connect protoc plugin generates files in a sub-directory, which is not supported by the rules_go.
@@ -10,25 +11,28 @@ https://github.com/connectrpc/connect-go/discussions/310
 
 --- proto/def.bzl
 +++ proto/def.bzl
-@@ -123,8 +123,12 @@ def _go_proto_library_impl(ctx):
+@@ -139,11 +139,15 @@ def _go_proto_library_impl(ctx):
              imports = get_imports(ctx.attr, go.importpath),
              importpath = go.importpath,
          ))
 +    importpath = None
 +    if ctx.attr.overrideimportpath:
 +        importpath = ctx.attr.overrideimportpath
-     library = go.new_library(
+
+     go_info = new_go_info(
          go,
+         ctx.attr,
 +        importpath = importpath,
          resolver = _proto_library_to_source,
-         srcs = go_srcs,
+         generated_srcs = go_srcs,
+         coverage_instrumented = False,
      )
-@@ -164,6 +168,7 @@ go_proto_library = rule(
+@@ -182,6 +182,7 @@ go_proto_library = rule(
          "importpath": attr.string(),
          "importmap": attr.string(),
          "importpath_aliases": attr.string_list(),  # experimental, undocumented
 +        "overrideimportpath": attr.string(),
-         "embed": attr.label_list(providers = [GoLibrary]),
+         "embed": attr.label_list(providers = [GoInfo]),
          "gc_goopts": attr.string_list(),
          "compiler": attr.label(providers = [GoProtoCompiler]),
--- 
+--

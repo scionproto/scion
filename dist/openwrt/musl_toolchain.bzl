@@ -17,7 +17,6 @@
 # This was adapted from illicitonion) work (https://github.com/bazel-contrib/musl-toolchain)
 # Merit is his, mistakes are ours.
 
-load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 load(
     "@bazel_tools//tools/build_defs/cc:action_names.bzl",
     _ASSEMBLE_ACTION_NAME = "ASSEMBLE_ACTION_NAME",
@@ -47,6 +46,7 @@ load(
     "tool_path",
     "with_feature_set",
 )
+load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 
 all_link_actions = [
     _CPP_LINK_EXECUTABLE_ACTION_NAME,
