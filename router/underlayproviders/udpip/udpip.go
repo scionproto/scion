@@ -536,7 +536,7 @@ type siblingLink struct {
 //
 // TODO(multi_underlay): this can only be an improvement over internalLink if we have a bound
 // batchConn with the sibling router. This is coming. Now the router gives us what we need
-// to make the connection ourselves, but we still reuse the internal one.
+// to make the connection ourselves, but we still reuse the internal one as a transition.
 // The router gives us a BFDSession in all cases and we might throw it away (there
 // are no permanent resources attached to it). This could be fixed by moving some BFD related code
 // in-here.

@@ -275,10 +275,12 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 	}
 
 	// Currently there is no dataplane without the udpip provider.
+	// Not having a registered factory for it is a panicable offsense.
 	d.underlays["udpip"] = underlayProviders["udpip"](
 		runConfig.SendBufferSize,
 		runConfig.ReceiveBufferSize,
-		runConfig.BatchSize)
+		runConfig.BatchSize,
+	)
 
 	return d
 }
@@ -408,8 +410,23 @@ func (d *dataPlane) AddExternalInterface(
 	if err := d.AddLinkType(ifID, link.LinkTo); err != nil {
 		return serrors.Wrap("adding link type", err, "if_id", ifID)
 	}
+
+	underlay, instantiated := d.underlays[link.Provider]
+	if !instantiated {
+		underlayProvider, exists := underlayProviders["udpip"]
+		if !exists {
+			panic("No provider for underlay " + link.Provider)
+		}
+		underlay = underlayProvider(
+			d.RunConfig.SendBufferSize,
+			d.RunConfig.ReceiveBufferSize,
+			d.RunConfig.BatchSize,
+		)
+		d.underlays[link.Provider] = underlay
+	}
+
 	d.addForwardingMetrics(ifID, External)
-	d.interfaces[ifID], err = d.underlays[link.Provider].NewExternalLink(
+	d.interfaces[ifID], err = underlay.NewExternalLink(
 		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, ifID, d.forwardingMetrics[ifID])
 	return err
 }
@@ -543,8 +560,23 @@ func (d *dataPlane) AddNextHop(
 	if _, exists := d.interfaces[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
+	underlay, instantiated := d.underlays[link.Provider]
+	if !instantiated {
+		underlayProvider, exists := underlayProviders["udpip"]
+		if !exists {
+			panic("No provider for underlay " + link.Provider)
+		}
+		underlay = underlayProvider(
+			d.RunConfig.SendBufferSize,
+			d.RunConfig.ReceiveBufferSize,
+			d.RunConfig.BatchSize,
+		)
+		d.underlays[link.Provider] = underlay
+	}
+
 	d.AddLinkType(ifID, link.LinkTo)
 	d.addForwardingMetrics(ifID, Sibling)
+
 	// Note that a link to the same sibling router might already exist. If so, it will be
 	// returned instead of creating a new one. As a result, the bfd session will be ignored,
 	// and since it isn't started it will simply be garbage collected.
