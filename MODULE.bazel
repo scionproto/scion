@@ -45,6 +45,11 @@ go_deps.module(
     version = "v0.0.3",
 )
 go_deps.module(
+    path = "github.com/kisielk/gotool",
+    sum = "h1:AV2c/EiW3KqPNT9ZKl07ehoAGi4C5/01Cfbblndcapg=",
+    version = "v1.0.0",
+)
+go_deps.module(
     path = "github.com/Oncilla/ineffassign",
     sum = "h1:zrpB8NIzy1hkO1dz2S+YWiOymA/2kL3Rk24uDg8DVUM=",
     version = "v0.0.0-20190618100136-198c6a326229",
@@ -75,6 +80,7 @@ use_repo(
     "com_github_grpc_ecosystem_grpc_opentracing",
     "com_github_hashicorp_golang_lru_arc_v2",
     "com_github_iancoleman_strcase",
+    "com_github_kisielk_gotool",
     "com_github_lestrrat_go_jwx",
     "com_github_mattn_go_isatty",
     "com_github_mattn_go_sqlite3",
