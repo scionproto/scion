@@ -176,7 +176,7 @@
   "moduleExtensions": {
     "//:non_module_deps.bzl%non_module_deps": {
       "general": {
-        "bzlTransitiveDigest": "syhdW8uQhw+xLsk9k3CtJTWNwXGdMzjPRZ4XAIaMWJY=",
+        "bzlTransitiveDigest": "s72lfkcKdUwKg0YtYHbpzPREGZB4IVTHHETVvvH9+oo=",
         "usagesDigest": "5s12WgUgDcGvexJfl0bIS7GJ14+1NKrsFrPySvayGSw=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},

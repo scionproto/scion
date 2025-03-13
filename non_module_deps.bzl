@@ -12,6 +12,7 @@ def _non_module_deps_impl(
         strip_prefix = "buildtools-8.0.3",
         urls = ["https://github.com/bazelbuild/buildtools/archive/v8.0.3.tar.gz"],
     )
+
     # Buf CLI
     http_archive(
         name = "buf",
