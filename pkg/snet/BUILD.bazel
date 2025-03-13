@@ -40,7 +40,7 @@ go_library(
         "//private/topology/underlay:go_default_library",
         "@com_github_gopacket_gopacket//:go_default_library",
     ] + select({
-        "@rules_go//go/platform:windows": [
+        "@io_bazel_rules_go//go/platform:windows": [
             "@org_golang_x_sys//windows:go_default_library",
         ],
         "//conditions:default": [],

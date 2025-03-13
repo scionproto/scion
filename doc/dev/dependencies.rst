@@ -12,7 +12,7 @@ the dependencies are stored in the ``go.sum`` file.
 When building with Bazel, all external dependencies are managed with ``go_deps``
 extension in the MODULES file.
 All direct Go dependencies of the module have to be listed explicitly.
-The @rules_go//go target automatically updates the ``use_repo`` call
+The @io_bazel_rules_go//go target automatically updates the ``use_repo`` call
 whenever the ``go.mod`` file changes by using ``bazel mod tidy``.
 
 Workflow to modify dependencies

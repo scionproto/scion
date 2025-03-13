@@ -17,13 +17,13 @@ go_library(
         "@com_github_mattn_go_isatty//:go_default_library",
         "@com_github_sergi_go_diff//diffmatchpatch:go_default_library",
     ] + select({
-        "@rules_go//go/platform:android": [
+        "@io_bazel_rules_go//go/platform:android": [
             "//pkg/log:go_default_library",
             "//pkg/private/common:go_default_library",
             "@com_github_gopacket_gopacket//afpacket:go_default_library",
             "@com_github_gopacket_gopacket//pcapgo:go_default_library",
         ],
-        "@rules_go//go/platform:linux": [
+        "@io_bazel_rules_go//go/platform:linux": [
             "//pkg/log:go_default_library",
             "//pkg/private/common:go_default_library",
             "@com_github_gopacket_gopacket//afpacket:go_default_library",

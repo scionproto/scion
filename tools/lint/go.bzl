@@ -1,5 +1,5 @@
 load("@apple_rules_lint//lint:defs.bzl", "get_lint_config")
-load("@rules_go//go:def.bzl", _go_library = "go_library", _go_test = "go_test")
+load("@io_bazel_rules_go//go:def.bzl", _go_library = "go_library", _go_test = "go_test")
 load(":impi.bzl", "impi_test")
 load(":ineffassign.bzl", "ineffassign_test")
 

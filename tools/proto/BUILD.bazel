@@ -1,4 +1,4 @@
-load("@rules_go//proto:compiler.bzl", "go_proto_compiler")
+load("@io_bazel_rules_go//proto:compiler.bzl", "go_proto_compiler")
 
 ## bazel query --output label '@com_connectrpc_connect//...'
 ## @com_connectrpc_connect//cmd/protoc-gen-connect-go:protoc-gen-connect-go
