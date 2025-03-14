@@ -1,10 +1,47 @@
 # STUN Demo
 This demo shows how a client can use the STUN server implemented at the border router to determine its public facing IP address and port.
 This is useful in case the client is behind a NAT.
-The client can subsequently use the determined address as its source address in SCION communication, to ensure returning packets are correctly delivered back to the client.
+The client can subsequently use the determined address as its source address in SCION communication, 
+to ensure returning packets are correctly delivered back to the client.
+
+The topology used in the demo is based on `tiny.topo`. 
+An additional network was added to simulate a private network inside AS `1-ff00:0:110`. 
+An additional docker container was added to act as a NAT between the private network and the AS.
+The tester container was moved to within the private network.
+
+```
+                +-----------------------+
+                |    AS 1-ff00:0:110    |
+                |   +---------------+   |
+                |   |    Tester     |   |
+                |   | (Test-Server) |   |
+                |   +---------------+   |
+                +-----------------------+
+                        |        |
+                        |        |
+          --------------+        +--------------
+          |                                    |
+  +--------------------------+   +-------------------------+
+  |     AS 1-ff00:0:111      |   |     AS 1-ff00:0:112     |
+  |                          |   |                         |
+  |                          |   |                         |
+  |  +--------------------+  |   |                         |
+  |  |  Private Subnet    |  |   |                         |
+  |  |    +----------+    |  |   |                         |
+  |  |    |    NAT   |    |  |   |                         |
+  |  |    +----------+    |  |   |                         |
+  |  |          |         |  |   |                         |
+  |  |  +---------------+ |  |   |                         |
+  |  |  |    Tester     | |  |   |                         |
+  |  |  | (Test-Client) | |  |   |                         |
+  |  |  +---------------+ |  |   |                         |
+  |  +--------------------+  |   +-------------------------+
+  +--------------------------+
+```
 
 The demo consists of two components: A test client and a test server.
-The test client is located behind a NAT, and tries to contact the test server, which is located in a different AS.
+The test client is run within the private network behind the NAT, 
+and tries to contact the test server, which is located in a different AS.
 
 The demo consists of the following steps:
 1. Generate, configure, and start topology
