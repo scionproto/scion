@@ -69,10 +69,14 @@ func main() {
 		if !ok {
 			log.Fatalf("Unexpected source address type")
 		}
+		
+		// No STUN needed in intra-AS case
 		srcAddr = srcAddr.Unmap()
 		srcPort = uint16(localAddr.Host.Port)
 		nextHop = remoteAddr.Host
 	} else {
+
+		// Generate and send STUN request
 		txID := stun.NewTxID()
 		req := stun.Request(txID)
 
@@ -92,6 +96,7 @@ func main() {
 			log.Fatalf("Failed to read STUN packet: %v", err)
 		}
 
+		// Read STUN response
 		tid, stunResp, err := stun.ParseResponse(buf[:n])
 		if err != nil {
 			log.Fatalf("Failed to decode STUN packet: %v", err)
@@ -102,9 +107,12 @@ func main() {
 
 		log.Printf("Received STUN response: %v", stunResp)
 
+		// Use address and port from STUN response as source address and port
 		srcAddr = stunResp.Addr()
 		srcPort = stunResp.Port()
 	}
+
+	// Continue with normal SCION communication
 
 	dstAddr, ok := netip.AddrFromSlice(remoteAddr.Host.IP)
 	if !ok {
