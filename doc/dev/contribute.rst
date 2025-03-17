@@ -47,7 +47,7 @@ If you encounter issues, please visit our :ref:`Slack <slack>` and ask for help.
 
 .. _code-map:
 
-Souce code map
+Source code map
 ==============
 
 Because the code is mostly written in Go and hosted on a public repository, its inline documentation
