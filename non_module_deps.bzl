@@ -31,6 +31,17 @@ def _non_module_deps_impl(
         urls = ["https://github.com/bufbuild/buf/releases/download/v1.32.2/buf-Linux-x86_64.tar.gz"],
     )
 
+    # Support cross building and packaging for openwrt_amd64 via the openwrt SDK
+    http_archive(
+        name = "openwrt_x86_64_SDK",
+        build_file = "@//dist/openwrt:BUILD.external.bazel",
+        patch_args = ["-p1"],
+        patches = ["@//dist/openwrt:endian_h.patch"],
+        sha256 = "df9cbce6054e6bd46fcf28e2ddd53c728ceef6cb27d1d7fc54a228f272c945b0",
+        strip_prefix = "openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64",
+        urls = ["https://downloads.openwrt.org/releases/23.05.2/targets/x86/64/openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz"],
+    )
+
 non_module_deps = module_extension(
     implementation = _non_module_deps_impl,
 )

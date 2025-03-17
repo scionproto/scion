@@ -215,7 +215,12 @@ use_repo(
     non_module_deps,
     "buf",
     "com_github_bazelbuild_buildtools",
+    "openwrt_x86_64_SDK",
     "rules_antlr",
+)
+
+register_toolchains(
+    "//dist/openwrt:x86_64_openwrt_toolchain",
 )
 
 # Support cross building and packaging for openwrt_amd64 via the openwrt SDK

@@ -342,11 +342,11 @@ def _impl(ctx):
                     flag_group(
                         flags = [
                             "-isystem",
-                            "external/openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include",
+                            "external/_main~non_module_deps~openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include",
                             "-isystem",
-                            "external/openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/include",
+                            "external/_main~non_module_deps~openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/include",
                             "-isystem",
-                            "external/openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64/include",
+                            "external/_main~non_module_deps~openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64/include",
                         ],
                     ),
                 ],

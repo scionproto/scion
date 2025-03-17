@@ -254,7 +254,7 @@
     },
     "//:non_module_deps.bzl%non_module_deps": {
       "general": {
-        "bzlTransitiveDigest": "6+Iril3wsXriFEXFRTJhqLGrlLlFzQ24WQsZHT9jhBw=",
+        "bzlTransitiveDigest": "r3zMTV6KicbZSW2ijXBZFjLLecgPnpjCMSkxv2puw0M=",
         "usagesDigest": "5s12WgUgDcGvexJfl0bIS7GJ14+1NKrsFrPySvayGSw=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -291,6 +291,24 @@
               "strip_prefix": "buf/bin",
               "urls": [
                 "https://github.com/bufbuild/buf/releases/download/v1.32.2/buf-Linux-x86_64.tar.gz"
+              ]
+            }
+          },
+          "openwrt_x86_64_SDK": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_archive",
+            "attributes": {
+              "build_file": "@@//dist/openwrt:BUILD.external.bazel",
+              "patch_args": [
+                "-p1"
+              ],
+              "patches": [
+                "@@//dist/openwrt:endian_h.patch"
+              ],
+              "sha256": "df9cbce6054e6bd46fcf28e2ddd53c728ceef6cb27d1d7fc54a228f272c945b0",
+              "strip_prefix": "openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64",
+              "urls": [
+                "https://downloads.openwrt.org/releases/23.05.2/targets/x86/64/openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
               ]
             }
           }
