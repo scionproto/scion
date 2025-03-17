@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM debian-systemd:1.0
 
 ARG RELEASE="https://github.com/scionproto/scion/releases/download/v0.12.0/scion_0.12.0_deb_amd64.tar.gz"
 
