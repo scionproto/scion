@@ -174,9 +174,87 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//:antlr.bzl%antlr": {
+      "general": {
+        "bzlTransitiveDigest": "i3dxFh+d1uWZQPkMfsze7rH1hM+1xkwV7pLWRduKLe4=",
+        "usagesDigest": "ddO/Ubtz2qo1xlt+jxGGlf3fE/evDDlxMVk+NuHkjkk=",
+        "recordedFileInputs": {},
+        "recordedDirentsInputs": {},
+        "envVariables": {},
+        "generatedRepoSpecs": {
+          "antlr4_runtime": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_jar",
+            "attributes": {
+              "urls": [
+                "https://jcenter.bintray.com/org/antlr/antlr4-runtime/4.13.1/antlr4-runtime-4.13.1.jar",
+                "https://repo1.maven.org/maven2/org/antlr/antlr4-runtime/4.13.1/antlr4-runtime-4.13.1.jar"
+              ],
+              "sha256": "54665d2838cc66458343468efc539e454fc95b46a8a04b13c6ac43fc9be63505"
+            }
+          },
+          "antlr4_tool": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_jar",
+            "attributes": {
+              "urls": [
+                "https://jcenter.bintray.com/org/antlr/antlr4/4.13.1/antlr4-4.13.1.jar",
+                "https://repo1.maven.org/maven2/org/antlr/antlr4/4.13.1/antlr4-4.13.1.jar"
+              ],
+              "sha256": "ce261dce69525839aa9fc5bd232ce1b813a7a40a75030713cc4a80ef8170f3d5"
+            }
+          },
+          "antlr3_runtime": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_jar",
+            "attributes": {
+              "urls": [
+                "https://jcenter.bintray.com/org/antlr/antlr-runtime/3.5.2/antlr-runtime-3.5.2.jar",
+                "https://repo1.maven.org/maven2/org/antlr/antlr-runtime/3.5.2/antlr-runtime-3.5.2.jar"
+              ],
+              "sha256": "ce3fc8ecb10f39e9a3cddcbb2ce350d272d9cd3d0b1e18e6fe73c3b9389c8734"
+            }
+          },
+          "stringtemplate4": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_jar",
+            "attributes": {
+              "urls": [
+                "https://jcenter.bintray.com/org/antlr/ST4/4.3/ST4-4.3.jar",
+                "https://repo1.maven.org/maven2/org/antlr/ST4/4.3/ST4-4.3.jar"
+              ],
+              "sha256": "28547dba48cfceb77b6efbfe069aebe9ed3324ae60dbd52093d13a1d636ed069"
+            }
+          },
+          "javax_json": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_jar",
+            "attributes": {
+              "urls": [
+                "https://jcenter.bintray.com/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar",
+                "https://repo1.maven.org/maven2/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar"
+              ],
+              "sha256": "0e1dec40a1ede965941251eda968aeee052cc4f50378bc316cc48e8159bdbeb4"
+            }
+          }
+        },
+        "recordedRepoMappingEntries": [
+          [
+            "",
+            "rules_antlr",
+            "_main~non_module_deps~rules_antlr"
+          ],
+          [
+            "_main~non_module_deps~rules_antlr",
+            "bazel_tools",
+            "bazel_tools"
+          ]
+        ]
+      }
+    },
     "//:non_module_deps.bzl%non_module_deps": {
       "general": {
-        "bzlTransitiveDigest": "s72lfkcKdUwKg0YtYHbpzPREGZB4IVTHHETVvvH9+oo=",
+        "bzlTransitiveDigest": "6+Iril3wsXriFEXFRTJhqLGrlLlFzQ24WQsZHT9jhBw=",
         "usagesDigest": "5s12WgUgDcGvexJfl0bIS7GJ14+1NKrsFrPySvayGSw=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -190,6 +268,17 @@
               "strip_prefix": "buildtools-8.0.3",
               "urls": [
                 "https://github.com/bazelbuild/buildtools/archive/v8.0.3.tar.gz"
+              ]
+            }
+          },
+          "rules_antlr": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_archive",
+            "attributes": {
+              "sha256": "a9b2f98aae1fb26e9608be1e975587e6271a3287e424ced28cbc77f32190ec41",
+              "strip_prefix": "rules_antlr-0.6.1",
+              "urls": [
+                "https://github.com/bacek/rules_antlr/archive/refs/tags/0.6.1.tar.gz"
               ]
             }
           },

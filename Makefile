@@ -85,6 +85,10 @@ mocks:
 mocksdiff:
 	bazel run //tools:gomocks -- diff
 
+gazelle:
+	bazel run //:gazelle --verbose_failures --config=quiet
+	./tools/buildrill/go_integration_test_sync
+
 licenses:
 	tools/licenses.sh
 

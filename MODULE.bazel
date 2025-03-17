@@ -39,6 +39,8 @@ bazel_dep(name = "gazelle", version = "0.42.0")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
+
+# go_deps.module() is needed for tools dependencies (previously tool_deps.bzl) that can't be added to go.mod
 go_deps.module(
     path = "github.com/pavius/impi",
     sum = "h1:DND6MzU+BLABhOZXbELR3FU8b+zDgcq4dOCNLhiTYuI=",
@@ -213,6 +215,7 @@ use_repo(
     non_module_deps,
     "buf",
     "com_github_bazelbuild_buildtools",
+    "rules_antlr",
 )
 
 # Support cross building and packaging for openwrt_amd64 via the openwrt SDK
@@ -221,6 +224,17 @@ bazel_dep(name = "rules_cc", version = "0.1.1")
 
 # Antlr
 bazel_dep(name = "rules_java", version = "8.10.0")
+
+antlr = use_extension("//:antlr.bzl", "antlr")
+antlr.download(version = "4.13.1")
+use_repo(
+    antlr,
+    "antlr3_runtime",
+    "antlr4_runtime",
+    "antlr4_tool",
+    "javax_json",
+    "stringtemplate4",
+)
 
 # Other dependencies
 bazel_dep(name = "bazel_skylib", version = "1.7.1")

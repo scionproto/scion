@@ -9,7 +9,7 @@ Go dependencies are managed as `Go modules <https://golang.org/ref/mod>`_.
 Dependencies are controlled by the ``go.mod`` file, and cryptographic hashes of
 the dependencies are stored in the ``go.sum`` file.
 
-When building with Bazel, all external dependencies are managed with ``go_deps``
+When building with Bazel, external dependencies are managed with ``go_deps``
 extension in the MODULES file.
 All direct Go dependencies of the module have to be listed explicitly.
 The @io_bazel_rules_go//go target automatically updates the ``use_repo`` call
@@ -20,7 +20,7 @@ Workflow to modify dependencies
 
 To add/remove or update dependencies:
 
-1. Modify ``go.mod``, manually or using e.g. ``go get``.
+1. Modify ``go.mod``, manually or using e.g. ``bazel run @io_bazel_rules_go//go get``.
 2. ``bazel mod tidy``
 3. ``make licenses``, to update the licenses with the new dependency
 4. ``make gazelle``, to update the build files that depend on the newly added dependency
