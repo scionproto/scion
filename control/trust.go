@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +34,7 @@ import (
 func LoadTrustMaterial(ctx context.Context, configDir string, db trust.DB) error {
 	logger := log.FromCtx(ctx)
 	certsDir := filepath.Join(configDir, "certs")
-	loaded, err := trust.LoadTRCs(context.Background(), certsDir, db)
+	loaded, err := trust.LoadTRCs(ctx, certsDir, db)
 	if err != nil {
 		return serrors.Wrap("loading TRCs from disk", err)
 	}
@@ -46,7 +47,7 @@ func LoadTrustMaterial(ctx context.Context, configDir string, db trust.DB) error
 		logger.Info("Ignoring non-TRC", "file", f, "reason", r)
 	}
 	localCertsDir := filepath.Join(configDir, "crypto/as")
-	loaded, err = trust.LoadChains(context.Background(), localCertsDir, db)
+	loaded, err = trust.LoadChains(ctx, localCertsDir, db)
 	if err != nil {
 		return serrors.Wrap("loading certificate chains from disk", err)
 	}
@@ -71,20 +72,16 @@ func NewTLSCertificateLoader(
 	db trust.DB,
 	cfgDir string,
 ) cstrust.TLSCertificateLoader {
-
 	return cstrust.TLSCertificateLoader{
 		SignerGen: newCachingSignerGen(ia, extKeyUsage, db, cfgDir),
 	}
 }
 
 // NewSigner creates a renewing signer backed by a certificate chain.
-func NewSigner(ia addr.IA, db trust.DB, cfgDir string) cstrust.RenewingSigner {
+func NewSigner(ctx context.Context, ia addr.IA, db trust.DB, cfgDir string) cstrust.RenewingSigner {
 	signer := cstrust.RenewingSigner{
 		SignerGen: newCachingSignerGen(ia, x509.ExtKeyUsageAny, db, cfgDir),
 	}
-
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
 	if _, err := signer.SignerGen.Generate(ctx); err != nil {
 		log.Debug("Initial signer generation failed", "err", err)
 	}
@@ -100,7 +97,6 @@ func newCachingSignerGen(
 	db trust.DB,
 	cfgDir string,
 ) *cstrust.CachingSignerGen {
-
 	gen := trust.SignerGen{
 		IA: ia,
 		DB: &cstrust.CryptoLoader{
