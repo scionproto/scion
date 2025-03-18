@@ -17,6 +17,7 @@ package bfd
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -44,7 +45,7 @@ const (
 
 var (
 	// AlreadyRunning is the error returned by session run function when called for twice.
-	AlreadyRunning = serrors.New("is running")
+	AlreadyRunning = errors.New("is running")
 )
 
 // Session describes a BFD Version 1 (RFC 5880) Session. Only Asynchronous mode is supported.
