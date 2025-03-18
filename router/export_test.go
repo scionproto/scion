@@ -129,13 +129,6 @@ func mustMakeDP(
 	}
 	dp.SetPortRange(uint16(dispatchedPortStart), uint16(dispatchedPortEnd))
 
-	// Currently there is no dataplane without the udpip provider.
-	// Not having a registered factory for it is a panicable offsense.
-	dp.underlays["udpip"] = underlayProviders["udpip"](
-		dp.RunConfig.BatchSize,
-		dp.RunConfig.SendBufferSize,
-		dp.RunConfig.ReceiveBufferSize,
-	)
 	if connNewer == nil {
 		dp.underlays["udpip"].SetConnNewer(MockConnNewer{})
 	} else {
