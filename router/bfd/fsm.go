@@ -59,8 +59,8 @@ const (
 // the integer value of the state when it is unknown.
 func (s state) String() string {
 	x := layers.BFDState(s)
-	if x == layers.BFDStateUp || x == layers.BFDStateDown || x == layers.BFDStateAdminDown ||
-		x == layers.BFDStateInit {
+	switch x {
+	case layers.BFDStateUp, layers.BFDStateDown, layers.BFDStateAdminDown, layers.BFDStateInit:
 		return layers.BFDState(s).String()
 	}
 	return fmt.Sprintf("Unknown (%d)", uint8(s))

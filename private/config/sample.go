@@ -41,7 +41,7 @@ func WriteSample(dst io.Writer, path Path, ctx CtxMap, samplers ...Sampler) {
 		sampler.Sample(&buf, path, ctx)
 		_, err := io.Copy(dst, &buf)
 		if err != nil {
-			panic(fmt.Sprintf("Unable to write sample err=%s", err))
+			panic(fmt.Sprintf("unable to write sample: %v", err))
 		}
 	}
 }
@@ -50,7 +50,7 @@ func WriteSample(dst io.Writer, path Path, ctx CtxMap, samplers ...Sampler) {
 func WriteString(dst io.Writer, s string) {
 	_, err := dst.Write([]byte(s))
 	if err != nil {
-		panic(fmt.Sprintf("Unable to write string err=%s", err))
+		panic(fmt.Sprintf("unable to write string: %v", err))
 	}
 }
 

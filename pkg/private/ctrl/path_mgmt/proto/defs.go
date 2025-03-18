@@ -21,6 +21,8 @@ suitable place eventually.
 */
 package proto
 
+import "fmt"
+
 type LinkType uint16
 
 // Values of LinkType.
@@ -92,9 +94,8 @@ func (c PathSegType) String() string {
 		return "down"
 	case PathSegType_core:
 		return "core"
-
 	default:
-		return ""
+		return fmt.Sprintf("unknown(%d)", c)
 	}
 }
 
