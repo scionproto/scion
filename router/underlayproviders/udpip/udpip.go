@@ -423,9 +423,6 @@ func (u *provider) NewExternalLink(
 		return nil, err
 	}
 
-	conn, err := u.connNewer.New(localAddr, remoteAddr,
-		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
-
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
@@ -433,6 +430,12 @@ func (u *provider) NewExternalLink(
 		// This is a really bad idea. We can't just panic because it may be a configuration error.
 		// So, we have to return an error.
 		return nil, serrors.New("remote address reused")
+	}
+
+	conn, err := u.connNewer.New(localAddr, remoteAddr,
+		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
+	if err != nil {
+		return nil, err
 	}
 
 	queue := make(chan *router.Packet, qSize)

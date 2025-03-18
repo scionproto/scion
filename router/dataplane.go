@@ -262,8 +262,17 @@ func newDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
 // but returns by value to facilitate the initialization of composed structs without an temporary
 // copy.
 func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
+	// So many tests need the udpip underlay provider instantiated early that we do it here rather
+	// than in AddInternalInterface. Currently there can be no dataplane without the udpip provider,
+	// therefore not having a registered factory for it is a panicable offsense. We have no plan B.
+
 	dp := dataPlane{
-		underlays:                      make(map[string]UnderlayProvider),
+		underlays: map[string]UnderlayProvider{
+			"udpip": underlayProviders["udpip"](
+				runConfig.BatchSize,
+				runConfig.SendBufferSize,
+				runConfig.ReceiveBufferSize,
+			)},
 		interfaces:                     make(map[uint16]Link),
 		linkTypes:                      make(map[uint16]topology.LinkType),
 		neighborIAs:                    make(map[uint16]addr.IA),
@@ -274,17 +283,7 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 		RunConfig:                      runConfig,
 	}
 
-	// So many tests need the udpip underlay provider instantiated early that we do it here rather
-	// than in AddInternalInterface. Currently there can be no dataplane without the udpip provider,
-	// therefore not having a registered factory for it is a panicable offsense. We have no plan B.
-
-	dp.underlays["udpip"] = underlayProviders["udpip"](
-		dp.RunConfig.BatchSize,
-		dp.RunConfig.SendBufferSize,
-		dp.RunConfig.ReceiveBufferSize,
-	)
-
-	return dp
+	return dp //nolint:govet // there's a mutex in dp and we return by value
 }
 
 // setRunning() Configures the running state of the data plane to true. setRunning() is called once
@@ -431,9 +430,18 @@ func (d *dataPlane) AddExternalInterface(
 	}
 	d.linkTypes[ifID] = link.LinkTo
 	d.addForwardingMetrics(ifID, External)
-	d.interfaces[ifID], err = underlay.NewExternalLink(
-		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, ifID, d.forwardingMetrics[ifID])
-	return err
+	lk, err := underlay.NewExternalLink(
+		d.RunConfig.BatchSize,
+		bfd,
+		link.Local.Addr,
+		link.Remote.Addr,
+		ifID,
+		d.forwardingMetrics[ifID])
+	if err != nil {
+		return err
+	}
+	d.interfaces[ifID] = lk
+	return nil
 }
 
 // AddNeighborIA adds the neighboring IA for a given interface ID. If an IA for
@@ -571,7 +579,7 @@ func (d *dataPlane) AddNextHop(
 	// Note that a link to the same sibling router might already exist. If so, it will be
 	// returned instead of creating a new one. As a result, the bfd session will be ignored,
 	// and since it isn't started it will simply be garbage collected.
-	lk, err := d.underlays[link.Provider].NewSiblingLink(
+	lk, err := underlay.NewSiblingLink(
 		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, d.forwardingMetrics[ifID])
 	if err != nil {
 		return err

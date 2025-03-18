@@ -22,6 +22,7 @@ import (
 	"net/netip"
 
 	"github.com/golang/mock/gomock"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/private/topology"
@@ -62,9 +63,9 @@ func (l *MockLink) SendBlocking(p *Packet)   {}
 
 func newMockLink(ingress uint16) Link { return &MockLink{ifID: ingress} }
 
-// NewPacket makes a mock packet. It has one shortcoming which makes it unsuited for some tests:
-// The packet buffer is strictly no bigger than the supplied bytes; which means that it cannot
-// be used to respond via SCMP. Also, it refers to a mock link that has the scope Internal in all cases.
+// NewPacket makes a mock packet. It has one shortcoming which makes it unsuited for some tests: The
+// packet buffer is strictly no bigger than the supplied bytes; which means that it cannot be used
+// to respond via SCMP. Also, it refers to a mock link that has the scope Internal in all cases.
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	p := Packet{
 		RemoteAddr: &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},

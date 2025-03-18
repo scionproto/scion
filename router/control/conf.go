@@ -64,12 +64,6 @@ type LinkEnd struct {
 	IfID iface.ID
 }
 
-// AddrInfo describes an Address in a underlay-independent format.
-type AddrInfo struct {
-	underlay string // The underlay provider that can use the address
-	address  string // String representation that the underlay can interpret.
-}
-
 type ObservableDataplane interface {
 	ListInternalInterfaces() ([]InternalInterface, error)
 	ListExternalInterfaces() ([]ExternalInterface, error)
@@ -246,7 +240,8 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			linkInfo.BFD = BFD{}
 		}
 
-		if err := dp.AddExternalInterface(ifID, linkInfo, localHost, remoteHost, owned); err != nil {
+		if err := dp.AddExternalInterface(
+			ifID, linkInfo, localHost, remoteHost, owned); err != nil {
 			return err
 		}
 	}
