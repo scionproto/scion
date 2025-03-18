@@ -30,10 +30,22 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/private/underlay/conn"
-	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
 )
+
+// An interface to enable unit testing.
+type ConnNewer interface {
+	New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error)
+}
+
+// The default ConnNewer for this underlay: opens an underlay conn.
+type un struct {
+}
+
+func (_ un) New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
+	return conn.New(l, r, c)
+}
 
 // provider implements UnderlayProvider by making and returning Udp/Ip links.
 //
@@ -49,6 +61,7 @@ type provider struct {
 	internalHashSeed   uint32         // As a result, this too is shared.
 	receiveBufferSize  int
 	sendBufferSize     int
+	connNewer          ConnNewer // un{}, except for unit tests
 }
 
 var (
@@ -76,7 +89,14 @@ func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) route
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
+		connNewer:         un{},
 	}
+}
+
+// SetConnNewer installs the given newer. newer must be an implementation of ConnNewer or
+// panic will ensue. Only for use in unit tests.
+func (u *provider) SetConnNewer(newer any) {
+	u.connNewer = newer.(ConnNewer)
 }
 
 func (u *provider) NumConnections() int {
@@ -99,9 +119,8 @@ func (u *provider) Start(
 	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
 	u.mu.Unlock()
 
-	// Links MUST be started before connections. They need procQs and pool to process
-	// incoming packets. Given that this is an internal mater, we don't pay the
-	// price of checking at use time.
+	// Links MUST be started before connections. Given that this is an internal mater, we don't pay
+	// the price of checking at use time.
 	for _, l := range linkSnapshot {
 		l.start(ctx, procQs, pool)
 	}
@@ -189,7 +208,7 @@ func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
 
 	// A collection of socket messages, as the readBatch API expects them. We keep using the same
 	// collection, call after call; only replacing the buffer.
-	msgs := underlayconn.NewReadMessages(batchSize)
+	msgs := conn.NewReadMessages(batchSize)
 
 	// An array of corresponding packet references. Each corresponds to one msg.
 	// The packet owns the buffer that we set in the matching msg, plus the metadata that we'll add.
@@ -301,7 +320,7 @@ func (u *udpConnection) send(batchSize int, pool chan *router.Packet) {
 
 	// We use this as a temporary buffer, but allocate it just once
 	// to save on garbage handling.
-	msgs := make(underlayconn.Messages, batchSize)
+	msgs := make(conn.Messages, batchSize)
 	for i := range msgs {
 		msgs[i].Buffers = make([][]byte, 1)
 	}
@@ -395,21 +414,17 @@ func (u *provider) NewExternalLink(
 	metrics router.InterfaceMetrics,
 ) (router.Link, error) {
 
-	localAddr, err := netip.ParseAddrPort(local)
+	localAddr, err := conn.ResolveAddrPortOrPort(local)
 	if err != nil {
 		return nil, err
 	}
-	remoteAddr, err := netip.ParseAddrPort(remote)
+	remoteAddr, err := conn.ResolveAddrPort(remote)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := conn.New(localAddr, remoteAddr,
+	conn, err := u.connNewer.New(localAddr, remoteAddr,
 		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
-	if remoteAddr == (netip.AddrPort{}) {
-		// The router doesn't do this. This is an internal error.
-		panic("Zero address not supported")
-	}
 
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -548,18 +563,14 @@ func (u *provider) NewSiblingLink(
 	metrics router.InterfaceMetrics,
 ) (router.Link, error) {
 
-	// localAddr, err := netip.ParseAddrPort(local)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	remoteAddr, err := netip.ParseAddrPort(remote)
+	// We don't currently use the address, but that will change. It *must* be valid.
+	_, err := conn.ResolveAddrPortOrPort(local)
 	if err != nil {
 		return nil, err
 	}
-
-	if remoteAddr == (netip.AddrPort{}) {
-		// The router doesn't do this. This is an internal error.
-		panic("Zero address not supported")
+	remoteAddr, err := conn.ResolveAddrPort(remote)
+	if err != nil {
+		return nil, err
 	}
 
 	u.mu.Lock()
@@ -689,7 +700,7 @@ type internalLink struct {
 // NewInternalLink returns a internal link over the UdpIpUnderlay.
 //
 // TODO(multi_underlay): We still go with the assumption that internal links are always
-// udpip, so we don't expect a string here. That will change.
+// udpip, so we don't expect a string here. That should change.
 func (u *provider) NewInternalLink(
 	localAddr netip.AddrPort, qSize int, metrics router.InterfaceMetrics) (router.Link, error) {
 
@@ -701,7 +712,7 @@ func (u *provider) NewInternalLink(
 		panic("More than one internal link")
 	}
 
-	conn, err := conn.New(
+	conn, err := u.connNewer.New(
 		localAddr, netip.AddrPort{},
 		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
 

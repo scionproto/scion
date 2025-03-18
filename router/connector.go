@@ -124,12 +124,12 @@ func (c *Connector) AddExternalInterface(
 			c.siblingInterfaces = make(map[uint16]control.SiblingInterface)
 		}
 		c.siblingInterfaces[intf] = control.SiblingInterface{
-			IfID:              intf,
-			InternalInterface: link.Remote.Addr, // internal address of the sibling router
-			Relationship:      link.LinkTo,
-			MTU:               link.MTU,
-			NeighborIA:        link.Remote.IA,
-			State:             control.InterfaceDown,
+			IfID:            intf,
+			InternalAddress: link.Remote.Addr, // address of the sibling router
+			Relationship:    link.LinkTo,
+			MTU:             link.MTU,
+			NeighborIA:      link.Remote.IA,
+			State:           control.InterfaceDown,
 		}
 		return c.DataPlane.AddNextHop(intf, link, localHost, remoteHost)
 	}

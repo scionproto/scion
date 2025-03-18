@@ -17,13 +17,18 @@
 package router
 
 import (
+	"fmt"
 	"net"
 	"net/netip"
 
+	"github.com/golang/mock/gomock"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/bfd"
 	"github.com/scionproto/scion/router/control"
+	"github.com/scionproto/scion/router/mock_router"
 )
 
 var (
@@ -48,20 +53,18 @@ type MockLink struct {
 
 var _ Link = new(MockLink)
 
-func (l *MockLink) IsUp() bool                   { return true }
-func (l *MockLink) IfID() uint16                 { return l.ifID }
-func (l *MockLink) Scope() LinkScope             { return Internal }
-func (l *MockLink) BFDSession() *bfd.Session     { return nil }
-func (l *MockLink) CheckPktSrc(pkt *Packet) bool { return true }
-func (l *MockLink) Send(p *Packet) bool          { return true }
-func (l *MockLink) SendBlocking(p *Packet)       {}
+func (l *MockLink) IsUp() bool               { return true }
+func (l *MockLink) IfID() uint16             { return l.ifID }
+func (l *MockLink) Scope() LinkScope         { return Internal }
+func (l *MockLink) BFDSession() *bfd.Session { return nil }
+func (l *MockLink) Send(p *Packet) bool      { return true }
+func (l *MockLink) SendBlocking(p *Packet)   {}
 
 func newMockLink(ingress uint16) Link { return &MockLink{ifID: ingress} }
 
 // NewPacket makes a mock packet. It has one shortcoming which makes it unsuited for some tests:
 // The packet buffer is strictly no bigger than the supplied bytes; which means that it cannot
-// be used to respond via SCMP. Also, it refers to a mock link that has the scope Internal, yet
-// will confirm being the carrier of any kind of packet.
+// be used to respond via SCMP. Also, it refers to a mock link that has the scope Internal in all cases.
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	p := Packet{
 		RemoteAddr: &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
@@ -79,14 +82,35 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 	return &p
 }
 
+// MockConnNewer implements the udpip ConnNewer interface with a method that returns a mock
+// connection for testing purposes. An instance of this ConnNewer can be installed in a dataplane
+// by way of the SetConnNewer method, exported here by the Dataplane type, or by way of
+// dp.underlays[underlay].SetConnNewer(newer) for internal tests that use the dataPlane type.
+type MockConnNewer struct {
+	Ctrl *gomock.Controller
+	Conn BatchConn
+}
+
+// New returns a BatchConn as the udpip underlay might have. If the field conn is non-nil, then that
+// is what New returns. That enables tests to supply a specific BatchConn implementation. Else new
+// returns an instance of MockBatchConn that does nothing beyond satisfy the interface.
+func (m MockConnNewer) New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (BatchConn, error) {
+	var bc BatchConn
+	if m.Conn != nil {
+		return m.Conn, nil
+	}
+	bc = mock_router.NewMockBatchConn(m.Ctrl)
+	return bc, nil
+}
+
 // mustMakeDP initializes a dataplane structure configured per the test requirements.
-// external interfaces are given arbitrary addresses in the range 203.0.113/24 block and
+// External interfaces are given arbitrary addresses in the range 203.0.113/24 block and
 // are not meant to actually carry traffic. The underlying connection is the same as
 // the internal one, just to satisfy constraints.
 func mustMakeDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
-	internal BatchConn,
+	connNewer any, // Some implementation of BatchConnNewer, or nil for the default.
 	internalNextHops map[uint16]netip.AddrPort,
 	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
@@ -98,17 +122,25 @@ func mustMakeDP(
 	if err := dp.SetIA(local); err != nil {
 		panic(err)
 	}
-	for i, t := range linkTypes {
-		if err := dp.AddLinkType(i, t); err != nil {
-			panic(err)
-		}
-	}
 	for i, n := range neighbors {
 		if err := dp.AddNeighborIA(i, n); err != nil {
 			panic(err)
 		}
 	}
 	dp.SetPortRange(uint16(dispatchedPortStart), uint16(dispatchedPortEnd))
+
+	// Currently there is no dataplane without the udpip provider.
+	// Not having a registered factory for it is a panicable offsense.
+	dp.underlays["udpip"] = underlayProviders["udpip"](
+		dp.RunConfig.BatchSize,
+		dp.RunConfig.SendBufferSize,
+		dp.RunConfig.ReceiveBufferSize,
+	)
+	if connNewer == nil {
+		dp.underlays["udpip"].SetConnNewer(MockConnNewer{})
+	} else {
+		dp.underlays["udpip"].SetConnNewer(connNewer)
+	}
 
 	for id, addresses := range svc {
 		for _, addr := range addresses {
@@ -121,31 +153,52 @@ func mustMakeDP(
 	// Make dummy interfaces, as requested by the test. Only the internal interface is ever used to
 	// send or receive and then, not always. The external interfaces are given non-zero
 	// addresses in order to satisfy constraints.
-	if err := dp.AddInternalInterface(internal, netip.MustParseAddr("198.51.100.1")); err != nil {
+	if err := dp.AddInternalInterface(netip.MustParseAddrPort("198.51.100.1:3333")); err != nil {
 		panic(err)
 	}
-	yes := true
-	dummySrc := netip.AddrFrom4([4]byte{203, 0, 113, 0})
+	l := control.LinkEnd{
+		IA:   addr.MustParseIA("1-ff00:0:1"),
+		Addr: "203.0.113.0:3333",
+	}
+	lh := addr.HostIP(netip.MustParseAddrPort(l.Addr).Addr())
+	nobfd := control.BFD{Disable: ptr.To(true)}
 	for _, i := range external {
-		dummyDst := netip.AddrFrom4([4]byte{203, 0, 113, byte(i)})
-		if err := dp.AddExternalInterface(
-			i,
-			internal, // Just so it isn't nil... do not use!
-			control.LinkEnd{Addr: netip.AddrPortFrom(dummySrc, 3333)},
-			control.LinkEnd{Addr: netip.AddrPortFrom(dummyDst, 3333)},
-			control.BFD{Disable: &yes},
-		); err != nil {
+		r := control.LinkEnd{
+			IA:   addr.MustParseIA("1-ff00:0:3"),
+			Addr: fmt.Sprintf("203.0.113.%d:3333", i),
+		}
+		rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
+		link := control.LinkInfo{
+			Provider: "udpip",
+			Local:    l,
+			Remote:   r,
+			BFD:      nobfd,
+			LinkTo:   linkTypes[i],
+		}
+		if err := dp.AddExternalInterface(i, link, lh, rh); err != nil {
 			panic(err)
 		}
 	}
-	for i, addr := range internalNextHops {
-		if err := dp.AddNextHop(
-			i,
-			netip.MustParseAddrPort("198.51.100.1:3333"),
-			addr,
-			control.BFD{Disable: &yes},
-			"dummy",
-		); err != nil {
+
+	l = control.LinkEnd{
+		IA:   addr.MustParseIA("1-ff00:0:1"),
+		Addr: "198.51.100.1:3333",
+	}
+	lh = addr.HostIP(netip.MustParseAddrPort(l.Addr).Addr())
+	for i, a := range internalNextHops {
+		r := control.LinkEnd{
+			IA:   addr.MustParseIA(fmt.Sprintf("1-ff00:0:%d", 3+i)),
+			Addr: a.String(),
+		}
+		rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
+		link := control.LinkInfo{
+			Provider: "udpip",
+			Local:    l,
+			Remote:   r,
+			BFD:      nobfd,
+			LinkTo:   linkTypes[i],
+		}
+		if err := dp.AddNextHop(i, link, lh, rh); err != nil {
 			panic(err)
 		}
 	}
@@ -164,19 +217,19 @@ func mustMakeDP(
 	return
 }
 
-// newDP constructs a dataPlane structure with makeDataPlane and returns it by reference. It
+// newDP constructs a dataPlane structure with mustMakeDP and returns it by reference. It
 // returns a pointer to the unexported type, which is usable by internal tests.
 func newDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
-	internal BatchConn,
+	connNewer any, // Some implementation of BatchConnNewer, or nil for the default.
 	internalNextHops map[uint16]netip.AddrPort,
 	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
 	key []byte) *dataPlane {
 
-	dp := mustMakeDP(external, linkTypes, internal, internalNextHops, svc, local, neighbors, key)
+	dp := mustMakeDP(external, linkTypes, connNewer, internalNextHops, svc, local, neighbors, key)
 	return &dp
 }
 
@@ -185,13 +238,13 @@ type DataPlane struct {
 	dataPlane
 }
 
-// NewDP constructs a DataPlane structure with makeDataPlane and returns it by reference. It
+// NewDP constructs a DataPlane structure with mustMakeDP and returns it by reference. It
 // returns a pointer to the exported type, which is usable by non-internal tests. A couple of
 // methods are added to the exported type.
 func NewDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
-	internal BatchConn,
+	connNewer any, // Some implementation of BatchConnNewer, or nil for the default.
 	internalNextHops map[uint16]netip.AddrPort,
 	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
@@ -199,7 +252,7 @@ func NewDP(
 	key []byte) *DataPlane {
 
 	return &DataPlane{
-		mustMakeDP(external, linkTypes, internal, internalNextHops, svc, local, neighbors, key),
+		mustMakeDP(external, linkTypes, connNewer, internalNextHops, svc, local, neighbors, key),
 	}
 }
 
@@ -229,4 +282,10 @@ func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
 
 func ExtractServices(s *services) map[addr.SVC][]netip.AddrPort {
 	return s.m
+}
+
+// We cannot know which tests are going to mock which underlay and what the newer's
+// signature is. So we'll let the underlay implementation type-assert it.
+func (dp *DataPlane) SetConnNewer(underlay string, newer any) {
+	dp.underlays[underlay].SetConnNewer(newer)
 }

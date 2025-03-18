@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/segment/iface"
-	jsontopo "github.com/scionproto/scion/private/topology/json"
 )
 
 func TestMeta(t *testing.T) {
@@ -195,8 +194,9 @@ func TestIFInfoMap(t *testing.T) {
 			ID:           1,
 			BRName:       "br1-ff00:0:311-1",
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.MustParseAddrPort("192.0.2.1:44997"),
-			Remote:       netip.MustParseAddrPort("192.0.2.2:44998"),
+			Provider:     "udpip",
+			Local:        "192.0.2.1:44997",
+			Remote:       "192.0.2.2:44998",
 			IA:           addr.MustParseIA("1-ff00:0:312"),
 			LinkType:     Parent,
 			MTU:          1472,
@@ -210,8 +210,9 @@ func TestIFInfoMap(t *testing.T) {
 			ID:           3,
 			BRName:       "br1-ff00:0:311-1",
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.MustParseAddrPort("[2001:db8:a0b:12f0::1]:44997"),
-			Remote:       netip.MustParseAddrPort("[2001:db8:a0b:12f0::2]:44998"),
+			Provider:     "udpip",
+			Local:        "[2001:db8:a0b:12f0::1]:44997",
+			Remote:       "[2001:db8:a0b:12f0::2]:44998",
 			IA:           addr.MustParseIA("1-ff00:0:314"),
 			LinkType:     Child,
 			MTU:          4430,
@@ -220,8 +221,9 @@ func TestIFInfoMap(t *testing.T) {
 			ID:           8,
 			BRName:       "br1-ff00:0:311-1",
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.AddrPortFrom(netip.Addr{}, 44997),
-			Remote:       netip.MustParseAddrPort("192.0.2.3:44998"),
+			Provider:     "udpip",
+			Local:        ":44997",
+			Remote:       "192.0.2.3:44998",
 			IA:           addr.MustParseIA("1-ff00:0:313"),
 			LinkType:     Peer,
 			MTU:          1480,
@@ -230,51 +232,12 @@ func TestIFInfoMap(t *testing.T) {
 			ID:           11,
 			BRName:       "br1-ff00:0:311-2",
 			InternalAddr: netip.MustParseAddrPort(`[2001:db8:a0b:12f0::1%some-internal-zone]:0`),
-			Local:        netip.MustParseAddrPort(`[2001:db8:a0b:12f0::1%some-local-zone]:44897`),
-			Remote:       netip.MustParseAddrPort(`[2001:db8:a0b:12f0::2%some-remote-zone]:44898`),
+			Provider:     "udpip",
+			Local:        `[2001:db8:a0b:12f0::1%some-local-zone]:44897`,
+			Remote:       `[2001:db8:a0b:12f0::2%some-remote-zone]:44898`,
 			IA:           addr.MustParseIA("1-ff00:0:314"),
 			LinkType:     Child,
 			MTU:          4430,
-		},
-	}
-	assert.Equal(t, ifm, c.IFInfoMap)
-}
-
-func TestIFInfoMapDeprecatedPublicBind(t *testing.T) {
-	c := MustLoadTopo(t, "testdata/deprecated-public-bind.json")
-	ifm := IfInfoMap{
-		// local: bind IP, public port
-		1: IFInfo{
-			ID:           1,
-			BRName:       "br1-ff00:0:311-1",
-			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.MustParseAddrPort("10.0.0.1:44997"),
-			Remote:       netip.MustParseAddrPort("192.0.2.2:44998"),
-			IA:           addr.MustParseIA("1-ff00:0:312"),
-			LinkType:     Parent,
-			MTU:          1472,
-		},
-		// local: bind IP, public port
-		3: IFInfo{
-			ID:           3,
-			BRName:       "br1-ff00:0:311-1",
-			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.MustParseAddrPort("[2001:db8:a0b:12f0::8]:44997"),
-			Remote:       netip.MustParseAddrPort("[2001:db8:a0b:12f0::2]:44998"),
-			IA:           addr.MustParseIA("1-ff00:0:314"),
-			LinkType:     Child,
-			MTU:          4430,
-		},
-		// local: public, no bind
-		8: IFInfo{
-			ID:           8,
-			BRName:       "br1-ff00:0:311-1",
-			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.MustParseAddrPort("192.0.2.2:44997"),
-			Remote:       netip.MustParseAddrPort("192.0.2.3:44998"),
-			IA:           addr.MustParseIA("1-ff00:0:313"),
-			LinkType:     Peer,
-			MTU:          1480,
 		},
 	}
 	assert.Equal(t, ifm, c.IFInfoMap)
@@ -288,8 +251,9 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 			ID:           91,
 			BRName:       "borderrouter6-ff00:0:362-1",
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.MustParseAddrPort("192.0.2.1:4997"),
-			Remote:       netip.MustParseAddrPort("192.0.2.2:4998"),
+			Provider:     "udpip",
+			Local:        "192.0.2.1:4997",
+			Remote:       "192.0.2.2:4998",
 			IA:           addr.MustParseIA("6-ff00:0:363"),
 			LinkType:     Core,
 			MTU:          1472,
@@ -298,8 +262,9 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 			ID:           32,
 			BRName:       "borderrouter6-ff00:0:362-9",
 			InternalAddr: netip.MustParseAddrPort("[2001:db8:a0b:12f0::2]:0"),
-			Local:        netip.MustParseAddrPort("[2001:db8:a0b:12f0::1]:4997"),
-			Remote:       netip.MustParseAddrPort("[2001:db8:a0b:12f0::2]:4998"),
+			Provider:     "udpip",
+			Local:        "[2001:db8:a0b:12f0::1]:4997",
+			Remote:       "[2001:db8:a0b:12f0::2]:4998",
 			IA:           addr.MustParseIA("6-ff00:0:364"),
 			LinkType:     Child,
 			MTU:          4430,
@@ -335,60 +300,6 @@ func TestCopy(t *testing.T) {
 	newTopo := topo.Copy()
 	assert.Equal(t, topo.BR, newTopo.BR)
 	assert.Equal(t, topo, newTopo)
-}
-
-func TestExternalDataPlanePort(t *testing.T) {
-	testCases := []struct {
-		Name            string
-		Raw             *jsontopo.Underlay
-		ExpectedAddress netip.AddrPort
-		ExpectedError   assert.ErrorAssertionFunc
-	}{
-		{
-			Name:          "Empty",
-			Raw:           &jsontopo.Underlay{},
-			ExpectedError: assert.Error,
-		},
-		{
-			Name: "Port only",
-			Raw: &jsontopo.Underlay{
-				Local: ":42",
-			},
-			ExpectedError:   assert.NoError,
-			ExpectedAddress: netip.AddrPortFrom(netip.Addr{}, 42),
-		},
-		{
-			Name: "Good IPv4",
-			Raw: &jsontopo.Underlay{
-				Local: "127.0.0.1:42",
-			},
-			ExpectedError:   assert.NoError,
-			ExpectedAddress: netip.MustParseAddrPort("127.0.0.1:42"),
-		},
-		{
-			Name: "Good IPv6",
-			Raw: &jsontopo.Underlay{
-				Local: "[::1]:42",
-			},
-			ExpectedError:   assert.NoError,
-			ExpectedAddress: netip.MustParseAddrPort("[::1]:42"),
-		},
-		{
-			Name: "Good IPv6 with zone",
-			Raw: &jsontopo.Underlay{
-				Local: "[::1%some-zone]:42",
-			},
-			ExpectedError:   assert.NoError,
-			ExpectedAddress: netip.MustParseAddrPort(`[::1%some-zone]:42`),
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			topoBRAddr, err := RawBRIntfLocalAddr(tc.Raw)
-			tc.ExpectedError(t, err)
-			assert.Equal(t, tc.ExpectedAddress, topoBRAddr)
-		})
-	}
 }
 
 func TestRawAddrMap_ToTopoAddr(t *testing.T) {

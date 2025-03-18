@@ -61,6 +61,12 @@ type Link interface {
 // make them opaque; to be interpreted only by the underlay implementation.
 type UnderlayProvider interface {
 
+	// SetConnNewer is a unit testing device: it allows the replacement of the function
+	// that creates new underlay connections. Underlay implementations can, at their
+	// choice, implement this properly, or panic if it is called. The tests have to know
+	// which it is. Only router/export_test invokes this directly.
+	SetConnNewer(newer any)
+
 	// NumConnections returns the current number of configured connections.
 	NumConnections() int
 

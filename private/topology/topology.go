@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/pkg/segment/iface"
 	jsontopo "github.com/scionproto/scion/private/topology/json"
 	"github.com/scionproto/scion/private/topology/underlay"
+	"github.com/scionproto/scion/private/underlay/conn"
 )
 
 const (
@@ -269,7 +270,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 		if rawBr.InternalAddr == "" {
 			return serrors.New("Missing Internal Address", "br", name)
 		}
-		intAddr, err := resolveAddrPort(rawBr.InternalAddr)
+		intAddr, err := conn.ResolveAddrPort(rawBr.InternalAddr)
 		if err != nil {
 			return serrors.Wrap("unable to extract underlay internal data-plane address", err)
 		}
@@ -517,7 +518,7 @@ func (svc *svcInfo) getAllTopoAddrs() []TopoAddr {
 func svcMapFromRaw(ras map[string]*jsontopo.ServerInfo) (IDAddrMap, error) {
 	svcMap := make(IDAddrMap)
 	for name, svc := range ras {
-		a, err := resolveAddrPort(svc.Addr)
+		a, err := conn.ResolveAddrPort(svc.Addr)
 		if err != nil {
 			return nil, serrors.Wrap("could not parse address", err,
 				"address", svc.Addr, "process_name", name)
@@ -535,13 +536,13 @@ func svcMapFromRaw(ras map[string]*jsontopo.ServerInfo) (IDAddrMap, error) {
 func gatewayMapFromRaw(ras map[string]*jsontopo.GatewayInfo) (map[string]GatewayInfo, error) {
 	ret := make(map[string]GatewayInfo)
 	for name, svc := range ras {
-		c, err := resolveAddrPort(svc.CtrlAddr)
+		c, err := conn.ResolveAddrPort(svc.CtrlAddr)
 		if err != nil {
 			return nil, serrors.Wrap("could not parse control address", err,
 				"address", svc.CtrlAddr, "process_name", name)
 
 		}
-		d, err := resolveAddrPort(svc.DataAddr)
+		d, err := conn.ResolveAddrPort(svc.DataAddr)
 		if err != nil {
 			return nil, serrors.Wrap("could not parse data address", err,
 				"address", svc.DataAddr, "process_name", name)
@@ -551,7 +552,7 @@ func gatewayMapFromRaw(ras map[string]*jsontopo.GatewayInfo) (map[string]Gateway
 		// default (ctrl address & port 30856):
 		probeAddr := netip.AddrPortFrom(c.Addr(), 30856)
 		if svc.ProbeAddr != "" {
-			probeAddr, err = resolveAddrPort(svc.ProbeAddr)
+			probeAddr, err = conn.ResolveAddrPort(svc.ProbeAddr)
 			if err != nil {
 				return nil, serrors.Wrap("could not parse probe address", err,
 					"address", svc.ProbeAddr, "process_name", name)

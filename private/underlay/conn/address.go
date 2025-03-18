@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package topology
+package conn
 
 import (
 	"net"
@@ -23,8 +23,12 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// resolveAddrPortOrPort parses a string in the format "IP:port", "hostname:port" or just ":port".
-func resolveAddrPortOrPort(s string) (netip.AddrPort, error) {
+// These functions are string parsers for Udpip network addresses which comply
+// with our configuration conventions. Moved here from topology as the parsing
+// of addresses is being migrated outside the topology component.
+
+// ResolveAddrPortOrPort parses a string in the format "IP:port", "hostname:port" or just ":port".
+func ResolveAddrPortOrPort(s string) (netip.AddrPort, error) {
 	rh, rp, err := net.SplitHostPort(s)
 	if err != nil {
 		return netip.AddrPort{}, serrors.Wrap("failed to split host port", err)
@@ -36,11 +40,11 @@ func resolveAddrPortOrPort(s string) (netip.AddrPort, error) {
 		}
 		return netip.AddrPortFrom(netip.Addr{}, uint16(port)), nil
 	}
-	return resolveAddrPort(s)
+	return ResolveAddrPort(s)
 }
 
-// resolveAddrPort parses a string in the format "IP:port" or "hostname:port".
-func resolveAddrPort(s string) (netip.AddrPort, error) {
+// ResolveAddrPort parses a string in the format "IP:port" or "hostname:port".
+func ResolveAddrPort(s string) (netip.AddrPort, error) {
 	// detour via "legacy" net.UDPAddr; there is no corresponding function for netip.AddrPort
 	udpAddr, err := net.ResolveUDPAddr("udp", s)
 	if err != nil {

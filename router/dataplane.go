@@ -262,7 +262,7 @@ func newDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
 // but returns by value to facilitate the initialization of composed structs without an temporary
 // copy.
 func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
-	d := dataPlane{
+	dp := dataPlane{
 		underlays:                      make(map[string]UnderlayProvider),
 		interfaces:                     make(map[uint16]Link),
 		linkTypes:                      make(map[uint16]topology.LinkType),
@@ -274,15 +274,17 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 		RunConfig:                      runConfig,
 	}
 
-	// Currently there is no dataplane without the udpip provider.
-	// Not having a registered factory for it is a panicable offsense.
-	d.underlays["udpip"] = underlayProviders["udpip"](
-		runConfig.SendBufferSize,
-		runConfig.ReceiveBufferSize,
-		runConfig.BatchSize,
+	// So many tests need the udpip underlay provider instantiated early that we do it here rather
+	// than in AddInternalInterface. Currently there can be no dataplane without the udpip provider,
+	// therefore not having a registered factory for it is a panicable offsense. We have no plan B.
+
+	dp.underlays["udpip"] = underlayProviders["udpip"](
+		dp.RunConfig.BatchSize,
+		dp.RunConfig.SendBufferSize,
+		dp.RunConfig.ReceiveBufferSize,
 	)
 
-	return d
+	return dp
 }
 
 // setRunning() Configures the running state of the data plane to true. setRunning() is called once
@@ -376,7 +378,10 @@ func (d *dataPlane) AddInternalInterface(local netip.AddrPort) error {
 	if d.interfaces[0] != nil {
 		return alreadySet
 	}
+
 	d.addForwardingMetrics(0, Internal)
+
+	// The "udpip" underlay is instantiated at construction to simplify some tests.
 	lk, err := d.underlays["udpip"].NewInternalLink(
 		local, d.RunConfig.BatchSize, d.forwardingMetrics[0])
 	if err != nil {
@@ -392,7 +397,7 @@ func (d *dataPlane) AddInternalInterface(local netip.AddrPort) error {
 // If a connection for the given ID is already set this method will return an
 // error. This can only be called on a not yet running dataplane.
 func (d *dataPlane) AddExternalInterface(
-	ifID uint16, link control.LinkInfo, remoteHost, localHost addr.Host) error {
+	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host) error {
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
@@ -407,24 +412,24 @@ func (d *dataPlane) AddExternalInterface(
 	if _, exists := d.interfaces[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
-	if err := d.AddLinkType(ifID, link.LinkTo); err != nil {
-		return serrors.Wrap("adding link type", err, "if_id", ifID)
+	if link.Remote.Addr == "" {
+		return emptyValue
 	}
 
 	underlay, instantiated := d.underlays[link.Provider]
 	if !instantiated {
-		underlayProvider, exists := underlayProviders["udpip"]
+		underlayProvider, exists := underlayProviders[link.Provider]
 		if !exists {
 			panic("No provider for underlay " + link.Provider)
 		}
 		underlay = underlayProvider(
+			d.RunConfig.BatchSize,
 			d.RunConfig.SendBufferSize,
 			d.RunConfig.ReceiveBufferSize,
-			d.RunConfig.BatchSize,
 		)
 		d.underlays[link.Provider] = underlay
 	}
-
+	d.linkTypes[ifID] = link.LinkTo
 	d.addForwardingMetrics(ifID, External)
 	d.interfaces[ifID], err = underlay.NewExternalLink(
 		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, ifID, d.forwardingMetrics[ifID])
@@ -447,22 +452,6 @@ func (d *dataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	d.neighborIAs[ifID] = remote
-	return nil
-}
-
-// AddLinkType adds the link type for a given interface ID. If a link type for
-// the given ID is already set, this method will return an error. This can only
-// be called on a not yet running dataplane.
-func (d *dataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	if d.isRunning() {
-		return modifyExisting
-	}
-	if _, exists := d.linkTypes[ifID]; exists {
-		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
-	}
-	d.linkTypes[ifID] = linkTo
 	return nil
 }
 
@@ -560,21 +549,23 @@ func (d *dataPlane) AddNextHop(
 	if _, exists := d.interfaces[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
+	if link.Remote.Addr == "" {
+		return emptyValue
+	}
 	underlay, instantiated := d.underlays[link.Provider]
 	if !instantiated {
-		underlayProvider, exists := underlayProviders["udpip"]
+		underlayProvider, exists := underlayProviders[link.Provider]
 		if !exists {
 			panic("No provider for underlay " + link.Provider)
 		}
 		underlay = underlayProvider(
+			d.RunConfig.BatchSize,
 			d.RunConfig.SendBufferSize,
 			d.RunConfig.ReceiveBufferSize,
-			d.RunConfig.BatchSize,
 		)
 		d.underlays[link.Provider] = underlay
 	}
-
-	d.AddLinkType(ifID, link.LinkTo)
+	d.linkTypes[ifID] = link.LinkTo
 	d.addForwardingMetrics(ifID, Sibling)
 
 	// Note that a link to the same sibling router might already exist. If so, it will be

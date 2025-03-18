@@ -92,14 +92,18 @@ type ExternalInterface struct {
 	State InterfaceState
 }
 
-// SiblingInterface represents a sibling underlay interface of a router. A sibling interface
-// is an external interface owned by another router in the same AS.
+// SiblingInterface represents an external interface owned by another router in the same AS. This
+// data structure informs the creation of a sibling link between the local router and the sibling
+// router for the purpose of directing traffic to the sibling interface via the sibling router.
 type SiblingInterface struct {
 	// InterfaceID is the identifier of the external interface.
 	IfID uint16
-	// InternalInterfaces is the local address (internal interface)
-	// of the sibling router that owns this interface.
-	InternalInterface string // Underlay agnostic address format
+	// InternalAddress is the local address of an inner-facing interface of the sibling router that
+	// owns that interface. It is on an AS internal network but may not be the same as that router's
+	// InternalInterface (for example it could be dedicated to this sibling link or even use a
+	// different underlay protocol). However, currently sibling links share the regular internal
+	// interfaces.
+	InternalAddress string // Underlay agnostic address format
 	// Relationship describes the type of inter-AS links.
 	Relationship topology.LinkType
 	// MTU is the maximum Transmission Unit for SCION packets.
