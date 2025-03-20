@@ -27,6 +27,7 @@ build:osx --define gotags=sqlite_modernc
 
 ### options for test
 test --build_tests_only --print_relative_test_log_paths --test_output=errors --nobuild_python_zip --spawn_strategy=remote,worker,processwrapper-sandbox,local
+# https://github.com/scionproto/scion/issues/4739
 test --zip_undeclared_test_outputs=true
 
 ### predefined configurations (use with --config, eg. `bazel test --config=unit_all`)
