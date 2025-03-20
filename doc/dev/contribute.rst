@@ -7,6 +7,8 @@ Contribution Guide
 Welcome to the SCION contribution guide! If you are interested in contributing to
 the project, this page will help you out on your journey to your first SCION commit.
 
+.. Attention:: In all your interactions with the SCION developer community, you agree to be bound by our `Code of Conduct <https://github.com/scionproto/scion>`__.
+
 .. _slack:
 
 
@@ -111,7 +113,7 @@ The current members of the TC Implementation are:
 * Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
 * Markus Legner (|span-github| `@mlegner <https://github.com/mlegner>`_, |span-slack| @Markus Legner)
 * Roman Sharkov  (|span-github| `@romshark <https://github.com/romshark>`_, |span-slack| @Roman Scharkov)
-* Tilmann Zächke (|span-github| `@tzaeschke <https://github.com/tzaeschke>`_, |span-slack| @Tilmann Zäschke)
+* Tilmann Zäschke (|span-github| `@tzaeschke <https://github.com/tzaeschke>`_, |span-slack| @Tilmann Zäschke)
 
 .. rubric:: Responsibilities and Tasks
 
