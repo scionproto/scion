@@ -45,7 +45,7 @@ rm -rf $DSTDIR/org_uber_go_zap/checklicense.sh
 rm -rf $DSTDIR/org_golang_x_tools/gopls/
 rm -rf $DSTDIR/org_golang_x_tools/internal/lsp/cmd/usage/licenses.hlp
 rm -rf $DSTDIR/com_github_google_certificate_transparency_go/scripts
-rm -rf $DSTDIR/python_3_11_x86_64-unknown-linux-gnu/
+rm -rf $DSTDIR/python_3_12_x86_64-unknown-linux-gnu/
 rm -rf $DSTDIR/npm__*/
 find $DSTDIR/ -name "*.go" -type f -delete
 find $DSTDIR/ -name "*.sh" -type f -delete
