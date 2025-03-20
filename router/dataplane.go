@@ -404,7 +404,7 @@ func (d *dataPlane) AddExternalInterface(
 	if d.isRunning() {
 		return modifyExisting
 	}
-	bfd, err := d.newExternalInterfaceBFD(ifID, link, remoteHost, localHost)
+	bfd, err := d.newExternalInterfaceBFD(ifID, link, localHost, remoteHost)
 	if err != nil {
 		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
 	}

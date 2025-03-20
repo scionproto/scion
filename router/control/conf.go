@@ -206,15 +206,20 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			MTU:      iface.MTU,
 		}
 
-		// Host addresses are currently constructed from a hosts's internal underlay address
-		// under the assumption that it is always a UDP/IP address. These might have nothing
-		// to do with the local end of external or sibling links.
-		// TODO(multi_underlay): for now, we have no way to know the remote host address, so
-		// until the configuration schema catches up we have to assume that the remote address
-		// of the link is a udpip address and that it makes an acceptable scion Host address, as
-		// it has been so far. Routers do not need to resolve their own Host addresses but it
-		// needs to be valid. May be we should have an "unspecified" address for such purposes.
-		localHost := addr.HostIP(cfg.BR.InternalAddr.Addr())
+		// TODO(multi_underlay): Host addresses are currently constructed from a hosts's underlay
+		// address under the assumption that it is always a UDP/IP address. That assumption extends
+		// to external links: eventhough a SCION host address should be irrelevant there, BFD
+		// packets include it, so we oblige, to retain backward compatibility for now. Otherwise,
+		// we would: "localHost := addr.HostIP(cfg.BR.InternalAddr.Addr())".
+		// For remoteHost, it should also be underlay-idenpendent or derived from the
+		// the remote internal underlay address, but the configuration doesn't provide it yet.
+
+		localAddr, err := netip.ParseAddrPort(linkInfo.Local.Addr)
+		if err != nil {
+			return err
+		}
+		localHost := addr.HostIP(localAddr.Addr())
+
 		remoteAddr, err := netip.ParseAddrPort(linkInfo.Remote.Addr)
 		if err != nil {
 			return err
@@ -231,6 +236,8 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			linkInfo.Provider = "udpip" // For now, all internal interfaces use udp/ip.
 			linkInfo.Local.Addr = cfg.BR.InternalAddr.String()
 			linkInfo.Remote.Addr = iface.InternalAddr.String() // i.e. via sibling router.
+			localHost = addr.HostIP(cfg.BR.InternalAddr.Addr())
+			remoteHost = addr.HostIP(iface.InternalAddr.Addr())
 
 			// The link is between two AS-local routers. TODO(multi_underlay): double check it's
 			// not used for other purposes where the far router's AS is expected.
