@@ -1,4 +1,7 @@
-exports_files(glob([
-    "*.yml",
-    "*.yaml",
-]))
+exports_files(glob(
+    [
+        "*.yml",
+        "*.yaml",
+    ],
+    allow_empty = True,
+))

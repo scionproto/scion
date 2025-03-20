@@ -14,7 +14,10 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["analyzer_test.go"],
-    data = glob(["testdata/**"]),
+    data = glob(
+        ["testdata/**"],
+        allow_empty = True,
+    ),
     deps = [
         ":go_default_library",
         "@org_golang_x_tools//go/analysis/analysistest:go_default_library",

@@ -59,8 +59,11 @@ Dependencies
 ------------
 
 Bazel, as well as additional build tools and dependencies that are not managed by bazel, are installed in the ``pre-command`` hook.
+See `.buildkite/provision-agent.sh <https://github.com/scionproto/scion/blob/master/.buildkite/provision-agent.sh>`_.
 
-See `.buildkite/provision-agent.sh <https://github.com/scionproto/scion/blob/master/.buildkite/provision-agent.sh>`_
+One notable exception is managing go executable. It's required for ``oapi-codegen`` since upgrade to bzlmod.
+It's installed via a `bootstrap script <https://buildkite.com/docs/agent/v3/elastic-ci-aws/managing-elastic-ci-stack#customizing-instances-with-a-bootstrap-script>`_
+which is stored in a S3 bucket. The script and the IAM policy to read it are provided as parameters to CloudFormation template.
 
 Caching
 -------
@@ -112,6 +115,10 @@ Excerpt of the most relevant parameters:
    ScaleInIdlePeriod: 600  # shut down after 10 minutes idle
    ScaleOutFactor: 1.0
    OnDemandPercentage: 0   # use only spot instances
+
+   # Bootstrap Configuration:
+   BootstrapScriptUrl: s3://<bucket name>/<script name>
+   ManagedPolicyARNs: arn:aws:iam::<AWS account ID>:policy/<policy name>
 
 Cluster upgrade/downgrade
 -------------------------

@@ -7,6 +7,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	_ "crypto/sha1" // for crypto.SHA1
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -15,8 +16,6 @@ import (
 	"math/big"
 	"sort"
 	"time"
-
-	_ "crypto/sha1" // for crypto.SHA1
 
 	"github.com/scionproto/scion/pkg/scrypto/cms/oid"
 )

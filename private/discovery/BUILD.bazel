@@ -21,7 +21,10 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["toposervice_test.go"],
-    data = glob(["testdata/**"]),
+    data = glob(
+        ["testdata/**"],
+        allow_empty = True,
+    ),
     deps = [
         ":go_default_library",
         "//pkg/private/xtest:go_default_library",

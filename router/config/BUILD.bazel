@@ -24,7 +24,10 @@ go_test(
         "config_test.go",
         "export_test.go",
     ],
-    data = glob(["testdata/**"]),
+    data = glob(
+        ["testdata/**"],
+        allow_empty = True,
+    ),
     embed = [":go_default_library"],
     deps = [
         "//pkg/log/logtest:go_default_library",

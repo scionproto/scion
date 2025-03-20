@@ -55,7 +55,13 @@ go_library(
         "@io_bazel_rules_go//go/platform:openbsd": [
             "//private/app:go_default_library",
         ],
+        "@io_bazel_rules_go//go/platform:osx": [
+            "//private/app:go_default_library",
+        ],
         "@io_bazel_rules_go//go/platform:plan9": [
+            "//private/app:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:qnx": [
             "//private/app:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:solaris": [

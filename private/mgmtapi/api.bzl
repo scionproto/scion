@@ -2,10 +2,10 @@
 Macros for generating Go code from OpenAPI specs.
 """
 
-load("//tools/lint:write_source_files.bzl", "write_source_files")
-load("//rules_openapi:defs.bzl", _openapi_generate_go = "openapi_generate_go")
-load("@npm//private/mgmtapi/tools:@redocly/cli/package_json.bzl", redocly_bin = "bin")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@npm//private/mgmtapi/tools:@redocly/cli/package_json.bzl", redocly_bin = "bin")
+load("//rules_openapi:defs.bzl", _openapi_generate_go = "openapi_generate_go")
+load("//tools/lint:write_source_files.bzl", "write_source_files")
 
 def openapi_docs(
         name,

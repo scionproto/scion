@@ -68,7 +68,8 @@ func TestSDTopoReload(t *testing.T) {
 func setupTest(t *testing.T) {
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
-	mustExec(t, "docker", "image", "load", "-i", "daemon.tar/tarball.tar")
+	mustExec(t, "ls", "-l")
+	mustExec(t, "docker", "image", "load", "-i", "daemon/tarball.tar")
 	t.Cleanup(func() {
 		mustExec(t, "docker", "image", "rm", "scion/acceptance/topo_daemon_reload:daemon")
 	})

@@ -44,7 +44,13 @@ go_library(
         "@io_bazel_rules_go//go/platform:openbsd": [
             "//pkg/private/serrors:go_default_library",
         ],
+        "@io_bazel_rules_go//go/platform:osx": [
+            "//pkg/private/serrors:go_default_library",
+        ],
         "@io_bazel_rules_go//go/platform:plan9": [
+            "//pkg/private/serrors:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:qnx": [
             "//pkg/private/serrors:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:solaris": [
