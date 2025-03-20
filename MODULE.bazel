@@ -170,7 +170,7 @@ use_repo(
 )
 
 # Rules for container image building
-bazel_dep(name = "rules_oci", version = "1.8.0")  # 2.2.3
+bazel_dep(name = "rules_oci", version = "2.2.3")
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(

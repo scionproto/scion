@@ -100,7 +100,7 @@ func setupTest(t *testing.T) testState {
 	s.mustExec(t, "tar", "-xf", "crypto.tar", "-C", tmpDir)
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
-	s.mustExec(t, "docker", "image", "load", "-i", "control.tar/tarball.tar")
+	s.mustExec(t, "docker", "image", "load", "-i", "control/tarball.tar")
 	t.Cleanup(func() {
 		s.mustExec(t, "docker", "image", "rm", "scion/acceptance/topo_cs_reload:control")
 	})

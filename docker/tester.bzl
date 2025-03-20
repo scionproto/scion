@@ -1,6 +1,6 @@
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 # NOTE: This list needs to be in-sync with tester_deb.yaml
@@ -82,18 +82,17 @@ def scion_tester_image():
         labels = ":labels",
         visibility = ["//visibility:public"],
     )
-    oci_tarball(
+    oci_load(
         name = "tester.load",
         format = "docker",
         image = "tester",
         repo_tags = ["scion/tester:latest"],
     )
 
-    # see comment on scion_app.bzl
-    copy_file(
+    native.filegroup(
         name = "tester.tarball",
-        src = "tester.load",
-        out = "tester.tar",
+        srcs = [":tester.load"],
+        output_group = "tarball",
         visibility = ["//visibility:public"],
     )
 
