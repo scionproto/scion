@@ -190,7 +190,7 @@ use_repo(
 )
 
 # RPM packaging
-bazel_dep(name = "rules_pkg", version = "1.0.1")  # 1.1.0
+bazel_dep(name = "rules_pkg", version = "1.1.0")
 single_version_override(
     module_name = "rules_pkg",
     patches = [

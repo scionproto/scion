@@ -1,6 +1,6 @@
 --- pkg/rpm_pfg.bzl
 +++ pkg/rpm_pfg.bzl
-@@ -501,7 +501,7 @@
+@@ -518,7 +518,7 @@
          package_file_name = _make_rpm_filename(
              rpm_name,
              ctx.attr.version,
@@ -9,7 +9,7 @@
              release = ctx.attr.release,
          )
 
-@@ -705,6 +705,8 @@
+@@ -722,6 +722,8 @@
      )
 
      rpm_ctx.make_rpm_args.append("--out_file=" + output_file.path)
@@ -18,7 +18,7 @@
      rpm_ctx.output_rpm_files.append(output_file)
 
      if ctx.attr.debug:
-@@ -1003,21 +1005,30 @@
+@@ -1027,21 +1029,30 @@
          # funny if it's not provided.  The contents of the RPM are believed to
          # be set as expected, though.
          "architecture": attr.string(
