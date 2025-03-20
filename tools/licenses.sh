@@ -17,16 +17,17 @@ rm -rf $DSTDIR
     if [[ "$path" =~ "node_modules" || "$path" =~ "nodejs" || "$path" =~ "rules_license" ]]; then
         continue
     fi
-    if [[ "$path" == *~~* ]]; then
-        # paths like ./gazelle~~go_deps~com_github_antlr4_go_antlr_v4/LICENSE
-        clean_path=$(echo "$path" | sed 's/.*~//')
+    if [[ "$path" == *++* ]]; then
+        # paths like ./gazelle++go_deps+com_github_antlr4_go_antlr_v4/LICENSE
+        clean_path=$(echo "$path" | sed 's/.*+//')
     else
-        # paths like ./zlib~/contrib/dotzlib/LICENSE_1_0.txt
-        clean_path=$(echo "$path" | sed 's|^\./||' | sed 's/~//')
+        # paths like ./zlib+/contrib/dotzlib/LICENSE_1_0.txt
+        clean_path=$(echo "$path" | sed 's|^\./||' | sed 's/+//')
     fi
     if [[ "$clean_path" =~ "scion__download_0" ]]; then
         clean_path=$(echo "$clean_path" | sed 's/scion__download_0/go_sdk/')
     fi
+    echo "$path $clean_path"
     dst=$DSTDIR/$(dirname $clean_path)
     mkdir -p $dst
     cp $EXECROOT/external/$path $dst

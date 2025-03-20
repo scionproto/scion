@@ -342,11 +342,11 @@ def _impl(ctx):
                     flag_group(
                         flags = [
                             "-isystem",
-                            "external/_main~non_module_deps~openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include",
+                            "external/+non_module_deps+openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include",
                             "-isystem",
-                            "external/_main~non_module_deps~openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/include",
+                            "external/+non_module_deps+openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/include",
                             "-isystem",
-                            "external/_main~non_module_deps~openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64/include",
+                            "external/+non_module_deps+openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64/include",
                         ],
                     ),
                 ],
@@ -416,7 +416,7 @@ def musl_cc_toolchain(target_arch):
             "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/include/**",
             "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/lib/*.*",  # Link. Files NEEDED
             "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/sys-include/*",  # Link. Files NEEDED.
-        ]),
+        ], allow_empty = True),
         visibility = ["//visibility:public"],
     )
 

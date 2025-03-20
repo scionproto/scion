@@ -1,5 +1,5 @@
 ### common options for all subcommands (help, query, build, ...)
-common --show_timestamps --enable_platform_specific_config --enable_bzlmod
+common --show_timestamps --enable_platform_specific_config
 
 # connect to buchgr/bazel-remote cache
 # These flags can unfortunately not be specified for `common`, as they are not accepted by all subcommands (help, version, dump)
@@ -27,6 +27,7 @@ build:osx --define gotags=sqlite_modernc
 
 ### options for test
 test --build_tests_only --print_relative_test_log_paths --test_output=errors --nobuild_python_zip --spawn_strategy=remote,worker,processwrapper-sandbox,local
+test --zip_undeclared_test_outputs=true
 
 ### predefined configurations (use with --config, eg. `bazel test --config=unit_all`)
 test:race --@io_bazel_rules_go//go/config:race
