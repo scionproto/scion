@@ -5,18 +5,18 @@ load(":tester.bzl", "scion_tester_image")
 filegroup(
     name = "prod",
     srcs = [
-        ":control.tar",
-        ":daemon.tar",
-        ":dispatcher.tar",
-        ":gateway.tar",
-        ":router.tar",
+        ":control.tarball",
+        ":daemon.tarball",
+        ":dispatcher.tarball",
+        ":gateway.tarball",
+        ":router.tarball",
     ],
 )
 
 filegroup(
     name = "test",
     srcs = [
-        ":tester.tar",
+        ":tester.tarball",
     ],
 )
 
