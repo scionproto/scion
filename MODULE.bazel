@@ -123,11 +123,11 @@ use_repo(
 )
 
 # npm
-bazel_dep(name = "rules_nodejs", version = "6.3.0")
-bazel_dep(name = "aspect_rules_js", version = "2.1.3")
+bazel_dep(name = "rules_nodejs", version = "6.3.4")
+bazel_dep(name = "aspect_rules_js", version = "2.2.0")
 
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
-node.toolchain(node_version = "16.19.0")  # use DEFAULT_NODE_VERSION from previous version rules_nodejs; the current version links against too new glibc
+node.toolchain(node_version = "18.20.7")
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
 npm.npm_translate_lock(
@@ -170,7 +170,7 @@ use_repo(
 )
 
 # Rules for container image building
-bazel_dep(name = "rules_oci", version = "1.8.0")
+bazel_dep(name = "rules_oci", version = "1.8.0")  # 2.2.3
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(
@@ -190,7 +190,7 @@ use_repo(
 )
 
 # RPM packaging
-bazel_dep(name = "rules_pkg", version = "1.0.1")
+bazel_dep(name = "rules_pkg", version = "1.0.1")  # 1.1.0
 single_version_override(
     module_name = "rules_pkg",
     patches = [
@@ -205,7 +205,7 @@ use_repo(find_rpm, "rules_pkg_rpmbuild")
 register_toolchains("@rules_pkg_rpmbuild//:all")
 
 # Debian rules
-bazel_dep(name = "rules_distroless", version = "0.3.8")
+bazel_dep(name = "rules_distroless", version = "0.3.8")  # 0.5.1
 
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.install(
@@ -234,7 +234,7 @@ bazel_dep(name = "platforms", version = "0.0.11")
 bazel_dep(name = "rules_cc", version = "0.1.1")
 
 # Antlr
-bazel_dep(name = "rules_java", version = "8.10.0")
+bazel_dep(name = "rules_java", version = "8.11.0")
 
 antlr = use_extension("//:antlr.bzl", "antlr")
 antlr.download(version = "4.13.1")
@@ -249,8 +249,8 @@ use_repo(
 
 # Other dependencies
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
-bazel_dep(name = "aspect_bazel_lib", version = "2.13.0")
+bazel_dep(name = "aspect_bazel_lib", version = "2.14.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_proto_grpc", version = "5.0.1")
-bazel_dep(name = "protobuf", version = "29.3")
+bazel_dep(name = "protobuf", version = "29.3")  #30.1
 bazel_dep(name = "rules_shell", version = "0.4.0")
