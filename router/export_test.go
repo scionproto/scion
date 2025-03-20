@@ -52,14 +52,15 @@ type MockLink struct {
 	ifID uint16
 }
 
-var _ Link = new(MockLink)
+func (l *MockLink) IsUp() bool                                                   { return true }
+func (l *MockLink) IfID() uint16                                                 { return l.ifID }
+func (l *MockLink) Scope() LinkScope                                             { return Internal }
+func (l *MockLink) BFDSession() *bfd.Session                                     { return nil }
+func (l *MockLink) ResolveHostPort(p *Packet, host addr.Host, port uint16) error { return nil }
+func (l *MockLink) Send(p *Packet) bool                                          { return true }
+func (l *MockLink) SendBlocking(p *Packet)                                       {}
 
-func (l *MockLink) IsUp() bool               { return true }
-func (l *MockLink) IfID() uint16             { return l.ifID }
-func (l *MockLink) Scope() LinkScope         { return Internal }
-func (l *MockLink) BFDSession() *bfd.Session { return nil }
-func (l *MockLink) Send(p *Packet) bool      { return true }
-func (l *MockLink) SendBlocking(p *Packet)   {}
+var _ Link = new(MockLink)
 
 func newMockLink(ingress uint16) Link { return &MockLink{ifID: ingress} }
 

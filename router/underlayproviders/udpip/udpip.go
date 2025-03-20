@@ -34,6 +34,11 @@ import (
 	"github.com/scionproto/scion/router/bfd"
 )
 
+var (
+	resolveOnSiblingLink  = errors.New("unsupported address resolution on sibling link")
+	resolveOnExternalLink = errors.New("unsupported address resolution on external link")
+)
+
 // An interface to enable unit testing.
 type ConnNewer interface {
 	New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error)
@@ -61,6 +66,9 @@ type provider struct {
 	internalHashSeed   uint32         // As a result, this too is shared.
 	receiveBufferSize  int
 	sendBufferSize     int
+	dispatchStart      uint16
+	dispatchEnd        uint16
+	dispatchRedirect   uint16
 	connNewer          ConnNewer // un{}, except for unit tests
 }
 
@@ -103,6 +111,12 @@ func (u *provider) NumConnections() int {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	return len(u.allLinks)
+}
+
+func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
+	u.dispatchStart = start
+	u.dispatchEnd = end
+	u.dispatchRedirect = redirect
 }
 
 // The queues to be used by the receiver task are supplied at this point because they must be
@@ -503,6 +517,11 @@ func (l *externalLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
 
+// ResolveHostPort should not be useful on an external link so we don't implement it yet.
+func (l *externalLink) ResolveHostPort(p *router.Packet, host addr.Host, port uint16) error {
+	return resolveOnExternalLink
+}
+
 func (l *externalLink) Send(p *router.Packet) bool {
 	select {
 	case l.egressQ <- p:
@@ -650,6 +669,11 @@ func (l *siblingLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
 
+// ResolveHostPort should not be useful on a sibling link so we don't implement it yet.
+func (l *siblingLink) ResolveHostPort(p *router.Packet, host addr.Host, port uint16) error {
+	return resolveOnSiblingLink
+}
+
 func (l *siblingLink) Send(p *router.Packet) bool {
 	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address.
@@ -693,11 +717,14 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) 
 }
 
 type internalLink struct {
-	procQs  []chan *router.Packet
-	egressQ chan *router.Packet
-	metrics router.InterfaceMetrics
-	pool    chan *router.Packet
-	seed    uint32
+	procQs           []chan *router.Packet
+	egressQ          chan *router.Packet
+	metrics          router.InterfaceMetrics
+	pool             chan *router.Packet
+	seed             uint32
+	dispatchStart    uint16
+	dispatchEnd      uint16
+	dispatchRedirect uint16
 }
 
 // NewInternalLink returns a internal link over the UdpIpUnderlay.
@@ -725,9 +752,12 @@ func (u *provider) NewInternalLink(
 	u.internalHashSeed = makeHashSeed()
 	queue := make(chan *router.Packet, qSize)
 	il := &internalLink{
-		egressQ: queue,
-		metrics: metrics,
-		seed:    u.internalHashSeed,
+		egressQ:          queue,
+		metrics:          metrics,
+		seed:             u.internalHashSeed,
+		dispatchStart:    u.dispatchStart,
+		dispatchEnd:      u.dispatchEnd,
+		dispatchRedirect: u.dispatchRedirect,
 	}
 	c := &udpConnection{
 		conn:         conn,
@@ -773,6 +803,28 @@ func (l *internalLink) BFDSession() *bfd.Session {
 
 func (l *internalLink) IsUp() bool {
 	return true
+}
+
+// ResolveHostPort updates the packet's underlay destination according to the given
+// SCION host address and SCION port number.
+// On the udpip underlay, host addresses are bit-for-bit identical to underlay addresses. The
+// port space is the same, except if the packet is redirected to the shim dispatcher.
+func (l *internalLink) ResolveHostPort(p *router.Packet, host addr.Host, port uint16) error {
+	// TODO(jiceatscion): IP() is returned by value. The cost of copies adds up.
+	hostIP := host.IP()
+	if hostIP.Is4In6() {
+		return router.UnsupportedV4MappedV6Address
+	}
+	// Zero IP addresses (per IsUnspecified()) are not supported. Zero valued netip.Addr objects
+	// (per IsInvalid()) cannot happen here as dstIP is initialized from packet header data.
+	if hostIP.IsUnspecified() {
+		return router.UnsupportedUnspecifiedAddress
+	}
+	if port < l.dispatchStart && port > l.dispatchEnd {
+		port = l.dispatchRedirect
+	}
+	updateRemoteAddrFromAddrAndPort(p.RemoteAddr, hostIP, port)
+	return nil
 }
 
 // The packet's destination is already in the packet's meta-data.
@@ -853,4 +905,32 @@ func updateRemoteAddr(p *router.Packet, newAddr *net.UDPAddr) {
 	rAddr.Zone = newAddr.Zone
 	rAddr.IP = rAddr.IP[0:len(newAddr.IP)]
 	copy(rAddr.IP, newAddr.IP)
+}
+
+// updateNetAddrFromAddrAndPort() updates a net.UDPAddr address to be the same IP and port as
+// the given netip.Addr and port.
+//
+// We handle netAddr so we don't make the GC work. The issue is the IP address slice
+// that's in netAddr. The packet, along with its address and IP slice, gets copied from a channel
+// into a local variable. Then after we modify it, all gets copied to the some other channel and
+// eventually it gets copied back to the pool. If we replace the destAddr.IP at any point,
+// the old backing array behind the destAddr.IP slice ends-up on the garbage pile. To prevent that,
+// we update the IP address in-place (we make the length 0 to represent the 0 address).
+func updateRemoteAddrFromAddrAndPort(netAddr *net.UDPAddr, addr netip.Addr, port uint16) {
+	netAddr.Port = int(port)
+	netAddr.Zone = addr.Zone()
+	if addr.Is4() {
+		outIpBytes := addr.As4()     // Must store explicitly in order to copy
+		netAddr.IP = netAddr.IP[0:4] // Update slice
+		copy(netAddr.IP, outIpBytes[:])
+	} else if addr.Is6() {
+		outIpBytes := addr.As16()
+		netAddr.IP = netAddr.IP[0:16]
+		copy(netAddr.IP, outIpBytes[:])
+	} else {
+		// That's a zero address. We translate in to something resembling a nil IP.
+		// Nothing gets discarded as we keep the slice (and its reference to the backing array).
+		// To that end, we cannot make it nil. We have to make its length zero.
+		netAddr.IP = netAddr.IP[0:0]
+	}
 }

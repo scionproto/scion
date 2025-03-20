@@ -206,6 +206,8 @@ type dataPlane struct {
 }
 
 var (
+	UnsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
+	UnsupportedUnspecifiedAddress = errors.New("unsupported unspecified address")
 	alreadySet                    = errors.New("already set")
 	invalidSrcIA                  = errors.New("invalid source ISD-AS")
 	invalidDstIA                  = errors.New("invalid destination ISD-AS")
@@ -218,8 +220,6 @@ var (
 	noSVCBackend                  = errors.New("cannot find internal IP for the SVC")
 	unsupportedPathType           = errors.New("unsupported path type")
 	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
-	unsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
-	unsupportedUnspecifiedAddress = errors.New("unsupported unspecified address")
 	noBFDSessionFound             = errors.New("no BFD session was found")
 	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
 	errPeeringEmptySeg1           = errors.New("zero-length segment[1] in peering path")
@@ -1426,7 +1426,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() disposition {
 
 func (p *scionPacketProcessor) resolveInbound() disposition {
 	// The internal link is by definition unbound; we need to update the destination.
-	err := p.d.resolveLocalDst(p.pkt.RemoteAddr, p.scionLayer, p.lastLayer)
+	err := p.d.resolveLocalDst(p.pkt, p.scionLayer, p.lastLayer)
 
 	switch err {
 	case nil:
@@ -1438,7 +1438,7 @@ func (p *scionPacketProcessor) resolveInbound() disposition {
 			code:   slayers.SCMPCodeNoRoute,
 		}
 		return pSlowPath
-	case invalidDstAddr, unsupportedV4MappedV6Address, unsupportedUnspecifiedAddress:
+	case invalidDstAddr, UnsupportedV4MappedV6Address, UnsupportedUnspecifiedAddress:
 		log.Debug("SCMP response", "cause", err)
 		p.pkt.slowPathRequest = slowPathRequest{
 			spType: slowPathType(slayers.SCMPTypeParameterProblem),
@@ -1639,7 +1639,7 @@ func (p *scionPacketProcessor) validateSrcHost() disposition {
 	}
 	src, err := p.scionLayer.SrcAddr()
 	if err == nil && src.IP().Is4In6() {
-		err = unsupportedV4MappedV6Address
+		err = UnsupportedV4MappedV6Address
 	}
 	if err == nil {
 		return pForward
@@ -1826,7 +1826,7 @@ func (p *scionPacketProcessor) processOHP() disposition {
 	if err := updateSCIONLayer(p.pkt.RawPacket, s); err != nil {
 		return errorDiscard("error", err)
 	}
-	err := p.d.resolveLocalDst(p.pkt.RemoteAddr, s, p.lastLayer)
+	err := p.d.resolveLocalDst(p.pkt, s, p.lastLayer)
 	if err != nil {
 		return errorDiscard("error", err)
 	}
@@ -1834,12 +1834,12 @@ func (p *scionPacketProcessor) processOHP() disposition {
 	return pForward
 }
 
-// resolveLocalDst translates a SCION address (host or service) into an underlay address. With
-// significant effort, we could remove the assumption that a SCION host address is a bit-for-bit
-// copy of the local IP. That would, among other things, require that the underlay performs any
-// necessary address resolution.
+// resolveLocalDst updates the packet's remote address (from then on, its destination) by
+// translating the given SCION address (host or service) into an underlay address.
+// TODO(multi_underlay): delegate SVC resolution to underlay or replace underlay addresses of
+// services with host addresses.
 func (d *dataPlane) resolveLocalDst(
-	resolvedDst *net.UDPAddr,
+	packet *Packet,
 	s slayers.SCION,
 	lastLayer gopacket.DecodingLayer,
 ) error {
@@ -1856,37 +1856,30 @@ func (d *dataPlane) resolveLocalDst(
 		if !ok {
 			return noSVCBackend
 		}
-		// if SVC address is outside the configured port range we send to the fix
+		// if SVC address is outside the configured port range we send to the fixed
 		// port.
 		if a.Port() < d.dispatchedPortStart || a.Port() > d.dispatchedPortEnd {
-			updateNetAddrFromAddrAndPort(resolvedDst, a.Addr(), topology.EndhostPort)
+			updateNetAddrFromAddrAndPort(packet.RemoteAddr, a.Addr(), topology.EndhostPort)
 		} else {
-			updateNetAddrFromAddrPort(resolvedDst, a)
+			updateNetAddrFromAddrPort(packet.RemoteAddr, a)
 		}
 		return nil
 	case addr.HostTypeIP:
-		// Parse UPD port and rewrite underlay IP/UDP port
-		// TODO(jiceatscion): IP() is returned by value. The cost of copies adds up.
-		dstIP := dst.IP()
-		if dstIP.Is4In6() {
-			return unsupportedV4MappedV6Address
+		dstPort, err := d.dstScionPort(lastLayer)
+		if err != nil {
+			return err
 		}
-		// Zero IP addresses (per IsUnspecified()) are not supported. Zero valued netip.Addr objects
-		// (per IsInvalid()) cannot happen here as dstIP is initialized from packet header data.
-		if dstIP.IsUnspecified() {
-			return unsupportedUnspecifiedAddress
-		}
-		return d.addEndhostPort(resolvedDst, lastLayer, dstIP)
+
+		// Let the internal (it better be) link resolve the destination to an underlay address.
+		return d.interfaces[packet.egress].ResolveHostPort(packet, dst, dstPort)
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
 }
 
-func (d *dataPlane) addEndhostPort(
-	resolvedDst *net.UDPAddr,
+func (d *dataPlane) dstScionPort(
 	lastLayer gopacket.DecodingLayer,
-	dst netip.Addr,
-) error {
+) (uint16, error) {
 
 	// Parse UPD port and rewrite underlay IP/UDP port
 	l4Type := nextHdr(lastLayer)
@@ -1896,44 +1889,33 @@ func (d *dataPlane) addEndhostPort(
 	case slayers.L4UDP:
 		if len(lastLayer.LayerPayload()) < 8 {
 			// TODO(JordiSubira): Treat this as a parameter problem
-			return serrors.New("SCION/UDP header len too small", "length",
+			return 0, serrors.New("SCION/UDP header len too small", "length",
 				len(lastLayer.LayerPayload()))
 		}
 		port = binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
-		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
-			port = topology.EndhostPort
-		}
 	case slayers.L4TCP:
 		if len(lastLayer.LayerPayload()) < 20 {
 			// TODO: Treat this as a parameter problem
-			return serrors.New("SCION/TCP header len too small", "length",
+			return 0, serrors.New("SCION/TCP header len too small", "length",
 				len(lastLayer.LayerPayload()))
 		}
 		port = binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
-		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
-			port = topology.EndhostPort
-		}
 	case slayers.L4SCMP:
 		var scmpLayer slayers.SCMP
 		err := scmpLayer.DecodeFromBytes(lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
 		if err != nil {
 			// TODO(JordiSubira): Treat this as a parameter problem.
-			return serrors.Wrap("decoding SCMP layer for extracting endhost dst port", err)
+			return 0, serrors.Wrap("decoding SCMP layer for extracting endhost dst port", err)
 		}
 		port, err = getDstPortSCMP(&scmpLayer)
 		if err != nil {
 			// TODO(JordiSubira): Treat this as a parameter problem.
-			return serrors.Wrap("getting dst port from SCMP message", err)
-		}
-		// if the SCMP dst port is outside the range, we send it to the EndhostPort
-		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
-			port = topology.EndhostPort
+			return 0, serrors.Wrap("getting dst port from SCMP message", err)
 		}
 	default:
 		log.Debug("msg", "protocol", l4Type)
 	}
-	updateNetAddrFromAddrAndPort(resolvedDst, dst, port)
-	return nil
+	return port, nil
 }
 
 func getDstPortSCMP(scmp *slayers.SCMP) (uint16, error) {
