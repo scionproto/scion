@@ -67,8 +67,9 @@ feel welcome and safe.
 
 Reports should be directed to the community leaders at <conduct@scion.org>. If, for any
 reason you are uncomfortable reaching out to the community leaders, or if you are one of
-the community leaders and cannot resolve the issue, please email the SCION Association's
-CEO at <luzius.cameron@scion.org>.
+the community leaders and cannot resolve the issue, please email either of the SCION
+Association's CEOs: <luzius.cameron@scion.org> or <nic@scion.org>. (Luzius Cameron is not
+a member of the SCION technical committee implementation.)
 
 All complaints will be reviewed and investigated promptly and fairly.
 
