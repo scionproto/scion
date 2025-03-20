@@ -127,7 +127,7 @@ bazel_dep(name = "rules_nodejs", version = "6.3.4")
 bazel_dep(name = "aspect_rules_js", version = "2.2.0")
 
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
-node.toolchain(node_version = "18.20.7")
+node.toolchain(node_version = "20.18.3")
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
 npm.npm_translate_lock(
