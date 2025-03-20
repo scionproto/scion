@@ -22,6 +22,8 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/router/bfd"
+	"github.com/scionproto/scion/router/control"
 )
 
 var (
@@ -39,26 +41,48 @@ type Disposition disposition
 
 const PDiscard = Disposition(pDiscard)
 
+// Implements the link interface minimally
+type MockLink struct {
+	ifID uint16
+}
+
+var _ Link = new(MockLink)
+
+func (l *MockLink) IsUp() bool                   { return true }
+func (l *MockLink) IfID() uint16                 { return l.ifID }
+func (l *MockLink) Scope() LinkScope             { return Internal }
+func (l *MockLink) BFDSession() *bfd.Session     { return nil }
+func (l *MockLink) CheckPktSrc(pkt *Packet) bool { return true }
+func (l *MockLink) Send(p *Packet) bool          { return true }
+func (l *MockLink) SendBlocking(p *Packet)       {}
+
+func newMockLink(ingress uint16) Link { return &MockLink{ifID: ingress} }
+
+// NewPacket makes a mock packet. It has one shortcoming which makes it unsuited for some tests:
+// The packet buffer is strictly no bigger than the supplied bytes; which means that it cannot
+// be used to respond via SCMP. Also, it refers to a mock link that has the scope Internal, yet
+// will confirm being the carrier of any kind of packet.
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	p := Packet{
-		DstAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
-		SrcAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
-		RawPacket: make([]byte, len(raw)),
-		Ingress:   ingress,
-		egress:    egress,
+		RemoteAddr: &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
+		RawPacket:  make([]byte, len(raw)),
+		egress:     egress,
+		Link:       newMockLink(ingress),
 	}
-
 	if src != nil {
-		p.SrcAddr = src
+		p.RemoteAddr = src
 	}
 	if dst != nil {
-		p.DstAddr = dst
+		p.RemoteAddr = dst
 	}
 	copy(p.RawPacket, raw)
 	return &p
 }
 
 // mustMakeDP initializes a dataplane structure configured per the test requirements.
+// external interfaces are given arbitrary addresses in the range 203.0.113/24 block and
+// are not meant to actually carry traffic. The underlying connection is the same as
+// the internal one, just to satisfy constraints.
 func mustMakeDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
@@ -95,22 +119,35 @@ func mustMakeDP(
 	}
 
 	// Make dummy interfaces, as requested by the test. Only the internal interface is ever used to
-	// send or receive and then, not always. So tests can set a nil connections and an empty
-	// address. We do it by hand as the Add*Interface methods do not tolerate nil connections and
-	// empty addresses. It only makes sense in unit tests.
-	dp.addForwardingMetrics(0, Internal)
-	dp.interfaces[0] = dp.underlay.NewInternalLink(
-		internal, dp.RunConfig.BatchSize, dp.forwardingMetrics[0])
-	dp.internalIP = netip.MustParseAddr("198.51.100.1")
-
+	// send or receive and then, not always. The external interfaces are given non-zero
+	// addresses in order to satisfy constraints.
+	if err := dp.AddInternalInterface(internal, netip.MustParseAddr("198.51.100.1")); err != nil {
+		panic(err)
+	}
+	yes := true
+	dummySrc := netip.AddrFrom4([4]byte{203, 0, 113, 0})
 	for _, i := range external {
-		dp.addForwardingMetrics(i, External)
-		dp.interfaces[i] = dp.underlay.NewExternalLink(
-			nil, 64, nil, netip.AddrPort{}, i, dp.forwardingMetrics[i])
+		dummyDst := netip.AddrFrom4([4]byte{203, 0, 113, byte(i)})
+		if err := dp.AddExternalInterface(
+			i,
+			internal, // Just so it isn't nil... do not use!
+			control.LinkEnd{Addr: netip.AddrPortFrom(dummySrc, 3333)},
+			control.LinkEnd{Addr: netip.AddrPortFrom(dummyDst, 3333)},
+			control.BFD{Disable: &yes},
+		); err != nil {
+			panic(err)
+		}
 	}
 	for i, addr := range internalNextHops {
-		dp.addForwardingMetrics(i, Sibling)
-		dp.interfaces[i] = dp.underlay.NewSiblingLink(64, nil, addr, dp.forwardingMetrics[i])
+		if err := dp.AddNextHop(
+			i,
+			netip.MustParseAddrPort("198.51.100.1:3333"),
+			addr,
+			control.BFD{Disable: &yes},
+			"dummy",
+		); err != nil {
+			panic(err)
+		}
 	}
 
 	if err := dp.SetKey(key); err != nil {
@@ -177,7 +214,7 @@ func NewDPRaw(runConfig RunConfig, authSCMP bool) *DataPlane {
 	return edp
 }
 
-func (d *DataPlane) FakeStart() {
+func (d *DataPlane) MockStart() {
 	d.setRunning()
 }
 

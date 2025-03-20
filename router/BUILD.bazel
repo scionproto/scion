@@ -68,6 +68,7 @@ go_test(
         "//pkg/slayers/path/scion:go_default_library",
         "//private/topology:go_default_library",
         "//private/underlay/conn:go_default_library",
+        "//router/bfd:go_default_library",
         "//router/control:go_default_library",
         "//router/mock_router:go_default_library",
         "//router/underlayproviders/udpip:go_default_library",
