@@ -45,18 +45,14 @@ const (
 // associate an interface ID with a link. If the interface ID belongs to a sibling router, then
 // the link is a sibling link. If the interface ID is zero, then the link is the internal link.
 //
-// Note about ResolveHost. It resolves the given SCION host address to an underlay address on this
-// this functionality is really only needed on the internal link and the resolution could actually
-// be deferred until the packet is queued for sending. However, it would require additional
-// refactoring of the main router code and would also delay the error for an unresolvable address.
-// To be considered at a later time, once we actually try to introduce non-ip underlays.
-
+// Note about Resolve. It resolves the given SCION host/svc address to an address on this underlay.
+// This functionality is really only needed on the internal link,
 type Link interface {
 	IsUp() bool
 	IfID() uint16
 	Scope() LinkScope
 	BFDSession() *bfd.Session
-	ResolveHostPort(p *Packet, host addr.Host, port uint16) error
+	Resolve(p *Packet, dst addr.Host, port uint16) error
 	Send(p *Packet) bool
 	SendBlocking(p *Packet)
 }
@@ -80,11 +76,17 @@ type UnderlayProvider interface {
 	NumConnections() int
 
 	// SetDispatchPorts sets the range of auto-dispatched ports and default endhost port (the shim
-	// dispatcher port. When translating a SCION port into an underlay port, any port between the
+	// dispatcher port). When translating a SCION port into an underlay port, any port between the
 	// values of start and end remains unchanged, while any other will be replaced by the value of
 	// redirect. Not all underlays have to provide that service and it might not be meaningful for a
 	// non-ip underlay. In such cases, this method simply has no effect.
 	SetDispatchPorts(start, end, redirect uint16)
+
+	// AddSvc adds the address for the given service. This can be called multiple times per service.
+	AddSvc(svc addr.SVC, a addr.Host, p uint16) error
+
+	// DelSvc deletes the address for the given service.
+	DelSvc(svc addr.SVC, a addr.Host, p uint16) error
 
 	// Start puts the provider in the running state. In that state, the provider can deliver
 	// incoming packets to its output channels and will send packets present on its input

@@ -203,21 +203,21 @@ func TestDataPlaneAddSVC(t *testing.T) {
 	t.Run("succeeds after serve", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		d.MockStart()
-		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, addr.HostIP(netip.IPv4Unspecified()), 0))
 	})
 	t.Run("adding empty value is not allowed", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		assert.Error(t, d.AddSvc(addr.SvcCS, netip.AddrPort{}))
+		assert.Error(t, d.AddSvc(addr.SvcCS, addr.HostIP(netip.Addr{}), 0))
 	})
 	t.Run("normal set works", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
-		assert.NoError(t, d.AddSvc(addr.SvcDS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, addr.HostIP(netip.IPv4Unspecified()), 0))
+		assert.NoError(t, d.AddSvc(addr.SvcDS, addr.HostIP(netip.IPv4Unspecified()), 0))
 	})
 	t.Run("set multiple times works", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
-		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, addr.HostIP(netip.IPv4Unspecified()), 0))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, addr.HostIP(netip.IPv4Unspecified()), 0))
 	})
 }
 
@@ -831,7 +831,7 @@ func TestProcessPkt(t *testing.T) {
 					mockExternalInterfaces,
 					nil,
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -863,7 +863,7 @@ func TestProcessPkt(t *testing.T) {
 					mockExternalInterfaces,
 					nil,
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -908,7 +908,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Child,
 					},
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -941,7 +941,7 @@ func TestProcessPkt(t *testing.T) {
 						2: topology.Child,
 					},
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -973,7 +973,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Child,
 					},
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -1007,7 +1007,7 @@ func TestProcessPkt(t *testing.T) {
 						2: topology.Child,
 					},
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -1074,7 +1074,7 @@ func TestProcessPkt(t *testing.T) {
 						2: topology.Child,
 					},
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -1148,7 +1148,7 @@ func TestProcessPkt(t *testing.T) {
 						2: topology.Child,
 					},
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -1219,7 +1219,7 @@ func TestProcessPkt(t *testing.T) {
 						2: topology.Child,
 					},
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -1300,7 +1300,7 @@ func TestProcessPkt(t *testing.T) {
 					nil, // No special connNewer.
 					map[uint16]netip.AddrPort{
 						uint16(3): netip.MustParseAddrPort("10.0.200.200:30043"),
-					}, nil, addr.MustParseIA("1-ff00:0:110"), nil, key)
+					}, addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
 				spkt, dpath := prepBaseMsg(now)
@@ -1333,7 +1333,7 @@ func TestProcessPkt(t *testing.T) {
 					nil, // No special connNewer.
 					map[uint16]netip.AddrPort{
 						uint16(3): netip.MustParseAddrPort("10.0.200.200:30043"),
-					}, nil, addr.MustParseIA("1-ff00:0:110"), nil, key)
+					}, addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
 				spkt, _ := prepBaseMsg(now)
@@ -1382,20 +1382,17 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"svc": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(
+				dp := router.NewDP(
 					mockExternalInterfaces,
 					nil,
 					nil, // No special connNewer.
 					mockInternalNextHops,
-					map[addr.SVC][]netip.AddrPort{
-						addr.SvcCS: {
-							netip.AddrPortFrom(
-								netip.MustParseAddr("10.0.200.200"),
-								uint16(dstUDPPort),
-							),
-						},
-					},
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
+				dp.AddSvc(
+					addr.SvcCS,
+					addr.MustParseHost("10.0.200.200"),
+					uint16(dstUDPPort))
+				return dp
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
 				spkt, dpath := prepBaseMsg(now)
@@ -1423,23 +1420,21 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"onehop inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(
+				dp := router.NewDP(
 					mockExternalInterfaces,
 					nil,
 					nil, // No special connNewer.
 					nil,
-					map[addr.SVC][]netip.AddrPort{
-						addr.SvcCS: {
-							netip.AddrPortFrom(
-								netip.MustParseAddr("172.0.2.10"),
-								uint16(dstUDPPort),
-							),
-						},
-					},
 					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(1): addr.MustParseIA("1-ff00:0:111"),
 					}, key)
+				dp.AddSvc(
+					addr.SvcCS,
+					addr.MustParseHost("172.0.2.10"),
+					uint16(dstUDPPort),
+				)
+				return dp
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
 				spkt, _ := prepBaseMsg(now)
@@ -1491,7 +1486,7 @@ func TestProcessPkt(t *testing.T) {
 					mockExternalInterfaces,
 					nil,
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(1): addr.MustParseIA("1-ff00:0:111"),
@@ -1527,20 +1522,18 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"reversed onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(
+				dp := router.NewDP(
 					[]uint16{1},
 					nil,
 					nil, // No special connNewer.
 					mockInternalNextHops,
-					map[addr.SVC][]netip.AddrPort{
-						addr.SvcCS: {
-							netip.AddrPortFrom(
-								netip.MustParseAddr("172.0.2.10"),
-								uint16(dstUDPPort),
-							),
-						},
-					},
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
+				dp.AddSvc(
+					addr.SvcCS,
+					addr.MustParseHost("172.0.2.10"),
+					uint16(dstUDPPort),
+				)
+				return dp
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
 				spkt, _ := prepBaseMsg(now)
@@ -1589,7 +1582,7 @@ func TestProcessPkt(t *testing.T) {
 					[]uint16{2},
 					nil,
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(2): addr.MustParseIA("1-ff00:0:111"),
@@ -1632,7 +1625,7 @@ func TestProcessPkt(t *testing.T) {
 					mockExternalInterfaces,
 					nil,
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -1650,7 +1643,7 @@ func TestProcessPkt(t *testing.T) {
 					mockExternalInterfaces,
 					nil,
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -1669,7 +1662,7 @@ func TestProcessPkt(t *testing.T) {
 					mockExternalInterfaces,
 					nil,
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -1690,7 +1683,7 @@ func TestProcessPkt(t *testing.T) {
 					mockExternalInterfaces,
 					nil,
 					nil, // No special connNewer.
-					mockInternalNextHops, nil,
+					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {

@@ -146,26 +146,25 @@ func (c *Connector) AddExternalInterface(
 }
 
 // AddSvc adds the service address for the given ISD-AS.
-func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
-
+func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, p uint16) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", a)
 	}
-	return c.DataPlane.AddSvc(svc, a)
+	return c.DataPlane.AddSvc(svc, a, p)
 }
 
 // DelSvc deletes the service entry for the given ISD-AS and IP pair.
-func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
+func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a addr.Host, p uint16) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", a)
 	}
-	return c.DataPlane.DelSvc(svc, a)
+	return c.DataPlane.DelSvc(svc, a, p)
 }
 
 // SetKey sets the key for the given ISD-AS at the given index.

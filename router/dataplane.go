@@ -181,7 +181,6 @@ type dataPlane struct {
 	linkTypes           map[uint16]topology.LinkType
 	neighborIAs         map[uint16]addr.IA
 	internalIP          netip.Addr
-	svc                 *services
 	macFactory          func() hash.Hash
 	localIA             addr.IA
 	mtx                 sync.Mutex
@@ -217,7 +216,7 @@ var (
 	emptyValue                    = errors.New("empty value")
 	malformedPath                 = errors.New("malformed path content")
 	modifyExisting                = errors.New("modifying a running dataplane is not allowed")
-	noSVCBackend                  = errors.New("cannot find internal IP for the SVC")
+	NoSVCBackend                  = errors.New("cannot find internal IP for the SVC")
 	unsupportedPathType           = errors.New("unsupported path type")
 	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
 	noBFDSessionFound             = errors.New("no BFD session was found")
@@ -276,7 +275,6 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 		interfaces:                     make(map[uint16]Link),
 		linkTypes:                      make(map[uint16]topology.LinkType),
 		neighborIAs:                    make(map[uint16]addr.IA),
-		svc:                            newServices(),
 		Metrics:                        metrics,
 		forwardingMetrics:              make(map[uint16]InterfaceMetrics),
 		ExperimentalSCMPAuthentication: authSCMP,
@@ -504,13 +502,13 @@ func (d *dataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 // AddSvc adds the address for the given service. This can be called multiple
 // times for the same service, with the address added to the list of addresses
 // that provide the service.
-func (d *dataPlane) AddSvc(svc addr.SVC, a netip.AddrPort) error {
+func (d *dataPlane) AddSvc(svc addr.SVC, a addr.Host, p uint16) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if !a.IsValid() {
-		return emptyValue
+	// TODO: underlay choice should really be "interfaces[0].provider"
+	if err := d.underlays["udpip"].AddSvc(svc, a, p); err != nil {
+		return err
 	}
-	d.svc.AddSvc(svc, a)
 	if d.Metrics != nil {
 		labels := serviceLabels(d.localIA, svc)
 		d.Metrics.ServiceInstanceChanges.With(labels).Add(1)
@@ -520,13 +518,13 @@ func (d *dataPlane) AddSvc(svc addr.SVC, a netip.AddrPort) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (d *dataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
+func (d *dataPlane) DelSvc(svc addr.SVC, a addr.Host, p uint16) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if !a.IsValid() {
-		return emptyValue
+	// TODO: underlay choice should really be "interfaces[0].provider"
+	if err := d.underlays["udpip"].DelSvc(svc, a, p); err != nil {
+		return err
 	}
-	d.svc.DelSvc(svc, a)
 	if d.Metrics != nil {
 		labels := serviceLabels(d.localIA, svc)
 		d.Metrics.ServiceInstanceChanges.With(labels).Add(1)
@@ -1431,7 +1429,7 @@ func (p *scionPacketProcessor) resolveInbound() disposition {
 	switch err {
 	case nil:
 		return pForward
-	case noSVCBackend:
+	case NoSVCBackend:
 		log.Debug("SCMP response", "cause", err)
 		p.pkt.slowPathRequest = slowPathRequest{
 			spType: slowPathType(slayers.SCMPTypeDestinationUnreachable),
@@ -1836,45 +1834,30 @@ func (p *scionPacketProcessor) processOHP() disposition {
 
 // resolveLocalDst updates the packet's remote address (from then on, its destination) by
 // translating the given SCION address (host or service) into an underlay address.
-// TODO(multi_underlay): delegate SVC resolution to underlay or replace underlay addresses of
-// services with host addresses.
 func (d *dataPlane) resolveLocalDst(
 	packet *Packet,
 	s slayers.SCION,
 	lastLayer gopacket.DecodingLayer,
 ) error {
 
-	dst, err := s.DstAddr()
+	a, err := s.DstAddr()
 	if err != nil {
 		return invalidDstAddr
 	}
-	switch dst.Type() {
-	case addr.HostTypeSVC:
-		// For map lookup use the Base address, i.e. strip the multi cast
-		// information, because we only register base addresses in the map.
-		a, ok := d.svc.Any(dst.SVC().Base())
-		if !ok {
-			return noSVCBackend
-		}
-		// if SVC address is outside the configured port range we send to the fixed
-		// port.
-		if a.Port() < d.dispatchedPortStart || a.Port() > d.dispatchedPortEnd {
-			updateNetAddrFromAddrAndPort(packet.RemoteAddr, a.Addr(), topology.EndhostPort)
-		} else {
-			updateNetAddrFromAddrPort(packet.RemoteAddr, a)
-		}
-		return nil
-	case addr.HostTypeIP:
-		dstPort, err := d.dstScionPort(lastLayer)
+
+	p := uint16(0)
+	if a.Type() == addr.HostTypeIP {
+		// In this case, we must find the destination SCION port so we have a chance to dispatch to
+		// to the UDP port of the same number directly instead of going through the dispatcher.
+		// It's our job to figure that; the underlay doesn't know the SCION header.
+		p, err = d.dstScionPort(lastLayer)
 		if err != nil {
 			return err
 		}
-
-		// Let the internal (it better be) link resolve the destination to an underlay address.
-		return d.interfaces[packet.egress].ResolveHostPort(packet, dst, dstPort)
-	default:
-		panic("unexpected address type returned from DstAddr")
 	}
+
+	// Let the internal (it better be) link resolve the destination to an underlay address.
+	return d.interfaces[packet.egress].Resolve(packet, a, p)
 }
 
 func (d *dataPlane) dstScionPort(
@@ -2466,40 +2449,4 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 func (d *dataPlane) addForwardingMetrics(ifID uint16, scope LinkScope) {
 	d.forwardingMetrics[ifID] = newInterfaceMetrics(
 		d.Metrics, ifID, d.localIA, scope, d.neighborIAs)
-}
-
-// updateNetAddrFromAddrPort() updates a net.UDPAddr address to be the same as the
-// given netip.AddrPort. newDst.Addr() returns the IP by value. The compiler may or
-// may not inline the call and optimize out the copy. It is doubtful that manually inlining
-// increases the chances that the copy get elided. TODO(jiceatscion): experiment.
-func updateNetAddrFromAddrPort(netAddr *net.UDPAddr, newDst netip.AddrPort) {
-	updateNetAddrFromAddrAndPort(netAddr, newDst.Addr(), newDst.Port())
-}
-
-// updateNetAddrFromAddrAndPort() updates a net.UDPAddr address to be the same IP and port as
-// the given netip.Addr and unigned port.
-//
-// We handle dstAddr so we don't make the GC work. The issue is the IP address slice
-// that's in dstAddr. The packet, along with its address and IP slice, gets copied from a channel
-// into a local variable. Then after we modify it, all gets copied to the some other channel and
-// eventually it gets copied back to the pool. If we replace the destAddr.IP at any point,
-// the old backing array behind the destAddr.IP slice ends-up on the garbage pile. To prevent that,
-// we update the IP address in-place (we make the length 0 to represent the 0 address).
-func updateNetAddrFromAddrAndPort(netAddr *net.UDPAddr, addr netip.Addr, port uint16) {
-	netAddr.Port = int(port)
-	netAddr.Zone = addr.Zone()
-	if addr.Is4() {
-		outIpBytes := addr.As4()     // Must store explicitly in order to copy
-		netAddr.IP = netAddr.IP[0:4] // Update slice
-		copy(netAddr.IP, outIpBytes[:])
-	} else if addr.Is6() {
-		outIpBytes := addr.As16()
-		netAddr.IP = netAddr.IP[0:16]
-		copy(netAddr.IP, outIpBytes[:])
-	} else {
-		// That's a zero address. We translate in to something resembling a nil IP.
-		// Nothing gets discarded as we keep the slice (and its reference to the backing array).
-		// To that end, we cannot make it nil. We have to make its length zero.
-		netAddr.IP = netAddr.IP[0:0]
-	}
 }

@@ -279,7 +279,6 @@ func TestSlowPathProcessing(t *testing.T) {
 	// * InternalNextHops may not be nil. Empty is ok for all the test cases we have.
 	mockExternalInterfaces := []uint16{1}
 	mockInternalNextHops := map[uint16]netip.AddrPort{}
-	mockServices := map[addr.SVC][]netip.AddrPort{}
 
 	testCases := map[string]struct {
 		mockMsg                 func() []byte
@@ -295,7 +294,6 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil,
 					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"),
 					nil, testKey)
 			},
@@ -320,7 +318,6 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil,
 					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -344,7 +341,6 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil,
 					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -368,7 +364,6 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil,
 					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -392,7 +387,6 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil,
 					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -418,7 +412,6 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil,
 					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -442,7 +435,6 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil,
 					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
 			},
 			mockMsg: func() []byte {

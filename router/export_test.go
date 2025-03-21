@@ -41,8 +41,6 @@ func GetMetrics() *Metrics {
 	return metrics
 }
 
-var NewServices = newServices
-
 type Disposition disposition
 
 const PDiscard = Disposition(pDiscard)
@@ -52,13 +50,13 @@ type MockLink struct {
 	ifID uint16
 }
 
-func (l *MockLink) IsUp() bool                                                   { return true }
-func (l *MockLink) IfID() uint16                                                 { return l.ifID }
-func (l *MockLink) Scope() LinkScope                                             { return Internal }
-func (l *MockLink) BFDSession() *bfd.Session                                     { return nil }
-func (l *MockLink) ResolveHostPort(p *Packet, host addr.Host, port uint16) error { return nil }
-func (l *MockLink) Send(p *Packet) bool                                          { return true }
-func (l *MockLink) SendBlocking(p *Packet)                                       {}
+func (l *MockLink) IsUp() bool                                           { return true }
+func (l *MockLink) IfID() uint16                                         { return l.ifID }
+func (l *MockLink) Scope() LinkScope                                     { return Internal }
+func (l *MockLink) BFDSession() *bfd.Session                             { return nil }
+func (l *MockLink) Resolve(p *Packet, host addr.Host, port uint16) error { return nil }
+func (l *MockLink) Send(p *Packet) bool                                  { return true }
+func (l *MockLink) SendBlocking(p *Packet)                               {}
 
 var _ Link = new(MockLink)
 
@@ -114,7 +112,6 @@ func mustMakeDP(
 	linkTypes map[uint16]topology.LinkType,
 	connNewer any, // Some implementation of BatchConnNewer, or nil for the default.
 	internalNextHops map[uint16]netip.AddrPort,
-	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
 	key []byte) (dp dataPlane) {
@@ -135,14 +132,6 @@ func mustMakeDP(
 		dp.underlays["udpip"].SetConnNewer(MockConnNewer{})
 	} else {
 		dp.underlays["udpip"].SetConnNewer(connNewer)
-	}
-
-	for id, addresses := range svc {
-		for _, addr := range addresses {
-			if err := dp.AddSvc(id, addr); err != nil {
-				panic(err)
-			}
-		}
 	}
 
 	// Make dummy interfaces, as requested by the test. Only the internal interface is ever used to
@@ -219,12 +208,11 @@ func newDP(
 	linkTypes map[uint16]topology.LinkType,
 	connNewer any, // Some implementation of BatchConnNewer, or nil for the default.
 	internalNextHops map[uint16]netip.AddrPort,
-	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
 	key []byte) *dataPlane {
 
-	dp := mustMakeDP(external, linkTypes, connNewer, internalNextHops, svc, local, neighbors, key)
+	dp := mustMakeDP(external, linkTypes, connNewer, internalNextHops, local, neighbors, key)
 	return &dp
 }
 
@@ -241,13 +229,12 @@ func NewDP(
 	linkTypes map[uint16]topology.LinkType,
 	connNewer any, // Some implementation of BatchConnNewer, or nil for the default.
 	internalNextHops map[uint16]netip.AddrPort,
-	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
 	key []byte) *DataPlane {
 
 	return &DataPlane{
-		mustMakeDP(external, linkTypes, connNewer, internalNextHops, svc, local, neighbors, key),
+		mustMakeDP(external, linkTypes, connNewer, internalNextHops, local, neighbors, key),
 	}
 }
 
@@ -275,7 +262,7 @@ func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
 	return Disposition(disp)
 }
 
-func ExtractServices(s *services) map[addr.SVC][]netip.AddrPort {
+func ExtractServices(s *Services[netip.AddrPort]) map[addr.SVC][]netip.AddrPort {
 	return s.m
 }
 

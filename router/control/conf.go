@@ -36,8 +36,8 @@ type Dataplane interface {
 	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 	AddExternalInterface(
 		localIfID iface.ID, info LinkInfo, localHost, remoteHost addr.Host, owned bool) error
-	AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
-	DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
+	AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, port uint16) error
+	DelSvc(ia addr.IA, svc addr.SVC, a addr.Host, port uint16) error
 	SetKey(ia addr.IA, index int, key []byte) error
 	SetPortRange(start, end uint16)
 }
@@ -261,6 +261,7 @@ var svcTypes = []addr.SVC{
 }
 
 func confServices(dp Dataplane, cfg *Config) error {
+
 	if cfg.Topo == nil {
 		// nothing to tdo
 		return nil
@@ -275,8 +276,16 @@ func confServices(dp Dataplane, cfg *Config) error {
 		sort.Slice(addrs, func(i, j int) bool {
 			return addrs[i].IP.String() < addrs[j].IP.String()
 		})
+
+		// Topo.Multicast returns SCION host addresses (which just happen to be identical to udp/ip
+		// addresses). So, in theory, these are *not* underlay addresses. The topology API
+		// represents them openly as UdpAddr. The router doesn't make that assumption. It does not
+		// know what a UDPAddr is; that's underlay business. So, addr.Host is what we give to the
+		// router. The underlays are in change of resolving the corresponding underlay address.
 		for _, a := range addrs {
-			if err := dp.AddSvc(cfg.IA, svc, a.AddrPort()); err != nil {
+			addrPort := a.AddrPort()
+			host := addr.HostIP(addrPort.Addr())
+			if err := dp.AddSvc(cfg.IA, svc, host, addrPort.Port()); err != nil {
 				return err
 			}
 		}

@@ -30,7 +30,7 @@ func TestServicesAddSvc(t *testing.T) {
 	host1Port := netip.AddrPortFrom(netip.MustParseAddr("192.0.2.1"), 1338)
 	all := []netip.AddrPort{host1, host2, host1Port}
 
-	s := router.NewServices()
+	s := router.NewServices[netip.AddrPort]()
 	s.AddSvc(addr.SvcCS, host1)
 	s.AddSvc(addr.SvcCS, host2)
 	s.AddSvc(addr.SvcCS, host1Port)
@@ -46,7 +46,7 @@ func TestServiceDelSvc(t *testing.T) {
 	host2 := netip.AddrPortFrom(netip.MustParseAddr("192.0.2.2"), 1337)
 	all := []netip.AddrPort{host1, host2}
 
-	s := router.NewServices()
+	s := router.NewServices[netip.AddrPort]()
 	assert.NotPanics(t, func() { s.DelSvc(addr.SvcCS, host1) })
 
 	s.AddSvc(addr.SvcCS, host1)
@@ -61,7 +61,7 @@ func TestServicesAny(t *testing.T) {
 	host1 := netip.AddrPortFrom(netip.MustParseAddr("192.0.2.1"), 1337)
 	host2 := netip.AddrPortFrom(netip.MustParseAddr("192.0.2.2"), 1337)
 
-	s := router.NewServices()
+	s := router.NewServices[netip.AddrPort]()
 	s.AddSvc(addr.SvcCS, host1)
 	s.AddSvc(addr.SvcCS, host2)
 

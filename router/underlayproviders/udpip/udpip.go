@@ -37,6 +37,7 @@ import (
 var (
 	resolveOnSiblingLink  = errors.New("unsupported address resolution on sibling link")
 	resolveOnExternalLink = errors.New("unsupported address resolution on external link")
+	invalidServiceAddress = errors.New("invalid service address")
 )
 
 // An interface to enable unit testing.
@@ -59,9 +60,11 @@ func (_ un) New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.Batc
 // batchConn is given to us and is a UDP socket and that, in the case of externalLink, it is bound.
 type provider struct {
 	mu                 sync.Mutex // Prevents race between adding connections and Start/Stop.
-	batchSize          int        // TODO(multi_underlay): Should have an underlay-specific config.
+	batchSize          int
 	allLinks           map[netip.AddrPort]udpLink
 	allConnections     []*udpConnection
+	connNewer          ConnNewer // un{}, except for unit tests
+	svc                *router.Services[netip.AddrPort]
 	internalConnection *udpConnection // Because we share it w/ siblinglinks
 	internalHashSeed   uint32         // As a result, this too is shared.
 	receiveBufferSize  int
@@ -69,7 +72,6 @@ type provider struct {
 	dispatchStart      uint16
 	dispatchEnd        uint16
 	dispatchRedirect   uint16
-	connNewer          ConnNewer // un{}, except for unit tests
 }
 
 var (
@@ -91,13 +93,15 @@ func init() {
 }
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
+// TODO(multi_underlay): batchSize should be an underlay-specific config.
 func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
 	return &provider{
 		batchSize:         batchSize,
-		receiveBufferSize: receiveBufferSize,
-		sendBufferSize:    sendBufferSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
 		connNewer:         un{},
+		svc:               router.NewServices[netip.AddrPort](),
+		receiveBufferSize: receiveBufferSize,
+		sendBufferSize:    sendBufferSize,
 	}
 }
 
@@ -117,6 +121,27 @@ func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
 	u.dispatchStart = start
 	u.dispatchEnd = end
 	u.dispatchRedirect = redirect
+}
+
+// AddSvc adds the address for the given service.
+func (u *provider) AddSvc(svc addr.SVC, a addr.Host, p uint16) error {
+	// We pre-resolve the addresses, which is trivial for this underlay.
+	addr := netip.AddrPortFrom(a.IP(), p)
+	if !addr.IsValid() {
+		return invalidServiceAddress
+	}
+	u.svc.AddSvc(svc, addr)
+	return nil
+}
+
+// DelSvc deletes the address for the given service.
+func (u *provider) DelSvc(svc addr.SVC, a addr.Host, p uint16) error {
+	addr := netip.AddrPortFrom(a.IP(), p)
+	if !addr.IsValid() {
+		return invalidServiceAddress
+	}
+	u.svc.DelSvc(svc, addr)
+	return nil
 }
 
 // The queues to be used by the receiver task are supplied at this point because they must be
@@ -517,8 +542,8 @@ func (l *externalLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
 
-// ResolveHostPort should not be useful on an external link so we don't implement it yet.
-func (l *externalLink) ResolveHostPort(p *router.Packet, host addr.Host, port uint16) error {
+// Resolve should not be useful on an external link so we don't implement it yet.
+func (l *externalLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 	return resolveOnExternalLink
 }
 
@@ -669,8 +694,8 @@ func (l *siblingLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
 
-// ResolveHostPort should not be useful on a sibling link so we don't implement it yet.
-func (l *siblingLink) ResolveHostPort(p *router.Packet, host addr.Host, port uint16) error {
+// Resolve should not be useful on a sibling link so we don't implement it yet.
+func (l *siblingLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 	return resolveOnSiblingLink
 }
 
@@ -721,6 +746,7 @@ type internalLink struct {
 	egressQ          chan *router.Packet
 	metrics          router.InterfaceMetrics
 	pool             chan *router.Packet
+	svc              *router.Services[netip.AddrPort]
 	seed             uint32
 	dispatchStart    uint16
 	dispatchEnd      uint16
@@ -754,6 +780,7 @@ func (u *provider) NewInternalLink(
 	il := &internalLink{
 		egressQ:          queue,
 		metrics:          metrics,
+		svc:              u.svc,
 		seed:             u.internalHashSeed,
 		dispatchStart:    u.dispatchStart,
 		dispatchEnd:      u.dispatchEnd,
@@ -805,25 +832,39 @@ func (l *internalLink) IsUp() bool {
 	return true
 }
 
-// ResolveHostPort updates the packet's underlay destination according to the given
-// SCION host address and SCION port number.
-// On the udpip underlay, host addresses are bit-for-bit identical to underlay addresses. The
-// port space is the same, except if the packet is redirected to the shim dispatcher.
-func (l *internalLink) ResolveHostPort(p *router.Packet, host addr.Host, port uint16) error {
-	// TODO(jiceatscion): IP() is returned by value. The cost of copies adds up.
-	hostIP := host.IP()
-	if hostIP.Is4In6() {
-		return router.UnsupportedV4MappedV6Address
+// Resolve updates the packet's underlay destination according to the given SCION host/service
+// address and SCION port number.  On the udpip underlay, host addresses are bit-for-bit identical
+// to underlay addresses. The port space is the same, except if the packet is redirected to the shim
+// dispatcher.  TODO(jiceatscion): make cheaper; copy addr less.
+func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) error {
+	var dstAddr netip.Addr
+	switch dst.Type() {
+	case addr.HostTypeSVC:
+		// For map lookup use the Base address, i.e. strip the multi cast information, because we
+		// only register base addresses in the map.
+		a, ok := l.svc.Any(dst.SVC().Base())
+		if !ok {
+			return router.NoSVCBackend
+		}
+		dstAddr = a.Addr()
+		// Supplied port is irrelevant. Port is in svc record.
+		port = a.Port()
+	case addr.HostTypeIP:
+		dstAddr = dst.IP()
+		if dstAddr.Is4In6() {
+			return router.UnsupportedV4MappedV6Address
+		}
+		if dstAddr.IsUnspecified() {
+			return router.UnsupportedUnspecifiedAddress
+		}
+	default:
+		panic("unexpected address type returned from DstAddr")
 	}
-	// Zero IP addresses (per IsUnspecified()) are not supported. Zero valued netip.Addr objects
-	// (per IsInvalid()) cannot happen here as dstIP is initialized from packet header data.
-	if hostIP.IsUnspecified() {
-		return router.UnsupportedUnspecifiedAddress
-	}
+	// if port is outside the configured port range we send to the fixed port.
 	if port < l.dispatchStart && port > l.dispatchEnd {
 		port = l.dispatchRedirect
 	}
-	updateRemoteAddrFromAddrAndPort(p.RemoteAddr, hostIP, port)
+	updateRemoteAddrFromAddrAndPort(p.RemoteAddr, dstAddr, port)
 	return nil
 }
 
