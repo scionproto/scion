@@ -1388,10 +1388,14 @@ func TestProcessPkt(t *testing.T) {
 					nil, // No special connNewer.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
-				dp.AddSvc(
-					addr.SvcCS,
-					addr.MustParseHost("10.0.200.200"),
-					uint16(dstUDPPort))
+				assert.NoError(
+					t,
+					dp.AddSvc(
+						addr.SvcCS,
+						addr.MustParseHost("10.0.200.200"),
+						uint16(dstUDPPort),
+					),
+				)
 				return dp
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
@@ -1429,10 +1433,13 @@ func TestProcessPkt(t *testing.T) {
 					map[uint16]addr.IA{
 						uint16(1): addr.MustParseIA("1-ff00:0:111"),
 					}, key)
-				dp.AddSvc(
-					addr.SvcCS,
-					addr.MustParseHost("172.0.2.10"),
-					uint16(dstUDPPort),
+				assert.NoError(
+					t,
+					dp.AddSvc(
+						addr.SvcCS,
+						addr.MustParseHost("172.0.2.10"),
+						uint16(dstUDPPort),
+					),
 				)
 				return dp
 			},
@@ -1528,10 +1535,13 @@ func TestProcessPkt(t *testing.T) {
 					nil, // No special connNewer.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
-				dp.AddSvc(
-					addr.SvcCS,
-					addr.MustParseHost("172.0.2.10"),
-					uint16(dstUDPPort),
+				assert.NoError(
+					t,
+					dp.AddSvc(
+						addr.SvcCS,
+						addr.MustParseHost("172.0.2.10"),
+						uint16(dstUDPPort),
+					),
 				)
 				return dp
 			},
