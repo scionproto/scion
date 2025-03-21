@@ -2024,7 +2024,6 @@ type bfdSend struct {
 	dataPlane *dataPlane
 	name      string // for logs
 	ifID      uint16
-	srcAddr   netip.AddrPort
 	scn       *slayers.SCION
 	ohp       *onehop.Path
 	mac       hash.Hash
@@ -2095,7 +2094,7 @@ func newBFDSend(
 }
 
 func (b *bfdSend) String() string {
-	return b.srcAddr.String()
+	return b.name
 }
 
 // Send sends out a BFD message.
