@@ -6,7 +6,6 @@ go_library(
         "doc.go",
         "interface.go",
         "linktype.go",
-        "raw.go",
         "reload.go",
         "servicetype.go",
         "topology.go",
@@ -22,6 +21,7 @@ go_library(
         "//pkg/segment/iface:go_default_library",
         "//private/topology/json:go_default_library",
         "//private/topology/underlay:go_default_library",
+        "//private/underlay/conn:go_default_library",
     ],
 )
 

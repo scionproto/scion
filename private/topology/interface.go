@@ -44,13 +44,13 @@ type Topology interface {
 	// in which endhost listen for SCION/UDP application using the UDP/IP underlay.
 	PortRange() (uint16, uint16)
 
-	// PublicAddress gets the public address of a server with the requested type and name, and nil
-	// if no such server exists.
+	// PublicAddress gets the public SCION host address of a server with the requested type and
+	// name, or nil if no such server exists.
 	PublicAddress(svc addr.SVC, name string) *net.UDPAddr
 
-	// Anycast returns the address for an arbitrary server of the requested type.
+	// Anycast returns the SCION host address for an arbitrary server of the requested type.
 	Anycast(svc addr.SVC) (*net.UDPAddr, error)
-	// Multicast returns all addresses for the requested type.
+	// Multicast returns all the SCION host addresses for the requested type.
 	Multicast(svc addr.SVC) ([]*net.UDPAddr, error)
 
 	// UnderlayAnycast returns the underlay address for an arbitrary server of the requested type.
