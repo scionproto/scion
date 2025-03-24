@@ -61,9 +61,10 @@ Dependencies
 Bazel, as well as additional build tools and dependencies that are not managed by bazel, are installed in the ``pre-command`` hook.
 See `.buildkite/provision-agent.sh <https://github.com/scionproto/scion/blob/master/.buildkite/provision-agent.sh>`_.
 
-One notable exception is managing go executable. It's required for ``oapi-codegen`` since upgrade to bzlmod.
+One notable case is managing go executable. It's required for ``oapi-codegen`` since upgrade to bzlmod:
+it runs ``goimports`` directly in its code, and there's no direct access to Go SDK with bzlmod.
 It's installed via a `bootstrap script <https://buildkite.com/docs/agent/v3/elastic-ci-aws/managing-elastic-ci-stack#customizing-instances-with-a-bootstrap-script>`_
-which is stored in a S3 bucket. The script and the IAM policy to read it are provided as parameters to CloudFormation template.
+which is stored in a S3 bucket. The script and the IAM policy to read it are provided as parameters to the CloudFormation template.
 
 Caching
 -------
