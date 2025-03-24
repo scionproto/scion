@@ -34,9 +34,6 @@ __pycache__
 #########################
 .vscode/
 
-# GoLand folder
-.ijwb/
-
 # build files
 #########################
 .installstamp
@@ -89,9 +86,10 @@ tags
 # documentation builds
 _build
 
-# IntelliJ folder
+# IntelliJ folders
 #########################
 .idea/
+.ijwb/
 
 # node modules
 ##############
