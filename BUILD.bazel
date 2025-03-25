@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
-load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
+load("@buildifier_prebuilt//:rules.bzl", "buildifier")
 load("@gazelle//:def.bzl", "gazelle")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
 load("@npm//private/mgmtapi/tools:@stoplight/spectral-cli/package_json.bzl", spectral_bin = "bin")
@@ -235,7 +235,7 @@ spectral_bin.spectral_binary(
 )
 
 # Runs all write_source_files targets in this Workspace. To update the list run
-# bazel run @com_github_bazelbuild_buildtools//buildozer -- --root_dir $PWD  "add additional_update_targets $( bazel query 'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files
+# bazel run @buildifier_prebuilt//:buildozer -- --root_dir $PWD  "add additional_update_targets $( bazel query 'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files
 write_source_files(
     name = "write_all_source_files",
     additional_update_targets = [

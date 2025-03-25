@@ -2,17 +2,7 @@
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-def _non_module_deps_impl(
-        # buildifier: disable=unused-variable
-        mctx):
-    # TODO: Remove when available as module.
-    http_archive(
-        name = "com_github_bazelbuild_buildtools",
-        sha256 = "573345c2039889a4001b9933a7ebde8dcaf910c47787993aecccebc3117a4425",
-        strip_prefix = "buildtools-8.0.3",
-        urls = ["https://github.com/bazelbuild/buildtools/archive/v8.0.3.tar.gz"],
-    )
-
+def _non_module_deps_impl(ctx):
     http_archive(
         name = "rules_antlr",
         # XXX(roosd): This hash is not guaranteed to be stable by GitHub.
