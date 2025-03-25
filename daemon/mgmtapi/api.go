@@ -96,7 +96,7 @@ func (s *Server) GetCertificate(w http.ResponseWriter, r *http.Request, chainID 
 	s.CPPKIServer.GetCertificate(w, r, chainID)
 }
 
-// GetCertificateBlob gnerates a certificate chain blob response encoded as PEM for a given chainId.
+// GetCertificateBlob generates a certificate chain blob response encoded as PEM for a given chainId.
 func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chainID ChainID) {
 	s.CPPKIServer.GetCertificateBlob(w, r, chainID)
 }

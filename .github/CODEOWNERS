@@ -7,11 +7,11 @@
 # Human summary:
 # - The entire core team should be involved for changes that affect the wire
 #   format(s) and the main public libraries (snet).
-# - Dominik (oncilla) should be involed in changes that affect cppki.
+# - Dominik (oncilla) should be involved in changes that affect cppki.
 # - Either Dominik (oncilla) or Lukas (lukedirtwalker) should be involved for
 #   changes that could impact the compatibility between this implementation and
 #   their proprietary system.
-# - Jean-Christophe (jiceatscion) would like to be involved for changes to the router
+# - Jean-Christophe (jiceatscion) would like to be involved for changes to the router.
 antlr/** @oncilla @lukedirtwalker
 control/trust/** @oncilla
 gateway/dataplane/encoder.go @oncilla @lukedirtwalker

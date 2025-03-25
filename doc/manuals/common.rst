@@ -262,7 +262,7 @@ of the individual fields below.
          .. option:: local = [<ip|hostname>]:<port>, required
 
             The IP/UDP address of this router interface.
-            The IP or hostname can be ommitted; in this case the router will just bind to a wildcard
+            The IP or hostname can be omitted; in this case the router will just bind to a wildcard
             address.
 
          .. option:: public = <ip|hostname>:<port>, deprecated
@@ -307,7 +307,7 @@ of the individual fields below.
 
          .. option:: desired_min_tx_interval = <duration>, default router.bfd.desired_min_tx_interval
 
-            See :option:`router.bfd.disired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
+            See :option:`router.bfd.desired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
 
             Defines the frequency at which this router should send BFD control messages for this
             inter-domain link.

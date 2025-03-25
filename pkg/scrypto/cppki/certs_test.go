@@ -711,13 +711,13 @@ func TestValidateChain(t *testing.T) {
 		modify    func([]*x509.Certificate) []*x509.Certificate
 		assertErr assert.ErrorAssertionFunc
 	}{
-		"invalid legth less than two": {
+		"invalid length less than two": {
 			modify: func(c []*x509.Certificate) []*x509.Certificate {
 				return c[:1]
 			},
 			assertErr: assert.Error,
 		},
-		"invalid legth more than two": {
+		"invalid length more than two": {
 			modify: func(c []*x509.Certificate) []*x509.Certificate {
 				c = append(c, c[0])
 				return c
@@ -776,7 +776,7 @@ func TestValidateChain(t *testing.T) {
 }
 
 func TestVerifyChain(t *testing.T) {
-	// testadata files generated with scion-pki:
+	// testdata files generated with scion-pki:
 	/*
 		scion-pki testcrypto -t topology/default.topo -o gen
 		cp gen/ISD1/ISD1-B1-S1.trc pkg/scrypto/cppki/testdata/verifychain

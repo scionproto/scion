@@ -20,7 +20,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// Level1ARC maintains an Adaptative Replacement Cache, storing
+// Level1ARC maintains an Adaptive Replacement Cache, storing
 // the necessary metadata to prefetch Level1 keys.
 type Level1ARC struct {
 	cache *arc.ARCCache[Level1PrefetchInfo, struct{}]
