@@ -1761,3 +1761,9 @@ def go_deps():
         sum = "h1:aJMhYGrd5QSmlpLMr2MftRKl7t8J8PTZPA732ud/XR8=",
         version = "v1.27.0",
     )
+    go_repository(
+        name = "com_tailscale",
+        importpath = "tailscale.com",
+        sum = "h1:MA/AvAyWakq01E1MS6SwKEp2VEFE5CoXAAguwrnbF5g=",
+        version = "v1.80.2",
+    )

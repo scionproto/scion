@@ -55,6 +55,7 @@ require (
 	google.golang.org/grpc/examples v0.0.0-20240321213419-eb5828bae753
 	google.golang.org/protobuf v1.36.1
 	gopkg.in/yaml.v2 v2.4.0
+	tailscale.com v1.80.2
 	modernc.org/sqlite v1.29.9
 	zgo.at/zcache/v2 v2.1.0
 )

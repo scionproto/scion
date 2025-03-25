@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
+load("//:scion.bzl", "scion_go_binary")
+load("//acceptance/common:topogen.bzl", "topogen_test")
+load("//tools/lint:go.bzl", "go_library")
+
+topogen_test(
+    name = "test",
+    src = "test.py",
+    args = [
+        "--executable=test-client:$(location //demo/stun/test-client)",
+        "--executable=test-server:$(location //demo/stun/test-server)",
+    ],
+    data = [
+        "//demo/stun/test-client",
+        "//demo/stun/test-server",
+    ],
+    topo = "//topology:tiny.topo",
+)
