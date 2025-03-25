@@ -148,7 +148,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 				srvCtx, cancel := context.WithCancel(ctx)
 				waiter, err := in.StartServer(srvCtx, dst)
 				if err != nil {
-					log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
+					log.Error("Error in server: "+dst.String(), "err", err)
 				}
 				cleaner := func() {
 					cancel()
@@ -341,7 +341,6 @@ func filter(
 	pairs []integration.IAPair,
 	ases *integration.ASList,
 ) []integration.IAPair {
-
 	var res []integration.IAPair
 	s, err1 := addr.ParseIA(src)
 	d, err2 := addr.ParseIA(dst)

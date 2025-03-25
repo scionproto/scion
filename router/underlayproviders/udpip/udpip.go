@@ -48,9 +48,7 @@ type provider struct {
 	internalHashSeed   uint32         // As a result, this too is shared.
 }
 
-var (
-	errShortPacket = errors.New("Packet is too short")
-)
+var errShortPacket = errors.New("Packet is too short")
 
 type udpLink interface {
 	router.Link
@@ -83,8 +81,8 @@ func (u *provider) NumConnections() int {
 // The queues to be used by the receiver task are supplied at this point because they must be
 // sized according to the number of connections that will be started.
 func (u *provider) Start(
-	ctx context.Context, pool chan *router.Packet, procQs []chan *router.Packet) {
-
+	ctx context.Context, pool chan *router.Packet, procQs []chan *router.Packet,
+) {
 	u.mu.Lock()
 	if len(procQs) == 0 {
 		// Pointless to run without any processor of incoming traffic
@@ -142,7 +140,6 @@ type udpConnection struct {
 // start puts the connection in the running state. In that state, the connection can deliver
 // incoming packets and ignores packets present on its input channel.
 func (u *udpConnection) start(batchSize int, pool chan *router.Packet) {
-
 	wasRunning := u.running.Swap(true)
 	if wasRunning {
 		return
@@ -153,7 +150,6 @@ func (u *udpConnection) start(batchSize int, pool chan *router.Packet) {
 		defer log.HandlePanic()
 		u.receive(batchSize, pool)
 		close(u.receiverDone)
-
 	}()
 
 	// Forwarder task
@@ -179,7 +175,6 @@ func (u *udpConnection) stop() {
 }
 
 func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
-
 	log.Debug("Receive", "connection", u.name)
 
 	// A collection of socket messages, as the readBatch API expects them. We keep using the same
@@ -266,7 +261,6 @@ func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*ro
 		default:
 			return i
 		}
-
 	}
 	return i
 }
@@ -389,7 +383,6 @@ func (u *provider) NewExternalLink(
 	ifID uint16,
 	metrics router.InterfaceMetrics,
 ) (router.Link, error) {
-
 	if remote == (netip.AddrPort{}) {
 		// The router doesn't do this. This is an internal error.
 		panic("Zero address not supported")
@@ -488,7 +481,6 @@ func (l *externalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
 		l.pool <- p
@@ -535,7 +527,6 @@ func (u *provider) NewSiblingLink(
 	remote netip.AddrPort,
 	metrics router.InterfaceMetrics,
 ) router.Link {
-
 	if remote == (netip.AddrPort{}) {
 		// The router doesn't do this. This is an internal error.
 		panic("Zero address not supported")
@@ -641,7 +632,6 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) 
 	metrics[sc].InputBytesTotal.Add(float64(size))
 
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
 		l.pool <- p
@@ -670,8 +660,8 @@ type internalLink struct {
 // TODO(multi_underlay): we get the connection-ready made. In the future we will be making it
 // and the conn argument will be gone.
 func (u *provider) NewInternalLink(
-	conn router.BatchConn, qSize int, metrics router.InterfaceMetrics) router.Link {
-
+	conn router.BatchConn, qSize int, metrics router.InterfaceMetrics,
+) router.Link {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 

@@ -15,6 +15,7 @@
 package combinator
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -45,7 +46,10 @@ func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) s
 		return snet.PathMetadata{}
 	}
 	if len(interfaces)%2 != 0 {
-		panic("the number of interfaces traversed by the path is expected to be even")
+		panic(fmt.Errorf(
+			"the number of interfaces traversed by the path is expected to be even: %d",
+			len(interfaces),
+		))
 	}
 
 	// Prepare lookup table of the connected remote interface IDs; this is not
