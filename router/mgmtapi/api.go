@@ -120,7 +120,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 	for _, intf := range siblingInterfaces {
 		siblingInterface := SiblingInterface{
 			InterfaceId: int(intf.IfID), // nolint - name from published API.
-			// The name InternalInterface is poorly chosen but enshrinned in the schema.
+			// The name InternalInterface is poorly chosen but enshrined in the schema.
 			InternalInterface: intf.InternalAddress,
 			Neighbor: SiblingNeighbor{
 				IsdAs: intf.NeighborIA.String(),

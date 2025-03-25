@@ -216,13 +216,13 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 
 		localAddr, err := netip.ParseAddrPort(linkInfo.Local.Addr)
 		if err != nil {
-			return err
+			return serrors.Wrap("unparsable remote address", err)
 		}
 		localHost := addr.HostIP(localAddr.Addr())
 
 		remoteAddr, err := netip.ParseAddrPort(linkInfo.Remote.Addr)
 		if err != nil {
-			return err
+			return serrors.Wrap("unparsable remote address", err)
 		}
 		remoteHost := addr.HostIP(remoteAddr.Addr())
 
@@ -278,8 +278,8 @@ func confServices(dp Dataplane, cfg *Config) error {
 		})
 
 		// Topo.Multicast returns SCION host addresses (which just happen to be identical to udp/ip
-		// addresses). So, in theory, these are *not* underlay addresses. The topology API
-		// represents them openly as UdpAddr. The router doesn't make that assumption. It does not
+		// addresses). So, in theory, these are *not* underlay addresses. While the topology API
+		// represents them openly as UDPAddr, the router doesn't make that assumption. It does not
 		// know what a UDPAddr is; that's underlay business. So, addr.Host is what we give to the
 		// router. The underlays are in change of resolving the corresponding underlay address.
 		for _, a := range addrs {

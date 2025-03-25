@@ -85,15 +85,15 @@ type BatchConn interface {
 	Close() error
 }
 
-// underlayProviders is a map of our underlay providers. Each entry associates a name with a factory
-// function that creates a new instance of the named provider. A new instance is created every time
-// so multiple dataplane instances can co-exist (as is routinely done by tests).
-var underlayProviders map[string]func(int, int, int) UnderlayProvider
+// underlayProviders is a map of our underlay providers. Each entry associates a name with a
+// NewProviderFn. A new instance of that provider is created by every invocation so multiple
+// dataplane instances can co-exist (as is routinely done by tests).
+var underlayProviders map[string]NewProviderFn
 
 // AddUnderlay registers the named factory function.
 func AddUnderlay(name string, newProvider func(int, int, int) UnderlayProvider) {
 	if underlayProviders == nil {
-		underlayProviders = make(map[string]func(int, int, int) UnderlayProvider)
+		underlayProviders = make(map[string]NewProviderFn)
 	}
 	underlayProviders[name] = newProvider
 }
@@ -417,7 +417,7 @@ func (d *dataPlane) AddExternalInterface(
 	if !instantiated {
 		underlayProvider, exists := underlayProviders[link.Provider]
 		if !exists {
-			panic("No provider for underlay " + link.Provider)
+			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
 		}
 		underlay = underlayProvider(
 			d.RunConfig.BatchSize,
@@ -562,7 +562,7 @@ func (d *dataPlane) AddNextHop(
 	if !instantiated {
 		underlayProvider, exists := underlayProviders[link.Provider]
 		if !exists {
-			panic("No provider for underlay " + link.Provider)
+			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
 		}
 		underlay = underlayProvider(
 			d.RunConfig.BatchSize,

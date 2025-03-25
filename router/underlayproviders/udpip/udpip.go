@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"maps"
 	"net"
 	"net/netip"
@@ -35,9 +36,11 @@ import (
 )
 
 var (
-	resolveOnSiblingLink  = errors.New("unsupported address resolution on sibling link")
-	resolveOnExternalLink = errors.New("unsupported address resolution on external link")
-	invalidServiceAddress = errors.New("invalid service address")
+	errResolveOnSiblingLink  = errors.New("unsupported address resolution on sibling link")
+	errResolveOnExternalLink = errors.New("unsupported address resolution on external link")
+	errInvalidServiceAddress = errors.New("invalid service address")
+	errShortPacket           = errors.New("packet is too short")
+	errDuplicateRemote       = errors.New("duplicate remote address")
 )
 
 // An interface to enable unit testing.
@@ -45,7 +48,7 @@ type ConnNewer interface {
 	New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error)
 }
 
-// The default ConnNewer for this underlay: opens an underlay conn.
+// The default ConnNewer for this underlay: opens an udp BatchConn.
 type un struct {
 }
 
@@ -73,10 +76,6 @@ type provider struct {
 	dispatchEnd        uint16
 	dispatchRedirect   uint16
 }
-
-var (
-	errShortPacket = errors.New("Packet is too short")
-)
 
 type udpLink interface {
 	router.Link
@@ -128,7 +127,7 @@ func (u *provider) AddSvc(svc addr.SVC, a addr.Host, p uint16) error {
 	// We pre-resolve the addresses, which is trivial for this underlay.
 	addr := netip.AddrPortFrom(a.IP(), p)
 	if !addr.IsValid() {
-		return invalidServiceAddress
+		return errInvalidServiceAddress
 	}
 	u.svc.AddSvc(svc, addr)
 	return nil
@@ -138,7 +137,7 @@ func (u *provider) AddSvc(svc addr.SVC, a addr.Host, p uint16) error {
 func (u *provider) DelSvc(svc addr.SVC, a addr.Host, p uint16) error {
 	addr := netip.AddrPortFrom(a.IP(), p)
 	if !addr.IsValid() {
-		return invalidServiceAddress
+		return errInvalidServiceAddress
 	}
 	u.svc.DelSvc(svc, addr)
 	return nil
@@ -455,11 +454,11 @@ func (u *provider) NewExternalLink(
 
 	localAddr, err := conn.ResolveAddrPortOrPort(local)
 	if err != nil {
-		return nil, err
+		return nil, serrors.Wrap("resolving local address", err)
 	}
 	remoteAddr, err := conn.ResolveAddrPort(remote)
 	if err != nil {
-		return nil, err
+		return nil, serrors.Wrap("resolving remote address", err)
 	}
 
 	u.mu.Lock()
@@ -468,7 +467,7 @@ func (u *provider) NewExternalLink(
 	if l := u.allLinks[remoteAddr]; l != nil {
 		// This is a really bad idea. We can't just panic because it may be a configuration error.
 		// So, we have to return an error.
-		return nil, serrors.New("remote address reused")
+		return nil, serrors.Join(errDuplicateRemote, nil, "addr", remote)
 	}
 
 	conn, err := u.connNewer.New(localAddr, remoteAddr,
@@ -544,7 +543,7 @@ func (l *externalLink) IsUp() bool {
 
 // Resolve should not be useful on an external link so we don't implement it yet.
 func (l *externalLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
-	return resolveOnExternalLink
+	return errResolveOnExternalLink
 }
 
 func (l *externalLink) Send(p *router.Packet) bool {
@@ -613,11 +612,11 @@ func (u *provider) NewSiblingLink(
 	// We don't currently use the address, but that will change. It *must* be valid.
 	_, err := conn.ResolveAddrPortOrPort(local)
 	if err != nil {
-		return nil, err
+		return nil, serrors.Wrap("resolving local address", err)
 	}
 	remoteAddr, err := conn.ResolveAddrPort(remote)
 	if err != nil {
-		return nil, err
+		return nil, serrors.Wrap("resolving remote address", err)
 	}
 
 	u.mu.Lock()
@@ -696,7 +695,7 @@ func (l *siblingLink) IsUp() bool {
 
 // Resolve should not be useful on a sibling link so we don't implement it yet.
 func (l *siblingLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
-	return resolveOnSiblingLink
+	return errResolveOnSiblingLink
 }
 
 func (l *siblingLink) Send(p *router.Packet) bool {
@@ -858,7 +857,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 			return router.UnsupportedUnspecifiedAddress
 		}
 	default:
-		panic("unexpected address type returned from DstAddr")
+		panic(fmt.Sprintf("unexpected address type returned from DstAddr: %s", dst.Type()))
 	}
 	// if port is outside the configured port range we send to the fixed port.
 	if port < l.dispatchStart && port > l.dispatchEnd {

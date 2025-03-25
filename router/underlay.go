@@ -68,8 +68,9 @@ type UnderlayProvider interface {
 
 	// SetConnNewer is a unit testing device: it allows the replacement of the function
 	// that creates new underlay connections. Underlay implementations can, at their
-	// choice, implement this properly, or panic if it is called. The tests have to know
-	// which it is. Only router/export_test invokes this directly.
+	// choice, implement this properly, or panic if it is called. The newer can be anything
+	// that suits the underlay implementation, so tests that use this must match the code of
+	// a specific underlay provider.
 	SetConnNewer(newer any)
 
 	// NumConnections returns the current number of configured connections.
@@ -130,3 +131,6 @@ type UnderlayProvider interface {
 	// metadata. Incoming packets have no defined ingress ifID.
 	NewInternalLink(localAddr netip.AddrPort, qSize int, metrics InterfaceMetrics) (Link, error)
 }
+
+// NewProviderFn is a function that instantiates an underlay provider.
+type NewProviderFn func(batchSize, receiveBufferSize, sendBufferSize int) UnderlayProvider
