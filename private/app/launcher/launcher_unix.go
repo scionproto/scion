@@ -88,8 +88,7 @@ func (a *Application) run() error {
 			defer log.HandlePanic()
 			panic(fmt.Errorf(
 				"main goroutine did not shut down in time (waited for %s). "+
-					"It's probably stuck. Forcing shutdown",
-				waitDur.String()))
+					"It's probably stuck. Forcing shutdown", waitDur))
 		})
 
 		cancel()

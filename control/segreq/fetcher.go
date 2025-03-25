@@ -16,7 +16,6 @@ package segreq
 
 import (
 	"context"
-	"fmt"
 	"math/rand/v2"
 	"net"
 	"time"
@@ -197,11 +196,11 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		}
 		path = paths[rand.IntN(len(paths))]
 	default:
-		panic(fmt.Errorf(
-			"unsupported segment type for request forwarding: "+
-				"up segment should have been resolved locally: %s",
-			req.SegType.String(),
-		))
+		panic(
+			"unsupported segment type for request forwarding: " +
+				"up segment should have been resolved locally: " +
+				req.SegType.String(),
+		)
 	}
 	addr := &snet.SVCAddr{
 		IA:      path.Destination(),

@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"slices"
 	"time"
@@ -592,7 +591,7 @@ func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 	case proto.PathSegType_down:
 		return false
 	default:
-		panic(fmt.Sprintf("Invalid segment type: %s", currSeg.Type.String()))
+		panic("Invalid segment type: " + currSeg.Type.String())
 	}
 }
 
