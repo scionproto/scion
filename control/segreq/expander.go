@@ -16,7 +16,6 @@ package segreq
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -56,10 +55,9 @@ func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 		return requestsSrcsToDst(cores, req.Dst, req.SegType), nil
 	default:
 		// no wildcard source for up requests
-		panic(fmt.Errorf(
-			"unexpected wildcard for up segment request, should not have passed validation: %s",
-			req.SegType.String(),
-		))
+		panic("unexpected wildcard for up segment request, " +
+			"should not have passed validation: " +
+			req.SegType.String())
 	}
 }
 
