@@ -124,7 +124,7 @@ func fuzzLayer(l fuzzableLayer, data []byte) int {
 	}
 	buf := gopacket.NewSerializeBuffer()
 	if err := l.SerializeTo(buf, gopacket.SerializeOptions{}); err != nil {
-		panic(fmt.Sprintf("cannot serialize without fix lengths %v", err))
+		panic(fmt.Sprintf("cannot serialize without fix lengths: %v", err))
 	}
 	if !bytes.Equal(buf.Bytes(), data[:len(buf.Bytes())]) {
 		panic("serialized data differs without fix lengths")
@@ -134,7 +134,7 @@ func fuzzLayer(l fuzzableLayer, data []byte) int {
 	// length fields.
 	buf = gopacket.NewSerializeBuffer()
 	if err := l.SerializeTo(buf, gopacket.SerializeOptions{FixLengths: true}); err != nil {
-		panic(fmt.Sprintf("cannot serialize with fix lengths %v", err))
+		panic(fmt.Sprintf("cannot serialize with fix lengths: %v", err))
 	}
 	return 1
 }
