@@ -96,7 +96,8 @@ func (s *Server) GetCertificate(w http.ResponseWriter, r *http.Request, chainID 
 	s.CPPKIServer.GetCertificate(w, r, chainID)
 }
 
-// GetCertificateBlob generates a certificate chain blob response encoded as PEM for a given chainId.
+// GetCertificateBlob generates a certificate chain blob response encoded as PEM
+// for a given chainId.
 func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chainID ChainID) {
 	s.CPPKIServer.GetCertificateBlob(w, r, chainID)
 }
@@ -114,7 +115,7 @@ func (s *Server) GetTrcs(
 	s.CPPKIServer.GetTrcs(w, r, cppkiParams) // nolint - name from published API
 }
 
-// GetTrc gets the trc specified by it's isd base and serial.
+// GetTrc gets the trc specified by its isd base and serial.
 func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
 	s.CPPKIServer.GetTrc(w, r, isd, base, serial) // nolint - name from published API
 }
