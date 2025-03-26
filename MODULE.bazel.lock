@@ -314,7 +314,7 @@
     },
     "//:non_module_deps.bzl%non_module_deps": {
       "general": {
-        "bzlTransitiveDigest": "owSc7okLstrEiy402xLxPGJ7UbOsSI1pU1X9DJ5OzxA=",
+        "bzlTransitiveDigest": "0/tqpNmObmiBMLrIoLbWZAmdvFC2OD1IPS//Q+xy5Y8=",
         "usagesDigest": "fLhA19vQJL+2bg82b9f+PZFRpAkxBzsz3xYcgEJpMzs=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},

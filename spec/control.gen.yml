@@ -312,7 +312,7 @@ paths:
         control service. The result can be filtered by ISD-AS. Furthermore,
         one can pass a particular point in time at which the certificate
         chains are valid as input. A boolean can be provided to return all
-        certificates, regardless of their period of vailidity.
+        certificates, regardless of their period of validity.
       operationId: get-certificates
       parameters:
         - in: query
