@@ -86,9 +86,10 @@ tags
 # documentation builds
 _build
 
-# IntelliJ folder
+# IntelliJ folders
 #########################
 .idea/
+.ijwb/
 
 # node modules
 ##############

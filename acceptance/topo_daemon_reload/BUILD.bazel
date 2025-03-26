@@ -1,6 +1,6 @@
-load("//tools/lint:go.bzl", "go_test")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("//tools/lint:go.bzl", "go_test")
 
 go_test(
     name = "go_default_test",
@@ -24,11 +24,17 @@ go_test(
 )
 
 # daemon container
-oci_tarball(
-    name = "daemon.tar",
+oci_load(
+    name = "daemon",
     format = "docker",
     image = ":daemon_image",
     repo_tags = ["scion/" + package_name() + ":daemon"],
+)
+
+filegroup(
+    name = "daemon.tar",
+    srcs = [":daemon"],
+    output_group = "tarball",
 )
 
 oci_image(
