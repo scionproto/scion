@@ -53,8 +53,8 @@ type Message struct {
 // Sign creates a signed message. The associated data is not included in the
 // header or body.
 func Sign(hdr Header, body []byte, signer crypto.Signer,
-	associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
-
+	associatedData ...[]byte,
+) (*cryptopb.SignedMessage, error) {
 	if signer == nil {
 		return nil, serrors.New("singer must not be nil")
 	}
@@ -102,8 +102,8 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 
 // Verify verifies the signed message.
 func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
-	associatedData ...[]byte) (*Message, error) {
-
+	associatedData ...[]byte,
+) (*Message, error) {
 	if key == nil {
 		return nil, serrors.New("public key must not be nil")
 	}
@@ -137,8 +137,8 @@ func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
 }
 
 func computeSignatureInput(algo SignatureAlgorithm, hdrAndBody []byte,
-	associatedData ...[]byte) ([]byte, crypto.Hash) {
-
+	associatedData ...[]byte,
+) ([]byte, crypto.Hash) {
 	hash := signatureAlgorithmDetails[algo].hash
 	if hash == 0 {
 		input := make([]byte, len(hdrAndBody)+associatedDataLen(associatedData...))
@@ -151,7 +151,7 @@ func computeSignatureInput(algo SignatureAlgorithm, hdrAndBody []byte,
 		return input, hash
 	}
 	if !hash.Available() {
-		panic(fmt.Sprintf("unavailable hash algorithm: %v", hash))
+		panic(fmt.Sprintf("unavailable hash algorithm: %#v", hash))
 	}
 	h := hash.New()
 	h.Write(hdrAndBody)

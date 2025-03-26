@@ -147,8 +147,10 @@ type slowPathRequest struct {
 }
 
 // Make sure that the packet structure has the size we expect.
-const _ uintptr = 64 - unsafe.Sizeof(Packet{}) // assert 64 >= sizeof(Packet)
-const _ uintptr = unsafe.Sizeof(Packet{}) - 64 // assert sizeof(Packet) >= 64
+const (
+	_ uintptr = 64 - unsafe.Sizeof(Packet{}) // assert 64 >= sizeof(Packet)
+	_ uintptr = unsafe.Sizeof(Packet{}) - 64 // assert sizeof(Packet) >= 64
+)
 
 // initPacket configures the given blank packet (and returns it, for convenience).
 func (p *Packet) init(buffer *[bufSize]byte) *Packet {
@@ -377,8 +379,8 @@ func (d *dataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 // If a connection for the given ID is already set this method will return an
 // error. This can only be called on a not yet running dataplane.
 func (d *dataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
-	src, dst control.LinkEnd, cfg control.BFD) error {
-
+	src, dst control.LinkEnd, cfg control.BFD,
+) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -437,9 +439,9 @@ func (d *dataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 }
 
 // newExternalInterfaceBFD adds the inter AS connection BFD session.
-func (d *dataPlane) newExternalInterfaceBFD(ifID uint16,
-	src, dst control.LinkEnd, cfg control.BFD) (*bfd.Session, error) {
-
+func (d *dataPlane) newExternalInterfaceBFD(
+	ifID uint16, src, dst control.LinkEnd, cfg control.BFD,
+) (*bfd.Session, error) {
 	if *cfg.Disable {
 		return nil, nil
 	}
@@ -512,8 +514,8 @@ func (d *dataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
 func (d *dataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
-	sibling string) error {
-
+	sibling string,
+) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -540,9 +542,9 @@ func (d *dataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 }
 
 // AddNextHopBFD adds the BFD session for the next hop address.
-func (d *dataPlane) newNextHopBFD(src, dst netip.AddrPort, cfg control.BFD,
-	sibling string) (*bfd.Session, error) {
-
+func (d *dataPlane) newNextHopBFD(
+	src, dst netip.AddrPort, cfg control.BFD, sibling string,
+) (*bfd.Session, error) {
 	if *cfg.Disable {
 		return nil, nil
 	}
@@ -588,7 +590,6 @@ func (d *dataPlane) Run(ctx context.Context) error {
 	// Start our custom /proc/pid/stat collector to export iowait time and (in the future) other
 	// process-wide metrics that prometheus does not.
 	err := processmetrics.Init()
-
 	// we can live without these metrics. Just log the error.
 	if err != nil {
 		log.Error("Could not initialize processmetrics", "err", err)
@@ -638,7 +639,6 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 
 // initializes the processing routines and queues
 func (d *dataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *Packet) {
-
 	procQs := make([]chan *Packet, d.RunConfig.NumProcessors)
 	for i := 0; i < d.RunConfig.NumProcessors; i++ {
 		procQs[i] = make(chan *Packet, processorQueueSize)
@@ -659,7 +659,6 @@ func (d *dataPlane) returnPacketToPool(pkt *Packet) {
 }
 
 func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet) {
-
 	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
 	for d.isRunning() {
@@ -712,7 +711,6 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 }
 
 func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
-
 	log.Debug("Initialize slow-path processor with", "id", id)
 	processor := newSlowPathProcessor(d)
 	for d.isRunning() {
@@ -818,17 +816,17 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 			return malformedPath
 		}
 	default:
-		//unsupported path type
+		// unsupported path type
 		return serrors.New("Path type not supported for slow-path", "type", pathType)
 	}
 
 	s := pkt.slowPathRequest
 	switch s.spType {
-	case slowPathRouterAlertIngress: //Traceroute
+	case slowPathRouterAlertIngress: // Traceroute
 		return p.handleSCMPTraceRouteRequest(p.ingressFromLink)
-	case slowPathRouterAlertEgress: //Traceroute
+	case slowPathRouterAlertEgress: // Traceroute
 		return p.handleSCMPTraceRouteRequest(p.pkt.egress)
-	default: //SCMP
+	default: // SCMP
 		var layer gopacket.SerializableLayer
 		scmpType := slayers.SCMPType(s.spType)
 		switch scmpType {
@@ -837,13 +835,18 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 		case slayers.SCMPTypeDestinationUnreachable:
 			layer = &slayers.SCMPDestinationUnreachable{}
 		case slayers.SCMPTypeExternalInterfaceDown:
-			layer = &slayers.SCMPExternalInterfaceDown{IA: p.d.localIA,
-				IfID: uint64(p.pkt.egress)}
+			layer = &slayers.SCMPExternalInterfaceDown{
+				IA:   p.d.localIA,
+				IfID: uint64(p.pkt.egress),
+			}
 		case slayers.SCMPTypeInternalConnectivityDown:
-			layer = &slayers.SCMPInternalConnectivityDown{IA: p.d.localIA,
-				Ingress: uint64(p.ingressFromLink), Egress: uint64(p.pkt.egress)}
+			layer = &slayers.SCMPInternalConnectivityDown{
+				IA:      p.d.localIA,
+				Ingress: uint64(p.ingressFromLink),
+				Egress:  uint64(p.pkt.egress),
+			}
 		default:
-			panic(fmt.Errorf("Unsupported slow-path type: %d", scmpType))
+			panic(fmt.Errorf("unsupported slow-path type: %d", scmpType))
 		}
 		return p.packSCMP(scmpType, s.code, layer, true)
 	}
@@ -862,7 +865,7 @@ func newPacketProcessor(d *dataPlane) *scionPacketProcessor {
 func (p *scionPacketProcessor) reset() error {
 	p.pkt = nil
 	p.ingressFromLink = 0
-	//p.scionLayer // cannot easily be reset
+	// p.scionLayer // cannot easily be reset
 	p.path = nil
 	p.hopField = path.HopField{}
 	p.infoField = path.InfoField{}
@@ -927,7 +930,6 @@ func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
 }
 
 func (p *scionPacketProcessor) processBFD(data []byte) disposition {
-
 	session := p.pkt.Link.BFDSession()
 	if session == nil {
 		return errorDiscard("error", noBFDSessionFound)
@@ -941,7 +943,6 @@ func (p *scionPacketProcessor) processBFD(data []byte) disposition {
 }
 
 func (p *scionPacketProcessor) processSCION() disposition {
-
 	var ok bool
 	p.path, ok = p.scionLayer.Path.(*scion.Raw)
 	if !ok {
@@ -952,7 +953,6 @@ func (p *scionPacketProcessor) processSCION() disposition {
 }
 
 func (p *scionPacketProcessor) processEPIC() disposition {
-
 	epicPath, ok := p.scionLayer.Path.(*epic.Path)
 	if !ok {
 		return errorDiscard("error", malformedPath)
@@ -1035,7 +1035,6 @@ func (p *slowPathPacketProcessor) packSCMP(
 	scmpP gopacket.SerializableLayer,
 	isError bool,
 ) error {
-
 	// check invoking packet was an SCMP error:
 	if p.lastLayer.NextLayerType() == slayers.LayerTypeSCMP {
 		var scmpLayer slayers.SCMP
@@ -1099,7 +1098,6 @@ func determinePeer(pathMeta scion.MetaHdr, inf path.InfoField) (bool, error) {
 	}
 	if pathMeta.SegLen[1] == 0 {
 		return false, errPeeringEmptySeg1
-
 	}
 	if pathMeta.SegLen[2] != 0 {
 		return false, errPeeringNonemptySeg2
@@ -1528,7 +1526,6 @@ func (p *scionPacketProcessor) egressRouterAlertFlag() *bool {
 }
 
 func (p *slowPathPacketProcessor) handleSCMPTraceRouteRequest(ifID uint16) error {
-
 	if p.lastLayer.NextLayerType() != slayers.LayerTypeSCMP {
 		log.Debug("Packet with router alert, but not SCMP")
 		return nil
@@ -1783,12 +1780,11 @@ func (d *dataPlane) resolveLocalDst(
 	s slayers.SCION,
 	lastLayer gopacket.DecodingLayer,
 ) error {
-
 	dst, err := s.DstAddr()
 	if err != nil {
 		return invalidDstAddr
 	}
-	switch dst.Type() {
+	switch dstType := dst.Type(); dstType {
 	case addr.HostTypeSVC:
 		// For map lookup use the Base address, i.e. strip the multi cast
 		// information, because we only register base addresses in the map.
@@ -1818,7 +1814,7 @@ func (d *dataPlane) resolveLocalDst(
 		}
 		return d.addEndhostPort(resolvedDst, lastLayer, dstIP)
 	default:
-		panic("unexpected address type returned from DstAddr")
+		panic("unexpected address type returned from DstAddr: " + dstType.String())
 	}
 }
 
@@ -1827,7 +1823,6 @@ func (d *dataPlane) addEndhostPort(
 	lastLayer gopacket.DecodingLayer,
 	dst netip.Addr,
 ) error {
-
 	// Parse UPD port and rewrite underlay IP/UDP port
 	l4Type := nextHdr(lastLayer)
 	port := uint16(topology.EndhostPort)
@@ -2007,8 +2002,8 @@ type bfdSend struct {
 
 // newBFDSend creates and initializes a BFD Sender
 func newBFDSend(d *dataPlane, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrPort,
-	ifID uint16, mac hash.Hash) (*bfdSend, error) {
-
+	ifID uint16, mac hash.Hash,
+) (*bfdSend, error) {
 	scn := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
@@ -2123,7 +2118,6 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	scmpP gopacket.SerializableLayer,
 	isError bool,
 ) error {
-
 	// *copy* and reverse path -- the original path should not be modified as this writes directly
 	// back to rawPkt (quote).
 	var path *scion.Raw
@@ -2135,14 +2129,12 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		if !ok {
 			return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
-
 		}
 	case epic.PathType:
 		epicPath, ok := p.scionLayer.Path.(*epic.Path)
 		if !ok {
 			return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
-
 		}
 		path = epicPath.ScionPath
 	default:
@@ -2393,8 +2385,8 @@ func (p *slowPathPacketProcessor) hasValidAuth(t time.Time) bool {
 // layer and additional, optional layers in the given order.
 // Returns the last decoded layer.
 func decodeLayers(data []byte, base gopacket.DecodingLayer,
-	opts ...gopacket.DecodingLayer) (gopacket.DecodingLayer, error) {
-
+	opts ...gopacket.DecodingLayer,
+) (gopacket.DecodingLayer, error) {
 	if err := base.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 		return nil, err
 	}
