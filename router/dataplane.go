@@ -576,7 +576,11 @@ func (d *dataPlane) AddNextHop(
 
 	// Note that a link to the same sibling router might already exist. If so, it will be
 	// returned instead of creating a new one. As a result, the bfd session will be ignored,
-	// and since it isn't started it will simply be garbage collected.
+	// and since it isn't started it will simply be garbage collected. Note that in that case,
+	// the one real link associated with the sibling will be the first one to be created, so
+	// it will have the ifID of that first sibling interface...somewhat arbitrary. That ifID
+	// is reflected in metrics and the BFD session. May be we should use ifID 0 for sibling bfd
+	// and sibling metrics.
 	lk, err := underlay.NewSiblingLink(
 		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, d.forwardingMetrics[ifID])
 	if err != nil {
@@ -995,7 +999,7 @@ func (p *scionPacketProcessor) processBFD(data []byte) disposition {
 		return errorDiscard("error", err)
 	}
 	session.ReceiveMessage(bfd)
-	return pDiscard // All's fine. That packet's journey ends here.
+	return pDone // All's fine. That packet's journey ends here.
 }
 
 func (p *scionPacketProcessor) processSCION() disposition {
@@ -1297,13 +1301,13 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 // to another AS directly, or via a sibling router.
 func (p *scionPacketProcessor) validateEgressID() disposition {
 	egressID := p.pkt.egress
-	link, found := p.d.interfaces[egressID]
+	egressLink, found := p.d.interfaces[egressID]
 
 	// egress interface must be a known interface
 	// egress is never the internal interface (already checked)
 	// packet coming from internal interface, must go to an external interface
 	// Note that, for now, ingress == 0 is also true for sibling interfaces. That might change.
-	if !found || (p.ingressFromLink == 0 && link.Scope() == Sibling) {
+	if !found || (p.ingressFromLink == 0 && egressLink.Scope() == Sibling) {
 		errCode := slayers.SCMPCodeUnknownHopFieldEgress
 		if !p.infoField.ConsDir {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
@@ -2084,7 +2088,7 @@ func newBFDSend(
 
 	return &bfdSend{
 		dataPlane: d,
-		name:      link.Local.Addr,
+		name:      link.Remote.Addr,
 		ifID:      ifID,
 		scn:       scn,
 		ohp:       ohp,
