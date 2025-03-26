@@ -267,7 +267,7 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 	// than in AddInternalInterface. Currently there can be no dataplane without the udpip provider,
 	// therefore not having a registered factory for it is a panicable offsense. We have no plan B.
 
-	dp := dataPlane{
+	return dataPlane{
 		underlays: map[string]UnderlayProvider{
 			"udpip": underlayProviders["udpip"](
 				runConfig.BatchSize,
@@ -282,8 +282,6 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 		ExperimentalSCMPAuthentication: authSCMP,
 		RunConfig:                      runConfig,
 	}
-
-	return dp //nolint:govet // there's a mutex in dp and we return by value
 }
 
 // setRunning() Configures the running state of the data plane to true. setRunning() is called once
