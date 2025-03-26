@@ -468,7 +468,6 @@ func (d *dataPlane) newExternalInterfaceBFD(
 	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host) (*bfd.Session, error) {
 
 	if *link.BFD.Disable {
-
 		return nil, nil
 	}
 	var m bfd.Metrics
