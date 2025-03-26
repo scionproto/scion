@@ -1,5 +1,5 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
 load("//private/mgmtapi:api.bzl", "openapi_generate_go")
+load("//tools/lint:go.bzl", "go_library", "go_test")
 
 openapi_generate_go(
     name = "api_generated",
@@ -7,7 +7,7 @@ openapi_generate_go(
     spec = False,
 )
 
-# exclude the *.gen.go filse in the workspace it's only for editor compatibility.
+# exclude the *.gen.go files in the workspace it's only for editor compatibility.
 # gazelle:exclude *.gen.go
 go_library(
     name = "go_default_library",

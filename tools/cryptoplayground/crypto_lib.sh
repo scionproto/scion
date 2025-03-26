@@ -35,7 +35,7 @@ export_paths_update() {
     # The TRC ID of the TRC that is created in the ceremony.
     export TRCID="ISD<isd-id>-B1-S<serial-number>"
     # The TRC ID of the predecessor TRC of this ceremony.
-    export PREDID="ISD<isd-id>-B1-S<serial-bumber>"
+    export PREDID="ISD<isd-id>-B1-S<serial-number>"
 # LITERALINCLUDE export_paths_update END
 }
 
@@ -804,7 +804,7 @@ sign_payload() {
     # -inkey:      private key used to sign authenticated by the certificate in -signer.
     # -nodetach:   include the payload in the resulting signed CMS structure.
     # -nocerts:    do not include the signing certificate.
-    # -nosmimecap: do not include smime capabilites.
+    # -nosmimecap: do not include smime capabilities.
     # -outform:    the output format of the resulting signed CMS structure.
     #              We use ASN.1 DER.
 # LITERALINCLUDE sign_payload END

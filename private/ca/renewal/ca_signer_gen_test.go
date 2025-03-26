@@ -44,7 +44,7 @@ import (
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 )
 
-func TestChachingPolicyGenGenerate(t *testing.T) {
+func TestCachingPolicyGenGenerate(t *testing.T) {
 	dir := genCrypto(t)
 
 	otherValidity := time.Hour

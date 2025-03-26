@@ -67,7 +67,6 @@ class DockerUtilsGenerator(object):
             'volumes': [
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
-                self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
         }
         net = self.args.networks[name][0]

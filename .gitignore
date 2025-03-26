@@ -15,7 +15,6 @@ Thumbs.db
 /genold/
 /gen-cache/
 /gen-data/
-/gen-certs/
 /traces/
 
 # Python generated files #
@@ -86,9 +85,10 @@ tags
 # documentation builds
 _build
 
-# IntelliJ folder
+# IntelliJ folders
 #########################
 .idea/
+.ijwb/
 
 # node modules
 ##############

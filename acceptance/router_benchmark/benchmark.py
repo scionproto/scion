@@ -323,7 +323,7 @@ INSTRUCTIONS:
     of names you collected in step 5. If using a partitioned network, make sure to supply them
     in the order indicated in step 2.
 
-    If coremak and mmbm values are available, the report will include a performance index.
+    If coremark and mmbm values are available, the report will include a performance index.
 
     If coremark and mmbm are not available from the test subject, you may supply them on the command
     line. To that end, add the following arguments: "--coremark=<coremark>", "--mmbm=<mmbm>", where

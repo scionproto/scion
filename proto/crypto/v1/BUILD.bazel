@@ -6,5 +6,5 @@ proto_library(
         "signed.proto",
     ],
     visibility = ["//visibility:public"],
-    deps = ["@com_google_protobuf//:timestamp_proto"],
+    deps = ["@protobuf//:timestamp_proto"],
 )

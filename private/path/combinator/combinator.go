@@ -43,7 +43,7 @@ import (
 //
 // With findAllIdentical=true, Combine may return multiple paths with identical
 // sequences of path interfaces, but constructed from different path segments.
-// These forwarding paths can only be destinguished by the segment IDs and the
+// These forwarding paths can only be distinguished by the segment IDs and the
 // hop field MACs. Typically, all of these will have exactly the same
 // forwarding behaviour, but it is possible that an AS would misbehave and
 // change behaviour based on the segment IDs or MACs. An application can use

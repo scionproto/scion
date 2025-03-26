@@ -149,8 +149,10 @@ type slowPathRequest struct {
 }
 
 // Make sure that the packet structure has the size we expect.
-const _ uintptr = 64 - unsafe.Sizeof(Packet{}) // assert 64 >= sizeof(Packet)
-const _ uintptr = unsafe.Sizeof(Packet{}) - 64 // assert sizeof(Packet) >= 64
+const (
+	_ uintptr = 64 - unsafe.Sizeof(Packet{}) // assert 64 >= sizeof(Packet)
+	_ uintptr = unsafe.Sizeof(Packet{}) - 64 // assert sizeof(Packet) >= 64
+)
 
 // initPacket configures the given blank packet (and returns it, for convenience).
 func (p *Packet) init(buffer *[bufSize]byte) *Packet {
@@ -466,6 +468,7 @@ func (d *dataPlane) newExternalInterfaceBFD(
 	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host) (*bfd.Session, error) {
 
 	if *link.BFD.Disable {
+
 		return nil, nil
 	}
 	var m bfd.Metrics
@@ -644,7 +647,6 @@ func (d *dataPlane) Run(ctx context.Context) error {
 	// Start our custom /proc/pid/stat collector to export iowait time and (in the future) other
 	// process-wide metrics that prometheus does not.
 	err := processmetrics.Init()
-
 	// we can live without these metrics. Just log the error.
 	if err != nil {
 		log.Error("Could not initialize processmetrics", "err", err)
@@ -700,7 +702,6 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 
 // initializes the processing routines and queues
 func (d *dataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *Packet) {
-
 	procQs := make([]chan *Packet, d.RunConfig.NumProcessors)
 	for i := 0; i < d.RunConfig.NumProcessors; i++ {
 		procQs[i] = make(chan *Packet, processorQueueSize)
@@ -721,7 +722,6 @@ func (d *dataPlane) returnPacketToPool(pkt *Packet) {
 }
 
 func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet) {
-
 	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
 	for d.isRunning() {
@@ -774,7 +774,6 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 }
 
 func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
-
 	log.Debug("Initialize slow-path processor with", "id", id)
 	processor := newSlowPathProcessor(d)
 	for d.isRunning() {
@@ -880,17 +879,17 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 			return malformedPath
 		}
 	default:
-		//unsupported path type
+		// unsupported path type
 		return serrors.New("Path type not supported for slow-path", "type", pathType)
 	}
 
 	s := pkt.slowPathRequest
 	switch s.spType {
-	case slowPathRouterAlertIngress: //Traceroute
+	case slowPathRouterAlertIngress: // Traceroute
 		return p.handleSCMPTraceRouteRequest(p.ingressFromLink)
-	case slowPathRouterAlertEgress: //Traceroute
+	case slowPathRouterAlertEgress: // Traceroute
 		return p.handleSCMPTraceRouteRequest(p.pkt.egress)
-	default: //SCMP
+	default: // SCMP
 		var layer gopacket.SerializableLayer
 		scmpType := slayers.SCMPType(s.spType)
 		switch scmpType {
@@ -899,13 +898,18 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 		case slayers.SCMPTypeDestinationUnreachable:
 			layer = &slayers.SCMPDestinationUnreachable{}
 		case slayers.SCMPTypeExternalInterfaceDown:
-			layer = &slayers.SCMPExternalInterfaceDown{IA: p.d.localIA,
-				IfID: uint64(p.pkt.egress)}
+			layer = &slayers.SCMPExternalInterfaceDown{
+				IA:   p.d.localIA,
+				IfID: uint64(p.pkt.egress),
+			}
 		case slayers.SCMPTypeInternalConnectivityDown:
-			layer = &slayers.SCMPInternalConnectivityDown{IA: p.d.localIA,
-				Ingress: uint64(p.ingressFromLink), Egress: uint64(p.pkt.egress)}
+			layer = &slayers.SCMPInternalConnectivityDown{
+				IA:      p.d.localIA,
+				Ingress: uint64(p.ingressFromLink),
+				Egress:  uint64(p.pkt.egress),
+			}
 		default:
-			panic(fmt.Errorf("Unsupported slow-path type: %d", scmpType))
+			panic(fmt.Errorf("unsupported slow-path type: %d", scmpType))
 		}
 		return p.packSCMP(scmpType, s.code, layer, true)
 	}
@@ -924,7 +928,7 @@ func newPacketProcessor(d *dataPlane) *scionPacketProcessor {
 func (p *scionPacketProcessor) reset() error {
 	p.pkt = nil
 	p.ingressFromLink = 0
-	//p.scionLayer // cannot easily be reset
+	// p.scionLayer // cannot easily be reset
 	p.path = nil
 	p.hopField = path.HopField{}
 	p.infoField = path.InfoField{}
@@ -989,7 +993,6 @@ func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
 }
 
 func (p *scionPacketProcessor) processBFD(data []byte) disposition {
-
 	session := p.pkt.Link.BFDSession()
 	if session == nil {
 		return errorDiscard("error", noBFDSessionFound)
@@ -1003,7 +1006,6 @@ func (p *scionPacketProcessor) processBFD(data []byte) disposition {
 }
 
 func (p *scionPacketProcessor) processSCION() disposition {
-
 	var ok bool
 	p.path, ok = p.scionLayer.Path.(*scion.Raw)
 	if !ok {
@@ -1014,7 +1016,6 @@ func (p *scionPacketProcessor) processSCION() disposition {
 }
 
 func (p *scionPacketProcessor) processEPIC() disposition {
-
 	epicPath, ok := p.scionLayer.Path.(*epic.Path)
 	if !ok {
 		return errorDiscard("error", malformedPath)
@@ -1097,7 +1098,6 @@ func (p *slowPathPacketProcessor) packSCMP(
 	scmpP gopacket.SerializableLayer,
 	isError bool,
 ) error {
-
 	// check invoking packet was an SCMP error:
 	if p.lastLayer.NextLayerType() == slayers.LayerTypeSCMP {
 		var scmpLayer slayers.SCMP
@@ -1161,7 +1161,6 @@ func determinePeer(pathMeta scion.MetaHdr, inf path.InfoField) (bool, error) {
 	}
 	if pathMeta.SegLen[1] == 0 {
 		return false, errPeeringEmptySeg1
-
 	}
 	if pathMeta.SegLen[2] != 0 {
 		return false, errPeeringNonemptySeg2
@@ -1590,7 +1589,6 @@ func (p *scionPacketProcessor) egressRouterAlertFlag() *bool {
 }
 
 func (p *slowPathPacketProcessor) handleSCMPTraceRouteRequest(ifID uint16) error {
-
 	if p.lastLayer.NextLayerType() != slayers.LayerTypeSCMP {
 		log.Debug("Packet with router alert, but not SCMP")
 		return nil
@@ -2146,7 +2144,6 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	scmpP gopacket.SerializableLayer,
 	isError bool,
 ) error {
-
 	// *copy* and reverse path -- the original path should not be modified as this writes directly
 	// back to rawPkt (quote).
 	var path *scion.Raw
@@ -2158,14 +2155,12 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		if !ok {
 			return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
-
 		}
 	case epic.PathType:
 		epicPath, ok := p.scionLayer.Path.(*epic.Path)
 		if !ok {
 			return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
-
 		}
 		path = epicPath.ScionPath
 	default:
@@ -2416,8 +2411,8 @@ func (p *slowPathPacketProcessor) hasValidAuth(t time.Time) bool {
 // layer and additional, optional layers in the given order.
 // Returns the last decoded layer.
 func decodeLayers(data []byte, base gopacket.DecodingLayer,
-	opts ...gopacket.DecodingLayer) (gopacket.DecodingLayer, error) {
-
+	opts ...gopacket.DecodingLayer,
+) (gopacket.DecodingLayer, error) {
 	if err := base.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 		return nil, err
 	}

@@ -78,7 +78,7 @@ func newControl() control {
 		processErrors: prom.NewCounterVecWithLabels(Namespace, sub,
 			"process_errors", "Total number of process errors.", ControlLabels{}),
 		receivedIFStateInfo: prom.NewCounterVecWithLabels(Namespace, sub,
-			"received_ifstateinfo_total", "Total number of recevied ifstate infos.",
+			"received_ifstateinfo_total", "Total number of received ifstate infos.",
 			ControlLabels{}),
 		sentIFStateReq: prom.NewCounterVecWithLabels(Namespace, sub,
 			"sent_ifstatereq_total", "Total number of sent ifstate requests.",
