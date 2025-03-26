@@ -65,7 +65,7 @@ var (
 	oidStepCertificateAuthority     = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 37476, 9000, 64, 2}
 )
 
-// validity allows unmarshaling the certificate validity date range
+// validity allows unmarshalling the certificate validity date range
 type validity struct {
 	NotBefore, NotAfter time.Time
 }
@@ -83,13 +83,13 @@ type stepCertificateAuthority struct {
 	KeyValuePairs []string `asn1:"optional,omitempty"`
 }
 
-// publicKeyInfo allows unmarshaling the public key
+// publicKeyInfo allows unmarshalling the public key
 type publicKeyInfo struct {
 	Algorithm pkix.AlgorithmIdentifier
 	PublicKey asn1.BitString
 }
 
-// tbsCertificate allows unmarshaling of the "To-Be-Signed" principle portion
+// tbsCertificate allows unmarshalling of the "To-Be-Signed" principle portion
 // of the certificate
 type tbsCertificate struct {
 	Version            int `asn1:"optional,explicit,default:1,tag:0"`
@@ -572,7 +572,7 @@ func certificateText(cert *x509.Certificate) (string, error) {
 					}
 				case 32:
 					// certificatePoliciesExt: RFC 5280, 4.2.1.4
-					// TODO: Currently crypto/x509 does not fully impelment this section,
+					// TODO: Currently crypto/x509 does not fully implement this section,
 					// including the Certification Practice Statement (CPS)
 					buf.WriteString(fmt.Sprintf("%12sX509v3 Certificate Policies:", ""))
 					if ext.Critical {

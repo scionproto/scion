@@ -203,7 +203,7 @@ func NewDP(
 	}
 }
 
-// NewDPRaw constructs a minimaly initialized DataPlane and returns it by reference. This is useful
+// NewDPRaw constructs a minimally initialized DataPlane and returns it by reference. This is useful
 // to non-internal tests that do not want any dataplane configuration beyond the strictly necessary.
 // This is equivalent to router.newDataPlane, but returns an exported type.
 func NewDPRaw(runConfig RunConfig, authSCMP bool) *DataPlane {
