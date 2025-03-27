@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/netip"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/router/bfd"
 )
 
@@ -43,11 +44,15 @@ const (
 // difference in behaviour is hidden from the rest of the router. The router only needs to
 // associate an interface ID with a link. If the interface ID belongs to a sibling router, then
 // the link is a sibling link. If the interface ID is zero, then the link is the internal link.
+//
+// Note about Resolve. It resolves the given SCION host/svc address to an address on this underlay.
+// This functionality is really only needed on the internal link,
 type Link interface {
 	IsUp() bool
 	IfID() uint16
 	Scope() LinkScope
 	BFDSession() *bfd.Session
+	Resolve(p *Packet, dst addr.Host, port uint16) error
 	Send(p *Packet) bool
 	SendBlocking(p *Packet)
 }
@@ -61,8 +66,28 @@ type Link interface {
 // make them opaque; to be interpreted only by the underlay implementation.
 type UnderlayProvider interface {
 
+	// SetConnNewer is a unit testing device: it allows the replacement of the function
+	// that creates new underlay connections. Underlay implementations can, at their
+	// choice, implement this properly, or panic if it is called. The newer can be anything
+	// that suits the underlay implementation, so tests that use this must match the code of
+	// a specific underlay provider.
+	SetConnNewer(newer any)
+
 	// NumConnections returns the current number of configured connections.
 	NumConnections() int
+
+	// SetDispatchPorts sets the range of auto-dispatched ports and default endhost port (the shim
+	// dispatcher port). When translating a SCION port into an underlay port, any port between the
+	// values of start and end remains unchanged, while any other will be replaced by the value of
+	// redirect. Not all underlays have to provide that service and it might not be meaningful for a
+	// non-ip underlay. In such cases, this method simply has no effect.
+	SetDispatchPorts(start, end, redirect uint16)
+
+	// AddSvc adds the address for the given service. This can be called multiple times per service.
+	AddSvc(svc addr.SVC, a addr.Host, p uint16) error
+
+	// DelSvc deletes the address for the given service.
+	DelSvc(svc addr.SVC, a addr.Host, p uint16) error
 
 	// Start puts the provider in the running state. In that state, the provider can deliver
 	// incoming packets to its output channels and will send packets present on its input
@@ -81,10 +106,10 @@ type UnderlayProvider interface {
 	// do not need an underlay destination as metadata. Incoming packets have a defined ingress
 	// ifID.
 	NewExternalLink(
-		conn BatchConn,
 		qSize int,
 		bfd *bfd.Session,
-		remote netip.AddrPort,
+		local string,
+		remote string,
 		ifID uint16,
 		metrics InterfaceMetrics,
 	) (Link, error)
@@ -96,12 +121,16 @@ type UnderlayProvider interface {
 	NewSiblingLink(
 		qSize int,
 		bfd *bfd.Session,
-		remote netip.AddrPort,
+		local string,
+		remote string,
 		metrics InterfaceMetrics,
-	) Link
+	) (Link, error)
 
 	// NewIternalLink returns a link that addresses any host internal to the enclosing AS, so it is
-	// given neither ifID nor address. Outgoing packets need to have a destination address as
+	// given neither ifID nor remote address. Outgoing packets need to have a destination address as
 	// metadata. Incoming packets have no defined ingress ifID.
-	NewInternalLink(conn BatchConn, qSize int, metrics InterfaceMetrics) Link
+	NewInternalLink(localAddr netip.AddrPort, qSize int, metrics InterfaceMetrics) (Link, error)
 }
+
+// NewProviderFn is a function that instantiates an underlay provider.
+type NewProviderFn func(batchSize, receiveBufferSize, sendBufferSize int) UnderlayProvider

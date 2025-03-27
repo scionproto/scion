@@ -226,7 +226,6 @@ func (s *Session) Run(ctx context.Context) error {
 
 	s.desiredMinTXInterval = defaultTransmissionInterval
 	sendTimer := time.NewTimer(s.desiredMinTXInterval)
-
 	pkt := &layers.BFD{}
 MainLoop:
 	for {
@@ -254,7 +253,6 @@ MainLoop:
 			if s.Metrics.PacketsReceived != nil {
 				s.Metrics.PacketsReceived.Add(1)
 			}
-
 			s.remoteState = state(msg.State)
 			s.remoteMinRxInterval = bfdIntervalToDuration(msg.RequiredMinRxInterval)
 			if s.getRemoteDiscriminator() == 0 {
@@ -426,6 +424,7 @@ func (s *Session) ReceiveMessage(msg *layers.BFD) {
 		return
 	}
 
+	// The packet will be returning to the pool. We do not keep a reference to any part of it.
 	s.messages <- bfdMessage{
 		State:                 msg.State,
 		DetectMultiplier:      msg.DetectMultiplier,

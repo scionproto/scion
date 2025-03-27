@@ -231,7 +231,7 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 	testCases := map[string]test{
 		"packet shorter than common header len": {
 			data:          make([]byte, 10),
-			expectedError: serrors.New("Packet is too short"),
+			expectedError: serrors.New("packet is too short"),
 		},
 		"packet len = CmnHdrLen + addrHdrLen": {
 			data: []byte{
@@ -251,7 +251,7 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0,
 			},
-			expectedError: serrors.New("Packet is too short"),
+			expectedError: serrors.New("packet is too short"),
 		},
 		"packet len = CmnHdrLen + addrHdrLen (16IP)": {
 			data: []byte{
@@ -277,7 +277,7 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0,
 			},
-			expectedError: serrors.New("Packet is too short"),
+			expectedError: serrors.New("packet is too short"),
 		},
 	}
 	for name, tc := range testCases {

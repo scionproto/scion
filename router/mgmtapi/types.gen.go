@@ -113,7 +113,7 @@ type SiblingInterface struct {
 	// InterfaceId SCION interface identifier.
 	InterfaceId int `json:"interface_id"`
 
-	// InternalInterface Internal address of the local router.
+	// InternalInterface Internal address of the sibling router.
 	InternalInterface string           `json:"internal_interface"`
 	Neighbor          SiblingNeighbor  `json:"neighbor"`
 	Relationship      LinkRelationship `json:"relationship"`
