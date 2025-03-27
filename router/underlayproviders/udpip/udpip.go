@@ -723,6 +723,7 @@ func (l *siblingLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) 
 		log.Debug("Error while computing procID", "err", err)
 		l.pool <- p
 		metrics[sc].DroppedPacketsInvalid.Inc()
+		return
 	}
 
 	p.Link = l

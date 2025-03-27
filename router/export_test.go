@@ -93,7 +93,7 @@ type MockConnNewer struct {
 
 // New returns a BatchConn as the udpip underlay might have. If the field conn is non-nil, then that
 // is what New returns. That enables tests to supply a specific BatchConn implementation. Else new
-// returns an instance of MockBatchConn that is just a place holder; calling any of the methods will
+// returns an instance of MockBatchConn that is just a placeholder; calling any of the methods will
 // cause the test to fail.
 func (m MockConnNewer) New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (BatchConn, error) {
 	var bc BatchConn
