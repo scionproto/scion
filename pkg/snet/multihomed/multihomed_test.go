@@ -40,7 +40,7 @@ func TestMultihomed(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancelF()
 
-	runServerAt(ctx, t, serverAddr)
+	runMultihomedServer(ctx, t, serverAddr.Port)
 	runClientWith(ctx, t, serverAddr, clientAddr)
 }
 
@@ -53,15 +53,40 @@ func runServerAt(
 	require.NoError(t, err)
 	defer sd.Close()
 
-	info, err := sd.ASInfo(ctx, 0)
+	topo, err := daemon.LoadTopology(ctx, sd)
 	require.NoError(t, err)
-	t.Logf("local IA: %s", info.IA.String())
 
-	interfaces, err := sd.Interfaces(ctx)
-	require.NoError(t, err)
-	for k, v := range interfaces {
-		t.Logf("iface %3d: %s", k, v.String())
+	sn := &snet.SCIONNetwork{
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: daemon.RevHandler{Connector: sd},
+		},
+		Topology: topo,
 	}
+
+	conn, err := sn.Listen(ctx, "udp", serverAddr)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	go func() {
+		handlePing(t, conn)
+	}()
+	t.Log("runServerAt: done")
+}
+
+func runMultihomedServer(
+	ctx context.Context,
+	t *testing.T,
+	port int,
+) {
+	sd, err := daemon.NewService(serverDaemon).Connect(ctx)
+	require.NoError(t, err)
+	defer sd.Close()
+
+	// interfaces, err := sd.Interfaces(ctx)
+	// require.NoError(t, err)
+	// for k, v := range interfaces {
+	// 	t.Logf("iface %3d: %s", k, v.String())
+	// }
 
 	topo, err := daemon.LoadTopology(ctx, sd)
 	require.NoError(t, err)
@@ -73,6 +98,7 @@ func runServerAt(
 		Topology: topo,
 	}
 
+	serverAddr := xtest.MustParseUDPAddr(t, fmt.Sprintf("0.0.0.0:%d", port))
 	conn, err := sn.Listen(ctx, "udp", serverAddr)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
