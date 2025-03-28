@@ -22,7 +22,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 )
 
@@ -72,9 +71,10 @@ func NewCookedConn(
 		IA:   topo.LocalIA,
 		Host: pconn.LocalAddr().(*net.UDPAddr),
 	}
-	if local.Host == nil || local.Host.IP.IsUnspecified() {
-		return nil, serrors.New("nil or unspecified address is not supported.")
-	}
+	// deleteme
+	// if local.Host == nil || local.Host.IP.IsUnspecified() {
+	// 	return nil, serrors.New("nil or unspecified address is not supported.")
+	// }
 	hasSTUN := hasSTUNConn(pconn)
 	return &Conn{
 		conn:   pconn,

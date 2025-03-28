@@ -101,9 +101,10 @@ type SCIONNetwork struct {
 func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketConn, error) {
 	var pconn *net.UDPConn
 	var err error
-	if addr == nil || addr.IP.IsUnspecified() {
-		return nil, serrors.New("nil or unspecified address is not supported")
-	}
+	// deleteme
+	// if addr == nil || addr.IP.IsUnspecified() {
+	// 	return nil, serrors.New("nil or unspecified address is not supported")
+	// }
 	start, end := n.Topology.PortRange.Start, n.Topology.PortRange.End
 	if addr.Port == 0 {
 		pconn, err = listenUDPRange(addr, start, end)

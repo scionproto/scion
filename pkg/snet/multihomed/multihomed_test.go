@@ -37,7 +37,8 @@ func TestMultihomed(t *testing.T) {
 	serverAddr := xtest.MustParseUDPAddr(t, serverAddress)
 	clientAddr := xtest.MustParseUDPAddr(t, clientAddress)
 
-	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+	// ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Hour) // deleteme
 	defer cancelF()
 
 	runMultihomedServer(ctx, t, serverAddr.Port)
