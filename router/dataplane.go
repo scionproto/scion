@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"net"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -107,6 +106,8 @@ const (
 	pDone
 )
 
+type UnderlayAddr interface{}
+
 // Packet aggregates buffers and ancillary metadata related to one packet.
 // That is everything we need to pass-around while processing a packet. The motivation is to save on
 // copy (pass everything via one reference) AND garbage collection (reuse everything).
@@ -123,11 +124,9 @@ type Packet struct {
 	RawPacket []byte
 	// The entire packet buffer. We don't need it as a slice; we know its size.
 	buffer *[bufSize]byte
-	// The source address during ingest and the destination during forwarding.
-	// We never need both src and dst at the same time and src is only ever used after
-	// ingest checks to be copied to dst. That's why we have only one. We keep the storage
-	// Location and recycle it.
-	RemoteAddr *net.UDPAddr
+	// The source address during ingest and the destination during forwarding. We never need both
+	// src and dst at the same time. The real type is only known to underlay provider that sets it.
+	RemoteAddr *struct{}
 	// The ingest link; which can give us the ifID, scope, bfdSession...
 	Link Link
 	// Additional metadata in case the packet is put on the slow path. Updated in-place.
@@ -158,18 +157,15 @@ const (
 func (p *Packet) init(buffer *[bufSize]byte) *Packet {
 	p.buffer = buffer
 	p.RawPacket = p.buffer[:]
-	p.RemoteAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
 	return p
 }
 
 // reset() makes the packet ready to receive a new underlay message.
 // A cleared dstAddr is represented with a zero-length IP so we keep reusing the IP storage bytes.
 func (p *Packet) Reset() {
-	p.RemoteAddr.IP = p.RemoteAddr.IP[0:0] // We're keeping the object, just blank it.
 	*p = Packet{
-		buffer:     p.buffer,     // keep the buffer
-		RawPacket:  p.buffer[:],  // restore the full packet capacity
-		RemoteAddr: p.RemoteAddr, // keep the dstAddr and so the IP slice and bytes
+		buffer:    p.buffer,    // keep the buffer
+		RawPacket: p.buffer[:], // restore the full packet capacity
 	}
 	// Everything else is reset to zero value.
 }
@@ -213,7 +209,7 @@ var (
 	invalidSrcIA                  = errors.New("invalid source ISD-AS")
 	invalidDstIA                  = errors.New("invalid destination ISD-AS")
 	invalidSrcAddrForTransit      = errors.New("invalid source address for transit pkt")
-	invalidDstAddr                = errors.New("invalid destination address")
+	InvalidDstAddr                = errors.New("invalid destination address")
 	cannotRoute                   = errors.New("cannot route, dropping pkt")
 	emptyValue                    = errors.New("empty value")
 	malformedPath                 = errors.New("malformed path content")
@@ -1116,8 +1112,8 @@ func (p *slowPathPacketProcessor) packSCMP(
 	p.pkt.trafficType = ttOther
 
 	// The packet does not need any addressing: the slowpath processor always sends the packet back
-	// on the link that delivered it (p.pkt.link). The link address is also the one it came from
-	// (p.pkt.RemoteAddr).
+	// on the link that delivered it (p.pkt.link). In case the link is an unconnected one, it did
+	// set p.pkt.RemoteAddr on the way in; so it's good to go.
 
 	return nil
 }
@@ -1436,7 +1432,7 @@ func (p *scionPacketProcessor) resolveInbound() disposition {
 			code:   slayers.SCMPCodeNoRoute,
 		}
 		return pSlowPath
-	case invalidDstAddr, UnsupportedV4MappedV6Address, UnsupportedUnspecifiedAddress:
+	case InvalidDstAddr, UnsupportedV4MappedV6Address, UnsupportedUnspecifiedAddress:
 		log.Debug("SCMP response", "cause", err)
 		p.pkt.slowPathRequest = slowPathRequest{
 			spType: slowPathType(slayers.SCMPTypeParameterProblem),
@@ -1720,7 +1716,6 @@ func (p *scionPacketProcessor) process() disposition {
 	// Even if the egress interface is not valid, it can be useful in SCMP reporting.
 	egressID := p.egressInterface()
 	p.pkt.egress = egressID
-
 	if disp := p.validateEgressID(); disp != pForward {
 		return disp
 	}
@@ -1841,7 +1836,7 @@ func (d *dataPlane) resolveLocalDst(
 
 	a, err := s.DstAddr()
 	if err != nil {
-		return invalidDstAddr
+		return InvalidDstAddr
 	}
 
 	p := uint16(0)
