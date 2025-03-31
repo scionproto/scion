@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"unsafe"
 
 	"github.com/golang/mock/gomock"
 
@@ -67,16 +68,15 @@ func newMockLink(ingress uint16) Link { return &MockLink{ifID: ingress} }
 // to respond via SCMP. Also, it refers to a mock link that has the scope Internal in all cases.
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	p := Packet{
-		RemoteAddr: &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
-		RawPacket:  make([]byte, len(raw)),
-		egress:     egress,
-		Link:       newMockLink(ingress),
+		RawPacket: make([]byte, len(raw)),
+		egress:    egress,
+		Link:      newMockLink(ingress),
 	}
 	if src != nil {
-		p.RemoteAddr = src
+		p.RemoteAddr = (*struct{})(unsafe.Pointer(src))
 	}
 	if dst != nil {
-		p.RemoteAddr = dst
+		p.RemoteAddr = (*struct{})(unsafe.Pointer(dst))
 	}
 	copy(p.RawPacket, raw)
 	return &p
@@ -102,6 +102,12 @@ func (m MockConnNewer) New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (
 	}
 	bc = mock_router.NewMockBatchConn(m.Ctrl)
 	return bc, nil
+}
+
+// We let the udpip underlay create distinct connections for sibling links as sharing a single
+// mock connection between internal and sibling links obscures tests.
+func (m MockConnNewer) UDPCanReuseLocal() bool {
+	return true
 }
 
 // mustMakeDP initializes a dataplane structure configured per the test requirements.

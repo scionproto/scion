@@ -451,6 +451,14 @@ func TestDataPlaneRun(t *testing.T) {
 						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL)
 					return buffer.Bytes()
 				}
+				_ = ret.SetKey([]byte("randomkeyformacs"))
+
+				// We don't care what happens on the internal connection. Sink it.
+				mInternal := mock_router.NewMockBatchConn(ctrl)
+				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
+				mInternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mInternal})
+				_ = ret.AddInternalInterface(netip.AddrPort{})
 
 				mtx := sync.Mutex{}
 				expectRemoteDiscriminators := map[layers.BFDDiscriminator]struct{}{}
@@ -459,52 +467,53 @@ func TestDataPlaneRun(t *testing.T) {
 					netip.MustParseAddrPort("10.0.200.201:0"): {4},
 				}
 
-				mInternal := mock_router.NewMockBatchConn(ctrl)
-				mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
-					func(m conn.Messages) (int, error) {
-						i := 0
-						for k := range routers { // post a BFD from each neighbor router
-							disc := layers.BFDDiscriminator(i)
-							raw := postInternalBFD(disc, k)
-							copy(m[i].Buffers[0], raw)
-							m[i].Addr = &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
-							m[i].Buffers[0] = m[i].Buffers[0][:len(raw)]
-							m[i].N = len(raw)
-							expectRemoteDiscriminators[disc] = struct{}{}
-							i++
-						}
-						return len(routers), nil
-					},
-				).Times(1)
-				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
-				mInternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(msgs conn.Messages, _ int) (int, error) {
-						pkt := gopacket.NewPacket(msgs[0].Buffers[0],
-							slayers.LayerTypeSCION, gopacket.Default)
-						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
-							v := b.(*layers.BFD).YourDiscriminator
-							mtx.Lock()
-							defer mtx.Unlock()
-							delete(expectRemoteDiscriminators, v)
-							if len(expectRemoteDiscriminators) == 0 {
-								done <- struct{}{}
-							}
-							return 1, nil
-						}
-
-						return 0, fmt.Errorf("no valid BFD message")
-					}).MinTimes(1)
-				mInternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
-
-				_ = ret.SetKey([]byte("randomkeyformacs"))
-				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mInternal})
-				_ = ret.AddInternalInterface(netip.AddrPort{})
 				l := control.LinkEnd{
 					IA:   addr.MustParseIA("1-ff00:0:1"),
 					Addr: "10.0.200.100:0",
 				}
 				lh := addr.HostIP(netip.MustParseAddrPort(l.Addr).Addr())
-				for remote, ifIDs := range routers {
+
+				// One sibling connection per remote router. We pretend a BFD pkt was received on
+				// each. We expect to see BFD packets flowing in the opposite direction.
+				i := 1
+				for remote, ifIDs := range routers { // post a BFD packet from each neighbor router
+					mSibling := mock_router.NewMockBatchConn(ctrl)
+					mSibling.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
+						func(m conn.Messages) (int, error) {
+							disc := layers.BFDDiscriminator(i)
+							raw := postInternalBFD(disc, remote)
+							copy(m[0].Buffers[0], raw)
+							m[0].Addr = net.UDPAddrFromAddrPort(remote)
+							m[0].Buffers[0] = m[0].Buffers[0][:len(raw)]
+							m[0].N = len(raw)
+							mtx.Lock()
+							expectRemoteDiscriminators[disc] = struct{}{}
+							mtx.Unlock()
+							return 1, nil
+						},
+					).Times(1)
+					i++
+					mSibling.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
+					mSibling.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).DoAndReturn(
+						func(msgs conn.Messages, _ int) (int, error) {
+							pkt := gopacket.NewPacket(msgs[0].Buffers[0],
+								slayers.LayerTypeSCION, gopacket.Default)
+							if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
+								v := b.(*layers.BFD).YourDiscriminator
+								mtx.Lock()
+								delete(expectRemoteDiscriminators, v)
+								if len(expectRemoteDiscriminators) == 0 {
+									done <- struct{}{}
+								}
+								mtx.Unlock()
+								return 1, nil
+							}
+
+							return 0, fmt.Errorf("no valid BFD message")
+						}).MinTimes(1)
+					mSibling.EXPECT().WriteBatch(gomock.Any(),
+						gomock.Any()).Return(0, nil).AnyTimes()
+					ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mSibling})
 					r := control.LinkEnd{
 						Addr: remote.String(),
 					}
@@ -516,9 +525,12 @@ func TestDataPlaneRun(t *testing.T) {
 						BFD:      bfd(),
 					}
 					for _, ifID := range ifIDs {
+						// Sibling links to the same sibling are de-duped, so we will only need
+						// one sibling connection for them all.
 						_ = ret.AddNextHop(ifID, link, lh, rh)
 					}
 				}
+
 				return ret
 			},
 		},
@@ -591,9 +603,10 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				_ = ret.SetKey([]byte("randomkeyformacs"))
+				// Let the same connection be used for internal and sibling. We only send on the
+				// latter and we don't care what we receive or where.
 				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mInternal})
 				_ = ret.AddInternalInterface(netip.AddrPort{})
-				ret.SetConnNewer("udpip", router.MockConnNewer{})
 				_ = ret.AddNextHop(3, link, lh, rh)
 				return ret
 			},
@@ -877,7 +890,7 @@ func TestProcessPkt(t *testing.T) {
 					{ConsIngress: 1, ConsEgress: 0},
 				}
 
-				// Everything is the same a in the inbound test, except that we tossed in
+				// Everything is the same as in the inbound test, except that we tossed in
 				// 64 extra hops and two extra segments.
 				dpath.Base.PathMeta.CurrHF = 2
 				dpath.Base.PathMeta.SegLen = [3]uint8{24, 24, 17}

@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/golang/mock/gomock"
 	"github.com/gopacket/gopacket"
@@ -106,7 +107,11 @@ func TestReceiver(t *testing.T) {
 			// make sure that the packet has the right size
 			assert.Equal(t, 84+i%10*18, len(pkt.RawPacket))
 			// make sure that the source address was set correctly
-			assert.Equal(t, net.UDPAddr{IP: net.IP{10, 0, 200, 200}}, *pkt.RemoteAddr)
+			assert.Equal(
+				t,
+				net.UDPAddr{IP: net.IP{10, 0, 200, 200}},
+				*(*net.UDPAddr)(unsafe.Pointer(pkt.RemoteAddr)),
+			)
 			// make sure that the received pkt buffer has not been seen before
 			ptr := reflect.ValueOf(pkt.RawPacket).Pointer()
 			assert.NotContains(t, ptrMap, ptr)
@@ -236,8 +241,7 @@ func TestForwarder(t *testing.T) {
 		pkt.RawPacket = pkt.RawPacket[:1]
 		pkt.RawPacket[0] = byte(i)
 		if i < 100 {
-			pkt.RemoteAddr.IP = pkt.RemoteAddr.IP[:4]
-			copy(pkt.RemoteAddr.IP, dstAddr.IP)
+			pkt.RemoteAddr = (*struct{})(unsafe.Pointer(dstAddr))
 		}
 
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
