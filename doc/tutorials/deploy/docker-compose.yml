@@ -1,5 +1,6 @@
 # This docker compose file defines the setup described in
 # https://docs.scion.org/en/latest/tutorials/deploy.html
+name: "SCION Tutorial"
 
 services:
   scion01:
@@ -12,7 +13,10 @@ services:
       transit_net:
         ipv4_address: 10.100.0.11
     volumes:
-      - ./configs/scion01:/etc/scion
+      - /sys/fs/cgroup:/sys/fs/cgroup
+    tmpfs:
+      - /run
+      - /run/lock
   scion02:
     platform: linux/amd64
     image: scion02:1.0
@@ -24,7 +28,10 @@ services:
         ipv4_address: 10.100.0.12
 
     volumes:
-      - ./configs/scion02:/etc/scion
+      - /sys/fs/cgroup:/sys/fs/cgroup
+    tmpfs:
+      - /run
+      - /run/lock
   scion03:
     platform: linux/amd64
     image: scion03:1.0
@@ -35,7 +42,10 @@ services:
       transit_net:
         ipv4_address: 10.100.0.13
     volumes:
-      - ./configs/scion03:/etc/scion
+      - /sys/fs/cgroup:/sys/fs/cgroup
+    tmpfs:
+      - /run
+      - /run/lock
   scion04:
     platform: linux/amd64
     image: scion04:1.0
@@ -46,7 +56,10 @@ services:
       transit_net:
         ipv4_address: 10.100.0.14
     volumes:
-      - ./configs/scion04:/etc/scion
+      - /sys/fs/cgroup:/sys/fs/cgroup
+    tmpfs:
+      - /run
+      - /run/lock
   scion05:
     platform: linux/amd64
     image: scion05:1.0
@@ -57,7 +70,10 @@ services:
       transit_net:
         ipv4_address: 10.100.0.15
     volumes:
-      - ./configs/scion05:/etc/scion
+      - /sys/fs/cgroup:/sys/fs/cgroup
+    tmpfs:
+      - /run
+      - /run/lock
 
 networks:
   as_net_01:
