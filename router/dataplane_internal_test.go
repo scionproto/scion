@@ -89,7 +89,7 @@ func TestReceiver(t *testing.T) {
 		},
 	).Times(1)
 
-	dp.underlays["udpip"].SetConnNewer(MockConnNewer{Ctrl: ctrl, Conn: mInternal})
+	dp.underlays["udpip"].SetConnOpener(MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 
 	_ = dp.AddInternalInterface(netip.AddrPort{})
 
@@ -199,7 +199,7 @@ func TestForwarder(t *testing.T) {
 				return len(ms), nil
 			}).AnyTimes()
 
-		ret.underlays["udpip"].SetConnNewer(MockConnNewer{Ctrl: ctrl, Conn: mConn})
+		ret.underlays["udpip"].SetConnOpener(MockConnOpener{Ctrl: ctrl, Conn: mConn})
 
 		if err := ret.AddInternalInterface(netip.AddrPort{}); err != nil {
 			panic(err)
@@ -296,7 +296,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"),
 					nil, testKey)
@@ -320,7 +320,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -343,7 +343,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -366,7 +366,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -389,7 +389,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -414,7 +414,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -437,7 +437,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
 			},

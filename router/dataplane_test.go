@@ -61,7 +61,7 @@ func TestDataPlaneAddInternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		d.MockStart()
 		assert.Error(t, d.AddInternalInterface(localAddr))
 	})
@@ -69,14 +69,14 @@ func TestDataPlaneAddInternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		assert.NoError(t, d.AddInternalInterface(localAddr))
 	})
 	t.Run("double set fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		assert.NoError(t, d.AddInternalInterface(localAddr))
 		assert.Error(t, d.AddInternalInterface(localAddr))
 	})
@@ -137,7 +137,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		d.MockStart()
 		assert.Error(t, d.AddExternalInterface(42, link1, lh, rh1))
 	})
@@ -145,7 +145,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		link3 := control.LinkInfo{
 			Provider: "udpip",
 			Local:    control.LinkEnd{},
@@ -158,7 +158,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		link3 := control.LinkInfo{
 			Provider: "udpip",
 			Local:    l,
@@ -171,7 +171,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		assert.NoError(t,
 			d.AddExternalInterface(42, link1, lh, rh1))
 		assert.NoError(t,
@@ -181,7 +181,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		assert.NoError(t,
 			d.AddExternalInterface(42, link1, lh, rh1))
 		assert.Error(t,
@@ -191,7 +191,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		assert.NoError(t,
 			d.AddExternalInterface(42, link1, lh, rh1))
 		assert.Error(t,
@@ -255,7 +255,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 	t.Run("fails after start", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		assert.NoError(t, d.AddInternalInterface(internal))
 		d.MockStart()
 		assert.Error(t, d.AddNextHop(45, link1, lh, rh1))
@@ -263,7 +263,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 	t.Run("setting nil src is not allowed", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		link3 := control.LinkInfo{
 			Provider: "udpip",
 			Local:    control.LinkEnd{},
@@ -277,7 +277,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 	t.Run("setting nil dst is not allowed", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		link3 := control.LinkInfo{
 			Provider: "udpip",
 			Local:    l,
@@ -291,7 +291,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 	t.Run("normal add works", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		assert.NoError(t, d.AddInternalInterface(internal))
 		assert.NoError(t, d.AddNextHop(45, link1, lh, rh1))
 		assert.NoError(t, d.AddNextHop(43, link2, lh, rh2))
@@ -300,7 +300,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 	t.Run("overwrite fails", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
-		d.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl})
+		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		assert.NoError(t, d.AddInternalInterface(internal))
 		assert.NoError(t, d.AddNextHop(45, link1, lh, rh1))
 		assert.Error(t, d.AddNextHop(45, link2, lh, rh1))
@@ -350,7 +350,7 @@ func TestDataPlaneRun(t *testing.T) {
 						}
 						return len(ms), nil
 					}).AnyTimes()
-				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mInternal})
+				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 				_ = ret.AddInternalInterface(netip.AddrPort{})
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
@@ -413,7 +413,7 @@ func TestDataPlaneRun(t *testing.T) {
 					BFD:      nobfd,
 				}
 
-				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mExternal})
+				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mExternal})
 				_ = ret.AddExternalInterface(1, link, lh, rh)
 
 				_ = ret.SetIA(local)
@@ -457,7 +457,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 				mInternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
-				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mInternal})
+				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 				_ = ret.AddInternalInterface(netip.AddrPort{})
 
 				mtx := sync.Mutex{}
@@ -513,7 +513,7 @@ func TestDataPlaneRun(t *testing.T) {
 						}).MinTimes(1)
 					mSibling.EXPECT().WriteBatch(gomock.Any(),
 						gomock.Any()).Return(0, nil).AnyTimes()
-					ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mSibling})
+					ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mSibling})
 					r := control.LinkEnd{
 						Addr: remote.String(),
 					}
@@ -605,7 +605,7 @@ func TestDataPlaneRun(t *testing.T) {
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				// Let the same connection be used for internal and sibling. We only send on the
 				// latter and we don't care what we receive or where.
-				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mInternal})
+				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 				_ = ret.AddInternalInterface(netip.AddrPort{})
 				_ = ret.AddNextHop(3, link, lh, rh)
 				return ret
@@ -676,9 +676,9 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 
 				_ = ret.SetKey([]byte("randomkeyformacs"))
-				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mInternal})
+				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 				_ = ret.AddInternalInterface(netip.AddrPort{})
-				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mExternal})
+				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mExternal})
 				_ = ret.AddExternalInterface(ifID, link, lh, rh)
 				return ret
 			},
@@ -771,9 +771,9 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 
 				_ = ret.SetKey([]byte("randomkeyformacs"))
-				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mInternal})
+				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 				_ = ret.AddInternalInterface(netip.AddrPort{})
-				ret.SetConnNewer("udpip", router.MockConnNewer{Ctrl: ctrl, Conn: mExternal})
+				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mExternal})
 				_ = ret.AddExternalInterface(1, link, lh, rh)
 				return ret
 			},
@@ -843,7 +843,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					mockExternalInterfaces,
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -875,7 +875,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					mockExternalInterfaces,
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -920,7 +920,7 @@ func TestProcessPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -953,7 +953,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Parent,
 						2: topology.Child,
 					},
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -985,7 +985,7 @@ func TestProcessPkt(t *testing.T) {
 						2: topology.Parent,
 						1: topology.Child,
 					},
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1019,7 +1019,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1086,7 +1086,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1160,7 +1160,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1231,7 +1231,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1310,7 +1310,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Core,
 						3: topology.Core,
 					},
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					map[uint16]netip.AddrPort{
 						uint16(3): netip.MustParseAddrPort("10.0.200.200:30043"),
 					}, addr.MustParseIA("1-ff00:0:110"), nil, key)
@@ -1343,7 +1343,7 @@ func TestProcessPkt(t *testing.T) {
 						51: topology.Child,
 						3:  topology.Core,
 					},
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					map[uint16]netip.AddrPort{
 						uint16(3): netip.MustParseAddrPort("10.0.200.200:30043"),
 					}, addr.MustParseIA("1-ff00:0:110"), nil, key)
@@ -1398,7 +1398,7 @@ func TestProcessPkt(t *testing.T) {
 				dp := router.NewDP(
 					mockExternalInterfaces,
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 				assert.NoError(
@@ -1440,7 +1440,7 @@ func TestProcessPkt(t *testing.T) {
 				dp := router.NewDP(
 					mockExternalInterfaces,
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					nil,
 					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
@@ -1505,7 +1505,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					mockExternalInterfaces,
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
@@ -1545,7 +1545,7 @@ func TestProcessPkt(t *testing.T) {
 				dp := router.NewDP(
 					[]uint16{1},
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 				assert.NoError(
@@ -1604,7 +1604,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					[]uint16{2},
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
@@ -1647,7 +1647,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					mockExternalInterfaces,
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1665,7 +1665,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					mockExternalInterfaces,
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1684,7 +1684,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					mockExternalInterfaces,
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1705,7 +1705,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					mockExternalInterfaces,
 					nil,
-					nil, // No special connNewer.
+					nil, // No special connOpener.
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},

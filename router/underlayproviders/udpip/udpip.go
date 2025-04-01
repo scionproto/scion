@@ -45,21 +45,21 @@ var (
 )
 
 // An interface to enable unit testing.
-type ConnNewer interface {
+type ConnOpener interface {
 	// Creates a connection as specified.
-	New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error)
-	// Informs the underlay of whether the Newer can create multiple connections with
+	Open(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error)
+	// Informs the underlay of whether the Opener can create multiple connections with
 	// the same local address. If not, then this underlay will share the internal connection
 	// with all the Sibling links in addition to the internal link. This generally complicates
 	// testing.
 	UDPCanReuseLocal() bool
 }
 
-// The default ConnNewer for this underlay: opens an udp BatchConn.
+// The default ConnOpener for this underlay: opens an udp BatchConn.
 type un struct {
 }
 
-func (_ un) New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
+func (_ un) Open(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
 	return conn.New(l, r, c)
 }
 
@@ -67,7 +67,6 @@ func (_ un) UDPCanReuseLocal() bool {
 	// By default we follow the local UDP capabilities. Unit tests can chose to model one behavior
 	// or the other.
 	return conn.UDPCanReuseLocal()
-	// return false
 }
 
 // provider implements UnderlayProvider by making and returning Udp/Ip links.
@@ -79,7 +78,7 @@ type provider struct {
 	batchSize          int
 	allLinks           map[netip.AddrPort]udpLink
 	allConnections     []*udpConnection
-	connNewer          ConnNewer // un{}, except for unit tests
+	connOpener         ConnOpener // un{}, except for unit tests
 	svc                *router.Services[netip.AddrPort]
 	internalConnection *udpConnection // Because we can share it w/ siblinglinks
 	internalHashSeed   uint32         // ...in which case, this too is shared.
@@ -110,17 +109,17 @@ func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) route
 	return &provider{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
-		connNewer:         un{},
+		connOpener:        un{},
 		svc:               router.NewServices[netip.AddrPort](),
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
 	}
 }
 
-// SetConnNewer installs the given newer. newer must be an implementation of ConnNewer or
+// SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
 // panic will ensue. Only for use in unit tests.
-func (u *provider) SetConnNewer(newer any) {
-	u.connNewer = newer.(ConnNewer)
+func (u *provider) SetConnOpener(opener any) {
+	u.connOpener = opener.(ConnOpener)
 }
 
 func (u *provider) NumConnections() int {
@@ -486,7 +485,7 @@ func (u *provider) newConnectedLink(
 	scope router.LinkScope, // Since this can be used for either Sibling or External
 ) (router.Link, error) {
 
-	conn, err := u.connNewer.New(localAddr, remoteAddr,
+	conn, err := u.connOpener.Open(localAddr, remoteAddr,
 		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
 	if err != nil {
 		return nil, err
@@ -651,7 +650,7 @@ func (u *provider) NewSiblingLink(
 
 	// If we have linux support we use connected links, even though the local addresse is the same
 	// for all sibling links.
-	if u.connNewer.UDPCanReuseLocal() {
+	if u.connOpener.UDPCanReuseLocal() {
 		return u.newConnectedLink(qSize, bfd, localAddr, remoteAddr, 0, metrics, router.Sibling)
 	}
 	return u.newDetachedLink(qSize, bfd, remoteAddr, metrics)
@@ -803,7 +802,7 @@ func (u *provider) NewInternalLink(
 		panic("More than one internal link")
 	}
 
-	conn, err := u.connNewer.New(
+	conn, err := u.connOpener.Open(
 		localAddr, netip.AddrPort{},
 		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
 
@@ -833,7 +832,7 @@ func (u *provider) NewInternalLink(
 		connected:    false, // Might be exclusive to internal links, but still not connected.
 	}
 
-	if !u.connNewer.UDPCanReuseLocal() {
+	if !u.connOpener.UDPCanReuseLocal() {
 		// In this case we will share this connection with sibling links, so the connection has a
 		// demux map.
 		c.links = make(map[netip.AddrPort]udpLink)

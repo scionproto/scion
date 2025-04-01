@@ -66,12 +66,12 @@ type Link interface {
 // make them opaque; to be interpreted only by the underlay implementation.
 type UnderlayProvider interface {
 
-	// SetConnNewer is a unit testing device: it allows the replacement of the function
-	// that creates new underlay connections. Underlay implementations can, at their
-	// choice, implement this properly, or panic if it is called. The newer can be anything
+	// SetConnOpener is a unit testing device: it allows the replacement of the function
+	// that opens new underlay connections. Underlay implementations can, at their
+	// choice, implement this properly, or panic if it is called. The opener can be anything
 	// that suits the underlay implementation, so tests that use this must match the interface of
-	// a specific underlay provider Newer.
-	SetConnNewer(newer any)
+	// a specific underlay provider Opener.
+	SetConnOpener(opener any)
 
 	// NumConnections returns the current number of configured connections.
 	NumConnections() int
