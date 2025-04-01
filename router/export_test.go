@@ -82,11 +82,11 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 	return &p
 }
 
-// MockConnNewer implements the udpip ConnNewer interface with a method that returns a mock
-// connection for testing purposes. An instance of this ConnNewer can be installed in a dataplane
-// by way of the SetConnNewer method, exported here by the Dataplane type, or by way of
-// dp.underlays[underlay].SetConnNewer(newer) for internal tests that use the dataPlane type.
-type MockConnNewer struct {
+// MockConnOpener implements the udpip ConnOpener interface with a method that returns a mock
+// connection for testing purposes. An instance of this ConnOpener can be installed in a dataplane
+// by way of the SetConnOpener method, exported here by the Dataplane type, or by way of
+// dp.underlays[underlay].SetConnOpener(newer) for internal tests that use the dataPlane type.
+type MockConnOpener struct {
 	Ctrl *gomock.Controller
 	Conn BatchConn
 }
@@ -95,7 +95,9 @@ type MockConnNewer struct {
 // is what New returns. That enables tests to supply a specific BatchConn implementation. Else new
 // returns an instance of MockBatchConn that is just a placeholder; calling any of the methods will
 // cause the test to fail.
-func (m MockConnNewer) New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (BatchConn, error) {
+func (m MockConnOpener) Open(
+	l netip.AddrPort, r netip.AddrPort, c *conn.Config) (BatchConn, error) {
+
 	var bc BatchConn
 	if m.Conn != nil {
 		return m.Conn, nil
@@ -106,7 +108,7 @@ func (m MockConnNewer) New(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (
 
 // We let the udpip underlay create distinct connections for sibling links as sharing a single
 // mock connection between internal and sibling links obscures tests.
-func (m MockConnNewer) UDPCanReuseLocal() bool {
+func (m MockConnOpener) UDPCanReuseLocal() bool {
 	return true
 }
 
@@ -117,7 +119,7 @@ func (m MockConnNewer) UDPCanReuseLocal() bool {
 func mustMakeDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
-	connNewer any, // Some implementation of BatchConnNewer, or nil for the default.
+	connOpener any, // Some implementation of BatchConnOpener, or nil for the default.
 	internalNextHops map[uint16]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
@@ -135,10 +137,10 @@ func mustMakeDP(
 	}
 	dp.SetPortRange(uint16(dispatchedPortStart), uint16(dispatchedPortEnd))
 
-	if connNewer == nil {
-		dp.underlays["udpip"].SetConnNewer(MockConnNewer{})
+	if connOpener == nil {
+		dp.underlays["udpip"].SetConnOpener(MockConnOpener{})
 	} else {
-		dp.underlays["udpip"].SetConnNewer(connNewer)
+		dp.underlays["udpip"].SetConnOpener(connOpener)
 	}
 
 	// Make dummy interfaces, as requested by the test. Only the internal interface is ever used to
@@ -213,13 +215,13 @@ func mustMakeDP(
 func newDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
-	connNewer any, // Some implementation of BatchConnNewer, or nil for the default.
+	connOpener any, // Some implementation of BatchConnOpener, or nil for the default.
 	internalNextHops map[uint16]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
 	key []byte) *dataPlane {
 
-	dp := mustMakeDP(external, linkTypes, connNewer, internalNextHops, local, neighbors, key)
+	dp := mustMakeDP(external, linkTypes, connOpener, internalNextHops, local, neighbors, key)
 	return &dp
 }
 
@@ -234,14 +236,14 @@ type DataPlane struct {
 func NewDP(
 	external []uint16,
 	linkTypes map[uint16]topology.LinkType,
-	connNewer any, // Some implementation of BatchConnNewer, or nil for the default.
+	connOpener any, // Some implementation of BatchConnOpener, or nil for the default.
 	internalNextHops map[uint16]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
 	key []byte) *DataPlane {
 
 	return &DataPlane{
-		mustMakeDP(external, linkTypes, connNewer, internalNextHops, local, neighbors, key),
+		mustMakeDP(external, linkTypes, connOpener, internalNextHops, local, neighbors, key),
 	}
 }
 
@@ -273,8 +275,8 @@ func ExtractServices(s *Services[netip.AddrPort]) map[addr.SVC][]netip.AddrPort 
 	return s.m
 }
 
-// We cannot know which tests are going to mock which underlay and what the newer's
+// We cannot know which tests are going to mock which underlay and what the opener's
 // signature is. So we'll let the underlay implementation type-assert it.
-func (dp *DataPlane) SetConnNewer(underlay string, newer any) {
-	dp.underlays[underlay].SetConnNewer(newer)
+func (dp *DataPlane) SetConnOpener(underlay string, opener any) {
+	dp.underlays[underlay].SetConnOpener(opener)
 }
