@@ -184,6 +184,7 @@ type dataPlane struct {
 	mtx                 sync.Mutex
 	running             atomic.Bool
 	Metrics             *Metrics
+	forwardingMetrics   map[uint16]InterfaceMetrics
 	dispatchedPortStart uint16
 	dispatchedPortEnd   uint16
 
@@ -273,6 +274,7 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 		linkTypes:                      make(map[uint16]topology.LinkType),
 		neighborIAs:                    make(map[uint16]addr.IA),
 		Metrics:                        metrics,
+		forwardingMetrics:              make(map[uint16]InterfaceMetrics),
 		ExperimentalSCMPAuthentication: authSCMP,
 		RunConfig:                      runConfig,
 	}
@@ -370,10 +372,11 @@ func (d *dataPlane) AddInternalInterface(local netip.AddrPort) error {
 		return alreadySet
 	}
 
-	// The "udpip" underlay is instantiated at construction to simplify some tests.
+	d.addForwardingMetrics(0, Internal)
 
-	iMetrics := newInterfaceMetrics(d.Metrics, 0, d.localIA, "", d.neighborIAs)
-	lk, err := d.underlays["udpip"].NewInternalLink(local, d.RunConfig.BatchSize, iMetrics)
+	// The "udpip" underlay is instantiated at construction to simplify some tests.
+	lk, err := d.underlays["udpip"].NewInternalLink(
+		local, d.RunConfig.BatchSize, d.forwardingMetrics[0])
 	if err != nil {
 		return err
 	}
@@ -420,15 +423,14 @@ func (d *dataPlane) AddExternalInterface(
 		d.underlays[link.Provider] = underlay
 	}
 	d.linkTypes[ifID] = link.LinkTo
-
-	iMetrics := newInterfaceMetrics(d.Metrics, ifID, d.localIA, "", d.neighborIAs)
+	d.addForwardingMetrics(ifID, External)
 	lk, err := underlay.NewExternalLink(
 		d.RunConfig.BatchSize,
 		bfd,
 		link.Local.Addr,
 		link.Remote.Addr,
 		ifID,
-		iMetrics)
+		d.forwardingMetrics[ifID])
 	if err != nil {
 		return err
 	}
@@ -566,13 +568,17 @@ func (d *dataPlane) AddNextHop(
 		d.underlays[link.Provider] = underlay
 	}
 	d.linkTypes[ifID] = link.LinkTo
+	d.addForwardingMetrics(ifID, Sibling)
 
 	// Note that a link to the same sibling router might already exist. If so, it will be
-	// returned instead of creating a new one. As a result, the bfd session and metrics will be
-	// ignored, and simply be garbage collected.
-	iMetrics := newInterfaceMetrics(d.Metrics, 0, d.localIA, link.Remote.Addr, d.neighborIAs)
+	// returned instead of creating a new one. As a result, the bfd session will be ignored,
+	// and since it isn't started it will simply be garbage collected. Note that in that case,
+	// the one real link associated with the sibling will be the first one to be created, so
+	// it will have the ifID of that first sibling interface...somewhat arbitrary. That ifID
+	// is reflected in metrics and the BFD session. May be we should use ifID 0 for sibling bfd
+	// and sibling metrics.
 	lk, err := underlay.NewSiblingLink(
-		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, iMetrics)
+		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, d.forwardingMetrics[ifID])
 	if err != nil {
 		return err
 	}
@@ -719,7 +725,7 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 		disp := processor.processPkt(p)
 
 		sc := ClassOfSize(len(p.RawPacket))
-		metrics := p.Link.Metrics()[sc]
+		metrics := d.forwardingMetrics[p.Link.IfID()][sc]
 		metrics.ProcessedPackets.Inc()
 
 		switch disp {
@@ -770,7 +776,7 @@ func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 		}
 		err := processor.processPacket(p)
 		sc := ClassOfSize(len(p.RawPacket))
-		metrics := p.Link.Metrics()[sc]
+		metrics := d.forwardingMetrics[p.Link.IfID()][sc]
 		if err != nil {
 			log.Debug("Error processing packet", "err", err)
 			metrics.DroppedPacketsInvalid.Inc()
@@ -2426,4 +2432,11 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 	default:
 		return slayers.L4None
 	}
+}
+
+// addForwardingMetrics adds interface-specific metrics for the given ifID.
+// These merics are used by the dataplane and all the underlay providers.
+func (d *dataPlane) addForwardingMetrics(ifID uint16, scope LinkScope) {
+	d.forwardingMetrics[ifID] = newInterfaceMetrics(
+		d.Metrics, ifID, d.localIA, scope, d.neighborIAs)
 }

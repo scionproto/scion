@@ -56,14 +56,14 @@ type ConnOpener interface {
 }
 
 // The default ConnOpener for this underlay: opens an udp BatchConn.
-type uo struct {
+type un struct {
 }
 
-func (_ uo) Open(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
+func (_ un) Open(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
 	return conn.New(l, r, c)
 }
 
-func (_ uo) UDPCanReuseLocal() bool {
+func (_ un) UDPCanReuseLocal() bool {
 	// By default we follow the local UDP capabilities. Unit tests can chose to model one behavior
 	// or the other.
 	return conn.UDPCanReuseLocal()
@@ -78,7 +78,7 @@ type provider struct {
 	batchSize          int
 	allLinks           map[netip.AddrPort]udpLink
 	allConnections     []*udpConnection
-	connOpener         ConnOpener // uo{}, except for unit tests
+	connOpener         ConnOpener // un{}, except for unit tests
 	svc                *router.Services[netip.AddrPort]
 	internalConnection *udpConnection // Because we can share it w/ siblinglinks
 	internalHashSeed   uint32         // ...in which case, this too is shared.
@@ -109,7 +109,7 @@ func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) route
 	return &provider{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
-		connOpener:        uo{},
+		connOpener:        un{},
 		svc:               router.NewServices[netip.AddrPort](),
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
@@ -193,10 +193,10 @@ func (u *provider) Stop() {
 	}
 }
 
-// udpConnection is essentially a BatchConn with a sending queue and a demultiplexer. The rest is
-// about logs and metrics. This allows UDP connections to be shared between links when needed (for
-// example, only linux allows UDP connected sockets to share the same local address, which is needed
-// if sibling links are to have distinct connections).
+// udpConnection is essentially a BatchConn with a sending queue. The rest is about logs and
+// metrics. This allows UDP connections to be shared between links when needed (for example, only
+// linux allows UDP connected sockets to share the same local address, which is needed if
+// sibling links are to have distinct connections).
 type udpConnection struct {
 	conn         router.BatchConn
 	name         string                     // for logs. It's more informative than ifID.
@@ -207,7 +207,7 @@ type udpConnection struct {
 	receiverDone chan struct{}
 	senderDone   chan struct{}
 	running      atomic.Bool
-	connected    bool // If true, the underlying UDP socket is connected
+	connected    bool // The underlying UDP socket is connected
 }
 
 // start puts the connection in the running state. In that state, the connection can deliver
@@ -233,10 +233,9 @@ func (u *udpConnection) start(batchSize int, pool chan *router.Packet) {
 	}()
 }
 
-// stop puts the connection in the stopped state. In that state, the connection no longer delivers
+// stop() puts the connection in the stopped state. In that state, the connection no longer delivers
 // incoming packets and ignores packets present on its input channel. The connection is fully
-// stopped when this method returns. The first call to stop is acted regardless of the number of
-// times start() was called.
+// stopped when this method returns.
 func (u *udpConnection) stop() {
 	wasRunning := u.running.Swap(false)
 
@@ -286,9 +285,10 @@ func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
 			p := packets[i]
 			p.RawPacket = p.RawPacket[:size]
 
-			// Demultiplex to a link.
+			// Find the right link. For a shared connection we have a map of links by remote
+			// address.
 			if u.links != nil {
-				// A shared connection has a map of links by remote address.
+				// Find link by remote address. We have a map of *our* links, so it's short.
 				srcAddr := msg.Addr.(*net.UDPAddr).AddrPort()
 				l, found := u.links[srcAddr]
 				if found {
@@ -305,7 +305,7 @@ func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
 	}
 
 	// We have to stop receiving. Return the unused packets to the pool to avoid creating
-	// a memory leak (the process is not required to exit - e.g. in tests).
+	// a memory leak (it is likely but not required that the process will exit).
 	for _, p := range packets[batchSize-numReusable : batchSize] {
 		pool <- p
 	}
@@ -335,6 +335,23 @@ func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*ro
 	}
 	return i
 }
+
+// TODO(jiceatscion): There is a big issue with metrics and ifID. If an underlay connection must be
+// shared between links (for example, sibling links), then we don't have a specific ifID in the
+// connection per se. It changes for each packet. As a result, in the shared case, either we account
+// all metrics to whatever placeholder ifID we have (i.e. 0), or we have to use pkt.egress and
+// lookup the metrics in the map for each packet. This is too expensive.
+//
+// Mitigations:
+//   - use ifID even if it is 0 for sibling links - no worse than before, since sibling links were
+//     already redirected to interface 0 (...until we have fully shared forwarders - like with an
+//     XDP underlay impl).
+//   - stage our own internal metrics map, sorted by ifID = pkt.egress, and batch update the
+//     metrics... might not be much cheaper than the naive way.
+//   - Use one fw queue per ifID in each connection... but then have to round-robin for fairness....
+//     smaller batches?
+//
+// For now, we do the first option. Whether that is good enough is still TBD.
 
 func (u *udpConnection) send(batchSize int, pool chan *router.Packet) {
 	log.Debug("Send", "connection", u.name)
@@ -530,10 +547,6 @@ func (l *connectedLink) IfID() uint16 {
 	return l.ifID
 }
 
-func (l *connectedLink) Metrics() router.InterfaceMetrics {
-	return l.metrics
-}
-
 func (l *connectedLink) Scope() router.LinkScope {
 	return l.scope
 }
@@ -701,10 +714,6 @@ func (l *detachedLink) IfID() uint16 {
 	return 0
 }
 
-func (l *detachedLink) Metrics() router.InterfaceMetrics {
-	return l.metrics
-}
-
 func (l *detachedLink) Scope() router.LinkScope {
 	return router.Sibling
 }
@@ -851,10 +860,6 @@ func (l *internalLink) stop() {
 
 func (l *internalLink) IfID() uint16 {
 	return 0
-}
-
-func (l *internalLink) Metrics() router.InterfaceMetrics {
-	return l.metrics
 }
 
 func (l *internalLink) Scope() router.LinkScope {
