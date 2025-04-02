@@ -50,6 +50,7 @@ const (
 type Link interface {
 	IsUp() bool
 	IfID() uint16
+	Metrics() InterfaceMetrics
 	Scope() LinkScope
 	BFDSession() *bfd.Session
 	Resolve(p *Packet, dst addr.Host, port uint16) error

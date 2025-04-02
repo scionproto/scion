@@ -283,10 +283,10 @@ func newInterfaceMetrics(
 	metrics *Metrics,
 	id uint16,
 	localIA addr.IA,
-	scope LinkScope,
+	sibling string,
 	neighbors map[uint16]addr.IA) InterfaceMetrics {
 
-	ifLabels := interfaceLabels(id, localIA, scope, neighbors)
+	ifLabels := interfaceLabels(id, localIA, sibling, neighbors)
 	m := InterfaceMetrics{}
 	for sc := minSizeClass; sc < maxSizeClass; sc++ {
 		scLabels := prometheus.Labels{"sizeclass": sc.String()}
@@ -358,25 +358,34 @@ func newOutputMetrics(
 }
 
 func interfaceLabels(
-	id uint16, localIA addr.IA, scope LinkScope, neighbors map[uint16]addr.IA) prometheus.Labels {
+	id uint16, localIA addr.IA, sibling string, neighbors map[uint16]addr.IA) prometheus.Labels {
+
+	if sibling != "" {
+		// For siblings, we label with the address of the sibling router. The ifID isn't relevant
+		// (it's just a unique key in the metrics table but the link is shared with other ifIDs).
+		// and we don't know the far AS (the neighbor's is the same as local; that's not useful
+		// so we don't make a label with it).
+		return prometheus.Labels{
+			"isd_as":          localIA.String(),
+			"interface":       "sibling->" + sibling,
+			"neighbor_isd_as": "unknown",
+		}
+	}
 
 	if id == 0 {
+		// Internal interface
 		return prometheus.Labels{
 			"isd_as":          localIA.String(),
 			"interface":       "internal",
 			"neighbor_isd_as": localIA.String(),
 		}
 	}
-	viaSibling := "->"
-	neighbor := "unknown"
-	if scope == External {
-		viaSibling = ""
-		neighbor = neighbors[id].String()
-	}
+
+	// External interface
 	return prometheus.Labels{
 		"isd_as":          localIA.String(),
-		"interface":       viaSibling + strconv.FormatUint(uint64(id), 10),
-		"neighbor_isd_as": neighbor,
+		"interface":       strconv.FormatUint(uint64(id), 10),
+		"neighbor_isd_as": neighbors[id].String(),
 	}
 }
 
