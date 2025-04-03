@@ -203,7 +203,7 @@ type udpConnection struct {
 	link         udpLink                    // Link with exclusive use of the connection.
 	links        map[netip.AddrPort]udpLink // Links that share this connection
 	queue        chan *router.Packet
-	metrics      router.InterfaceMetrics
+	metrics      *router.InterfaceMetrics
 	receiverDone chan struct{}
 	senderDone   chan struct{}
 	running      atomic.Bool
@@ -419,7 +419,7 @@ type connectedLink struct {
 	procQs     []chan *router.Packet
 	name       string // For logs
 	egressQ    chan<- *router.Packet
-	metrics    router.InterfaceMetrics
+	metrics    *router.InterfaceMetrics
 	pool       chan *router.Packet
 	bfdSession *bfd.Session
 	seed       uint32
@@ -435,7 +435,7 @@ func (u *provider) NewExternalLink(
 	local string,
 	remote string,
 	ifID uint16,
-	metrics router.InterfaceMetrics,
+	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 
 	localAddr, err := conn.ResolveAddrPortOrPort(local)
@@ -464,7 +464,7 @@ func (u *provider) newConnectedLink(
 	localAddr netip.AddrPort,
 	remoteAddr netip.AddrPort,
 	ifID uint16,
-	metrics router.InterfaceMetrics,
+	metrics *router.InterfaceMetrics,
 	scope router.LinkScope, // Since this can be used for either Sibling or External
 ) (router.Link, error) {
 
@@ -530,7 +530,7 @@ func (l *connectedLink) IfID() uint16 {
 	return l.ifID
 }
 
-func (l *connectedLink) Metrics() router.InterfaceMetrics {
+func (l *connectedLink) Metrics() *router.InterfaceMetrics {
 	return l.metrics
 }
 
@@ -596,7 +596,7 @@ type detachedLink struct {
 	procQs     []chan *router.Packet
 	name       string // For logs
 	egressQ    chan<- *router.Packet
-	metrics    router.InterfaceMetrics
+	metrics    *router.InterfaceMetrics
 	pool       chan *router.Packet
 	bfdSession *bfd.Session
 	remote     *net.UDPAddr
@@ -614,7 +614,7 @@ func (u *provider) NewSiblingLink(
 	bfd *bfd.Session,
 	local string,
 	remote string,
-	metrics router.InterfaceMetrics,
+	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 
 	localAddr, err := conn.ResolveAddrPortOrPort(local)
@@ -647,7 +647,7 @@ func (u *provider) newDetachedLink(
 	qSize int,
 	bfd *bfd.Session,
 	remoteAddr netip.AddrPort,
-	metrics router.InterfaceMetrics,
+	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 
 	// All detached links re-use the internal connection.
@@ -701,7 +701,7 @@ func (l *detachedLink) IfID() uint16 {
 	return 0
 }
 
-func (l *detachedLink) Metrics() router.InterfaceMetrics {
+func (l *detachedLink) Metrics() *router.InterfaceMetrics {
 	return l.metrics
 }
 
@@ -769,7 +769,7 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 type internalLink struct {
 	procQs           []chan *router.Packet
 	egressQ          chan *router.Packet
-	metrics          router.InterfaceMetrics
+	metrics          *router.InterfaceMetrics
 	pool             chan *router.Packet
 	svc              *router.Services[netip.AddrPort]
 	seed             uint32
@@ -783,7 +783,7 @@ type internalLink struct {
 // TODO(multi_underlay): We still go with the assumption that internal links are always
 // udpip, so we don't expect a string here. That should change.
 func (u *provider) NewInternalLink(
-	localAddr netip.AddrPort, qSize int, metrics router.InterfaceMetrics) (router.Link, error) {
+	localAddr netip.AddrPort, qSize int, metrics *router.InterfaceMetrics) (router.Link, error) {
 
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -853,7 +853,7 @@ func (l *internalLink) IfID() uint16 {
 	return 0
 }
 
-func (l *internalLink) Metrics() router.InterfaceMetrics {
+func (l *internalLink) Metrics() *router.InterfaceMetrics {
 	return l.metrics
 }
 

@@ -256,7 +256,7 @@ func (sc sizeClass) String() string {
 //	dataplane.forwardingMetrics[interface][size-class].
 //
 // trafficMetrics.Output is an array of outputMetrics indexed by traffic type.
-type InterfaceMetrics map[sizeClass]trafficMetrics
+type InterfaceMetrics [maxSizeClass]trafficMetrics
 
 // trafficMetrics groups all the metrics instances that all share the same interface AND
 // sizeClass label values (but have different names - i.e. they count different things).
@@ -284,7 +284,7 @@ func newInterfaceMetrics(
 	id uint16,
 	localIA addr.IA,
 	sibling string,
-	neighbor addr.IA) InterfaceMetrics {
+	neighbor addr.IA) *InterfaceMetrics {
 
 	ifLabels := interfaceLabels(id, localIA, sibling, neighbor)
 	m := InterfaceMetrics{}
@@ -292,7 +292,7 @@ func newInterfaceMetrics(
 		scLabels := prometheus.Labels{"sizeclass": sc.String()}
 		m[sc] = newTrafficMetrics(metrics, ifLabels, scLabels)
 	}
-	return m
+	return &m
 }
 
 func newTrafficMetrics(
@@ -399,7 +399,7 @@ func serviceLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
 // UpdateOutputMetrics updates the given InterfaceMetrics in bulk according
 // to the given set of just sent packets. This is much faster than looking up
 // the right set of metrics by size class and traffic type for each packet.
-func UpdateOutputMetrics(metrics InterfaceMetrics, packets []*Packet) {
+func UpdateOutputMetrics(metrics *InterfaceMetrics, packets []*Packet) {
 	// We need to collect stats by traffic type and size class.
 	// Try to reduce the metrics lookup penalty by using some
 	// simpler staging data structure.

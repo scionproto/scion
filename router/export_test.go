@@ -53,7 +53,7 @@ type MockLink struct {
 
 func (l *MockLink) IsUp() bool                                           { return true }
 func (l *MockLink) IfID() uint16                                         { return l.ifID }
-func (l *MockLink) Metrics() InterfaceMetrics                            { return nil }
+func (l *MockLink) Metrics() *InterfaceMetrics                           { return nil }
 func (l *MockLink) Scope() LinkScope                                     { return Internal }
 func (l *MockLink) BFDSession() *bfd.Session                             { return nil }
 func (l *MockLink) Resolve(p *Packet, host addr.Host, port uint16) error { return nil }

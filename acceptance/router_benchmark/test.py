@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 BM_PACKET_SIZE = 1500
 
 # Router profiling ON or OFF?
-PROFILING = True
+PROFILING = False
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {

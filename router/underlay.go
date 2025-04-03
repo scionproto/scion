@@ -50,7 +50,7 @@ const (
 type Link interface {
 	IsUp() bool
 	IfID() uint16
-	Metrics() InterfaceMetrics
+	Metrics() *InterfaceMetrics
 	Scope() LinkScope
 	BFDSession() *bfd.Session
 	Resolve(p *Packet, dst addr.Host, port uint16) error
@@ -112,7 +112,7 @@ type UnderlayProvider interface {
 		local string,
 		remote string,
 		ifID uint16,
-		metrics InterfaceMetrics,
+		metrics *InterfaceMetrics,
 	) (Link, error)
 
 	// NewSinblingLink returns a link that addresses any number of remote ASes via a single sibling
@@ -124,13 +124,13 @@ type UnderlayProvider interface {
 		bfd *bfd.Session,
 		local string,
 		remote string,
-		metrics InterfaceMetrics,
+		metrics *InterfaceMetrics,
 	) (Link, error)
 
 	// NewIternalLink returns a link that addresses any host internal to the enclosing AS, so it is
 	// given neither ifID nor remote address. Outgoing packets need to have a destination address as
 	// metadata. Incoming packets have no defined ingress ifID.
-	NewInternalLink(localAddr netip.AddrPort, qSize int, metrics InterfaceMetrics) (Link, error)
+	NewInternalLink(localAddr netip.AddrPort, qSize int, metrics *InterfaceMetrics) (Link, error)
 }
 
 // NewProviderFn is a function that instantiates an underlay provider.
