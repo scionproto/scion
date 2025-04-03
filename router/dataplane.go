@@ -175,9 +175,10 @@ func (p *Packet) Reset() {
 // (after updating the path, if that is needed).
 type dataPlane struct {
 	underlays           map[string]UnderlayProvider
-	interfaces          map[uint16]Link
-	linkTypes           map[uint16]topology.LinkType
-	neighborIAs         map[uint16]addr.IA
+	interfaces          [65536]Link
+	numInterfaces       int
+	linkTypes           [65536]topology.LinkType
+	neighborIAs         [65536]addr.IA
 	internalIP          netip.Addr
 	macFactory          func() hash.Hash
 	localIA             addr.IA
@@ -269,9 +270,6 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 				runConfig.SendBufferSize,
 				runConfig.ReceiveBufferSize,
 			)},
-		interfaces:                     make(map[uint16]Link),
-		linkTypes:                      make(map[uint16]topology.LinkType),
-		neighborIAs:                    make(map[uint16]addr.IA),
 		Metrics:                        metrics,
 		ExperimentalSCMPAuthentication: authSCMP,
 		RunConfig:                      runConfig,
@@ -371,13 +369,14 @@ func (d *dataPlane) AddInternalInterface(local netip.AddrPort) error {
 	}
 
 	// The "udpip" underlay is instantiated at construction to simplify some tests.
-	iMetrics := newInterfaceMetrics(d.Metrics, 0, d.localIA, "", d.neighborIAs)
+	iMetrics := newInterfaceMetrics(d.Metrics, 0, d.localIA, "", d.neighborIAs[0])
 	lk, err := d.underlays["udpip"].NewInternalLink(
 		local, d.RunConfig.BatchSize, iMetrics)
 	if err != nil {
 		return err
 	}
 	d.interfaces[0] = lk
+	d.numInterfaces++
 	d.internalIP = local.Addr()
 
 	return nil
@@ -399,7 +398,7 @@ func (d *dataPlane) AddExternalInterface(
 	if err != nil {
 		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
 	}
-	if _, exists := d.interfaces[ifID]; exists {
+	if d.interfaces[ifID] != nil {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	if link.Remote.Addr == "" {
@@ -421,7 +420,7 @@ func (d *dataPlane) AddExternalInterface(
 	}
 	d.linkTypes[ifID] = link.LinkTo
 
-	iMetrics := newInterfaceMetrics(d.Metrics, ifID, d.localIA, "", d.neighborIAs)
+	iMetrics := newInterfaceMetrics(d.Metrics, ifID, d.localIA, "", d.neighborIAs[ifID])
 	lk, err := underlay.NewExternalLink(
 		d.RunConfig.BatchSize,
 		bfd,
@@ -433,6 +432,7 @@ func (d *dataPlane) AddExternalInterface(
 		return err
 	}
 	d.interfaces[ifID] = lk
+	d.numInterfaces++
 	return nil
 }
 
@@ -448,7 +448,7 @@ func (d *dataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	if remote.IsZero() {
 		return emptyValue
 	}
-	if _, exists := d.neighborIAs[ifID]; exists {
+	if !d.neighborIAs[ifID].IsZero() {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	d.neighborIAs[ifID] = remote
@@ -546,7 +546,7 @@ func (d *dataPlane) AddNextHop(
 	if err != nil {
 		return serrors.Wrap("adding next hop BFD", err, "if_id", ifID)
 	}
-	if _, exists := d.interfaces[ifID]; exists {
+	if d.interfaces[ifID] != nil {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	if link.Remote.Addr == "" {
@@ -570,13 +570,15 @@ func (d *dataPlane) AddNextHop(
 	// Note that a link to the same sibling router might already exist. If so, it will be
 	// returned instead of creating a new one. As a result, the bfd session and metrics will be
 	// ignored and simply garbage collected.
-	iMetrics := newInterfaceMetrics(d.Metrics, ifID, d.localIA, link.Remote.Addr, d.neighborIAs)
+	iMetrics := newInterfaceMetrics(
+		d.Metrics, ifID, d.localIA, link.Remote.Addr, d.neighborIAs[ifID])
 	lk, err := underlay.NewSiblingLink(
 		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, iMetrics)
 	if err != nil {
 		return err
 	}
 	d.interfaces[ifID] = lk
+	d.numInterfaces++
 	return nil
 }
 
@@ -625,7 +627,8 @@ type RunConfig struct {
 
 func (d *dataPlane) Run(ctx context.Context) error {
 	d.mtx.Lock()
-	if len(d.interfaces) == 0 {
+	if d.numInterfaces == 0 {
+		// if len(d.interfaces) == 0 {
 		// Not stritcly an error but we really can't do anything; most maps aren't even allocated,
 		// due to lazy initialization.
 		return nil
@@ -674,9 +677,9 @@ func (d *dataPlane) Run(ctx context.Context) error {
 // initializePacketPool calculates the size of the packet pool based on the
 // current dataplane settings and allocates all the buffers
 func (d *dataPlane) initPacketPool(processorQueueSize int) {
-	poolSize := len(d.interfaces)*d.RunConfig.BatchSize +
+	poolSize := d.numInterfaces*d.RunConfig.BatchSize +
 		(d.RunConfig.NumProcessors+d.RunConfig.NumSlowPathProcessors)*(processorQueueSize+1) +
-		len(d.interfaces)*(2*d.RunConfig.BatchSize)
+		d.numInterfaces*(2*d.RunConfig.BatchSize)
 
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
 	d.packetPool = make(chan *Packet, poolSize)
@@ -746,8 +749,8 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 			d.returnPacketToPool(p)
 			continue
 		}
-		fwLink, ok := d.interfaces[p.egress]
-		if !ok {
+		fwLink := d.interfaces[p.egress]
+		if fwLink == nil {
 			log.Debug("Error determining forwarder. Egress is invalid", "egress", p.egress)
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			d.returnPacketToPool(p)
@@ -1286,13 +1289,13 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 // to another AS directly, or via a sibling router.
 func (p *scionPacketProcessor) validateEgressID() disposition {
 	egressID := p.pkt.egress
-	egressLink, found := p.d.interfaces[egressID]
+	egressLink := p.d.interfaces[egressID]
 
 	// egress interface must be a known interface
 	// egress is never the internal interface (already checked)
 	// packet coming from internal interface, must go to an external interface
 	// Note that, for now, ingress == 0 is also true for sibling interfaces. That might change.
-	if !found || (p.ingressFromLink == 0 && egressLink.Scope() == Sibling) {
+	if egressLink == nil || (p.ingressFromLink == 0 && egressLink.Scope() == Sibling) {
 		errCode := slayers.SCMPCodeUnknownHopFieldEgress
 		if !p.infoField.ConsDir {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
@@ -1308,11 +1311,12 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 
 	ingressLT, egressLT := p.d.linkTypes[p.ingressFromLink], p.d.linkTypes[egressID]
 	if !p.effectiveXover {
-		// Check that the interface pair is valid within a single segment.
 		// No check required if the packet is received from an internal interface because that
 		// check was done by the ingress router.
+
 		// This case applies to peering hops as a peering hop isn't an effective
 		// cross-over (eventhough it is a segment change).
+		// Check that the interface pair is valid within a single segment.
 		switch {
 		case p.ingressFromLink == 0:
 			return pForward
@@ -1340,8 +1344,6 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 	}
 
 	// Check that the interface pair is valid on a segment switch.
-	// Having a segment change received from the internal interface is never valid; for transit
-	// packets the change is done by the ingress router.
 	// We should never see a peering link traversal either. If that happens
 	// treat it as a routing error (not sure if that can happen without an internal
 	// error, though).
@@ -1767,8 +1769,8 @@ func (p *scionPacketProcessor) processOHP() disposition {
 			// TODO parameter problem -> invalid path
 			return errorDiscard("error", cannotRoute)
 		}
-		neighborIA, ok := p.d.neighborIAs[ohp.FirstHop.ConsEgress]
-		if !ok {
+		neighborIA := p.d.neighborIAs[ohp.FirstHop.ConsEgress]
+		if neighborIA.IsZero() {
 			// TODO parameter problem invalid interface
 			return errorDiscard("error", cannotRoute)
 		}

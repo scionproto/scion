@@ -284,9 +284,9 @@ func newInterfaceMetrics(
 	id uint16,
 	localIA addr.IA,
 	sibling string,
-	neighbors map[uint16]addr.IA) InterfaceMetrics {
+	neighbor addr.IA) InterfaceMetrics {
 
-	ifLabels := interfaceLabels(id, localIA, sibling, neighbors)
+	ifLabels := interfaceLabels(id, localIA, sibling, neighbor)
 	m := InterfaceMetrics{}
 	for sc := minSizeClass; sc < maxSizeClass; sc++ {
 		scLabels := prometheus.Labels{"sizeclass": sc.String()}
@@ -358,7 +358,7 @@ func newOutputMetrics(
 }
 
 func interfaceLabels(
-	id uint16, localIA addr.IA, sibling string, neighbors map[uint16]addr.IA) prometheus.Labels {
+	id uint16, localIA addr.IA, sibling string, neighbor addr.IA) prometheus.Labels {
 
 	if sibling != "" {
 		// For siblings, we label with the address of the sibling router. The ifID isn't relevant
@@ -385,7 +385,7 @@ func interfaceLabels(
 	return prometheus.Labels{
 		"isd_as":          localIA.String(),
 		"interface":       strconv.FormatUint(uint64(id), 10),
-		"neighbor_isd_as": neighbors[id].String(),
+		"neighbor_isd_as": neighbor.String(),
 	}
 }
 
