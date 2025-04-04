@@ -17,7 +17,6 @@ package mgmtapi
 import (
 	"net/http"
 	"net/http/httptest"
-	"net/netip"
 	"os"
 	"testing"
 	"time"
@@ -250,11 +249,11 @@ func createInternalIntfs(t *testing.T) []control.InternalInterface {
 	return []control.InternalInterface{
 		{
 			IA:   addr.MustParseIA("1-ff00:0:110"),
-			Addr: netip.MustParseAddrPort("172.20.0.3:50000"),
+			Addr: "172.20.0.3:50000",
 		},
 		{
 			IA:   addr.MustParseIA("1-ff00:0:111"),
-			Addr: netip.MustParseAddrPort("172.20.0.5:50000"),
+			Addr: "172.20.0.5:50000",
 		},
 	}
 }

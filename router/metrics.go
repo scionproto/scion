@@ -256,7 +256,7 @@ func (sc sizeClass) String() string {
 //	dataplane.forwardingMetrics[interface][size-class].
 //
 // trafficMetrics.Output is an array of outputMetrics indexed by traffic type.
-type InterfaceMetrics map[sizeClass]trafficMetrics
+type InterfaceMetrics [maxSizeClass]trafficMetrics
 
 // trafficMetrics groups all the metrics instances that all share the same interface AND
 // sizeClass label values (but have different names - i.e. they count different things).
@@ -283,16 +283,16 @@ func newInterfaceMetrics(
 	metrics *Metrics,
 	id uint16,
 	localIA addr.IA,
-	scope LinkScope,
-	neighbors map[uint16]addr.IA) InterfaceMetrics {
+	sibling string,
+	neighbor addr.IA) *InterfaceMetrics {
 
-	ifLabels := interfaceLabels(id, localIA, scope, neighbors)
+	ifLabels := interfaceLabels(id, localIA, sibling, neighbor)
 	m := InterfaceMetrics{}
 	for sc := minSizeClass; sc < maxSizeClass; sc++ {
 		scLabels := prometheus.Labels{"sizeclass": sc.String()}
 		m[sc] = newTrafficMetrics(metrics, ifLabels, scLabels)
 	}
-	return m
+	return &m
 }
 
 func newTrafficMetrics(
@@ -358,25 +358,34 @@ func newOutputMetrics(
 }
 
 func interfaceLabels(
-	id uint16, localIA addr.IA, scope LinkScope, neighbors map[uint16]addr.IA) prometheus.Labels {
+	id uint16, localIA addr.IA, sibling string, neighbor addr.IA) prometheus.Labels {
+
+	if sibling != "" {
+		// For siblings, we label with the address of the sibling router. The ifID isn't relevant
+		// (it's just a unique key in the metrics table but the link is shared with other ifIDs).
+		// and we don't know the far AS (the neighbor's is the same as local; that's not useful
+		// so we don't make a label with it).
+		return prometheus.Labels{
+			"isd_as":          localIA.String(),
+			"interface":       "sibling->" + sibling,
+			"neighbor_isd_as": "unknown",
+		}
+	}
 
 	if id == 0 {
+		// Internal interface
 		return prometheus.Labels{
 			"isd_as":          localIA.String(),
 			"interface":       "internal",
 			"neighbor_isd_as": localIA.String(),
 		}
 	}
-	viaSibling := "->"
-	neighbor := "unknown"
-	if scope == External {
-		viaSibling = ""
-		neighbor = neighbors[id].String()
-	}
+
+	// External interface
 	return prometheus.Labels{
 		"isd_as":          localIA.String(),
-		"interface":       viaSibling + strconv.FormatUint(uint64(id), 10),
-		"neighbor_isd_as": neighbor,
+		"interface":       strconv.FormatUint(uint64(id), 10),
+		"neighbor_isd_as": neighbor.String(),
 	}
 }
 
@@ -390,7 +399,7 @@ func serviceLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
 // UpdateOutputMetrics updates the given InterfaceMetrics in bulk according
 // to the given set of just sent packets. This is much faster than looking up
 // the right set of metrics by size class and traffic type for each packet.
-func UpdateOutputMetrics(metrics InterfaceMetrics, packets []*Packet) {
+func UpdateOutputMetrics(metrics *InterfaceMetrics, packets []*Packet) {
 	// We need to collect stats by traffic type and size class.
 	// Try to reduce the metrics lookup penalty by using some
 	// simpler staging data structure.

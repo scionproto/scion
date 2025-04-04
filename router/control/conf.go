@@ -33,7 +33,7 @@ import (
 // Dataplane.
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
-	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
+	AddInternalInterface(ia addr.IA, localHost addr.Host, provider, local string) error
 	AddExternalInterface(
 		localIfID iface.ID, info LinkInfo, localHost, remoteHost addr.Host, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, port uint16) error
@@ -72,8 +72,9 @@ type ObservableDataplane interface {
 
 // InternalInterface represents the internal underlay interface of a router.
 type InternalInterface struct {
-	IA   addr.IA
-	Addr netip.AddrPort // Still restricted to UDP/IP for now.
+	IA       addr.IA
+	Provider string // Name of the underlay provider.
+	Addr     string // Configuration: interpreted by underlay.
 }
 
 // ExternalInterface represents an external underlay interface of a router.
@@ -141,12 +142,16 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	// Add internal interfaces
 	if cfg.BR != nil {
 		if cfg.BR.InternalAddr != (netip.AddrPort{}) {
-			// TODO: Investigate what legitimate reason there would be to not have an internal addr.
-			// Currently the router would panic upon Run().
-			if err := dp.AddInternalInterface(cfg.IA, cfg.BR.InternalAddr); err != nil {
+			// The assumption that BR.InternalAddr is a netip address is endemic. Eradicating it
+			// will take a long time. Play along for now. The router is no-longer contagious.
+			host := addr.HostIP(cfg.BR.InternalAddr.Addr())
+			provider := "udpip" // Since BR.InternalInterface is always a netip.AddrPort
+			addr := cfg.BR.InternalAddr.String()
+			if err := dp.AddInternalInterface(cfg.IA, host, provider, addr); err != nil {
 				return err
 			}
-		}
+		} // else TODO: what legitimate reason would there be to not have an internal addr?
+
 		// Add external interfaces
 		if err := confExternalInterfaces(dp, cfg); err != nil {
 			return err
