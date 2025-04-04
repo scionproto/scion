@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -177,7 +176,7 @@ type dataPlane struct {
 	numInterfaces       int
 	linkTypes           [65536]topology.LinkType
 	neighborIAs         [65536]addr.IA
-	internalIP          netip.Addr
+	localHost           addr.Host
 	macFactory          func() hash.Hash
 	localIA             addr.IA
 	mtx                 sync.Mutex
@@ -224,6 +223,7 @@ var (
 	ingressInterfaceInvalid       = errors.New("ingress interface invalid")
 	macVerificationFailed         = errors.New("MAC verification failed")
 	badPacketSize                 = errors.New("bad packet size")
+	errNoSuchUnderlay             = errors.New("no such underlay provider")
 
 	// zeroBuffer will be used to reset the Authenticator option in the
 	// scionPacketProcessor.OptAuth
@@ -352,30 +352,35 @@ func (d *dataPlane) SetPortRange(start, end uint16) {
 	d.dispatchedPortEnd = end
 }
 
-// AddInternalInterface sets the interface the data-plane will use to
-// send/receive traffic in the local AS. This can only be called once; future
-// calls will return an error. This can only be called on a not yet running
-// dataplane.
-func (d *dataPlane) AddInternalInterface(local netip.AddrPort) error {
+// AddInternalInterface sets the interface the data-plane will use to send/receive traffic in the
+// local AS. This can only be called once; future calls will return an error. This can only be
+// called on a not yet running dataplane. Note that localHost is a SCION host address. It currently
+// mirrors localAddr, which is the address on the local underlay network, but that could change
+// in the future. This is not the router's decision.
+func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAddr string) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
 		return modifyExisting
 	}
 	if d.interfaces[0] != nil {
-		return alreadySet
+		return serrors.JoinNoStack(alreadySet, nil, "ifID", 0)
 	}
 
-	// The "udpip" underlay is instantiated at construction to simplify some tests.
+	// The internal network underlay is instantiated at construction to simplify some tests. Things
+	// would become a lot more complicated if we ever supported multiple internal underlays.
+	internalUnderlay := d.underlays[provider]
+	if internalUnderlay == nil {
+		return serrors.JoinNoStack(errNoSuchUnderlay, nil, "provider", provider)
+	}
 	iMetrics := newInterfaceMetrics(d.Metrics, 0, d.localIA, "", d.neighborIAs[0])
-	lk, err := d.underlays["udpip"].NewInternalLink(
-		local, d.RunConfig.BatchSize, iMetrics)
+	lk, err := internalUnderlay.NewInternalLink(localAddr, d.RunConfig.BatchSize, iMetrics)
 	if err != nil {
 		return err
 	}
 	d.interfaces[0] = lk
 	d.numInterfaces++
-	d.internalIP = local.Addr()
+	d.localHost = localHost
 
 	return nil
 }
@@ -2204,7 +2209,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	scionL.RawDstAddr = p.scionLayer.RawSrcAddr
 	scionL.NextHdr = slayers.L4SCMP
 
-	if err := scionL.SetSrcAddr(addr.HostIP(p.d.internalIP)); err != nil {
+	if err := scionL.SetSrcAddr(p.d.localHost); err != nil {
 		return serrors.JoinNoStack(cannotRoute, err, "details", "setting src addr")
 	}
 	typeCode := slayers.CreateSCMPTypeCode(typ, code)

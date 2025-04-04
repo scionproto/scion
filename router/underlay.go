@@ -18,7 +18,6 @@ package router
 
 import (
 	"context"
-	"net/netip"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/router/bfd"
@@ -138,7 +137,7 @@ type UnderlayProvider interface {
 	// NewInternalLink returns a link that addresses any host internal to the enclosing AS, so it is
 	// given neither ifID nor remote address. Outgoing packets need to have a destination address as
 	// metadata. Incoming packets have no defined ingress ifID.
-	NewInternalLink(localAddr netip.AddrPort, qSize int, metrics *InterfaceMetrics) (Link, error)
+	NewInternalLink(localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error)
 }
 
 // NewProviderFn is a function that instantiates an underlay provider.

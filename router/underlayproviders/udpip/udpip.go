@@ -783,7 +783,7 @@ type internalLink struct {
 // TODO(multi_underlay): We still go with the assumption that internal links are always
 // udpip, so we don't expect a string here. That should change.
 func (u *provider) NewInternalLink(
-	localAddr netip.AddrPort, qSize int, metrics *router.InterfaceMetrics) (router.Link, error) {
+	local string, qSize int, metrics *router.InterfaceMetrics) (router.Link, error) {
 
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -792,7 +792,10 @@ func (u *provider) NewInternalLink(
 		// We don't want to support this and the router doesn't do it. This is an internal error.
 		panic("More than one internal link")
 	}
-
+	localAddr, err := conn.ResolveAddrPort(local)
+	if err != nil {
+		return nil, serrors.Wrap("resolving local address", err)
+	}
 	conn, err := u.connOpener.Open(
 		localAddr, netip.AddrPort{},
 		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})

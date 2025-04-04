@@ -144,10 +144,10 @@ func mustMakeDP(
 		dp.underlays["udpip"].SetConnOpener(connOpener)
 	}
 
-	// Make dummy interfaces, as requested by the test. Only the internal interface is ever used to
-	// send or receive and then, not always. The external interfaces are given non-zero
-	// addresses in order to satisfy constraints.
-	if err := dp.AddInternalInterface(netip.MustParseAddrPort("198.51.100.1:3333")); err != nil {
+	// Make dummy interfaces, as requested by the test.
+	internalAddr := "198.51.100.1:3333"
+	localHost := addr.HostIP(netip.MustParseAddrPort(internalAddr).Addr())
+	if err := dp.AddInternalInterface(localHost, "udpip", internalAddr); err != nil {
 		panic(err)
 	}
 	l := control.LinkEnd{

@@ -91,7 +91,7 @@ func TestReceiver(t *testing.T) {
 
 	dp.underlays["udpip"].SetConnOpener(MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 
-	_ = dp.AddInternalInterface(netip.AddrPort{})
+	_ = dp.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0")
 
 	dp.initPacketPool(64)
 	procCh, _ := dp.initQueues(64)
@@ -201,7 +201,7 @@ func TestForwarder(t *testing.T) {
 
 		ret.underlays["udpip"].SetConnOpener(MockConnOpener{Ctrl: ctrl, Conn: mConn})
 
-		if err := ret.AddInternalInterface(netip.AddrPort{}); err != nil {
+		if err := ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"); err != nil {
 			panic(err)
 		}
 		l := control.LinkEnd{

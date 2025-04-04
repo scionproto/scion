@@ -90,7 +90,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 	findInternalInterface := func(ia addr.IA) string {
 		for _, intf := range internalInterfaces {
 			if intf.IA.Equal(ia) {
-				return intf.Addr.String()
+				return intf.Addr
 			}
 		}
 		return "undefined"
