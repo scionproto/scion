@@ -36,7 +36,7 @@ const (
 // Link embodies the router's idea of a point to point connection. A link associates the underlay
 // connection with a BFDSession, a destination address, etc. It also allows the concrete send
 // operation to be delegated to different underlay implementations. The association between
-// link and underlay connection is a channel, on the sending side, and should be a demultiplexer on
+// link and underlay connection is a channel, on the sending side, and a demultiplexer on
 // the receiving side. The demultiplexer must have a src-addr:link map in all cases where links
 // share connections.
 //
@@ -48,13 +48,21 @@ const (
 // Note about Resolve. It resolves the given SCION host/svc address to an address on this underlay.
 // This functionality is really only needed on the internal link,
 type Link interface {
+	// IsUp returns whether this link is functional according to the associated BFD session.
 	IsUp() bool
+	// IfID returns the interface ID associated with this link. 0 for sibling and internal links.
 	IfID() uint16
+	// Metrics returns the metrics specific to this link.
 	Metrics() *InterfaceMetrics
+	// Scope returns the scope of this link: internal, external, or sibling.
 	Scope() LinkScope
+	// BFDSession returns the BFD session associated with this link.
 	BFDSession() *bfd.Session
+	// Resolve finds and sets the packet's internal underlay destination for the given dst and port.
 	Resolve(p *Packet, dst addr.Host, port uint16) error
+	// Send queues the packet for sending over this link; discarding if the queue is full.
 	Send(p *Packet) bool
+	// Send queues the packet for sending over this link; blocking while the queue is full.
 	SendBlocking(p *Packet)
 }
 
@@ -63,8 +71,8 @@ type Link interface {
 // For any given underlay, there are three kinds of Link implementations to choose from.
 // The difference between them is the intent regarding addressing.
 //
-// TODO(multi_underlay): addresses are still explicitly IP/port. In the next step, we have to
-// make them opaque; to be interpreted only by the underlay implementation.
+// TODO(multi_underlay): The local internal address is explicitly a udpip underlay address as the
+// main router code still assumes that the internal network underlay is always "udp/ip".
 type UnderlayProvider interface {
 
 	// SetConnOpener is a unit testing device: it allows the replacement of the function
@@ -115,7 +123,7 @@ type UnderlayProvider interface {
 		metrics *InterfaceMetrics,
 	) (Link, error)
 
-	// NewSinblingLink returns a link that addresses any number of remote ASes via a single sibling
+	// NewSiblingLink returns a link that addresses any number of remote ASes via a single sibling
 	// router. So, it is not given an ifID at creation, but it is given a remote underlay address:
 	// that of the sibling router. Outgoing packets do not need an underlay destination as metadata.
 	// Incoming packets have no defined ingress ifID.
@@ -127,7 +135,7 @@ type UnderlayProvider interface {
 		metrics *InterfaceMetrics,
 	) (Link, error)
 
-	// NewIternalLink returns a link that addresses any host internal to the enclosing AS, so it is
+	// NewInternalLink returns a link that addresses any host internal to the enclosing AS, so it is
 	// given neither ifID nor remote address. Outgoing packets need to have a destination address as
 	// metadata. Incoming packets have no defined ingress ifID.
 	NewInternalLink(localAddr netip.AddrPort, qSize int, metrics *InterfaceMetrics) (Link, error)

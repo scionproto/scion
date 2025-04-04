@@ -106,8 +106,6 @@ const (
 	pDone
 )
 
-type UnderlayAddr interface{}
-
 // Packet aggregates buffers and ancillary metadata related to one packet.
 // That is everything we need to pass-around while processing a packet. The motivation is to save on
 // copy (pass everything via one reference) AND garbage collection (reuse everything).
