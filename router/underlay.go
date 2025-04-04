@@ -85,10 +85,10 @@ type UnderlayProvider interface {
 	SetDispatchPorts(start, end, redirect uint16)
 
 	// AddSvc adds the address for the given service. This can be called multiple times per service.
-	AddSvc(svc addr.SVC, a addr.Host, p uint16) error
+	AddSvc(svc addr.SVC, host addr.Host, port uint16) error
 
 	// DelSvc deletes the address for the given service.
-	DelSvc(svc addr.SVC, a addr.Host, p uint16) error
+	DelSvc(svc addr.SVC, host addr.Host, port uint16) error
 
 	// Start puts the provider in the running state. In that state, the provider can deliver
 	// incoming packets to its output channels and will send packets present on its input

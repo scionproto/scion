@@ -135,9 +135,9 @@ func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
 }
 
 // AddSvc adds the address for the given service.
-func (u *provider) AddSvc(svc addr.SVC, a addr.Host, p uint16) error {
+func (u *provider) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	// We pre-resolve the addresses, which is trivial for this underlay.
-	addr := netip.AddrPortFrom(a.IP(), p)
+	addr := netip.AddrPortFrom(host.IP(), port)
 	if !addr.IsValid() {
 		return errInvalidServiceAddress
 	}
@@ -146,8 +146,8 @@ func (u *provider) AddSvc(svc addr.SVC, a addr.Host, p uint16) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (u *provider) DelSvc(svc addr.SVC, a addr.Host, p uint16) error {
-	addr := netip.AddrPortFrom(a.IP(), p)
+func (u *provider) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
+	addr := netip.AddrPortFrom(host.IP(), port)
 	if !addr.IsValid() {
 		return errInvalidServiceAddress
 	}

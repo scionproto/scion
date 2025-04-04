@@ -496,11 +496,11 @@ func (d *dataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 // AddSvc adds the address for the given service. This can be called multiple
 // times for the same service, with the address added to the list of addresses
 // that provide the service.
-func (d *dataPlane) AddSvc(svc addr.SVC, a addr.Host, p uint16) error {
+func (d *dataPlane) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	// TODO: underlay choice should really be "interfaces[0].provider"
-	if err := d.underlays["udpip"].AddSvc(svc, a, p); err != nil {
+	if err := d.underlays["udpip"].AddSvc(svc, host, port); err != nil {
 		return err
 	}
 	if d.Metrics != nil {
@@ -512,11 +512,11 @@ func (d *dataPlane) AddSvc(svc addr.SVC, a addr.Host, p uint16) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (d *dataPlane) DelSvc(svc addr.SVC, a addr.Host, p uint16) error {
+func (d *dataPlane) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	// TODO: underlay choice should really be "interfaces[0].provider"
-	if err := d.underlays["udpip"].DelSvc(svc, a, p); err != nil {
+	if err := d.underlays["udpip"].DelSvc(svc, host, port); err != nil {
 		return err
 	}
 	if d.Metrics != nil {
