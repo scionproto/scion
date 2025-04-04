@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package topology
+package conn
 
 import (
 	"net"
@@ -21,38 +21,14 @@ import (
 	"strconv"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
-	jsontopo "github.com/scionproto/scion/private/topology/json"
 )
 
-func rawBRIntfLocalAddr(u *jsontopo.Underlay) (netip.AddrPort, error) {
-	if (u.DeprecatedPublic != "" || u.DeprecatedBind != "") && u.Local != "" {
-		return netip.AddrPort{},
-			serrors.New(`deprecated "public" and "bind" fields cannot be combined with "local"`,
-				"underlay", u)
-	}
+// These functions are string parsers for Udpip network addresses which comply
+// with our configuration conventions. Moved here from topology as the parsing
+// of addresses is being migrated outside the topology component.
 
-	// handle _deprecated_ "public" and "bind" fields
-	if u.DeprecatedPublic != "" {
-		ret, err := resolveAddrPort(u.DeprecatedPublic)
-		if err != nil {
-			return netip.AddrPort{}, err
-		}
-		if u.DeprecatedBind != "" {
-			bindIP, err := netip.ParseAddr(u.DeprecatedBind)
-			if err != nil {
-				return netip.AddrPort{}, err
-			}
-			ret = netip.AddrPortFrom(bindIP.Unmap(), ret.Port())
-		}
-		return ret, nil
-	}
-
-	// the new normal, parse "local"
-	return resolveAddrPortOrPort(u.Local)
-}
-
-// resolveAddrPortOrPort parses a string in the format "IP:port", "hostname:port" or just ":port".
-func resolveAddrPortOrPort(s string) (netip.AddrPort, error) {
+// ResolveAddrPortOrPort parses a string in the format "IP:port", "hostname:port" or just ":port".
+func ResolveAddrPortOrPort(s string) (netip.AddrPort, error) {
 	rh, rp, err := net.SplitHostPort(s)
 	if err != nil {
 		return netip.AddrPort{}, serrors.Wrap("failed to split host port", err)
@@ -64,11 +40,11 @@ func resolveAddrPortOrPort(s string) (netip.AddrPort, error) {
 		}
 		return netip.AddrPortFrom(netip.Addr{}, uint16(port)), nil
 	}
-	return resolveAddrPort(s)
+	return ResolveAddrPort(s)
 }
 
-// resolveAddrPort parses a string in the format "IP:port" or "hostname:port".
-func resolveAddrPort(s string) (netip.AddrPort, error) {
+// ResolveAddrPort parses a string in the format "IP:port" or "hostname:port".
+func ResolveAddrPort(s string) (netip.AddrPort, error) {
 	// detour via "legacy" net.UDPAddr; there is no corresponding function for netip.AddrPort
 	udpAddr, err := net.ResolveUDPAddr("udp", s)
 	if err != nil {

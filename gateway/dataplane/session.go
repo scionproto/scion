@@ -30,9 +30,7 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 )
 
-var (
-	crcTable = crc64.MakeTable(crc64.ECMA)
-)
+var crcTable = crc64.MakeTable(crc64.ECMA)
 
 type PathStatsPublisher interface {
 	PublishEgressStats(fingerprint string, frames int64, bytes int64)
@@ -206,7 +204,7 @@ func extractQuintuple(packet gopacket.Packet) []byte {
 		q = append(q, ip.DstIP...)
 		proto = ip.NextHeader
 	default:
-		panic(fmt.Sprintf("unexpected network layer %T", packet.NetworkLayer()))
+		panic(fmt.Sprintf("unexpected network layer: %T", packet.NetworkLayer()))
 	}
 	// Ports.
 	switch proto {

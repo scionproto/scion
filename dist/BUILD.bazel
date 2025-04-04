@@ -1,6 +1,6 @@
+load(":git_version.bzl", "git_version")
 load(":package.bzl", "scion_pkg_deb", "scion_pkg_ipk", "scion_pkg_rpm")
 load(":platform.bzl", "multiplatform_filegroup")
-load(":git_version.bzl", "git_version")
 
 DEB_PLATFORMS = [
     "@io_bazel_rules_go//go/toolchain:linux_amd64",
@@ -19,7 +19,7 @@ RPM_PLATFORMS = [
 # TODO(jice@scion.org):
 # For now only a single openwrt platform can be in this list. If we allow several, they get
 # built in parallel, which breaks on non-reentrant openwrt makefiles. For a single platform
-# things work because we force the packages to be build serialy by making them depend on
+# things work because we force the packages to be build serially by making them depend on
 # each other.
 OPENWRT_PLATFORMS = [
     "@//dist/openwrt:openwrt_amd64",
@@ -201,7 +201,7 @@ scion_pkg_ipk(
 # multiplatform_filegroup creates two targets: <name> and <name>_all.
 # <name> means "local platform".
 # So "build //dist/openwrt" means "make me ipk packages for the local platform only. It wont work,
-# unles you happen to be building on an openwrt system (really?).
+# unless you happen to be building on an openwrt system (really?).
 # What you really want is "build //dist/openwrt_all".
 multiplatform_filegroup(
     name = "openwrt",

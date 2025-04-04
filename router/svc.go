@@ -16,23 +16,25 @@ package router
 
 import (
 	"math/rand/v2"
-	"net/netip"
 	"slices"
 	"sync"
 
 	"github.com/scionproto/scion/pkg/addr"
 )
 
-type services struct {
+// A generic anycast address map. This could in fact be generalized to be a key->anyOneValue
+// with no specific networking semantics, but there's no obvious other usage at the moment.
+// This is for use by all underlay providers to implement the service mapping.
+type Services[addrT comparable] struct {
 	mtx sync.Mutex
-	m   map[addr.SVC][]netip.AddrPort
+	m   map[addr.SVC][]addrT
 }
 
-func newServices() *services {
-	return &services{m: make(map[addr.SVC][]netip.AddrPort)}
+func NewServices[addrT comparable]() *Services[addrT] {
+	return &Services[addrT]{m: make(map[addr.SVC][]addrT)}
 }
 
-func (s *services) AddSvc(svc addr.SVC, a netip.AddrPort) {
+func (s *Services[addrT]) AddSvc(svc addr.SVC, a addrT) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -43,7 +45,7 @@ func (s *services) AddSvc(svc addr.SVC, a netip.AddrPort) {
 	s.m[svc] = append(addrs, a)
 }
 
-func (s *services) DelSvc(svc addr.SVC, a netip.AddrPort) {
+func (s *Services[addrT]) DelSvc(svc addr.SVC, a addrT) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -53,17 +55,19 @@ func (s *services) DelSvc(svc addr.SVC, a netip.AddrPort) {
 		return
 	}
 	addrs[index] = addrs[len(addrs)-1]
-	addrs[len(addrs)-1] = netip.AddrPort{}
+	var zeroAddr addrT
+	addrs[len(addrs)-1] = zeroAddr
 	s.m[svc] = addrs[:len(addrs)-1]
 }
 
-func (s *services) Any(svc addr.SVC) (netip.AddrPort, bool) {
+func (s *Services[addrT]) Any(svc addr.SVC) (addrT, bool) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	addrs := s.m[svc]
 	if len(addrs) == 0 {
-		return netip.AddrPort{}, false
+		var zeroAddr addrT
+		return zeroAddr, false
 	}
 	return addrs[rand.IntN(len(addrs))], true
 }

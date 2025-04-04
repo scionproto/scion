@@ -125,7 +125,7 @@ func (v chainChecker) checkChains(ctx context.Context, q trust.ChainQuery) error
 			// After the cache is cleared here, we will attempt to fetch and
 			// cache the empty result, thus, not hitting this code path again.
 			v.Cache.Delete(key)
-			return serrors.New("chached certificate chains do not cover required validity")
+			return serrors.New("cached certificate chains do not cover required validity")
 		}
 		return nil
 	}

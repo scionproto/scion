@@ -88,13 +88,15 @@ func TestReceiver(t *testing.T) {
 		},
 	).Times(1)
 
-	_ = dp.AddInternalInterface(mInternal, netip.Addr{})
+	dp.underlays["udpip"].SetConnNewer(MockConnNewer{Ctrl: ctrl, Conn: mInternal})
+
+	_ = dp.AddInternalInterface(netip.AddrPort{})
 
 	dp.initPacketPool(64)
 	procCh, _ := dp.initQueues(64)
 	initialPoolSize := len(dp.packetPool)
 	dp.setRunning()
-	dp.underlay.Start(context.Background(), dp.packetPool, procCh)
+	dp.underlays["udpip"].Start(context.Background(), dp.packetPool, procCh)
 	ptrMap := make(map[uintptr]struct{})
 	for i := 0; i < 21; i++ {
 		select {
@@ -122,7 +124,7 @@ func TestReceiver(t *testing.T) {
 
 	// make sure that the packet pool has the expected size after the test
 	assert.Equal(t, initialPoolSize-dp.RunConfig.BatchSize-20, len(dp.packetPool))
-	dp.underlay.Stop()
+	dp.underlays["udpip"].Stop()
 }
 
 // TestForwarder sets up a mocked batchConn, starts the forwarder that will write to
@@ -132,6 +134,7 @@ func TestReceiver(t *testing.T) {
 func TestForwarder(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	done := make(chan struct{})
+
 	prepareDP := func(ctrl *gomock.Controller) *dataPlane {
 		ret := newDataPlane(
 			RunConfig{NumProcessors: 20, BatchSize: 64, NumSlowPathProcessors: 1}, false)
@@ -190,19 +193,30 @@ func TestForwarder(t *testing.T) {
 
 				return len(ms), nil
 			}).AnyTimes()
-		if err := ret.AddInternalInterface(mConn, netip.Addr{}); err != nil {
+
+		ret.underlays["udpip"].SetConnNewer(MockConnNewer{Ctrl: ctrl, Conn: mConn})
+
+		if err := ret.AddInternalInterface(netip.AddrPort{}); err != nil {
 			panic(err)
 		}
 		l := control.LinkEnd{
 			IA:   addr.MustParseIA("1-ff00:0:1"),
-			Addr: netip.MustParseAddrPort("10.0.0.100:0"),
+			Addr: "10.0.0.100:0",
 		}
 		r := control.LinkEnd{
 			IA:   addr.MustParseIA("1-ff00:0:3"),
-			Addr: netip.MustParseAddrPort("10.0.0.200:0"),
+			Addr: "10.0.0.200:0",
 		}
+		lh := addr.HostIP(netip.MustParseAddrPort(l.Addr).Addr())
+		rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 		nobfd := control.BFD{Disable: ptr.To(true)}
-		if err := ret.AddExternalInterface(42, mConn, l, r, nobfd); err != nil {
+		link := control.LinkInfo{
+			Provider: "udpip",
+			Local:    l,
+			Remote:   r,
+			BFD:      nobfd,
+		}
+		if err := ret.AddExternalInterface(42, link, lh, rh); err != nil {
 			panic(err)
 		}
 		return ret
@@ -214,7 +228,7 @@ func TestForwarder(t *testing.T) {
 	extf := dp.interfaces[42]
 	initialPoolSize := len(dp.packetPool)
 	dp.setRunning()
-	dp.underlay.Start(context.Background(), dp.packetPool, procQs)
+	dp.underlays["udpip"].Start(context.Background(), dp.packetPool, procQs)
 	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 	for i := 0; i < 255; i++ {
 		pkt := <-dp.packetPool
@@ -245,12 +259,12 @@ func TestForwarder(t *testing.T) {
 
 	select {
 	case <-done:
-		dp.underlay.Stop()
+		dp.underlays["udpip"].Stop()
 		dp.setStopping()
 		time.Sleep(100 * time.Millisecond)
 		assert.Equal(t, initialPoolSize, len(dp.packetPool))
 	case <-time.After(100 * time.Millisecond):
-		dp.underlay.Stop()
+		dp.underlays["udpip"].Stop()
 		dp.setStopping()
 		t.Fail()
 	}
@@ -265,7 +279,6 @@ func TestSlowPathProcessing(t *testing.T) {
 	// * InternalNextHops may not be nil. Empty is ok for all the test cases we have.
 	mockExternalInterfaces := []uint16{1}
 	mockInternalNextHops := map[uint16]netip.AddrPort{}
-	mockServices := map[addr.SVC][]netip.AddrPort{}
 
 	testCases := map[string]struct {
 		mockMsg                 func() []byte
@@ -279,9 +292,8 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					mock_router.NewMockBatchConn(ctrl),
+					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"),
 					nil, testKey)
 			},
@@ -304,9 +316,8 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					mock_router.NewMockBatchConn(ctrl),
+					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -328,9 +339,8 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					mock_router.NewMockBatchConn(ctrl),
+					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -352,9 +362,8 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					mock_router.NewMockBatchConn(ctrl),
+					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -376,9 +385,8 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					mock_router.NewMockBatchConn(ctrl),
+					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -402,9 +410,8 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					mock_router.NewMockBatchConn(ctrl),
+					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -426,9 +433,8 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					mock_router.NewMockBatchConn(ctrl),
+					MockConnNewer{Ctrl: ctrl},
 					mockInternalNextHops,
-					mockServices,
 					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
 			},
 			mockMsg: func() []byte {

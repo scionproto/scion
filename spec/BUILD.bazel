@@ -1,5 +1,5 @@
-load("//tools/lint:write_source_files.bzl", "write_source_files")
 load("//private/mgmtapi:api.bzl", "openapi_bundle")
+load("//tools/lint:write_source_files.bzl", "write_source_files")
 
 openapi_bundle(
     name = "control",

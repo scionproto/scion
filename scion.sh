@@ -14,8 +14,8 @@ cmd_topo-clean() {
     stop_scion || true
     cmd_stop-monitoring || true
     rm -rf traces/*
-    mkdir -p logs traces gen gen-cache gen-certs
-    find gen gen-cache gen-certs -mindepth 1 -maxdepth 1 -exec rm -r {} +
+    mkdir -p logs traces gen gen-cache
+    find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
 }
 
 cmd_topology() {

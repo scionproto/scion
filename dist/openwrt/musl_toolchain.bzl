@@ -17,7 +17,6 @@
 # This was adapted from illicitonion) work (https://github.com/bazel-contrib/musl-toolchain)
 # Merit is his, mistakes are ours.
 
-load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 load(
     "@bazel_tools//tools/build_defs/cc:action_names.bzl",
     _ASSEMBLE_ACTION_NAME = "ASSEMBLE_ACTION_NAME",
@@ -47,6 +46,7 @@ load(
     "tool_path",
     "with_feature_set",
 )
+load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 
 all_link_actions = [
     _CPP_LINK_EXECUTABLE_ACTION_NAME,
@@ -342,11 +342,11 @@ def _impl(ctx):
                     flag_group(
                         flags = [
                             "-isystem",
-                            "external/openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include",
+                            "external/+non_module_deps+openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include",
                             "-isystem",
-                            "external/openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/include",
+                            "external/+non_module_deps+openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/include",
                             "-isystem",
-                            "external/openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64/include",
+                            "external/+non_module_deps+openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64/include",
                         ],
                     ),
                 ],
@@ -416,7 +416,7 @@ def musl_cc_toolchain(target_arch):
             "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/include/**",
             "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/lib/*.*",  # Link. Files NEEDED
             "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/sys-include/*",  # Link. Files NEEDED.
-        ]),
+        ], allow_empty = True),
         visibility = ["//visibility:public"],
     )
 

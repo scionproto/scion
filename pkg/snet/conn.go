@@ -59,7 +59,7 @@ type Conn struct {
 // send/receive SCION traffic with the usual methods.
 // It takes as arguments a non-nil PacketConn and a non-nil Topology parameter.
 // Nil or unspecified addresses for the PacketConn object are not supported.
-// This is an advanced API, that allows fine-tunning of the Conn underlay functionality.
+// This is an advanced API, that allows fine-tuning of the Conn underlay functionality.
 // The general methods for obtaining a Conn object are still SCIONNetwork.Listen and
 // SCIONNetwork.Dial.
 func NewCookedConn(

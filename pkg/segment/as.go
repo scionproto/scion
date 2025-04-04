@@ -31,7 +31,7 @@ import (
 type ASEntry struct {
 	// Signed contains the signed ASentry. It is used for signature input.
 	Signed *cryptopb.SignedMessage
-	// Local is the ISD-AS of the AS correspoding to this entry.
+	// Local is the ISD-AS of the AS corresponding to this entry.
 	Local addr.IA
 	// Next is the ISD-AS of the downstream AS.
 	Next addr.IA

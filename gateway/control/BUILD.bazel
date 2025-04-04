@@ -63,7 +63,10 @@ go_test(
         "sessionpolicy_test.go",
         "watcher_test.go",
     ],
-    data = glob(["testdata/**"]),
+    data = glob(
+        ["testdata/**"],
+        allow_empty = True,
+    ),
     embed = [":go_default_library"],
     deps = [
         "//gateway/control/mock_control:go_default_library",
