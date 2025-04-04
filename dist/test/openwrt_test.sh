@@ -31,7 +31,7 @@ fi
 # Start container as-is.
 docker run -d --rm --name openwrt-x86_64 -t \
        -v $SCION_OPENWRT_PACKAGES_DIR:/openwrt \
-       "openwrt/rootfs:x86-64-openwrt-24.10" /sbin/init
+       "openwrt/rootfs" /sbin/init
 
 docker exec -i openwrt-x86_64 /bin/ash <<'EOF'
     set -xeuo pipefail
