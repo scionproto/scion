@@ -353,7 +353,7 @@ func TestDataPlaneRun(t *testing.T) {
 						return len(ms), nil
 					}).AnyTimes()
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
-				_ = ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0")
+				assert.NoError(t, ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"))
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
@@ -416,10 +416,10 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mExternal})
-				_ = ret.AddExternalInterface(1, link, lh, rh)
+				assert.NoError(t, ret.AddExternalInterface(1, link, lh, rh))
 
-				_ = ret.SetIA(local)
-				_ = ret.SetKey(key)
+				assert.NoError(t, ret.SetIA(local))
+				assert.NoError(t, ret.SetKey(key))
 				return ret
 			},
 		},
@@ -447,20 +447,20 @@ func TestDataPlaneRun(t *testing.T) {
 						YourDiscriminator: 0,
 					}
 
-					_ = scn.SetSrcAddr(addr.HostIP(src.Addr()))
+					assert.NoError(t, scn.SetSrcAddr(addr.HostIP(src.Addr())))
 					buffer := gopacket.NewSerializeBuffer()
-					_ = gopacket.SerializeLayers(buffer,
-						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL)
+					assert.NoError(t, gopacket.SerializeLayers(buffer,
+						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL))
 					return buffer.Bytes()
 				}
-				_ = ret.SetKey([]byte("randomkeyformacs"))
+				assert.NoError(t, ret.SetKey([]byte("randomkeyformacs")))
 
 				// We don't care what happens on the internal connection. Sink it.
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 				mInternal.EXPECT().WriteBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
-				_ = ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0")
+				assert.NoError(t, ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"))
 
 				mtx := sync.Mutex{}
 				expectRemoteDiscriminators := map[layers.BFDDiscriminator]struct{}{}
@@ -529,7 +529,7 @@ func TestDataPlaneRun(t *testing.T) {
 					for _, ifID := range ifIDs {
 						// Sibling links to the same sibling are de-duped, so we will only need
 						// one sibling connection for them all.
-						_ = ret.AddNextHop(ifID, link, lh, rh)
+						assert.NoError(t, ret.AddNextHop(ifID, link, lh, rh))
 					}
 				}
 
@@ -604,12 +604,12 @@ func TestDataPlaneRun(t *testing.T) {
 					}).MinTimes(1)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
-				_ = ret.SetKey([]byte("randomkeyformacs"))
+				assert.NoError(t, ret.SetKey([]byte("randomkeyformacs")))
 				// Let the same connection be used for internal and sibling. We only send on the
 				// latter and we don't care what we receive or where.
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
-				_ = ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0")
-				_ = ret.AddNextHop(3, link, lh, rh)
+				assert.NoError(t, ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"))
+				assert.NoError(t, ret.AddNextHop(3, link, lh, rh))
 				return ret
 			},
 		},
@@ -677,11 +677,11 @@ func TestDataPlaneRun(t *testing.T) {
 					BFD:      bfd(),
 				}
 
-				_ = ret.SetKey([]byte("randomkeyformacs"))
+				assert.NoError(t, ret.SetKey([]byte("randomkeyformacs")))
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
-				_ = ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0")
+				assert.NoError(t, ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"))
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mExternal})
-				_ = ret.AddExternalInterface(ifID, link, lh, rh)
+				assert.NoError(t, ret.AddExternalInterface(ifID, link, lh, rh))
 				return ret
 			},
 		},
@@ -711,8 +711,8 @@ func TestDataPlaneRun(t *testing.T) {
 					}
 
 					buffer := gopacket.NewSerializeBuffer()
-					_ = gopacket.SerializeLayers(buffer,
-						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL)
+					assert.NoError(t, gopacket.SerializeLayers(buffer,
+						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL))
 					return buffer.Bytes()
 				}
 
@@ -772,11 +772,11 @@ func TestDataPlaneRun(t *testing.T) {
 					BFD:      bfd(),
 				}
 
-				_ = ret.SetKey([]byte("randomkeyformacs"))
+				assert.NoError(t, ret.SetKey([]byte("randomkeyformacs")))
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
-				_ = ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0")
+				assert.NoError(t, ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"))
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mExternal})
-				_ = ret.AddExternalInterface(1, link, lh, rh)
+				assert.NoError(t, ret.AddExternalInterface(1, link, lh, rh))
 				return ret
 			},
 		},
@@ -853,7 +853,7 @@ func TestProcessPkt(t *testing.T) {
 				spkt, dpath := prepBaseMsg(now)
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				dst := addr.MustParseHost("10.0.100.100")
-				_ = spkt.SetDstAddr(dst)
+				assert.NoError(t, spkt.SetDstAddr(dst))
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 41, ConsEgress: 40},
 					{ConsIngress: 31, ConsEgress: 30},
@@ -885,7 +885,7 @@ func TestProcessPkt(t *testing.T) {
 				spkt, dpath := prepBaseMsg(now)
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				dst := addr.MustParseHost("10.0.100.100")
-				_ = spkt.SetDstAddr(dst)
+				assert.NoError(t, spkt.SetDstAddr(dst))
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 41, ConsEgress: 40},
 					{ConsIngress: 31, ConsEgress: 30},
@@ -939,7 +939,7 @@ func TestProcessPkt(t *testing.T) {
 				ingress := uint16(0)
 				egress := uint16(0)
 				if afterProcessing {
-					_ = dpath.IncPath()
+					assert.NoError(t, dpath.IncPath())
 					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[0].Mac)
 					egress = 1
 				}
@@ -971,7 +971,7 @@ func TestProcessPkt(t *testing.T) {
 				ingress := uint16(1)
 				egress := uint16(0)
 				if afterProcessing {
-					_ = dpath.IncPath()
+					assert.NoError(t, dpath.IncPath())
 					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[1].Mac)
 					egress = 2
 				}
@@ -1070,7 +1070,7 @@ func TestProcessPkt(t *testing.T) {
 				ingress := uint16(1) // from peering link
 				egress := uint16(0)
 				if afterProcessing {
-					_ = dpath.IncPath()
+					assert.NoError(t, dpath.IncPath())
 
 					// ... The SegID accumulator wasn't updated from HF[1],
 					// it is still the same. That is the key behavior.
@@ -1142,7 +1142,7 @@ func TestProcessPkt(t *testing.T) {
 				ingress := uint16(2) // from child link
 				egress := uint16(0)
 				if afterProcessing {
-					_ = dpath.IncPath()
+					assert.NoError(t, dpath.IncPath())
 
 					// The SegID should not get updated on arrival. If it is, then MAC validation
 					// of HF1 will fail. Otherwise, this isn't visible because we changed segment.
@@ -1215,7 +1215,7 @@ func TestProcessPkt(t *testing.T) {
 				// The SegID we provide is that of HF[2] which happens to be SEG[1]'s SegID,
 				// so, already set for the before-processing state.
 				if afterProcessing {
-					_ = dpath.IncPath()
+					assert.NoError(t, dpath.IncPath())
 
 					// ... The SegID accumulator should have been updated.
 					dpath.InfoFields[1].UpdateSegID(dpath.HopFields[2].Mac)
@@ -1284,7 +1284,7 @@ func TestProcessPkt(t *testing.T) {
 				ingress := uint16(2) // from child link
 				egress := uint16(0)
 				if afterProcessing {
-					_ = dpath.IncPath()
+					assert.NoError(t, dpath.IncPath())
 
 					// After-processing, the SegID should have been updated
 					// (on ingress) to be that of HF[1], which happens to be
@@ -1415,7 +1415,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			mockMsg: func(afterProcessing bool) *router.Packet {
 				spkt, dpath := prepBaseMsg(now)
-				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
+				assert.NoError(t, spkt.SetDstAddr(addr.MustParseHost("CS")))
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 41, ConsEgress: 40},

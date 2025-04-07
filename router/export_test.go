@@ -107,9 +107,9 @@ func (m MockConnOpener) Open(
 	return bc, nil
 }
 
-// We let the udpip underlay create distinct connections for sibling links as sharing a single
-// mock connection between internal and sibling links obscures tests.
 func (m MockConnOpener) UDPCanReuseLocal() bool {
+	// We let the udpip underlay create distinct connections for sibling links as sharing a single
+	// mock connection between internal and sibling links obscures tests.
 	return true
 }
 

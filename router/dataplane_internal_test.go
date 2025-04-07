@@ -91,7 +91,7 @@ func TestReceiver(t *testing.T) {
 
 	dp.underlays["udpip"].SetConnOpener(MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 
-	_ = dp.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0")
+	assert.NoError(t, dp.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"))
 
 	dp.initPacketPool(64)
 	procCh, _ := dp.initQueues(64)
@@ -303,7 +303,7 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
-				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
+				assert.NoError(t, spkt.SetDstAddr(addr.MustParseHost("CS")))
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				ret := toMsg(t, spkt)
 				return ret
@@ -326,7 +326,7 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
-				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
+				assert.NoError(t, spkt.SetDstAddr(addr.MustParseHost("CS")))
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				ret := toMsg(t, spkt)
 				return ret
@@ -443,7 +443,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsgHop0Out(t, payload, 0)
-				_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
+				assert.NoError(t,
+					spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
 				spkt.SrcAddrType = slayers.T16Ip
 				spkt.RawSrcAddr = []byte{
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 10, 0, 200, 100,

@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -172,10 +173,10 @@ func (p *Packet) Reset() {
 // (after updating the path, if that is needed).
 type dataPlane struct {
 	underlays           map[string]UnderlayProvider
-	interfaces          [65536]Link
+	interfaces          [math.MaxUint16 + 1]Link
 	numInterfaces       int
-	linkTypes           [65536]topology.LinkType
-	neighborIAs         [65536]addr.IA
+	linkTypes           [math.MaxUint16 + 1]topology.LinkType
+	neighborIAs         [math.MaxUint16 + 1]addr.IA
 	localHost           addr.Host
 	macFactory          func() hash.Hash
 	localIA             addr.IA

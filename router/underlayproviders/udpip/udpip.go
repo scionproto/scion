@@ -80,7 +80,7 @@ type provider struct {
 	allConnections     []*udpConnection
 	connOpener         ConnOpener // uo{}, except for unit tests
 	svc                *router.Services[netip.AddrPort]
-	internalConnection *udpConnection // Because we can share it w/ siblinglinks
+	internalConnection *udpConnection // Because we can share it w/ sibling links
 	internalHashSeed   uint32         // ...in which case, this too is shared.
 	receiveBufferSize  int
 	sendBufferSize     int
@@ -362,7 +362,7 @@ func (u *udpConnection) send(batchSize int, pool chan *router.Packet) {
 		for i, p := range pkts[:toWrite] {
 			msgs[i].Buffers[0] = p.RawPacket
 			msgs[i].Addr = nil
-			// If we're using a connected socket we must not specify the address. It might causes
+			// If we're using a connected socket we must not specify the address. It might cause
 			// redundant route queries and the address might not even be set in the packet.
 			// Otherwise, we must specify the address.
 			if !u.connected {
@@ -427,8 +427,8 @@ type connectedLink struct {
 	scope      router.LinkScope
 }
 
-// NewExternalLink returns an external link over the UdpIpUnderlay. It is always implemented with a
-// connectedLink.
+// NewExternalLink returns an external link over the UDP/IP underlay. It is always implemented with
+// a connectedLink.
 func (u *provider) NewExternalLink(
 	qSize int,
 	bfd *bfd.Session,
@@ -603,7 +603,7 @@ type detachedLink struct {
 	seed       uint32
 }
 
-// newSiblingLink returns a sibling link over the UdpIp underlay. It may be implemented with either
+// newSiblingLink returns a sibling link over the UDP/IP underlay. It may be implemented with either
 // a detachedLink or a connectedLink, dependending on the OS features.
 //
 // We de-duplicate sibling links. The router gives us a BFDSession in all cases and we might throw
@@ -640,11 +640,10 @@ func (u *provider) NewSiblingLink(
 	if u.connOpener.UDPCanReuseLocal() {
 		return u.newConnectedLink(qSize, bfd, localAddr, remoteAddr, 0, metrics, router.Sibling)
 	}
-	return u.newDetachedLink(qSize, bfd, remoteAddr, metrics)
+	return u.newDetachedLink(bfd, remoteAddr, metrics)
 }
 
 func (u *provider) newDetachedLink(
-	qSize int,
 	bfd *bfd.Session,
 	remoteAddr netip.AddrPort,
 	metrics *router.InterfaceMetrics,
@@ -873,7 +872,7 @@ func (l *internalLink) IsUp() bool {
 }
 
 // Resolve updates the packet's underlay destination according to the given SCION host/service
-// address and SCION port number.  On the udpip underlay, host addresses are bit-for-bit identical
+// address and SCION port number.  On the UDP/IP underlay, host addresses are bit-for-bit identical
 // to underlay addresses. The port space is the same, except if the packet is redirected to the shim
 // dispatcher.
 func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) error {
