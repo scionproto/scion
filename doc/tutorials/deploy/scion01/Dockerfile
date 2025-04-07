@@ -2,7 +2,9 @@ FROM scion-base:1.0
 
 # Copy generated AS1 PKI from base image.
 RUN cp /opt/tutorial-pki/AS1/*.key /etc/scion/crypto/as/ && \
-    cp /opt/tutorial-pki/AS1/*.pem /etc/scion/crypto/as/
+    cp /opt/tutorial-pki/AS1/*.pem /etc/scion/crypto/as/ && \
+    chown scion:scion /etc/scion/crypto/as/*.key && \
+    chmod 600 /etc/scion/crypto/as/*.key
 
 # Copy AS1 topology and configuration files.
 COPY topology1.json /etc/scion/topology.json
