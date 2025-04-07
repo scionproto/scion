@@ -19,8 +19,8 @@
       "interfaces": {
         "1": {
           "underlay": {
-            "local": "scion05:50025",
-            "remote": "scion02:50025"
+            "local": "10.100.0.15:50025",
+            "remote": "10.100.0.12:50025"
           },
           "isd_as": "42-ffaa:1:2",
           "link_to": "parent",
@@ -28,8 +28,8 @@
         },
         "2": {
           "underlay": {
-            "local": "scion05:50035",
-            "remote": "scion03:50035"
+            "local": "10.100.0.15:50035",
+            "remote": "10.100.0.13:50035"
           },
           "isd_as": "42-ffaa:1:3",
           "link_to": "parent",

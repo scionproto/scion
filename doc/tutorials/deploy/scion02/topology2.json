@@ -21,8 +21,8 @@
       "interfaces": {
         "1": {
           "underlay": {
-            "local": "scion02:50012",
-            "remote": "scion01:50012"
+            "local": "10.100.0.12:50012",
+            "remote": "10.100.0.11:50012"
           },
           "isd_as": "42-ffaa:1:1",
           "link_to": "core",
@@ -30,8 +30,8 @@
         },
         "2": {
           "underlay": {
-            "local": "scion02:50023",
-            "remote": "scion03:50023"
+            "local": "10.100.0.12:50023",
+            "remote": "10.100.0.13:50023"
           },
           "isd_as": "42-ffaa:1:3",
           "link_to": "core",
@@ -39,8 +39,8 @@
         },
         "3": {
           "underlay": {
-            "local": "scion02:50025",
-            "remote": "scion05:50025"
+            "local": "10.100.0.12:50025",
+            "remote": "10.100.0.15:50025"
           },
           "isd_as": "42-ffaa:1:5",
           "link_to": "child",
