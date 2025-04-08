@@ -147,7 +147,6 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
         requires = deps,
         post_scriptlet_file = post,
         source_date_epoch = 0,
-        debug = True,
         **kwargs
     )
 
