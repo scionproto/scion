@@ -131,6 +131,8 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
     #              versions of pkg_rpm fix that.
     # debug_package: Starting with rpmbuild 4.20, debug-info packages are built by default. We
     #                currently don't want that and our binaries do not have the required symbols.
+    # buildsubdir and debug_package don't work with older rpmbuild, so they're added in the patch
+    # (dist/rpm/patch_make_rpm.patch)
 
     pkg_rpm(
         name = name,
