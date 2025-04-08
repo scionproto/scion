@@ -686,7 +686,7 @@ func (d *dataPlane) Run(ctx context.Context) error {
 	procQs, slowQs := d.initQueues(processorQueueSize)
 	d.setRunning()
 	for _, u := range d.underlays {
-		u.Start(ctx, &d.packetPool, procQs)
+		u.Start(ctx, d.packetPool, procQs)
 	}
 	for i := 0; i < d.RunConfig.NumProcessors; i++ {
 		go func(i int) {
@@ -721,7 +721,10 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 		}
 	}
 
-	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
+	// Make sure that we can also prepend an SCMP header to packets that must be quoted.
+	headroom += slayers.MaxSCMPHeaderSize
+
+	log.Debug("Initialize packet pool", "poolSize", poolSize, "headroom", headroom)
 	d.packetPool.init(poolSize, headroom)
 	pktBuffers := make([][bufSize]byte, poolSize)
 	pktStructs := make([]Packet, poolSize)

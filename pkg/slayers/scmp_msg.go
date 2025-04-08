@@ -23,6 +23,13 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
+// MaxSCMPHeaderSize is the size of the largest possible SCMP header: including the fixed
+// 4 byte header plus the variable size info block. Currently, the largest info block is
+// SCMPInternalConnectivityDown at 24 bytes. So the max is 28.
+// Knowing this allows the router to reduce the cost of constructing SCMP packets that include
+// a packet quote.
+const MaxSCMPHeaderSize = 28
+
 const scmpRawInterfaceLen = 8
 
 // SCMPExternalInterfaceDown message contains the data for that error.

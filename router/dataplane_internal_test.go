@@ -96,7 +96,7 @@ func TestReceiver(t *testing.T) {
 	procCh, _ := dp.initQueues(64)
 	initialPoolSize := len(dp.packetPool.pool)
 	dp.setRunning()
-	dp.underlays["udpip"].Start(context.Background(), &dp.packetPool, procCh)
+	dp.underlays["udpip"].Start(context.Background(), dp.packetPool, procCh)
 	ptrMap := make(map[uintptr]struct{})
 	for i := 0; i < 21; i++ {
 		select {
@@ -228,7 +228,7 @@ func TestForwarder(t *testing.T) {
 	extf := dp.interfaces[42]
 	initialPoolSize := len(dp.packetPool.pool)
 	dp.setRunning()
-	dp.underlays["udpip"].Start(context.Background(), &dp.packetPool, procQs)
+	dp.underlays["udpip"].Start(context.Background(), dp.packetPool, procQs)
 	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 	for i := 0; i < 255; i++ {
 		pkt := dp.packetPool.Get()
