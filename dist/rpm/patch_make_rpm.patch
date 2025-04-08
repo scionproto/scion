@@ -39,7 +39,7 @@
 +      version_parts = version.split('.')
 +      major = int(version_parts[0])
 +      minor = int(version_parts[1])
-+      if (major == 4) and (minor >= 20):
++      if (major > 4) or ((major == 4) and (minor >= 20)):
 +        args += [
 +          '--define', 'buildsubdir ..',
 +          '--define', 'debug_package %{nil}',
