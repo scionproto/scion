@@ -76,6 +76,13 @@ type UnderlayProvider interface {
 	// NumConnections returns the current number of configured connections.
 	NumConnections() int
 
+	// Headroom returns the length of the largest header possibly added by this underlay.
+	// The router core will ensure that all received packets are stored at an offset in the packet
+	// buffer, such that the largest underlay header declared across all underlay providers can
+	// be prepended to the SCION header without having to copy the packet or to allocate a separate
+	// buffer.
+	Headroom() int
+
 	// SetDispatchPorts sets the range of auto-dispatched ports and default endhost port (the shim
 	// dispatcher port). When translating a SCION port into an underlay port, any port between the
 	// values of start and end remains unchanged, while any other will be replaced by the value of
@@ -93,7 +100,7 @@ type UnderlayProvider interface {
 	// incoming packets to its output channels and will send packets present on its input
 	// channels. Only connection in existence at the time of calling Start() will be
 	// started. Calling Start has no effect on already running connections.
-	Start(ctx context.Context, pool chan *Packet, proQs []chan *Packet)
+	Start(ctx context.Context, pool *PacketPool, proQs []chan *Packet)
 
 	// Stop puts the provider in the stopped state. In that state, the provider no longer delivers
 	// incoming packets and ignores packets present on its input channels. The provider is fully

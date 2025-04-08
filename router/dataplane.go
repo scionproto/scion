@@ -162,16 +162,41 @@ func (p *Packet) init(buffer *[bufSize]byte) *Packet {
 	return p
 }
 
-// reset() makes the packet ready to receive a new underlay message.
-// A cleared dstAddr is represented with a zero-length IP so we keep reusing the IP storage bytes.
-func (p *Packet) Reset() {
+// reset() makes the packet ready to receive a new underlay message. A cleared dstAddr is
+// represented with a zero-length IP so we keep reusing the IP storage bytes. We adjust the
+// RawPacket slice relative to the buffer, so there's enough headroom for any underlay headers.
+func (p *Packet) Reset(headroom int) {
 	p.RemoteAddr.IP = p.RemoteAddr.IP[0:0] // We're keeping the object, just blank it.
 	*p = Packet{
-		buffer:     p.buffer,     // keep the buffer
-		RawPacket:  p.buffer[:],  // restore the full packet capacity
-		RemoteAddr: p.RemoteAddr, // keep the dstAddr and so the IP slice and bytes
+		buffer:     p.buffer,            // keep the buffer
+		RawPacket:  p.buffer[headroom:], // restore the full packet capacity (minus headroom).
+		RemoteAddr: p.RemoteAddr,        // keep the dstAddr and so the IP slice and bytes
 	}
 	// Everything else is reset to zero value.
+}
+
+// A packet pool with packet initialization parameters.
+type PacketPool struct {
+	pool     chan *Packet
+	headroom int
+}
+
+// Get fetches a packet from the pool and returns it initialized with the proper headroom.
+func (p *PacketPool) Get() *Packet {
+	pkt := <-p.pool
+	pkt.Reset(p.headroom)
+	return pkt
+}
+
+// Put returns the given packet to the pool.
+func (p *PacketPool) Put(pkt *Packet) {
+	p.pool <- pkt
+
+}
+
+func (p *PacketPool) init(poolSize, headroom int) {
+	p.pool = make(chan *Packet, poolSize)
+	p.headroom = headroom
 }
 
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
@@ -203,7 +228,7 @@ type dataPlane struct {
 	// packet structure is fetched from the pool passed-around through the various channels and
 	// returned to the pool. To reduce the cost of copying, the packet structure is passed by
 	// reference.
-	packetPool chan *Packet
+	packetPool PacketPool
 }
 
 var (
@@ -661,7 +686,7 @@ func (d *dataPlane) Run(ctx context.Context) error {
 	procQs, slowQs := d.initQueues(processorQueueSize)
 	d.setRunning()
 	for _, u := range d.underlays {
-		u.Start(ctx, d.packetPool, procQs)
+		u.Start(ctx, &d.packetPool, procQs)
 	}
 	for i := 0; i < d.RunConfig.NumProcessors; i++ {
 		go func(i int) {
@@ -684,16 +709,24 @@ func (d *dataPlane) Run(ctx context.Context) error {
 // initializePacketPool calculates the size of the packet pool based on the
 // current dataplane settings and allocates all the buffers
 func (d *dataPlane) initPacketPool(processorQueueSize int) {
+	// collect pool size and headroom reqs
 	poolSize := len(d.interfaces)*d.RunConfig.BatchSize +
 		(d.RunConfig.NumProcessors+d.RunConfig.NumSlowPathProcessors)*(processorQueueSize+1) +
 		len(d.interfaces)*(2*d.RunConfig.BatchSize)
+	headroom := 0
+	for _, u := range d.underlays {
+		h := u.Headroom()
+		if headroom < h {
+			headroom = h
+		}
+	}
 
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
-	d.packetPool = make(chan *Packet, poolSize)
+	d.packetPool.init(poolSize, headroom)
 	pktBuffers := make([][bufSize]byte, poolSize)
 	pktStructs := make([]Packet, poolSize)
 	for i := 0; i < poolSize; i++ {
-		d.packetPool <- pktStructs[i].init(&pktBuffers[i])
+		d.packetPool.Put(pktStructs[i].init(&pktBuffers[i]))
 	}
 }
 
@@ -708,14 +741,6 @@ func (d *dataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *
 		slowQs[i] = make(chan *Packet, processorQueueSize)
 	}
 	return procQs, slowQs
-}
-
-func (d *dataPlane) getPacketFromPool() *Packet {
-	return <-d.packetPool
-}
-
-func (d *dataPlane) returnPacketToPool(pkt *Packet) {
-	d.packetPool <- pkt
 }
 
 func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet) {
@@ -741,30 +766,30 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 			case slowQ <- p:
 			default:
 				metrics.DroppedPacketsBusySlowPath.Inc()
-				d.returnPacketToPool(p)
+				d.packetPool.Put(p)
 			}
 			continue
 		case pDone: // Packets that don't need more processing (e.g. BFD)
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		case pDiscard: // Everything else
 			metrics.DroppedPacketsInvalid.Inc()
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		default: // Newly added dispositions need to be handled.
 			log.Debug("Unknown packet disposition", "disp", disp)
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		}
 		fwLink, ok := d.interfaces[p.egress]
 		if !ok {
 			log.Debug("Error determining forwarder. Egress is invalid", "egress", p.egress)
 			metrics.DroppedPacketsInvalid.Inc()
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		}
 		if !fwLink.Send(p) {
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			metrics.DroppedPacketsBusyForwarder.Inc()
 		}
 	}
@@ -784,7 +809,7 @@ func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 		if err != nil {
 			log.Debug("Error processing packet", "err", err)
 			metrics.DroppedPacketsInvalid.Inc()
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		}
 		// All slowpath packets are responses to the sender. Therefore, the egress link is always
@@ -794,11 +819,11 @@ func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 		if egressLink == nil {
 			// Someone tried to send a freshly made packet on the slow path?
 			log.Debug("Error determining return link. No ingress link")
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		}
 		if !egressLink.Send(p) {
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 		}
 	}
 }
@@ -2107,8 +2132,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		ohp.FirstHop.Mac = path.MAC(b.mac, ohp.Info, ohp.FirstHop, b.macBuffer)
 	}
 
-	p := b.dataPlane.getPacketFromPool()
-	p.Reset()
+	p := b.dataPlane.packetPool.Get()
 
 	serBuf := newSerializeProxy(p.RawPacket) // set for prepend-only by default. Perfect here.
 
@@ -2130,7 +2154,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	if !fwLink.Send(p) {
 		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
 		// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
-		b.dataPlane.returnPacketToPool(p)
+		b.dataPlane.packetPool.Put(p)
 	}
 	return err
 }
