@@ -143,10 +143,11 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
         package_name = package,
         release = "%autorelease",
         version_file = ":%s_version" % name,
-        defines = {"_smp_build_ncpus": "1", "buildsubdir": "..", "debug_package": "%{nil}"},
+        defines = {"_smp_build_ncpus": "1"},
         requires = deps,
         post_scriptlet_file = post,
         source_date_epoch = 0,
+        debug = True,
         **kwargs
     )
 
