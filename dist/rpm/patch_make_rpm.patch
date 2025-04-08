@@ -31,18 +31,20 @@
      self.files = []
      self.rpmbuild_path = FindRpmbuild(rpmbuild_path)
      self.rpm_paths = None
-@@ -384,2 +371,10 @@
+@@ -384,2 +371,12 @@
        '--define', '_builddir %s/BUILD' % dirname,
      ]
 +    version = GetRpmbuildVersion(self.rpmbuild_path)
 +    if version:
-+      major, minor, _ = map(int, version.split('.'))
++      version_parts = version.split('.')
++      major = int(version_parts[0])
++      minor = int(version_parts[1])
 +      if (major == 4) and (minor >= 20):
 +        args += [
 +          '--define', 'buildsubdir ..',
 +          '--define', 'debug_package %{nil}',
 +        ]
-@@ -397,6 +410,10 @@
+@@ -397,6 +412,10 @@
        '--bb',
        '--buildroot=%s' % buildroot,
      ]  # yapf: disable
@@ -53,7 +55,7 @@
 
      # Macro-based RPM parameter substitution, if necessary inputs provided.
      if self.preamble_file:
-@@ -546,7 +563,10 @@
+@@ -546,7 +565,10 @@
                        help='The release of the software being packaged.')
    parser.add_argument(
        '--arch',
@@ -65,7 +67,7 @@
    parser.add_argument('--spec_file', required=True,
                        help='The file containing the RPM specification.')
    parser.add_argument('--out_file', required=True,
-@@ -597,7 +617,7 @@
+@@ -597,7 +619,7 @@
    try:
      builder = RpmBuilder(options.name,
                           options.version, options.release,
