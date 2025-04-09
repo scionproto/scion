@@ -165,7 +165,7 @@ func (p *Packet) init(buffer *[bufSize]byte) *Packet {
 // reset() makes the packet ready to receive a new underlay message. A cleared dstAddr is
 // represented with a zero-length IP so we keep reusing the IP storage bytes. We adjust the
 // RawPacket slice relative to the buffer, so there's enough headroom for any underlay headers.
-func (p *Packet) Reset(headroom int) {
+func (p *Packet) reset(headroom int) {
 	p.RemoteAddr.IP = p.RemoteAddr.IP[0:0] // We're keeping the object, just blank it.
 	*p = Packet{
 		buffer:     p.buffer,            // keep the buffer
@@ -184,7 +184,7 @@ type PacketPool struct {
 // Get fetches a packet from the pool and returns it initialized with the proper headroom.
 func (p *PacketPool) Get() *Packet {
 	pkt := <-p.pool
-	pkt.Reset(p.headroom)
+	pkt.reset(p.headroom)
 	return pkt
 }
 
