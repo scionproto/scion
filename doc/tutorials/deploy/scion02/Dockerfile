@@ -18,7 +18,4 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN head -c 16 /dev/urandom | base64 > /etc/scion/keys/master0.key && \
     head -c 16 /dev/urandom | base64 > /etc/scion/keys/master1.key
 
-# Expose ports. (30041,50000 = underlay; 30441 = monitoring).
-EXPOSE 30041 50000 30441
-
 CMD ["/lib/systemd/systemd", "--unit=multi-user.target"]
