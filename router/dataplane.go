@@ -175,7 +175,10 @@ func (p *Packet) reset(headroom int) {
 	// Everything else is reset to zero value.
 }
 
-// A packet pool with packet initialization parameters.
+// PacketPool allocates are resets packets. There is one packet pool per instance of the dataplane,
+// shared between all its underlay instances. This structure can be shared by copying (and doing so
+// is more efficient) because headroom is never changed after construction and channel is a
+// reference type.
 type PacketPool struct {
 	pool     chan *Packet
 	headroom int
@@ -194,9 +197,10 @@ func (p *PacketPool) Put(pkt *Packet) {
 
 }
 
-func (p *PacketPool) init(poolSize, headroom int) {
-	p.pool = make(chan *Packet, poolSize)
-	p.headroom = headroom
+// makePacketPool creates a packetpool of size poolSize, that configures packet buffers with the
+// given headroom. The pool is initially empty. Packets must be added separately.
+func makePacketPool(poolSize, headroom int) PacketPool {
+	return PacketPool{pool: make(chan *Packet, poolSize), headroom: headroom}
 }
 
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
@@ -725,7 +729,7 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 	headroom += slayers.MaxSCMPHeaderSize
 
 	log.Debug("Initialize packet pool", "poolSize", poolSize, "headroom", headroom)
-	d.packetPool.init(poolSize, headroom)
+	d.packetPool = makePacketPool(poolSize, headroom)
 	pktBuffers := make([][bufSize]byte, poolSize)
 	pktStructs := make([]Packet, poolSize)
 	for i := 0; i < poolSize; i++ {
