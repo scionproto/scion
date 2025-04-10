@@ -209,8 +209,8 @@ type dataPlane struct {
 var (
 	ErrUnsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
 	ErrUnsupportedUnspecifiedAddress = errors.New("unsupported unspecified address")
-
 	ErrNoSVCBackend                  = errors.New("cannot find internal IP for the SVC")
+
 	errAlreadySet                    = errors.New("already set")
 	errInvalidSrcIA                  = errors.New("invalid source ISD-AS")
 	errInvalidDstIA                  = errors.New("invalid destination ISD-AS")
