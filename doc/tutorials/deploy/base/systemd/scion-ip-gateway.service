@@ -1,6 +1,6 @@
 [Unit]
 Description=SCION IP Gateway
-Documentation=https://docs.scion.org
+Documentation=https://docs.scion.org/en/latest/manuals/gateway.html
 After=network-online.target scion-daemon.service
 Wants=scion-daemon.service
 StartLimitBurst=1

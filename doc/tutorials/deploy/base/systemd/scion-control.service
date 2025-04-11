@@ -1,6 +1,6 @@
 [Unit]
 Description=SCION Control Service
-Documentation=https://docs.scion.org
+Documentation=https://docs.scion.org/en/latest/manuals/control.html
 After=network-online.target scion-dispatcher.service
 Wants=scion-dispatcher.service
 StartLimitBurst=1

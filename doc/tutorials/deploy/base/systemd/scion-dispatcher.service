@@ -1,6 +1,6 @@
 [Unit]
 Description=SCION Dispatcher
-Documentation=https://docs.scion.org
+Documentation=https://docs.scion.org/en/latest/manuals/dispatcher.html
 After=network-online.target
 StartLimitBurst=1
 StartLimitIntervalSec=1s
