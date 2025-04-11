@@ -461,19 +461,15 @@ func TestSlowPathProcessing(t *testing.T) {
 			dp := tc.prepareDP(ctrl)
 
 			rp := tc.mockMsg()
-			// Cannot use NewPacket. We need a packet that can grow to accommodate SCMP w/ quote.
-			pkt := Packet{}
-			pkt.init(&[bufSize]byte{})
+			pkt := NewPacket(rp, nil, nil, tc.srcInterface, 0)
 			pkt.Link = newMockLink(tc.srcInterface)
-			pkt.RawPacket = pkt.RawPacket[:len(rp)]
-			copy(pkt.RawPacket, rp)
 
 			processor := newPacketProcessor(dp)
-			disp := processor.processPkt(&pkt)
+			disp := processor.processPkt(pkt)
 			assert.Equal(t, pSlowPath, disp)
 			assert.Equal(t, tc.expectedSlowPathRequest, pkt.slowPathRequest)
 			slowPathProcessor := newSlowPathProcessor(dp)
-			err := slowPathProcessor.processPacket(&pkt)
+			err := slowPathProcessor.processPacket(pkt)
 			assert.NoError(t, err)
 
 			// here we parse the outgoing packet to verify that it contains the correct SCMP

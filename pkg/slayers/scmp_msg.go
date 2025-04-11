@@ -23,11 +23,10 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// MaxSCMPHeaderSize is the size of the largest possible SCMP header: including the fixed
-// 4 byte header plus the variable size info block. Currently, the largest info block is
-// SCMPInternalConnectivityDown at 24 bytes. So the max is 28.
-// Knowing this allows the router to reduce the cost of constructing SCMP packets that include
-// a packet quote.
+// MaxSCMPHeaderSize is the size of the largest possible SCMP header: including the fixed 4 byte
+// header plus the variable size info block. The maximum is 28 because at 24 bytes
+// SCMPInternalConnectivityDown is the largest info block at the time of writing.  Knowing this
+// allows the router to reduce the cost of constructing SCMP packets that include a packet quote.
 const MaxSCMPHeaderSize = 28
 
 const scmpRawInterfaceLen = 8
@@ -517,4 +516,22 @@ func decodeSCMPPacketTooBig(data []byte, pb gopacket.PacketBuilder) error {
 	}
 	pb.AddLayer(s)
 	return pb.NextDecoder(s.NextLayerType())
+}
+
+// ScmpHeaderSize returns the serialized size a an ScmpHeader given its type. The returned size
+// includes that of the common SCMPHeader (4 bytes), plus the size of the type-dependent info
+// block. This could be implemented as a method of each info block structure, but these headers are
+// accessed via the gopacket.SerializableLayer interface which has size method. This needs to be
+// updated if new SCMP info blocks are added.
+func ScmpHeaderSize(typeCode SCMPType) int {
+	switch typeCode {
+	case SCMPTypeExternalInterfaceDown:
+		return 20
+	case SCMPTypeInternalConnectivityDown:
+		return 28
+	case SCMPTypeTracerouteRequest, SCMPTypeTracerouteReply:
+		return 24
+	default:
+		return 8
+	}
 }

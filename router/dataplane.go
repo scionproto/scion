@@ -76,6 +76,10 @@ const (
 	// Needed to compute required padding
 	ptrSize = unsafe.Sizeof(&struct{ int }{})
 	is32bit = 1 - (ptrSize-4)/4
+
+	// For SCMP packet quoting. A strict minimum of 28 is required. Much more is recommended.
+	minHeadroom      = 512
+	_           uint = minHeadroom - slayers.MaxSCMPHeaderSize // assert >= 28
 )
 
 // BatchConn is a connection that supports batch reads and writes.
@@ -119,7 +123,8 @@ const (
 // required to occupy exactly 64 bytes depends on the architecture.
 type Packet struct {
 	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).
-	// It can be any portion of the full buffer; not necessarily the start.
+	// It can be any portion of the full buffer; not necessarily the start. See also
+	// dataplane.underlayHeadroom.
 	RawPacket []byte
 	// The entire packet buffer. We don't need it as a slice; we know its size.
 	buffer *[bufSize]byte
@@ -233,6 +238,14 @@ type dataPlane struct {
 	// returned to the pool. To reduce the cost of copying, the packet structure is passed by
 	// reference.
 	packetPool PacketPool
+
+	// underlayHeadRoom is the minimum headroom that must be reserved at the front of every packet
+	// to ensure that every underlay provider can prepend its underlay header without copying.
+	// It is established by collecting the headroom requirement of every underlay provider.
+	// Underlay providers deliver incoming packets such that the RawPacket slice starts at after
+	// the link layer header. Underlay providers may use the preceding part of the packet
+	// buffer to receive the link layer header.
+	underlayHeadroom int
 }
 
 var (
@@ -724,10 +737,14 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 			headroom = h
 		}
 	}
+	d.underlayHeadroom = headroom
 
-	// Make sure that we can also prepend an SCMP header to packets that must be quoted.
-	headroom += slayers.MaxSCMPHeaderSize
-
+	// We round-up the minimum headroom generously so that the extra room is sufficient to allow the
+	// quoting of most packets by scmp cheaply (that is, without moving the bytes). Our packet
+	// buffers are sized at 9000 bytes while in most cases the interface MTU is lower.
+	if headroom < minHeadroom {
+		headroom = minHeadroom
+	}
 	log.Debug("Initialize packet pool", "poolSize", poolSize, "headroom", headroom)
 	d.packetPool = makePacketPool(poolSize, headroom)
 	pktBuffers := make([][bufSize]byte, poolSize)
@@ -2143,7 +2160,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 
 	serBuf := newSerializeProxy(p.RawPacket) // set for prepend-only by default. Perfect here.
 
-	// serialized bytes lend directly into p.RawPacket (alignedd at the end).
+	// serialized bytes lend directly into p.RawPacket (aligned at the end).
 	err := gopacket.SerializeLayers(&serBuf, gopacket.SerializeOptions{FixLengths: true},
 		b.scn, bfd)
 	if err != nil {
@@ -2266,43 +2283,76 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 				p.hasValidAuth(time.Now()))
 	}
 
-	var quote []byte
-	if isError {
-		// add quote for errors.
-		hdrLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len()
-		if needsAuth {
-			hdrLen += e2eAuthHdrLen
-		}
-		switch scmpH.TypeCode.Type() {
-		case slayers.SCMPTypeExternalInterfaceDown:
-			hdrLen += 20
-		case slayers.SCMPTypeInternalConnectivityDown:
-			hdrLen += 28
-		default:
-			hdrLen += 8
-		}
-		quote = p.pkt.RawPacket
-		maxQuoteLen := slayers.MaxSCMPPacketLen - hdrLen
-		if len(quote) > maxQuoteLen {
-			quote = quote[:maxQuoteLen]
-		}
-	}
-
-	serBuf := newSerializeProxy(p.pkt.RawPacket) // Prepend-only by default. It's all we need.
 	sopts := gopacket.SerializeOptions{
 		ComputeChecksums: true,
 		FixLengths:       true,
 	}
-	// First write the SCMP message only without the SCION header(s) to get a buffer that we
-	// can (re-)use as input in the MAC computation. Note that we move the quoted part of the packet
-	// to the end of the buffer (go supports overlaps properly).
-	// TODO(jiceatscion): in the future we may be able to leave room at the head of the
-	// buffer on ingest, so we won't need to move the quote at all.
-	err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
-	if err != nil {
-		return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+	var serBuf serializeProxy
+
+	// First write the SCMP message only without the SCION header(s) to get a buffer that we can
+	// feed to the MAC computation. If this is an error response, then it has to include a quote of
+	// the packet at the end of the SCMP message.
+
+	if isError {
+		// There is headroom built into the packet buffer so we can wrap the whole packet into a new
+		// one without copying it. We need to reclaim that headroom so we can prepend. We can figure
+		// the current headroom, even if it was changed, by comparing the capacity of the slice with
+		// our constant buffer size.
+		quoteLen := len(p.pkt.RawPacket)
+		headroom := bufSize - cap(p.pkt.RawPacket)
+		hdrLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len() +
+			slayers.ScmpHeaderSize(scmpH.TypeCode.Type())
+
+		if needsAuth {
+			hdrLen += e2eAuthHdrLen
+		}
+		maxQuoteLen := slayers.MaxSCMPPacketLen - hdrLen
+		if quoteLen > maxQuoteLen {
+			quoteLen = maxQuoteLen
+		}
+		fmt.Printf("Packet to quote: %d bytes. Total hdrs: %d\n", quoteLen, hdrLen)
+		// Now that we know the length, we can serialize the scmp headers an the quoted packet. If
+		// we don't fit in the headroom we copy the quoted packet to the end. We are required to
+		// leave space for a worst-case underlay header too. TODO(multi_underlay): since we know
+		// that this goes back via the link it came from, we could be content with leaving just
+		// enough headroom for this specific underlay.
+		if hdrLen+p.d.underlayHeadroom > headroom {
+			// Not enough headroom. Pack at end.
+			quote := p.pkt.RawPacket[:quoteLen]
+			serBuf = newSerializeProxy(p.pkt.RawPacket)
+			err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
+			if err != nil {
+				return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+			}
+		} else {
+			// Serialize in front of the quoted packet. The quoted packet must be included in the
+			// serialize buffer before we packet the scmp header in from of it. AppendBytes will do
+			// that; it exposes the underlying buffer but doesn't modify it.
+			p.pkt.RawPacket = p.pkt.buffer[0:(quoteLen + headroom)]
+			serBuf = newSerializeProxyStart(p.pkt.RawPacket, headroom)
+			_, _ = serBuf.AppendBytes(quoteLen) // Implementation never fails.
+			// serBuf.PushLayer(gopacket.LayerTypePayload) -> useless
+			err = scmpP.SerializeTo(&serBuf, sopts)
+			if err != nil {
+				return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+			}
+			err = scmpH.SerializeTo(&serBuf, sopts)
+			if err != nil {
+				return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+			}
+		}
+	} else {
+		// We do not need to preserve the packet. Just pack our headers at the end of the buffer.
+		// (this is what serializeProxy does by default).
+		serBuf = newSerializeProxy(p.pkt.RawPacket)
+		err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP)
+		if err != nil {
+			return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+		}
 	}
 
+	// serBuf now starts with the SCMP Headers and ends with the truncated quoted packet, if any.
+	// This is what gets checksumed.
 	if needsAuth {
 		var e2e slayers.EndToEndExtn
 		scionL.NextHdr = slayers.End2EndClass
@@ -2344,9 +2394,13 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	} else {
 		scionL.NextHdr = slayers.L4SCMP
 	}
+
+	// Our SCION header is ready. Prepend it.
 	if err := scionL.SerializeTo(&serBuf, sopts); err != nil {
 		return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCION header")
 	}
+
+	// serBuf now has the exact slice that represents the packet.
 	p.pkt.RawPacket = serBuf.Bytes()
 
 	log.Debug("SCMP", "typecode", scmpH.TypeCode)

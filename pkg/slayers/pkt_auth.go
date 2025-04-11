@@ -186,9 +186,11 @@ func (o PacketAuthOption) Reset(
 	copy(o.OptData[12:], p.Auth)
 
 	o.OptAlign = [2]uint8{4, 2}
-	// reset unused/implicit fields
-	o.OptDataLen = 0
-	o.ActualLength = 0
+
+	// Set the length field properly. Otherwise serializing this would break the decoding of
+	// whatever is serialized next.
+	o.OptDataLen = byte(len(o.OptData))
+	o.ActualLength = len(o.OptData) + 2
 	return nil
 }
 
