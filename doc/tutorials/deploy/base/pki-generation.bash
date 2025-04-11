@@ -22,6 +22,7 @@ scion-pki certificate create --profile=regular-voting <(echo '{"isd_as": "15-ffa
 popd
 
 # Create the TRC
+mkdir tmp
 cat <<EOF > trc-B1-S1-pld.tmpl
 isd = 15
 description = "Demo ISD 15"
