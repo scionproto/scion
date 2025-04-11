@@ -124,7 +124,7 @@ type Packet struct {
 	buffer *[bufSize]byte
 	// The source address during ingest and the destination during forwarding. We never need both
 	// src and dst at the same time. The real type is only known to underlay provider that sets it.
-	RemoteAddr *struct{}
+	RemoteAddr unsafe.Pointer
 	// The ingest link; which can give us the ifID, scope, bfdSession...
 	Link Link
 	// Additional metadata in case the packet is put on the slow path. Updated in-place.

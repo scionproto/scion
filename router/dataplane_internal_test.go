@@ -110,7 +110,7 @@ func TestReceiver(t *testing.T) {
 			assert.Equal(
 				t,
 				net.UDPAddr{IP: net.IP{10, 0, 200, 200}},
-				*(*net.UDPAddr)(unsafe.Pointer(pkt.RemoteAddr)),
+				*(*net.UDPAddr)(pkt.RemoteAddr),
 			)
 			// make sure that the received pkt buffer has not been seen before
 			ptr := reflect.ValueOf(pkt.RawPacket).Pointer()
@@ -241,7 +241,7 @@ func TestForwarder(t *testing.T) {
 		pkt.RawPacket = pkt.RawPacket[:1]
 		pkt.RawPacket[0] = byte(i)
 		if i < 100 {
-			pkt.RemoteAddr = (*struct{})(unsafe.Pointer(dstAddr))
+			pkt.RemoteAddr = unsafe.Pointer(dstAddr)
 		}
 
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))

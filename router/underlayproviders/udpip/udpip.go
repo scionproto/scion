@@ -366,7 +366,7 @@ func (u *udpConnection) send(batchSize int, pool chan *router.Packet) {
 			// redundant route queries and the address might not even be set in the packet.
 			// Otherwise, we must specify the address.
 			if !u.connected {
-				msgs[i].Addr = (*net.UDPAddr)(unsafe.Pointer(p.RemoteAddr))
+				msgs[i].Addr = (*net.UDPAddr)(p.RemoteAddr)
 			}
 		}
 
@@ -726,7 +726,7 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 	// supply the packet's destination address. Trying to reuse the packet's RemoteAddress storage
 	// is pointless: if we loan l.remote we avoid a copy and still discard at most one address. This
 	// is safe because we treat p.RemoteAddr as immutable and the router main code doesn't touch it.
-	p.RemoteAddr = (*struct{})(unsafe.Pointer(l.remote))
+	p.RemoteAddr = unsafe.Pointer(l.remote)
 	select {
 	case l.egressQ <- p:
 	default:
@@ -737,7 +737,7 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 
 func (l *detachedLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the destination address.
-	p.RemoteAddr = (*struct{})(unsafe.Pointer(l.remote))
+	p.RemoteAddr = unsafe.Pointer(l.remote)
 	l.egressQ <- p
 }
 
@@ -908,11 +908,11 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	// attach a RemoteAddr to the packet (besides; it could be a different type).  So, RemoteAddr is
 	// not generally usable. We must allocate a new object. The precautions needed to pool them cost
 	// more than the pool saves (verified experimentally).
-	p.RemoteAddr = (*struct{})(unsafe.Pointer(&net.UDPAddr{
+	p.RemoteAddr = unsafe.Pointer(&net.UDPAddr{
 		IP:   dstAddr.AsSlice(),
 		Zone: dstAddr.Zone(),
 		Port: int(port),
-	}))
+	})
 	return nil
 }
 
@@ -951,7 +951,7 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	// One of RemoteAddr or srcAddr becomes garbage. Keeping srcAddr doesn't require copying.
 	// Keeping RemoteAddr does and has no advantage: it could only be further reused if this packet
 	// left via this link and required resolve(). That case doesn't occur.
-	p.RemoteAddr = (*struct{})(unsafe.Pointer(srcAddr))
+	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
 	select {
 	case l.procQs[procID] <- p:

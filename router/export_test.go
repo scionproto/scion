@@ -74,10 +74,10 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 		Link:      newMockLink(ingress),
 	}
 	if src != nil {
-		p.RemoteAddr = (*struct{})(unsafe.Pointer(src))
+		p.RemoteAddr = unsafe.Pointer(src)
 	}
 	if dst != nil {
-		p.RemoteAddr = (*struct{})(unsafe.Pointer(dst))
+		p.RemoteAddr = unsafe.Pointer(dst)
 	}
 	copy(p.RawPacket, raw)
 	return &p

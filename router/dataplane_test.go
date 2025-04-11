@@ -1735,9 +1735,19 @@ func TestProcessPkt(t *testing.T) {
 			if disp == router.PDiscard {
 				return
 			}
-			assert.Equal(t, want, pkt)
+			assertPktEqual(t, want, pkt)
 		})
 	}
+}
+
+func assertPktEqual(t *testing.T, a, b *router.Packet) {
+	// router.Packet.RemoteAddr is declared as unsafe.Pointer, so it can only be compared
+	// by address. That isn't what we want. We want the actual addresses compared. We know that
+	// those addresses are net.UDPAddress because we put them there. So, compare them separately.
+	assert.Equal(t, (*net.UDPAddr)(a.RemoteAddr), (*net.UDPAddr)(b.RemoteAddr))
+	a.RemoteAddr = nil
+	b.RemoteAddr = nil
+	assert.Equal(t, a, b)
 }
 
 func toBytes(t *testing.T, spkt *slayers.SCION, dpath path.Path) []byte {
