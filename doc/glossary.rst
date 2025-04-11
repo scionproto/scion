@@ -17,11 +17,6 @@ Glossary
       In SCION, the concept of ASes takes a more prominent role as it also serves as "locator" in
       the addressing of end hosts.
 
-   Leaf AS
-   Leaf Autonomous System
-
-      An :term:`AS` at the "edge" of an :term:`ISD`, with no other downstream ASes.
-
    BFD
    Bidirectional Forwarding Detection
 
