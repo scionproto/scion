@@ -18,7 +18,7 @@ This first section provides an overview of the setup and topology of the sample 
 Infrastructure
 ..............
 
-The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD and AS numbers, the kind of AS (core or non-core) and the IP addresses. This infrastructure could be virtual machines or bare metal.
+The sample SCION demo setup consists of one ISD with three core and two non-core ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD and AS numbers, the kind of AS (core or non-core) and the IP addresses. This infrastructure could be virtual machines or bare metal.
 
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
 Hostname ISD  AS        Purpose  Notes           IP Address    OS                     Disk  RAM
@@ -284,7 +284,7 @@ You can now test your environment. The code block below includes some tests you 
 Conclusion
 ----------
 
-Congratulations, you now have a working SCION configuration, which consists of a stand-alone complete SCION environment distributed among five computers. This environment contains one SCION Isolation Domain (ISD), with three core ASes and two non-core, leaf ASes. Being a demo, this configuration has some limitations:
+Congratulations, you now have a working SCION configuration, which consists of a stand-alone complete SCION environment distributed among five computers. This environment contains one SCION Isolation Domain (ISD), with three core and two non-core ASes. Being a demo, this configuration has some limitations:
 
 - The certificates are only good for three days unless explicitly renewed using :ref:`scion-pki certificate renew <scion-pki_certificate_renew>`.
 - Each AS contains a single host running all the SCION services. In a typical deployment, these services would run a separate hosts and include multiple border routers.
