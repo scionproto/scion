@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/golang/mock/gomock"
 	"github.com/gopacket/gopacket"
@@ -88,9 +89,9 @@ func TestReceiver(t *testing.T) {
 		},
 	).Times(1)
 
-	dp.underlays["udpip"].SetConnNewer(MockConnNewer{Ctrl: ctrl, Conn: mInternal})
+	dp.underlays["udpip"].SetConnOpener(MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 
-	_ = dp.AddInternalInterface(netip.AddrPort{})
+	assert.NoError(t, dp.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"))
 
 	dp.initPacketPool(64)
 	procCh, _ := dp.initQueues(64)
@@ -106,7 +107,11 @@ func TestReceiver(t *testing.T) {
 			// make sure that the packet has the right size
 			assert.Equal(t, 84+i%10*18, len(pkt.RawPacket))
 			// make sure that the source address was set correctly
-			assert.Equal(t, net.UDPAddr{IP: net.IP{10, 0, 200, 200}}, *pkt.RemoteAddr)
+			assert.Equal(
+				t,
+				net.UDPAddr{IP: net.IP{10, 0, 200, 200}},
+				*(*net.UDPAddr)(pkt.RemoteAddr),
+			)
 			// make sure that the received pkt buffer has not been seen before
 			ptr := reflect.ValueOf(pkt.RawPacket).Pointer()
 			assert.NotContains(t, ptrMap, ptr)
@@ -194,9 +199,9 @@ func TestForwarder(t *testing.T) {
 				return len(ms), nil
 			}).AnyTimes()
 
-		ret.underlays["udpip"].SetConnNewer(MockConnNewer{Ctrl: ctrl, Conn: mConn})
+		ret.underlays["udpip"].SetConnOpener(MockConnOpener{Ctrl: ctrl, Conn: mConn})
 
-		if err := ret.AddInternalInterface(netip.AddrPort{}); err != nil {
+		if err := ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"); err != nil {
 			panic(err)
 		}
 		l := control.LinkEnd{
@@ -236,8 +241,7 @@ func TestForwarder(t *testing.T) {
 		pkt.RawPacket = pkt.RawPacket[:1]
 		pkt.RawPacket[0] = byte(i)
 		if i < 100 {
-			pkt.RemoteAddr.IP = pkt.RemoteAddr.IP[:4]
-			copy(pkt.RemoteAddr.IP, dstAddr.IP)
+			pkt.RemoteAddr = unsafe.Pointer(dstAddr)
 		}
 
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
@@ -292,14 +296,14 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"),
 					nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
-				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
+				assert.NoError(t, spkt.SetDstAddr(addr.MustParseHost("CS")))
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				ret := toMsg(t, spkt)
 				return ret
@@ -316,13 +320,13 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
-				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
+				assert.NoError(t, spkt.SetDstAddr(addr.MustParseHost("CS")))
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				ret := toMsg(t, spkt)
 				return ret
@@ -339,7 +343,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -362,7 +366,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -385,7 +389,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -410,7 +414,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -433,13 +437,14 @@ func TestSlowPathProcessing(t *testing.T) {
 				return newDP(
 					mockExternalInterfaces,
 					nil,
-					MockConnNewer{Ctrl: ctrl},
+					MockConnOpener{Ctrl: ctrl},
 					mockInternalNextHops,
 					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsgHop0Out(t, payload, 0)
-				_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
+				assert.NoError(t,
+					spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
 				spkt.SrcAddrType = slayers.T16Ip
 				spkt.RawSrcAddr = []byte{
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 10, 0, 200, 100,
