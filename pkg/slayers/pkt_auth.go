@@ -187,8 +187,7 @@ func (o PacketAuthOption) Reset(
 
 	o.OptAlign = [2]uint8{4, 2}
 
-	// Set the length field properly. Otherwise serializing this would break the decoding of
-	// whatever is serialized next.
+	// Set the length field properly. Otherwise the option's data cannot be parsed.
 	o.OptDataLen = byte(len(o.OptData))
 	o.ActualLength = len(o.OptData) + 2
 	return nil
