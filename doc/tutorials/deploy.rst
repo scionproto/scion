@@ -20,15 +20,15 @@ Infrastructure
 
 The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD- and AS numbers, the kind of AS (core or leaf) and the IP addresses. This infrastructure could be virtual machines or bare metal.
 
-======== ==== ========= ======== =============== ============ =================== ========= ====
-Hostname ISD  AS        Purpose  Notes           IP Address    OS                 Disk      RAM
-======== ==== ========= ======== =============== ============ =================== ========= ====
-scion01  42   ffaa:1:1  Core     Voting, CA      10.100.0.11  **Ubuntu** 22.04.3  LTS 4 GB  1 GB
-scion02  42   ffaa:1:2  Core     Non-Voting, CA  10.100.0.12  **Ubuntu** 22.04.3  LTS 4 GB  1 GB
-scion03  42   ffaa:1:3  Core     Voting          10.100.0.13  **Ubuntu** 22.04.3  LTS 4 GB  1 GB
-scion04  42   ffaa:1:4  Leaf                     10.100.0.14  **Ubuntu** 22.04.3  LTS 4 GB  1 GB
-scion05  42   ffaa:1:5  Leaf                     10.100.0.15  **Ubuntu** 22.04.3  LTS 4 GB  1 GB
-======== ==== ========= ======== =============== ============ =================== ========= ====
+======== ==== ========= ======== =============== ============ ======================= ===== ====
+Hostname ISD  AS        Purpose  Notes           IP Address    OS                     Disk  RAM
+======== ==== ========= ======== =============== ============ ======================= ===== ====
+scion01  42   ffaa:1:1  Core     Voting, CA      10.100.0.11  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion02  42   ffaa:1:2  Core     Non-Voting, CA  10.100.0.12  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion03  42   ffaa:1:3  Core     Voting          10.100.0.13  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion04  42   ffaa:1:4  Leaf                     10.100.0.14  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion05  42   ffaa:1:5  Leaf                     10.100.0.15  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+======== ==== ========= ======== =============== ============ ======================= ===== ====
 
 *Table 1: Required Infrastructure*
 
