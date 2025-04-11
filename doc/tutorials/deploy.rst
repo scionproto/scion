@@ -1,7 +1,7 @@
 Tutorial: Freestanding SCION Network
 ====================================
 
-This document helps you set up a freestanding SCION demo network, which consists of a stand-alone complete SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (:term:`ISD`), with three core Autonomous Systems (:term:`AS`) and two non-core, :term:`Leaf AS`es.
+This document helps you set up a freestanding SCION demo network, which consists of a stand-alone complete SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (:term:`ISD`), with three core Autonomous Systems (:term:`AS`) and two non-core ASes (:term:`Leaf AS`).
 
 - If you want to go deep and help develop SCION, use the development environment. See :ref:`setting-up-the-development-environment`.
 - If you want to experiment with SCION in a larger environment, use SCIONLab. For more information, see https://www.scionlab.org/.
