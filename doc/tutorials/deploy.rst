@@ -23,11 +23,11 @@ The sample SCION demo setup consists of one ISD with three core ASes and two non
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
 Hostname ISD  AS        Purpose  Notes           IP Address    OS                     Disk  RAM
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
-scion01  42   ffaa:1:1  Core     Voting, CA      10.100.0.11  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion02  42   ffaa:1:2  Core     Non-Voting, CA  10.100.0.12  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion03  42   ffaa:1:3  Core     Voting          10.100.0.13  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion04  42   ffaa:1:4  Leaf                     10.100.0.14  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion05  42   ffaa:1:5  Leaf                     10.100.0.15  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion01  15   ffaa:1:1  Core     Voting, CA      10.100.0.11  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion02  15   ffaa:1:2  Core     Non-Voting, CA  10.100.0.12  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion03  15   ffaa:1:3  Core     Voting          10.100.0.13  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion04  15   ffaa:1:4  Leaf                     10.100.0.14  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion05  15   ffaa:1:5  Leaf                     10.100.0.15  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
 
 *Table 1: Required Infrastructure*
@@ -129,11 +129,11 @@ Step 1 - AS Topology Files
 
 For this tutorial, we have provided the AS :ref:`topology files <common-conf-topo>` - one per each AS. These files represent each AS's local view of the global network topology described above.
 
-- **AS 1 (42-ffaa:1:1)**: :download:`topology1.json <deploy/scion01/topology1.json>`
-- **AS 2 (42-ffaa:1:2)**: :download:`topology2.json <deploy/scion02/topology2.json>`
-- **AS 3 (42-ffaa:1:3)**: :download:`topology3.json <deploy/scion03/topology3.json>`
-- **AS 4 (42-ffaa:1:4)**: :download:`topology4.json <deploy/scion04/topology4.json>`
-- **AS 5 (42-ffaa:1:5)**: :download:`topology5.json <deploy/scion05/topology5.json>`
+- **AS 1 (15-ffaa:1:1)**: :download:`topology1.json <deploy/scion01/topology1.json>`
+- **AS 2 (15-ffaa:1:2)**: :download:`topology2.json <deploy/scion02/topology2.json>`
+- **AS 3 (15-ffaa:1:3)**: :download:`topology3.json <deploy/scion03/topology3.json>`
+- **AS 4 (15-ffaa:1:4)**: :download:`topology4.json <deploy/scion04/topology4.json>`
+- **AS 5 (15-ffaa:1:5)**: :download:`topology5.json <deploy/scion05/topology5.json>`
 
 Download the AS topology files onto each host scion01 through scion05.
 
@@ -182,7 +182,7 @@ In practice, the private keys of ASes are of course never revealed to other enti
      do
         ssh scion0$i 'mkdir -p /etc/scion/{crypto/as,certs}'
         scp AS$i/cp-as.{key,pem} scion0$i:/etc/scion/crypto/as/
-        scp ISD42-B1-S1.trc scion0$i:/etc/scion/certs/
+        scp ISD15-B1-S1.trc scion0$i:/etc/scion/certs/
      done
 
 
@@ -244,41 +244,41 @@ You can now test your environment. The code block below includes some tests you 
    .. code-block:: none
 
       scion01$ scion address
-      42-ffaa:1:1,127.0.0.1
+      15-ffaa:1:1,127.0.0.1
 
-- Verify that each host can ping the other hosts via SCION. This can be done with the :ref:`scion ping <scion_ping>` command. In the example below, we are pinging between scion01 (AS 42-ffaa:1:1) to scion05 (AS 42-ffaa:1:5). Very that each AS can ping every other AS.
+- Verify that each host can ping the other hosts via SCION. This can be done with the :ref:`scion ping <scion_ping>` command. In the example below, we are pinging between scion01 (AS 15-ffaa:1:1) to scion05 (AS 15-ffaa:1:5). Very that each AS can ping every other AS.
 
    .. code-block:: none
 
-      scion01$ scion ping 42-ffaa:1:5,127.0.0.1 -c 5
+      scion01$ scion ping 15-ffaa:1:5,127.0.0.1 -c 5
       Resolved local address:
       127.0.0.1
       Using path:
-      Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002
+      Hops: [15-ffaa:1:1 3>1 15-ffaa:1:3 4>2 15-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002
 
-      PING 42-ffaa:1:5,127.0.0.1:0 pld=0B scion_pkt=112B
-      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=0 time=0.788ms
-      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=1 time=3.502ms
-      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=2 time=3.313ms
-      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=3 time=3.838ms
-      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=4 time=3.401ms
+      PING 15-ffaa:1:5,127.0.0.1:0 pld=0B scion_pkt=112B
+      120 bytes from 15-ffaa:1:5,127.0.0.1: scmp_seq=0 time=0.788ms
+      120 bytes from 15-ffaa:1:5,127.0.0.1: scmp_seq=1 time=3.502ms
+      120 bytes from 15-ffaa:1:5,127.0.0.1: scmp_seq=2 time=3.313ms
+      120 bytes from 15-ffaa:1:5,127.0.0.1: scmp_seq=3 time=3.838ms
+      120 bytes from 15-ffaa:1:5,127.0.0.1: scmp_seq=4 time=3.401ms
 
-      --- 42-ffaa:1:5,127.0.0.1 statistics ---
+      --- 15-ffaa:1:5,127.0.0.1 statistics ---
       5 packets transmitted, 5 received, 0% packet loss, time 5000.718ms
       rtt min/avg/max/mdev = 0.788/2.968/3.838/1.105 ms
 
-- Verify that each host has a full table of available paths to the other ASes. This can be done with the :ref:`scion showpaths <scion_showpaths>` command. In the example below, we are displaying the paths between scion01 (AS 42-ffaa:1:1) to scion05 (AS 42-ffaa:1:5). There should be multiple paths through the core ASes.
+- Verify that each host has a full table of available paths to the other ASes. This can be done with the :ref:`scion showpaths <scion_showpaths>` command. In the example below, we are displaying the paths between scion01 (AS 15-ffaa:1:1) to scion05 (AS 15-ffaa:1:5). There should be multiple paths through the core ASes.
 
    .. code-block:: none
 
-      scion01$ scion showpaths 42-ffaa:1:5
-      Available paths to 42-ffaa:1:5
+      scion01$ scion showpaths 15-ffaa:1:5
+      Available paths to 15-ffaa:1:5
       3 Hops:
-      [0] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-      [1] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+      [0] Hops: [15-ffaa:1:1 2>1 15-ffaa:1:2 3>1 15-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+      [1] Hops: [15-ffaa:1:1 3>1 15-ffaa:1:3 4>2 15-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
       4 Hops:
-      [2] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 2>2 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-      [3] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 2>2 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+      [2] Hops: [15-ffaa:1:1 2>1 15-ffaa:1:2 2>2 15-ffaa:1:3 4>2 15-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+      [3] Hops: [15-ffaa:1:1 3>1 15-ffaa:1:3 2>2 15-ffaa:1:2 3>1 15-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
 
 
 Conclusion

@@ -52,7 +52,7 @@ COPY pki-generation.bash /pki/
 RUN chmod +x pki-generation.bash && ./pki-generation.bash
 
 # Persist the generated ISD TRC file.
-RUN mv /tmp/tutorial-scion-certs/ISD42-B1-S1.trc /etc/scion/certs/
+RUN mv /tmp/tutorial-scion-certs/ISD15-B1-S1.trc /etc/scion/certs/
 
 # Persist the generated files.
 RUN mkdir -p /opt/tutorial-pki && mv /tmp/tutorial-scion-certs/* /opt/tutorial-pki/
