@@ -1,7 +1,7 @@
 Tutorial: Freestanding SCION Network
 ====================================
 
-This document helps you set up a freestanding SCION demo network, which consists of a stand-alone complete SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (:term:`ISD`), with three core Autonomous Systems (:term:`AS`) and two non-core, leaf ASes.
+This document helps you set up a freestanding SCION demo network, which consists of a stand-alone complete SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (:term:`ISD`), with three core Autonomous Systems (:term:`AS`) and two non-core, :term:`Leaf AS`es.
 
 - If you want to go deep and help develop SCION, use the development environment. See :ref:`setting-up-the-development-environment`.
 - If you want to experiment with SCION in a larger environment, use SCIONLab. For more information, see https://www.scionlab.org/.
@@ -18,7 +18,7 @@ This first section provides an overview of the setup and topology of the sample 
 Infrastructure
 ..............
 
-The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD and AS numbers, the kind of AS (core or leaf) and the IP addresses. This infrastructure could be virtual machines or bare metal.
+The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD and AS numbers, the kind of AS (core or non-core) and the IP addresses. This infrastructure could be virtual machines or bare metal.
 
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
 Hostname ISD  AS        Purpose  Notes           IP Address    OS                     Disk  RAM
@@ -26,8 +26,8 @@ Hostname ISD  AS        Purpose  Notes           IP Address    OS               
 scion01  15   ffaa:1:1  Core     Voting, CA      10.100.0.11  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
 scion02  15   ffaa:1:2  Core     Non-Voting, CA  10.100.0.12  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
 scion03  15   ffaa:1:3  Core     Voting          10.100.0.13  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion04  15   ffaa:1:4  Leaf                     10.100.0.14  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion05  15   ffaa:1:5  Leaf                     10.100.0.15  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion04  15   ffaa:1:4  Non-Core                 10.100.0.14  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion05  15   ffaa:1:5  Non-Core                 10.100.0.15  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
 
 *Table 1: Required Infrastructure*
