@@ -1,0 +1,16 @@
+[Unit]
+Description=SCION Router
+Documentation=https://docs.scion.org/en/latest/manuals/router.html
+After=network-online.target
+StartLimitBurst=1
+StartLimitIntervalSec=1s
+
+[Service]
+Type=simple
+User=scion
+Group=scion
+ExecStart=/usr/bin/scion-router --config /etc/scion/br.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
