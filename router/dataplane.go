@@ -76,6 +76,10 @@ const (
 	// Needed to compute required padding
 	ptrSize = unsafe.Sizeof(&struct{ int }{})
 	is32bit = 1 - (ptrSize-4)/4
+
+	// For SCMP packet quoting. A strict minimum of 28 is required. Much more is recommended.
+	minHeadroom      = 512
+	_           uint = minHeadroom - slayers.MaxSCMPHeaderSize // assert >= 28
 )
 
 // BatchConn is a connection that supports batch reads and writes.
@@ -119,7 +123,8 @@ const (
 // required to occupy exactly 64 bytes depends on the architecture.
 type Packet struct {
 	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).
-	// It can be any portion of the full buffer; not necessarily the start.
+	// It can be any portion of the full buffer; not necessarily the start. See also
+	// dataplane.underlayHeadroom.
 	RawPacket []byte
 	// The entire packet buffer. We don't need it as a slice; we know its size.
 	buffer *[bufSize]byte
@@ -162,16 +167,45 @@ func (p *Packet) init(buffer *[bufSize]byte) *Packet {
 	return p
 }
 
-// reset() makes the packet ready to receive a new underlay message.
-// A cleared dstAddr is represented with a zero-length IP so we keep reusing the IP storage bytes.
-func (p *Packet) Reset() {
+// reset() makes the packet ready to receive a new underlay message. A cleared dstAddr is
+// represented with a zero-length IP so we keep reusing the IP storage bytes. We adjust the
+// RawPacket slice relative to the buffer, so there's enough headroom for any underlay headers.
+func (p *Packet) reset(headroom int) {
 	p.RemoteAddr.IP = p.RemoteAddr.IP[0:0] // We're keeping the object, just blank it.
 	*p = Packet{
-		buffer:     p.buffer,     // keep the buffer
-		RawPacket:  p.buffer[:],  // restore the full packet capacity
-		RemoteAddr: p.RemoteAddr, // keep the dstAddr and so the IP slice and bytes
+		buffer:     p.buffer,            // keep the buffer
+		RawPacket:  p.buffer[headroom:], // restore the full packet capacity (minus headroom).
+		RemoteAddr: p.RemoteAddr,        // keep the dstAddr and so the IP slice and bytes
 	}
 	// Everything else is reset to zero value.
+}
+
+// PacketPool allocates are resets packets. There is one packet pool per instance of the dataplane,
+// shared between all its underlay instances. This structure can be shared by copying (and doing so
+// is more efficient) because headroom is never changed after construction and channel is a
+// reference type.
+type PacketPool struct {
+	pool     chan *Packet
+	headroom int
+}
+
+// Get fetches a packet from the pool and returns it initialized with the proper headroom.
+func (p *PacketPool) Get() *Packet {
+	pkt := <-p.pool
+	pkt.reset(p.headroom)
+	return pkt
+}
+
+// Put returns the given packet to the pool.
+func (p *PacketPool) Put(pkt *Packet) {
+	p.pool <- pkt
+
+}
+
+// makePacketPool creates a packetpool of size poolSize, that configures packet buffers with the
+// given headroom. The pool is initially empty. Packets must be added separately.
+func makePacketPool(poolSize, headroom int) PacketPool {
+	return PacketPool{pool: make(chan *Packet, poolSize), headroom: headroom}
 }
 
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
@@ -203,7 +237,15 @@ type dataPlane struct {
 	// packet structure is fetched from the pool passed-around through the various channels and
 	// returned to the pool. To reduce the cost of copying, the packet structure is passed by
 	// reference.
-	packetPool chan *Packet
+	packetPool PacketPool
+
+	// underlayHeadRoom is the minimum headroom that must be reserved at the front of every packet
+	// to ensure that every underlay provider can prepend its underlay header without copying.
+	// It is established by collecting the headroom requirement of every underlay provider.
+	// Underlay providers deliver incoming packets such that the RawPacket slice starts at after
+	// the link layer header. Underlay providers may use the preceding part of the packet
+	// buffer to receive the link layer header.
+	underlayHeadroom int
 }
 
 var (
@@ -684,16 +726,31 @@ func (d *dataPlane) Run(ctx context.Context) error {
 // initializePacketPool calculates the size of the packet pool based on the
 // current dataplane settings and allocates all the buffers
 func (d *dataPlane) initPacketPool(processorQueueSize int) {
+	// collect pool size and headroom reqs
 	poolSize := len(d.interfaces)*d.RunConfig.BatchSize +
 		(d.RunConfig.NumProcessors+d.RunConfig.NumSlowPathProcessors)*(processorQueueSize+1) +
 		len(d.interfaces)*(2*d.RunConfig.BatchSize)
+	headroom := 0
+	for _, u := range d.underlays {
+		h := u.Headroom()
+		if headroom < h {
+			headroom = h
+		}
+	}
+	d.underlayHeadroom = headroom
 
-	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
-	d.packetPool = make(chan *Packet, poolSize)
+	// We round-up the minimum headroom generously so that the extra room is sufficient to allow the
+	// quoting of most packets by scmp cheaply (that is, without moving the bytes). Our packet
+	// buffers are sized at 9000 bytes while in most cases the interface MTU is lower.
+	if headroom < minHeadroom {
+		headroom = minHeadroom
+	}
+	log.Debug("Initialize packet pool", "poolSize", poolSize, "headroom", headroom)
+	d.packetPool = makePacketPool(poolSize, headroom)
 	pktBuffers := make([][bufSize]byte, poolSize)
 	pktStructs := make([]Packet, poolSize)
 	for i := 0; i < poolSize; i++ {
-		d.packetPool <- pktStructs[i].init(&pktBuffers[i])
+		d.packetPool.Put(pktStructs[i].init(&pktBuffers[i]))
 	}
 }
 
@@ -708,14 +765,6 @@ func (d *dataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *
 		slowQs[i] = make(chan *Packet, processorQueueSize)
 	}
 	return procQs, slowQs
-}
-
-func (d *dataPlane) getPacketFromPool() *Packet {
-	return <-d.packetPool
-}
-
-func (d *dataPlane) returnPacketToPool(pkt *Packet) {
-	d.packetPool <- pkt
 }
 
 func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet) {
@@ -741,30 +790,30 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 			case slowQ <- p:
 			default:
 				metrics.DroppedPacketsBusySlowPath.Inc()
-				d.returnPacketToPool(p)
+				d.packetPool.Put(p)
 			}
 			continue
 		case pDone: // Packets that don't need more processing (e.g. BFD)
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		case pDiscard: // Everything else
 			metrics.DroppedPacketsInvalid.Inc()
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		default: // Newly added dispositions need to be handled.
 			log.Debug("Unknown packet disposition", "disp", disp)
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		}
 		fwLink, ok := d.interfaces[p.egress]
 		if !ok {
 			log.Debug("Error determining forwarder. Egress is invalid", "egress", p.egress)
 			metrics.DroppedPacketsInvalid.Inc()
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		}
 		if !fwLink.Send(p) {
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			metrics.DroppedPacketsBusyForwarder.Inc()
 		}
 	}
@@ -784,7 +833,7 @@ func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 		if err != nil {
 			log.Debug("Error processing packet", "err", err)
 			metrics.DroppedPacketsInvalid.Inc()
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		}
 		// All slowpath packets are responses to the sender. Therefore, the egress link is always
@@ -794,11 +843,11 @@ func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 		if egressLink == nil {
 			// Someone tried to send a freshly made packet on the slow path?
 			log.Debug("Error determining return link. No ingress link")
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 			continue
 		}
 		if !egressLink.Send(p) {
-			d.returnPacketToPool(p)
+			d.packetPool.Put(p)
 		}
 	}
 }
@@ -2107,12 +2156,11 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		ohp.FirstHop.Mac = path.MAC(b.mac, ohp.Info, ohp.FirstHop, b.macBuffer)
 	}
 
-	p := b.dataPlane.getPacketFromPool()
-	p.Reset()
+	p := b.dataPlane.packetPool.Get()
 
 	serBuf := newSerializeProxy(p.RawPacket) // set for prepend-only by default. Perfect here.
 
-	// serialized bytes lend directly into p.RawPacket (alignedd at the end).
+	// serialized bytes lend directly into p.RawPacket (aligned at the end).
 	err := gopacket.SerializeLayers(&serBuf, gopacket.SerializeOptions{FixLengths: true},
 		b.scn, bfd)
 	if err != nil {
@@ -2130,7 +2178,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	if !fwLink.Send(p) {
 		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
 		// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
-		b.dataPlane.returnPacketToPool(p)
+		b.dataPlane.packetPool.Put(p)
 	}
 	return err
 }
@@ -2235,43 +2283,76 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 				p.hasValidAuth(time.Now()))
 	}
 
-	var quote []byte
-	if isError {
-		// add quote for errors.
-		hdrLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len()
-		if needsAuth {
-			hdrLen += e2eAuthHdrLen
-		}
-		switch scmpH.TypeCode.Type() {
-		case slayers.SCMPTypeExternalInterfaceDown:
-			hdrLen += 20
-		case slayers.SCMPTypeInternalConnectivityDown:
-			hdrLen += 28
-		default:
-			hdrLen += 8
-		}
-		quote = p.pkt.RawPacket
-		maxQuoteLen := slayers.MaxSCMPPacketLen - hdrLen
-		if len(quote) > maxQuoteLen {
-			quote = quote[:maxQuoteLen]
-		}
-	}
-
-	serBuf := newSerializeProxy(p.pkt.RawPacket) // Prepend-only by default. It's all we need.
 	sopts := gopacket.SerializeOptions{
 		ComputeChecksums: true,
 		FixLengths:       true,
 	}
-	// First write the SCMP message only without the SCION header(s) to get a buffer that we
-	// can (re-)use as input in the MAC computation. Note that we move the quoted part of the packet
-	// to the end of the buffer (go supports overlaps properly).
-	// TODO(jiceatscion): in the future we may be able to leave room at the head of the
-	// buffer on ingest, so we won't need to move the quote at all.
-	err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
-	if err != nil {
-		return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+	var serBuf serializeProxy
+
+	// First write the SCMP message only without the SCION header(s) to get a buffer that we can
+	// feed to the MAC computation. If this is an error response, then it has to include a quote of
+	// the packet at the end of the SCMP message.
+
+	if isError {
+		// There is headroom built into the packet buffer so we can wrap the whole packet into a new
+		// one without copying it. We need to reclaim that headroom so we can prepend. We can figure
+		// the current headroom, even if it was changed, by comparing the capacity of the slice with
+		// our constant buffer size.
+		quoteLen := len(p.pkt.RawPacket)
+		headroom := bufSize - cap(p.pkt.RawPacket)
+		hdrLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len() +
+			slayers.ScmpHeaderSize(scmpH.TypeCode.Type())
+
+		if needsAuth {
+			hdrLen += e2eAuthHdrLen
+		}
+		maxQuoteLen := slayers.MaxSCMPPacketLen - hdrLen
+		if quoteLen > maxQuoteLen {
+			quoteLen = maxQuoteLen
+		}
+		fmt.Printf("Packet to quote: %d bytes. Total hdrs: %d\n", quoteLen, hdrLen)
+		// Now that we know the length, we can serialize the scmp headers an the quoted packet. If
+		// we don't fit in the headroom we copy the quoted packet to the end. We are required to
+		// leave space for a worst-case underlay header too. TODO(multi_underlay): since we know
+		// that this goes back via the link it came from, we could be content with leaving just
+		// enough headroom for this specific underlay.
+		if hdrLen+p.d.underlayHeadroom > headroom {
+			// Not enough headroom. Pack at end.
+			quote := p.pkt.RawPacket[:quoteLen]
+			serBuf = newSerializeProxy(p.pkt.RawPacket)
+			err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
+			if err != nil {
+				return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+			}
+		} else {
+			// Serialize in front of the quoted packet. The quoted packet must be included in the
+			// serialize buffer before we packet the scmp header in from of it. AppendBytes will do
+			// that; it exposes the underlying buffer but doesn't modify it.
+			p.pkt.RawPacket = p.pkt.buffer[0:(quoteLen + headroom)]
+			serBuf = newSerializeProxyStart(p.pkt.RawPacket, headroom)
+			_, _ = serBuf.AppendBytes(quoteLen) // Implementation never fails.
+			// serBuf.PushLayer(gopacket.LayerTypePayload) -> useless
+			err = scmpP.SerializeTo(&serBuf, sopts)
+			if err != nil {
+				return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+			}
+			err = scmpH.SerializeTo(&serBuf, sopts)
+			if err != nil {
+				return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+			}
+		}
+	} else {
+		// We do not need to preserve the packet. Just pack our headers at the end of the buffer.
+		// (this is what serializeProxy does by default).
+		serBuf = newSerializeProxy(p.pkt.RawPacket)
+		err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP)
+		if err != nil {
+			return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+		}
 	}
 
+	// serBuf now starts with the SCMP Headers and ends with the truncated quoted packet, if any.
+	// This is what gets checksumed.
 	if needsAuth {
 		var e2e slayers.EndToEndExtn
 		scionL.NextHdr = slayers.End2EndClass
@@ -2313,9 +2394,13 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	} else {
 		scionL.NextHdr = slayers.L4SCMP
 	}
+
+	// Our SCION header is ready. Prepend it.
 	if err := scionL.SerializeTo(&serBuf, sopts); err != nil {
 		return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCION header")
 	}
+
+	// serBuf now has the exact slice that represents the packet.
 	p.pkt.RawPacket = serBuf.Bytes()
 
 	log.Debug("SCMP", "typecode", scmpH.TypeCode)
