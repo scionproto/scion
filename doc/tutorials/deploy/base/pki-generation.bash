@@ -22,8 +22,7 @@ scion-pki certificate create --profile=regular-voting <(echo '{"isd_as": "42-ffa
 popd
 
 # Create the TRC
-mkdir tmp
-echo '
+cat <<EOF > trc-B1-S1-pld.tmpl
 isd = 42
 description = "Demo ISD 42"
 serial_version = 1
@@ -35,9 +34,9 @@ authoritative_ases = ["ffaa:1:1", "ffaa:1:2", "ffaa:1:3"]
 cert_files = ["AS1/sensitive-voting.pem", "AS1/regular-voting.pem", "AS1/cp-root.pem", "AS2/cp-root.pem", "AS3/sensitive-voting.pem", "AS3/regular-voting.pem"]
 
 [validity]
-not_before = '$(date +%s)'
-validity = "365d"' \
-> trc-B1-S1-pld.tmpl
+not_before = $(date +%s)
+validity = "365d"
+EOF
 
 scion-pki trc payload --out=tmp/ISD42-B1-S1.pld.der --template trc-B1-S1-pld.tmpl
 rm trc-B1-S1-pld.tmpl
