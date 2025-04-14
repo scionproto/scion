@@ -153,7 +153,7 @@ func realMain(ctx context.Context) error {
 			[]string{"driver", "operation", prom.LabelResult},
 		),
 	})
-	engine, err := daemon.TrustEngine(ctx, globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer)
+	engine, err := daemon.TrustEngine(errCtx, globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer)
 	if err != nil {
 		return serrors.Wrap("creating trust engine", err)
 	}
