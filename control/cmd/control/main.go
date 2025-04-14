@@ -224,7 +224,7 @@ func realMain(ctx context.Context) error {
 		MTU:                    topo.MTU(),
 		Topology:               adaptTopology(topo),
 	}
-	quicStack, err := nc.QUICStack(ctx)
+	quicStack, err := nc.QUICStack(context.Background())
 	if err != nil {
 		return serrors.Wrap("initializing QUIC stack", err)
 	}
