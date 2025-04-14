@@ -76,6 +76,7 @@ check_connectivity() {
 	  echo "$as: Waiting for Upsegs"
 	  ret=1
     fi
+    sleep 2
   done
   return $ret
 }
