@@ -208,7 +208,9 @@ func (s *DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA
 		// the original context is large enough no need to spin a background fetch.
 		return
 	}
-	ctx, cancelF := context.WithTimeout(origCtx, backgroundTimeout)
+	// We're not passing origCtx because this is a background fetch that
+	// should continue even in case origCtx is cancelled.
+	ctx, cancelF := context.WithTimeout(context.Background(), backgroundTimeout)
 	defer cancelF()
 	var spanOpts []opentracing.StartSpanOption
 	if span := opentracing.SpanFromContext(origCtx); span != nil {
