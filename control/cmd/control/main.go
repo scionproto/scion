@@ -395,9 +395,9 @@ func realMain(ctx context.Context) error {
 		})
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	signer := cs.NewSigner(ctx, topo.IA(), trustDB, globalCfg.General.ConfigDir)
+	signer := cs.NewSigner(ctxSigner, topo.IA(), trustDB, globalCfg.General.ConfigDir)
 
 	var chainBuilder renewal.ChainBuilder
 	var caClient *caapi.Client
