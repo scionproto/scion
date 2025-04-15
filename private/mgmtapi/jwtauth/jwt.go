@@ -182,7 +182,9 @@ type HTTPVerifier struct {
 
 // AddAuthorization decorates handler with a step that first performs JWT Bearer
 // authorization before chaining the call to the initial handler.
-func (v *HTTPVerifier) AddAuthorization(handler http.Handler) http.Handler {
+func (v *HTTPVerifier) AddAuthorization(
+	handler http.Handler, nowFn func() time.Time,
+) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		if v.Generator == nil {
 			log.SafeDebug(v.Logger, "Key generator must not be nil")
@@ -205,21 +207,25 @@ func (v *HTTPVerifier) AddAuthorization(handler http.Handler) http.Handler {
 			return
 		}
 
-		token, err := jwt.ParseRequest(req, jwt.WithKey(jwa.HS256(), key))
+		token, err := jwt.ParseRequest(req,
+			jwt.WithKey(jwa.HS256(), key),
+			jwt.WithClock(jwt.ClockFunc(nowFn)),
+			jwt.WithAcceptableSkew(DefaultAcceptableSkew),
+		)
 		if err != nil {
 			log.SafeDebug(v.Logger, "Token verification failed", "err", err)
-			e := &Error{Code: http.StatusInternalServerError, Title: "Authorization error"}
+			e := &Error{Code: http.StatusUnauthorized, Title: "Authorization error"}
 			e.Write(rw)
 			return
 		}
 
 		err = jwt.Validate(token,
-			jwt.WithClock(jwt.ClockFunc(time.Now)),
+			jwt.WithClock(jwt.ClockFunc(nowFn)),
 			jwt.WithAcceptableSkew(DefaultAcceptableSkew),
 		)
 		if err != nil {
 			log.SafeDebug(v.Logger, "Token validation failed", "err", err)
-			e := &Error{Code: http.StatusInternalServerError, Title: "Authorization error"}
+			e := &Error{Code: http.StatusUnauthorized, Title: "Authorization error"}
 			e.Write(rw)
 			return
 		}
