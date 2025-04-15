@@ -58,7 +58,7 @@ def _openapi_generate_go(ctx):
 
 openapi_generate_go = rule(
     implementation = _openapi_generate_go,
-    doc = "This rule generate Go files from a given open API specification.",
+    doc = "This rule generates Go files from a given open API specification.",
     attrs = {
         "src": attr.label(
             doc = "The input specification file.",
@@ -76,12 +76,12 @@ openapi_generate_go = rule(
             doc = """Folder containing Go templates to be used during code generation.
                 Note that the template file names need to match the ones used by the
                 openapi codegen.
-                (see https://github.com/deepmap/oapi-codegen#making-changes-to-code-generation)""",
+                (see https://github.com/oapi-codegen/oapi-codegen#custom-code-generation)""",
             allow_files = [".tmpl"],
         ),
         "_oapi_codegen": attr.label(
             doc = "The code generator binary.",
-            default = "@com_github_deepmap_oapi_codegen_v2//cmd/oapi-codegen:oapi-codegen",
+            default = "@github_com_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen:oapi-codegen",
             executable = True,
             cfg = "exec",
         ),
