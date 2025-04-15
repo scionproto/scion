@@ -224,7 +224,7 @@ func realMain(ctx context.Context) error {
 		MTU:                    topo.MTU(),
 		Topology:               adaptTopology(topo),
 	}
-	quicStack, err := nc.QUICStack()
+	quicStack, err := nc.QUICStack(ctx)
 	if err != nil {
 		return serrors.Wrap("initializing QUIC stack", err)
 	}
@@ -393,10 +393,11 @@ func realMain(ctx context.Context) error {
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
 		})
-
 	}
 
-	signer := cs.NewSigner(topo.IA(), trustDB, globalCfg.General.ConfigDir)
+	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	signer := cs.NewSigner(ctxSigner, topo.IA(), trustDB, globalCfg.General.ConfigDir)
 
 	var chainBuilder renewal.ChainBuilder
 	var caClient *caapi.Client
@@ -837,7 +838,6 @@ func createBeaconStore(
 	policyConfig config.Policies,
 	provider beacon.ChainProvider,
 ) (cs.Store, bool, error) {
-
 	if core {
 		policies, err := cs.LoadCorePolicies(policyConfig)
 		if err != nil {
@@ -967,7 +967,6 @@ func getCAHealth(
 	ctx context.Context,
 	caClient *caapi.Client,
 ) (api.CAHealthStatus, error) {
-
 	logger := log.FromCtx(ctx)
 	rep, err := caClient.GetHealthcheck(ctx)
 	if err != nil {
