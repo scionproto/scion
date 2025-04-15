@@ -81,7 +81,7 @@ openapi_generate_go = rule(
         ),
         "_oapi_codegen": attr.label(
             doc = "The code generator binary.",
-            default = "@github_com_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen:oapi-codegen",
+            default = "@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen:oapi-codegen",
             executable = True,
             cfg = "exec",
         ),
