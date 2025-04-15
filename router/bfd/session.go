@@ -43,7 +43,7 @@ const (
 	defaultDetectionTimeout = time.Minute
 )
 
-// ErrAlreadyRunning is the error returned by session run function when called for twice.
+// ErrAlreadyRunning is the error returned by session run function when called repeatedly.
 var ErrAlreadyRunning = errors.New("is running")
 
 // Session describes a BFD Version 1 (RFC 5880) Session. Only Asynchronous mode is supported.
