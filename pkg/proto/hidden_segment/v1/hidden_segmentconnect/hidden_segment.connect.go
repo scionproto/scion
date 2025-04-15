@@ -52,16 +52,6 @@ const (
 	AuthoritativeHiddenSegmentLookupServiceAuthoritativeHiddenSegmentsProcedure = "/proto.hidden_segment.v1.AuthoritativeHiddenSegmentLookupService/AuthoritativeHiddenSegments"
 )
 
-// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
-var (
-	hiddenSegmentRegistrationServiceServiceDescriptor                                  = hidden_segment.File_proto_hidden_segment_v1_hidden_segment_proto.Services().ByName("HiddenSegmentRegistrationService")
-	hiddenSegmentRegistrationServiceHiddenSegmentRegistrationMethodDescriptor          = hiddenSegmentRegistrationServiceServiceDescriptor.Methods().ByName("HiddenSegmentRegistration")
-	hiddenSegmentLookupServiceServiceDescriptor                                        = hidden_segment.File_proto_hidden_segment_v1_hidden_segment_proto.Services().ByName("HiddenSegmentLookupService")
-	hiddenSegmentLookupServiceHiddenSegmentsMethodDescriptor                           = hiddenSegmentLookupServiceServiceDescriptor.Methods().ByName("HiddenSegments")
-	authoritativeHiddenSegmentLookupServiceServiceDescriptor                           = hidden_segment.File_proto_hidden_segment_v1_hidden_segment_proto.Services().ByName("AuthoritativeHiddenSegmentLookupService")
-	authoritativeHiddenSegmentLookupServiceAuthoritativeHiddenSegmentsMethodDescriptor = authoritativeHiddenSegmentLookupServiceServiceDescriptor.Methods().ByName("AuthoritativeHiddenSegments")
-)
-
 // HiddenSegmentRegistrationServiceClient is a client for the
 // proto.hidden_segment.v1.HiddenSegmentRegistrationService service.
 type HiddenSegmentRegistrationServiceClient interface {
@@ -78,11 +68,12 @@ type HiddenSegmentRegistrationServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewHiddenSegmentRegistrationServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) HiddenSegmentRegistrationServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	hiddenSegmentRegistrationServiceMethods := hidden_segment.File_proto_hidden_segment_v1_hidden_segment_proto.Services().ByName("HiddenSegmentRegistrationService").Methods()
 	return &hiddenSegmentRegistrationServiceClient{
 		hiddenSegmentRegistration: connect.NewClient[hidden_segment.HiddenSegmentRegistrationRequest, hidden_segment.HiddenSegmentRegistrationResponse](
 			httpClient,
 			baseURL+HiddenSegmentRegistrationServiceHiddenSegmentRegistrationProcedure,
-			connect.WithSchema(hiddenSegmentRegistrationServiceHiddenSegmentRegistrationMethodDescriptor),
+			connect.WithSchema(hiddenSegmentRegistrationServiceMethods.ByName("HiddenSegmentRegistration")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -111,10 +102,11 @@ type HiddenSegmentRegistrationServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewHiddenSegmentRegistrationServiceHandler(svc HiddenSegmentRegistrationServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	hiddenSegmentRegistrationServiceMethods := hidden_segment.File_proto_hidden_segment_v1_hidden_segment_proto.Services().ByName("HiddenSegmentRegistrationService").Methods()
 	hiddenSegmentRegistrationServiceHiddenSegmentRegistrationHandler := connect.NewUnaryHandler(
 		HiddenSegmentRegistrationServiceHiddenSegmentRegistrationProcedure,
 		svc.HiddenSegmentRegistration,
-		connect.WithSchema(hiddenSegmentRegistrationServiceHiddenSegmentRegistrationMethodDescriptor),
+		connect.WithSchema(hiddenSegmentRegistrationServiceMethods.ByName("HiddenSegmentRegistration")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.hidden_segment.v1.HiddenSegmentRegistrationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -150,11 +142,12 @@ type HiddenSegmentLookupServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewHiddenSegmentLookupServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) HiddenSegmentLookupServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	hiddenSegmentLookupServiceMethods := hidden_segment.File_proto_hidden_segment_v1_hidden_segment_proto.Services().ByName("HiddenSegmentLookupService").Methods()
 	return &hiddenSegmentLookupServiceClient{
 		hiddenSegments: connect.NewClient[hidden_segment.HiddenSegmentsRequest, hidden_segment.HiddenSegmentsResponse](
 			httpClient,
 			baseURL+HiddenSegmentLookupServiceHiddenSegmentsProcedure,
-			connect.WithSchema(hiddenSegmentLookupServiceHiddenSegmentsMethodDescriptor),
+			connect.WithSchema(hiddenSegmentLookupServiceMethods.ByName("HiddenSegments")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -182,10 +175,11 @@ type HiddenSegmentLookupServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewHiddenSegmentLookupServiceHandler(svc HiddenSegmentLookupServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	hiddenSegmentLookupServiceMethods := hidden_segment.File_proto_hidden_segment_v1_hidden_segment_proto.Services().ByName("HiddenSegmentLookupService").Methods()
 	hiddenSegmentLookupServiceHiddenSegmentsHandler := connect.NewUnaryHandler(
 		HiddenSegmentLookupServiceHiddenSegmentsProcedure,
 		svc.HiddenSegments,
-		connect.WithSchema(hiddenSegmentLookupServiceHiddenSegmentsMethodDescriptor),
+		connect.WithSchema(hiddenSegmentLookupServiceMethods.ByName("HiddenSegments")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.hidden_segment.v1.HiddenSegmentLookupService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -221,11 +215,12 @@ type AuthoritativeHiddenSegmentLookupServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewAuthoritativeHiddenSegmentLookupServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AuthoritativeHiddenSegmentLookupServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	authoritativeHiddenSegmentLookupServiceMethods := hidden_segment.File_proto_hidden_segment_v1_hidden_segment_proto.Services().ByName("AuthoritativeHiddenSegmentLookupService").Methods()
 	return &authoritativeHiddenSegmentLookupServiceClient{
 		authoritativeHiddenSegments: connect.NewClient[hidden_segment.AuthoritativeHiddenSegmentsRequest, hidden_segment.AuthoritativeHiddenSegmentsResponse](
 			httpClient,
 			baseURL+AuthoritativeHiddenSegmentLookupServiceAuthoritativeHiddenSegmentsProcedure,
-			connect.WithSchema(authoritativeHiddenSegmentLookupServiceAuthoritativeHiddenSegmentsMethodDescriptor),
+			connect.WithSchema(authoritativeHiddenSegmentLookupServiceMethods.ByName("AuthoritativeHiddenSegments")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -255,10 +250,11 @@ type AuthoritativeHiddenSegmentLookupServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewAuthoritativeHiddenSegmentLookupServiceHandler(svc AuthoritativeHiddenSegmentLookupServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	authoritativeHiddenSegmentLookupServiceMethods := hidden_segment.File_proto_hidden_segment_v1_hidden_segment_proto.Services().ByName("AuthoritativeHiddenSegmentLookupService").Methods()
 	authoritativeHiddenSegmentLookupServiceAuthoritativeHiddenSegmentsHandler := connect.NewUnaryHandler(
 		AuthoritativeHiddenSegmentLookupServiceAuthoritativeHiddenSegmentsProcedure,
 		svc.AuthoritativeHiddenSegments,
-		connect.WithSchema(authoritativeHiddenSegmentLookupServiceAuthoritativeHiddenSegmentsMethodDescriptor),
+		connect.WithSchema(authoritativeHiddenSegmentLookupServiceMethods.ByName("AuthoritativeHiddenSegments")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.hidden_segment.v1.AuthoritativeHiddenSegmentLookupService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
