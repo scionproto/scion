@@ -1,0 +1,24 @@
+load("//tools/lint:go.bzl", "go_library")
+
+genrule(
+    name = "gen_bpf_filter_go",
+    srcs = ["bpf_filter.c", "bpf_helpers.h", "bpf_helper_defs.h"],
+    outs = ["bpf_filter_bpfel.go", "bpf_filter_bpfel.o"],
+    tools = ["@com_github_cilium_ebpf//cmd/bpf2go"],
+    cmd = "GOPACKAGE=af_packet_udpip $(execpath @com_github_cilium_ebpf//cmd/bpf2go) -output-dir $$(dirname $(location bpf_filter_bpfel.go)) -tags linux bpf_filter $(location bpf_filter.c)",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "bpf_filter_bpfel.go",
+        ],
+    embedsrcs = [
+        "bpf_filter_bpfel.o",
+    ],
+    importpath = "github.com/scionproto/scion/router/underlayproviders/af_packet_udpip",
+    deps=[
+        "@com_github_cilium_ebpf//:go_default_library",
+    ],
+    visibility = ["//visibility:public"],
+)

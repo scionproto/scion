@@ -61,6 +61,12 @@ go_deps.module(
     sum = "h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=",
     version = "v1.5.4",
 )
+go_deps.module(
+    path = "github.com/cilium/ebpf",
+    sum = "h1:OsSwqS4y+gQHxaKgg2U/+Fev834kdnsQbtzRnbVC6Gs=",
+    version = "v0.18.0",
+)
+
 use_repo(
     go_deps,
     "at_zgo_zcache_v2",
@@ -82,6 +88,7 @@ use_repo(
     "com_github_grpc_ecosystem_grpc_opentracing",
     "com_github_hashicorp_golang_lru_arc_v2",
     "com_github_iancoleman_strcase",
+    "com_github_cilium_ebpf",
     "com_github_kisielk_gotool",
     "com_github_lestrrat_go_jwx",
     "com_github_mattn_go_isatty",
