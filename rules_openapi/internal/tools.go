@@ -20,5 +20,5 @@ import (
 	// The bazel rule openapi_generate_go uses oapi-codegen as a build tool.
 	// As an easy way to ensure that we have all the appropriate dependencies,
 	// import it here in this dummy go file.
-	_ "github.com/deepmap/oapi-codegen/v2/cmd/oapi-codegen"
+	_ "github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen"
 )
