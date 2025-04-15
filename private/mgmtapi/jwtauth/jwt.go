@@ -1,3 +1,4 @@
+// Copyright 2025 SCION Association
 // Copyright 2021 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +23,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -156,7 +157,7 @@ func (s *JWTTokenSource) Token() (*Token, error) {
 		return nil, jwtSetError(jwt.NotBeforeKey, err)
 	}
 
-	b, err := jwt.Sign(token, jwa.HS256, key)
+	b, err := jwt.Sign(token, jwt.WithKey(jwa.HS256(), key))
 	if err != nil {
 		return nil, serrors.Wrap("signing token", err)
 	}
@@ -204,9 +205,7 @@ func (v *HTTPVerifier) AddAuthorization(handler http.Handler) http.Handler {
 			return
 		}
 
-		token, err := jwt.ParseRequest(req,
-			jwt.WithVerify(jwa.HS256, key),
-		)
+		token, err := jwt.ParseRequest(req, jwt.WithKey(jwa.HS256(), key))
 		if err != nil {
 			log.SafeDebug(v.Logger, "Token verification failed", "err", err)
 			e := &Error{Code: http.StatusInternalServerError, Title: "Authorization error"}
@@ -225,7 +224,8 @@ func (v *HTTPVerifier) AddAuthorization(handler http.Handler) http.Handler {
 			return
 		}
 
-		log.SafeDebug(v.Logger, "Authorization successful", "subject", token.Subject())
+		subject, _ := token.Subject()
+		log.SafeDebug(v.Logger, "Authorization successful", "subject", subject)
 		handler.ServeHTTP(rw, req)
 	})
 }
