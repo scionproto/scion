@@ -79,7 +79,7 @@ func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 		}
 
 		jobGroup.Go(func() error {
-			artifacts, err := d.artifactsByURL(job.ArtifactsURL)
+			artifacts, err := d.artifactsByURL(ctx, job.ArtifactsURL)
 			if err != nil {
 				return serrors.Wrap("fetching artifacts", err, "job", job.Name)
 			}
@@ -102,7 +102,7 @@ func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 					start := time.Now()
 					file := filepath.Join(d.Dir, base+".tar.gz")
 					d.info("Start downloading: %s\n", file)
-					if err := d.downloadArtifact(a, file); err != nil {
+					if err := d.downloadArtifact(ctx, a, file); err != nil {
 						return serrors.Wrap("downloading artifact", err, "job", job.Name)
 					}
 					d.info("Done downloading: %s (%s)\n", file, time.Since(start))
@@ -128,8 +128,10 @@ func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 	return jobGroup.Wait()
 }
 
-func (d *Downloader) artifactsByURL(url string) ([]buildkite.Artifact, error) {
-	req, err := d.Client.NewRequest(context.Background(), http.MethodGet, url, http.NoBody)
+func (d *Downloader) artifactsByURL(
+	ctx context.Context, url string,
+) ([]buildkite.Artifact, error) {
+	req, err := d.Client.NewRequest(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -141,13 +143,15 @@ func (d *Downloader) artifactsByURL(url string) ([]buildkite.Artifact, error) {
 	return artifacts, nil
 }
 
-func (d *Downloader) downloadArtifact(artifact buildkite.Artifact, file string) error {
+func (d *Downloader) downloadArtifact(
+	ctx context.Context, artifact buildkite.Artifact, file string,
+) error {
 	f, err := os.Create(file)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	_, err = d.Client.Artifacts.DownloadArtifactByURL(context.Background(), artifact.DownloadURL, f)
+	_, err = d.Client.Artifacts.DownloadArtifactByURL(ctx, artifact.DownloadURL, f)
 	return err
 }
 
