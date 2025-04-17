@@ -216,7 +216,7 @@ var (
 	errModifyExisting                = errors.New("modifying a running dataplane is not allowed")
 	errUnsupportedPathType           = errors.New("unsupported path type")
 	errUnsupportedPathTypeNextHeader = errors.New("unsupported combination")
-  errNoSuchUnderlay             = errors.New("no such underlay provider")
+	errNoSuchUnderlay                = errors.New("no such underlay provider")
 	errNoBFDSessionFound             = errors.New("no BFD session was found")
 	errPeeringEmptySeg0              = errors.New("zero-length segment[0] in peering path")
 	errPeeringEmptySeg1              = errors.New("zero-length segment[1] in peering path")
@@ -270,7 +270,7 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 				runConfig.SendBufferSize,
 				runConfig.ReceiveBufferSize,
 			),
-    },
+		},
 
 		Metrics:                        metrics,
 		ExperimentalSCMPAuthentication: authSCMP,
