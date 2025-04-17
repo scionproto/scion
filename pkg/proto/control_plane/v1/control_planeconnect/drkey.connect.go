@@ -55,18 +55,6 @@ const (
 	DRKeyIntraServiceDRKeySecretValueProcedure = "/proto.control_plane.v1.DRKeyIntraService/DRKeySecretValue"
 )
 
-// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
-var (
-	dRKeyInterServiceServiceDescriptor                = control_plane.File_proto_control_plane_v1_drkey_proto.Services().ByName("DRKeyInterService")
-	dRKeyInterServiceDRKeyLevel1MethodDescriptor      = dRKeyInterServiceServiceDescriptor.Methods().ByName("DRKeyLevel1")
-	dRKeyIntraServiceServiceDescriptor                = control_plane.File_proto_control_plane_v1_drkey_proto.Services().ByName("DRKeyIntraService")
-	dRKeyIntraServiceDRKeyIntraLevel1MethodDescriptor = dRKeyIntraServiceServiceDescriptor.Methods().ByName("DRKeyIntraLevel1")
-	dRKeyIntraServiceDRKeyASHostMethodDescriptor      = dRKeyIntraServiceServiceDescriptor.Methods().ByName("DRKeyASHost")
-	dRKeyIntraServiceDRKeyHostASMethodDescriptor      = dRKeyIntraServiceServiceDescriptor.Methods().ByName("DRKeyHostAS")
-	dRKeyIntraServiceDRKeyHostHostMethodDescriptor    = dRKeyIntraServiceServiceDescriptor.Methods().ByName("DRKeyHostHost")
-	dRKeyIntraServiceDRKeySecretValueMethodDescriptor = dRKeyIntraServiceServiceDescriptor.Methods().ByName("DRKeySecretValue")
-)
-
 // DRKeyInterServiceClient is a client for the proto.control_plane.v1.DRKeyInterService service.
 type DRKeyInterServiceClient interface {
 	DRKeyLevel1(context.Context, *connect.Request[control_plane.DRKeyLevel1Request]) (*connect.Response[control_plane.DRKeyLevel1Response], error)
@@ -81,11 +69,12 @@ type DRKeyInterServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewDRKeyInterServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) DRKeyInterServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	dRKeyInterServiceMethods := control_plane.File_proto_control_plane_v1_drkey_proto.Services().ByName("DRKeyInterService").Methods()
 	return &dRKeyInterServiceClient{
 		dRKeyLevel1: connect.NewClient[control_plane.DRKeyLevel1Request, control_plane.DRKeyLevel1Response](
 			httpClient,
 			baseURL+DRKeyInterServiceDRKeyLevel1Procedure,
-			connect.WithSchema(dRKeyInterServiceDRKeyLevel1MethodDescriptor),
+			connect.WithSchema(dRKeyInterServiceMethods.ByName("DRKeyLevel1")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -113,10 +102,11 @@ type DRKeyInterServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewDRKeyInterServiceHandler(svc DRKeyInterServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	dRKeyInterServiceMethods := control_plane.File_proto_control_plane_v1_drkey_proto.Services().ByName("DRKeyInterService").Methods()
 	dRKeyInterServiceDRKeyLevel1Handler := connect.NewUnaryHandler(
 		DRKeyInterServiceDRKeyLevel1Procedure,
 		svc.DRKeyLevel1,
-		connect.WithSchema(dRKeyInterServiceDRKeyLevel1MethodDescriptor),
+		connect.WithSchema(dRKeyInterServiceMethods.ByName("DRKeyLevel1")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.control_plane.v1.DRKeyInterService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -154,35 +144,36 @@ type DRKeyIntraServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewDRKeyIntraServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) DRKeyIntraServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	dRKeyIntraServiceMethods := control_plane.File_proto_control_plane_v1_drkey_proto.Services().ByName("DRKeyIntraService").Methods()
 	return &dRKeyIntraServiceClient{
 		dRKeyIntraLevel1: connect.NewClient[control_plane.DRKeyIntraLevel1Request, control_plane.DRKeyIntraLevel1Response](
 			httpClient,
 			baseURL+DRKeyIntraServiceDRKeyIntraLevel1Procedure,
-			connect.WithSchema(dRKeyIntraServiceDRKeyIntraLevel1MethodDescriptor),
+			connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeyIntraLevel1")),
 			connect.WithClientOptions(opts...),
 		),
 		dRKeyASHost: connect.NewClient[control_plane.DRKeyASHostRequest, control_plane.DRKeyASHostResponse](
 			httpClient,
 			baseURL+DRKeyIntraServiceDRKeyASHostProcedure,
-			connect.WithSchema(dRKeyIntraServiceDRKeyASHostMethodDescriptor),
+			connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeyASHost")),
 			connect.WithClientOptions(opts...),
 		),
 		dRKeyHostAS: connect.NewClient[control_plane.DRKeyHostASRequest, control_plane.DRKeyHostASResponse](
 			httpClient,
 			baseURL+DRKeyIntraServiceDRKeyHostASProcedure,
-			connect.WithSchema(dRKeyIntraServiceDRKeyHostASMethodDescriptor),
+			connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeyHostAS")),
 			connect.WithClientOptions(opts...),
 		),
 		dRKeyHostHost: connect.NewClient[control_plane.DRKeyHostHostRequest, control_plane.DRKeyHostHostResponse](
 			httpClient,
 			baseURL+DRKeyIntraServiceDRKeyHostHostProcedure,
-			connect.WithSchema(dRKeyIntraServiceDRKeyHostHostMethodDescriptor),
+			connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeyHostHost")),
 			connect.WithClientOptions(opts...),
 		),
 		dRKeySecretValue: connect.NewClient[control_plane.DRKeySecretValueRequest, control_plane.DRKeySecretValueResponse](
 			httpClient,
 			baseURL+DRKeyIntraServiceDRKeySecretValueProcedure,
-			connect.WithSchema(dRKeyIntraServiceDRKeySecretValueMethodDescriptor),
+			connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeySecretValue")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -238,34 +229,35 @@ type DRKeyIntraServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewDRKeyIntraServiceHandler(svc DRKeyIntraServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	dRKeyIntraServiceMethods := control_plane.File_proto_control_plane_v1_drkey_proto.Services().ByName("DRKeyIntraService").Methods()
 	dRKeyIntraServiceDRKeyIntraLevel1Handler := connect.NewUnaryHandler(
 		DRKeyIntraServiceDRKeyIntraLevel1Procedure,
 		svc.DRKeyIntraLevel1,
-		connect.WithSchema(dRKeyIntraServiceDRKeyIntraLevel1MethodDescriptor),
+		connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeyIntraLevel1")),
 		connect.WithHandlerOptions(opts...),
 	)
 	dRKeyIntraServiceDRKeyASHostHandler := connect.NewUnaryHandler(
 		DRKeyIntraServiceDRKeyASHostProcedure,
 		svc.DRKeyASHost,
-		connect.WithSchema(dRKeyIntraServiceDRKeyASHostMethodDescriptor),
+		connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeyASHost")),
 		connect.WithHandlerOptions(opts...),
 	)
 	dRKeyIntraServiceDRKeyHostASHandler := connect.NewUnaryHandler(
 		DRKeyIntraServiceDRKeyHostASProcedure,
 		svc.DRKeyHostAS,
-		connect.WithSchema(dRKeyIntraServiceDRKeyHostASMethodDescriptor),
+		connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeyHostAS")),
 		connect.WithHandlerOptions(opts...),
 	)
 	dRKeyIntraServiceDRKeyHostHostHandler := connect.NewUnaryHandler(
 		DRKeyIntraServiceDRKeyHostHostProcedure,
 		svc.DRKeyHostHost,
-		connect.WithSchema(dRKeyIntraServiceDRKeyHostHostMethodDescriptor),
+		connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeyHostHost")),
 		connect.WithHandlerOptions(opts...),
 	)
 	dRKeyIntraServiceDRKeySecretValueHandler := connect.NewUnaryHandler(
 		DRKeyIntraServiceDRKeySecretValueProcedure,
 		svc.DRKeySecretValue,
-		connect.WithSchema(dRKeyIntraServiceDRKeySecretValueMethodDescriptor),
+		connect.WithSchema(dRKeyIntraServiceMethods.ByName("DRKeySecretValue")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.control_plane.v1.DRKeyIntraService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

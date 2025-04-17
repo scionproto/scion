@@ -41,13 +41,6 @@ const (
 	TrustMaterialServiceTRCProcedure = "/proto.control_plane.v1.TrustMaterialService/TRC"
 )
 
-// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
-var (
-	trustMaterialServiceServiceDescriptor      = control_plane.File_proto_control_plane_v1_cppki_proto.Services().ByName("TrustMaterialService")
-	trustMaterialServiceChainsMethodDescriptor = trustMaterialServiceServiceDescriptor.Methods().ByName("Chains")
-	trustMaterialServiceTRCMethodDescriptor    = trustMaterialServiceServiceDescriptor.Methods().ByName("TRC")
-)
-
 // TrustMaterialServiceClient is a client for the proto.control_plane.v1.TrustMaterialService
 // service.
 type TrustMaterialServiceClient interface {
@@ -65,17 +58,18 @@ type TrustMaterialServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewTrustMaterialServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) TrustMaterialServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	trustMaterialServiceMethods := control_plane.File_proto_control_plane_v1_cppki_proto.Services().ByName("TrustMaterialService").Methods()
 	return &trustMaterialServiceClient{
 		chains: connect.NewClient[control_plane.ChainsRequest, control_plane.ChainsResponse](
 			httpClient,
 			baseURL+TrustMaterialServiceChainsProcedure,
-			connect.WithSchema(trustMaterialServiceChainsMethodDescriptor),
+			connect.WithSchema(trustMaterialServiceMethods.ByName("Chains")),
 			connect.WithClientOptions(opts...),
 		),
 		tRC: connect.NewClient[control_plane.TRCRequest, control_plane.TRCResponse](
 			httpClient,
 			baseURL+TrustMaterialServiceTRCProcedure,
-			connect.WithSchema(trustMaterialServiceTRCMethodDescriptor),
+			connect.WithSchema(trustMaterialServiceMethods.ByName("TRC")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -110,16 +104,17 @@ type TrustMaterialServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewTrustMaterialServiceHandler(svc TrustMaterialServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	trustMaterialServiceMethods := control_plane.File_proto_control_plane_v1_cppki_proto.Services().ByName("TrustMaterialService").Methods()
 	trustMaterialServiceChainsHandler := connect.NewUnaryHandler(
 		TrustMaterialServiceChainsProcedure,
 		svc.Chains,
-		connect.WithSchema(trustMaterialServiceChainsMethodDescriptor),
+		connect.WithSchema(trustMaterialServiceMethods.ByName("Chains")),
 		connect.WithHandlerOptions(opts...),
 	)
 	trustMaterialServiceTRCHandler := connect.NewUnaryHandler(
 		TrustMaterialServiceTRCProcedure,
 		svc.TRC,
-		connect.WithSchema(trustMaterialServiceTRCMethodDescriptor),
+		connect.WithSchema(trustMaterialServiceMethods.ByName("TRC")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.control_plane.v1.TrustMaterialService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

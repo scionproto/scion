@@ -49,16 +49,6 @@ const (
 	SegmentCreationServiceBeaconProcedure = "/proto.control_plane.v1.SegmentCreationService/Beacon"
 )
 
-// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
-var (
-	segmentLookupServiceServiceDescriptor                          = control_plane.File_proto_control_plane_v1_seg_proto.Services().ByName("SegmentLookupService")
-	segmentLookupServiceSegmentsMethodDescriptor                   = segmentLookupServiceServiceDescriptor.Methods().ByName("Segments")
-	segmentRegistrationServiceServiceDescriptor                    = control_plane.File_proto_control_plane_v1_seg_proto.Services().ByName("SegmentRegistrationService")
-	segmentRegistrationServiceSegmentsRegistrationMethodDescriptor = segmentRegistrationServiceServiceDescriptor.Methods().ByName("SegmentsRegistration")
-	segmentCreationServiceServiceDescriptor                        = control_plane.File_proto_control_plane_v1_seg_proto.Services().ByName("SegmentCreationService")
-	segmentCreationServiceBeaconMethodDescriptor                   = segmentCreationServiceServiceDescriptor.Methods().ByName("Beacon")
-)
-
 // SegmentLookupServiceClient is a client for the proto.control_plane.v1.SegmentLookupService
 // service.
 type SegmentLookupServiceClient interface {
@@ -75,11 +65,12 @@ type SegmentLookupServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewSegmentLookupServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SegmentLookupServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	segmentLookupServiceMethods := control_plane.File_proto_control_plane_v1_seg_proto.Services().ByName("SegmentLookupService").Methods()
 	return &segmentLookupServiceClient{
 		segments: connect.NewClient[control_plane.SegmentsRequest, control_plane.SegmentsResponse](
 			httpClient,
 			baseURL+SegmentLookupServiceSegmentsProcedure,
-			connect.WithSchema(segmentLookupServiceSegmentsMethodDescriptor),
+			connect.WithSchema(segmentLookupServiceMethods.ByName("Segments")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -107,10 +98,11 @@ type SegmentLookupServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewSegmentLookupServiceHandler(svc SegmentLookupServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	segmentLookupServiceMethods := control_plane.File_proto_control_plane_v1_seg_proto.Services().ByName("SegmentLookupService").Methods()
 	segmentLookupServiceSegmentsHandler := connect.NewUnaryHandler(
 		SegmentLookupServiceSegmentsProcedure,
 		svc.Segments,
-		connect.WithSchema(segmentLookupServiceSegmentsMethodDescriptor),
+		connect.WithSchema(segmentLookupServiceMethods.ByName("Segments")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.control_plane.v1.SegmentLookupService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -146,11 +138,12 @@ type SegmentRegistrationServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewSegmentRegistrationServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SegmentRegistrationServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	segmentRegistrationServiceMethods := control_plane.File_proto_control_plane_v1_seg_proto.Services().ByName("SegmentRegistrationService").Methods()
 	return &segmentRegistrationServiceClient{
 		segmentsRegistration: connect.NewClient[control_plane.SegmentsRegistrationRequest, control_plane.SegmentsRegistrationResponse](
 			httpClient,
 			baseURL+SegmentRegistrationServiceSegmentsRegistrationProcedure,
-			connect.WithSchema(segmentRegistrationServiceSegmentsRegistrationMethodDescriptor),
+			connect.WithSchema(segmentRegistrationServiceMethods.ByName("SegmentsRegistration")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -179,10 +172,11 @@ type SegmentRegistrationServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewSegmentRegistrationServiceHandler(svc SegmentRegistrationServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	segmentRegistrationServiceMethods := control_plane.File_proto_control_plane_v1_seg_proto.Services().ByName("SegmentRegistrationService").Methods()
 	segmentRegistrationServiceSegmentsRegistrationHandler := connect.NewUnaryHandler(
 		SegmentRegistrationServiceSegmentsRegistrationProcedure,
 		svc.SegmentsRegistration,
-		connect.WithSchema(segmentRegistrationServiceSegmentsRegistrationMethodDescriptor),
+		connect.WithSchema(segmentRegistrationServiceMethods.ByName("SegmentsRegistration")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.control_plane.v1.SegmentRegistrationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -218,11 +212,12 @@ type SegmentCreationServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewSegmentCreationServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SegmentCreationServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	segmentCreationServiceMethods := control_plane.File_proto_control_plane_v1_seg_proto.Services().ByName("SegmentCreationService").Methods()
 	return &segmentCreationServiceClient{
 		beacon: connect.NewClient[control_plane.BeaconRequest, control_plane.BeaconResponse](
 			httpClient,
 			baseURL+SegmentCreationServiceBeaconProcedure,
-			connect.WithSchema(segmentCreationServiceBeaconMethodDescriptor),
+			connect.WithSchema(segmentCreationServiceMethods.ByName("Beacon")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -250,10 +245,11 @@ type SegmentCreationServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewSegmentCreationServiceHandler(svc SegmentCreationServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	segmentCreationServiceMethods := control_plane.File_proto_control_plane_v1_seg_proto.Services().ByName("SegmentCreationService").Methods()
 	segmentCreationServiceBeaconHandler := connect.NewUnaryHandler(
 		SegmentCreationServiceBeaconProcedure,
 		svc.Beacon,
-		connect.WithSchema(segmentCreationServiceBeaconMethodDescriptor),
+		connect.WithSchema(segmentCreationServiceMethods.ByName("Beacon")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.control_plane.v1.SegmentCreationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
