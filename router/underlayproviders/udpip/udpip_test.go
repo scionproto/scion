@@ -165,8 +165,10 @@ func TestComputeProcId(t *testing.T) {
 		"ipv4 to ipv4": func(t *testing.T) []ret {
 			payload := make([]byte, 100)
 			spkt := prepBaseMsg(t, 1)
-			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
-			_ = spkt.SetSrcAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
+			assert.NoError(t,
+				spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
+			assert.NoError(t,
+				spkt.SetSrcAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
 			assert.Equal(t, slayers.T4Ip, spkt.SrcAddrType)
 			return []ret{
@@ -179,8 +181,9 @@ func TestComputeProcId(t *testing.T) {
 		"ipv6 to ipv4": func(t *testing.T) []ret {
 			payload := make([]byte, 100)
 			spkt := prepBaseMsg(t, 1)
-			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
-			_ = spkt.SetSrcAddr(addr.HostIP(netip.MustParseAddr("2001:db8::68")))
+			assert.NoError(t,
+				spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
+			assert.NoError(t, spkt.SetSrcAddr(addr.HostIP(netip.MustParseAddr("2001:db8::68"))))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
 			assert.Equal(t, slayers.T16Ip, int(spkt.SrcAddrType))
 			return []ret{
@@ -194,8 +197,9 @@ func TestComputeProcId(t *testing.T) {
 			payload := make([]byte, 100)
 			spkt := prepBaseMsg(t, 1)
 			spkt.DstAddrType = slayers.T4Ip
-			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
-			_ = spkt.SetSrcAddr(addr.HostSVC(addr.SvcWildcard))
+			assert.NoError(t,
+				spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
+			assert.NoError(t, spkt.SetSrcAddr(addr.HostSVC(addr.SvcWildcard)))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
 			assert.Equal(t, slayers.T4Svc, int(spkt.SrcAddrType))
 			return []ret{
