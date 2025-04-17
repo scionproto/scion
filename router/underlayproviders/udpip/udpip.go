@@ -56,7 +56,7 @@ type ConnOpener interface {
 }
 
 // The default ConnOpener for this underlay: opens an udp BatchConn.
-type uo struct {}
+type uo struct{}
 
 func (_ uo) Open(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
 	return conn.New(l, r, c)
@@ -779,7 +779,7 @@ type internalLink struct {
 // TODO(multi_underlay): We still go with the assumption that internal links are always
 // udpip, so we don't expect a string here. That should change.
 func (u *provider) NewInternalLink(
-	local string, qSize int, metrics *router.InterfaceMetrics
+	local string, qSize int, metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
