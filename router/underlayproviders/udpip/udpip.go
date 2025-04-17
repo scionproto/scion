@@ -423,7 +423,7 @@ type connectedLink struct {
 	procQs     []chan *router.Packet
 	name       string // For logs
 	egressQ    chan<- *router.Packet
-	metrics    router.InterfaceMetrics
+	metrics    *router.InterfaceMetrics
 	pool       router.PacketPool
 	bfdSession *bfd.Session
 	seed       uint32
@@ -599,7 +599,7 @@ type detachedLink struct {
 	procQs     []chan *router.Packet
 	name       string // For logs
 	egressQ    chan<- *router.Packet
-	metrics    router.InterfaceMetrics
+	metrics    *router.InterfaceMetrics
 	pool       router.PacketPool
 	bfdSession *bfd.Session
 	remote     *net.UDPAddr
@@ -770,7 +770,7 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 type internalLink struct {
 	procQs           []chan *router.Packet
 	egressQ          chan *router.Packet
-	metrics          router.InterfaceMetrics
+	metrics          *router.InterfaceMetrics
 	pool             router.PacketPool
 	svc              *router.Services[netip.AddrPort]
 	seed             uint32

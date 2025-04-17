@@ -168,8 +168,8 @@ func (p *Packet) init(buffer *[bufSize]byte) *Packet {
 // RawPacket slice relative to the buffer, so there's enough headroom for any underlay headers.
 func (p *Packet) reset(headroom int) {
 	*p = Packet{
-		buffer:     p.buffer,            // keep the buffer
-		RawPacket:  p.buffer[headroom:], // restore the full packet capacity (minus headroom).
+		buffer:    p.buffer,            // keep the buffer
+		RawPacket: p.buffer[headroom:], // restore the full packet capacity (minus headroom).
 	}
 	// Everything else is reset to zero value.
 }
@@ -674,7 +674,6 @@ type RunConfig struct {
 func (d *dataPlane) Run(ctx context.Context) error {
 	d.mtx.Lock()
 	if d.numInterfaces == 0 {
-		// if len(d.interfaces) == 0 {
 		// Not stritcly an error but we really can't do anything; most maps aren't even allocated,
 		// due to lazy initialization.
 		return nil
@@ -724,9 +723,9 @@ func (d *dataPlane) Run(ctx context.Context) error {
 // current dataplane settings and allocates all the buffers
 func (d *dataPlane) initPacketPool(processorQueueSize int) {
 	// collect pool size and headroom reqs
-	poolSize := len(d.interfaces)*d.RunConfig.BatchSize +
+	poolSize := d.numInterfaces*d.RunConfig.BatchSize +
 		(d.RunConfig.NumProcessors+d.RunConfig.NumSlowPathProcessors)*(processorQueueSize+1) +
-		numInterfaces*2*d.RunConfig.BatchSize
+		d.numInterfaces*2*d.RunConfig.BatchSize
 	headroom := 0
 	for _, u := range d.underlays {
 		h := u.Headroom()
@@ -786,7 +785,7 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 			select {
 			case slowQ <- p:
 			default:
-        metrics[sc].DroppedPacketsBusySlowPath.Inc()
+				metrics[sc].DroppedPacketsBusySlowPath.Inc()
 				d.packetPool.Put(p)
 			}
 			continue
@@ -794,7 +793,7 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 			d.packetPool.Put(p)
 			continue
 		case pDiscard: // Everything else
-      metrics[sc].DroppedPacketsInvalid.Inc()
+			metrics[sc].DroppedPacketsInvalid.Inc()
 			d.packetPool.Put(p)
 			continue
 		default: // Newly added dispositions need to be handled.
@@ -805,7 +804,7 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 		fwLink := d.interfaces[p.egress]
 		if fwLink == nil {
 			log.Debug("Error determining forwarder. Egress is invalid", "egress", p.egress)
-      d.packetPool.Put(p)
+			d.packetPool.Put(p)
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			continue
 		}
@@ -827,7 +826,7 @@ func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 		err := processor.processPacket(p)
 		if err != nil {
 			log.Debug("Error processing packet", "err", err)
-      sc := ClassOfSize(len(p.RawPacket))
+			sc := ClassOfSize(len(p.RawPacket))
 			p.Link.Metrics()[sc].DroppedPacketsInvalid.Inc()
 			d.packetPool.Put(p)
 			continue
@@ -2301,7 +2300,6 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		if quoteLen > maxQuoteLen {
 			quoteLen = maxQuoteLen
 		}
-		fmt.Printf("Packet to quote: %d bytes. Total hdrs: %d\n", quoteLen, hdrLen)
 		// Now that we know the length, we can serialize the SCMP headers and the quoted packet. If
 		// we don't fit in the headroom we copy the quoted packet to the end. We are required to
 		// leave space for a worst-case underlay header too. TODO(multi_underlay): since we know
@@ -2313,7 +2311,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			serBuf = newSerializeProxy(p.pkt.RawPacket)
 			err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 			if err != nil {
-				return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+				return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
 			}
 		} else {
 			// Serialize in front of the quoted packet. The quoted packet must be included in the
@@ -2325,11 +2323,11 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			// serBuf.PushLayer(gopacket.LayerTypePayload) -> useless
 			err = scmpP.SerializeTo(&serBuf, sopts)
 			if err != nil {
-				return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+				return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
 			}
 			err = scmpH.SerializeTo(&serBuf, sopts)
 			if err != nil {
-				return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+				return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
 			}
 		}
 	} else {
@@ -2338,7 +2336,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		serBuf = newSerializeProxy(p.pkt.RawPacket)
 		err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP)
 		if err != nil {
-			return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+			return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
 		}
 	}
 
