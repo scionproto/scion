@@ -271,7 +271,6 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 				runConfig.ReceiveBufferSize,
 			),
 		},
-
 		Metrics:                        metrics,
 		ExperimentalSCMPAuthentication: authSCMP,
 		RunConfig:                      runConfig,
@@ -368,7 +367,6 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 		return errModifyExisting
 	}
 	if d.interfaces[0] != nil {
-
 		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", 0)
 	}
 
@@ -456,7 +454,6 @@ func (d *dataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	if remote.IsZero() {
 		return errEmptyValue
 	}
-
 	if !d.neighborIAs[ifID].IsZero() {
 		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", ifID)
 	}
