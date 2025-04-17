@@ -55,7 +55,7 @@ type ConnOpener interface {
 	UDPCanReuseLocal() bool
 }
 
-// The default ConnOpener for this underlay: opens an udp BatchConn.
+// The default ConnOpener for this underlay: opens a UDP BatchConn.
 type uo struct{}
 
 func (_ uo) Open(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
