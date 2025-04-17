@@ -2311,7 +2311,8 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			serBuf = newSerializeProxy(p.pkt.RawPacket)
 			err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 			if err != nil {
-				return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
+				return serrors.JoinNoStack(
+					errCannotRoute, err, "details", "serializing SCMP message")
 			}
 		} else {
 			// Serialize in front of the quoted packet. The quoted packet must be included in the
@@ -2323,11 +2324,13 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			// serBuf.PushLayer(gopacket.LayerTypePayload) -> useless
 			err = scmpP.SerializeTo(&serBuf, sopts)
 			if err != nil {
-				return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
+				return serrors.JoinNoStack(
+					errCannotRoute, err, "details", "serializing SCMP message")
 			}
 			err = scmpH.SerializeTo(&serBuf, sopts)
 			if err != nil {
-				return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
+				return serrors.JoinNoStack(
+					errCannotRoute, err, "details", "serializing SCMP message")
 			}
 		}
 	} else {

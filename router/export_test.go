@@ -69,10 +69,10 @@ func newMockLink(ingress uint16) Link { return &MockLink{ifID: ingress} }
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	pktBuf := &([bufSize]byte{})
 	p := Packet{
-		buffer:     pktBuf,
-		RawPacket:  pktBuf[minHeadroom:],
-		egress:     egress,
-		Link:       newMockLink(ingress),
+		buffer:    pktBuf,
+		RawPacket: pktBuf[minHeadroom:],
+		egress:    egress,
+		Link:      newMockLink(ingress),
 	}
 	if src != nil {
 		p.RemoteAddr = unsafe.Pointer(src)
