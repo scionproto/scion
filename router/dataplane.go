@@ -180,7 +180,7 @@ func (p *Packet) reset(headroom int) {
 	// Everything else is reset to zero value.
 }
 
-// PacketPool allocates are resets packets. There is one packet pool per instance of the dataplane,
+// PacketPool allocates and resets packets. There is one packet pool per instance of the dataplane,
 // shared between all its underlay instances. This structure can be shared by copying (and doing so
 // is more efficient) because headroom is never changed after construction and channel is a
 // reference type.
@@ -740,7 +740,7 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 	d.underlayHeadroom = headroom
 
 	// We round-up the minimum headroom generously so that the extra room is sufficient to allow the
-	// quoting of most packets by scmp cheaply (that is, without moving the bytes). Our packet
+	// quoting of most packets by SCMP cheaply (that is, without moving the bytes). Our packet
 	// buffers are sized at 9000 bytes while in most cases the interface MTU is lower.
 	if headroom < minHeadroom {
 		headroom = minHeadroom
@@ -2311,7 +2311,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			quoteLen = maxQuoteLen
 		}
 		fmt.Printf("Packet to quote: %d bytes. Total hdrs: %d\n", quoteLen, hdrLen)
-		// Now that we know the length, we can serialize the scmp headers an the quoted packet. If
+		// Now that we know the length, we can serialize the SCMP headers and the quoted packet. If
 		// we don't fit in the headroom we copy the quoted packet to the end. We are required to
 		// leave space for a worst-case underlay header too. TODO(multi_underlay): since we know
 		// that this goes back via the link it came from, we could be content with leaving just
@@ -2326,7 +2326,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			}
 		} else {
 			// Serialize in front of the quoted packet. The quoted packet must be included in the
-			// serialize buffer before we packet the scmp header in from of it. AppendBytes will do
+			// serialize buffer before we pack the SCMP header in from of it. AppendBytes will do
 			// that; it exposes the underlying buffer but doesn't modify it.
 			p.pkt.RawPacket = p.pkt.buffer[0:(quoteLen + headroom)]
 			serBuf = newSerializeProxyStart(p.pkt.RawPacket, headroom)
