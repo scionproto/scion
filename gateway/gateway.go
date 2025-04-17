@@ -67,8 +67,8 @@ type DataplaneSessionFactory struct {
 }
 
 func (dpf DataplaneSessionFactory) New(id uint8, policyID int,
-	remoteIA addr.IA, remoteAddr net.Addr) control.DataplaneSession {
-
+	remoteIA addr.IA, remoteAddr net.Addr,
+) control.DataplaneSession {
 	conn, err := dpf.PacketConnFactory.New()
 	if err != nil {
 		panic(err)
@@ -113,7 +113,6 @@ type RoutingTableFactory struct {
 func (rtf RoutingTableFactory) New(
 	routingChains []*control.RoutingChain,
 ) (control.RoutingTable, error) {
-
 	return dataplane.NewRoutingTable(routingChains), nil
 }
 
@@ -284,9 +283,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	// periodically clean up the revocation store.
 	revCleaner := periodic.Start(periodic.Func{
-		Task: func(ctx context.Context) {
-			revStore.Cleanup(ctx)
-		},
+		Task:     revStore.Cleanup,
 		TaskName: "revocation_store_cleaner",
 	}, 30*time.Second, 30*time.Second)
 	defer revCleaner.Stop()
@@ -431,6 +428,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	// Initialize the UDP/SCION QUIC conn for outgoing Gateway Discovery RPCs and outgoing Prefix
 	// Fetching. Open up a random high port for this.
+	//nolint:contextcheck // Unclear whether ctx can be used here.
 	clientConn, err := scionNetworkNoSCMP.Listen(
 		context.TODO(),
 		"udp",
@@ -524,6 +522,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 	logger.Debug("Remote monitor started.")
 
+	//nolint:contextcheck // It's unclear whether ctx can be used here.
 	serverConn, err := scionNetworkNoSCMP.Listen(
 		context.TODO(),
 		"udp",
@@ -575,12 +574,13 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// received from the session monitors of the remote gateway.
 	// *********************************************************************************
 
+	//nolint:contextcheck // It's not clear whether ctx can be used here.
 	probeConn, err := scionNetwork.Listen(context.TODO(), "udp", g.ProbeServerAddr)
 	if err != nil {
 		return serrors.Wrap("creating server probe conn", err)
 	}
 	probeServer := controlgrpc.ProbeDispatcher{}
-	probeServerCtx, probeServerCancel := context.WithCancel(context.Background())
+	probeServerCtx, probeServerCancel := context.WithCancel(ctx)
 	defer probeServerCancel()
 	go func() {
 		defer log.HandlePanic()
@@ -592,7 +592,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// Start dataplane ingress
 	if err := StartIngress(ctx, scionNetwork, g.DataServerAddr, deviceManager,
 		g.Metrics); err != nil {
-
 		return err
 	}
 	logger.Debug("Ingress started")
@@ -700,7 +699,6 @@ func (g *Gateway) diagnosticsSGRP(
 	routePublisherFactory control.PublisherFactory,
 	pub *control.ConfigPublisher,
 ) http.HandlerFunc {
-
 	return func(w http.ResponseWriter, _ *http.Request) {
 		var d struct {
 			Advertise struct {
@@ -766,9 +764,10 @@ func CreateIngressMetrics(m *Metrics) dataplane.IngressMetrics {
 }
 
 func StartIngress(ctx context.Context, scionNetwork *snet.SCIONNetwork, dataAddr *net.UDPAddr,
-	deviceManager control.DeviceManager, metrics *Metrics) error {
-
+	deviceManager control.DeviceManager, metrics *Metrics,
+) error {
 	logger := log.FromCtx(ctx)
+	//nolint:contextcheck // Unclear whether ctx can be used here.
 	dataplaneServerConn, err := scionNetwork.Listen(
 		context.TODO(),
 		"udp",
@@ -856,8 +855,8 @@ func createRouterMetrics(m *Metrics) control.RouterMetrics {
 }
 
 func createRouteManager(ctx context.Context,
-	deviceManager control.DeviceManager) control.PublisherFactory {
-
+	deviceManager control.DeviceManager,
+) control.PublisherFactory {
 	linux := &routemgr.Linux{DeviceManager: deviceManager}
 	go func() {
 		defer log.HandlePanic()

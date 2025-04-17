@@ -43,10 +43,8 @@ const (
 	defaultDetectionTimeout = time.Minute
 )
 
-var (
-	// AlreadyRunning is the error returned by session run function when called for twice.
-	AlreadyRunning = errors.New("is running")
-)
+// ErrAlreadyRunning is the error returned by session run function when called repeatedly.
+var ErrAlreadyRunning = errors.New("is running")
 
 // Session describes a BFD Version 1 (RFC 5880) Session. Only Asynchronous mode is supported.
 //
@@ -174,7 +172,6 @@ type Session struct {
 // TODO(jiceatscion): blocking incoming traffic (*all of it*) when the BFD queue is full is
 // probably the wrong thing to do, but this is what we have been doing so far.
 func NewSession(s Sender, cfg control.BFD, metrics Metrics) (*Session, error) {
-
 	// Generate random discriminator. It can't be zero.
 	discInt, err := rand.Int(rand.Reader, big.NewInt(0xfffffffe))
 	if err != nil {
@@ -330,7 +327,7 @@ func (s *Session) runOnceCheck() error {
 	s.runMarkerLock.Lock()
 	defer s.runMarkerLock.Unlock()
 	if s.runMarker {
-		return AlreadyRunning
+		return ErrAlreadyRunning
 	}
 	s.runMarker = true
 	return nil

@@ -194,8 +194,8 @@ bazel_dep(name = "rules_pkg", version = "1.1.0")
 single_version_override(
     module_name = "rules_pkg",
     patches = [
-        "//dist:rpm/patch1.patch",
-        "//dist:rpm/patch2.patch",
+        "//dist:rpm/patch_make_rpm.patch",
+        "//dist:rpm/patch_rpm_pfg.patch",
     ],
 )
 

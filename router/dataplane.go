@@ -201,30 +201,31 @@ type dataPlane struct {
 }
 
 var (
-	UnsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
-	UnsupportedUnspecifiedAddress = errors.New("unsupported unspecified address")
-	alreadySet                    = errors.New("already set")
-	invalidSrcIA                  = errors.New("invalid source ISD-AS")
-	invalidDstIA                  = errors.New("invalid destination ISD-AS")
-	invalidSrcAddrForTransit      = errors.New("invalid source address for transit pkt")
-	InvalidDstAddr                = errors.New("invalid destination address")
-	cannotRoute                   = errors.New("cannot route, dropping pkt")
-	emptyValue                    = errors.New("empty value")
-	malformedPath                 = errors.New("malformed path content")
-	modifyExisting                = errors.New("modifying a running dataplane is not allowed")
-	NoSVCBackend                  = errors.New("cannot find internal IP for the SVC")
-	unsupportedPathType           = errors.New("unsupported path type")
-	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
-	noBFDSessionFound             = errors.New("no BFD session was found")
-	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
-	errPeeringEmptySeg1           = errors.New("zero-length segment[1] in peering path")
-	errPeeringNonemptySeg2        = errors.New("non-zero-length segment[2] in peering path")
-	errBFDSessionDown             = errors.New("bfd session down")
-	expiredHop                    = errors.New("expired hop")
-	ingressInterfaceInvalid       = errors.New("ingress interface invalid")
-	macVerificationFailed         = errors.New("MAC verification failed")
-	badPacketSize                 = errors.New("bad packet size")
-	errNoSuchUnderlay             = errors.New("no such underlay provider")
+	ErrUnsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
+	ErrUnsupportedUnspecifiedAddress = errors.New("unsupported unspecified address")
+	ErrNoSVCBackend                  = errors.New("cannot find internal IP for the SVC")
+
+	errAlreadySet                    = errors.New("already set")
+	errInvalidSrcIA                  = errors.New("invalid source ISD-AS")
+	errInvalidDstIA                  = errors.New("invalid destination ISD-AS")
+	errInvalidSrcAddrForTransit      = errors.New("invalid source address for transit pkt")
+	errInvalidDstAddr                = errors.New("invalid destination address")
+	errCannotRoute                   = errors.New("cannot route, dropping pkt")
+	errEmptyValue                    = errors.New("empty value")
+	errMalformedPath                 = errors.New("malformed path content")
+	errModifyExisting                = errors.New("modifying a running dataplane is not allowed")
+	errUnsupportedPathType           = errors.New("unsupported path type")
+	errUnsupportedPathTypeNextHeader = errors.New("unsupported combination")
+  errNoSuchUnderlay             = errors.New("no such underlay provider")
+	errNoBFDSessionFound             = errors.New("no BFD session was found")
+	errPeeringEmptySeg0              = errors.New("zero-length segment[0] in peering path")
+	errPeeringEmptySeg1              = errors.New("zero-length segment[1] in peering path")
+	errPeeringNonemptySeg2           = errors.New("non-zero-length segment[2] in peering path")
+	errBFDSessionDown                = errors.New("bfd session down")
+	errExpiredHop                    = errors.New("expired hop")
+	errIngressInterfaceInvalid       = errors.New("ingress interface invalid")
+	errMacVerificationFailed         = errors.New("MAC verification failed")
+	errBadPacketSize                 = errors.New("bad packet size")
 
 	// zeroBuffer will be used to reset the Authenticator option in the
 	// scionPacketProcessor.OptAuth
@@ -268,7 +269,9 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 				runConfig.BatchSize,
 				runConfig.SendBufferSize,
 				runConfig.ReceiveBufferSize,
-			)},
+			),
+    },
+
 		Metrics:                        metrics,
 		ExperimentalSCMPAuthentication: authSCMP,
 		RunConfig:                      runConfig,
@@ -311,13 +314,13 @@ func (d *dataPlane) SetIA(ia addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
-		return modifyExisting
+		return errModifyExisting
 	}
 	if ia.IsZero() {
-		return emptyValue
+		return errEmptyValue
 	}
 	if !d.localIA.IsZero() {
-		return alreadySet
+		return errAlreadySet
 	}
 	d.localIA = ia
 	return nil
@@ -329,13 +332,13 @@ func (d *dataPlane) SetKey(key []byte) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
-		return modifyExisting
+		return errModifyExisting
 	}
 	if len(key) == 0 {
-		return emptyValue
+		return errEmptyValue
 	}
 	if d.macFactory != nil {
-		return alreadySet
+		return errAlreadySet
 	}
 	// First check for MAC creation errors.
 	if _, err := scrypto.InitMac(key); err != nil {
@@ -362,10 +365,11 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
-		return modifyExisting
+		return errModifyExisting
 	}
 	if d.interfaces[0] != nil {
-		return serrors.JoinNoStack(alreadySet, nil, "ifID", 0)
+
+		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", 0)
 	}
 
 	// The internal network underlay is instantiated at construction to simplify some tests. Things
@@ -390,23 +394,23 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 // If a connection for the given ID is already set this method will return an
 // error. This can only be called on a not yet running dataplane.
 func (d *dataPlane) AddExternalInterface(
-	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host) error {
-
+	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host,
+) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
 	if d.isRunning() {
-		return modifyExisting
+		return errModifyExisting
 	}
 	bfd, err := d.newExternalInterfaceBFD(ifID, link, localHost, remoteHost)
 	if err != nil {
 		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
 	}
 	if d.interfaces[ifID] != nil {
-		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
+		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", ifID)
 	}
 	if link.Remote.Addr == "" {
-		return emptyValue
+		return errEmptyValue
 	}
 
 	underlay, instantiated := d.underlays[link.Provider]
@@ -447,13 +451,14 @@ func (d *dataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
-		return modifyExisting
+		return errModifyExisting
 	}
 	if remote.IsZero() {
-		return emptyValue
+		return errEmptyValue
 	}
+
 	if !d.neighborIAs[ifID].IsZero() {
-		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
+		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", ifID)
 	}
 	d.neighborIAs[ifID] = remote
 	return nil
@@ -461,8 +466,8 @@ func (d *dataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 
 // newExternalInterfaceBFD adds the inter AS connection BFD session.
 func (d *dataPlane) newExternalInterfaceBFD(
-	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host) (*bfd.Session, error) {
-
+	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host,
+) (*bfd.Session, error) {
 	if *link.BFD.Disable {
 		return nil, nil
 	}
@@ -539,22 +544,21 @@ func (d *dataPlane) AddNextHop(
 	link control.LinkInfo,
 	localHost, remoteHost addr.Host,
 ) error {
-
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
 	if d.isRunning() {
-		return modifyExisting
+		return errModifyExisting
 	}
 	bfd, err := d.newNextHopBFD(ifID, link, localHost, remoteHost)
 	if err != nil {
 		return serrors.Wrap("adding next hop BFD", err, "if_id", ifID)
 	}
 	if d.interfaces[ifID] != nil {
-		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
+		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", ifID)
 	}
 	if link.Remote.Addr == "" {
-		return emptyValue
+		return errEmptyValue
 	}
 	underlay, instantiated := d.underlays[link.Provider]
 	if !instantiated {
@@ -592,7 +596,6 @@ func (d *dataPlane) newNextHopBFD(
 	link control.LinkInfo,
 	localHost, remoteHost addr.Host,
 ) (*bfd.Session, error) {
-
 	if *link.BFD.Disable {
 		return nil, nil
 	}
@@ -860,16 +863,16 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 		var ok bool
 		p.path, ok = p.scionLayer.Path.(*scion.Raw)
 		if !ok {
-			return malformedPath
+			return errMalformedPath
 		}
 	case epic.PathType:
 		epicPath, ok := p.scionLayer.Path.(*epic.Path)
 		if !ok {
-			return malformedPath
+			return errMalformedPath
 		}
 		p.path = epicPath.ScionPath
 		if p.path == nil {
-			return malformedPath
+			return errMalformedPath
 		}
 	default:
 		// unsupported path type
@@ -965,13 +968,13 @@ func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
 		if p.lastLayer.NextLayerType() == layers.LayerTypeBFD {
 			return p.processBFD(pld)
 		}
-		return errorDiscard("error", unsupportedPathTypeNextHeader)
+		return errorDiscard("error", errUnsupportedPathTypeNextHeader)
 
 	case onehop.PathType:
 		if p.lastLayer.NextLayerType() == layers.LayerTypeBFD {
 			_, ok := p.scionLayer.Path.(*onehop.Path)
 			if !ok {
-				return errorDiscard("error", malformedPath)
+				return errorDiscard("error", errMalformedPath)
 			}
 			return p.processBFD(pld)
 		}
@@ -981,14 +984,14 @@ func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
 	case epic.PathType:
 		return p.processEPIC()
 	default:
-		return errorDiscard("error", unsupportedPathType)
+		return errorDiscard("error", errUnsupportedPathType)
 	}
 }
 
 func (p *scionPacketProcessor) processBFD(data []byte) disposition {
 	session := p.pkt.Link.BFDSession()
 	if session == nil {
-		return errorDiscard("error", noBFDSessionFound)
+		return errorDiscard("error", errNoBFDSessionFound)
 	}
 	bfd := &p.bfdLayer
 	if err := bfd.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
@@ -1003,7 +1006,7 @@ func (p *scionPacketProcessor) processSCION() disposition {
 	p.path, ok = p.scionLayer.Path.(*scion.Raw)
 	if !ok {
 		// TODO(lukedirtwalker) parameter problem invalid path?
-		return errorDiscard("error", malformedPath)
+		return errorDiscard("error", errMalformedPath)
 	}
 	return p.process()
 }
@@ -1011,12 +1014,12 @@ func (p *scionPacketProcessor) processSCION() disposition {
 func (p *scionPacketProcessor) processEPIC() disposition {
 	epicPath, ok := p.scionLayer.Path.(*epic.Path)
 	if !ok {
-		return errorDiscard("error", malformedPath)
+		return errorDiscard("error", errMalformedPath)
 	}
 
 	p.path = epicPath.ScionPath
 	if p.path == nil {
-		return errorDiscard("error", malformedPath)
+		return errorDiscard("error", errMalformedPath)
 	}
 
 	isPenultimate := p.path.IsPenultimateHop()
@@ -1136,10 +1139,10 @@ func (p *scionPacketProcessor) parsePath() disposition {
 		p.path.PathMeta.SegLen[1] == 1 ||
 		p.path.PathMeta.SegLen[2] == 1
 	if !p.infoField.Peer && hasSingletonSegment {
-		return errorDiscard("error", malformedPath)
+		return errorDiscard("error", errMalformedPath)
 	}
 	if !p.path.CurrINFMatchesCurrHF() {
-		return errorDiscard("error", malformedPath)
+		return errorDiscard("error", errMalformedPath)
 	}
 	return pForward
 }
@@ -1184,7 +1187,7 @@ func (p *scionPacketProcessor) validateHopExpiry() disposition {
 	if !expired {
 		return pForward
 	}
-	log.Debug("SCMP response", "cause", expiredHop,
+	log.Debug("SCMP response", "cause", errExpiredHop,
 		"cons_dir", p.infoField.ConsDir, "if_id", p.ingressFromLink,
 		"curr_inf", p.path.PathMeta.CurrINF, "curr_hf", p.path.PathMeta.CurrHF)
 	p.pkt.slowPathRequest = slowPathRequest{
@@ -1203,7 +1206,7 @@ func (p *scionPacketProcessor) validateIngressID() disposition {
 		errCode = slayers.SCMPCodeUnknownHopFieldEgress
 	}
 	if p.ingressFromLink != 0 && p.ingressFromLink != hdrIngressID {
-		log.Debug("SCMP response", "cause", ingressInterfaceInvalid,
+		log.Debug("SCMP response", "cause", errIngressInterfaceInvalid,
 			"pkt_ingress", hdrIngressID, "router_ingress", p.ingressFromLink)
 		p.pkt.slowPathRequest = slowPathRequest{
 			spType:  slowPathType(slayers.SCMPTypeParameterProblem),
@@ -1243,7 +1246,7 @@ func (p *scionPacketProcessor) validateSrcDstIA() disposition {
 
 // invalidSrcIA is a helper to return an SCMP error for an invalid SrcIA.
 func (p *scionPacketProcessor) respInvalidSrcIA() disposition {
-	log.Debug("SCMP response", "cause", invalidSrcIA)
+	log.Debug("SCMP response", "cause", errInvalidSrcIA)
 	p.pkt.slowPathRequest = slowPathRequest{
 		spType:  slowPathType(slayers.SCMPTypeParameterProblem),
 		code:    slayers.SCMPCodeInvalidSourceAddress,
@@ -1254,7 +1257,7 @@ func (p *scionPacketProcessor) respInvalidSrcIA() disposition {
 
 // invalidDstIA is a helper to return an SCMP error for an invalid DstIA.
 func (p *scionPacketProcessor) respInvalidDstIA() disposition {
-	log.Debug("SCMP response", "cause", invalidDstIA)
+	log.Debug("SCMP response", "cause", errInvalidDstIA)
 	p.pkt.slowPathRequest = slowPathRequest{
 		spType:  slowPathType(slayers.SCMPTypeParameterProblem),
 		code:    slayers.SCMPCodeInvalidDestinationAddress,
@@ -1279,7 +1282,7 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 	// comparison should be cheap. Links are implemented by pointers.
 	if ingressLink != p.pkt.Link {
 		// Drop
-		return errorDiscard("error", invalidSrcAddrForTransit)
+		return errorDiscard("error", errInvalidSrcAddrForTransit)
 	}
 	return pForward
 }
@@ -1304,7 +1307,7 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 		if !p.infoField.ConsDir {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
 		}
-		log.Debug("SCMP response", "cause", cannotRoute)
+		log.Debug("SCMP response", "cause", errCannotRoute)
 		p.pkt.slowPathRequest = slowPathRequest{
 			spType:  slowPathType(slayers.SCMPTypeParameterProblem),
 			code:    errCode,
@@ -1335,7 +1338,7 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 		case ingressLT == topology.Peer && egressLT == topology.Child:
 			return pForward
 		default: // malicious
-			log.Debug("SCMP response", "cause", cannotRoute,
+			log.Debug("SCMP response", "cause", errCannotRoute,
 				"ingress_id", p.ingressFromLink, "ingress_type", ingressLT,
 				"egress_id", egressID, "egress_type", egressLT)
 			p.pkt.slowPathRequest = slowPathRequest{
@@ -1359,7 +1362,7 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 	case ingressLT == topology.Child && egressLT == topology.Child:
 		return pForward
 	default:
-		log.Debug("SCMP response", "cause", cannotRoute,
+		log.Debug("SCMP response", "cause", errCannotRoute,
 			"ingress_id", p.ingressFromLink, "ingress_type", ingressLT,
 			"egress_id", egressID, "egress_type", egressLT)
 		p.pkt.slowPathRequest = slowPathRequest{
@@ -1397,7 +1400,7 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 func (p *scionPacketProcessor) verifyCurrentMAC() disposition {
 	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macInputBuffer[:path.MACBufferSize])
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
-		log.Debug("SCMP response", "cause", macVerificationFailed,
+		log.Debug("SCMP response", "cause", errMacVerificationFailed,
 			"expected", fullMac[:path.MacLen],
 			"actual", p.hopField.Mac[:path.MacLen],
 			"cons_dir", p.infoField.ConsDir,
@@ -1424,14 +1427,14 @@ func (p *scionPacketProcessor) resolveInbound() disposition {
 	switch err {
 	case nil:
 		return pForward
-	case NoSVCBackend:
+	case ErrNoSVCBackend:
 		log.Debug("SCMP response", "cause", err)
 		p.pkt.slowPathRequest = slowPathRequest{
 			spType: slowPathType(slayers.SCMPTypeDestinationUnreachable),
 			code:   slayers.SCMPCodeNoRoute,
 		}
 		return pSlowPath
-	case InvalidDstAddr, UnsupportedV4MappedV6Address, UnsupportedUnspecifiedAddress:
+	case errInvalidDstAddr, ErrUnsupportedV4MappedV6Address, ErrUnsupportedUnspecifiedAddress:
 		log.Debug("SCMP response", "cause", err)
 		p.pkt.slowPathRequest = slowPathRequest{
 			spType: slowPathType(slayers.SCMPTypeParameterProblem),
@@ -1614,7 +1617,7 @@ func (p *scionPacketProcessor) validatePktLen() disposition {
 	if int(p.scionLayer.PayloadLen) == len(p.scionLayer.Payload) {
 		return pForward
 	}
-	log.Debug("SCMP response", "cause", badPacketSize, "header", p.scionLayer.PayloadLen,
+	log.Debug("SCMP response", "cause", errBadPacketSize, "header", p.scionLayer.PayloadLen,
 		"actual", len(p.scionLayer.Payload))
 	p.pkt.slowPathRequest = slowPathRequest{
 		spType:  slowPathType(slayers.SCMPTypeParameterProblem),
@@ -1631,7 +1634,7 @@ func (p *scionPacketProcessor) validateSrcHost() disposition {
 	}
 	src, err := p.scionLayer.SrcAddr()
 	if err == nil && src.IP().Is4In6() {
-		err = UnsupportedV4MappedV6Address
+		err = ErrUnsupportedV4MappedV6Address
 	}
 	if err == nil {
 		return pForward
@@ -1760,31 +1763,31 @@ func (p *scionPacketProcessor) processOHP() disposition {
 	ohp, ok := s.Path.(*onehop.Path)
 	if !ok {
 		// TODO parameter problem -> invalid path
-		return errorDiscard("error", malformedPath)
+		return errorDiscard("error", errMalformedPath)
 	}
 	if !ohp.Info.ConsDir {
 		// TODO parameter problem -> invalid path
-		return errorDiscard("error", malformedPath)
+		return errorDiscard("error", errMalformedPath)
 	}
 
 	// OHP leaving our IA
 	if p.ingressFromLink == 0 {
 		if !p.d.localIA.Equal(s.SrcIA) {
 			// TODO parameter problem -> invalid path
-			return errorDiscard("error", cannotRoute)
+			return errorDiscard("error", errCannotRoute)
 		}
 		neighborIA := p.d.neighborIAs[ohp.FirstHop.ConsEgress]
 		if neighborIA.IsZero() {
 			// TODO parameter problem invalid interface
-			return errorDiscard("error", cannotRoute)
+			return errorDiscard("error", errCannotRoute)
 		}
 		if !neighborIA.Equal(s.DstIA) {
-			return errorDiscard("error", cannotRoute)
+			return errorDiscard("error", errCannotRoute)
 		}
 		mac := path.MAC(p.mac, ohp.Info, ohp.FirstHop, p.macInputBuffer[:path.MACBufferSize])
 		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:], mac[:]) == 0 {
 			// TODO parameter problem -> invalid MAC
-			return errorDiscard("error", macVerificationFailed)
+			return errorDiscard("error", errMacVerificationFailed)
 		}
 		ohp.Info.UpdateSegID(ohp.FirstHop.Mac)
 
@@ -1797,11 +1800,11 @@ func (p *scionPacketProcessor) processOHP() disposition {
 
 	// OHP entering our IA
 	if !p.d.localIA.Equal(s.DstIA) {
-		return errorDiscard("error", cannotRoute)
+		return errorDiscard("error", errCannotRoute)
 	}
 	neighborIA := p.d.neighborIAs[p.ingressFromLink]
 	if !neighborIA.Equal(s.SrcIA) {
-		return errorDiscard("error", cannotRoute)
+		return errorDiscard("error", errCannotRoute)
 	}
 
 	ohp.SecondHop = path.HopField{
@@ -1832,10 +1835,9 @@ func (d *dataPlane) resolveLocalDst(
 	s slayers.SCION,
 	lastLayer gopacket.DecodingLayer,
 ) error {
-
 	a, err := s.DstAddr()
 	if err != nil {
-		return InvalidDstAddr
+		return errInvalidDstAddr
 	}
 
 	p := uint16(0)
@@ -1856,7 +1858,6 @@ func (d *dataPlane) resolveLocalDst(
 func (d *dataPlane) dstScionPort(
 	lastLayer gopacket.DecodingLayer,
 ) (uint16, error) {
-
 	// Parse UPD port and rewrite underlay IP/UDP port
 	l4Type := nextHdr(lastLayer)
 	port := uint16(topology.EndhostPort)
@@ -2032,7 +2033,6 @@ func newBFDSend(
 	isIntraAS bool,
 	mac hash.Hash,
 ) (*bfdSend, error) {
-
 	scn := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
@@ -2144,34 +2144,34 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		var ok bool
 		path, ok = p.scionLayer.Path.(*scion.Raw)
 		if !ok {
-			return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
+			return serrors.JoinNoStack(errCannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
 		}
 	case epic.PathType:
 		epicPath, ok := p.scionLayer.Path.(*epic.Path)
 		if !ok {
-			return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
+			return serrors.JoinNoStack(errCannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
 		}
 		path = epicPath.ScionPath
 	default:
-		return serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
+		return serrors.JoinNoStack(errCannotRoute, nil, "details", "unsupported path type",
 			"path type", pathType)
 
 	}
 	decPath, err := path.ToDecoded()
 	if err != nil {
-		return serrors.JoinNoStack(cannotRoute, err, "details", "decoding raw path")
+		return serrors.JoinNoStack(errCannotRoute, err, "details", "decoding raw path")
 	}
 	revPathTmp, err := decPath.Reverse()
 	if err != nil {
-		return serrors.JoinNoStack(cannotRoute, err, "details", "reversing path for SCMP")
+		return serrors.JoinNoStack(errCannotRoute, err, "details", "reversing path for SCMP")
 	}
 	revPath := revPathTmp.(*scion.Decoded)
 
 	peering, err := determinePeer(revPath.PathMeta, revPath.InfoFields[revPath.PathMeta.CurrINF])
 	if err != nil {
-		return serrors.JoinNoStack(cannotRoute, err, "details", "peering cannot be determined")
+		return serrors.JoinNoStack(errCannotRoute, err, "details", "peering cannot be determined")
 	}
 
 	// Revert potential path segment switches that were done during processing.
@@ -2179,7 +2179,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		// An effective cross-over is a change of segment other than at
 		// a peering hop.
 		if err := revPath.IncPath(); err != nil {
-			return serrors.JoinNoStack(cannotRoute, err,
+			return serrors.JoinNoStack(errCannotRoute, err,
 				"details", "reverting cross over for SCMP")
 		}
 	}
@@ -2193,7 +2193,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			infoField.UpdateSegID(hopField.Mac)
 		}
 		if err := revPath.IncPath(); err != nil {
-			return serrors.JoinNoStack(cannotRoute, err,
+			return serrors.JoinNoStack(errCannotRoute, err,
 				"details", "incrementing path for SCMP")
 		}
 	}
@@ -2211,7 +2211,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	scionL.NextHdr = slayers.L4SCMP
 
 	if err := scionL.SetSrcAddr(p.d.localHost); err != nil {
-		return serrors.JoinNoStack(cannotRoute, err, "details", "setting src addr")
+		return serrors.JoinNoStack(errCannotRoute, err, "details", "setting src addr")
 	}
 	typeCode := slayers.CreateSCMPTypeCode(typ, code)
 	scmpH := slayers.SCMP{TypeCode: typeCode}
@@ -2263,7 +2263,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	// buffer on ingest, so we won't need to move the quote at all.
 	err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 	if err != nil {
-		return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
+		return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
 	}
 
 	if needsAuth {
@@ -2273,15 +2273,15 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		now := time.Now()
 		dstA, err := scionL.DstAddr()
 		if err != nil {
-			return serrors.JoinNoStack(cannotRoute, err,
+			return serrors.JoinNoStack(errCannotRoute, err,
 				"details", "parsing destination address")
 		}
 		key, err := p.drkeyProvider.GetASHostKey(now, scionL.DstIA, dstA)
 		if err != nil {
-			return serrors.JoinNoStack(cannotRoute, err, "details", "retrieving DRKey")
+			return serrors.JoinNoStack(errCannotRoute, err, "details", "retrieving DRKey")
 		}
 		if err := p.resetSPAOMetadata(key, now); err != nil {
-			return serrors.JoinNoStack(cannotRoute, err, "details", "resetting SPAO header")
+			return serrors.JoinNoStack(errCannotRoute, err, "details", "resetting SPAO header")
 		}
 
 		e2e.Options = []*slayers.EndToEndOption{p.optAuth.EndToEndOption}
@@ -2298,17 +2298,17 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			p.optAuth.Authenticator(),
 		)
 		if err != nil {
-			return serrors.JoinNoStack(cannotRoute, err, "details", "computing CMAC")
+			return serrors.JoinNoStack(errCannotRoute, err, "details", "computing CMAC")
 		}
 		if err := e2e.SerializeTo(&serBuf, sopts); err != nil {
-			return serrors.JoinNoStack(cannotRoute, err,
+			return serrors.JoinNoStack(errCannotRoute, err,
 				"details", "serializing SCION E2E headers")
 		}
 	} else {
 		scionL.NextHdr = slayers.L4SCMP
 	}
 	if err := scionL.SerializeTo(&serBuf, sopts); err != nil {
-		return serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCION header")
+		return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCION header")
 	}
 	p.pkt.RawPacket = serBuf.Bytes()
 

@@ -56,8 +56,7 @@ type ConnOpener interface {
 }
 
 // The default ConnOpener for this underlay: opens an udp BatchConn.
-type uo struct {
-}
+type uo struct {}
 
 func (_ uo) Open(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
 	return conn.New(l, r, c)
@@ -437,7 +436,6 @@ func (u *provider) NewExternalLink(
 	ifID uint16,
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
-
 	localAddr, err := conn.ResolveAddrPortOrPort(local)
 	if err != nil {
 		return nil, serrors.Wrap("resolving local address", err)
@@ -513,7 +511,7 @@ func (l *connectedLink) start(
 	}
 	go func() {
 		defer log.HandlePanic()
-		if err := l.bfdSession.Run(ctx); err != nil && !errors.Is(err, bfd.AlreadyRunning) {
+		if err := l.bfdSession.Run(ctx); err != nil && !errors.Is(err, bfd.ErrAlreadyRunning) {
 			log.Error("BFD session failed to start", "remote address", l.name, "err", err)
 		}
 	}()
@@ -616,7 +614,6 @@ func (u *provider) NewSiblingLink(
 	remote string,
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
-
 	localAddr, err := conn.ResolveAddrPortOrPort(local)
 	if err != nil {
 		return nil, serrors.Wrap("resolving local address", err)
@@ -683,7 +680,7 @@ func (l *detachedLink) start(
 	}
 	go func() {
 		defer log.HandlePanic()
-		if err := l.bfdSession.Run(ctx); err != nil && !errors.Is(err, bfd.AlreadyRunning) {
+		if err := l.bfdSession.Run(ctx); err != nil && !errors.Is(err, bfd.ErrAlreadyRunning) {
 			log.Error("BFD session failed to start", "remote address", l.name, "err", err)
 		}
 	}()
@@ -782,8 +779,8 @@ type internalLink struct {
 // TODO(multi_underlay): We still go with the assumption that internal links are always
 // udpip, so we don't expect a string here. That should change.
 func (u *provider) NewInternalLink(
-	local string, qSize int, metrics *router.InterfaceMetrics) (router.Link, error) {
-
+	local string, qSize int, metrics *router.InterfaceMetrics
+) (router.Link, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
@@ -798,7 +795,6 @@ func (u *provider) NewInternalLink(
 	conn, err := u.connOpener.Open(
 		localAddr, netip.AddrPort{},
 		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
-
 	if err != nil {
 		return nil, err
 	}
@@ -883,7 +879,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 		// only register base addresses in the map.
 		a, ok := l.svc.Any(dst.SVC().Base())
 		if !ok {
-			return router.NoSVCBackend
+			return router.ErrNoSVCBackend
 		}
 		dstAddr = a.Addr()
 		// Supplied port is irrelevant. Port is in svc record.
@@ -891,10 +887,10 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	case addr.HostTypeIP:
 		dstAddr = dst.IP()
 		if dstAddr.Is4In6() {
-			return router.UnsupportedV4MappedV6Address
+			return router.ErrUnsupportedV4MappedV6Address
 		}
 		if dstAddr.IsUnspecified() {
-			return router.UnsupportedUnspecifiedAddress
+			return router.ErrUnsupportedUnspecifiedAddress
 		}
 	default:
 		panic(fmt.Sprintf("unexpected address type returned from DstAddr: %s", dst.Type()))
