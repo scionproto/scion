@@ -56,11 +56,6 @@ go_deps.module(
     sum = "h1:zrpB8NIzy1hkO1dz2S+YWiOymA/2kL3Rk24uDg8DVUM=",
     version = "v0.0.0-20190618100136-198c6a326229",
 )
-go_deps.module(
-    path = "github.com/golang/protobuf",
-    sum = "h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=",
-    version = "v1.5.4",
-)
 use_repo(
     go_deps,
     "at_zgo_zcache_v2",
@@ -74,7 +69,6 @@ use_repo(
     "com_github_go_chi_chi_v5",
     "com_github_go_chi_cors",
     "com_github_golang_mock",
-    "com_github_golang_protobuf",
     "com_github_google_go_cmp",
     "com_github_gopacket_gopacket",
     "com_github_grpc_ecosystem_go_grpc_middleware",
