@@ -140,7 +140,7 @@ On other errors, ping will exit with code 2.
 
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
-			span.SetTag("dst.host", remote.Host.IP)
+			span.SetTag("dst.host", remote.Host.IP())
 			defer span.Finish()
 
 			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
@@ -296,7 +296,7 @@ On other errors, ping will exit with code 2.
 						State:    update.State.String(),
 					})
 					printf("%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
-						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
+						update.Size, update.Source.IA, update.Source.Host.IP(), update.Sequence,
 						durationMillis(update.RTT), additional)
 				},
 			})
@@ -308,7 +308,7 @@ On other errors, ping will exit with code 2.
 			switch flags.format {
 			case "human":
 				s := res.Statistics.Stats
-				printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
+				printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP())
 				printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
 					s.Sent, s.Received, res.Statistics.Loss,
 					res.Statistics.Time,
