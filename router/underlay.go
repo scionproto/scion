@@ -67,11 +67,12 @@ type Link interface {
 
 // A provider of connectivity over some underlay implementation
 //
-// For any given underlay, there are three kinds of Link implementations to choose from.
-// The difference between them is the intent regarding addressing.
+// For any given underlay, there are three kinds of Link implementations to choose from. The
+// difference between them is the intent regarding addressing.
 //
 // TODO(multi_underlay): The local internal address is explicitly a udpip underlay address as the
-// main router code still assumes that the internal network underlay is always "udp/ip".
+// main router code as well as the entire end-host stack still assume that the internal network
+// underlay is always "udp/ip".
 type UnderlayProvider interface {
 
 	// SetConnOpener is a unit testing device: it allows the replacement of the function
@@ -88,7 +89,8 @@ type UnderlayProvider interface {
 	// The router core will ensure that all received packets are stored at an offset in the packet
 	// buffer, such that the largest underlay header declared across all underlay providers can
 	// be prepended to the SCION header without having to copy the packet or to allocate a separate
-	// buffer.
+	// buffer. Note that, in most cases, this depends on the cooperation of the ingest underlay
+	// provider.
 	Headroom() int
 
 	// SetDispatchPorts sets the range of auto-dispatched ports and default endhost port (the shim

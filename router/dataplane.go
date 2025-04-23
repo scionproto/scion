@@ -121,9 +121,10 @@ const (
 // size-aligned. We want to fit neatly into cache lines, so we need to fit in 64 bytes. The padding
 // required to occupy exactly 64 bytes depends on the architecture.
 type Packet struct {
-	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).
-	// It can be any portion of the full buffer; not necessarily the start. See also
-	// dataplane.underlayHeadroom.
+	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).  It
+	// can be any portion of the full buffer; not necessarily the start. This code maintains the
+	// invariant that RawPacket always represents the portion of a packet that immediately follows
+	// any underly provider header. See also dataplane.underlayHeadroom.
 	RawPacket []byte
 	// The entire packet buffer. We don't need it as a slice; we know its size.
 	buffer *[bufSize]byte
@@ -163,15 +164,26 @@ func (p *Packet) init(buffer *[bufSize]byte) *Packet {
 	return p
 }
 
-// reset() makes the packet ready to receive a new underlay message. A cleared dstAddr is
-// represented with a zero-length IP so we keep reusing the IP storage bytes. We adjust the
-// RawPacket slice relative to the buffer, so there's enough headroom for any underlay headers.
+// reset() makes the packet ready to receive a new underlay message. We adjust the RawPacket slice
+// relative to the buffer, so there's enough headroom for any underlay headers.
 func (p *Packet) reset(headroom int) {
 	*p = Packet{
 		buffer:    p.buffer,            // keep the buffer
 		RawPacket: p.buffer[headroom:], // restore the full packet capacity (minus headroom).
 	}
 	// Everything else is reset to zero value.
+}
+
+// WithHeader returns the a slice of the underlying packet buffer that represents the same bytes as
+// p.rawPacket[:] plus the n prededing bytes. This slice is meant to be used when receiving a raw
+// packet with an n bytes header, such that the payload is exactly at p.rawPacket[0:]. p.RawPacket
+// is *not* modified. This method panics if n is greater than the available headroom in the packet
+// buffer.
+func (p *Packet) WithHeader(n int) []byte {
+	headroom := len(p.buffer) - cap(p.RawPacket) - n
+
+	// A negative value is a panicable offense.
+	return p.buffer[headroom:]
 }
 
 // PacketPool allocates and resets packets. There is one packet pool per instance of the dataplane,
@@ -183,7 +195,11 @@ type PacketPool struct {
 	headroom int
 }
 
-// Get fetches a packet from the pool and returns it initialized with the proper headroom.
+// Get fetches a packet from the pool and returns it initialized with the proper headroom. That is,
+// pkt.rawPacket[0:] is where the packet's payload must go. Underlay providers may use any part of
+// that, and MUST update the pkt.rawPacket slice to indicate where the packet's payload starts.
+// However they may only use the preceding portion of the packet buffer to store a link-layer
+// header. See also WithHeader
 func (p *PacketPool) Get() *Packet {
 	pkt := <-p.pool
 	pkt.reset(p.headroom)
@@ -234,11 +250,11 @@ type dataPlane struct {
 	packetPool PacketPool
 
 	// underlayHeadRoom is the minimum headroom that must be reserved at the front of every packet
-	// to ensure that every underlay provider can prepend its underlay header without copying.
-	// It is established by collecting the headroom requirement of every underlay provider.
-	// Underlay providers deliver incoming packets such that the RawPacket slice starts at after
-	// the link layer header. Underlay providers may use the preceding part of the packet
-	// buffer to receive the link layer header.
+	// to ensure that every underlay provider can prepend its underlay header without copying. It
+	// is established by collecting the headroom requirement of every underlay provider. Underlay
+	// providers deliver incoming packets such that the RawPacket slice starts exactly after the
+	// link layer header. Underlay providers may use the preceding part of the packet buffer to
+	// receive the link layer header.
 	underlayHeadroom int
 }
 
@@ -2289,7 +2305,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		// the current headroom, even if it was changed, by comparing the capacity of the slice with
 		// our constant buffer size.
 		quoteLen := len(p.pkt.RawPacket)
-		headroom := bufSize - cap(p.pkt.RawPacket)
+		headroom := len(p.pkt.buffer) - cap(p.pkt.RawPacket)
 		hdrLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len() +
 			slayers.ScmpHeaderSize(scmpH.TypeCode.Type())
 
@@ -2321,7 +2337,6 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			p.pkt.RawPacket = p.pkt.buffer[0:(quoteLen + headroom)]
 			serBuf = newSerializeProxyStart(p.pkt.RawPacket, headroom)
 			_, _ = serBuf.AppendBytes(quoteLen) // Implementation never fails.
-			// serBuf.PushLayer(gopacket.LayerTypePayload) -> useless
 			err = scmpP.SerializeTo(&serBuf, sopts)
 			if err != nil {
 				return serrors.JoinNoStack(
