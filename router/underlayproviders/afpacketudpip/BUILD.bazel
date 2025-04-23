@@ -21,14 +21,12 @@ go_library(
     name = "go_default_library",
     srcs = [
         "bpf_filter_bpfel.go",
-        "bpf_helper_defs.h",  # Gazelle is dumb
-        "bpf_helpers.h",  # Gazelle is dumb
         "usermode_filter.go",
     ],
     embedsrcs = [
         "bpf_filter_bpfel.o",  #keep
     ],
-    importpath = "github.com/scionproto/scion/router/underlayproviders/af_packet_udpip",
+    importpath = "github.com/scionproto/scion/router/underlayproviders/afpacketudpip",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_cilium_ebpf//:go_default_library",
