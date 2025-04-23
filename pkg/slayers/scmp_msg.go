@@ -521,7 +521,7 @@ func decodeSCMPPacketTooBig(data []byte, pb gopacket.PacketBuilder) error {
 // ScmpHeaderSize returns the serialized size a an ScmpHeader given its type. The returned size
 // includes that of the common SCMPHeader (4 bytes), plus the size of the type-dependent info
 // block. This could be implemented as a method of each info block structure, but these headers are
-// accessed via the gopacket.SerializableLayer interface which has size method. This needs to be
+// accessed via the gopacket.SerializableLayer interface which has no size method. This needs to be
 // updated if new SCMP info blocks are added.
 func ScmpHeaderSize(typeCode SCMPType) int {
 	switch typeCode {
