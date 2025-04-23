@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package af_packet_udpip
+package afpacketudpip
 
 import (
 	"encoding/binary"
@@ -26,7 +26,7 @@ import (
 
 // ExampleSocketELF demonstrates how to load an eBPF program from an ELF,
 // and attach it to a raw socket.
-func Example_socket(ifname string, port uint16) {
+func RawSocket(ifname string, port uint16) {
 	const SO_ATTACH_BPF = 50
 
 	// Get intrface ifindex
@@ -45,7 +45,7 @@ func Example_socket(ifname string, port uint16) {
 		}
 	}
 
-	spec, err := loadBpf_filter()
+	spec, err := loadPortfilter()
 	if err != nil {
 		panic(err)
 	}
@@ -80,11 +80,11 @@ func Example_socket(ifname string, port uint16) {
 	}
 	defer myMap.Close()
 
+	// map.Put plays crystal ball with key and value so it accepts either
+	// pointers or values. The kernel expects addresses in all cases.
 	key := uint64(htons(port))
 	val := uint32(sock)
-
-	// No clue if we're supposed to give key by reference. Just guessing based on other examples.
-	if err := myMap.Put(&key, val); err != nil {
+	if err := myMap.Put(key, val); err != nil {
 		panic(err)
 	}
 }
