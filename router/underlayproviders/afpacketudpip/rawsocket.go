@@ -17,76 +17,84 @@ package afpacketudpip
 import (
 	"encoding/binary"
 	"fmt"
+
 	"syscall"
 	"unsafe"
 
 	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/link"
 	"github.com/vishvananda/netlink"
 )
 
-// ExampleSocketELF demonstrates how to load an eBPF program from an ELF,
-// and attach it to a raw socket.
-func RawSocket(ifname string, port uint16) {
+func RawSocket(ifname string, port uint16) (int, error) {
 	const SO_ATTACH_BPF = 50
 
-	// Get intrface ifindex
-
+	// First open our raw socket.
 	var index int
 	links, err := netlink.LinkList()
 	if err != nil {
-		fmt.Println("Error")
+		return -1, err
 	}
 
 	for _, link := range links {
 		if link.Attrs().Name == ifname {
 			index = link.Attrs().Index
 			fmt.Println("Index is:", link.Attrs().Index)
-
 		}
 	}
+	sock, err := openRawSock(index)
+	if err != nil {
+		return -1, err
+	}
+	// FIXME: Shouldn't close on return.
+	defer syscall.Close(sock)
 
+	// Now load our BPF por filter program.
 	spec, err := loadPortfilter()
 	if err != nil {
-		panic(err)
+		fmt.Printf("loadPortFiler failed\n")
+		return -1, err
 	}
-
 	coll, err := ebpf.NewCollection(spec)
 	if err != nil {
-		panic(err)
+		fmt.Printf("NewCollection failed\n")
+		return -1, err
 	}
+	// FIXME: Shouldn't close on return.
 	defer coll.Close()
-
 	prog := coll.DetachProgram("bpf_port_verdict")
 	if prog == nil {
 		panic("no program named filter found")
 	}
+	// FIXME: Shouldn't close on return.
 	defer prog.Close()
 
-	sock, err := openRawSock(index)
-	if err != nil {
-		panic(err)
-	}
-	defer syscall.Close(sock)
-
-	if err := syscall.SetsockoptInt(sock, syscall.SOL_SOCKET, SO_ATTACH_BPF, prog.FD()); err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Filtering on eth index: %d and port: %d\n", index, port)
-
+	// Now load the map and populate it with our port mapping.
 	myMap := coll.DetachMap("sock_map_rx")
 	if myMap == nil {
 		panic(fmt.Errorf("no map named sock_map_rx found"))
 	}
-	defer myMap.Close()
-
 	// map.Put plays crystal ball with key and value so it accepts either
 	// pointers or values. The kernel expects addresses in all cases.
 	key := uint64(htons(port))
 	val := uint32(sock)
-	if err := myMap.Put(key, val); err != nil {
-		panic(err)
+	if err := myMap.Put(&key, &val); err != nil {
+		panic(fmt.Sprintf("error: %v, key=%p, val=%p\n", err, &key, &val))
 	}
+	// FIXME: Shouldn't close on return.
+	defer myMap.Close()
+
+	// Finally attach the program to the map.
+	err = link.RawAttachProgram(link.RawAttachProgramOptions{
+		Program: prog,
+		Target:  myMap.FD(),
+		Attach:  ebpf.AttachSkSKBVerdict,
+	})
+	if err != nil {
+		return -1, err
+	}
+	fmt.Printf("Filtering on eth index: %d and port: %d\n", index, port)
+	return sock, nil
 }
 
 func htons(i uint16) uint16 {

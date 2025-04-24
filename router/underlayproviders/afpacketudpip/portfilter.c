@@ -18,28 +18,30 @@
 #include "bpf_helpers.h"
 
 struct {
-        __uint(type, BPF_MAP_TYPE_SOCKHASH);
-        __type(key, __u64);
-        __type(value, __u32);
+  __uint(type, BPF_MAP_TYPE_SOCKHASH);
+  __type(key, __u64);
+  __type(value, __u32);
+  __uint(max_entries, 1);
 } sock_map_rx SEC(".maps");
 
 
-// This is strange usage of the sk_redirect_hash concept. We only put one socket
-// in the map: the one that the map is attached to. As a result (fingers
-// crossed), only traffic destined for that socket is ever seem by this program,
-// which means that all we have to do is to let is through. The goal is simply
-// to prevent an af_packet socket from processing all incoming traffic. If that
-// works, it is likely that calling the redirect function isn't even necessary.
+// SOCK_HASH maps are meant to process TCP/UDP traffic. The program is only ever
+// invoked for packets that match one of the ports in the map. This means that
+// in our case the program has no decision to make at all: we just wanted was to
+// avoid receiveing the other packets. It is possible that calling the redirect
+// function isn't even necessary.
 //
-// This would work only because what we filter is af_packet traffic; cloned by
-// alloc_skb. the original traffic is not delivered here at all, it goes to the
-// regular networking stack. If we are lucky, the packets that don't pass the
-// filter aren't cloned at all so we don't pay for the copy. The packets that we
-// want, though, there's a good chance that they are cloned and the original
-// keeps being processed until it's found that there's no port listening for
-// them.
+// This works because our socket isn't itself bound to any port; it can never
+// receive udp traffic via the regular networking stack. If we are lucky, the
+// packets that don't pass the filter aren't cloned at all so we don't pay for
+// the copy and they're just delivered the regular way.
+//
+// The packets that we want, though, there's a good chance that they are cloned
+// and the original are processed until it's found that there's no port
+// listening for them. Dear cow, it's not just the swiss chocolate industry that's
+// counting on you.
 
-SEC("sk_skb")
+SEC("sk_skb/verdict")
 int bpf_port_verdict(struct __sk_buff *skb)
 {
   __u64 key = (__u64) skb->local_port;

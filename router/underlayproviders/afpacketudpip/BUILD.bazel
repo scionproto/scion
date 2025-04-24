@@ -1,4 +1,4 @@
-load("//tools/lint:go.bzl", "go_library")
+load("//tools/lint:go.bzl", "go_library", "go_test")
 
 # If you want to read the generated file:
 # bazel-bin/router/underlayproviders/af_packet_udpip/bpf_filter_bpfel.go
@@ -32,6 +32,14 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_cilium_ebpf//:go_default_library",
+        "@com_github_cilium_ebpf//link:go_default_library",
         "@com_github_vishvananda_netlink//:go_default_library",
     ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["rawsocket_test.go"],
+    embed = [":go_default_library"],
+    deps = ["@com_github_stretchr_testify//assert:go_default_library"],
 )
