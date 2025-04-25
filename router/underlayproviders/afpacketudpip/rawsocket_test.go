@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// IMPORTANT:
+// This requires some permissions. If you need unit tests to pass, you must:
+//
+//	sudo setcap "cap_bpf+ep cap_net_admin+ep cap_net_raw+ep" \
+//      bazel-bin/router/underlayproviders/afpacketudpip/go_default_test_/go_default_test
+//
+// Currently looking for a permanent solution.
+
 package afpacketudpip
 
 import (
