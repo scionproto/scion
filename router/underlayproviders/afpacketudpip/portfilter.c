@@ -15,40 +15,60 @@
 //go:build ignore
 
 #include <linux/bpf.h>
+#include <linux/in.h>
+#include <linux/ip.h>
+#include <linux/udp.h>
 #include "bpf_helpers.h"
 
+// This tells our bpf program which port goes to the AF_PACKET socket.
+// 
+// This is a very small array; e.g. length 1. So it is just a plain sequence
+// of allowed port numbers. Those must be in network byte order.
+//
+// Since AF_PACKET ports receive cloned traffic, we can just drop everything
+// we don't want and the regular networking stack will get it.
+//
+// This is far from ideal because I have yet to find a way to dispatch traffic
+// before it is cloned for AF_PACKET handling but after it is turned into an
+// SKB. To solve that problem we need to go to XDP.
+//
+// This might not be as bad as it looks though: traffic is cloned via c-o-w
+// and it might even not be cloned until the AF_PACKET tap has made a
+// drop/keep decision. The traffic that we keep is definitely cloned; so...
+// dear cow, a third swiss industry is now counting on you.
+//
 struct {
-  __uint(type, BPF_MAP_TYPE_SOCKHASH);
-  __type(key, __u64);
-  __type(value, __u32);
+  __uint(type, BPF_MAP_TYPE_ARRAY);
+  __type(key, __u32); // Plain int. Index into the array.
+  __type(value, __u16); // A port number.
   __uint(max_entries, 1);
-} sock_map_rx SEC(".maps");
+} sock_map_flt SEC(".maps");
 
 
-// SOCK_HASH maps are meant to process TCP/UDP traffic. The program is only ever
-// invoked for packets that match one of the ports in the map. This means that
-// in our case the program has no decision to make at all: we just wanted was to
-// avoid receiveing the other packets. It is possible that calling the redirect
-// function isn't even necessary.
+// This program looks up the destination port of the packet (from skb) in
+// the demux map and looks up the socket in the rx map. Then it redirects
+// the packet.
 //
-// This works because our socket isn't itself bound to any port; it can never
-// receive udp traffic via the regular networking stack. If we are lucky, the
-// packets that don't pass the filter aren't cloned at all so we don't pay for
-// the copy and they're just delivered the regular way.
-//
-// The packets that we want, though, there's a good chance that they are cloned
-// and the original are processed until it's found that there's no port
-// listening for them. Dear cow, it's not just the swiss chocolate industry that's
-// counting on you.
+// This program is actually supposed to be attached to a socket. The
+// AF_PACKET socket itself does the job.
 
-SEC("sk_skb/verdict")
-int bpf_port_verdict(struct __sk_buff *skb)
+SEC("socket")
+int bpf_port_filter(struct __sk_buff *skb)
 {
-  __u64 key = (__u64) skb->local_port;
+  __u8 proto;
+  bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &proto, 1);
+  if (proto != IPPROTO_UDP) {
+      return 0;
+  }
+  __u16 portNbo;
+  bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest), &portNbo, 2);
 
-  bpf_sk_redirect_hash(skb, &sock_map_rx, &key, BPF_F_INGRESS);
-
-  return SK_PASS;
+  __u32 index = 0;
+  __u16 *allowedPort = bpf_map_lookup_elem(&sock_map_flt, &index);
+  if (allowedPort == NULL || *allowedPort != portNbo) {
+    return 0;
+  }
+  return skb->len;
 }
 
 char __license[] SEC("license") = "Dual MIT/GPL";

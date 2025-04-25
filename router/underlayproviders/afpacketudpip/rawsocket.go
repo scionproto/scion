@@ -22,8 +22,8 @@ import (
 	"unsafe"
 
 	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/link"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 func RawSocket(ifname string, port uint16) (int, error) {
@@ -62,34 +62,30 @@ func RawSocket(ifname string, port uint16) (int, error) {
 	}
 	// FIXME: Shouldn't close on return.
 	defer coll.Close()
-	prog := coll.DetachProgram("bpf_port_verdict")
+	prog := coll.DetachProgram("bpf_port_filter")
 	if prog == nil {
-		panic("no program named filter found")
+		panic("no program named pbf_port_verdict found")
 	}
 	// FIXME: Shouldn't close on return.
 	defer prog.Close()
 
 	// Now load the map and populate it with our port mapping.
-	myMap := coll.DetachMap("sock_map_rx")
+	myMap := coll.DetachMap("sock_map_flt")
 	if myMap == nil {
 		panic(fmt.Errorf("no map named sock_map_rx found"))
 	}
 	// map.Put plays crystal ball with key and value so it accepts either
 	// pointers or values. The kernel expects addresses in all cases.
-	key := uint64(htons(port))
-	val := uint32(sock)
-	if err := myMap.Put(&key, &val); err != nil {
-		panic(fmt.Sprintf("error: %v, key=%p, val=%p\n", err, &key, &val))
+	idx := uint32(0)
+	portNbo := htons(port)
+	if err := myMap.Put(idx, portNbo); err != nil {
+		panic(fmt.Sprintf("error: %v, key=%p, val=%p\n", err, &idx, &portNbo))
 	}
 	// FIXME: Shouldn't close on return.
 	defer myMap.Close()
 
-	// Finally attach the program to the map.
-	err = link.RawAttachProgram(link.RawAttachProgramOptions{
-		Program: prog,
-		Target:  myMap.FD(),
-		Attach:  ebpf.AttachSkSKBVerdict,
-	})
+	// Finally attach the program to the raw socket.
+	err = unix.SetsockoptInt(int(sock), unix.SOL_SOCKET, unix.SO_ATTACH_BPF, prog.FD())
 	if err != nil {
 		return -1, err
 	}
