@@ -44,14 +44,10 @@ struct {
   __uint(max_entries, 1);
 } sock_map_flt SEC(".maps");
 
-
-// This program looks up the destination port of the packet (from skb) in
-// the demux map and looks up the socket in the rx map. Then it redirects
-// the packet.
-//
-// This program is actually supposed to be attached to a socket. The
-// AF_PACKET socket itself does the job.
-
+// This is a very simple socket filter: it looks at the packet's protocol and
+// dest port. If it is UDP and if the port is found in sock_map_filt, then the
+// packet is accepted. Else, dropped. The userland code just adds allowed ports
+// to the map.
 SEC("socket")
 int bpf_port_filter(struct __sk_buff *skb)
 {
