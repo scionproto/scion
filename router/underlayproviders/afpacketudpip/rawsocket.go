@@ -17,7 +17,6 @@ package afpacketudpip
 import (
 	"encoding/binary"
 	"fmt"
-
 	"syscall"
 	"unsafe"
 
@@ -26,8 +25,6 @@ import (
 )
 
 func RawSocket(ifIndex int, port uint16) (int, error) {
-	const SO_ATTACH_BPF = 50
-
 	sock, err := openRawSock(ifIndex)
 	if err != nil {
 		return -1, err
@@ -71,7 +68,7 @@ func RawSocket(ifIndex int, port uint16) (int, error) {
 	defer myMap.Close()
 
 	// Finally attach the program to the raw socket.
-	err = unix.SetsockoptInt(int(sock), unix.SOL_SOCKET, unix.SO_ATTACH_BPF, prog.FD())
+	err = unix.SetsockoptInt(sock, unix.SOL_SOCKET, unix.SO_ATTACH_BPF, prog.FD())
 	if err != nil {
 		return -1, err
 	}
@@ -89,7 +86,11 @@ func openRawSock(index int) (int, error) {
 	// const ETH_P_ALL uint16 = 0x00<<8 | 0x03
 	const ETH_P_ALL uint16 = 0x03
 
-	sock, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, int(htons(ETH_P_ALL)))
+	sock, err := syscall.Socket(
+		syscall.AF_PACKET,
+		syscall.SOCK_RAW|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC,
+		int(htons(ETH_P_ALL)),
+	)
 	if err != nil {
 		return 0, err
 	}
