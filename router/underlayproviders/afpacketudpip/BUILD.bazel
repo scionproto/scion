@@ -1,4 +1,4 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("//tools/lint:go.bzl", "go_library")
 
 # If you want to read the generated file:
 # bazel-bin/router/underlayproviders/af_packet_udpip/bpf_filter_bpfel.go
@@ -37,9 +37,14 @@ go_library(
     ],
 )
 
-go_test(
+genrule(
     name = "go_default_test",
-    srcs = ["rawsocket_test.go"],
-    embed = [":go_default_library"],
-    deps = ["@com_github_stretchr_testify//assert:go_default_library"],
+    srcs = [
+        "go_default_test_nocap",
+    ],
+    outs = [
+        "go_default_test",
+    ],
+    cmd = "cp $< $@; sudo setcap \"cap_bpf+ep cap_net_admin+ep cap_net_raw+ep\" $@",
+    tags = ["unit"],
 )
