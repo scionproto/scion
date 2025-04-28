@@ -124,7 +124,7 @@ type Packet struct {
 	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).  It
 	// can be any portion of the full buffer; not necessarily the start. This code maintains the
 	// invariant that RawPacket always represents the portion of a packet that immediately follows
-	// any underly provider header. See also dataplane.underlayHeadroom.
+	// any underlay provider header. See also dataplane.underlayHeadroom.
 	RawPacket []byte
 	// The entire packet buffer. We don't need it as a slice; we know its size.
 	buffer *[bufSize]byte
