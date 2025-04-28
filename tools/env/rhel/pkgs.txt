@@ -1,5 +1,6 @@
 gawk
 ethtool
+clang
 gcc
 g++
 llvm
