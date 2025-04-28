@@ -71,7 +71,7 @@ func NewSCIONPacketConnMetrics(opts ...Option) snet.SCIONPacketConnMetrics {
 			Help: "Total number of bytes read"}),
 		ReadPackets: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_read_total_pkts",
-			Help: "Total number of packetes read"}),
+			Help: "Total number of packets read"}),
 		WriteBytes: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_write_total_bytes",
 			Help: "Total number of bytes written"}),

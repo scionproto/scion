@@ -60,7 +60,7 @@ type metadata struct {
 	Metadata
 }
 
-// Metadata defines a new SCION path type, used for dynamic SICON path type registration.
+// Metadata defines a new SCION path type, used for dynamic SCION path type registration.
 type Metadata struct {
 	// Type is a unique value for the path.
 	Type Type

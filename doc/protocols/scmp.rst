@@ -597,7 +597,7 @@ Traceroute Reply
 +--------------+---------------------------------------------------------------+
 | Identifier   | The identifier set in the Traceroute Request                  |
 +--------------+---------------------------------------------------------------+
-| Sequence Nr. | The sequence number of the Tracroute Request                  |
+| Sequence Nr. | The sequence number of the Traceroute Request                  |
 +--------------+---------------------------------------------------------------+
 | ISD          | The 16-bit ISD identifier of the SCMP originator              |
 +--------------+---------------------------------------------------------------+

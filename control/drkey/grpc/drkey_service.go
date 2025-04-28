@@ -282,7 +282,7 @@ func (d *Server) validateAllowedHost(protoId drkey.Protocol, peerAddr net.Addr) 
 }
 
 // validateASHostReq returns and error if the requesting host is different from the
-// requested dst host. The source AS infraestructure nodes are not supposed to contact
+// requested dst host. The source AS infrastructure nodes are not supposed to contact
 // the local CS but to derive this key from the SV instead.
 func validateASHostReq(meta drkey.ASHostMeta, localIA addr.IA, peerAddr net.Addr) error {
 	hostAddr, err := hostAddrFromPeer(peerAddr)
@@ -303,7 +303,7 @@ func validateASHostReq(meta drkey.ASHostMeta, localIA addr.IA, peerAddr net.Addr
 }
 
 // validateASHostReq returns and error if the requesting host is different from the
-// requested src host. The dst AS infraestructure nodes are not supposed to contact
+// requested src host. The dst AS infrastructure nodes are not supposed to contact
 // the local CS but to derive this key from the SV instead.
 func validateHostASReq(meta drkey.HostASMeta, localIA addr.IA, peerAddr net.Addr) error {
 	hostAddr, err := hostAddrFromPeer(peerAddr)

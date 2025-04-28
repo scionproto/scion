@@ -22,7 +22,7 @@ import "proto/control_plane/v1/seg_extensions.proto";
 import "proto/crypto/v1/signed.proto";
 
 enum SegmentType {
-    // Unknown segemnt type.
+    // Unknown segment type.
     SEGMENT_TYPE_UNSPECIFIED = 0;
     // Up segment.
     SEGMENT_TYPE_UP = 1;

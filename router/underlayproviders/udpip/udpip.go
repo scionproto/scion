@@ -588,7 +588,7 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 }
 
 // A detached link is an implementation of a siblingLink that does not require
-// an exclusive underlyng point-to-point connection. Instead it shares the
+// an exclusive underlying point-to-point connection. Instead, it shares the
 // unconnected batchConn that the internal link also uses.
 type detachedLink struct {
 	procQs     []chan *router.Packet
@@ -601,8 +601,8 @@ type detachedLink struct {
 	seed       uint32
 }
 
-// newSiblingLink returns a sibling link over the UDP/IP underlay. It may be implemented with either
-// a detachedLink or a connectedLink, dependending on the OS features.
+// NewSiblingLink returns a sibling link over the UDP/IP underlay. It may be implemented with either
+// a detachedLink or a connectedLink, depending on the OS features.
 //
 // We de-duplicate sibling links. The router gives us a BFDSession in all cases and we might throw
 // it away (there are no persistent resources attached to it). This could be fixed by moving some
@@ -632,7 +632,7 @@ func (u *provider) NewSiblingLink(
 		return l, nil
 	}
 
-	// If we have linux support we use connected links, even though the local addresse is the same
+	// If we have linux support, we use connected links, even though the local address is the same
 	// for all sibling links.
 	if u.connOpener.UDPCanReuseLocal() {
 		return u.newConnectedLink(qSize, bfd, localAddr, remoteAddr, 0, metrics, router.Sibling)

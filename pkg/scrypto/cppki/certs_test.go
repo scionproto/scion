@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
 
 func updateCert(t *testing.T, goldenCert string) ([]byte, error) {
 	t.Helper()
