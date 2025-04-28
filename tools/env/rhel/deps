@@ -5,3 +5,4 @@ set -e
 sudo yum groupinstall -y "Development Tools"
 BASE=$(dirname "$0")
 xargs -a "$BASE/pkgs.txt" sudo yum install -y --skip-unavailable
+
