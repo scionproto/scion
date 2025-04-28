@@ -1,4 +1,5 @@
-load("//tools/lint:go.bzl", "go_library")
+load("//tools/lint:go.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 
 # If you want to read the generated file:
 # bazel-bin/router/underlayproviders/af_packet_udpip/bpf_filter_bpfel.go
@@ -37,14 +38,38 @@ go_library(
     ],
 )
 
-genrule(
-    name = "go_default_test",
+# Builds the rawsock test; but it will be missing the required capabilities; so we must not
+# attempt to run it.
+go_test(
+    name = "rawsock_test_nocap",
     srcs = [
-        "go_default_test_nocap",
+        "rawsocket_test.go",
+    ],
+    embed = [":go_default_library"],
+    tags = ["manual"],
+    deps = [
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ]
+)
+
+# Adds required capabilities to the rawsock test. Otherwise it cannot be executed.
+genrule(
+    name = "gen_rawsock_test_cap",
+    srcs = [
+        "rawsock_test_nocap",
     ],
     outs = [
-        "go_default_test",
+        "rawsock_test_cap",
     ],
-    cmd = "cp $< $@; sudo setcap \"cap_bpf+ep cap_net_admin+ep cap_net_raw+ep\" $@",
-    tags = ["unit"],
+    cmd_bash = "cp $< $@ && /usr/bin/sudo setcap \"cap_bpf+ep cap_net_admin+ep cap_net_raw+ep\" $@",
+    testonly = True,
 )
+
+# This is the rule that actually runs the rawsock test.
+sh_test(
+  name = "rawsock_test",
+  srcs = ["rawsock_test_cap"],
+  testonly = True,
+  tags = ["unit"],
+)
+

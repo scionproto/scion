@@ -22,27 +22,13 @@ import (
 	"unsafe"
 
 	"github.com/cilium/ebpf"
-	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
 
-func RawSocket(ifname string, port uint16) (int, error) {
+func RawSocket(ifIndex int, port uint16) (int, error) {
 	const SO_ATTACH_BPF = 50
 
-	// First open our raw socket.
-	var index int
-	links, err := netlink.LinkList()
-	if err != nil {
-		return -1, err
-	}
-
-	for _, link := range links {
-		if link.Attrs().Name == ifname {
-			index = link.Attrs().Index
-			fmt.Println("Index is:", link.Attrs().Index)
-		}
-	}
-	sock, err := openRawSock(index)
+	sock, err := openRawSock(ifIndex)
 	if err != nil {
 		return -1, err
 	}
@@ -89,7 +75,7 @@ func RawSocket(ifname string, port uint16) (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	fmt.Printf("Filtering on eth index: %d and port: %d\n", index, port)
+	fmt.Printf("Filtering on eth index: %d and port: %d\n", ifIndex, port)
 	return sock, nil
 }
 

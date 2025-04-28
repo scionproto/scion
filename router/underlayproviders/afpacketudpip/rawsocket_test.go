@@ -29,6 +29,8 @@ import (
 )
 
 func TestRawSocket(t *testing.T) {
-	_, err := RawSocket("wlp0f20f3", 50000)
+	// Interface #1 is lo0. Open the next one. We don't really care what it is
+	// for this test.
+	_, err := RawSocket(2, 50000)
 	assert.NoError(t, err)
 }
