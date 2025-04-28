@@ -8,6 +8,7 @@ g++
 gcc
 git
 jq
+llvm
 make
 moreutils
 net-tools
