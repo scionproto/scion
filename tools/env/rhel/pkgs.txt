@@ -9,4 +9,4 @@ python3-wheel
 jq
 openssl
 rsync
-utils-linux-script
+util-linux-script
