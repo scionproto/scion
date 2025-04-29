@@ -115,7 +115,7 @@ On other errors, traceroute will exit with code 2.
 
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
-			span.SetTag("dst.host", remote.Host.IP)
+			span.SetTag("dst.host", remote.Host.IP())
 			defer span.Finish()
 
 			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)

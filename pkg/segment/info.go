@@ -37,7 +37,7 @@ type Info struct {
 }
 
 // infoFromRaw decodes the protobuf representation. The byte slice is captured
-// and must not be modifed.
+// and must not be modified.
 func infoFromRaw(raw []byte) (Info, error) {
 	var pb cppb.SegmentInformation
 	if err := proto.Unmarshal(raw, &pb); err != nil {

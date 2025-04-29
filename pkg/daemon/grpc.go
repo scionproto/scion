@@ -145,7 +145,7 @@ func (c grpcConn) SVCInfo(
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Services(ctx, &sdpb.ServicesRequest{})
 	if err != nil {
-		c.metrics.incServcies(err)
+		c.metrics.incServices(err)
 		return nil, err
 	}
 	result := make(map[addr.SVC][]string)
@@ -160,7 +160,7 @@ func (c grpcConn) SVCInfo(
 		}
 		result[svc] = uris
 	}
-	c.metrics.incServcies(nil)
+	c.metrics.incServices(nil)
 	return result, nil
 }
 

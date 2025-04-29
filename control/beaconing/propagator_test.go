@@ -95,12 +95,12 @@ func TestPropagatorRunNonCore(t *testing.T) {
 		gomock.Any()).Times(1).DoAndReturn(
 
 		func(_ context.Context, _ addr.IA, egIfID uint16,
-			nextHop *net.UDPAddr) (beaconing.Sender, error) {
-
+			nextHop *net.UDPAddr,
+		) (beaconing.Sender, error) {
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(3).DoAndReturn(
-				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfID, nextHop, pub, topo)
+				func(ctx context.Context, b *seg.PathSegment) error {
+					validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -167,12 +167,12 @@ func TestPropagatorRunCore(t *testing.T) {
 	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1121),
 		gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ addr.IA, egIfID uint16,
-			nextHop *net.UDPAddr) (beaconing.Sender, error) {
-
+			nextHop *net.UDPAddr,
+		) (beaconing.Sender, error) {
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
-				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfID, nextHop, pub, topo)
+				func(ctx context.Context, b *seg.PathSegment) error {
+					validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -183,12 +183,12 @@ func TestPropagatorRunCore(t *testing.T) {
 	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1113),
 		gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ addr.IA, egIfID uint16,
-			nextHop *net.UDPAddr) (beaconing.Sender, error) {
-
+			nextHop *net.UDPAddr,
+		) (beaconing.Sender, error) {
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfID, nextHop, pub, topo)
+				func(ctx context.Context, b *seg.PathSegment) error {
+					validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -275,6 +275,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 }
 
 func validateSend(
+	ctx context.Context,
 	t *testing.T,
 	b *seg.PathSegment,
 	egIfID uint16,
@@ -284,7 +285,7 @@ func validateSend(
 ) {
 	// Check the beacon is valid and verifiable.
 	assert.NoError(t, b.Validate(seg.ValidateBeacon))
-	assert.NoError(t, b.VerifyASEntry(context.Background(),
+	assert.NoError(t, b.VerifyASEntry(ctx,
 		segVerifier{pubKey: pub}, b.MaxIdx()))
 	// Extract the hop field from the current AS entry to compare.
 	hopF := b.ASEntries[b.MaxIdx()].HopEntry.HopField
