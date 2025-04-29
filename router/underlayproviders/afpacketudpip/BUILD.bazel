@@ -22,51 +22,49 @@ go_library(
     srcs = [
         "bpf_helper_defs.h",
         "bpf_helpers.h",
+        "portfilter.go",
         "portfilter_bpfel.go",
         "portfilter_lint.go",  # keep
-        "rawsocket.go",
     ],
     embedsrcs = [
         "portfilter_bpfel.o",  #keep
     ],
     importpath = "github.com/scionproto/scion/router/underlayproviders/afpacketudpip",
     visibility = ["//visibility:public"],
-    deps = [
-        "@com_github_cilium_ebpf//:go_default_library",
-        "@org_golang_x_sys//unix:go_default_library",
-    ],
+    deps = ["@com_github_cilium_ebpf//:go_default_library"],
 )
 
-# Builds the rawsock test; but it will be missing the required capabilities; so we must not
+# Builds the portfilter test; but it will be missing the required capabilities; so we must not
 # attempt to run it. We are forced to name the artefact "go_default_test"; otherwise gazelle
 # creates its own incorrect version.
 go_test(
     name = "go_default_test",
-    srcs = ["rawsocket_test.go"],
+    srcs = ["portfilter_test.go"],
     embed = [":go_default_library"],
     tags = ["manual"],
     deps = [
+        "@com_github_gopacket_gopacket//afpacket:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )
 
-# Adds required capabilities to the rawsock test. Otherwise it cannot be executed.
+# Adds required capabilities to the portfilter test. Otherwise it cannot be executed.
 genrule(
-    name = "gen_rawsock_test_cap",
+    name = "gen_portfilter_test_cap",
     testonly = True,
     srcs = [
         "go_default_test",
     ],
     outs = [
-        "rawsock_test_cap",
+        "portfilter_test_cap",
     ],
     cmd_bash = "cp $< $@ && /usr/bin/sudo setcap \"cap_bpf+ep cap_net_admin+ep cap_net_raw+ep\" $@",
 )
 
-# This is the rule that actually runs the rawsock test.
+# This is the rule that actually runs the portfilter test.
 sh_test(
-    name = "rawsock_test",
+    name = "portfilter_test",
     testonly = True,
-    srcs = ["rawsock_test_cap"],
+    srcs = ["portfilter_test_cap"],
     tags = ["unit"],
 )
