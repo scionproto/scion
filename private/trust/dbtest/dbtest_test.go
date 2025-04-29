@@ -24,7 +24,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
 
 func TestUpdateCrypto(t *testing.T) {
 	if !(*updateNonDeterministic) {

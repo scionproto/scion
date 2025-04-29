@@ -21,7 +21,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// RelativeTimestamp returns the relative timestamp (RelTime) as the time diference from
+// RelativeTimestamp returns the relative timestamp (RelTime) as the time difference from
 // time instant t to the beginning of the drkey epoch.
 func RelativeTimestamp(e drkey.Epoch, t time.Time) (uint64, error) {
 	relTime := t.Sub(e.NotBefore).Nanoseconds()

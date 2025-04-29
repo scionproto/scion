@@ -566,7 +566,7 @@ func MustParseIA(ia string) addr.IA {
 }
 
 // Description contains the entire specification of a graph. It is useful for
-// one shot initilizations.
+// one-shot initializations.
 type Description struct {
 	Nodes []string
 	Edges []EdgeDesc

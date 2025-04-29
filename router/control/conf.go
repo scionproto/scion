@@ -213,10 +213,10 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 
 		// TODO(multi_underlay): Host addresses are currently constructed from a hosts's underlay
 		// address under the assumption that it is always a UDP/IP address. That assumption extends
-		// to external links: eventhough a SCION host address should be irrelevant there, BFD
+		// to external links: even though a SCION host address should be irrelevant there, BFD
 		// packets include it, so we oblige, to retain backward compatibility for now. Otherwise,
 		// we would: "localHost := addr.HostIP(cfg.BR.InternalAddr.Addr())".
-		// For remoteHost, it should also be underlay-idenpendent or derived from the
+		// For remoteHost, it should also be underlay-independent or derived from the
 		// the remote internal underlay address, but the configuration doesn't provide it yet.
 
 		localAddr, err := netip.ParseAddrPort(linkInfo.Local.Addr)

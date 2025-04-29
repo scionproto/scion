@@ -41,8 +41,8 @@ func TestLoadingRing(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join(dir, "ISD1/ASff00_0_111/crypto/as/cp-as.key"))
 	require.NoError(t, err)
 	block, _ := pem.Decode(raw)
-	expexted, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	expected, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	require.NoError(t, err)
 
-	assert.Equal(t, expexted.(crypto.Signer), privKeys[0])
+	assert.Equal(t, expected.(crypto.Signer), privKeys[0])
 }

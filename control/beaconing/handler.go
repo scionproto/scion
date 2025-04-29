@@ -51,7 +51,7 @@ type Handler struct {
 	BeaconsHandled metrics.Counter
 }
 
-// HandleBeacon handles a baeacon received from peer.
+// HandleBeacon handles a beacon received from peer.
 func (h Handler) HandleBeacon(ctx context.Context, b beacon.Beacon, peer *snet.UDPAddr) error {
 	span := opentracing.SpanFromContext(ctx)
 	labels := handlerLabels{Ingress: b.InIfID}

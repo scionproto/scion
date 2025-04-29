@@ -34,7 +34,7 @@ import (
 	"github.com/scionproto/scion/scion-pki/trcs"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
 
 func TestCombine(t *testing.T) {
 	if *updateNonDeterministic {

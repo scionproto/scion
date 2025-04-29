@@ -22,9 +22,9 @@ import (
 )
 
 // RemoteISDAS is a path policy that checks whether the last hop in the path (remote AS) satisfies
-// the supplied rules. Rules are evaluated in order and first that matches the remote ISD-AS wins.
-// If in the winnig rule Reject is set to true, then the path will rejected by the policy,
-// otherwise it will be accepted. If no rule matches the path will be rejected.
+// the supplied rules. Rules are evaluated in order, and the first that matches the remote ISD-AS
+// wins. If in the winning rule Reject is set to true, then the path will be rejected by the policy,
+// otherwise it will be accepted. If no rule matches, the path will be rejected.
 type RemoteISDAS struct {
 	Rules []ISDASRule
 }
