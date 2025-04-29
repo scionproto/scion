@@ -24,7 +24,7 @@ Options
 
 .. option:: --config <config.toml>
 
-   Specifes the :ref:`configuration file <router-conf-toml>` and starts the router.
+   Specifies the :ref:`configuration file <router-conf-toml>` and starts the router.
 
 .. option:: help, -h, --help [subcommand]
 
@@ -84,11 +84,11 @@ Environment Variables
    Specified by the GO runtime. The Go runtime starts a number kernel threads such that the number
    of non-sleeping threads never exceeds ``GOMAXPROCS``. By default ``GOMAXPROCS`` is equal to the
    number of cores in the host. That value can be changed via the ``GOMAXPROCS`` environment
-   variable (or programatically by the application code). See
+   variable (or programmatically by the application code). See
    `the go runtime documentation <https://pkg.go.dev/runtime#hdr-Environment_Variables>`_
    for more information. One reason to change this is running multiple routers on the same host.
    In such a case, it is best to split the available cores among the routers, lest Go's default
-   assumptions causes them to compete for cores and incurr futile context switching. This precaution
+   assumptions causes them to compete for cores and incur futile context switching. This precaution
    is especially useful in performance testing situations.
 
    :Type: unsigned integer
@@ -166,7 +166,7 @@ considers the following options.
       schedules goroutines on top of a smaller number of kernel threads. The default is to use as
       many packet processors as there are kernel threads started by Go, letting other goroutines
       displace them sporadically. Whether more or fewer processors are preferable is to be determined
-      experimentaly.
+      experimentally.
 
       The number of kernel threads that go creates depends on the number of usable cores, which is
       controlled by the environment variable ``GOMAXPROCS``. See :envvar:`GOMAXPROCS`.
@@ -235,7 +235,7 @@ It uses the entry referring to its own :option:`general.id <router-conf-toml gen
 to determine the intra-AS links that this router instance is responsible for.
 The other router entries ("sibling routers") define which router is responsible for which
 interface. This mapping is consulted during packet forwarding to determine the
-sibling router to which a packet transitting the AS needs to forwarded to.
+sibling router to which a packet transiting the AS needs to forwarded to.
 
 Additionally, the :program:`router` considers the ``control_service`` and ``discovery_service``
 entries. These entries define the underlay addresses that the router uses to resolves

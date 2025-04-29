@@ -11,7 +11,7 @@ Synopsis
 ~~~~~~~~
 
 
-'inspect' prints the details of a TRC a human-readable fromat.
+'inspect' prints the details of a TRC a human-readable format.
 
 The input file can either be a TRC payload, or a signed TRC.
 The output can either be in yaml, or json.

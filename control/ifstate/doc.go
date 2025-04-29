@@ -25,7 +25,7 @@
 //
 // The revoker is a periodic task that revokes interfaces that have timed out
 // and renews revocations of already revoked interfaces. Create it with the
-// NewRevoker costructor.
+// NewRevoker constructor.
 //
 // # Handler
 //

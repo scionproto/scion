@@ -54,7 +54,7 @@ The advertise action supports an additional, optional argument: ::
 
   advertise <a> <b> <prefixes> [<next-hop>]
 
-If next-hop IP adrress is specified, the prefixes are advertised only if that address
+If next-hop IP address is specified, the prefixes are advertised only if that address
 is responding to pings. This allows to retract a set of prefixes dynamically without
 having to resort to BGP.
 

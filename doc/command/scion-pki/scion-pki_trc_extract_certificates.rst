@@ -11,7 +11,7 @@ Synopsis
 ~~~~~~~~
 
 
-'certificates' extracts the certificates into a bundeld PEM file.
+'certificates' extracts the certificates into a bundled PEM file.
 
 ::
 

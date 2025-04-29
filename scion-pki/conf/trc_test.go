@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/scion-pki/conf"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
 
 func TestUpdateCerts(t *testing.T) {
 	if !(*updateNonDeterministic) {
