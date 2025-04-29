@@ -1,7 +1,7 @@
 load("//tools/lint:go.bzl", "go_library", "go_test")
 
 # If you want to read the generated file:
-# bazel-bin/router/underlayproviders/af_packet_udpip/bpf_filter_bpfel.go
+# bazel-bin/private/underlay/ebpf/portfilter_bpfel.go
 genrule(
     name = "gen_bpf_filter_go",
     srcs = [
@@ -13,7 +13,7 @@ genrule(
         "portfilter_bpfel.go",
         "portfilter_bpfel.o",
     ],
-    cmd = "GOPACKAGE=afpacketudpip $(execpath @com_github_cilium_ebpf//cmd/bpf2go) -output-dir $$(dirname $(location portfilter_bpfel.go)) -tags linux portfilter $(location portfilter.c)",
+    cmd = "GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) -output-dir $$(dirname $(location portfilter_bpfel.go)) -tags linux portfilter $(location portfilter.c)",
     tools = ["@com_github_cilium_ebpf//cmd/bpf2go"],
 )
 
@@ -29,7 +29,7 @@ go_library(
     embedsrcs = [
         "portfilter_bpfel.o",  #keep
     ],
-    importpath = "github.com/scionproto/scion/router/underlayproviders/afpacketudpip",
+    importpath = "github.com/scionproto/scion/private/underlay/ebpf",
     visibility = ["//visibility:public"],
     deps = ["@com_github_cilium_ebpf//:go_default_library"],
 )
@@ -40,9 +40,9 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["portfilter_test.go"],
-    embed = [":go_default_library"],
     tags = ["manual"],
     deps = [
+        ":go_default_library",
         "@com_github_gopacket_gopacket//afpacket:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
