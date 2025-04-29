@@ -64,12 +64,13 @@ var _ Link = new(MockLink)
 
 func newMockLink(ingress uint16) Link { return &MockLink{ifID: ingress} }
 
-// NewPacket makes a mock packet. It has one shortcoming which makes it unsuited for some tests: The
-// packet buffer is strictly no bigger than the supplied bytes; which means that it cannot be used
-// to respond via SCMP. Also, it refers to a mock link that has the scope Internal in all cases.
+// NewPacket makes a mock packet. It has shortcomings which makes it unsuited for some tests: it
+// refers to a mock link that has the scope Internal in all cases, and a blank remote address.
 func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
+	pktBuf := &([bufSize]byte{})
 	p := Packet{
-		RawPacket: make([]byte, len(raw)),
+		buffer:    pktBuf,
+		RawPacket: pktBuf[minHeadroom:],
 		egress:    egress,
 		Link:      newMockLink(ingress),
 	}
@@ -79,6 +80,7 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 	if dst != nil {
 		p.RemoteAddr = unsafe.Pointer(dst)
 	}
+	p.RawPacket = p.RawPacket[:len(raw)]
 	copy(p.RawPacket, raw)
 	return &p
 }
