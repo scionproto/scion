@@ -35,7 +35,7 @@ func (m Metrics) incConnects(err error)  { incMetric(m.Connects, err) }
 func (m Metrics) incPaths(err error)     { incMetric(m.PathsRequests, err) }
 func (m Metrics) incAS(err error)        { incMetric(m.ASRequests, err) }
 func (m Metrics) incInterface(err error) { incMetric(m.InterfacesRequests, err) }
-func (m Metrics) incServcies(err error)  { incMetric(m.ServicesRequests, err) }
+func (m Metrics) incServices(err error)  { incMetric(m.ServicesRequests, err) }
 func (m Metrics) incIfDown(err error)    { incMetric(m.InterfaceDownNotifications, err) }
 
 func incMetric(c metrics.Counter, err error) {

@@ -90,7 +90,7 @@ type provider struct {
 
 type udpLink interface {
 	router.Link
-	start(ctx context.Context, procQs []chan *router.Packet, pool chan *router.Packet)
+	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
 	receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 }
@@ -127,6 +127,12 @@ func (u *provider) NumConnections() int {
 	return len(u.allLinks)
 }
 
+func (u *provider) Headroom() int {
+	// This underlay does not add any header of its own: the UDP socket API manages the header
+	// independently.
+	return 0
+}
+
 func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
 	u.dispatchStart = start
 	u.dispatchEnd = end
@@ -157,7 +163,7 @@ func (u *provider) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 // The queues to be used by the receiver task are supplied at this point because they must be
 // sized according to the number of connections that will be started.
 func (u *provider) Start(
-	ctx context.Context, pool chan *router.Packet, procQs []chan *router.Packet,
+	ctx context.Context, pool router.PacketPool, procQs []chan *router.Packet,
 ) {
 	u.mu.Lock()
 	if len(procQs) == 0 {
@@ -211,7 +217,7 @@ type udpConnection struct {
 
 // start puts the connection in the running state. In that state, the connection can deliver
 // incoming packets and ignores packets present on its input channel.
-func (u *udpConnection) start(batchSize int, pool chan *router.Packet) {
+func (u *udpConnection) start(batchSize int, pool router.PacketPool) {
 	wasRunning := u.running.Swap(true)
 	if wasRunning {
 		return
@@ -247,7 +253,7 @@ func (u *udpConnection) stop() {
 	}
 }
 
-func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
+func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 	log.Debug("Receive", "connection", u.name)
 
 	// A collection of socket messages, as the readBatch API expects them. We keep using the same
@@ -264,8 +270,7 @@ func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
 
 		// Give a new buffer to the msgs elements that have been used in the previous loop.
 		for i := 0; i < batchSize-numReusable; i++ {
-			p := <-pool
-			p.Reset()
+			p := pool.Get()
 			packets[i] = p
 			msgs[i].Buffers[0] = p.RawPacket
 		}
@@ -306,7 +311,7 @@ func (u *udpConnection) receive(batchSize int, pool chan *router.Packet) {
 	// We have to stop receiving. Return the unused packets to the pool to avoid creating
 	// a memory leak (the process is not required to exit - e.g. in tests).
 	for _, p := range packets[batchSize-numReusable : batchSize] {
-		pool <- p
+		pool.Put(p)
 	}
 }
 
@@ -335,7 +340,7 @@ func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*ro
 	return i
 }
 
-func (u *udpConnection) send(batchSize int, pool chan *router.Packet) {
+func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 	log.Debug("Send", "connection", u.name)
 
 	// We use this somewhat like a ring buffer.
@@ -377,13 +382,13 @@ func (u *udpConnection) send(batchSize int, pool chan *router.Packet) {
 		}
 		router.UpdateOutputMetrics(metrics, pkts[:written])
 		for _, p := range pkts[:written] {
-			pool <- p
+			pool.Put(p)
 		}
 		if written != toWrite {
 			// Only one is dropped at this time. We'll retry the rest.
 			sc := router.ClassOfSize(len(pkts[written].RawPacket))
 			metrics[sc].DroppedPacketsInvalid.Inc()
-			pool <- pkts[written]
+			pool.Put(pkts[written])
 			toWrite -= (written + 1)
 			// Shift the leftovers to the head of the buffers.
 			for i := 0; i < toWrite; i++ {
@@ -419,7 +424,7 @@ type connectedLink struct {
 	name       string // For logs
 	egressQ    chan<- *router.Packet
 	metrics    *router.InterfaceMetrics
-	pool       chan *router.Packet
+	pool       router.PacketPool
 	bfdSession *bfd.Session
 	seed       uint32
 	ifID       uint16
@@ -500,7 +505,7 @@ func (u *provider) newConnectedLink(
 func (l *connectedLink) start(
 	ctx context.Context,
 	procQs []chan *router.Packet,
-	pool chan *router.Packet,
+	pool router.PacketPool,
 ) {
 	// procQs and pool are never known before all configured links have been instantiated.  So we
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
@@ -571,7 +576,7 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
-		l.pool <- p
+		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
@@ -582,27 +587,27 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 	select {
 	case l.procQs[procID] <- p:
 	default:
-		l.pool <- p
+		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
 }
 
 // A detached link is an implementation of a siblingLink that does not require
-// an exclusive underlyng point-to-point connection. Instead it shares the
+// an exclusive underlying point-to-point connection. Instead, it shares the
 // unconnected batchConn that the internal link also uses.
 type detachedLink struct {
 	procQs     []chan *router.Packet
 	name       string // For logs
 	egressQ    chan<- *router.Packet
 	metrics    *router.InterfaceMetrics
-	pool       chan *router.Packet
+	pool       router.PacketPool
 	bfdSession *bfd.Session
 	remote     *net.UDPAddr
 	seed       uint32
 }
 
-// newSiblingLink returns a sibling link over the UDP/IP underlay. It may be implemented with either
-// a detachedLink or a connectedLink, dependending on the OS features.
+// NewSiblingLink returns a sibling link over the UDP/IP underlay. It may be implemented with either
+// a detachedLink or a connectedLink, depending on the OS features.
 //
 // We de-duplicate sibling links. The router gives us a BFDSession in all cases and we might throw
 // it away (there are no persistent resources attached to it). This could be fixed by moving some
@@ -632,7 +637,7 @@ func (u *provider) NewSiblingLink(
 		return l, nil
 	}
 
-	// If we have linux support we use connected links, even though the local addresse is the same
+	// If we have linux support, we use connected links, even though the local address is the same
 	// for all sibling links.
 	if u.connOpener.UDPCanReuseLocal() {
 		return u.newConnectedLink(qSize, bfd, localAddr, remoteAddr, 0, metrics, router.Sibling)
@@ -669,7 +674,7 @@ func (u *provider) newDetachedLink(
 func (l *detachedLink) start(
 	ctx context.Context,
 	procQs []chan *router.Packet,
-	pool chan *router.Packet,
+	pool router.PacketPool,
 ) {
 	// procQs and pool are never known before all configured links have been instantiated.  So we
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
@@ -746,7 +751,7 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
-		l.pool <- p
+		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
@@ -757,7 +762,7 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	select {
 	case l.procQs[procID] <- p:
 	default:
-		l.pool <- p
+		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
 }
@@ -766,7 +771,7 @@ type internalLink struct {
 	procQs           []chan *router.Packet
 	egressQ          chan *router.Packet
 	metrics          *router.InterfaceMetrics
-	pool             chan *router.Packet
+	pool             router.PacketPool
 	svc              *router.Services[netip.AddrPort]
 	seed             uint32
 	dispatchStart    uint16
@@ -836,7 +841,7 @@ func (u *provider) NewInternalLink(
 func (l *internalLink) start(
 	ctx context.Context,
 	procQs []chan *router.Packet,
-	pool chan *router.Packet,
+	pool router.PacketPool,
 ) {
 	// procQs and pool are never known before all configured links have been instantiated. So we
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
@@ -935,7 +940,7 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
-		l.pool <- p
+		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
@@ -952,7 +957,7 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	select {
 	case l.procQs[procID] <- p:
 	default:
-		l.pool <- p
+		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
 }

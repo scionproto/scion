@@ -31,7 +31,7 @@ import (
 
 // Runner represents a runnable task.
 type Runner interface {
-	// Run is blocking  and can be concelled via the context.
+	// Run is blocking  and can be cancelled via the context.
 	Run(context.Context) error
 }
 
@@ -93,7 +93,7 @@ func (rm *RemoteMonitor) Close(ctx context.Context) error {
 
 func (rm *RemoteMonitor) setup(ctx context.Context) error {
 	if rm.GatewayWatcherFactory == nil {
-		return serrors.New("whatcher factory not specified")
+		return serrors.New("watcher factory not specified")
 	}
 	if rm.IAs == nil {
 		return serrors.New("IAs channel not specified")

@@ -67,11 +67,12 @@ type Link interface {
 
 // A provider of connectivity over some underlay implementation
 //
-// For any given underlay, there are three kinds of Link implementations to choose from.
-// The difference between them is the intent regarding addressing.
+// For any given underlay, there are three kinds of Link implementations to choose from. The
+// difference between them is the intent regarding addressing.
 //
 // TODO(multi_underlay): The local internal address is explicitly a udpip underlay address as the
-// main router code still assumes that the internal network underlay is always "udp/ip".
+// main router code as well as the entire end-host stack still assume that the internal network
+// underlay is always "udp/ip".
 type UnderlayProvider interface {
 
 	// SetConnOpener is a unit testing device: it allows the replacement of the function
@@ -83,6 +84,14 @@ type UnderlayProvider interface {
 
 	// NumConnections returns the current number of configured connections.
 	NumConnections() int
+
+	// Headroom returns the length of the largest header possibly added by this underlay.
+	// The router core will ensure that all received packets are stored at an offset in the packet
+	// buffer, such that the largest underlay header declared across all underlay providers can
+	// be prepended to the SCION header without having to copy the packet or to allocate a separate
+	// buffer. Note that, in most cases, this depends on the cooperation of the ingest underlay
+	// provider.
+	Headroom() int
 
 	// SetDispatchPorts sets the range of auto-dispatched ports and default endhost port (the shim
 	// dispatcher port). When translating a SCION port into an underlay port, any port between the
@@ -101,7 +110,7 @@ type UnderlayProvider interface {
 	// incoming packets to its output channels and will send packets present on its input
 	// channels. Only connection in existence at the time of calling Start() will be
 	// started. Calling Start has no effect on already running connections.
-	Start(ctx context.Context, pool chan *Packet, proQs []chan *Packet)
+	Start(ctx context.Context, pool PacketPool, proQs []chan *Packet)
 
 	// Stop puts the provider in the stopped state. In that state, the provider no longer delivers
 	// incoming packets and ignores packets present on its input channels. The provider is fully

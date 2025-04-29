@@ -39,7 +39,7 @@ selectively, e.g. ``apt install ./scion-router_<version>_<arch>.deb``.
    * ``systemctl start <unit>`` / ``systemctl stop <unit>``: start/stop a unit immediately
    * ``systemctl enable <unit>`` / ``systemctl disable <unit>``: enable/disable a unit to start automatically at boot
    * ``systemctl status <unit>``: display the status of a unit
-   * ``journalct -u <unit>``: show log of unit
+   * ``journalctl -u <unit>``: show log of unit
 
 
 Packages

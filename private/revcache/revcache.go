@@ -52,7 +52,7 @@ type RevOrErr struct {
 // ResultChan is a channel of results.
 type ResultChan <-chan RevOrErr
 
-// RevCache is a cache for revocations. Revcache implementations must be safe for concurrent usage.
+// RevCache is a cache for revocations. RevCache implementations must be safe for concurrent usage.
 type RevCache interface {
 	// Get items with the given keys from the cache. Returns all present requested items that are
 	// not expired or an error if the query failed.

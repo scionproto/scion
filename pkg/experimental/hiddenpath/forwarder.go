@@ -42,9 +42,9 @@ type Verifier interface {
 	Verify(ctx context.Context, segments []*seg.Meta, server net.Addr) error
 }
 
-// ForwardServer handles hidden path segment lookup requests from daemons.
-// For each group id of the request, it requests the segments at the the
-// respective autoritative registry.
+// ForwardServer handles the hidden path segment lookup requests from daemons.
+// For each group id of the request, it requests the segments at the
+// respective authoritative registry.
 type ForwardServer struct {
 	Groups    map[GroupID]*Group
 	LocalAuth Lookuper

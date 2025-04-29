@@ -116,9 +116,9 @@ This diagram attempts to illustrate the variety of valid configurations. For exa
 - There may be connections between a non-core AS and multiple core-ASes.
 - There may be multiple connections between any two ASes.
 - There may be multiple border routers per AS.
-- There may be any number of end-hosts (includng none) in an AS.
+- There may be any number of end-hosts (including none) in an AS.
 - Border routers need not be dedicated to one particular kind of links.
-- Excludig core links, the ASes within an ISD form a directed acyclic graph (no other constraint).
+- Excluding core links, the ASes within an ISD form a directed acyclic graph (no other constraint).
 - The core ASes themselves form an arbitrary graph.
 
 The dark red dashed arrows show examples of possible paths through the network.
