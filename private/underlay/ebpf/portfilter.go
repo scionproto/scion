@@ -17,6 +17,12 @@ import (
 // the associated map). This program can then be attached to a (typically raw) socket and will
 // filter the traffic to be delivered to that socket. When the socket is closed the program and its
 // map are discarded by the kernel.
+//
+// For any of this to work, the calling process must have the following capabilities:
+// cap_bpf, cap_net_admin, cap_net_raw. For example, the buildfile applies to following command
+// to the portfilter_test executable:
+//
+//	/usr/bin/sudo setcap "cap_bpf+ep cap_net_admin+ep cap_net_raw+ep" $@
 func BpfSockFilter(port uint16) (int, error) {
 	spec, err := loadPortfilter()
 	if err != nil {
