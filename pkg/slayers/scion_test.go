@@ -387,7 +387,7 @@ func TestParseAddr(t *testing.T) {
 	}
 }
 
-func TestUnkownAddrType(t *testing.T) {
+func TestUnknownAddrType(t *testing.T) {
 	testCases := []struct {
 		addrType slayers.AddrType
 		rawAddr  []byte

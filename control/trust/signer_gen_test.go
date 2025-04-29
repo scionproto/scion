@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/private/trust"
 )
 
-func TestChachingSignerGen(t *testing.T) {
+func TestCachingSignerGen(t *testing.T) {
 	exp := time.Now().Add(5 * time.Minute)
 	otherExp := time.Now().Add(time.Hour)
 

@@ -105,7 +105,7 @@ func TestVerify(t *testing.T) {
 			assertFunc: assert.Error,
 		},
 
-		"invalid boundIA missmatch": {
+		"invalid boundIA mismatch": {
 			provider:   func(mctrl *gomock.Controller) trust.Provider { return nil },
 			sign:       sign,
 			boundIA:    addr.MustParseIA("1-ff00:0:210"),

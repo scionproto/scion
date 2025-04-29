@@ -46,7 +46,7 @@ type IngressMetrics struct {
 	IPPktsRecv metrics.Counter
 	// IPPktBytesLocalSent is the total IP packets bytes sent to the local network.
 	IPPktBytesLocalSent metrics.Counter
-	// IPPktsLocalSent is the total IP packets counbt sent to the local network.
+	// IPPktsLocalSent is the total IP packets count sent to the local network.
 	IPPktsLocalSent metrics.Counter
 	// FrameBytesRecv is the total frames bytes received.
 	FrameBytesRecv metrics.Counter

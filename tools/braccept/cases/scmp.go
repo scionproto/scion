@@ -28,8 +28,8 @@ func scmpNormalizePacket(pkt gopacket.Packet) {
 	normalizePacketAuthOption(pkt)
 }
 
-// normalizePacketAuthOption zeros out the impredictable fields for the runner
-// case, i.e. the timestamp, the sequence number and the authenticator which
+// normalizePacketAuthOption zeros out the unpredictable fields for the runner
+// case, i.e., the timestamp, the sequence number and the authenticator which
 // includes the previous fields among others.
 func normalizePacketAuthOption(pkt gopacket.Packet) {
 	e2e := pkt.Layer(slayers.LayerTypeEndToEndExtn)

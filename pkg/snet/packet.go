@@ -195,7 +195,7 @@ func (m SCMPInternalConnectivityDown) length() int {
 }
 
 const (
-	// SCMPIdentifierStart and SCMPIdentiferEnd define the range for Identifiers
+	// SCMPIdentifierStart and SCMPIdentifierEnd define the range for Identifiers
 	// that should be used for SCMPEchoRequest and SCMPTracerouteRequest,
 	// in preparation for a dispatcher-less snet.
 	// This range corresponds to the port range used for SCION/UDP by the
@@ -213,7 +213,7 @@ const (
 //
 // WARNING: This is a transitional helper function, which will be removed
 // in the dispatcher-less snet; then, the underlay port must be used as identifier.
-func RandomSCMPIdentifer() uint16 {
+func RandomSCMPIdentifier() uint16 {
 	id := SCMPIdentifierStart + rand.Int32N(SCMPIdentifierEnd-SCMPIdentifierStart+1)
 	return uint16(id)
 }

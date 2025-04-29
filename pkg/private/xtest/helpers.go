@@ -36,7 +36,7 @@ import (
 //
 // This flag should be checked by golden file tests to see whether the golden
 // files should be updated or not. The golden files should be deterministic.
-// Use UpdateNonDeterminsticGoldenFiles instead, if they are not deterministic.
+// Use UpdateNonDeterministicGoldenFiles instead, if they are not deterministic.
 //
 // To update all golden files, run the following command:
 //
@@ -53,7 +53,7 @@ func UpdateGoldenFiles() *bool {
 	return flag.Bool("update", false, "set to regenerate the golden files")
 }
 
-// UpdateNonDeterminsticGoldenFiles registers the '-update-non-deterministic'
+// UpdateNonDeterministicGoldenFiles registers the '-update-non-deterministic'
 // flag for the test.
 //
 // This flag should be checked by golden file tests to see whether the
@@ -69,8 +69,8 @@ func UpdateGoldenFiles() *bool {
 //
 // The flag should be registered as a package global variable:
 //
-//	var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
-func UpdateNonDeterminsticGoldenFiles() *bool {
+//	var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
+func UpdateNonDeterministicGoldenFiles() *bool {
 	return flag.Bool("update-non-deterministic", false,
 		"set to regenerate the non-deterministic golden files",
 	)
