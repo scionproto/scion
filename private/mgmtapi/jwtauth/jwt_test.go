@@ -1,3 +1,4 @@
+// Copyright 2025 SCION Association
 // Copyright 2021 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,11 +60,11 @@ func keyFunc(key []byte, err error) func() ([]byte, error) {
 //
 // It returns the server object (so it can be closed by the caller) and an
 // URL that can be accessed for testing.
-func startServer(t *testing.T) (*http.Server, string) {
+func startServer(t *testing.T, nowFn func() time.Time) (url string) {
 	handler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 
 	verifier := jwtauth.HTTPVerifier{Generator: keyFunc(serverKey, nil)}
-	authorizedHandler := verifier.AddAuthorization(handler)
+	authorizedHandler := verifier.AddAuthorization(handler, nowFn)
 
 	srv := http.Server{
 		Handler: authorizedHandler,
@@ -71,6 +72,8 @@ func startServer(t *testing.T) (*http.Server, string) {
 
 	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IP{127, 0, 0, 1}})
 	require.NoError(t, err)
+
+	t.Cleanup(func() { srv.Close() })
 
 	go func() {
 		if err := srv.Serve(listener); err != nil {
@@ -80,12 +83,14 @@ func startServer(t *testing.T) (*http.Server, string) {
 		}
 	}()
 
-	url := fmt.Sprintf("http://%v", listener.Addr().String())
-	return &srv, url
+	return fmt.Sprintf("http://%v", listener.Addr().String())
 }
 
 func TestNewHTTPClient(t *testing.T) {
+	now := time.Date(2025, 5, 1, 10, 20, 30, 0, time.UTC)
+
 	testCases := map[string]struct {
+		run                bool
 		TokenSource        jwtauth.TokenSource
 		ExpectedError      require.ErrorAssertionFunc
 		ExpectedHTTPStatus int
@@ -115,7 +120,7 @@ func TestNewHTTPClient(t *testing.T) {
 		"unauthorized client": {
 			TokenSource:        nil,
 			ExpectedError:      require.NoError,
-			ExpectedHTTPStatus: http.StatusInternalServerError,
+			ExpectedHTTPStatus: http.StatusUnauthorized,
 		},
 		"bad key client": {
 			TokenSource: &jwtauth.JWTTokenSource{
@@ -123,12 +128,14 @@ func TestNewHTTPClient(t *testing.T) {
 				Generator: keyFunc(badKey, nil),
 			},
 			ExpectedError:      require.NoError,
-			ExpectedHTTPStatus: http.StatusInternalServerError,
+			ExpectedHTTPStatus: http.StatusUnauthorized,
 		},
 		"authorized client": {
 			TokenSource: &jwtauth.JWTTokenSource{
 				Subject:   "example",
 				Generator: keyFunc(serverKey, nil),
+				// 1 Minute before expiry.
+				IssuedAt: now.Add(-1*jwtauth.DefaultTokenLifetime + time.Second),
 			},
 			ExpectedError:      require.NoError,
 			ExpectedHTTPStatus: http.StatusOK,
@@ -136,16 +143,16 @@ func TestNewHTTPClient(t *testing.T) {
 		"issued in the future": {
 			TokenSource: &jwtauth.JWTTokenSource{
 				Subject:   "example",
-				IssuedAt:  time.Now().Add(time.Minute),
+				IssuedAt:  now.Add(time.Minute), // 1 minute ahead of current time.
 				Generator: keyFunc(serverKey, nil),
 			},
 			ExpectedError:      require.NoError,
-			ExpectedHTTPStatus: http.StatusInternalServerError,
+			ExpectedHTTPStatus: http.StatusUnauthorized,
 		},
 		"issued in the future within skew": {
 			TokenSource: &jwtauth.JWTTokenSource{
 				Subject:   "example",
-				IssuedAt:  time.Now().Add(time.Second),
+				IssuedAt:  now.Add(time.Second), // 1 second ahead of current time.
 				Generator: keyFunc(serverKey, nil),
 			},
 			ExpectedError:      require.NoError,
@@ -153,27 +160,28 @@ func TestNewHTTPClient(t *testing.T) {
 		},
 		"issued in the past with default lifetime but expired": {
 			TokenSource: &jwtauth.JWTTokenSource{
-				Subject:   "example",
-				IssuedAt:  time.Now().Add(-1 * (jwtauth.DefaultTokenLifetime + time.Minute)),
+				Subject: "example",
+				// Expired by 1 minute.
+				IssuedAt:  now.Add(-1 * (jwtauth.DefaultTokenLifetime + time.Minute)),
 				Generator: keyFunc(serverKey, nil),
 			},
 			ExpectedError:      require.NoError,
-			ExpectedHTTPStatus: http.StatusInternalServerError,
+			ExpectedHTTPStatus: http.StatusUnauthorized,
 		},
 		"issued in the past with custom lifetime but expired": {
 			TokenSource: &jwtauth.JWTTokenSource{
 				Subject:   "example",
-				IssuedAt:  time.Now().Add(-6 * time.Minute),
-				Lifetime:  5 * time.Minute,
+				IssuedAt:  now.Add(-6 * time.Minute), // 6 minutes ago.
+				Lifetime:  5 * time.Minute,           // Expired by 1 minute.
 				Generator: keyFunc(serverKey, nil),
 			},
 			ExpectedError:      require.NoError,
-			ExpectedHTTPStatus: http.StatusInternalServerError,
+			ExpectedHTTPStatus: http.StatusUnauthorized,
 		},
 		"issued in the past with custom lifetime and valid": {
 			TokenSource: &jwtauth.JWTTokenSource{
 				Subject:   "example",
-				IssuedAt:  time.Now().Add(-6 * time.Minute),
+				IssuedAt:  now.Add(-6 * time.Minute), // 6 minutes ago.
 				Lifetime:  10 * time.Minute,
 				Generator: keyFunc(serverKey, nil),
 			},
@@ -182,6 +190,7 @@ func TestNewHTTPClient(t *testing.T) {
 		},
 		"authorized client without Subject": {
 			TokenSource: &jwtauth.JWTTokenSource{
+				IssuedAt:  now.Add(-1 * time.Minute), // 1 minute ago.
 				Generator: keyFunc(serverKey, nil),
 			},
 			ExpectedError:      require.NoError,
@@ -193,8 +202,7 @@ func TestNewHTTPClient(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			srv, url := startServer(t)
-			defer srv.Close()
+			url := startServer(t, func() time.Time { return now })
 
 			client := jwtauth.NewHTTPClient(tc.TokenSource)
 			response, err := client.Get(url)

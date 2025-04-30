@@ -1,3 +1,4 @@
+// Copyright 2025 SCION Association
 // Copyright 2021 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	bk "github.com/buildkite/go-buildkite/v2/buildkite"
+	bk "github.com/buildkite/go-buildkite/v4"
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -59,9 +60,11 @@ set. The token must have the following permissions:
 				return err
 			}
 
-			b, _, err := client.Builds.Get(flags.org, flags.pipeline, build, &bk.BuildsListOptions{
-				IncludeRetriedJobs: true,
-			})
+			b, _, err := client.Builds.Get(
+				cmd.Context(), flags.org, flags.pipeline, build,
+				&bk.BuildsListOptions{
+					IncludeRetriedJobs: true,
+				})
 			if err != nil {
 				return serrors.Wrap("fetching build", err)
 			}
@@ -74,10 +77,10 @@ set. The token must have the following permissions:
 			if flags.verbose {
 				d.StdOut = os.Stdout
 			}
-			if err := os.MkdirAll(d.Dir, 0755); err != nil {
+			if err := os.MkdirAll(d.Dir, 0o755); err != nil {
 				return err
 			}
-			if err := d.ArtifactsFromBuild(b); err != nil {
+			if err := d.ArtifactsFromBuild(&b); err != nil {
 				return err
 			}
 			return nil
