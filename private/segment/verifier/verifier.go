@@ -32,7 +32,7 @@ type Verifier interface {
 	// WithIA returns a verifier that only accepts signatures from the
 	// specified IA.
 	WithIA(ia addr.IA) Verifier
-	// WithValidatity returns a verifier that only uses certificates that are
+	// WithValidity returns a verifier that only uses certificates that are
 	// valid at the specified time.
 	WithValidity(cppki.Validity) Verifier
 }

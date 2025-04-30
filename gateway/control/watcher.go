@@ -106,7 +106,7 @@ type GatewayWatcherMetrics struct {
 // The delta in the list of gateways is assumed to be empty, if a discovery
 // attempt fails.
 //
-// When the GatewayWatcher is stopped, all spawaned PrefixWatcher tasks are
+// When the GatewayWatcher is stopped, all spawned PrefixWatcher tasks are
 // stopped as well.
 type GatewayWatcher struct {
 	// Remote is the remote AS to watch.
@@ -321,8 +321,8 @@ type PrefixFetcherFactory interface {
 // the prefix consumer. The watcher is stateless and does not keep track of
 // previously discovered IP prefixes.
 type PrefixWatcherConfig struct {
-	// Consumer consume the fetched prefixes. Its methods are called
-	// synchroniously and should return swiftly.
+	// Consumer consumes the fetched prefixes. Its methods are called
+	// synchronously and should return swiftly.
 	Consumer PrefixConsumer
 	// PrefixFetcherFactory is used to create a IP prefix fetcher for the remote gateway.
 	FetcherFactory PrefixFetcherFactory

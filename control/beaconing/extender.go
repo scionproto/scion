@@ -147,10 +147,10 @@ func (s *DefaultExtender) Extend(
 
 	// The peer hop fields chain to the main hop field, just like any child hop field.
 	// The effect of this is that when a peer hop field is used in a path, both the
-	// peer hop field and its child are validated using the same SegID accumlator value:
+	// peer hop field and its child are validated using the same SegID accumulator value:
 	// that originally intended for the child.
 	//
-	// The corrolary is that one cannot validate a hop field's MAC by looking at the
+	// The corollary is that one cannot validate a hop field's MAC by looking at the
 	// parent hop field MAC when the parent is a peering hop field. This is ok: that
 	// is never done that way, it is always done by validating against the SegID
 	// accumulator supplied by the previous router on the forwarding path. The

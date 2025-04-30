@@ -37,7 +37,7 @@ var (
 	genCryptoLocation = flag.String("gen_crypto", "testdata/gen_crypto.sh",
 		"Location of the gen_crypto.sh script.")
 	scionPKILocation  = flag.String("scion_pki", "", "Location of the scion-pki binary.")
-	topoLocation      = flag.String("topo", "", "Location of the topolgy file.")
+	topoLocation      = flag.String("topo", "", "Location of the topology file.")
 	cryptoLibLocation = flag.String("crypto_lib", "", "Location of the cryptolib.")
 )
 
@@ -98,7 +98,7 @@ func setupTest(t *testing.T) testState {
 	require.NoError(t, err)
 	s.mustExec(t, *genCryptoLocation, scionPKI, "crypto.tar", topoFile, cryptoLib)
 	s.mustExec(t, "tar", "-xf", "crypto.tar", "-C", tmpDir)
-	// first load the docker images from bazel into the docker deamon, the
+	// first load the docker images from bazel into the docker daemon, the
 	// tars are in the same folder as this test runs in bazel.
 	s.mustExec(t, "docker", "image", "load", "-i", "control/tarball.tar")
 	t.Cleanup(func() {

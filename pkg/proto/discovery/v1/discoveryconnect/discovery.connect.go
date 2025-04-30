@@ -41,13 +41,6 @@ const (
 	DiscoveryServiceHiddenSegmentServicesProcedure = "/proto.discovery.v1.DiscoveryService/HiddenSegmentServices"
 )
 
-// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
-var (
-	discoveryServiceServiceDescriptor                     = discovery.File_proto_discovery_v1_discovery_proto.Services().ByName("DiscoveryService")
-	discoveryServiceGatewaysMethodDescriptor              = discoveryServiceServiceDescriptor.Methods().ByName("Gateways")
-	discoveryServiceHiddenSegmentServicesMethodDescriptor = discoveryServiceServiceDescriptor.Methods().ByName("HiddenSegmentServices")
-)
-
 // DiscoveryServiceClient is a client for the proto.discovery.v1.DiscoveryService service.
 type DiscoveryServiceClient interface {
 	Gateways(context.Context, *connect.Request[discovery.GatewaysRequest]) (*connect.Response[discovery.GatewaysResponse], error)
@@ -63,17 +56,18 @@ type DiscoveryServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewDiscoveryServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) DiscoveryServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	discoveryServiceMethods := discovery.File_proto_discovery_v1_discovery_proto.Services().ByName("DiscoveryService").Methods()
 	return &discoveryServiceClient{
 		gateways: connect.NewClient[discovery.GatewaysRequest, discovery.GatewaysResponse](
 			httpClient,
 			baseURL+DiscoveryServiceGatewaysProcedure,
-			connect.WithSchema(discoveryServiceGatewaysMethodDescriptor),
+			connect.WithSchema(discoveryServiceMethods.ByName("Gateways")),
 			connect.WithClientOptions(opts...),
 		),
 		hiddenSegmentServices: connect.NewClient[discovery.HiddenSegmentServicesRequest, discovery.HiddenSegmentServicesResponse](
 			httpClient,
 			baseURL+DiscoveryServiceHiddenSegmentServicesProcedure,
-			connect.WithSchema(discoveryServiceHiddenSegmentServicesMethodDescriptor),
+			connect.WithSchema(discoveryServiceMethods.ByName("HiddenSegmentServices")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -107,16 +101,17 @@ type DiscoveryServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewDiscoveryServiceHandler(svc DiscoveryServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	discoveryServiceMethods := discovery.File_proto_discovery_v1_discovery_proto.Services().ByName("DiscoveryService").Methods()
 	discoveryServiceGatewaysHandler := connect.NewUnaryHandler(
 		DiscoveryServiceGatewaysProcedure,
 		svc.Gateways,
-		connect.WithSchema(discoveryServiceGatewaysMethodDescriptor),
+		connect.WithSchema(discoveryServiceMethods.ByName("Gateways")),
 		connect.WithHandlerOptions(opts...),
 	)
 	discoveryServiceHiddenSegmentServicesHandler := connect.NewUnaryHandler(
 		DiscoveryServiceHiddenSegmentServicesProcedure,
 		svc.HiddenSegmentServices,
-		connect.WithSchema(discoveryServiceHiddenSegmentServicesMethodDescriptor),
+		connect.WithSchema(discoveryServiceMethods.ByName("HiddenSegmentServices")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.discovery.v1.DiscoveryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

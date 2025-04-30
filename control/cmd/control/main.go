@@ -972,7 +972,7 @@ func getCAHealth(
 	if err != nil {
 		logger.Info("Request to CA service failed", "err", err)
 		return api.Unavailable, serrors.New(
-			"querrying CA service health status",
+			"querying CA service health status",
 			"err", err,
 		)
 	}

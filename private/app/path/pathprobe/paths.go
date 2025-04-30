@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package pathprobe contains methods to probe scion paths. This is heplful to
+// Package pathprobe contains methods to probe scion paths. This is helpful to
 // detect path status.
 package pathprobe
 
