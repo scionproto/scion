@@ -9,7 +9,7 @@ onlyBuiltDependencies: []
 overrides:
   '@types/jsonpath-plus': '>=10.3.0'
 
-packageExtensionsChecksum: d763c025540312983abc245ba5ce490b
+packageExtensionsChecksum: 9ef5c789149b02302c0a1c8e2b3b7a89
 
 dependencies:
   '@redocly/cli':
@@ -2572,7 +2572,7 @@ packages:
       styled-components: 6.1.17(react-dom@19.1.0)(react@19.1.0)
       swagger2openapi: 7.0.8
       url-template: 2.0.8
-      yaml: 2.1.3
+      yaml: 2.7.1
     transitivePeerDependencies:
       - encoding
       - react-native
@@ -3240,9 +3240,10 @@ packages:
     engines: {node: '>= 6'}
     dev: false
 
-  /yaml@2.1.3:
-    resolution: {integrity: sha512-AacA8nRULjKMX2DvWvOAdBZMOfQlypSFkjcOcu9FalllIDJ1kvlREzcdIZmidQUqqeMv7jorHjq2HlLv/+c2lg==}
+  /yaml@2.7.1:
+    resolution: {integrity: sha512-10ULxpnOCQXxJvBgxsn9ptjq6uviG/htZKk9veJGhlqn3w/DxQ631zFF+nlQXLwmImeS5amR2dl2U8sg6U9jsQ==}
     engines: {node: '>= 14'}
+    hasBin: true
     dev: false
 
   /yargs-parser@20.2.9:
