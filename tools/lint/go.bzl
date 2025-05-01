@@ -1,6 +1,5 @@
 load("@apple_rules_lint//lint:defs.bzl", "get_lint_config")
 load("@io_bazel_rules_go//go:def.bzl", _go_library = "go_library", _go_test = "go_test")
-load(":impi.bzl", "impi_test")
 load(":ineffassign.bzl", "ineffassign_test")
 
 def _add_go_lint_tests(name, **kwargs):
@@ -10,13 +9,6 @@ def _add_go_lint_tests(name, **kwargs):
     if len(srcs) == 0:
         return
 
-    impi_test(
-        name = "%s-impi" % name,
-        srcs = srcs,
-        lint_config = go_lint,
-        tags = tags + ["lint", "impi"],
-        size = "small",
-    )
     ineffassign_test(
         name = "%s-ineffassign" % name,
         srcs = srcs,

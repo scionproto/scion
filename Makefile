@@ -123,8 +123,7 @@ GO_BUILD_TAGS_ARG=$(shell bazel info --ui_event_filters=-stdout,-stderr --announ
 
 lint-go-golangci:
 	$(info ==> $@)
-	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
-		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.64.5 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
+	@tools/quiet bazel run --config=quiet @io_bazel_rules_go//go -- tool golangci-lint run --config="${PWD}/.golangcilint.yml" --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
 
 lint-go-semgrep:
 	$(info ==> $@)

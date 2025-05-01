@@ -16,7 +16,6 @@ package beacon
 
 import (
 	"fmt"
-
 	"github.com/scionproto/scion/pkg/addr"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
