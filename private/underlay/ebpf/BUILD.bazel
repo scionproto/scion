@@ -43,10 +43,11 @@ go_test(
     tags = ["manual"],
     deps = [
         ":go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
-        "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
         "@com_github_gopacket_gopacket//afpacket:go_default_library",
-        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_gopacket_gopacket//layers:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+        "@com_github_vishvananda_netlink//:go_default_library",
     ],
 )
 
@@ -60,7 +61,7 @@ genrule(
     outs = [
         "portfilter_test_cap",
     ],
-    cmd_bash = "cp $< $@ && /usr/bin/sudo setcap \"cap_bpf+ep cap_net_admin+ep cap_net_raw+ep\" $@",
+    cmd_bash = "cp $< $@ ; /usr/bin/sudo setcap \"cap_bpf=ep cap_net_admin=ep cap_sys_admin=ep cap_net_raw=ep\" $@",
 )
 
 # This is the rule that actually runs the portfilter test.
@@ -68,5 +69,5 @@ sh_test(
     name = "portfilter_test",
     testonly = True,
     srcs = ["portfilter_test_cap"],
-    tags = ["unit"],
+    tags = ["unit", "supports-graceful-termination"],
 )

@@ -38,14 +38,14 @@ func BpfSockFilter(port uint16) (int, error) {
 	// We keep the program, so the collection can be closed without closing the program.
 	prog := coll.DetachProgram("bpf_port_filter")
 	if prog == nil {
-		panic("no program named pbf_port_verdict found")
+		panic("no program named pbf_port_filter found")
 	}
 
 	// Now load the map and populate it with our port mapping. We let the fd be closed along with
 	// the collection: we are done with it. The program keeps the map alive.
 	myMap := coll.Maps["sock_map_flt"]
 	if myMap == nil {
-		panic(fmt.Errorf("no map named sock_map_rx found"))
+		panic(fmt.Errorf("no map named sock_map_flt found"))
 	}
 
 	// map.Put plays crystal ball with key and value so it accepts either
