@@ -63,7 +63,7 @@ test-integration:
 	bazel test --config=integration_all
 
 go.mod:
-	bazel run --config=quiet @io_bazel_rules_go//go -- mod tidy
+	bazel run --config=quiet @rules_go//go -- mod tidy
 
 docker-images:
 	@echo "Build images"
@@ -94,8 +94,8 @@ licenses:
 
 antlr:
 	antlr/generate.sh fix
-	bazel run @io_bazel_rules_go//go -- fmt antlr/sequence/*.go
-	bazel run @io_bazel_rules_go//go -- fmt antlr/traffic_class/*.go
+	bazel run @rules_go//go -- fmt antlr/sequence/*.go
+	bazel run @rules_go//go -- fmt antlr/traffic_class/*.go
 
 write_all_source_files:
 	bazel run //:write_all_source_files

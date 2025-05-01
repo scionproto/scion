@@ -1,5 +1,5 @@
 load("@bazel_skylib//lib:shell.bzl", "shell")
-load("@io_bazel_rules_go//go:def.bzl", "go_context")
+load("@rules_go//go:def.bzl", "go_context")
 
 def _go_fmt_impl(ctx):
     go_ctx = go_context(ctx)
@@ -36,5 +36,5 @@ go_fmt = rule(
             allow_single_file = True,
         ),
     },
-    toolchains = ["@io_bazel_rules_go//go:toolchain"],
+    toolchains = ["@rules_go//go:toolchain"],
 )
