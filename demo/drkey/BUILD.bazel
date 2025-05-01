@@ -1,7 +1,6 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 load("//:scion.bzl", "scion_go_binary")
 load("//acceptance/common:topogen.bzl", "topogen_test")
-load("//tools/lint:go.bzl", "go_library")
 
 topogen_test(
     name = "test",

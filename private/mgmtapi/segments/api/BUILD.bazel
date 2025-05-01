@@ -1,5 +1,6 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("//private/mgmtapi:api.bzl", "openapi_generate_go")
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("//tools:go.bzl", "go_test")
 
 openapi_generate_go(
     name = "api_generated",
