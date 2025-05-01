@@ -27,7 +27,7 @@ single_version_override(
 )
 
 go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.download(version = "1.24.0")
+go_sdk.download(version = "1.24.2")
 use_repo(go_sdk, "go_toolchains")
 
 register_toolchains("@go_toolchains//:all")
@@ -71,10 +71,9 @@ use_repo(
     "at_zgo_zcache_v2",
     "com_connectrpc_connect",
     "com_github_antlr4_go_antlr_v4",
-    "com_github_buildkite_go_buildkite_v2",
     "com_github_cilium_ebpf",
+    "com_github_buildkite_go_buildkite_v4",
     "com_github_dchest_cmac",
-    "com_github_deepmap_oapi_codegen_v2",
     "com_github_fatih_color",
     "com_github_getkin_kin_openapi",
     "com_github_go_chi_chi_v5",
@@ -89,11 +88,12 @@ use_repo(
     "com_github_hashicorp_golang_lru_arc_v2",
     "com_github_iancoleman_strcase",
     "com_github_kisielk_gotool",
-    "com_github_lestrrat_go_jwx",
+    "com_github_lestrrat_go_jwx_v3",
     "com_github_mattn_go_isatty",
     "com_github_mattn_go_sqlite3",
     "com_github_mdlayher_arp",
     "com_github_mdlayher_ethernet",
+    "com_github_oapi_codegen_oapi_codegen_v2",
     "com_github_oapi_codegen_runtime",
     "com_github_olekukonko_tablewriter",
     "com_github_oncilla_ineffassign",
