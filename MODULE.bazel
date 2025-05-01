@@ -47,11 +47,6 @@ go_deps.module(
     version = "v1.0.0",
 )
 go_deps.module(
-    path = "github.com/Oncilla/ineffassign",
-    sum = "h1:zrpB8NIzy1hkO1dz2S+YWiOymA/2kL3Rk24uDg8DVUM=",
-    version = "v0.0.0-20190618100136-198c6a326229",
-)
-go_deps.module(
     path = "github.com/golang/protobuf",
     sum = "h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=",
     version = "v1.5.4",
@@ -85,7 +80,6 @@ use_repo(
     "com_github_oapi_codegen_oapi_codegen_v2",
     "com_github_oapi_codegen_runtime",
     "com_github_olekukonko_tablewriter",
-    "com_github_oncilla_ineffassign",
     "com_github_opentracing_opentracing_go",
     "com_github_patrickmn_go_cache",
     "com_github_pelletier_go_toml_v2",
