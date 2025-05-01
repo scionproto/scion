@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Copyright 2025 SCION Association
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package ebpf_test
 
@@ -32,7 +44,7 @@ func delVethPair() {
 	}
 }
 
-// call this only once we succesfully created the interface pair...we would not
+// call this only once we successfully created the interface pair...we would not
 // want to remove a pre-existing one after failing to ruin it.
 func enableCleanup() {
 	sigChan := make(chan os.Signal, 2)
@@ -139,7 +151,8 @@ func TestRawSocket(t *testing.T) {
 	// Via normal sockets to port 50001
 	_, err = connA.WriteTo([]byte("hello"), ipAddrB)
 	require.NoError(t, err)
-	connB.SetReadDeadline(time.Now().Add(time.Second))
+	err = connB.SetReadDeadline(time.Now().Add(time.Second))
+	require.NoError(t, err)
 	_, _, err = connB.ReadFrom(buf)
 	require.NoError(t, err)
 	require.Equal(t, string(buf[:5]), "hello")
@@ -164,7 +177,8 @@ func TestRawSocket(t *testing.T) {
 	}
 
 	// The regular socket can't possibly get that:
-	connB.SetReadDeadline(time.Now().Add(time.Second))
+	err = connB.SetReadDeadline(time.Now().Add(time.Second))
+	require.NoError(t, err)
 	_, _, err = connB.ReadFrom(buf)
 	require.Error(t, err)
 }

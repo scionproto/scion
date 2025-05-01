@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 // Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +18,7 @@
 
 //go:build lint
 
-package afpacketudpip
+package ebpf
 
 import "github.com/cilium/ebpf"
 

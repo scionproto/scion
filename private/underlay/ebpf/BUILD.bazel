@@ -69,5 +69,8 @@ sh_test(
     name = "portfilter_test",
     testonly = True,
     srcs = ["portfilter_test_cap"],
-    tags = ["unit", "supports-graceful-termination"],
+    tags = [
+        "supports-graceful-termination",
+        "unit",
+    ],
 )
