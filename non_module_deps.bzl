@@ -12,15 +12,6 @@ def _non_module_deps_impl(ctx):
         urls = ["https://github.com/bacek/rules_antlr/archive/refs/tags/0.6.1.tar.gz"],
     )
 
-    # Buf CLI
-    http_archive(
-        name = "buf",
-        build_file_content = "exports_files([\"buf\"])",
-        sha256 = "16253b6702dd447ef941b01c9c386a2ab7c8d20bbbc86a5efa5953270f6c9010",
-        strip_prefix = "buf/bin",
-        urls = ["https://github.com/bufbuild/buf/releases/download/v1.32.2/buf-Linux-x86_64.tar.gz"],
-    )
-
     # Support cross building and packaging for openwrt_amd64 via the openwrt SDK
     http_archive(
         name = "openwrt_x86_64_SDK",

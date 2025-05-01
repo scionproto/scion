@@ -145,7 +145,7 @@ lint-protobuf: lint-protobuf-buf
 
 lint-protobuf-buf:
 	$(info ==> $@)
-	@tools/quiet bazel run --config=quiet @buf//:buf -- lint $(PWD) --path $(PWD)/proto
+	@tools/quiet bazel run --config=quiet @io_bazel_rules_go//go -- tool buf lint --disable-symlinks
 
 lint-openapi: lint-openapi-spectral
 

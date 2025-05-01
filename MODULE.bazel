@@ -35,7 +35,7 @@ register_toolchains("@go_toolchains//:all")
 go_sdk.nogo(nogo = "@//:nogo")
 
 # Gazelle
-bazel_dep(name = "gazelle", version = "0.42.0")
+bazel_dep(name = "gazelle", version = "0.43.0")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
@@ -219,7 +219,6 @@ use_repo(apt, "tester_deb")
 non_module_deps = use_extension(":non_module_deps.bzl", "non_module_deps")
 use_repo(
     non_module_deps,
-    "buf",
     "openwrt_x86_64_SDK",
     "rules_antlr",
 )
