@@ -2,8 +2,8 @@
 Segment Metadata Discovery
 *******
 
-- Author(s): Tilmann Zäschke
-- Last updated: 2025-04-29
+- Author(s): Jordi Sobirà-Nieto, Tilmann Zäschke
+- Last updated: 2025-05-02
 - Discussion at: :issue:`NNNN`
 - Status: **WIP**
 
