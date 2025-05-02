@@ -58,11 +58,10 @@ func enableCleanup() {
 	}()
 }
 
-// This requires capability
 func makeVethPair(t *testing.T) {
 	// Interface pair
-	macA, _ := net.ParseMAC("00:12:34:56:78:01")
-	macB, _ := net.ParseMAC("00:12:34:56:78:02")
+	macA, _ := net.ParseMAC("de:ad:be:ef:01:01")
+	macB, _ := net.ParseMAC("de:ad:be:ef:02:02")
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:         "vethA",
@@ -78,17 +77,15 @@ func makeVethPair(t *testing.T) {
 	err := netlink.LinkAdd(veth)
 	require.NoError(t, err)
 	enableCleanup()
-
 	linkA, err := netlink.LinkByName("vethA")
 	require.NoError(t, err)
 	linkB, err := netlink.LinkByName("vethB")
 	require.NoError(t, err)
 
-	// IP Addresses
-	var addressA = &net.IPNet{IP: net.IPv4(169, 254, 123, 1), Mask: net.CIDRMask(24, 32)}
-	var addressB = &net.IPNet{IP: net.IPv4(169, 254, 123, 2), Mask: net.CIDRMask(24, 32)}
-	err = netlink.AddrAdd(linkA, &netlink.Addr{IPNet: addressA})
-	require.NoError(t, err)
+	// Assign an IP address to side B. We do not do that on side A because we want whatever we
+	// send from it to appear to come from the outside; otherwise the kernel will drop it on
+	// arrival.
+	var addressB = &net.IPNet{IP: net.IPv4(10, 123, 100, 2), Mask: net.CIDRMask(24, 32)}
 	err = netlink.AddrAdd(linkB, &netlink.Addr{IPNet: addressB})
 	require.NoError(t, err)
 
@@ -106,7 +103,10 @@ func TestRawSocket(t *testing.T) {
 	defer delVethPair()
 
 	// Make two raw sockets. One attached to each end of the veth.
-	// On both sides, the filter lets only port 50000 through.
+	// We will always send from A and we will receive at B in two different ways;
+	// depending on the port number. On side B we place a filter that lets only port 50000 reach
+	// the raw socket. We set the filter on side A too; just to verify that it does not interfere
+	// with sending.
 
 	// Side A
 	afpHandleA, err := afpacket.NewTPacket(
@@ -117,7 +117,10 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	err = afpHandleA.SetEBPF(int32(filterA))
 	require.NoError(t, err)
-	rawAddrA, err := net.ResolveUDPAddr("udp4", "169.254.123.1:50000")
+	rawAddrA, err := net.ResolveUDPAddr("udp4", "10.123.100.1:50000")
+	require.NoError(t, err)
+	// ipAddrA is not assigned to the interface but used as source address in hand-made packets.
+	ipAddrA, err := net.ResolveUDPAddr("udp4", "10.123.100.1:50001")
 	require.NoError(t, err)
 
 	// Side B
@@ -129,29 +132,28 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	err = afpHandleB.SetEBPF(int32(filterB))
 	require.NoError(t, err)
-	rawAddrB, err := net.ResolveUDPAddr("udp4", "169.254.123.2:50000")
+	rawAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50000")
 	require.NoError(t, err)
+	ipAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50001")
+	require.NoError(t, err)
+
+	// On side B we expect packets to port 50000 at the raw socket and packets to port 50001 at the
+	// regular socket.
 	packetChanB := gopacket.NewPacketSource(afpHandleB, layers.LinkTypeEthernet).Packets()
-
-	// Open two ordinary udp sockets. Those listen to port 50001. The filter does not apply, so they
-	// should receive that traffic.
-	ipAddrA, err := net.ResolveUDPAddr("udp4", "169.254.123.1:50001")
-	require.NoError(t, err)
-	connA, err := net.ListenUDP("udp4", ipAddrA)
-	require.NoError(t, err)
-
-	ipAddrB, err := net.ResolveUDPAddr("udp4", "169.254.123.2:50001")
-	require.NoError(t, err)
 	connB, err := net.ListenUDP("udp4", ipAddrB)
 	require.NoError(t, err)
 
 	// Now, check what we can and cannot receive and where.
 	buf := make([]byte, 256)
 
-	// Via normal sockets to port 50001
-	_, err = connA.WriteTo([]byte("hello"), ipAddrB)
+	// To normal socket; port 50001. We always use the raw socket to send; as the normal networking
+	// stack would do an internal loopback; the destination being local.
+	pkt := mkPacket(ipAddrA, ipAddrB)
+	err = afpHandleA.WritePacketData(pkt)
 	require.NoError(t, err)
-	err = connB.SetReadDeadline(time.Now().Add(time.Second))
+
+	// The regular socket should get that.
+	err = connB.SetReadDeadline(time.Now().Add(1 * time.Second))
 	require.NoError(t, err)
 	_, _, err = connB.ReadFrom(buf)
 	require.NoError(t, err)
@@ -165,8 +167,8 @@ func TestRawSocket(t *testing.T) {
 	case <-afterCh:
 	}
 
-	// Via raw sockets to port 50000
-	pkt := mkPacket(rawAddrA, rawAddrB)
+	// To raw sockets; port 50000
+	pkt = mkPacket(rawAddrA, rawAddrB)
 	err = afpHandleA.WritePacketData(pkt)
 	require.NoError(t, err)
 	afterCh = time.After(1 * time.Second)
