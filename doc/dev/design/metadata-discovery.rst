@@ -1,6 +1,6 @@
-*******
+**************************
 Segment Metadata Discovery
-*******
+**************************
 
 - Author(s): Jordi Subirà-Nieto, Tilmann Zäschke
 - Last updated: 2025-05-02
