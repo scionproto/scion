@@ -1,8 +1,13 @@
 load("//tools/lint:go.bzl", "go_library", "go_test")
 
-# If you want to read the generated file:
-# bazel-bin/private/underlay/ebpf/portfilter_bpfel.go
+# Note about bpf_helpers.h. This files was copied from
+# https://github.com/cilium/ebpf/blob/main/examples/headers which took it
+# from https://github.com/libbpf/libbpf/tree/master/src. It carries no
+# inline copyright and is offered under either LGPL-2.1 or BSD-2-Clause. We
+# chose the latter. bpf_helper_defs.h has the same provenance and no LICENSING
+# or copyright terms whatsoever.
 genrule(
+    # The generated file is bazel-bin/private/underlay/ebpf/portfilter_bpfel.go
     name = "gen_bpf_filter_go",
     srcs = [
         "portfilter.c",
