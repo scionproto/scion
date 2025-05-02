@@ -80,12 +80,60 @@ there are many more paths than segments -> I/O problem.
 
 Beaconing
 ---------
+The A-CORE performs beaconing just like a normal core AS.
+However, PCBs from an A-ISD core are signed/extend with the TRC
+of the originating A-CORE instead of the normal ISD core.
 
+ASes can decide to forward PCBs from their A-CORE to additional
+links and ASes that are not visible to the surrounding ISD (or
+surrounding A-ISD, if any exists) or to links to ASes in other
+ISDs (similar to peering).
 
 Path Service
 ------------
+When a path service receives a segment request, it should try to determine
+whether the resulting path can be routed inside a known A-ISD.
+Unfortunately, with the current API this is not really possible because we
+need the source and destination ASes to make that decision.
+The path service would also need to maintain a list of all ASes that belong
+to any A-AISD to which the local AS belongs to.
 
+So until we have an API that allows giving the source and destination AS,
+the path service must return all known segments, whether they
+originate from the common ISD or from any nested A-ISD.
 
+Path Construction
+-----------------
+When constructing a path, an endhost must take care to use segments
+from the innermost possible A-ISD.
+Otherwise routing wil fail because the BRs will attempt
+hop field verification with the innermost certificate.
+
+For example, for any route to an AS that is in the same A-ISD as the
+source AS, the path service will return segments that go through the
+local A-CORE as well as segments that go through the ISD's core.
+The endhost **must** then use the segments that go through the A-CORE.
+More specifically, if both ASes are in a hierarchy of nested A-ISDs,
+the endhost must use the A-CORE of the innermost A-ISD that it has in
+common with the destination AS.
+
+Border Routers
+--------------
+Border routers need to have some additional state in order to compute the
+correct TRC for a given path.
+
+State: For every AS, they need a list that represents the AS's A-ISD
+hierarchy, the first entry is the outermost A-ISD and the last entry is the innermost A-ISD.
+At each level, we store a reference to the AS's TRC certificate for that A-ISD.
+
+When a border router receives a packet, it looks at the fist and last AS in the
+path header. For both ASes it looks up the hierarchy list.
+- If at least one of the does not have a list (meaning it is not in any A-ISD knbown to the BR)
+  the we use the normal (rotted in the ISD's TRC) AS certificate for both.
+- If they both have a list, then we walk through both lists until they differ.
+  THis gives us the deepest common A-ISD and the associate certificate.
+- The lists cannot differ in the first entry, that would violate the
+  A-ISD-hierarchy principle.
 
 
 Rationale
@@ -111,6 +159,12 @@ Advantages
 
 - An AS can join an A-ISD without having to worry about a 2nd AS identifier.
   The normal AS number of an AS remains valid and the only way to address the AS.
+
+- A-ISDs can even be hidden from endhosts in ASes that participate in the A-ISD.
+  Either the path server can choose not to give A-ISD segments to the endhost,
+  or the anonymous path server itself could be hidden from some endhosts such
+  that the endhost would contact a different path server that serves only
+  nnono-Ai_SD segments.
 
 Disadvantages
 -------------
@@ -163,6 +217,9 @@ Compatibility
 =============
 [A discussion of breaking changes and how this change can be deployed.]
 
+There are no conflicts with existing stuff.
+
 Implementation
 ==============
 [A description of the steps in the implementation, which components need to be changed and in which order.]
+
