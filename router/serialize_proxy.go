@@ -35,16 +35,16 @@ type serializeProxy struct {
 	layers  []gopacket.LayerType
 }
 
-// newSerializeProxy returns a new serializeProxy. The initial prepend/append point is set to the
+// NewSerializeProxy returns a new serializeProxy. The initial prepend/append point is set to the
 // end of the buffer in anticipation of AppendBytes never being used. The prepend/append point can
 // be changed when calling clear().
-func newSerializeProxy(buf []byte) serializeProxy {
-	return newSerializeProxyStart(buf, cap(buf))
+func NewSerializeProxy(buf []byte) serializeProxy {
+	return NewSerializeProxyStart(buf, cap(buf))
 }
 
 // newSerializeProxyStart returns a new serializeProxy. The initial prepend/append point is set to
 // the given start value. This has the same effect as calling clear(start).
-func newSerializeProxyStart(buf []byte, start int) serializeProxy {
+func NewSerializeProxyStart(buf []byte, start int) serializeProxy {
 	serBuf := serializeProxy{
 		data: buf,
 	}

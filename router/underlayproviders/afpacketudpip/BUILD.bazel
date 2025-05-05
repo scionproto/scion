@@ -4,7 +4,8 @@ go_library(
     name = "go_default_library",
     srcs = [
         "fnv1acheap.go",
-        "udpip.go",
+        "afpacketudpip.go",
+        "mmsg.go",
     ],
     importpath = "github.com/scionproto/scion/router/underlayproviders/udpip",
     visibility = ["//visibility:public"],

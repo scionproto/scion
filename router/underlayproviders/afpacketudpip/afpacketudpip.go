@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package udpip
+package afpacketudpip
 
 import (
 	"context"
@@ -27,7 +27,10 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/afpacket"
+	"github.com/gopacket/gopacket/layers"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -264,11 +267,6 @@ func (u *udpConnection) stop() {
 	}
 }
 
-// DOTO(jiceatscion): may be the link itself, when connected, could have a premade header.
-func (u *udpConnection) writeHdr(packet *router.Packet) {
-
-}
-
 func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 	log.Debug("Receive", "connection", u.name)
 
@@ -356,21 +354,52 @@ func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*ro
 	return i
 }
 
+var seropts = gopacket.SerializeOptions{
+	FixLengths:       true,
+	ComputeChecksums: true,
+}
+
+// TODO(jiceatscion): the link itself, when connected, should have a pre-serialized header.
+func (u *udpConnection) writeHdr(packet *router.Packet) {
+
+	dstAddr := (*net.UDPAddr)(packet.RemoteAddr)
+	ethernet := layers.Ethernet{
+		// We must get those from the interface
+		SrcMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x1, 0x1},
+		DstMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x2, 0x2},
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+
+	// Fixme: support v4 and v6
+	ip := layers.IPv4{
+		Version:  4,
+		IHL:      5,
+		TTL:      64,
+		SrcIP:    src.IP, // need to get that from somewhere.
+		DstIP:    dstAddr.IP,
+		Protocol: layers.IPProtocolUDP,
+		Flags:    layers.IPv4DontFragment, // Sure about that?
+	}
+	udp := layers.UDP{
+		SrcPort: layers.UDPPort(src.Port), // need to get that from somewhere.
+		DstPort: layers.UDPPort(dstAddr.Port),
+	}
+	_ = udp.SetNetworkLayerForChecksum(&ip)
+	sb := router.NewSerializeProxy(packet.RawPacket)
+	gopacket.SerializeLayers(&sb, seropts, &ethernet, &ip, &udp)
+}
+
 func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 	log.Debug("Send", "connection", u.name)
 
 	// We use this somewhat like a ring buffer.
 	pkts := make([]*router.Packet, batchSize)
 
-	// We use this as a temporary buffer, but allocate it just once
-	// to save on garbage handling.
-	msgs := make(conn.Messages, batchSize)
-	for i := range msgs {
-		msgs[i].Buffers = make([][]byte, 1)
-	}
-
+	// We use this as a temporary container, but allocate it just once
+	// to save on garbage handling. TODO(jiceatscion): should not be needed: modify mmsg.go.
+	msgs := make([][]byte, batchSize)
 	queue := u.queue
-	afp := u.afp
+	sender := newMpktSender(u.afp)
 	metrics := u.metrics
 	toWrite := 0
 
@@ -378,17 +407,13 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 		// Top-up our batch.
 		toWrite += readUpTo(queue, batchSize-toWrite, toWrite == 0, pkts[toWrite:])
 
-		// Turn the packets into underlay messages that WriteBatch can send.
+		// Paste our underlay headers to the packets and line them up for the sender.
 		for i, p := range pkts[:toWrite] {
-			msgs[i].Buffers[0] = p.RawPacket
-			msgs[i].Addr = nil
-			// If we're using a connected socket we must not specify the address. It might cause
-			// redundant route queries and the address might not even be set in the packet.
-			// Otherwise, we must specify the address.
-			msgs[i].Addr = (*net.UDPAddr)(p.RemoteAddr)
+			u.writeHdr(p)
+			msgs[i] = p.RawPacket
 		}
-
-		written, _ := conn.WriteBatch(msgs[:toWrite], 0)
+		sender.setPkts(msgs[:toWrite])
+		written, _ := sender.sendAll()
 		if written < 0 {
 			// WriteBatch returns -1 on error, we just consider this as
 			// 0 packets written
@@ -474,8 +499,7 @@ func (u *provider) NewExternalLink(
 	return u.newDetachedLink(qSize, bfd, localAddr, remoteAddr, ifID, metrics, router.External)
 }
 
-// NewSiblingLink returns a sibling link over the UDP/IP underlay. It may be implemented with either
-// a detachedLink or a connectedLink, depending on the OS features.
+// NewSiblingLink returns a sibling link over the UDP/IP underlay.
 //
 // We de-duplicate sibling links. The router gives us a BFDSession in all cases and we might throw
 // it away (there are no persistent resources attached to it). This could be fixed by moving some
@@ -660,7 +684,7 @@ func (u *provider) NewInternalLink(
 	if err != nil {
 		return nil, serrors.Wrap("resolving local address", err)
 	}
-	conn, err := u.connOpener.Open(
+	afp, err := u.connOpener.Open(
 		localAddr, netip.AddrPort{},
 		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
 	if err != nil {
@@ -678,7 +702,7 @@ func (u *provider) NewInternalLink(
 		dispatchRedirect: u.dispatchRedirect,
 	}
 	c := &udpConnection{
-		conn: conn,
+		afp:  afp,
 		name: "internal",
 		link: il,
 		// links: see below.
@@ -686,14 +710,11 @@ func (u *provider) NewInternalLink(
 		metrics:      metrics, // send() needs them :-(
 		receiverDone: make(chan struct{}),
 		senderDone:   make(chan struct{}),
-		connected:    false, // Might be exclusive to internal links, but still not connected.
 	}
 
-	if !u.connOpener.UDPCanReuseLocal() {
-		// In this case we will share this connection with sibling links, so the connection has a
-		// demux map.
-		c.links = make(map[netip.AddrPort]udpLink)
-	}
+	// We will share this connection with sibling links, so the connection has a
+	// demux map.
+	c.links = make(map[netip.AddrPort]udpLink)
 
 	u.allLinks[netip.AddrPort{}] = il
 	u.internalConnection = c

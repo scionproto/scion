@@ -2071,7 +2071,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
 	payloadOffset := len(rawPkt) - len(s.LayerPayload())
 
 	// Prepends must go just before payload. (and any Append will wreck it)
-	serBuf := newSerializeProxyStart(rawPkt, payloadOffset)
+	serBuf := NewSerializeProxyStart(rawPkt, payloadOffset)
 	return s.SerializeTo(&serBuf, gopacket.SerializeOptions{})
 }
 
@@ -2164,7 +2164,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 
 	p := b.dataPlane.packetPool.Get()
 
-	serBuf := newSerializeProxy(p.RawPacket) // set for prepend-only by default. Perfect here.
+	serBuf := NewSerializeProxy(p.RawPacket) // set for prepend-only by default. Perfect here.
 
 	// serialized bytes lend directly into p.RawPacket (aligned at the end).
 	err := gopacket.SerializeLayers(&serBuf, gopacket.SerializeOptions{FixLengths: true},
@@ -2324,7 +2324,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		if hdrLen+p.d.underlayHeadroom > headroom {
 			// Not enough headroom. Pack at end.
 			quote := p.pkt.RawPacket[:quoteLen]
-			serBuf = newSerializeProxy(p.pkt.RawPacket)
+			serBuf = NewSerializeProxy(p.pkt.RawPacket)
 			err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 			if err != nil {
 				return serrors.JoinNoStack(
@@ -2335,7 +2335,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			// serialize buffer before we pack the SCMP header in from of it. AppendBytes will do
 			// that; it exposes the underlying buffer but doesn't modify it.
 			p.pkt.RawPacket = p.pkt.buffer[0:(quoteLen + headroom)]
-			serBuf = newSerializeProxyStart(p.pkt.RawPacket, headroom)
+			serBuf = NewSerializeProxyStart(p.pkt.RawPacket, headroom)
 			_, _ = serBuf.AppendBytes(quoteLen) // Implementation never fails.
 			err = scmpP.SerializeTo(&serBuf, sopts)
 			if err != nil {
@@ -2351,7 +2351,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	} else {
 		// We do not need to preserve the packet. Just pack our headers at the end of the buffer.
 		// (this is what serializeProxy does by default).
-		serBuf = newSerializeProxy(p.pkt.RawPacket)
+		serBuf = NewSerializeProxy(p.pkt.RawPacket)
 		err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP)
 		if err != nil {
 			return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
