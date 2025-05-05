@@ -3,17 +3,17 @@ load(":package.bzl", "scion_pkg_deb", "scion_pkg_ipk", "scion_pkg_rpm")
 load(":platform.bzl", "multiplatform_filegroup")
 
 DEB_PLATFORMS = [
-    "@io_bazel_rules_go//go/toolchain:linux_amd64",
-    "@io_bazel_rules_go//go/toolchain:linux_arm64",
-    "@io_bazel_rules_go//go/toolchain:linux_386",
-    "@io_bazel_rules_go//go/toolchain:linux_arm",
+    "@rules_go//go/toolchain:linux_amd64",
+    "@rules_go//go/toolchain:linux_arm64",
+    "@rules_go//go/toolchain:linux_386",
+    "@rules_go//go/toolchain:linux_arm",
 ]
 
 RPM_PLATFORMS = [
-    "@io_bazel_rules_go//go/toolchain:linux_amd64",
-    "@io_bazel_rules_go//go/toolchain:linux_arm64",
-    "@io_bazel_rules_go//go/toolchain:linux_386",
-    "@io_bazel_rules_go//go/toolchain:linux_arm",
+    "@rules_go//go/toolchain:linux_amd64",
+    "@rules_go//go/toolchain:linux_arm64",
+    "@rules_go//go/toolchain:linux_386",
+    "@rules_go//go/toolchain:linux_arm",
 ]
 
 # TODO(jice@scion.org):
