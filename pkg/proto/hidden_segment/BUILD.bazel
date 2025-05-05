@@ -1,8 +1,8 @@
-load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 
 go_proto_library(
     name = "go_default_library",
-    compiler = "@io_bazel_rules_go//proto:go_grpc",
+    compiler = "@rules_go//proto:go_grpc",
     importpath = "github.com/scionproto/scion/pkg/proto/hidden_segment",
     proto = "//proto/hidden_segment/v1:hidden_segment",
     visibility = ["//visibility:public"],

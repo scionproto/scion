@@ -1,8 +1,7 @@
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
-load("@io_bazel_rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("//tools/lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",

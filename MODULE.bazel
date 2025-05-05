@@ -20,13 +20,13 @@ linter.configure(
 use_repo(linter, "apple_linters")
 
 # Bazel rules for Golang
-bazel_dep(name = "rules_go", version = "0.53.0", repo_name = "io_bazel_rules_go")  # have to use the old name as buildtools still use it
+bazel_dep(name = "rules_go", version = "0.53.0")
 single_version_override(
     module_name = "rules_go",
-    patches = ["//patches:io_bazel_rules_go/import.patch"],
+    patches = ["//patches:rules_go/import.patch"],
 )
 
-go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(version = "1.24.2")
 use_repo(go_sdk, "go_toolchains")
 
@@ -35,7 +35,7 @@ register_toolchains("@go_toolchains//:all")
 go_sdk.nogo(nogo = "@//:nogo")
 
 # Gazelle
-bazel_dep(name = "gazelle", version = "0.42.0")
+bazel_dep(name = "gazelle", version = "0.43.0")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
@@ -66,6 +66,7 @@ go_deps.module(
     sum = "h1:OsSwqS4y+gQHxaKgg2U/+Fev834kdnsQbtzRnbVC6Gs=",
     version = "v0.18.0",
 )
+
 use_repo(
     go_deps,
     "at_zgo_zcache_v2",
@@ -79,7 +80,6 @@ use_repo(
     "com_github_go_chi_chi_v5",
     "com_github_go_chi_cors",
     "com_github_golang_mock",
-    "com_github_golang_protobuf",
     "com_github_google_go_cmp",
     "com_github_gopacket_gopacket",
     "com_github_grpc_ecosystem_go_grpc_middleware",
@@ -87,7 +87,6 @@ use_repo(
     "com_github_grpc_ecosystem_grpc_opentracing",
     "com_github_hashicorp_golang_lru_arc_v2",
     "com_github_iancoleman_strcase",
-    "com_github_kisielk_gotool",
     "com_github_lestrrat_go_jwx_v3",
     "com_github_mattn_go_isatty",
     "com_github_mattn_go_sqlite3",
@@ -96,10 +95,8 @@ use_repo(
     "com_github_oapi_codegen_oapi_codegen_v2",
     "com_github_oapi_codegen_runtime",
     "com_github_olekukonko_tablewriter",
-    "com_github_oncilla_ineffassign",
     "com_github_opentracing_opentracing_go",
     "com_github_patrickmn_go_cache",
-    "com_github_pavius_impi",
     "com_github_pelletier_go_toml_v2",
     "com_github_pkg_errors",
     "com_github_prometheus_client_golang",
@@ -225,7 +222,6 @@ use_repo(apt, "tester_deb")
 non_module_deps = use_extension(":non_module_deps.bzl", "non_module_deps")
 use_repo(
     non_module_deps,
-    "buf",
     "openwrt_x86_64_SDK",
     "rules_antlr",
 )
