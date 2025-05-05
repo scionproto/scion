@@ -39,12 +39,40 @@ bazel_dep(name = "gazelle", version = "0.43.0")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
+
+# go_deps.module() is needed for tools dependencies (previously tool_deps.bzl) that can't be added to go.mod
+go_deps.module(
+    path = "github.com/pavius/impi",
+    sum = "h1:DND6MzU+BLABhOZXbELR3FU8b+zDgcq4dOCNLhiTYuI=",
+    version = "v0.0.3",
+)
+go_deps.module(
+    path = "github.com/kisielk/gotool",
+    sum = "h1:AV2c/EiW3KqPNT9ZKl07ehoAGi4C5/01Cfbblndcapg=",
+    version = "v1.0.0",
+)
+go_deps.module(
+    path = "github.com/Oncilla/ineffassign",
+    sum = "h1:zrpB8NIzy1hkO1dz2S+YWiOymA/2kL3Rk24uDg8DVUM=",
+    version = "v0.0.0-20190618100136-198c6a326229",
+)
+go_deps.module(
+    path = "github.com/golang/protobuf",
+    sum = "h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=",
+    version = "v1.5.4",
+)
+go_deps.module(
+    path = "github.com/cilium/ebpf",
+    sum = "h1:OsSwqS4y+gQHxaKgg2U/+Fev834kdnsQbtzRnbVC6Gs=",
+    version = "v0.18.0",
+)
 use_repo(
     go_deps,
     "at_zgo_zcache_v2",
     "com_connectrpc_connect",
     "com_github_antlr4_go_antlr_v4",
     "com_github_buildkite_go_buildkite_v4",
+    "com_github_cilium_ebpf",
     "com_github_dchest_cmac",
     "com_github_fatih_color",
     "com_github_getkin_kin_openapi",
