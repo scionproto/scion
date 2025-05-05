@@ -1,12 +1,14 @@
 # LICENSE CONSIDERATIONS
 
+## Cilium vs. libbpf LICENSING
+
 The files bpf_helpers.h and bpf_helper_defs.h were copied here from
-https://github.com/cilium/ebpf/tree/main/examples/headers . These files
-themselves where obviously copied from
-https://github.com/libbpf/libbpf/tree/master/src.
+[](https://github.com/cilium/ebpf/tree/main/examples/headers). These files
+where themselves obviously copied from
+[](https://github.com/libbpf/libbpf/tree/master/src).
 
 Whether from Cilium or libbpf, the files do not carry a copyright statement.
-bpf_helper_defs.h does not reference any license. bpf_helpers.h  is offered
+bpf_helper_defs.h does not reference any license. bpf_helpers.h is offered
 under either LGPL-2.1 OR BSD-2-Clause. We (The SCION Association) chose to
 accept these files under the BSD-2-Clause license.
 
@@ -15,8 +17,9 @@ version is accompanied by a modified copy of that license which includes a
 copyright line by the libbpf authors. In the interest of transparency,
 libbpf's license is reproduced below.
 
-# Libbpf LICENSE
+## Libbpf LICENSE
 
+```text
 Valid-License-Identifier: BSD-2-Clause
 SPDX-URL: https://spdx.org/licenses/BSD-2-Clause.html
 Usage-Guide:
@@ -49,3 +52,4 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+```
