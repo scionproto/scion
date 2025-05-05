@@ -4,7 +4,6 @@ name: "SCION Tutorial"
 
 services:
   scion01:
-    platform: linux/amd64
     image: scion01:1.0
     container_name: scion01
     hostname: scion01
@@ -18,7 +17,6 @@ services:
       - /run
       - /run/lock
   scion02:
-    platform: linux/amd64
     image: scion02:1.0
     container_name: scion02
     hostname: scion02
@@ -33,7 +31,6 @@ services:
       - /run
       - /run/lock
   scion03:
-    platform: linux/amd64
     image: scion03:1.0
     container_name: scion03
     hostname: scion03
@@ -47,7 +44,6 @@ services:
       - /run
       - /run/lock
   scion04:
-    platform: linux/amd64
     image: scion04:1.0
     container_name: scion04
     hostname: scion04
@@ -61,7 +57,6 @@ services:
       - /run
       - /run/lock
   scion05:
-    platform: linux/amd64
     image: scion05:1.0
     container_name: scion05
     hostname: scion05
