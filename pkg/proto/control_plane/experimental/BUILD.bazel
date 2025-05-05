@@ -1,8 +1,8 @@
-load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 
 go_proto_library(
     name = "go_default_library",
-    compiler = "@io_bazel_rules_go//proto:go_grpc",
+    compiler = "@rules_go//proto:go_grpc",
     importpath = "github.com/scionproto/scion/pkg/proto/control_plane/experimental",
     proto = "//proto/control_plane/experimental/v1:experimental",
     visibility = ["//visibility:public"],
