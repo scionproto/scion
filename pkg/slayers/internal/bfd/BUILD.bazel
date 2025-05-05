@@ -1,4 +1,4 @@
-load("//tools/lint:go.bzl", "go_test")
+load("//tools:go.bzl", "go_test")
 
 go_test(
     name = "go_default_test",
