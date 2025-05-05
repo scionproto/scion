@@ -1,5 +1,5 @@
 load("@aspect_bazel_lib//lib:run_binary.bzl", "run_binary")
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
 
 go_library(

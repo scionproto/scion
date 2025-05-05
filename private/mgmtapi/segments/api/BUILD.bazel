@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library")
 load("//private/mgmtapi:api.bzl", "openapi_generate_go")
 load("//tools:go.bzl", "go_test")
 

@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", _go_test = "go_test")
+load("@rules_go//go:def.bzl", _go_test = "go_test")
 
 def go_test(name, **kwargs):
     tags = kwargs.get("tags", [])
