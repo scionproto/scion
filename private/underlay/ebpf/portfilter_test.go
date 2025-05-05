@@ -28,9 +28,10 @@ import (
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/afpacket"
 	"github.com/gopacket/gopacket/layers"
-	"github.com/scionproto/scion/private/underlay/ebpf"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
+
+	"github.com/scionproto/scion/private/underlay/ebpf"
 )
 
 // Deletes the vethA/B pair if we were the ones to create them.
