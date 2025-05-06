@@ -1,10 +1,13 @@
 gawk
 ethtool
+clang
 gcc
 g++
+llvm
 python3-pip
 python3-setuptools
 python3-wheel
 jq
 openssl
 rsync
+util-linux-script

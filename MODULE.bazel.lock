@@ -411,7 +411,7 @@
     },
     "@@aspect_rules_js+//npm:extensions.bzl%pnpm": {
       "general": {
-        "bzlTransitiveDigest": "cYE3QE61mjLIM5IdiE+TCpLJPIIsMr0Plg/2aOdcHOA=",
+        "bzlTransitiveDigest": "MeYqcsZovx3KMjrN53tGCwQiYYIcAn+Sd1VBH2qIbr4=",
         "usagesDigest": "8ggfSW1eOJDzHp5oo9r33sAB0sGvuQg4MjIOnRBgj2E=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -1303,7 +1303,7 @@
     },
     "@@rules_python+//python/extensions:pip.bzl%pip": {
       "general": {
-        "bzlTransitiveDigest": "ynEctVXvD5j3EVd/ITbHx2D6CkTijK64au5zmriT7cg=",
+        "bzlTransitiveDigest": "r+bk1AnSwkW8KDL7gOUT75vd7VD3mQRAxLOqbRT6Suc=",
         "usagesDigest": "xr+U7navw2+SHogogmHRboKLbXAnkZfsctPQuyjmArw=",
         "recordedFileInputs": {
           "@@//doc/requirements.txt": "76028466c185c5f8bd40c59bcb03d97d9586456ba2aabee82bbebc2c459c7143",
@@ -4692,7 +4692,7 @@
     },
     "@@rules_rust+//rust:extensions.bzl%rust": {
       "general": {
-        "bzlTransitiveDigest": "YsaTPw20Z8ZMM3WlG6OGXJBzyoyBZcY7FTiU04eEdYw=",
+        "bzlTransitiveDigest": "jPW/LAnHHFTO9PkTb2xJNrv1C08DBJf+B47aC1ldodo=",
         "usagesDigest": "ozx08ZbgRXTJw0zCaO/xtMUzgGLvwaQkZGnUo6tlyHM=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
