@@ -7,11 +7,18 @@ Anonymous / Private ISDs
 - Discussion at: :issue:`NNNN`
 - Status: **WIP**
 
+Other references:
+
+- Overlapping ISDs https://github.com/scionproto/scion/issues/4293
+- Nested ISDs (Scion Book 1, Section 3.6): https://scion-architecture.net/pdf/SCION-book.pdf
+
+
+
 Abstract
 ========
 *TL;DR This proposal aims to resolve scaling issues with large numbers
 of ISD and core ASes. As a side effect it introducees new privacy
-features and removes the need for peering links.*
+features, censorship protection, and removes the need for peering links.*
 
 The current ISD design combines two main features:
 
@@ -41,12 +48,15 @@ Background
 
 Terminology
 -----------
+- A-AS - An AS that participates in an A-ISD. The A-AS itself is not anonymous.
 - A-ISD - Anonymous ISD
 - A-CORE - The core router(s) of an anonymous ISD. A-ISD provide
   TRCs and local beaconing but (usually) do not participate in the
   normal ISDs' core routing
 - BR - Border router
 - CS - Control service
+- P-AS - A private (hidden) AS. P-ASes are part of an A-ISD but not visible from outside
+  their A-ISD.
 
 
 Proposal
@@ -68,15 +78,10 @@ Building an A-ISD
 Note: An A-ISD can contain ASes (including A-COREs) and link that are not
 visible outside of the A-ISD.
 
-TODO: Hidden A-CORE require ASes to have multiple parents. Is that possible?
-This relates to the question if an A-ISD must have at least one A-CORE in every
-ISD. To avoid this we could simply require an ASes' CS to forward segment
-queries selectively: destination outside AISD -> ask parent; otherwise
-ask local A-CORE.
-Again, this requires more complex segment queries where we provide
-only the start AS and end AS and get as result UP+CORE+DOWN or even
-actual paths. -> Only segments is probably better because
-there are many more paths than segments -> I/O problem.
+Example: Simple A-ISD
+
+![path type filtering figure](fig/anonymous_isd/1-single-A-ISD.png).
+
 
 Beaconing
 ---------
@@ -128,17 +133,50 @@ At each level, we store a reference to the AS's TRC certificate for that A-ISD.
 
 When a border router receives a packet, it looks at the fist and last AS in the
 path header. For both ASes it looks up the hierarchy list.
-- If at least one of the does not have a list (meaning it is not in any A-ISD knbown to the BR)
+- If at least one of the does not have a list (meaning it is not in any A-ISD known to the BR)
   the we use the normal (rotted in the ISD's TRC) AS certificate for both.
 - If they both have a list, then we walk through both lists until they differ.
   THis gives us the deepest common A-ISD and the associate certificate.
 - The lists cannot differ in the first entry, that would violate the
   A-ISD-hierarchy principle.
 
+Private Links and Private ASes
+------------------------------
+A-ISD allow to hide links and ASes from the rest of the ISD.
+These are called private links (P-Links) and private ASes (P-AS).
+
+Hiding these is achieved by simply excluding them from any PCBs that come from
+outside the A-ISD.
+Every P-AS needs an AS number. Unfortunately, this needs to be globally unique,
+so the parent ISD can see that the AS exists. However, to hide it's identity,
+the AS can use the ISD code of a different ISD. There could even be a dedicated
+ISD code for private ASed.
+
+QUESTION: Can we vahe hidden A-COREs? Why would we need that?
+Hidden A-COREs require ASes to have multiple parents.
+Specifically, any non-hidden AS needs a non-hidden CORE that is visible from the outside.
+
+Is it possible yto have multiple parents?
+This relates to the question if an A-ISD must have at least one A-CORE in every
+ISD. To avoid this we could simply require an ASes' CS to forward segment
+queries selectively: destination outside AISD -> ask parent; otherwise
+ask local A-CORE.
+Again, this requires more complex segment queries where we provide
+only the start AS and end AS and get as result UP+CORE+DOWN or even
+actual paths. -> Only segments is probably better because
+there are many more paths than segments -> I/O problem.
 
 Rationale
 =========
 [A discussion of alternate approaches and the trade-offs, advantages, and disadvantages of the specified approach.]
+
+Alternative: Use private ISD numbers (Jonghoon)
+-----------------------------------------------
+For internal communication, an A-ISD could use ISD numbers from the private range (not
+globally unique).
+- This requires AS numbers to be globally unique
+- When receiving PCBs or on the BR, we could use this to identify the correct TRC / certificate
+
 
 Advantages
 ----------
@@ -154,17 +192,22 @@ Advantages
   They can probably replace current peering links.
 
 - Privacy: An A-ISD can contain any number of ASes and link that are not visible
-  outside the A-ISD.
+  outside the A-ISD (private ASes -> P-ASes).
 - A-ISDs can be nested.
 
 - An AS can join an A-ISD without having to worry about a 2nd AS identifier.
   The normal AS number of an AS remains valid and the only way to address the AS.
 
-- A-ISDs can even be hidden from endhosts in ASes that participate in the A-ISD.
+- A-ISDs can even be hidden from individual endhosts in ASes that participate
+  in the A-ISD.
   Either the path server can choose not to give A-ISD segments to the endhost,
   or the anonymous path server itself could be hidden from some endhosts such
   that the endhost would contact a different path server that serves only
-  nnono-Ai_SD segments.
+  non-A-ISD segments.
+- Similar to hiding A-ISDs from specific endhosts in A-ASes, we can also hide
+  the A-ISDs from child ASes of A-ASes.
+
+- No change to endhost libraries required.
 
 Disadvantages
 -------------
@@ -222,4 +265,30 @@ There are no conflicts with existing stuff.
 Implementation
 ==============
 [A description of the steps in the implementation, which components need to be changed and in which order.]
+
+1. Improve CS to allow end-to-end segment requests. Stitching is not necessary,
+   but the request should return UP+CORE+DOWN segments in one request.
+2. The control service needs to be extended with A-CORE functionality:
+
+   - Facility to register A-ASes and their links and to communicate
+     this to other ASes in the local A-ISD
+   - Segment request: When receiving a segment request, if being/end AS are in
+     the local A-ISD, return only A-ISD segments. If the end-AS is outside the A-ISD
+     forward the request to the parent AS outside the A-ISD, (or return cached
+     segments fro outside the A-ISD).
+   - Optional: Add capability for an AS to have multiple parents, one per ISD.
+     If a CS receives a segment request for outside the local A-ISD, it can decide
+     for forward the request to multiple A-COREs, at most one per ISD that the A-ISD
+     participates in. A-COREs can be each other's parent (parent must be in different ISD).
+     This allows any A-AS member to transparently use any ISD that participates
+     in the A-ISD.
+     **TODO move this to design section**
+     **TODO how does path stitching(beaconing) work? -> Same as peering ...?!
+
+3. Border routers:
+
+   - They need to obtain lists of all ASes in the local A-ISDs.
+   - Update path authentication such that
+
+
 
