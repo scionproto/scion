@@ -78,10 +78,17 @@ Building an A-ISD
 Note: An A-ISD can contain ASes (including A-COREs) and link that are not
 visible outside of the A-ISD.
 
-Example: Simple A-ISD
+### Example: Simple A-ISD
 
-![path type filtering figure](fig/anonymous_isd/1-single-A-ISD.png).
+.. image:: fig/anonymous_isd/1-single-A-ISD.png
 
+.. image:: fig/anonymous_isd/2-2-ISD-1-A-CORE.png
+
+.. image:: fig/anonymous_isd/3-2-ISD-2-A-CORE.png
+
+.. image:: fig/anonymous_isd/4-nested-A-ISD.png
+
+.. image:: fig/anonymous_isd/5-hidden-AS-and-links.png
 
 Beaconing
 ---------
@@ -131,10 +138,11 @@ State: For every AS, they need a list that represents the AS's A-ISD
 hierarchy, the first entry is the outermost A-ISD and the last entry is the innermost A-ISD.
 At each level, we store a reference to the AS's TRC certificate for that A-ISD.
 
-When a border router receives a packet, it looks at the fist and last AS in the
+When a border router receives a packet, it looks at the first and last AS in the
 path header. For both ASes it looks up the hierarchy list.
+
 - If at least one of the does not have a list (meaning it is not in any A-ISD known to the BR)
-  the we use the normal (rotted in the ISD's TRC) AS certificate for both.
+  the we use the normal (rooted in the ISD's TRC) AS certificate for both.
 - If they both have a list, then we walk through both lists until they differ.
   THis gives us the deepest common A-ISD and the associate certificate.
 - The lists cannot differ in the first entry, that would violate the
