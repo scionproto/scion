@@ -89,16 +89,23 @@ type BatchConn interface {
 }
 
 // underlayProviders is a map of our underlay providers. Each entry associates a name with a
-// NewProviderFn. A new instance of that provider is created by every invocation so multiple
+// descriptor. A new instance of that provider is created by every invocation so multiple
 // dataplane instances can co-exist (as is routinely done by tests).
-var underlayProviders map[string]NewProviderFn
+var underlayProviders map[string]ProviderFactory
 
-// AddUnderlay registers the named factory function.
-func AddUnderlay(name string, newProvider func(int, int, int) UnderlayProvider) {
+// AddUnderlay registers the named factory function with the given priority.
+// If a provider by the same name is already registered, we keep the one with highest priority.
+func AddUnderlay(name string, newProv ProviderFactory) {
 	if underlayProviders == nil {
-		underlayProviders = make(map[string]NewProviderFn)
+		underlayProviders = make(map[string]ProviderFactory)
 	}
-	underlayProviders[name] = newProvider
+	oldProv, _ := underlayProviders[name]
+	if oldProv != nil {
+		if oldProv.Priority() > newProv.Priority() {
+			return
+		}
+	}
+	underlayProviders[name] = newProv
 }
 
 type disposition int
@@ -212,6 +219,11 @@ func (p *PacketPool) Put(pkt *Packet) {
 
 }
 
+// ResetPacket resets the packet as if it had been obtained from Get.
+func (p *PacketPool) ResetPacket(pkt *Packet) {
+	pkt.reset(p.headroom)
+}
+
 // makePacketPool creates a packetpool of size poolSize, that configures packet buffers with the
 // given headroom. The pool is initially empty. Packets must be added separately.
 func makePacketPool(poolSize, headroom int) PacketPool {
@@ -240,9 +252,9 @@ type dataPlane struct {
 	RunConfig                      RunConfig
 
 	// The pool that stores all the packet buffers as described in the design document. See
-	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
-	// To avoid garbage collection, most the meta-data that is produced during the processing of a
-	// packet is kept in a data structure (packet struct) that is pooled and recycled along with
+	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst To avoid
+	// garbage collection, most the meta-data that is produced during the processing of a packet is
+	// kept in a data structure (packet struct) that is pooled and recycled along with the
 	// corresponding packet buffer. The packet struct refers permanently to the packet buffer. The
 	// packet structure is fetched from the pool passed-around through the various channels and
 	// returned to the pool. To reduce the cost of copying, the packet structure is passed by
@@ -323,7 +335,7 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 
 	return dataPlane{
 		underlays: map[string]UnderlayProvider{
-			"udpip": underlayProviders["udpip"](
+			"udpip": underlayProviders["udpip"].New(
 				runConfig.BatchSize,
 				runConfig.SendBufferSize,
 				runConfig.ReceiveBufferSize,
@@ -475,7 +487,7 @@ func (d *dataPlane) AddExternalInterface(
 		if !exists {
 			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
 		}
-		underlay = underlayProvider(
+		underlay = underlayProvider.New(
 			d.RunConfig.BatchSize,
 			d.RunConfig.SendBufferSize,
 			d.RunConfig.ReceiveBufferSize,
@@ -621,7 +633,7 @@ func (d *dataPlane) AddNextHop(
 		if !exists {
 			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
 		}
-		underlay = underlayProvider(
+		underlay = underlayProvider.New(
 			d.RunConfig.BatchSize,
 			d.RunConfig.SendBufferSize,
 			d.RunConfig.ReceiveBufferSize,

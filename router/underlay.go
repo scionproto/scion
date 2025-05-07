@@ -149,5 +149,8 @@ type UnderlayProvider interface {
 	NewInternalLink(localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error)
 }
 
-// NewProviderFn is a function that instantiates an underlay provider.
-type NewProviderFn func(batchSize, receiveBufferSize, sendBufferSize int) UnderlayProvider
+// ProviderFactory allows the instatiation of a provider.
+type ProviderFactory interface {
+	New(batchSize, receiveBufferSize, sendBufferSize int) UnderlayProvider
+	Priority() int
+}

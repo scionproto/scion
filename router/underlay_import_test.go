@@ -27,3 +27,7 @@ import (
 // in the same test without the router package importing it.
 //
 // Outside of tests, underlay providers are imported by the main or config packages.
+//
+// Note that tests have expectations about which underlay provider in installed: the afpacket
+// underlay provider wouldn't do. Do not import both: the afpacket implementation has the same
+// name and a higher precedence.

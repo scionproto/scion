@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/private/underlay/conn"
+	"github.com/scionproto/scion/private/underlay/ebpf"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
 )
@@ -52,24 +53,28 @@ var (
 // An interface to enable unit testing.
 type ConnOpener interface {
 	// Creates a connection as specified.
-	Open(index int) (*afpacket.TPacket, error)
+	Open(index int, localPort uint16) (*afpacket.TPacket, error)
 }
 
 // The default ConnOpener for this underlay: opens a afpacket socket.
 type uo struct{}
 
-func (_ uo) Open(index int) (*afpacket.TPacket, error) {
+func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, error) {
 	intf, err := net.InterfaceByIndex(index)
 	if err != nil {
-		return nil, serrors.Wrap("creating TPacket", err)
+		return nil, serrors.Wrap("finding interface", err)
 	}
 	handle, err := afpacket.NewTPacket(
-		afpacket.OptInterface(intf.Name), afpacket.OptFrameSize(intf.MTU))
+		afpacket.OptInterface(intf.Name),
+		// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
+	)
 	if err != nil {
 		return nil, serrors.Wrap("creating TPacket", err)
 	}
-	return handle, nil
 
+	filter, err := ebpf.BpfSockFilter(localPort)
+	handle.SetEBPF(int32(filter))
+	return handle, nil
 }
 
 // provider implements UnderlayProvider by making and returning Udp/Ip links.
@@ -94,19 +99,26 @@ type udpLink interface {
 	router.Link
 	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
-	receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
+	receive(srcAddr *netip.AddrPort, p *router.Packet)
 }
 
 func init() {
-	// Register ourselves as an underlay provider. The registration consists of a constructor, not
+	// Register ourselves as an underlay provider. The registration consists of a factory, not
 	// a provider object, because multiple router instances each must have their own underlay
 	// provider. The provider is not re-entrant.
-	router.AddUnderlay("afpacketudpip", newProvider)
+
+	// We add ourselves as an implementation of the "udpip" underlay. The two udpip underlays
+	// are interchangeable. Only this one should perform better but exists only for Linux.
+	// The priorities cause the router to chose this one over the other when both are available.
+	router.AddUnderlay("udpip", providerFactory{})
 }
+
+// Implement router.ProviderFactory
+type providerFactory struct{}
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
 // TODO(multi_underlay): batchSize should be an underlay-specific config.
-func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
+func (providerFactory) New(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
 	return &provider{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
@@ -116,6 +128,11 @@ func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) route
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
 	}
+}
+
+func (providerFactory) Priority() int {
+	// return 2 // Until we know this works, make ourselves scarce
+	return 0
 }
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
@@ -223,44 +240,43 @@ type udpConnection struct {
 }
 
 // getUdpConnection returns the appropriate udpConnection; creating it if it doesn't exist yet.
-// The zero valued destination address is reserved for the internal connection. There must
-// only be one link using it, attempting to obtain it a second time is a cause of panic.
-func (u *provider) getUdpConnection(qSize int, local, remote netip.AddrPort, metrics *router.InterfaceMetrics) (*udpConnection, error) {
+func (u *provider) getUdpConnection(
+	qSize int, local netip.AddrPort,
+	metrics *router.InterfaceMetrics,
+) (*udpConnection, error) {
 
 	// TODO(jiceatscion): We don't really need to go through every interface every time.
 	interfaces, _ := net.Interfaces()
 	for _, intf := range interfaces {
 		if addrs, err := intf.Addrs(); err == nil {
 			for _, addr := range addrs {
-				if addr.String() == local.Addr().String() {
-					c := u.allConnections[intf.Index]
-					if c != nil {
-						if !remote.IsValid() {
-							// We don't want to support this and the router doesn't do it. This is an internal error.
-							panic("More than one internal link")
+				// net.Addr is very generic. We have to take a guess (educated by reading the code)
+				// at what the underlying type is to make our comparison.
+				ipNet, ok := addr.(*net.IPNet)
+				if ok {
+					if ipNet.IP.String() == local.Addr().String() {
+						c := u.allConnections[intf.Index]
+						if c != nil {
+							return c, nil
 						}
+						queue := make(chan *router.Packet, qSize)
+						afp, err := u.connOpener.Open(intf.Index, local.Port())
+						if err != nil {
+							return nil, err
+						}
+						c = &udpConnection{
+							name:         intf.Name,
+							afp:          afp,
+							queue:        queue,
+							links:        make(map[netip.AddrPort]udpLink),
+							metrics:      metrics,
+							seed:         makeHashSeed(),
+							receiverDone: make(chan struct{}),
+							senderDone:   make(chan struct{}),
+						}
+						u.allConnections[intf.Index] = c
 						return c, nil
 					}
-					queue := make(chan *router.Packet, qSize)
-					afp, err := u.connOpener.Open(intf.Index)
-					if err != nil {
-						return nil, err
-					}
-					name := "internal"
-					if remote.IsValid() {
-						name = remote.String()
-					}
-					c = &udpConnection{
-						name:         name,
-						links:        make(map[netip.AddrPort]udpLink),
-						afp:          afp,
-						queue:        queue,
-						metrics:      metrics,
-						seed:         makeHashSeed(),
-						receiverDone: make(chan struct{}),
-						senderDone:   make(chan struct{}),
-					}
-					u.allConnections[intf.Index] = c
 				}
 			}
 		}
@@ -310,50 +326,82 @@ func (u *udpConnection) stop() {
 func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 	log.Debug("Receive", "connection", u.name)
 
-	// A collection of socket messages, as the readBatch API expects them. We keep using the same
-	// collection, call after call; only replacing the buffer.
-	msgs := conn.NewReadMessages(batchSize)
+	minHeadRoom := 14 + 20 + 8
+	var ethLayer layers.Ethernet
+	var ipLayer layers.IPv4
+	var udpLayer layers.UDP
 
-	// An array of corresponding packet references. Each corresponds to one msg.
-	// The packet owns the buffer that we set in the matching msg, plus the metadata that we'll add.
-	packets := make([]*router.Packet, batchSize)
-	numReusable := 0 // unused buffers from previous loop
+	// We'll reuse this one until we can deliver it. At which point, we fetch a fresh one.
+	// pool.Reset is much cheaper than pool.Put/Get
+	p := pool.Get()
 
 	for u.running.Load() {
-		p := pool.Get()
-		
+		// Since it may be recycled...
+		pool.ResetPacket(p)
+
 		// We align the packet so that any other underlay has enough room to replace
 		// our header (but not more). The goal is to have the payload start on (prefered)
 		// or after the end of the headrooom. Since we do not know the real size of the IP
 		// header, we have to plan on it being short; so our payload doesn't block headroom.
-		info, err := u.afp.ReadPacketDataTo(p.WithHeader(u.minHeadRoom))
-
-		// Now we need to figure out the real length of the headers and the src addr.
-		layers.LinkTypeEthernet
-
-			// Demultiplex to a link.
-			if u.links != nil {
-				// For a shared connection we have a map of links by remote address.
-				srcAddr := msg.Addr.(*net.UDPAddr).AddrPort()
-				l, found := u.links[srcAddr]
-				if found {
-					l.receive(size, msg.Addr.(*net.UDPAddr), p)
-					continue
-				}
-			}
-
-			// Either there is no map, or the address isn't in it. In both cases
-			// hand the packet to our distinguished link. That's either the internal link, or a
-			// connected link. There's always one or the other, else it's a panicable offense.
-			u.link.receive(size, msg.Addr.(*net.UDPAddr), p)
+		data := p.WithHeader(minHeadRoom)
+		info, err := u.afp.ReadPacketDataTo(data)
+		if err != nil {
+			continue
 		}
+		// Now we need to figure out the real length of the headers and the src addr.
+		if err := ethLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+			continue
+		}
+		if !ipLayer.CanDecode().Contains(ethLayer.NextLayerType()) {
+			continue
+		}
+		data = ethLayer.LayerPayload()
+		if err := ipLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+			continue
+		}
+		if !udpLayer.CanDecode().Contains(ipLayer.NextLayerType()) {
+			continue
+		}
+		data = ipLayer.LayerPayload()
+		if err := udpLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+			continue
+		}
+		data = udpLayer.LayerPayload()
+		dataLen := len(data)
+		hdrLen := info.CaptureLength - dataLen
+		p.RawPacket = p.RawPacket[hdrLen:]
+		srcIP, ok := netip.AddrFromSlice(ipLayer.SrcIP)
+		if !ok {
+			// WTF?
+			continue
+		}
+		srcAddr := netip.AddrPortFrom(srcIP, uint16(udpLayer.SrcPort))
+
+		// Demultiplex to a link. There is one connection per interface, so they are mostly shared
+		// between links; including the internal link. The internal link catches all remote
+		// addresses that no other link claims. That is what u.link is. Connections that are not
+		// shared with the internal link do not have it as they should not accept packets from
+		// unknown sources (but they might receive them: the ebpf filter only looks at port).
+		l := u.link
+		if u.links != nil {
+			if ll, found := u.links[srcAddr]; found {
+				l = ll
+			}
+		}
+		if l == nil {
+			continue
+		}
+
+		// FIXME: it is very unfortunate that we end-up allocating the src addr
+		// even in this implementation. Instead of using a netip.AddrPort, we could
+		// point directly in the IP and UDP headers.
+		l.receive(&srcAddr, p)
+		p = pool.Get() // we need a fresh packet buffer now.
 	}
 
-	// We have to stop receiving. Return the unused packets to the pool to avoid creating
+	// We have to stop receiving. Return the unused packet to the pool to avoid creating
 	// a memory leak (the process is not required to exit - e.g. in tests).
-	for _, p := range packets[batchSize-numReusable : batchSize] {
-		pool.Put(p)
-	}
+	pool.Put(p)
 }
 
 func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*router.Packet) int {
@@ -551,7 +599,7 @@ func (u *provider) NewExternalLink(
 	if l := u.allLinks[remoteAddr]; l != nil {
 		return nil, serrors.Join(errDuplicateRemote, nil, "addr", remote)
 	}
-	c, err := u.getUdpConnection(qSize, localAddr, remoteAddr, metrics)
+	c, err := u.getUdpConnection(qSize, localAddr, metrics)
 	if err != nil {
 		return nil, err
 	}
@@ -562,10 +610,9 @@ func (u *provider) NewExternalLink(
 		egressQ:    c.queue,
 		metrics:    metrics,
 		bfdSession: bfd,
-		// remote:     net.UDPAddrFromAddrPort(remoteAddr),
-		seed:  c.seed,
-		ifID:  ifID,
-		scope: router.External,
+		seed:       c.seed,
+		ifID:       ifID,
+		scope:      router.External,
 	}
 	c.links[remoteAddr] = el
 	u.allLinks[remoteAddr] = el
@@ -602,7 +649,7 @@ func (u *provider) NewSiblingLink(
 	if l := u.allLinks[remoteAddr]; l != nil {
 		return l, nil
 	}
-	c, err := u.getUdpConnection(qSize, localAddr, remoteAddr, metrics)
+	c, err := u.getUdpConnection(qSize, localAddr, metrics)
 	if err != nil {
 		return nil, err
 	}
@@ -612,10 +659,9 @@ func (u *provider) NewSiblingLink(
 		egressQ:    c.queue,
 		metrics:    metrics,
 		bfdSession: bfd,
-		// remote:     net.UDPAddrFromAddrPort(remoteAddr),
-		seed:  c.seed,
-		ifID:  0,
-		scope: router.Sibling,
+		seed:       c.seed,
+		ifID:       0,
+		scope:      router.Sibling,
 	}
 	c.links[remoteAddr] = el
 	u.allLinks[remoteAddr] = el
@@ -694,11 +740,12 @@ func (l *ptpLink) SendBlocking(p *router.Packet) {
 	l.egressQ <- p
 }
 
-func (l *ptpLink) receive(size int, srcAddr *netip.AddrPort, p *router.Packet) {
+// receive delivers an incoming packet to the appropriate processing queue.
+func (l *ptpLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 	metrics := l.metrics
-	sc := router.ClassOfSize(size)
+	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
-	metrics[sc].InputBytesTotal.Add(float64(size))
+	metrics[sc].InputBytesTotal.Add(float64(len(p.RawPacket)))
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
@@ -745,12 +792,12 @@ func (u *provider) NewInternalLink(
 	if err != nil {
 		return nil, serrors.Wrap("resolving local address", err)
 	}
-	c, err := u.getUdpConnection(qSize, localAddr, netip.AddrPort{}, metrics)
+	c, err := u.getUdpConnection(qSize, localAddr, metrics)
 	if err != nil {
 		return nil, err
 	}
 
-	// We prepare an incomplete header; it is still faster to pacth it than recreate it
+	// We prepare an incomplete header; it is still faster to patch it than recreate it
 	// from scratch for every packet.
 	il := &internalLink{
 		header:           packHeader(&localAddr, &netip.AddrPort{}),
@@ -835,7 +882,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	}
 
 	// Packets that get here must have come from an external or a sibling link; neither of which
-	// attach a RemoteAddr to the packet (besides; it could be a different type).  So, RemoteAddr is
+	// attach a RemoteAddr to the packet (besides; it could be a different type). So, RemoteAddr is
 	// not generally usable. We must allocate a new object. The precautions needed to pool them cost
 	// more than the pool saves (verified experimentally).
 	addrPort := netip.AddrPortFrom(dstAddr, port)
@@ -864,11 +911,15 @@ func (l *internalLink) SendBlocking(p *router.Packet) {
 	l.egressQ <- p
 }
 
-func (l *internalLink) receive(size int, srcAddr *netip.AddrPort, p *router.Packet) {
+// receive delivers an incoming packet to the appropriate processing queue.
+// Because this link is not associated with a specific remote address, the src
+// address of the packet is recorded in the packet structure. This may be used
+// as the destination if SCMP responds.
+func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 	metrics := l.metrics
-	sc := router.ClassOfSize(size)
+	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
-	metrics[sc].InputBytesTotal.Add(float64(size))
+	metrics[sc].InputBytesTotal.Add(float64(len(p.RawPacket)))
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
@@ -881,9 +932,7 @@ func (l *internalLink) receive(size int, srcAddr *netip.AddrPort, p *router.Pack
 	// This is an unconnected link. We must record the src address in case the packet is turned
 	// around by SCMP.
 
-	// One of RemoteAddr or srcAddr becomes garbage. Keeping srcAddr doesn't require copying.
-	// Keeping RemoteAddr does and has no advantage: it could only be further reused if this packet
-	// left via this link and required resolve(). That case doesn't occur.
+	// One of p.RemoteAddr or srcAddr becomes garbage. Keeping srcAddr doesn't require copying.
 	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
 	select {

@@ -96,15 +96,17 @@ type udpLink interface {
 }
 
 func init() {
-	// Register ourselves as an underlay provider. The registration consists of a constructor, not
+	// Register ourselves as an underlay provider. The registration consists of a factory, not
 	// a provider object, because multiple router instances each must have their own underlay
 	// provider. The provider is not re-entrant.
-	router.AddUnderlay("udpip", newProvider)
+	router.AddUnderlay("udpip", providerFactory{})
 }
+
+type providerFactory struct{}
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
 // TODO(multi_underlay): batchSize should be an underlay-specific config.
-func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
+func (providerFactory) New(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
 	return &provider{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
@@ -113,6 +115,10 @@ func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) route
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
 	}
+}
+
+func (providerFactory) Priority() int {
+	return 1
 }
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
