@@ -20,16 +20,14 @@ Abstract
 of ISD and core ASes. As a side effect it introducees new privacy
 features, censorship protection, and removes the need for peering links.*
 
-The current ISD design combines two main features:
+The current ISD design combines several features:
 
-* Isolation Domain with isolated TRC and independent routing
-* ISDs are required to be part of the CORE routing network
+1. An ISD has a globally unique ID.
+2. An ISD has a core AS that is part of the global network of core routers.
+3. An ISD has its own independent TRC
+4. An ISD has its own beaconing and independent routing
 
-The trust isolation feature is very useful and presumably the reason why
-many (groups of) organisations desire their own ISD.
-
-The second feature is of participating in CORE routing is desirable only
-for a small subset of applicant. It also causes several issues:
+Features (1.) and (2.) cause several issues:
 
 * The number of ISDs is limited to 65000. A change would require
   modification of the dataplane, i.e. the SCION header.
@@ -38,9 +36,12 @@ for a small subset of applicant. It also causes several issues:
 * Having a CORE ASes is undesirable for many non-backbone ISDs because
   they are not interested in transit traffic and need ways to avoid it.
 
-This proposal introduces Anonymous ISDs (or Private ISDs, TBD). The
-provide the first feature (independent TRC and routing) without
-requiring an ISD number or as CORE AS.
+However, it seems like that many entities that are interested in setting up an ISD
+are only interested in the features (3.) and (4.).
+
+This proposal introduces Anonymous ISDs (or Private ISDs, TBD). Anonymous ISDs (A-ISDs)
+provide the feature 3. and 4. (independent TRC and routing) without requiring an
+ISD number or a CORE AS.
 
 Background
 ==========
@@ -66,23 +67,80 @@ Proposal
 Building an A-ISD
 -----------------
 1. We select a number of ASes that want to form an A-ISD.
-   These ASes can be from different AISDs, but they must no be separated,
+   These ASes can be from different A-ISDs, but they must no be separated,
    meaning that they must form a single network where each AS can
    reach every other AS without leaving the network an traversing
-   non-group ASes.
+   ASes that are not part of the A-ISD.
 
 2. We chose one or more of the selected ASes to be A-COREs, essentially
    acting as local CORE ASes. These A-COREs must provide TRC and
    beaconing for all ASes in the A-ISD.
 
-Note: An A-ISD can contain ASes (including A-COREs) and link that are not
+The resulting A-ISD is built mostly like a normal ISD: It has a TRC, performs
+beaconing, has at least one CORE AS, ASes have child/parent/peer relationships.
+However, there are some differences:
+
+- CORE ASes to not perform beaconing outside the A-ISD.
+- ASes keep their ISD number from the surrounding AS.
+- ASes in an A-AIS can have different ISD number (from their respective ASes).
+- A-ISDs are not addressable or even visible from the outside, they don't have
+  an external ISD number.
+
+Note: An A-ISD can contain ASes (including A-COREs) and links that are not
 visible outside of the A-ISD.
 
-### Example: Simple A-ISD
+**TODO** TBD: Pick an (A-)ISD number. This proposal originally envisaged to not have
+any number assigned to the A-ISD. However, some feedback included to use
+an ISD number from the `private range (16-63)
+<https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
+
+[1]. This would simplify some things:
+
+- BRs can easily tell which certificate to use for path authentication.
+  As a result we may be able to lift the restriction that inner A-ISDs must
+  be fully included in parent A-ISDs (strict A-ISD hierarchy).
+  However, with only 48 A-ISD number available, an AS can participate in
+  at most 48 A-ISDs (nested or overlapping).
+- CS can use it for signing and authenticating PCBs.
+
+However, we need to ensure that endhost libraries can deal with local AS's ISD number
+being different from the ISD number use in an UP/DOWN path (path stitching).
+We also need to ensure that the A-ISD numbers differ in an A-ISD hierarchy.
+
+Example: Simple A-ISD
+^^^^^^^^^^^^^^^^^^^^^
+
+The following diagram shows a simple A-ISD that consists of 4 ASes (1-20, 1-21, 1-30, 1-31).
+Two of these, 1-20 and 1-30, act as cores (A-COREs) for the A-ISD, which means they
+provide a TRC and perform beaconing for inside the A-ISD.
 
 .. image:: fig/anonymous_isd/1-single-A-ISD.png
 
+Example: An A-ISD spread over two ISDs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following diagram shows an A-ISD that has ASes in multiple ISDs.
+
+**TODO** Having A-COREs in a single ISD means that the A-ISD has a designated ISD.
+With having A-COREs in multiple ISDs, we don't have that clear designation.
+It is not clear whether this is somehow a problem are even an advantage.
+
+Something to consider: If an AS in an A-ISD requests a segment that cannot be resolved locally,
+it will forward the request to a CORE AS, but which CORE AS?
+For building a path to an A-AS, we should only ask the local A-CORE. For paths to outside
+the A-ISD we should only ask the surrounding ISD's core.
+
+**TODO** Also to discuss: can an A-CORE be a normal CORE at the same time?
+Does that complicate things?
+Similarily, can an A-CORE act as A-CORE for two different A-ISDs at the same time?
+
 .. image:: fig/anonymous_isd/2-2-ISD-1-A-CORE.png
+
+Example: An A-ISD spread over two ISDs with two A-COREs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following diagram shows an A-ISD that has ASes in multiple ISDs, with one
+multiple A-COREs spread over different ISDs.
 
 .. image:: fig/anonymous_isd/3-2-ISD-2-A-CORE.png
 
@@ -108,7 +166,7 @@ whether the resulting path can be routed inside a known A-ISD.
 Unfortunately, with the current API this is not really possible because we
 need the source and destination ASes to make that decision.
 The path service would also need to maintain a list of all ASes that belong
-to any A-AISD to which the local AS belongs to.
+to any A-ISD to which the local AS belongs to.
 
 So until we have an API that allows giving the source and destination AS,
 the path service must return all known segments, whether they
@@ -167,7 +225,7 @@ Specifically, any non-hidden AS needs a non-hidden CORE that is visible from the
 Is it possible yto have multiple parents?
 This relates to the question if an A-ISD must have at least one A-CORE in every
 ISD. To avoid this we could simply require an ASes' CS to forward segment
-queries selectively: destination outside AISD -> ask parent; otherwise
+queries selectively: destination outside A-ISD -> ask parent; otherwise
 ask local A-CORE.
 Again, this requires more complex segment queries where we provide
 only the start AS and end AS and get as result UP+CORE+DOWN or even
@@ -280,7 +338,7 @@ Implementation
 
    - Facility to register A-ASes and their links and to communicate
      this to other ASes in the local A-ISD
-   - Segment request: When receiving a segment request, if being/end AS are in
+   - Segment request: When receiving a segment request, if begin/end AS are in
      the local A-ISD, return only A-ISD segments. If the end-AS is outside the A-ISD
      forward the request to the parent AS outside the A-ISD, (or return cached
      segments fro outside the A-ISD).
