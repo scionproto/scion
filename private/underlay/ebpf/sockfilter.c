@@ -11,12 +11,22 @@
 #include "bpf_helpers.h"
 
 // This tells our bpf program which port goes to the AF_PACKET socket.
-// 
+//
 // This is a very small array; e.g. length 1. So it is just a plain sequence
 // of allowed port numbers. Those must be in network byte order.
 //
-// Since AF_PACKET ports receive cloned traffic, we can just drop everything
-// we don't want and the regular networking stack will get it.
+// This is the exact same data used by kfilter to perform the opposite filtering.
+// Ideally there would be only one map shared by both.
+struct {
+  __uint(type, BPF_MAP_TYPE_ARRAY);
+  __type(key, __u32); // Plain int. Index into the array.
+  __type(value, __u16); // A port number.
+  __uint(max_entries, 1);
+} sock_map_flt SEC(".maps");
+
+// AF_PACKET sockets receive cloned traffic; all of it. We drop everything we
+// don't want. This is the purpose of this program. In the same time, the traffic that we do
+// want also gets to the kernel networking stack. Another filter (kfilter.c) has to drop it.
 //
 // This is far from ideal because I have yet to find a way to dispatch traffic
 // before it is cloned for AF_PACKET handling but after it is turned into an
@@ -27,24 +37,18 @@
 // drop/keep decision. The traffic that we keep is definitely cloned; so...
 // dear cow, a third swiss industry is now counting on you.
 //
-struct {
-  __uint(type, BPF_MAP_TYPE_ARRAY);
-  __type(key, __u32); // Plain int. Index into the array.
-  __type(value, __u16); // A port number.
-  __uint(max_entries, 1);
-} sock_map_flt SEC(".maps");
-
 // This is a very simple socket filter: it looks at the packet's protocol and
 // dest port. If it is UDP and if the port is found in sock_map_filt, then the
 // packet is accepted. Else, dropped. The userland code just adds allowed ports
 // to the map.
 SEC("socket")
-int bpf_port_filter(struct __sk_buff *skb)
+int bpf_sock_filter(struct __sk_buff *skb)
 {
   __u8 proto;
   bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &proto, 1);
   if (proto != IPPROTO_UDP) {
-      return 0;
+    bpf_printk("SOCK: not UDP; drop");
+    return 0;
   }
   __u16 portNbo;
   bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest), &portNbo, 2);
@@ -52,10 +56,12 @@ int bpf_port_filter(struct __sk_buff *skb)
   __u32 index = 0;
   __u16 *allowedPort = bpf_map_lookup_elem(&sock_map_flt, &index);
   if (allowedPort == NULL || *allowedPort != portNbo) {
-    return 0;
+      bpf_printk("SOCK: not mine; drop\n");
+      return 0;
   }
+  bpf_printk("SOCK: mine; pass");
   return skb->len;
 }
 
 // This program only uses non-gpl_only helpers. So we can use our normal license.
-char __license[] SEC("license") = "Apache-2.0";
+char __license[] SEC("license") = "GPL"; // "Apache-2.0";

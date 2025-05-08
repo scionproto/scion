@@ -53,28 +53,31 @@ var (
 // An interface to enable unit testing.
 type ConnOpener interface {
 	// Creates a connection as specified.
-	Open(index int, localPort uint16) (*afpacket.TPacket, error)
+	Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHandle, error)
 }
 
 // The default ConnOpener for this underlay: opens a afpacket socket.
 type uo struct{}
 
-func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, error) {
+func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHandle, error) {
 	intf, err := net.InterfaceByIndex(index)
 	if err != nil {
-		return nil, serrors.Wrap("finding interface", err)
+		return nil, nil, serrors.Wrap("finding interface", err)
 	}
 	handle, err := afpacket.NewTPacket(
 		afpacket.OptInterface(intf.Name),
 		// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
 	)
 	if err != nil {
-		return nil, serrors.Wrap("creating TPacket", err)
+		return nil, nil, serrors.Wrap("creating TPacket", err)
 	}
 
-	filter, err := ebpf.BpfSockFilter(localPort)
-	handle.SetEBPF(int32(filter))
-	return handle, nil
+	filter, err := ebpf.BpfPortFilter(index, handle, localPort)
+	if err != nil {
+		return nil, nil, serrors.Wrap("adding port filter", err)
+	}
+
+	return handle, filter, nil
 }
 
 // provider implements UnderlayProvider by making and returning Udp/Ip links.
@@ -149,7 +152,7 @@ func (u *provider) NumConnections() int {
 
 func (u *provider) Headroom() int {
 
-	// We advise of enough headroom for ethernet + max(ip) + udp headers. The lot of which
+	// We advise of enough headroom for ethernet + max(ip) + udp headers. The aggregate of which
 	// constitutes the link-layer header as far as SCION is concerned. On receipt, we cannot predict
 	// if the IP header has options. We align the packet with the assumtion that it does not. As a
 	// result, the payload never starts earlier than planned. This is needed to ensure that the
@@ -228,9 +231,10 @@ func (u *provider) Stop() {
 // norm in this case; since a raw socket receives traffic for all ports.
 type udpConnection struct {
 	name         string                     // for logs. It's more informative than ifID.
-	link         udpLink                    // Link with exclusive use of the connection.
-	links        map[netip.AddrPort]udpLink // Links that share this connection
+	link         udpLink                    // Default Link for ingest.
+	links        map[netip.AddrPort]udpLink // Link map for ingest from specific remote addresses.
 	afp          *afpacket.TPacket
+	filter       *ebpf.FilterHandle
 	queue        chan *router.Packet
 	metrics      *router.InterfaceMetrics
 	receiverDone chan struct{}
@@ -260,13 +264,14 @@ func (u *provider) getUdpConnection(
 							return c, nil
 						}
 						queue := make(chan *router.Packet, qSize)
-						afp, err := u.connOpener.Open(intf.Index, local.Port())
+						afp, filter, err := u.connOpener.Open(intf.Index, local.Port())
 						if err != nil {
 							return nil, err
 						}
 						c = &udpConnection{
 							name:         intf.Name,
 							afp:          afp,
+							filter:       filter,
 							queue:        queue,
 							links:        make(map[netip.AddrPort]udpLink),
 							metrics:      metrics,
@@ -316,8 +321,9 @@ func (u *udpConnection) stop() {
 	wasRunning := u.running.Swap(false)
 
 	if wasRunning {
-		u.afp.Close()  // Unblock receiver
-		close(u.queue) // Unblock sender
+		u.afp.Close()    // Unblock receiver
+		u.filter.Close() // Discard the filter progs
+		close(u.queue)   // Unblock sender
 		<-u.receiverDone
 		<-u.senderDone
 	}
@@ -326,7 +332,11 @@ func (u *udpConnection) stop() {
 func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 	log.Debug("Receive", "connection", u.name)
 
+	// Since we do not know the real size of the IP header, we have to plan on it being short; so
+	// our payload doesn't encroach on the headroom space. If the header is longer, then we will
+	// leave more headroom than needed.
 	minHeadRoom := 14 + 20 + 8
+
 	var ethLayer layers.Ethernet
 	var ipLayer layers.IPv4
 	var udpLayer layers.UDP
@@ -339,10 +349,6 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 		// Since it may be recycled...
 		pool.ResetPacket(p)
 
-		// We align the packet so that any other underlay has enough room to replace
-		// our header (but not more). The goal is to have the payload start on (prefered)
-		// or after the end of the headrooom. Since we do not know the real size of the IP
-		// header, we have to plan on it being short; so our payload doesn't block headroom.
 		data := p.WithHeader(minHeadRoom)
 		info, err := u.afp.ReadPacketDataTo(data)
 		if err != nil {

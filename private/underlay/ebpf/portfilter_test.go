@@ -110,13 +110,14 @@ func TestRawSocket(t *testing.T) {
 	// with sending.
 
 	// Side A
+	intfA, err := net.InterfaceByName("vethA")
+	require.NoError(t, err)
 	afpHandleA, err := afpacket.NewTPacket(
 		afpacket.OptInterface("vethA"),
 		afpacket.OptFrameSize(4096))
 	require.NoError(t, err)
-	filterA, err := ebpf.BpfSockFilter(50000)
-	require.NoError(t, err)
-	err = afpHandleA.SetEBPF(int32(filterA))
+	filterA, err := ebpf.BpfPortFilter(intfA.Index, afpHandleA, 50000)
+	// _, err = ebpf.BpfPortFilter(intfA.Index, afpHandleA, 50000)
 	require.NoError(t, err)
 	rawAddrA, err := net.ResolveUDPAddr("udp4", "10.123.100.1:50000")
 	require.NoError(t, err)
@@ -125,13 +126,14 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 
 	// Side B
+	intfB, err := net.InterfaceByName("vethB")
+	require.NoError(t, err)
 	afpHandleB, err := afpacket.NewTPacket(
 		afpacket.OptInterface("vethB"),
 		afpacket.OptFrameSize(4096))
 	require.NoError(t, err)
-	filterB, err := ebpf.BpfSockFilter(50000)
-	require.NoError(t, err)
-	err = afpHandleB.SetEBPF(int32(filterB))
+	filterB, err := ebpf.BpfPortFilter(intfB.Index, afpHandleB, 50000)
+	// _, err = ebpf.BpfPortFilter(intfB.Index, afpHandleB, 50000)
 	require.NoError(t, err)
 	rawAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50000")
 	require.NoError(t, err)
@@ -139,9 +141,12 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 
 	// On side B we expect packets to port 50000 at the raw socket and packets to port 50001 at the
-	// regular socket.
+	// regular socket. We also listen on port 50000 with a regular socket and we do not expect it
+	// to receive anything.
 	packetChanB := gopacket.NewPacketSource(afpHandleB, layers.LinkTypeEthernet).Packets()
 	connB, err := net.ListenUDP("udp4", ipAddrB)
+	require.NoError(t, err)
+	connB2, err := net.ListenUDP("udp4", rawAddrB)
 	require.NoError(t, err)
 
 	// Now, check what we can and cannot receive and where.
@@ -184,6 +189,23 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	_, _, err = connB.ReadFrom(buf)
 	require.Error(t, err)
+
+	// The regular socket listening on 50000 port cannot get it either because it was suppressed
+	// by the TC filter.
+	err = connB2.SetReadDeadline(time.Now().Add(time.Second))
+	require.NoError(t, err)
+	copy(buf, "     ")
+	_, _, err = connB2.ReadFrom(buf)
+	require.Error(t, err)
+
+	fmt.Printf("Stuff closing: %p %p %p %p %p %p\n", afpHandleA, afpHandleB, connB, connB2, filterA, filterB)
+
+	// afpHandleA.Close()
+	// afpHandleB.Close()
+	// connB.Close()
+	// connB2.Close()
+	// filterA.Close()
+	// filterB.Close()
 }
 
 var pktOptions = gopacket.SerializeOptions{
