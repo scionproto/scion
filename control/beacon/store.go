@@ -138,7 +138,7 @@ type CoreStore struct {
 	policies CorePolicies
 }
 
-// NewCoreBeaconStore creates a new beacon store for a non-core AS.
+// NewCoreBeaconStore creates a new beacon store for a core AS.
 func NewCoreBeaconStore(policies CorePolicies, db DB, opts ...StoreOption) (*CoreStore, error) {
 	policies.InitDefaults()
 	if err := policies.Validate(); err != nil {

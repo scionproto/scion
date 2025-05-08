@@ -250,7 +250,7 @@ func realMain(ctx context.Context) error {
 		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
 	})
 
-	beaconStore, isdLoopAllowed, err := createBeaconStore(
+	beaconStore, isdLoopAllowed, transitTrafficAllowed, err := createBeaconStore(
 		beaconDB,
 		topo.Core(),
 		globalCfg.BS.Policies,
@@ -810,6 +810,7 @@ func realMain(ctx context.Context) error {
 		DRKeyEpochInterval:        epochDuration,
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
+		AllowTransitTraffic:       transitTrafficAllowed,
 		EPIC:                      globalCfg.BS.EPIC,
 	})
 	if err != nil {
@@ -837,21 +838,22 @@ func createBeaconStore(
 	core bool,
 	policyConfig config.Policies,
 	provider beacon.ChainProvider,
-) (cs.Store, bool, error) {
+) (cs.Store, bool, bool, error) {
 	if core {
 		policies, err := cs.LoadCorePolicies(policyConfig)
 		if err != nil {
-			return nil, false, err
+			return nil, false, true, err
 		}
 		store, err := beacon.NewCoreBeaconStore(policies, db, beacon.WithCheckChain(provider))
-		return store, *policies.Prop.Filter.AllowIsdLoop, err
+		return store, *policies.Prop.Filter.AllowIsdLoop,
+			*policies.Prop.Filter.AllowTransitTraffic, err
 	}
 	policies, err := cs.LoadNonCorePolicies(policyConfig)
 	if err != nil {
-		return nil, false, err
+		return nil, false, true, err
 	}
 	store, err := beacon.NewBeaconStore(policies, db, beacon.WithCheckChain(provider))
-	return store, *policies.Prop.Filter.AllowIsdLoop, err
+	return store, *policies.Prop.Filter.AllowIsdLoop, *policies.Prop.Filter.AllowTransitTraffic, err
 }
 
 func adaptInterfaceMap(in map[iface.ID]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {

@@ -73,7 +73,8 @@ type TasksConfig struct {
 	// registration is used instead.
 	HiddenPathRegistrationCfg *HiddenPathRegistrationCfg
 
-	AllowIsdLoop bool
+	AllowIsdLoop        bool
+	AllowTransitTraffic bool
 
 	EPIC bool
 }
@@ -112,6 +113,7 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		AllInterfaces:         t.AllInterfaces,
 		PropagationInterfaces: t.PropagationInterfaces,
 		AllowIsdLoop:          t.AllowIsdLoop,
+		AllowTransitTraffic:   t.AllowTransitTraffic,
 		Tick:                  beaconing.NewTick(t.PropagationInterval),
 	}
 	if t.Metrics != nil {

@@ -60,6 +60,7 @@ type Propagator struct {
 	AllInterfaces         *ifstate.Interfaces
 	PropagationInterfaces func() []*ifstate.Interface
 	AllowIsdLoop          bool
+	AllowTransitTraffic   bool
 
 	Propagated     metrics.Counter
 	InternalErrors metrics.Counter
@@ -193,6 +194,10 @@ func (p *Propagator) beaconsPerInterface(
 // interface because it creates a loop.
 func (p *Propagator) shouldIgnore(bseg beacon.Beacon, intf *ifstate.Interface) bool {
 	if err := beacon.FilterLoop(bseg, intf.TopoInfo().IA, p.AllowIsdLoop); err != nil {
+		return true
+	}
+	if err := beacon.FilterTransitTraffic(bseg, intf.TopoInfo().IA,
+		p.AllowTransitTraffic); err != nil {
 		return true
 	}
 	return false

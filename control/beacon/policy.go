@@ -246,6 +246,8 @@ type Filter struct {
 	IsdBlackList []addr.ISD `yaml:"IsdBlackList"`
 	// AllowIsdLoop indicates whether ISD loops should not be filtered.
 	AllowIsdLoop *bool `yaml:"AllowIsdLoop"`
+	// AllowTransitTraffic indicates whether transit traffic via this ISD is allowed.
+	AllowTransitTraffic *bool `yaml:"AllowTransitTraffic"`
 }
 
 // InitDefaults initializes the default values for unset fields.
@@ -255,6 +257,9 @@ func (f *Filter) InitDefaults() {
 	}
 	if f.AllowIsdLoop == nil {
 		f.AllowIsdLoop = ptr.To(true)
+	}
+	if f.AllowTransitTraffic == nil {
+		f.AllowTransitTraffic = ptr.To(true)
 	}
 }
 
@@ -339,4 +344,22 @@ func filterIsdLoop(hops []addr.IA) addr.ISD {
 		seen[ia.ISD()] = struct{}{}
 	}
 	return 0
+}
+
+// FilterTransitTraffic returns an error if transit traffic is forbidden and propagating
+// the beacon could cause transit traffic.
+func FilterTransitTraffic(beacon Beacon, next addr.IA, allowTransitTraffic bool) error {
+	if allowTransitTraffic {
+		return nil
+	}
+	hops := buildHops(beacon)
+	isds := make(map[addr.ISD]struct{})
+	for _, ia := range hops {
+		isds[ia.ISD()] = struct{}{}
+	}
+	isds[next.ISD()] = struct{}{}
+	if len(isds) > 2 {
+		return serrors.New("Transit traffic", "isd", next.ISD())
+	}
+	return nil
 }
