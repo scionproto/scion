@@ -585,6 +585,10 @@ func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
 	return NewFromDescription(ctrl, DefaultGraphDescription)
 }
 
+func NewGraph(ctrl *gomock.Controller, desc *Description) *Graph {
+	return NewFromDescription(ctrl, desc)
+}
+
 // generateStaticInfo is used during mock beaconing. It takes any interface of the AS
 // that is doing the beaconing as well as the egress interface for that beacon.
 // It then uses that interface to generate characteristic StaticInfo for said interface,

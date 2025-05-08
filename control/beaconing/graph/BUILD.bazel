@@ -1,0 +1,11 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["propagator_test_gen.go"],
+    importpath = "github.com/scionproto/scion/control/beaconing/graph",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/private/xtest/graph:go_default_library",
+    ],
+)

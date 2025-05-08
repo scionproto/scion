@@ -38,6 +38,24 @@ import (
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
+
+	trg "github.com/scionproto/scion/control/beaconing/graph"
+)
+
+const (
+	IA_1_ff00_0_110 = "testdata/1_ff00_0_110.json"
+	IA_1_ff00_0_111 = "testdata/1_ff00_0_111.json"
+	IA_1_ff00_0_120 = "testdata/1_ff00_0_120.json"
+	IA_1_ff00_0_121 = "testdata/1_ff00_0_121.json"
+	IA_1_ff00_0_122 = "testdata/1_ff00_0_122.json"
+	IA_1_ff00_0_123 = "testdata/1_ff00_0_123.json"
+	IA_2_ff00_0_210 = "testdata/2_ff00_0_210.json"
+	IA_2_ff00_0_211 = "testdata/2_ff00_0_211.json"
+	IA_3_ff00_0_310 = "testdata/3_ff00_0_310.json"
+	IA_3_ff00_0_311 = "testdata/3_ff00_0_311.json"
+	IA_4_ff00_0_410 = "testdata/4_ff00_0_410.json"
+	IA_4_ff00_0_411 = "testdata/4_ff00_0_411.json"
+	IA_5_ff00_0_510 = "testdata/5_ff00_0_510.json"
 )
 
 func TestPropagatorRunNonCore(t *testing.T) {
@@ -77,8 +95,9 @@ func TestPropagatorRunNonCore(t *testing.T) {
 		PropagationInterfaces: func() []*ifstate.Interface {
 			return intfs.Filtered(filter)
 		},
-		Tick:     beaconing.NewTick(time.Hour),
-		Provider: provider,
+		Tick:                beaconing.NewTick(time.Hour),
+		Provider:            provider,
+		AllowTransitTraffic: true,
 	}
 	g := graph.NewDefaultGraph(mctrl)
 	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(1).DoAndReturn(
@@ -237,8 +256,9 @@ func TestPropagatorFastRecovery(t *testing.T) {
 		PropagationInterfaces: func() []*ifstate.Interface {
 			return intfs.Filtered(filter)
 		},
-		Tick:     beaconing.NewTick(2 * time.Second),
-		Provider: provider,
+		Tick:                beaconing.NewTick(2 * time.Second),
+		Provider:            provider,
+		AllowTransitTraffic: true,
 	}
 
 	g := graph.NewDefaultGraph(mctrl)
@@ -271,6 +291,79 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	p.Run(context.Background())
 	time.Sleep(1 * time.Second)
 	// Fourth run. Since period has passed, two writes are expected.
+	p.Run(context.Background())
+}
+
+func TestPropagatorTransitTraffic(t *testing.T) {
+	// topology for this test: propagator_test.topo
+	// TODO generate jsons in testdata from .topo file
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	pub := priv.Public()
+
+	beacons := [][]uint16{
+		{trg.If_410_X_310_X},
+	}
+
+	mctrl := gomock.NewController(t)
+	topo, err := topology.FromJSONFile(IA_3_ff00_0_310)
+	require.NoError(t, err)
+	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
+	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
+	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
+	// TODO filtering
+	filter := func(intf *ifstate.Interface) bool {
+		return intf.TopoInfo().LinkType == topology.Core
+	}
+	p := beaconing.Propagator{
+		Extender: &beaconing.DefaultExtender{
+			IA:         topo.IA(),
+			MTU:        topo.MTU(),
+			SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
+			Intfs:      intfs,
+			MAC:        macFactory,
+			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
+			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+		},
+		SenderFactory: senderFactory,
+		IA:            topo.IA(),
+		Signer:        testSigner(t, priv, topo.IA()),
+		AllInterfaces: intfs,
+		PropagationInterfaces: func() []*ifstate.Interface {
+			return intfs.Filtered(filter)
+		},
+		Tick:                beaconing.NewTick(time.Hour),
+		Provider:            provider,
+		AllowTransitTraffic: true,
+	}
+	g := graph.NewGraph(mctrl, trg.DefaultGraphDescription)
+	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(1).DoAndReturn(
+		func(_ any) ([]beacon.Beacon, error) {
+			res := make([]beacon.Beacon, 0, len(beacons))
+			for _, desc := range beacons {
+				res = append(res, testBeacon(g, desc))
+			}
+			return res, nil
+		},
+	)
+
+	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), trg.If_310_X_120_X,
+		gomock.Any()).AnyTimes().DoAndReturn(
+		func(_ context.Context, _ addr.IA, egIfID uint16,
+			nextHop *net.UDPAddr,
+		) (beaconing.Sender, error) {
+			sender := mock_beaconing.NewMockSender(mctrl)
+			sender.EXPECT().Send(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+				func(ctx context.Context, b *seg.PathSegment) error {
+					validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
+					return nil
+				},
+			)
+			sender.EXPECT().Close().Times(1)
+			return sender, nil
+		},
+	)
 	p.Run(context.Background())
 }
 

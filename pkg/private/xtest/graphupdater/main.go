@@ -20,9 +20,15 @@ import (
 	"os"
 )
 
+// TODO generate the graph properly
+
+// TODO properly generate json file afterwards
+
 const (
-	DefaultTopoFile = "topology/default.topo"
-	DefaultGenFile  = "pkg/private/xtest/graph/default_gen.go"
+	DefaultTopoFile        = "topology/default.topo"
+	DefaultGenFile         = "pkg/private/xtest/graph/default_gen.go"
+	PropagatorTestTopoFile = "topology/propagator-test.topo"
+	PropagatorGenFile      = "control/beaconing/graph/propagator_test_gen.go"
 )
 
 var (
