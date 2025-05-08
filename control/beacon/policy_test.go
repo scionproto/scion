@@ -72,6 +72,7 @@ func TestLoadPolicyFromYaml(t *testing.T) {
 			assert.Equal(t, []addr.AS{ia110.AS(), ia111.AS()}, p.Filter.AsBlackList)
 			assert.Equal(t, []addr.ISD{1, 2, 3}, p.Filter.IsdBlackList)
 			assert.True(t, *p.Filter.AllowIsdLoop)
+			assert.True(t, *p.Filter.AllowTransitTraffic)
 		})
 	}
 }
