@@ -85,7 +85,7 @@ All fields within SIG frame header are in network byte order.
 - ``Stream ID`` (20 bits), along with the session, it identifies a unique sequence of SIG frames. Frames from the same stream are, on the egress SIG, put into the same reassembly queue. There may be multiple streams per session.
 - ``Sequence Number`` (64 bits) indicates the position of the frame within a stream. Consecutive frames of a given stream have consecutive sequence numbers. IP packets split among multiple frames are re-assembled by concatenating the payloads of consecutive frames.
 
-A SIG MAY drop frames. In the current implementation, the egress SIG does not buffer frames that are received out-ot-order. Instead it drops any out-of-order and following frames until it finds the beginning of a new encapsulated IP packet.
+A SIG MAY drop frames. In the current implementation, the egress SIG does not buffer frames that are received out-of-order. Instead it drops any out-of-order and following frames until it finds the beginning of a new encapsulated IP packet.
 
 SIG frame payload
 -----------------
