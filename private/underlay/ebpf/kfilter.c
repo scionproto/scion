@@ -45,7 +45,6 @@ int bpf_k_filter(struct __sk_buff *skb)
   __u8 proto;
   bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &proto, 1);
   if (proto != IPPROTO_UDP) {
-    bpf_printk("K: NOT UDP; keep");
     return -1; // TC_NEXT
   }
   __u16 portNbo;
@@ -54,12 +53,10 @@ int bpf_k_filter(struct __sk_buff *skb)
   __u32 index = 0;
   __u16 *forbiddenPort = bpf_map_lookup_elem(&k_map_flt, &index);
   if (forbiddenPort == NULL || *forbiddenPort != portNbo) {
-    bpf_printk("K: Not raw sock; keep");
     return -1; // TC_NEXT
   }
-  bpf_printk("K: raw sock; drop");
   return 2; // TC_DROP
 }
 
 // This program only uses non-gpl_only helpers. So we can use our normal license.
-char __license[] SEC("license") = "GPL"; // "Apache-2.0";
+char __license[] SEC("license") = "Apache-2.0";
