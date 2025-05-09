@@ -17,6 +17,7 @@
 package ebpf_test
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -114,10 +115,10 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	afpHandleA, err := afpacket.NewTPacket(
 		afpacket.OptInterface("vethA"),
-		afpacket.OptFrameSize(4096))
+		afpacket.OptFrameSize(4096),
+	)
 	require.NoError(t, err)
 	filterA, err := ebpf.BpfPortFilter(intfA.Index, afpHandleA, 50000)
-	// _, err = ebpf.BpfPortFilter(intfA.Index, afpHandleA, 50000)
 	require.NoError(t, err)
 	rawAddrA, err := net.ResolveUDPAddr("udp4", "10.123.100.1:50000")
 	require.NoError(t, err)
@@ -130,11 +131,13 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	afpHandleB, err := afpacket.NewTPacket(
 		afpacket.OptInterface("vethB"),
-		afpacket.OptFrameSize(4096))
+		afpacket.OptFrameSize(4096),
+		afpacket.OptPollTimeout(200*time.Millisecond),
+	)
 	require.NoError(t, err)
 	filterB, err := ebpf.BpfPortFilter(intfB.Index, afpHandleB, 50000)
-	// _, err = ebpf.BpfPortFilter(intfB.Index, afpHandleB, 50000)
 	require.NoError(t, err)
+
 	rawAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50000")
 	require.NoError(t, err)
 	ipAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50001")
@@ -143,11 +146,19 @@ func TestRawSocket(t *testing.T) {
 	// On side B we expect packets to port 50000 at the raw socket and packets to port 50001 at the
 	// regular socket. We also listen on port 50000 with a regular socket and we do not expect it
 	// to receive anything.
-	packetChanB := gopacket.NewPacketSource(afpHandleB, layers.LinkTypeEthernet).Packets()
 	connB, err := net.ListenUDP("udp4", ipAddrB)
 	require.NoError(t, err)
 	connB2, err := net.ListenUDP("udp4", rawAddrB)
 	require.NoError(t, err)
+
+	// Drain stray packets that arrived before e added the filter.
+	for {
+		_, _, err := afpHandleB.ZeroCopyReadPacketData()
+		if errors.Is(err, afpacket.ErrTimeout) {
+			break
+		}
+		require.NoError(t, err)
+	}
 
 	// Now, check what we can and cannot receive and where.
 	buf := make([]byte, 256)
@@ -159,53 +170,45 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 
 	// The regular socket should get that.
-	err = connB.SetReadDeadline(time.Now().Add(1 * time.Second))
+	err = connB.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	require.NoError(t, err)
 	_, _, err = connB.ReadFrom(buf)
 	require.NoError(t, err)
 	require.Equal(t, string(buf[:5]), "hello")
 
 	// The raw socket shouldn't have gotten anything.
-	afterCh := time.After(1 * time.Second)
-	select {
-	case <-packetChanB:
-		t.Fatal("Received on raw socket\n")
-	case <-afterCh:
+	p, _, err := afpHandleB.ZeroCopyReadPacketData()
+	if !errors.Is(err, afpacket.ErrTimeout) {
+		t.Fatalf("Received on raw socket: %s\n", p)
 	}
 
 	// To raw sockets; port 50000
 	pkt = mkPacket(rawAddrA, rawAddrB)
 	err = afpHandleA.WritePacketData(pkt)
 	require.NoError(t, err)
-	afterCh = time.After(1 * time.Second)
-	select {
-	case <-packetChanB:
-	case <-afterCh:
-		t.Fatal("Never received on raw socket\n")
-	}
+	_, _, err = afpHandleB.ZeroCopyReadPacketData()
+	require.NoError(t, err)
 
 	// The regular socket can't possibly get that:
-	err = connB.SetReadDeadline(time.Now().Add(time.Second))
+	err = connB.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	require.NoError(t, err)
 	_, _, err = connB.ReadFrom(buf)
 	require.Error(t, err)
 
 	// The regular socket listening on 50000 port cannot get it either because it was suppressed
 	// by the TC filter.
-	err = connB2.SetReadDeadline(time.Now().Add(time.Second))
+	err = connB2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	require.NoError(t, err)
 	copy(buf, "     ")
 	_, _, err = connB2.ReadFrom(buf)
 	require.Error(t, err)
 
-	fmt.Printf("Stuff closing: %p %p %p %p %p %p\n", afpHandleA, afpHandleB, connB, connB2, filterA, filterB)
-
-	// afpHandleA.Close()
-	// afpHandleB.Close()
-	// connB.Close()
-	// connB2.Close()
-	// filterA.Close()
-	// filterB.Close()
+	afpHandleA.Close()
+	afpHandleB.Close()
+	connB.Close()
+	connB2.Close()
+	filterA.Close()
+	filterB.Close()
 }
 
 var pktOptions = gopacket.SerializeOptions{

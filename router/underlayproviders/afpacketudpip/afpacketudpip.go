@@ -26,6 +26,7 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/gopacket/gopacket"
@@ -64,8 +65,13 @@ func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHa
 	if err != nil {
 		return nil, nil, serrors.Wrap("finding interface", err)
 	}
+	// Note that we have to make the TPacket non-blocking eventhough we have nothing special to do
+	// in the absence of traffic, because it needs to be drained of packets after adding the filter.
+	// The draining, and only that, requires a non-blocking operation. We use a longish timeout
+	// since the rest of the time we don't actually want to wake up.
 	handle, err := afpacket.NewTPacket(
 		afpacket.OptInterface(intf.Name),
+		afpacket.OptPollTimeout(200*time.Millisecond),
 		// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
 	)
 	if err != nil {
@@ -77,6 +83,13 @@ func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHa
 		return nil, nil, serrors.Wrap("adding port filter", err)
 	}
 
+	// Drain
+	for {
+		_, _, err = handle.ZeroCopyReadPacketData()
+		if err != nil {
+			break
+		}
+	}
 	return handle, filter, nil
 }
 

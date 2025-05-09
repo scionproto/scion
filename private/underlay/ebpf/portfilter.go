@@ -30,14 +30,20 @@ import (
 // program and link refers to the traffic control filter for the kernel stack. As long as such an
 // object exists, the two filters remain active.
 type FilterHandle struct {
-	prog *ebpf.Program
-	link link.Link
+	kLink link.Link
+	kObjs *ebpf.Collection
+	sObjs *ebpf.Collection
 }
 
 // Close causes both filters to go away.
 func (fh *FilterHandle) Close() {
-	fh.prog.Close()
-	// fh.link.Close()
+	fh.kLink.Close()
+	fh.kObjs.Close()
+	fh.sObjs.Close()
+}
+
+func (fh *FilterHandle) Info() (*link.Info, error) {
+	return fh.kLink.Info()
 }
 
 // Loads a port filter bpf socket filter program that only allows UDP traffic to the given port
@@ -56,26 +62,25 @@ func (fh *FilterHandle) Close() {
 // to the portfilter_test executable:
 //
 //	/usr/bin/sudo setcap "cap_bpf+ep cap_net_admin+ep cap_net_raw+ep" $@
-func bpfKFilter(ifIndex int, port uint16) (link.Link, error) {
+func bpfKFilter(ifIndex int, port uint16) (link.Link, *ebpf.Collection, error) {
 	spec, err := loadKfilter()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	coll, err := ebpf.NewCollection(spec)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// We only need the collection to initialize stuff.
 	defer coll.Close()
 
-	// We keep the program, so the collection can be closed without closing the program.
-	prog := coll.DetachProgram("bpf_k_filter")
+	// We keep the program.
+	prog := coll.Programs["bpf_k_filter"]
 	if prog == nil {
 		panic("no program named bpf_k_filter found")
 	}
 
-	// Now load the map and populate it with our port mapping. We let the fd be closed along with
-	// the collection: we are done with it. The program keeps the map alive.
+	// Now load the map and populate it with our port mapping.
 	myMap := coll.Maps["k_map_flt"]
 	if myMap == nil {
 		panic(fmt.Errorf("no map named k_map_flt found"))
@@ -97,10 +102,10 @@ func bpfKFilter(ifIndex int, port uint16) (link.Link, error) {
 		Anchor:    link.Head(),
 	})
 
-	return l, nil
+	return l, coll, nil
 }
 
-func bpfSockFilter(afp *afpacket.TPacket, port uint16) (*ebpf.Program, error) {
+func bpfSockFilter(afp *afpacket.TPacket, port uint16) (*ebpf.Collection, error) {
 	spec, err := loadSockfilter()
 	if err != nil {
 		return nil, err
@@ -113,13 +118,12 @@ func bpfSockFilter(afp *afpacket.TPacket, port uint16) (*ebpf.Program, error) {
 	defer coll.Close()
 
 	// We keep the program, so the collection can be closed without closing the program.
-	prog := coll.DetachProgram("bpf_sock_filter")
+	prog := coll.Programs["bpf_sock_filter"]
 	if prog == nil {
 		panic("no program named pbf_sock_filter found")
 	}
 
-	// Now load the map and populate it with our port mapping. We let the fd be closed along with
-	// the collection: we are done with it. The program keeps the map alive.
+	// Now load the map and populate it with our port mapping.
 	myMap := coll.Maps["sock_map_flt"]
 	if myMap == nil {
 		panic(fmt.Errorf("no map named sock_map_flt found"))
@@ -139,7 +143,7 @@ func bpfSockFilter(afp *afpacket.TPacket, port uint16) (*ebpf.Program, error) {
 		return nil, err
 	}
 
-	return prog, nil
+	return coll, nil
 }
 
 // BpfPortFilter: attaches a SCHED_CLS program to the network interface "ifIndex" and a SOCK_FILTER
@@ -149,21 +153,26 @@ func bpfSockFilter(afp *afpacket.TPacket, port uint16) (*ebpf.Program, error) {
 //
 // Returns: a handle referring to both programs. Calling the handle's Close() method will discard
 // the programs.
-func BpfPortFilter(ifIndex int, afp *afpacket.TPacket, port uint16) (*FilterHandle, error) {
-	kf, err := bpfKFilter(ifIndex, port)
+func BpfPortFilter(
+	ifIndex int,
+	afp *afpacket.TPacket,
+	port uint16,
+) (*FilterHandle, error) {
+	kLink, kObjs, err := bpfKFilter(ifIndex, port)
 	if err != nil {
 		return nil, err
 	}
 
-	sf, err := bpfSockFilter(afp, port)
+	sObjs, err := bpfSockFilter(afp, port)
 	if err != nil {
-		kf.Close()
+		kLink.Close()
 		return nil, err
 	}
 
 	return &FilterHandle{
-		prog: sf,
-		link: kf,
+		kLink: kLink,
+		kObjs: kObjs,
+		sObjs: sObjs,
 	}, nil
 }
 
