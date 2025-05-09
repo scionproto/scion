@@ -441,6 +441,9 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         # Now the router can start.
         docker("run",
+               "--cap-add=NET_RAW",
+               "--cap-add=NET_ADMIN",
+               "--cap-add=BPF",
                "-v", f"{self.artifacts}/conf:/etc/scion",
                "-d",
                "-e", f"GOMAXPROCS={len(self.router_cpus)}",
