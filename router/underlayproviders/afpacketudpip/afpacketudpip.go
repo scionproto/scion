@@ -147,8 +147,7 @@ func (providerFactory) New(batchSize int, receiveBufferSize int, sendBufferSize 
 }
 
 func (providerFactory) Priority() int {
-	// return 2 // Until we know this works, make ourselves scarce
-	return 0
+	return 2 // Until we know this works, make ourselves scarce
 }
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
@@ -413,7 +412,8 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 
 		// FIXME: it is very unfortunate that we end-up allocating the src addr
 		// even in this implementation. Instead of using a netip.AddrPort, we could
-		// point directly in the IP and UDP headers.
+		// point directly at some space in the packet buffer (not the header itself - it
+		// gets overwritten by SCMP).
 		l.receive(&srcAddr, p)
 		p = pool.Get() // we need a fresh packet buffer now.
 	}
