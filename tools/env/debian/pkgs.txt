@@ -3,6 +3,7 @@ gawk
 bridge-utils
 build-essential
 cgroup-tools
+clang
 curl
 g++
 gcc
