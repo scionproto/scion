@@ -18,7 +18,8 @@ Abstract
 ========
 *TL;DR This proposal aims to resolve scaling issues with large numbers
 of ISD and core ASes. As a side effect it introducees new privacy
-features, censorship protection, and removes the need for peering links.*
+features, censorship protection, and removes the need for
+extra-ISD peering links.*
 
 The current ISD design combines several features:
 
@@ -29,19 +30,20 @@ The current ISD design combines several features:
 
 Features (1.) and (2.) cause several issues:
 
-* The number of ISDs is limited to 65000. A change would require
+* The number of ISDs is limited to 65000 (spec: 4000). A change would require
   modification of the dataplane, i.e. the SCION header.
 * Every ISD has at least one CORE AS. A global network with 65000 core ASes
   would break down. We should aim to have at most a few 1000 CORE ASes.
-* Having a CORE ASes is undesirable for many non-backbone ISDs because
-  they are not interested in transit traffic and need ways to avoid it.
+* Having a CORE ASes in the global core routing network is undesirable for
+  many non-backbone ISDs because they are not interested in transit traffic
+  and need ways to avoid it.
 
 However, it seems like that many entities that are interested in setting up an ISD
 are only interested in the features (3.) and (4.).
 
 This proposal introduces Anonymous ISDs (or Private ISDs, TBD). Anonymous ISDs (A-ISDs)
-provide the feature 3. and 4. (independent TRC and routing) without requiring an
-ISD number or a CORE AS.
+provide the features 3. and 4. (independent TRC and routing) without requiring an
+features 1. or 2. (ISD number or a CORE AS).
 
 Background
 ==========
@@ -67,40 +69,47 @@ Proposal
 Building an A-ISD
 -----------------
 1. We select a number of ASes that want to form an A-ISD.
-   These ASes can be from different A-ISDs, but they must no be separated,
-   meaning that they must form a single network where each AS can
-   reach every other AS without leaving the network an traversing
-   ASes that are not part of the A-ISD.
+   These ASes can be from different A-ISDs, but they must be
+   non-separated, meaning that they must form a single contiguous network
+   where every AS can reach every other AS without leaving the network.
 
-2. We chose one or more of the selected ASes to be A-COREs, essentially
-   acting as local CORE ASes. These A-COREs must provide TRC and
-   beaconing for all ASes in the A-ISD.
+2. We chose one or more of the selected ASes to be A-COREs.
+   Like normal ISD cores, these A-COREs provide TRC and  beaconing for
+   all ASes in the A-ISD. However, unlike normal ISD cores, A-COREs do not
+   he "core" links to any other (A-)ISDs.
+
+3. **TBD**: Pick an (A-)ISD number. This proposal originally envisaged to not have
+any number assigned to the A-ISD. However, some feedback included to use
+an ISD number from the `private range (16-63)
+<https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
+This would resolve some limitations, see discussion below **TODO** reference)
+
 
 The resulting A-ISD is built mostly like a normal ISD: It has a TRC, performs
 beaconing, has at least one CORE AS, ASes have child/parent/peer relationships.
 However, there are some differences:
 
 - CORE ASes to not perform beaconing outside the A-ISD.
-- ASes keep their ISD number from the surrounding AS.
-- ASes in an A-AIS can have different ISD number (from their respective ASes).
+- ASes keep their ISD number from the surrounding ISD.
+- ASes in an A-ISD can have different ISD number (from their respective ISDs).
 - A-ISDs are not addressable or even visible from the outside, they don't have
   an external ISD number.
 
 Note: An A-ISD can contain ASes (including A-COREs) and links that are not
 visible outside of the A-ISD.
 
-**TODO** TBD: Pick an (A-)ISD number. This proposal originally envisaged to not have
-any number assigned to the A-ISD. However, some feedback included to use
-an ISD number from the `private range (16-63)
-<https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
 
-[1]. This would simplify some things:
+**TODO** A-ISD Number
+---------------------
+
+This would simplify some things:
 
 - BRs can easily tell which certificate to use for path authentication.
   As a result we may be able to lift the restriction that inner A-ISDs must
   be fully included in parent A-ISDs (strict A-ISD hierarchy).
   However, with only 48 A-ISD number available, an AS can participate in
   at most 48 A-ISDs (nested or overlapping).
+- Endhosts can easily tell which certificate to use for path authentication.
 - CS can use it for signing and authenticating PCBs.
 
 However, we need to ensure that endhost libraries can deal with local AS's ISD number
@@ -154,45 +163,68 @@ The A-CORE performs beaconing just like a normal core AS.
 However, PCBs from an A-ISD core are signed/extend with the TRC
 of the originating A-CORE instead of the normal ISD core.
 
-ASes can decide to forward PCBs from their A-CORE to additional
-links and ASes that are not visible to the surrounding ISD (or
-surrounding A-ISD, if any exists) or to links to ASes in other
-ISDs (similar to peering).
-
-Path Service
-------------
+Path Service - Intra-ISD
+------------------------
 When a path service receives a segment request, it should try to determine
-whether the resulting path can be routed inside a known A-ISD.
+whether the destination is inside a known A-ISD. If it is, the path service
+should contact the A-CORE of the respective A-ISD, otherwise it should contact
+the ISD's core ASes.
+
 Unfortunately, with the current API this is not really possible because we
 need the source and destination ASes to make that decision.
-The path service would also need to maintain a list of all ASes that belong
-to any A-ISD to which the local AS belongs to.
+This could easily be fixed by having path services respond with UP/CORE/DOWN
+to a request without wildcards.
 
-So until we have an API that allows giving the source and destination AS,
-the path service must return all known segments, whether they
-originate from the common ISD or from any nested A-ISD.
+**TODO TBD Disallow one AS being CORE for multiple (A-)ISDs?***
+If an A-CORE serves as A-CORE for multiple A-ISDs or as core AS of the ISD,
+then it must restrict returned segments to those of the "lowest/innermost A-ISD".
+This is to ensure that traffic doesn't unnecessarily leave an A-ISD.
 
-Path Construction
------------------
+Unfortunately, the definition of "lowest/innermost" raises some problems.
+
+* We could requires A-ISDs for form a strict hierarchy (every A-ISD fully enclosed
+  in its parent A-ISD). That would allow a single definition for "lowest/innermost"
+* We could require endhosts to declare in which A-ISD they want to be routed.
+  This would considerably complicate endhosts, they would need to know about
+  their A-ISDs and all ASes on the A-ISDs; and they would need policies to decide
+  on the correct A-ISD.
+
+The dilemma appears to be:
+
+1. We enforce strict hierarchies and disallow arbitrarily overlapping A-ISDs.
+   This gives an unambiguous definition of lowest/innermost and good way of
+   automatic A-ISD selection.
+2. We allow arbitrarily overlapping, and lose the automatic ISD routing policy.
+   instead we require the enhosts to decide in which A-ISD they want to select a
+   path.
+
+Path Service - Intra-A-ISD
+--------------------------
+
+Question: Why is an AS only in one ISD? Obviously: numbering. Otherwise?
+Multiple TRC handling should be easy.
+
+Can we replace Peering links?
+
+We could just forward PCBs through peering links, we are we not doing that right now?
+
+
+Enddost: Path Construction
+--------------------------
 When constructing a path, an endhost must take care to use segments
 from the innermost possible A-ISD.
 Otherwise routing wil fail because the BRs will attempt
 hop field verification with the innermost certificate.
 
-For example, for any route to an AS that is in the same A-ISD as the
-source AS, the path service will return segments that go through the
-local A-CORE as well as segments that go through the ISD's core.
-The endhost **must** then use the segments that go through the A-CORE.
-More specifically, if both ASes are in a hierarchy of nested A-ISDs,
-the endhost must use the A-CORE of the innermost A-ISD that it has in
-common with the destination AS.
 
 Border Routers
 --------------
-Border routers need to have some additional state in order to compute the
-correct TRC for a given path.
+If we have A-ISD-IDs, this is straight forward. The A-ISD is use in the the
+SCION header for source and destination ISD. This make it easy to determine the
+TRC to use.
 
-State: For every AS, they need a list that represents the AS's A-ISD
+If we don't have A-ISD-IDs, border routers need to have some additional state in order to compute the
+correct TRC for a given path. For every AS, they need a list that represents the AS's A-ISD
 hierarchy, the first entry is the outermost A-ISD and the last entry is the innermost A-ISD.
 At each level, we store a reference to the AS's TRC certificate for that A-ISD.
 
@@ -206,6 +238,32 @@ path header. For both ASes it looks up the hierarchy list.
 - The lists cannot differ in the first entry, that would violate the
   A-ISD-hierarchy principle.
 
+**TODO** remove?
+For example, for any route to an AS that is in the same A-ISD as the
+source AS, the path service will return segments that go through the
+local A-CORE as well as segments that go through the ISD's core.
+The endhost **must** then use the segments that go through the A-CORE.
+More specifically, if both ASes are in a hierarchy of nested A-ISDs,
+the endhost must use the A-CORE of the innermost A-ISD that it has in
+common with the destination AS.
+
+
+Endhost: Path Verification
+--------------------------
+To verify incoming paths, and endhost must decide which TRC to use and
+have access to that TRC's certificates.
+There are several options for deciding on the correct TRC.
+
+- We could brute-force it, e.g. try all available TRCs.
+- Keep a list of all ASes of all A-ISDs so that we can use the A-ISD
+  hierarchy to decide which A-ISD's TRC is the correct one.
+- Encode A-ISD or TRC identifier in the SCION dataplane header.
+  This can be done without structural change to the header
+  by using an identifier for the A-ISD. The A-ISD-ID should be used
+  in the source/destination address fields instead of the normal ISD-ID.
+  This requires As numbers to be globally unique.
+- Remove path verification.
+
 Private Links and Private ASes
 ------------------------------
 A-ISD allow to hide links and ASes from the rest of the ISD.
@@ -214,11 +272,11 @@ These are called private links (P-Links) and private ASes (P-AS).
 Hiding these is achieved by simply excluding them from any PCBs that come from
 outside the A-ISD.
 Every P-AS needs an AS number. Unfortunately, this needs to be globally unique,
-so the parent ISD can see that the AS exists. However, to hide it's identity,
+so the parent ISD can see that the AS exists. However, to hide its identity,
 the AS can use the ISD code of a different ISD. There could even be a dedicated
 ISD code for private ASed.
 
-QUESTION: Can we vahe hidden A-COREs? Why would we need that?
+QUESTION: Can we have hidden A-COREs? Why would we need that?
 Hidden A-COREs require ASes to have multiple parents.
 Specifically, any non-hidden AS needs a non-hidden CORE that is visible from the outside.
 
@@ -245,7 +303,7 @@ globally unique).
 
 
 Advantages
-----------
+^^^^^^^^^^
 
 - A-ISDs do not need an identifier (saves space in the 16bit ISD number space)
 - A-ISDs do not (usually) have a CORE-AS.
@@ -276,7 +334,7 @@ Advantages
 - No change to endhost libraries required.
 
 Disadvantages
--------------
+^^^^^^^^^^^^^
 - AISD have no ISD number. Any AS inside an A-ISD mus have a globally unique
   AS number from some ISD.
   However, if it is okay for the AS to not be globally addressable,
