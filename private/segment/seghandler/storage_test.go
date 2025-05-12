@@ -17,12 +17,12 @@ package seghandler_test
 import (
 	"context"
 	"errors"
+	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/pathdb/mock_pathdb"
@@ -32,9 +32,9 @@ import (
 func TestDefaultStorageStoreSegs(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
 
-	tg := graph.NewDefaultGraph(rootCtrl)
-	seg110To130 := tg.Beacon([]uint16{graph.If_110_X_120_A, graph.If_120_A_130_B})
-	seg110To130Short := tg.Beacon([]uint16{graph.If_110_X_130_A})
+	tg := generated.NewDefaultGraph(rootCtrl)
+	seg110To130 := tg.Beacon([]uint16{generated.If_110_X_120_A, generated.If_120_A_130_B})
+	seg110To130Short := tg.Beacon([]uint16{generated.If_110_X_130_A})
 
 	tests := map[string]struct {
 		Segs           []*seg.Meta

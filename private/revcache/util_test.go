@@ -16,6 +16,7 @@ package revcache_test
 
 import (
 	"context"
+	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"testing"
 	"time"
 
@@ -27,7 +28,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/revcache"
@@ -54,13 +54,13 @@ func TestNoRevokedHopIntf(t *testing.T) {
 		assert.True(t, noR, "no revocation expected")
 	})
 	t.Run("on segment revocation", func(t *testing.T) {
-		sRev := defaultRevInfo(ia211, graph.If_211_A_210_X, now)
+		sRev := defaultRevInfo(ia211, generated.If_211_A_210_X, now)
 		revCache := mock_revcache.NewMockRevCache(ctrl)
 		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).DoAndReturn(
 			func(_ context.Context, key revcache.Key) (*path_mgmt.RevInfo, error) {
 				iaFmt := key.IA.String()
 				_ = iaFmt
-				if key.IA == ia211 && key.IfID == iface.ID(graph.If_211_A_210_X) {
+				if key.IA == ia211 && key.IfID == iface.ID(generated.If_211_A_210_X) {
 					return sRev, nil
 				}
 				return nil, nil
@@ -91,6 +91,6 @@ func defaultRevInfo(ia addr.IA, ifID uint16, ts time.Time) *path_mgmt.RevInfo {
 }
 
 func createSeg(ctrl *gomock.Controller) *seg.PathSegment {
-	g := graph.NewDefaultGraph(ctrl)
-	return g.Beacon([]uint16{graph.If_210_X_211_A, graph.If_211_A_222_X})
+	g := generated.NewDefaultGraph(ctrl)
+	return g.Beacon([]uint16{generated.If_210_X_211_A, generated.If_211_A_222_X})
 }

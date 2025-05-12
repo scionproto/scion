@@ -30,6 +30,8 @@ var (
 	graphFile = flag.String("graphFile", DefaultGenFile, "")
 )
 
+// TODO check that generated files are up-to-date in CI
+
 func main() {
 	err := WriteGraphToFile(*topoFile, *graphFile)
 	if err != nil {

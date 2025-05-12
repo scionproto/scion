@@ -16,6 +16,7 @@ package combinator
 
 import (
 	"fmt"
+	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"testing"
 	"time"
 
@@ -31,7 +32,7 @@ import (
 
 func TestStaticinfo(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	g := graph.NewDefaultGraph(ctrl)
+	g := generated.NewDefaultGraph(ctrl)
 
 	testCases := []struct {
 		Name      string
@@ -41,41 +42,41 @@ func TestStaticinfo(t *testing.T) {
 		{
 			Name: "#0 simple up-core-down",
 			Path: []snet.PathInterface{
-				{IA: addr.MustParseIA("1-ff00:0:131"), ID: iface.ID(graph.If_131_X_130_A)},
-				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(graph.If_130_A_131_X)},
-				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(graph.If_130_B_120_A)},
-				{IA: addr.MustParseIA("1-ff00:0:120"), ID: iface.ID(graph.If_120_A_130_B)},
-				{IA: addr.MustParseIA("1-ff00:0:120"), ID: iface.ID(graph.If_120_X_111_B)},
-				{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.ID(graph.If_111_B_120_X)},
+				{IA: addr.MustParseIA("1-ff00:0:131"), ID: iface.ID(generated.If_131_X_130_A)},
+				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(generated.If_130_A_131_X)},
+				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(generated.If_130_B_120_A)},
+				{IA: addr.MustParseIA("1-ff00:0:120"), ID: iface.ID(generated.If_120_A_130_B)},
+				{IA: addr.MustParseIA("1-ff00:0:120"), ID: iface.ID(generated.If_120_X_111_B)},
+				{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.ID(generated.If_111_B_120_X)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]uint16{graph.If_130_A_131_X},
-				[]uint16{graph.If_120_A_130_B},
-				[]uint16{graph.If_120_X_111_B},
+				[]uint16{generated.If_130_A_131_X},
+				[]uint16{generated.If_120_A_130_B},
+				[]uint16{generated.If_120_X_111_B},
 			),
 		},
 		{
 			Name: "#1 simple up-core",
 			Path: []snet.PathInterface{
-				{IA: addr.MustParseIA("1-ff00:0:131"), ID: iface.ID(graph.If_131_X_130_A)},
-				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(graph.If_130_A_131_X)},
-				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(graph.If_130_A_110_X)},
-				{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(graph.If_110_X_130_A)},
+				{IA: addr.MustParseIA("1-ff00:0:131"), ID: iface.ID(generated.If_131_X_130_A)},
+				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(generated.If_130_A_131_X)},
+				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(generated.If_130_A_110_X)},
+				{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(generated.If_110_X_130_A)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]uint16{graph.If_130_A_131_X},
-				[]uint16{graph.If_110_X_130_A},
+				[]uint16{generated.If_130_A_131_X},
+				[]uint16{generated.If_110_X_130_A},
 				nil,
 			),
 		},
 		{
 			Name: "#2 simple up only",
 			Path: []snet.PathInterface{
-				{IA: addr.MustParseIA("1-ff00:0:131"), ID: iface.ID(graph.If_131_X_130_A)},
-				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(graph.If_130_A_131_X)},
+				{IA: addr.MustParseIA("1-ff00:0:131"), ID: iface.ID(generated.If_131_X_130_A)},
+				{IA: addr.MustParseIA("1-ff00:0:130"), ID: iface.ID(generated.If_130_A_131_X)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]uint16{graph.If_130_A_131_X},
+				[]uint16{generated.If_130_A_131_X},
 				nil,
 				nil,
 			),
@@ -83,31 +84,31 @@ func TestStaticinfo(t *testing.T) {
 		{
 			Name: "#14 shortcut, common upstream",
 			Path: []snet.PathInterface{
-				{IA: addr.MustParseIA("2-ff00:0:212"), ID: iface.ID(graph.If_212_X_211_A1)},
-				{IA: addr.MustParseIA("2-ff00:0:211"), ID: iface.ID(graph.If_211_A1_212_X)},
-				{IA: addr.MustParseIA("2-ff00:0:211"), ID: iface.ID(graph.If_211_A_222_X)},
-				{IA: addr.MustParseIA("2-ff00:0:222"), ID: iface.ID(graph.If_222_X_211_A)},
+				{IA: addr.MustParseIA("2-ff00:0:212"), ID: iface.ID(generated.If_212_X_211_A1)},
+				{IA: addr.MustParseIA("2-ff00:0:211"), ID: iface.ID(generated.If_211_A1_212_X)},
+				{IA: addr.MustParseIA("2-ff00:0:211"), ID: iface.ID(generated.If_211_A_222_X)},
+				{IA: addr.MustParseIA("2-ff00:0:222"), ID: iface.ID(generated.If_222_X_211_A)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]uint16{graph.If_210_X1_211_A, graph.If_211_A1_212_X},
+				[]uint16{generated.If_210_X1_211_A, generated.If_211_A1_212_X},
 				nil,
-				[]uint16{graph.If_210_X1_211_A, graph.If_211_A_222_X},
+				[]uint16{generated.If_210_X1_211_A, generated.If_211_A_222_X},
 			),
 		},
 		{
 			Name: "#15 go through peer",
 			Path: []snet.PathInterface{
-				{IA: addr.MustParseIA("2-ff00:0:212"), ID: iface.ID(graph.If_212_X_211_A1)},
-				{IA: addr.MustParseIA("2-ff00:0:211"), ID: iface.ID(graph.If_211_A1_212_X)},
-				{IA: addr.MustParseIA("2-ff00:0:211"), ID: iface.ID(graph.If_211_A_221_X)},
-				{IA: addr.MustParseIA("2-ff00:0:221"), ID: iface.ID(graph.If_221_X_211_A)},
-				{IA: addr.MustParseIA("2-ff00:0:221"), ID: iface.ID(graph.If_221_X_222_X)},
-				{IA: addr.MustParseIA("2-ff00:0:222"), ID: iface.ID(graph.If_222_X_221_X)},
+				{IA: addr.MustParseIA("2-ff00:0:212"), ID: iface.ID(generated.If_212_X_211_A1)},
+				{IA: addr.MustParseIA("2-ff00:0:211"), ID: iface.ID(generated.If_211_A1_212_X)},
+				{IA: addr.MustParseIA("2-ff00:0:211"), ID: iface.ID(generated.If_211_A_221_X)},
+				{IA: addr.MustParseIA("2-ff00:0:221"), ID: iface.ID(generated.If_221_X_211_A)},
+				{IA: addr.MustParseIA("2-ff00:0:221"), ID: iface.ID(generated.If_221_X_222_X)},
+				{IA: addr.MustParseIA("2-ff00:0:222"), ID: iface.ID(generated.If_222_X_221_X)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]uint16{graph.If_210_X1_211_A, graph.If_211_A1_212_X},
+				[]uint16{generated.If_210_X1_211_A, generated.If_211_A1_212_X},
 				nil,
-				[]uint16{graph.If_220_X_221_X, graph.If_221_X_222_X},
+				[]uint16{generated.If_220_X_221_X, generated.If_221_X_222_X},
 			),
 		},
 	}

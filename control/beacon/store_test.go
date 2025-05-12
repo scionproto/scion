@@ -17,6 +17,7 @@ package beacon_test
 import (
 	"context"
 	"errors"
+	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -48,30 +49,30 @@ func testStoreSelection(t *testing.T,
 	methodToTest func(store *beacon.Store) ([]beacon.Beacon, error)) {
 
 	mctrl := gomock.NewController(t)
-	g := graph.NewDefaultGraph(mctrl)
+	g := generated.NewDefaultGraph(mctrl)
 
 	// Ensure remote out if is set in last AS entry.
-	stub := graph.If_111_A_112_X
+	stub := generated.If_111_A_112_X
 	beacons := []beacon.Beacon{
-		testBeacon(g, graph.If_120_X_111_B, stub),
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
+		testBeacon(g, generated.If_120_X_111_B, stub),
+		testBeacon(g, generated.If_130_B_120_A, generated.If_120_X_111_B, stub),
+		testBeacon(g, generated.If_130_B_120_A, generated.If_120_X_111_B, stub),
 	}
-	stub = graph.If_210_X_220_X
+	stub = generated.If_210_X_220_X
 	diverseBeacons := []beacon.Beacon{
-		testBeacon(g, graph.If_130_A_110_X, graph.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_130_A_110_X, generated.If_110_X_210_X, stub),
 		// Same beacon as the first beacon.
-		testBeacon(g, graph.If_130_A_110_X, graph.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_130_A_110_X, generated.If_110_X_210_X, stub),
 		// Share the last link between 110 and 210.
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_130_B_120_A, generated.If_120_A_110_X, generated.If_110_X_210_X, stub),
 		// Share the last link between 130 and 110.
-		testBeacon(g, graph.If_130_A_110_X, graph.If_110_X_120_A, graph.If_120_B_220_X,
-			graph.If_220_X_210_X, stub),
+		testBeacon(g, generated.If_130_A_110_X, generated.If_110_X_120_A, generated.If_120_B_220_X,
+			generated.If_220_X_210_X, stub),
 		// Share no link.
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_B_220_X, graph.If_220_X_210_X, stub),
+		testBeacon(g, generated.If_130_B_120_A, generated.If_120_B_220_X, generated.If_220_X_210_X, stub),
 		// Share no link.
-		testBeacon(g, graph.If_130_B_111_A, graph.If_111_B_120_X, graph.If_120_B_220_X,
-			graph.If_220_X_210_X, stub),
+		testBeacon(g, generated.If_130_B_111_A, generated.If_111_B_120_X, generated.If_120_B_220_X,
+			generated.If_220_X_210_X, stub),
 	}
 	var tests = []struct {
 		name     string
@@ -156,33 +157,33 @@ func testCoreStoreSelection(t *testing.T,
 	methodToTest func(store *beacon.CoreStore) ([]beacon.Beacon, error)) {
 
 	mctrl := gomock.NewController(t)
-	g := graph.NewDefaultGraph(mctrl)
+	g := generated.NewDefaultGraph(mctrl)
 
 	// Ensure remote out if is set in last AS entry.
-	stub := graph.If_210_X_220_X
+	stub := generated.If_210_X_220_X
 
 	ia120 := addr.MustParseIA("1-ff00:0:120")
 	beacons120 := []beacon.Beacon{
-		testBeacon(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
-		testBeacon(g, graph.If_120_B_220_X, graph.If_220_X_210_X, stub),
+		testBeacon(g, generated.If_120_A_110_X, generated.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_120_B_220_X, generated.If_220_X_210_X, stub),
 	}
 	diverse120 := []beacon.Beacon{
-		testBeacon(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
-		testBeacon(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
-		testBeacon(g, graph.If_120_B_220_X, graph.If_220_X_210_X, stub),
-		testBeacon(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_120_A_110_X, generated.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_120_A_110_X, generated.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_120_B_220_X, generated.If_220_X_210_X, stub),
+		testBeacon(g, generated.If_120_A_110_X, generated.If_110_X_210_X, stub),
 	}
 
 	ia130 := addr.MustParseIA("1-ff00:0:130")
 	beacons130 := []beacon.Beacon{
-		testBeacon(g, graph.If_130_A_110_X, graph.If_110_X_210_X, stub),
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_130_A_110_X, generated.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_130_B_120_A, generated.If_120_A_110_X, generated.If_110_X_210_X, stub),
 	}
 	diverse130 := []beacon.Beacon{
-		testBeacon(g, graph.If_130_A_110_X, graph.If_110_X_210_X, stub),
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_B_220_X, graph.If_220_X_210_X, stub),
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_130_A_110_X, generated.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_130_B_120_A, generated.If_120_A_110_X, generated.If_110_X_210_X, stub),
+		testBeacon(g, generated.If_130_B_120_A, generated.If_120_B_220_X, generated.If_220_X_210_X, stub),
+		testBeacon(g, generated.If_130_B_120_A, generated.If_120_A_110_X, generated.If_110_X_210_X, stub),
 	}
 	var tests = []struct {
 		name     string

@@ -16,13 +16,13 @@ package main
 
 import (
 	"bytes"
+	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"go/format"
 	"os"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest/graph"
 )
 
 const (
@@ -56,7 +56,7 @@ func LoadGraph(topoFile string) (*Graph, error) {
 	return newGraph(t.Links, graph.StaticIfaceIdMapping), nil
 }
 
-// WriteGraphToFile writes the default graph from topoFile to the destFile.
+// WriteGraphToFile writes the graph from topoFile to the destFile.
 func WriteGraphToFile(topoFile, destFile string) error {
 	g, err := LoadGraph(topoFile)
 	if err != nil {

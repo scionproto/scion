@@ -16,6 +16,7 @@ package beaconing_test
 
 import (
 	"context"
+	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -38,7 +39,7 @@ import (
 
 var (
 	localIA = addr.MustParseIA("1-ff00:0:110")
-	localIF = graph.If_110_X_120_A
+	localIF = generated.If_110_X_120_A
 )
 
 func TestHandlerHandleBeacon(t *testing.T) {
@@ -47,9 +48,9 @@ func TestHandlerHandleBeacon(t *testing.T) {
 
 	validBeacon := func() beacon.Beacon {
 		mctrl := gomock.NewController(t)
-		g := graph.NewDefaultGraph(mctrl)
+		g := generated.NewDefaultGraph(mctrl)
 		return beacon.Beacon{
-			Segment: testSegment(g, []uint16{graph.If_220_X_120_B, graph.If_120_A_110_X}),
+			Segment: testSegment(g, []uint16{generated.If_220_X_120_B, generated.If_120_A_110_X}),
 			InIfID:  localIF,
 		}
 	}()
@@ -98,10 +99,10 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				return mock_infra.NewMockVerifier(mctrl)
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
-				g := graph.NewDefaultGraph(mctrl)
+				g := generated.NewDefaultGraph(mctrl)
 				return beacon.Beacon{
 					Segment: testSegment(g, []uint16{
-						graph.If_220_X_120_B, graph.If_120_A_110_X,
+						generated.If_220_X_120_B, generated.If_120_A_110_X,
 					}),
 					InIfID: 12,
 				}
@@ -124,10 +125,10 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				return mock_infra.NewMockVerifier(mctrl)
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
-				g := graph.NewDefaultGraph(mctrl)
+				g := generated.NewDefaultGraph(mctrl)
 				return beacon.Beacon{
 					Segment: testSegment(g, []uint16{
-						graph.If_220_X_120_B, graph.If_120_A_110_X,
+						generated.If_220_X_120_B, generated.If_120_A_110_X,
 					}),
 					InIfID: 42,
 				}
@@ -150,10 +151,10 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				return mock_infra.NewMockVerifier(mctrl)
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
-				g := graph.NewDefaultGraph(mctrl)
+				g := generated.NewDefaultGraph(mctrl)
 				b := beacon.Beacon{
 					Segment: testSegment(g, []uint16{
-						graph.If_220_X_120_B, graph.If_120_A_110_X,
+						generated.If_220_X_120_B, generated.If_120_A_110_X,
 					}),
 					InIfID: localIF,
 				}
@@ -178,10 +179,10 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				return mock_infra.NewMockVerifier(mctrl)
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
-				g := graph.NewDefaultGraph(mctrl)
+				g := generated.NewDefaultGraph(mctrl)
 				b := beacon.Beacon{
 					Segment: testSegment(g, []uint16{
-						graph.If_220_X_120_B, graph.If_120_A_110_X,
+						generated.If_220_X_120_B, generated.If_120_A_110_X,
 					}),
 					InIfID: localIF,
 				}

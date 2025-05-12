@@ -65,6 +65,7 @@ go_test(
         "//pkg/addr:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",
+        "//pkg/private/xtest/generated:go_default_library",
         "//pkg/private/xtest/graph:go_default_library",
         "//pkg/proto/crypto:go_default_library",
         "//pkg/scrypto:go_default_library",

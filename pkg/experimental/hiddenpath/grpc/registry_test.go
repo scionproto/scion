@@ -16,6 +16,8 @@ package grpc_test
 
 import (
 	"context"
+	"github.com/scionproto/scion/pkg/private/xtest/generated"
+	"github.com/scionproto/scion/pkg/proto/control_plane"
 	"net"
 	"testing"
 
@@ -30,8 +32,6 @@ import (
 	hpgrpc "github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/mock_hiddenpath"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest/graph"
-	"github.com/scionproto/scion/pkg/proto/control_plane"
 	hspb "github.com/scionproto/scion/pkg/proto/hidden_segment"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -110,8 +110,8 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 				return mock_hiddenpath.NewMockRegistry(ctrl)
 			},
 			verifier: func(ctrl *gomock.Controller) infra.Verifier {
-				g := graph.NewDefaultGraph(ctrl)
-				s := g.Beacon([]uint16{graph.If_110_X_120_A})
+				g := generated.NewDefaultGraph(ctrl)
+				s := g.Beacon([]uint16{generated.If_110_X_120_A})
 
 				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
 					Segments: map[int32]*hspb.Segments{
@@ -162,8 +162,8 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 				return registry
 			},
 			verifier: func(ctrl *gomock.Controller) infra.Verifier {
-				g := graph.NewDefaultGraph(ctrl)
-				s := g.Beacon([]uint16{graph.If_110_X_120_A})
+				g := generated.NewDefaultGraph(ctrl)
+				s := g.Beacon([]uint16{generated.If_110_X_120_A})
 
 				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
 					Segments: map[int32]*hspb.Segments{
@@ -193,8 +193,8 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 				return registry
 			},
 			verifier: func(ctrl *gomock.Controller) infra.Verifier {
-				g := graph.NewDefaultGraph(ctrl)
-				s := g.Beacon([]uint16{graph.If_110_X_120_A})
+				g := generated.NewDefaultGraph(ctrl)
+				s := g.Beacon([]uint16{generated.If_110_X_120_A})
 
 				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
 					Segments: map[int32]*hspb.Segments{

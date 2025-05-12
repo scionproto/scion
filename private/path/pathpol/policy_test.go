@@ -17,6 +17,7 @@ package pathpol
 
 import (
 	"encoding/json"
+	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -632,7 +633,7 @@ type PathProvider struct {
 
 func NewPathProvider(ctrl *gomock.Controller) PathProvider {
 	return PathProvider{
-		g: graph.NewDefaultGraph(ctrl),
+		g: generated.NewDefaultGraph(ctrl),
 	}
 }
 

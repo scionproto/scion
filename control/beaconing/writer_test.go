@@ -21,6 +21,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
+	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"hash"
 	"net"
 	"net/netip"
@@ -69,18 +70,18 @@ func TestRegistrarRun(t *testing.T) {
 			segType: seg.TypeCore,
 			fn:      topoCore,
 			beacons: [][]uint16{
-				{graph.If_120_A_110_X},
-				{graph.If_130_B_120_A, graph.If_120_A_110_X},
+				{generated.If_120_A_110_X},
+				{generated.If_130_B_120_A, generated.If_120_A_110_X},
 			},
 		},
 		{
 			name:          "Up segment",
 			segType:       seg.TypeUp,
 			fn:            topoNonCore,
-			inactivePeers: map[uint16]bool{graph.If_111_C_121_X: true},
+			inactivePeers: map[uint16]bool{generated.If_111_C_121_X: true},
 			beacons: [][]uint16{
-				{graph.If_120_X_111_B},
-				{graph.If_130_B_120_A, graph.If_120_X_111_B},
+				{generated.If_120_X_111_B},
+				{generated.If_130_B_120_A, generated.If_120_X_111_B},
 			},
 		},
 	}
@@ -116,7 +117,7 @@ func TestRegistrarRun(t *testing.T) {
 				Type:     test.segType,
 			}
 
-			g := graph.NewDefaultGraph(mctrl)
+			g := generated.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
 				func(_, _ any) ([]beacon.Beacon, error) {
 					res := make([]beacon.Beacon, 0, len(test.beacons))
@@ -162,10 +163,10 @@ func TestRegistrarRun(t *testing.T) {
 			name:          "Down segment",
 			segType:       seg.TypeDown,
 			fn:            topoNonCore,
-			inactivePeers: map[uint16]bool{graph.If_111_C_121_X: true},
+			inactivePeers: map[uint16]bool{generated.If_111_C_121_X: true},
 			beacons: [][]uint16{
-				{graph.If_120_X_111_B},
-				{graph.If_130_B_120_A, graph.If_120_X_111_B},
+				{generated.If_120_X_111_B},
+				{generated.If_130_B_120_A, generated.If_120_X_111_B},
 			},
 		},
 	}
@@ -206,7 +207,7 @@ func TestRegistrarRun(t *testing.T) {
 				Type:     test.segType,
 			}
 
-			g := graph.NewDefaultGraph(mctrl)
+			g := generated.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
 				func(_, _ any) ([]beacon.Beacon, error) {
 					res := make([]beacon.Beacon, len(test.beacons))
@@ -306,13 +307,13 @@ func TestRegistrarRun(t *testing.T) {
 			Type:     seg.TypeDown,
 		}
 
-		g := graph.NewDefaultGraph(mctrl)
+		g := generated.NewDefaultGraph(mctrl)
 		require.NoError(t, err)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(),
 			seg.TypeDown).DoAndReturn(
 			func(_, _ any) (<-chan beacon.Beacon, error) {
 				res := make(chan beacon.Beacon, 1)
-				b := testBeacon(g, []uint16{graph.If_120_X_111_B})
+				b := testBeacon(g, []uint16{generated.If_120_X_111_B})
 				b.InIfID = 10
 				res <- b
 				close(res)

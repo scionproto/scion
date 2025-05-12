@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"net"
 	"testing"
 	"time"
@@ -34,7 +35,6 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
@@ -46,9 +46,9 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	pub := priv.Public()
 
 	beacons := [][]uint16{
-		{graph.If_120_X_111_B},
-		{graph.If_130_B_120_A, graph.If_120_X_111_B},
-		{graph.If_130_B_120_A, graph.If_120_X_111_B},
+		{generated.If_120_X_111_B},
+		{generated.If_130_B_120_A, generated.If_120_X_111_B},
+		{generated.If_130_B_120_A, generated.If_120_X_111_B},
 	}
 
 	mctrl := gomock.NewController(t)
@@ -80,7 +80,7 @@ func TestPropagatorRunNonCore(t *testing.T) {
 		Tick:     beaconing.NewTick(time.Hour),
 		Provider: provider,
 	}
-	g := graph.NewDefaultGraph(mctrl)
+	g := generated.NewDefaultGraph(mctrl)
 	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(1).DoAndReturn(
 		func(_ any) ([]beacon.Beacon, error) {
 			res := make([]beacon.Beacon, 0, len(beacons))
@@ -120,8 +120,8 @@ func TestPropagatorRunCore(t *testing.T) {
 	pub := priv.Public()
 
 	beacons := [][]uint16{
-		{graph.If_120_A_110_X},
-		{graph.If_130_B_120_A, graph.If_120_A_110_X},
+		{generated.If_120_A_110_X},
+		{generated.If_130_B_120_A, generated.If_120_A_110_X},
 	}
 
 	mctrl := gomock.NewController(t)
@@ -153,7 +153,7 @@ func TestPropagatorRunCore(t *testing.T) {
 		Tick:     beaconing.NewTick(time.Hour),
 		Provider: provider,
 	}
-	g := graph.NewDefaultGraph(mctrl)
+	g := generated.NewDefaultGraph(mctrl)
 	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(2).DoAndReturn(
 		func(_ any) ([]beacon.Beacon, error) {
 			res := make([]beacon.Beacon, 0, len(beacons))
@@ -164,7 +164,7 @@ func TestPropagatorRunCore(t *testing.T) {
 		},
 	)
 
-	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), graph.If_110_X_210_X,
+	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), generated.If_110_X_210_X,
 		gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ addr.IA, egIfID uint16,
 			nextHop *net.UDPAddr,
@@ -180,7 +180,7 @@ func TestPropagatorRunCore(t *testing.T) {
 			return sender, nil
 		},
 	)
-	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), graph.If_110_X_130_A,
+	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), generated.If_110_X_130_A,
 		gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ addr.IA, egIfID uint16,
 			nextHop *net.UDPAddr,
@@ -206,8 +206,8 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	require.NoError(t, err)
 
 	beacons := [][]uint16{
-		{graph.If_120_A_110_X},
-		{graph.If_130_B_120_A, graph.If_120_A_110_X},
+		{generated.If_120_A_110_X},
+		{generated.If_130_B_120_A, generated.If_120_A_110_X},
 	}
 	mctrl := gomock.NewController(t)
 	topo, err := topology.FromJSONFile(topoCore)
@@ -241,7 +241,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 		Provider: provider,
 	}
 
-	g := graph.NewDefaultGraph(mctrl)
+	g := generated.NewDefaultGraph(mctrl)
 	// We call run 4 times in this test, since the interface to 1-ff00:0:120
 	// will never be beaconed on, because the beacons are filtered for loops.
 	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(4).DoAndReturn(
