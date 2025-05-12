@@ -2,18 +2,34 @@ load("@rules_go//go:def.bzl", "go_library")
 load("//tools:go.bzl", "go_test")
 
 genrule(
-    # The generated file is bazel-bin/private/underlay/ebpf/portfilter_bpfel.go
-    name = "gen_bpf_filter_go",
+    # The generated file is bazel-bin/private/underlay/ebpf/sockfilter_bpfel.go
+    name = "gen_bpf_sock_filter_go",
     srcs = [
-        "portfilter.c",
+        "sockfilter.c",
         "bpf_helpers.h",
         "bpf_helper_defs.h",
     ],
     outs = [
-        "portfilter_bpfel.go",
-        "portfilter_bpfel.o",
+        "sockfilter_bpfel.go",
+        "sockfilter_bpfel.o",
     ],
-    cmd = "GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) -output-dir $$(dirname $(location portfilter_bpfel.go)) -tags linux portfilter $(location portfilter.c)",
+    cmd = "GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) -output-dir $$(dirname $(location sockfilter_bpfel.go)) -tags linux sockfilter $(location sockfilter.c)",
+    tools = ["@com_github_cilium_ebpf//cmd/bpf2go"],
+)
+
+genrule(
+    # The generated file is bazel-bin/private/underlay/ebpf/kfilter_bpfel.go
+    name = "gen_bpf_k_filter_go",
+    srcs = [
+        "kfilter.c",
+        "bpf_helpers.h",
+        "bpf_helper_defs.h",
+    ],
+    outs = [
+        "kfilter_bpfel.go",
+        "kfilter_bpfel.o",
+    ],
+    cmd = "GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) -output-dir $$(dirname $(location kfilter_bpfel.go)) -tags linux kfilter $(location kfilter.c)",
     tools = ["@com_github_cilium_ebpf//cmd/bpf2go"],
 )
 
@@ -22,16 +38,23 @@ go_library(
     srcs = [
         "bpf_helper_defs.h",
         "bpf_helpers.h",
+        "kfilter_bpfel.go",
+        "kfilter_lint.go",  # keep
         "portfilter.go",
-        "portfilter_bpfel.go",
-        "portfilter_lint.go",  # keep
+        "sockfilter_bpfel.go",
+        "sockfilter_lint.go",  # keep
     ],
     embedsrcs = [
-        "portfilter_bpfel.o",  #keep
+        "sockfilter_bpfel.o",  #keep
+        "kfilter_bpfel.o",  #keep
     ],
     importpath = "github.com/scionproto/scion/private/underlay/ebpf",
     visibility = ["//visibility:public"],
-    deps = ["@com_github_cilium_ebpf//:go_default_library"],
+    deps = [
+        "@com_github_cilium_ebpf//:go_default_library",
+        "@com_github_cilium_ebpf//link:go_default_library",
+        "@com_github_gopacket_gopacket//afpacket:go_default_library",
+    ],
 )
 
 # Builds the portfilter test; but it will be missing the required capabilities; so we must not
