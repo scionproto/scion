@@ -21,9 +21,9 @@ the element ID.
 
 Consider the following example:
 
-```
-- {a: "1-ff00:0:110",   b: "1-ff00:0:120-1", linkAtoB: CORE}
-- {a: "1-ff00:0:120-1", b: "1-ff00:0:130", linkAtoB: CORE}
+```text
+- {a: "1-ff00:0:110",   b: "1-ff00:0:120-1", linkAtoB: CORE}`
+- {a: "1-ff00:0:120-1", b: "1-ff00:0:130", linkAtoB: CORE}`
 ```
 
 In the example above, two links are defined, resulting in:

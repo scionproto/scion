@@ -20,7 +20,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"hash"
 	mrand "math/rand/v2"
 	"testing"
@@ -32,6 +31,7 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -49,8 +49,8 @@ func TestDefaultExtenderExtend(t *testing.T) {
 	pub := priv.Public()
 
 	peerRemoteIfs := map[uint16]uint16{
-		generated.If_111_C_121_X: generated.If_121_X_111_C,
-		generated.If_111_C_211_A: generated.If_211_A_111_C,
+		graph.If_111_C_121_X: graph.If_121_X_111_C,
+		graph.If_111_C_211_A: graph.If_211_A_111_C,
 	}
 	testsCases := map[string]struct {
 		ingress      uint16
@@ -60,31 +60,31 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		errAssertion assert.ErrorAssertionFunc
 	}{
 		"valid": {
-			egress:       generated.If_111_A_112_X,
+			egress:       graph.If_111_A_112_X,
 			errAssertion: assert.NoError,
-			peers:        []uint16{generated.If_111_C_121_X},
+			peers:        []uint16{graph.If_111_C_121_X},
 		},
 		"two peers": {
-			egress:       generated.If_111_A_112_X,
-			peers:        []uint16{generated.If_111_C_121_X, generated.If_111_C_211_A},
+			egress:       graph.If_111_A_112_X,
+			peers:        []uint16{graph.If_111_C_121_X, graph.If_111_C_211_A},
 			errAssertion: assert.NoError,
 		},
 		"ignore unset peers": {
-			egress:       generated.If_111_A_112_X,
-			peers:        []uint16{generated.If_111_C_121_X, generated.If_111_C_211_A},
-			unsetPeers:   []uint16{generated.If_111_B_211_A},
+			egress:       graph.If_111_A_112_X,
+			peers:        []uint16{graph.If_111_C_121_X, graph.If_111_C_211_A},
+			unsetPeers:   []uint16{graph.If_111_B_211_A},
 			errAssertion: assert.NoError,
 		},
 		"egress 0": {
-			ingress:      generated.If_111_B_120_X,
+			ingress:      graph.If_111_B_120_X,
 			errAssertion: assert.Error,
 		},
 		"ingress and egress 0": {
 			errAssertion: assert.Error,
 		},
 		"ingress 0": {
-			ingress:      generated.If_111_B_120_X,
-			egress:       generated.If_111_A_112_X,
+			ingress:      graph.If_111_B_120_X,
+			egress:       graph.If_111_A_112_X,
 			errAssertion: assert.Error,
 		},
 	}
@@ -182,7 +182,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		require.NoError(t, err)
 		pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 		require.NoError(t, err)
-		err = ext.Extend(context.Background(), pseg, 0, generated.If_111_A_112_X, []uint16{})
+		err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []uint16{})
 		require.NoError(t, err)
 		assert.Equal(t, uint8(1), pseg.ASEntries[0].HopEntry.HopField.ExpTime)
 	})
@@ -273,7 +273,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				}
 				pseg, err := seg.CreateSegment(ts, uint16(mrand.Int()))
 				require.NoError(t, err)
-				err = ext.Extend(context.Background(), pseg, 0, generated.If_111_A_112_X, []uint16{})
+				err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []uint16{})
 				tc.ErrAssertion(t, err)
 				if err != nil {
 					return
@@ -297,30 +297,30 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			},
 			"Inactive Ingress": {
 				Signer:  defaultSigner,
-				Ingress: generated.If_111_B_120_X,
+				Ingress: graph.If_111_B_120_X,
 			},
 			"Invalid Ingress Remote": {
 				Signer:  defaultSigner,
-				Ingress: generated.If_111_B_120_X,
+				Ingress: graph.If_111_B_120_X,
 			},
 			"Unknown Egress": {
 				Signer:  defaultSigner,
-				Ingress: generated.If_111_B_120_X,
+				Ingress: graph.If_111_B_120_X,
 				Egress:  10,
 			},
 			"Inactive Egress": {
 				Signer:  defaultSigner,
-				Ingress: generated.If_111_B_120_X,
-				Egress:  generated.If_111_A_112_X,
+				Ingress: graph.If_111_B_120_X,
+				Egress:  graph.If_111_A_112_X,
 			},
 			"Invalid Egress Remote": {
 				Signer:  defaultSigner,
-				Ingress: generated.If_111_B_120_X,
-				Egress:  generated.If_111_A_112_X,
+				Ingress: graph.If_111_B_120_X,
+				Egress:  graph.If_111_A_112_X,
 			},
 			"Signer fails": {
 				Signer:  func(t *testing.T) seg.Signer { return &failSigner{} },
-				Ingress: generated.If_111_B_120_X,
+				Ingress: graph.If_111_B_120_X,
 			},
 		}
 		for name, tc := range testCases {

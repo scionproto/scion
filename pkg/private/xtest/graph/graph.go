@@ -581,6 +581,10 @@ type EdgeDesc struct {
 	Peer  bool
 }
 
+func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
+	return NewFromDescription(ctrl, DefaultGraphDescription)
+}
+
 // generateStaticInfo is used during mock beaconing. It takes any interface of the AS
 // that is doing the beaconing as well as the egress interface for that beacon.
 // It then uses that interface to generate characteristic StaticInfo for said interface,

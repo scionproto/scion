@@ -33,7 +33,7 @@ go_test(
         ":go_default_library",
         "//pkg/private/mocks/net/mock_net:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//pkg/private/xtest/generated:go_default_library",
+        "//pkg/private/xtest/graph:go_default_library",
         "//pkg/segment:go_default_library",
         "//private/pathdb:go_default_library",
         "//private/pathdb/mock_pathdb:go_default_library",

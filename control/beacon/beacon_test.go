@@ -15,11 +15,12 @@
 package beacon_test
 
 import (
-	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/pkg/private/xtest/graph"
 )
 
 // TestBeaconDiversity tests that diversity is calculated correctly.
@@ -31,29 +32,29 @@ func TestBeaconDiversity(t *testing.T) {
 	}{
 		{
 			name:      "Same beacon",
-			beacon:    []uint16{generated.If_130_A_110_X, generated.If_110_X_210_X, generated.If_210_X_220_X},
+			beacon:    []uint16{graph.If_130_A_110_X, graph.If_110_X_210_X, graph.If_210_X_220_X},
 			diversity: 0,
 		},
 		{
 			name: "Share one link",
 			beacon: []uint16{
-				generated.If_130_B_120_A, generated.If_120_A_110_X,
-				generated.If_110_X_210_X, generated.If_210_X_220_X,
+				graph.If_130_B_120_A, graph.If_120_A_110_X,
+				graph.If_110_X_210_X, graph.If_210_X_220_X,
 			},
 			diversity: 1,
 		},
 		{
 			name: "Distinct",
 			beacon: []uint16{
-				generated.If_130_B_120_A, generated.If_120_B_220_X,
-				generated.If_220_X_210_X, generated.If_210_X_220_X,
+				graph.If_130_B_120_A, graph.If_120_B_220_X,
+				graph.If_220_X_210_X, graph.If_210_X_220_X,
 			},
 			diversity: 2,
 		},
 	}
 	mctrl := gomock.NewController(t)
 
-	g := generated.NewDefaultGraph(mctrl)
+	g := graph.NewDefaultGraph(mctrl)
 	bseg := testBeacon(g, tests[0].beacon...)
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

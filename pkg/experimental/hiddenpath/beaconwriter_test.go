@@ -20,7 +20,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"github.com/scionproto/scion/pkg/private/xtest/generated"
 	"hash"
 	"net"
 	"net/netip"
@@ -103,8 +102,8 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 	}{
 		"Only public registration": {
 			beacons: [][]uint16{
-				{generated.If_120_X_111_B},
-				{generated.If_130_B_120_A, generated.If_120_X_111_B},
+				{graph.If_120_X_111_B},
+				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
 			createRPC: func(t *testing.T,
 				ctrl *gomock.Controller,
@@ -132,7 +131,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				return rpc
 			},
 			policy: hiddenpath.RegistrationPolicy{
-				uint64(generated.If_111_B_120_X): hiddenpath.InterfacePolicy{
+				uint64(graph.If_111_B_120_X): hiddenpath.InterfacePolicy{
 					Public: true,
 				},
 			},
@@ -142,8 +141,8 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 		},
 		"single interface hidden": {
 			beacons: [][]uint16{
-				{generated.If_120_X_111_B},
-				{generated.If_130_B_120_A, generated.If_120_X_111_B},
+				{graph.If_120_X_111_B},
+				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
 			createRPC: func(t *testing.T,
 				ctrl *gomock.Controller,
@@ -162,7 +161,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				return rpc
 			},
 			policy: hiddenpath.RegistrationPolicy{
-				uint64(generated.If_111_B_120_X): hiddenpath.InterfacePolicy{
+				uint64(graph.If_111_B_120_X): hiddenpath.InterfacePolicy{
 					Groups: map[hiddenpath.GroupID]*hiddenpath.Group{
 						mustParseGroupID(t, "ff00:0:140-2"): {
 							ID: mustParseGroupID(t, "ff00:0:140-2"),
@@ -211,7 +210,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				RegistrationPolicy: tc.policy,
 				AddressResolver:    tc.resolver(ctrl),
 			}
-			g := generated.NewDefaultGraph(ctrl)
+			g := graph.NewDefaultGraph(ctrl)
 			var beacons []beacon.Beacon
 			for _, desc := range tc.beacons {
 				beacons = append(beacons, testBeacon(g, desc))

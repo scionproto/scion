@@ -243,7 +243,7 @@ write_source_files(
         "//dispatcher/mgmtapi:write_files",
         "//doc/command:write_files",
         "//gateway/mgmtapi:write_files",
-        "//pkg/private/xtest/generated:write_files",
+        "//pkg/private/xtest/graph:write_files",
         "//pkg/proto/control_plane/v1/control_planeconnect:write_files",
         "//pkg/proto/daemon/v1/daemonconnect:write_files",
         "//pkg/proto/discovery/v1/discoveryconnect:write_files",
