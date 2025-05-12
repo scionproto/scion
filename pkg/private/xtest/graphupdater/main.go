@@ -20,19 +20,12 @@ import (
 	"os"
 )
 
-const (
-	DefaultTopoFile = "topology/default.topo"
-	DefaultGenFile  = "pkg/private/xtest/graph/default_gen.go"
-)
-
-var (
-	topoFile  = flag.String("topoFile", DefaultTopoFile, "")
-	graphFile = flag.String("graphFile", DefaultGenFile, "")
-)
-
 // TODO check that generated files are up-to-date in CI
 
 func main() {
+	topoFile := flag.String("topoFile", "", "")
+	graphFile := flag.String("graphFile", "", "")
+	flag.Parse()
 	err := WriteGraphToFile(*topoFile, *graphFile)
 	if err != nil {
 		fmt.Printf("Failed to write the graph, err: %v\n", err)

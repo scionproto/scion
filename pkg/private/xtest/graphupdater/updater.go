@@ -16,13 +16,13 @@ package main
 
 import (
 	"bytes"
-	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"go/format"
 	"os"
 
 	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/private/xtest/graph"
 )
 
 const (
