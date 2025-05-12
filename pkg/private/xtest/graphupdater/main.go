@@ -24,8 +24,9 @@ import (
 func main() {
 	topoFile := flag.String("topoFile", "", "")
 	graphFile := flag.String("graphFile", "", "")
+	descName := flag.String("descName", "", "")
 	flag.Parse()
-	err := WriteGraphToFile(*topoFile, *graphFile)
+	err := WriteGraphToFile(*topoFile, *graphFile, *descName)
 	if err != nil {
 		fmt.Printf("Failed to write the graph, err: %v\n", err)
 		os.Exit(1)

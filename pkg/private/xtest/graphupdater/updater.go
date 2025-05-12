@@ -58,13 +58,13 @@ func LoadGraph(topoFile string) (*Graph, error) {
 }
 
 // WriteGraphToFile writes the graph from topoFile to the destFile.
-func WriteGraphToFile(topoFile, destFile string) error {
+func WriteGraphToFile(topoFile, destFile, descName string) error {
 	g, err := LoadGraph(topoFile)
 	if err != nil {
 		return err
 	}
 	var buf bytes.Buffer
-	_, err = g.Write(&buf)
+	_, err = g.Write(&buf, descName)
 	if err != nil {
 		return serrors.Wrap("Failed to write graph to byte buffer", err)
 	}

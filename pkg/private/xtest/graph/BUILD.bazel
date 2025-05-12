@@ -31,7 +31,10 @@ genrule(
     name = "generate_default",
     srcs = ["//topology:default"],
     outs = ["default_gen.gen.go"],
-    cmd = "$(location //pkg/private/xtest/graphupdater:graphupdater) -topoFile=$(location //topology:default) -graphFile=$@",
+    cmd = """
+        $(location //pkg/private/xtest/graphupdater:graphupdater) \
+        -topoFile=$(location //topology:default) -graphFile=$@ -descName=DefaultGraphDescription
+    """,
     tools = ["//pkg/private/xtest/graphupdater"],
 )
 
