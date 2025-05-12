@@ -11,7 +11,7 @@ explicit trust information for end-to-end communication.
 SCION's main goal is to offer highly available and efficient inter-domain packet delivery, even in
 the presence of actively malicious entities.
 
-SCION's aspiration is to improve *inter*-AS routing and to focuses on providing end-to-end
+SCION's aspiration is to improve *inter*-AS routing and to focus on providing end-to-end
 connectivity. However, SCION does not solve *intra*-AS routing issues, nor does it provide
 end-to-end payload encryption, and identity authentication. These topics, which are equally
 important for the Internet to perform well, lie outside the scope of SCION.
