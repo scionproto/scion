@@ -74,3 +74,17 @@ func WriteGraphToFile(topoFile, destFile, descName string) error {
 	}
 	return os.WriteFile(destFile, fmtCode, os.ModePerm)
 }
+
+// WriteLinksToFile writes the links to the destFile.
+func WriteLinksToFile(destFile string) error {
+	var buf bytes.Buffer
+	_, err := writeLinks(&buf)
+	if err != nil {
+		return serrors.Wrap("Failed to write links to byte buffer", err)
+	}
+	fmtCode, err := format.Source(buf.Bytes())
+	if err != nil {
+		return serrors.Wrap("Failed to fmt code", err)
+	}
+	return os.WriteFile(destFile, fmtCode, os.ModePerm)
+}

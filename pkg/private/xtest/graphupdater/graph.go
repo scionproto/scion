@@ -91,7 +91,6 @@ func (g *Graph) Write(w io.Writer, descName string) (int, error) {
 		"// To update this file, run:",
 		"// bazel run //pkg/private/xtest/graph:write_files",
 		"package graph",
-		fmt.Sprintf("var (\n%s\n)\n", strings.Join(g.interfaces(), "\n")),
 		fmt.Sprintf("var %s = &Description{", descName),
 		fmt.Sprintf("Nodes: []string{\n%v\n},", strings.Join(g.nodes(), "\n")),
 		fmt.Sprintf("Edges: []EdgeDesc{\n%v\n},", strings.Join(g.edges(), "\n")),
@@ -133,26 +132,6 @@ func (g *Graph) edges() []string {
 		edge := fmt.Sprintf(`{Xia: "%s", XifID: %s, Yia: "%s", YifID: %s, Peer: %v},`, l.Src.ia, sd,
 			l.Dst.ia, ds, l.LinkType == "PEER")
 		res = append(res, edge)
-	}
-	return res
-}
-
-func (g *Graph) interfaces() []string {
-	var res []string
-	seen := make(map[string]struct{})
-	for _, l := range g.links {
-		srcI := g.IfaceIds[l.Src]
-		dstI := g.IfaceIds[l.Dst]
-		ifVar := fmt.Sprintf("%s = uint16(%d%d)", g.ifaceName(l.Src, l.Dst), srcI, dstI)
-		if _, ok := seen[ifVar]; !ok {
-			res = append(res, ifVar)
-			seen[ifVar] = struct{}{}
-		}
-		ifVar = fmt.Sprintf("%s = uint16(%d%d)", g.ifaceName(l.Dst, l.Src), dstI, srcI)
-		if _, ok := seen[ifVar]; !ok {
-			res = append(res, ifVar)
-			seen[ifVar] = struct{}{}
-		}
 	}
 	return res
 }

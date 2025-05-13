@@ -21,11 +21,33 @@ import (
 	"os"
 )
 
+var (
+	topoFile  = flag.String("topoFile", "", "")
+	graphFile = flag.String("graphFile", "", "")
+	descName  = flag.String("descName", "", "")
+	linksFile = flag.String("linksFile", "", "")
+)
+
 func main() {
-	topoFile := flag.String("topoFile", "", "")
-	graphFile := flag.String("graphFile", "", "")
-	descName := flag.String("descName", "", "")
 	flag.Parse()
+	if *linksFile != "" {
+		writeLinksToFile()
+	} else {
+		writeGraphToFile()
+	}
+}
+
+func writeLinksToFile() {
+	err := WriteLinksToFile(*linksFile)
+	if err != nil {
+		fmt.Printf("Failed to write the links, err: %v\n", err)
+		os.Exit(1)
+	} else {
+		fmt.Printf("Successfully written the links to %s\n", *linksFile)
+	}
+}
+
+func writeGraphToFile() {
 	err := WriteGraphToFile(*topoFile, *graphFile, *descName)
 	if err != nil {
 		fmt.Printf("Failed to write the graph, err: %v\n", err)

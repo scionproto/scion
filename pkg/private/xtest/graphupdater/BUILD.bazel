@@ -5,6 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "graph.go",
+        "links.go",
         "main.go",
         "updater.go",
     ],
