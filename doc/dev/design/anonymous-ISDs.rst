@@ -154,9 +154,6 @@ multiple A-COREs spread over different ISDs.
 .. image:: fig/anonymous_isd/3-2-ISD-2-A-CORE.png
 
 
-
-
-
 Beaconing
 ---------
 The A-CORE performs beaconing just like a normal core AS.
@@ -175,33 +172,14 @@ need the source and destination ASes to make that decision.
 This could easily be fixed by having path services respond with UP/CORE/DOWN
 to a request without wildcards.
 
+There are some alternatives:
+
+We could allow or require endhosts to specify the (A-)ISD that should be used.
+Or, we could always answer with segments from all (A-)ISDs that the local AS is part of.
+In either case this would require endhost to be able to know all A-ISDs that its AS is part of,
+at least if it wants to use a "private" connection (i.e. inside a given A-ISD.
+
 See also `Nested A-ISDs and Hierarchies`_.
-Reference `My-target`_.
-See :any:`my-section` for the details.
-It refers to the section itself, see :ref:`my-reference-label`.
-
-**TODO TBD Disallow one AS being CORE for multiple (A-)ISDs?***
-If an A-CORE serves as A-CORE for multiple A-ISDs or as core AS of the ISD,
-then it must restrict returned segments to those of the "lowest/innermost A-ISD".
-This is to ensure that traffic doesn't unnecessarily leave an A-ISD.
-
-Unfortunately, the definition of "lowest/innermost" raises some problems.
-
-* We could requires A-ISDs for form a strict hierarchy (every A-ISD fully enclosed
-  in its parent A-ISD). That would allow a single definition for "lowest/innermost"
-* We could require endhosts to declare in which A-ISD they want to be routed.
-  This would considerably complicate endhosts, they would need to know about
-  their A-ISDs and all ASes on the A-ISDs; and they would need policies to decide
-  on the correct A-ISD.
-
-The dilemma appears to be:
-
-1. We enforce strict hierarchies and disallow arbitrarily overlapping A-ISDs.
-   This gives an unambiguous definition of lowest/innermost and good way of
-   automatic A-ISD selection.
-2. We allow arbitrarily overlapping, and lose the automatic ISD routing policy.
-   instead we require the enhosts to decide in which A-ISD they want to select a
-   path.
 
 Path Service - Intra-A-ISD
 --------------------------
@@ -269,41 +247,47 @@ There are several options for deciding on the correct TRC.
   This requires As numbers to be globally unique.
 - Remove path verification.
 
-.. _My-target:
-
-Explicit targets
-----------------
-
-Reference `My-target`_.
-
-.. _my-section:
-
-My Section
-----------
-
-Lorem ipsum blablabla
-
-Then another document can have the following fragment to create a link:
-
-See :any:`my-section` for the details
-
-
-.. _my-reference-label:
-
-Section to cross-reference
---------------------------
-
-It refers to the section itself, see :ref:`my-reference-label`.
-
-
 
 Nested A-ISDs and Hierarchies
 -----------------------------
 
-A-ISDs can be nested.
-
+A-ISDs can be nested. The current proposal is that A-ISDs must form a
+"strict" hierarchy: Every A-ISD must be fully enclosed in its parent A-ISD.
+The exception are private ASes and private links which do not need to be visible to
+the parent A-ISD. In other words, any non-private AS that is part of an A-ISD must
+also be part of its parent A-ISDs and any parents thereof.
 
 .. image:: fig/anonymous_isd/4-nested-A-ISD.png
+
+This "strict" hierarchy enables path service to easily decide which segments
+should be returned to a segment request: it should always return only those
+segments that are part of the smallest A-ISD that contains both the source and
+destination AS of a request (this presumes a modified API that allows specifying
+the source and destination AS for a path).
+
+Alternatively, we could allow arbitrary overlapping of A-ISDs. Path services
+would then simply serve segment from all (A-)ISDs.
+This would require all endhosts to have full knowledge of all A-ISDs and their
+ASes in order to be able to select sensible segments.This would also require
+more complex policies (e.g. with preferred A-ISD).
+
+
+The dilemma appears to be:
+
+1. Either we enforce strict hierarchies and disallow arbitrarily overlapping A-ISDs.
+   This gives an unambiguous definition of "innermost" A-ISD  and a good way of
+   automatic A-ISD selection.
+2. Or, we allow arbitrarily overlapping, and lose the automatic ISD routing policy.
+   instead we require the enhosts to decide in which A-ISD they want to select a
+   path.
+
+**TODO open question: "strict" hierarchy vs overlapping A-ISDs?***
+
+**TODO open question: Disallow one AS being CORE for multiple (A-)ISDs?***
+If an A-CORE serves as A-CORE for multiple A-ISDs or as core AS of the ISD,
+then it must restrict returned segments to those of the "lowest/innermost A-ISD".
+This is to ensure that traffic doesn't unnecessarily leave an A-ISD.
+
 
 Private Links and Private ASes
 ------------------------------
@@ -319,7 +303,7 @@ ISD code for private ASed.
 
 .. image:: fig/anonymous_isd/5-hidden-AS-and-links.png
 
-**TODO** QUESTION: Can we have hidden A-COREs? Why would we need that?
+**TODO open question: Can we have hidden A-COREs? Why would we need that?**
 Hidden A-COREs require ASes to have multiple parents.
 Specifically, any non-hidden AS needs a non-hidden CORE that is visible from the outside.
 
