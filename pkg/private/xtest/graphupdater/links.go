@@ -18,6 +18,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
@@ -43,14 +44,26 @@ func writeLinks(w io.Writer) (int, error) {
 func interfaces(staticIfaceIds map[string]int) []string {
 	var res []string
 
-	for srcName, srcId := range staticIfaceIds {
-		for dstName, dstId := range staticIfaceIds {
-			if srcId == dstId {
+	keys := sortedKeys(staticIfaceIds)
+
+	for _, srcName := range keys {
+		for _, dstName := range keys {
+			if srcName == dstName {
 				continue
 			}
 			res = append(res,
-				fmt.Sprintf("If_%s_%s = uint16(%d%d)", srcName, dstName, srcId, dstId))
+				fmt.Sprintf("If_%s_%s = uint16(%d%d)", srcName, dstName,
+					staticIfaceIds[srcName], staticIfaceIds[dstName]))
 		}
 	}
+	return res
+}
+
+func sortedKeys(m map[string]int) []string {
+	var res []string
+	for k := range m {
+		res = append(res, k)
+	}
+	sort.Strings(res)
 	return res
 }
