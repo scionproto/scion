@@ -17,9 +17,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"io"
 	"strings"
+
+	"github.com/scionproto/scion/pkg/private/xtest/graph"
 )
 
 func writeLinks(w io.Writer) (int, error) {
@@ -47,7 +48,8 @@ func interfaces(staticIfaceIds map[string]int) []string {
 			if srcId == dstId {
 				continue
 			}
-			res = append(res, fmt.Sprintf("If_%s_%s = uint16(%d%d)", srcName, dstName, srcId, dstId))
+			res = append(res,
+				fmt.Sprintf("If_%s_%s = uint16(%d%d)", srcName, dstName, srcId, dstId))
 		}
 	}
 	return res
