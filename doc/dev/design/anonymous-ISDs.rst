@@ -153,9 +153,9 @@ multiple A-COREs spread over different ISDs.
 
 .. image:: fig/anonymous_isd/3-2-ISD-2-A-CORE.png
 
-.. image:: fig/anonymous_isd/4-nested-A-ISD.png
 
-.. image:: fig/anonymous_isd/5-hidden-AS-and-links.png
+
+
 
 Beaconing
 ---------
@@ -264,6 +264,42 @@ There are several options for deciding on the correct TRC.
   This requires As numbers to be globally unique.
 - Remove path verification.
 
+.. _My-target:
+
+Explicit targets
+----------------
+
+Reference `My-target`_.
+
+.. _my-section:
+
+My Section
+----------
+
+Lorem ipsum blablabla
+
+Then another document can have the following fragment to create a link:
+
+See :any:`my-section` for the details
+
+
+.. _my-reference-label:
+
+Section to cross-reference
+--------------------------
+
+It refers to the section itself, see :ref:`my-reference-label`.
+
+
+
+Nested A-ISDs / Hierarchies
+---------------------------
+
+A-ISDs can be nested.
+
+
+.. image:: fig/anonymous_isd/4-nested-A-ISD.png
+
 Private Links and Private ASes
 ------------------------------
 A-ISD allow to hide links and ASes from the rest of the ISD.
@@ -276,7 +312,9 @@ so the parent ISD can see that the AS exists. However, to hide its identity,
 the AS can use the ISD code of a different ISD. There could even be a dedicated
 ISD code for private ASed.
 
-QUESTION: Can we have hidden A-COREs? Why would we need that?
+.. image:: fig/anonymous_isd/5-hidden-AS-and-links.png
+
+**TODO** QUESTION: Can we have hidden A-COREs? Why would we need that?
 Hidden A-COREs require ASes to have multiple parents.
 Specifically, any non-hidden AS needs a non-hidden CORE that is visible from the outside.
 
