@@ -175,6 +175,11 @@ need the source and destination ASes to make that decision.
 This could easily be fixed by having path services respond with UP/CORE/DOWN
 to a request without wildcards.
 
+See also `Nested A-ISDs and Hierarchies`_.
+Reference `My-target`_.
+See :any:`my-section` for the details.
+It refers to the section itself, see :ref:`my-reference-label`.
+
 **TODO TBD Disallow one AS being CORE for multiple (A-)ISDs?***
 If an A-CORE serves as A-CORE for multiple A-ISDs or as core AS of the ISD,
 then it must restrict returned segments to those of the "lowest/innermost A-ISD".
@@ -292,8 +297,8 @@ It refers to the section itself, see :ref:`my-reference-label`.
 
 
 
-Nested A-ISDs / Hierarchies
----------------------------
+Nested A-ISDs and Hierarchies
+-----------------------------
 
 A-ISDs can be nested.
 
