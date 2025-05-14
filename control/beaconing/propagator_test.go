@@ -295,6 +295,22 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 	// This is just an example of the test that is working with a non-default graph
 	// and generated testdata.
 	// It will be extended further as part of https://github.com/scionproto/scion/issues/4699.
+	// The graph without peering links looks as follows:
+	// 411 123
+	// |   |
+	// 410 121 122     111   211
+	//   \    \ |      /     /
+	//   310---120---110---210
+	//   /      |
+	// 311     510
+	// Peering links look like this:
+	// 411-123
+	//    /
+	// 410 121-122     111---211
+	//      __//          \
+	//   310  /120   110   210
+	//      _/
+	// 311-/   510
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	pub := priv.Public()
