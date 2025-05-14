@@ -46,6 +46,7 @@ genrule(
         -topoFile=$(location //topology:big) -ifidsFile=$@
     """,
     tools = ["//pkg/private/xtest/graphupdater"],
+    visibility = ["//visibility:public"],
 )
 
 genrule(
