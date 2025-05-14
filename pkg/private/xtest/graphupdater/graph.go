@@ -69,7 +69,7 @@ func (i iface) Name() string {
 
 type Graph struct {
 	sortedIfaces []iface
-	IfaceIds     map[iface]int
+	IfaceIDs     map[iface]int
 	links        []link
 }
 
@@ -78,7 +78,7 @@ func newGraph(links []link, staticIfaceIds map[string]int) *Graph {
 	ifaces = sortIfaces(ifaces)
 	g := &Graph{
 		sortedIfaces: ifaces,
-		IfaceIds:     generateIfaceIds(ifaces, staticIfaceIds),
+		IfaceIDs:     generateIfaceIds(ifaces, staticIfaceIds),
 		links:        links,
 	}
 	return g
@@ -104,11 +104,9 @@ func (g *Graph) Write(w io.Writer, descName string) (int, error) {
 	return total, nil
 }
 
-func (g *Graph) WriteIfids(w io.Writer) (int, error) {
+func (g *Graph) WriteIfIDs(w io.Writer) (int, error) {
 	total := 0
-	lines := []string{
-		fmt.Sprintf("%s", strings.Join(g.ifids(), "\n")),
-	}
+	lines := []string{strings.Join(g.ifIDs(), "\n")}
 	n, err := w.Write([]byte(strings.Join(lines, "\n")))
 	total += n
 	if err != nil {
@@ -122,7 +120,7 @@ func (g *Graph) nodes() []string {
 	var node string
 	var res []string
 	for _, iface := range g.sortedIfaces {
-		id := g.IfaceIds[iface]
+		id := g.IfaceIDs[iface]
 		if curIa == "" || curIa != iface.ia {
 			if node != "" {
 				res = append(res, node)
@@ -149,7 +147,7 @@ func (g *Graph) edges() []string {
 	return res
 }
 
-func (g *Graph) ifids() []string {
+func (g *Graph) ifIDs() []string {
 	data := make(map[string][]string)
 	for _, l := range g.links {
 		if _, ok := data[l.Src.ia]; !ok {
@@ -158,12 +156,12 @@ func (g *Graph) ifids() []string {
 		if _, ok := data[l.Dst.ia]; !ok {
 			data[l.Dst.ia] = make([]string, 0)
 		}
-		srcIfid := g.IfaceIds[l.Src]
-		dstIfid := g.IfaceIds[l.Dst]
+		srcIfID := g.IfaceIDs[l.Src]
+		dstIfID := g.IfaceIDs[l.Dst]
 		src := fmt.Sprintf(`br%s-%d %d%d`,
-			strings.ReplaceAll(l.Src.ia, ":", "_"), len(data[l.Src.ia])+1, srcIfid, dstIfid)
+			strings.ReplaceAll(l.Src.ia, ":", "_"), len(data[l.Src.ia])+1, srcIfID, dstIfID)
 		dst := fmt.Sprintf(`br%s-%d %d%d`,
-			strings.ReplaceAll(l.Dst.ia, ":", "_"), len(data[l.Dst.ia])+1, dstIfid, srcIfid)
+			strings.ReplaceAll(l.Dst.ia, ":", "_"), len(data[l.Dst.ia])+1, dstIfID, srcIfID)
 		data[l.Src.ia] = append(data[l.Src.ia], fmt.Sprintf(`  %s: %s`, src, dst))
 		data[l.Dst.ia] = append(data[l.Dst.ia], fmt.Sprintf(`  %s: %s`, dst, src))
 	}
@@ -171,9 +169,7 @@ func (g *Graph) ifids() []string {
 	var res []string
 	for _, isd := range sortedIsds {
 		res = append(res, fmt.Sprintf("%s:", isd))
-		for _, e := range data[isd] {
-			res = append(res, fmt.Sprintf("%s", e))
-		}
+		res = append(res, data[isd]...)
 	}
 	return res
 }

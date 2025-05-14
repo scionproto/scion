@@ -1,6 +1,5 @@
 load("@rules_go//go:def.bzl", "go_library")
 load("//tools:go.bzl", "go_test")
-load("//tools/lint:write_source_files.bzl", "write_source_files")
 
 go_library(
     name = "go_default_library",
@@ -104,8 +103,9 @@ genrule(
     name = "run_topogen_topology_big",
     srcs = [
         "//topology:big",
-        "//pkg/private/xtest/graph:generate_ifids_yaml"],
-    outs = ["big.zip",],
+        "//pkg/private/xtest/graph:generate_ifids_yaml",
+    ],
+    outs = ["big.zip"],
     cmd = """
         mkdir -p $(@D)/gen
         $(location //tools:topogen) -c=$(location //topology:big) -t -o $(@D)/gen
@@ -144,12 +144,5 @@ genrule(
 
         zip -j $@ $(@D)/*.json
     """,
-    tools = ["//tools:topogen",],
-)
-
-write_source_files(
-    name = "write_files",
-    files = {
-        "testdata/big/big.zip": ":run_topogen_topology_big",
-    },
+    tools = ["//tools:topogen"],
 )
