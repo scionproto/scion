@@ -25,15 +25,18 @@ MAPPING_FILE=$(mktemp)
 
 exec 3< "$WRONG_YAML"
 
-while read -r line && read -r wrong_line <&3; do
-  IFS=' ' read -r br1 num1 br2 num2 <<< "$line"
-  IFS=' ' read -r br1_wrong num1_wrong br2_wrong num2_wrong <<< "$wrong_line"
+mapfile -t lines < "$CORRECT_YAML"
+mapfile -t -u 3 wrong_lines
+
+for i in "${!lines[@]}"; do
+  IFS=' ' read -r br1 num1 br2 num2 <<< "${lines[i]}"
+  IFS=' ' read -r br1_wrong num1_wrong br2_wrong num2_wrong <<< "${wrong_lines[i]}"
 
   if [[ -n "$br1" && -n "$num1" && -n "$br2" && -n "$num2" ]]; then
     # no need to add num1 since it'll create a duplicate (with a colon after the number)
     echo "$num2_wrong $num2" >> "$MAPPING_FILE"
   fi
-done < "$CORRECT_YAML"
+done
 
 exec 3<&-
 
