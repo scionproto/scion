@@ -147,7 +147,6 @@ genrule(
     tools = ["//tools:topogen",],
 )
 
-
 write_source_files(
     name = "write_files",
     files = {
