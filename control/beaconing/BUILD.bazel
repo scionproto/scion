@@ -1,5 +1,7 @@
+load("@aspect_bazel_lib//lib:run_binary.bzl", "run_binary")
 load("@rules_go//go:def.bzl", "go_library")
 load("//tools:go.bzl", "go_test")
+load("//tools/lint:write_source_files.bzl", "write_source_files")
 
 go_library(
     name = "go_default_library",
@@ -99,50 +101,26 @@ genrule(
     tools = ["//pkg/private/xtest/graphupdater"],
 )
 
-genrule(
-    name = "run_topogen_topology_big",
+run_binary(
+    name = "topogen_big",
     srcs = [
+        ":generate_correct_ifids",
+        "//tools:topogen",
         "//topology:big",
-        "//pkg/private/xtest/graph:generate_ifids_yaml",
     ],
-    outs = ["big.zip"],
-    cmd = """
-        mkdir -p $(@D)/gen
-        $(location //tools:topogen) -c=$(location //topology:big) -t -o $(@D)/gen
+    args = [
+        "$(locations //tools:topogen)",
+        "$(location //topology:big)",
+        "$(location :generate_correct_ifids)",
+        "$(RULEDIR)/testdata/big",
+    ],
+    out_dirs = ["testdata/big"],
+    tool = "//pkg/private/xtest/graph:topogen_with_graph",
+)
 
-        for dir in $(@D)/gen/*; do
-          if [ -f "$$dir/topology.json" ]; then
-            DIR_NAME=$$(basename $$dir)
-            mv "$$dir/topology.json" "$(@D)/$${DIR_NAME}.json"
-          fi
-        done
-
-        CORRECT_YAML=$(location //pkg/private/xtest/graph:generate_ifids_yaml)
-        WRONG_YAML="$(@D)/gen/ifids.yml"
-
-        MAPPING_FILE=$$(mktemp)
-
-        exec 3< "$$WRONG_YAML"
-
-        while read -r line && read -r wrong_line <&3; do
-          IFS=' ' read -r br1 num1 br2 num2 <<< "$$line"
-          IFS=' ' read -r br1_wrong num1_wrong br2_wrong num2_wrong <<< "$$wrong_line"
-
-          if [[ -n "$$br1" && -n "$$num1" && -n "$$br2" && -n "$$num2" ]]; then
-            # no need to add num1 since it'll create a duplicate (with a colon after the number)
-            echo "$$num2_wrong $$num2" >> "$$MAPPING_FILE"
-          fi
-        done < "$$CORRECT_YAML"
-
-        exec 3<&-
-
-        for json_file in $(@D)/*.json; do
-          while read -r wrong correct; do
-            sed -i "s/\\b$$wrong\\b/$$correct/g" "$$json_file"
-          done < "$$MAPPING_FILE"
-        done
-
-        zip -j $@ $(@D)/*.json
-    """,
-    tools = ["//tools:topogen"],
+write_source_files(
+    name = "write_files",
+    files = {
+        "testdata/big": ":topogen_big",
+    },
 )
