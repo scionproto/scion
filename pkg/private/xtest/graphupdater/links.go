@@ -59,7 +59,7 @@ func interfaces(staticIfaceIds map[string]int) []string {
 	return res
 }
 
-func sortedKeys(m map[string]int) []string {
+func sortedKeys[T any](m map[string]T) []string {
 	var res []string
 	for k := range m {
 		res = append(res, k)

@@ -88,3 +88,17 @@ func WriteLinksToFile(destFile string) error {
 	}
 	return os.WriteFile(destFile, fmtCode, os.ModePerm)
 }
+
+// WriteIfidsToFile writes the interface ids yaml to the destFile.
+func WriteIfidsToFile(topoFile, destFile string) error {
+	g, err := LoadGraph(topoFile)
+	if err != nil {
+		return err
+	}
+	var buf bytes.Buffer
+	_, err = g.WriteIfids(&buf)
+	if err != nil {
+		return serrors.Wrap("Failed to write ifids to byte buffer", err)
+	}
+	return os.WriteFile(destFile, buf.Bytes(), os.ModePerm)
+}

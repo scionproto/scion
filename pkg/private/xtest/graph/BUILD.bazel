@@ -38,6 +38,17 @@ genrule(
 )
 
 genrule(
+    name = "generate_ifids_yaml",
+    srcs = ["//topology:big"],
+    outs = ["ifids.gen.yaml"],
+    cmd = """
+        $(location //pkg/private/xtest/graphupdater:graphupdater) \
+        -topoFile=$(location //topology:big) -ifidsFile=$@
+    """,
+    tools = ["//pkg/private/xtest/graphupdater"],
+)
+
+genrule(
     name = "generate_default",
     srcs = ["//topology:default"],
     outs = ["default_gen.gen.go"],

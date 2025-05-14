@@ -104,6 +104,19 @@ func (g *Graph) Write(w io.Writer, descName string) (int, error) {
 	return total, nil
 }
 
+func (g *Graph) WriteIfids(w io.Writer) (int, error) {
+	total := 0
+	lines := []string{
+		fmt.Sprintf("%s", strings.Join(g.ifids(), "\n")),
+	}
+	n, err := w.Write([]byte(strings.Join(lines, "\n")))
+	total += n
+	if err != nil {
+		return total, err
+	}
+	return total, nil
+}
+
 func (g *Graph) nodes() []string {
 	var curIa string
 	var node string
@@ -132,6 +145,35 @@ func (g *Graph) edges() []string {
 		edge := fmt.Sprintf(`{Xia: "%s", XifID: %s, Yia: "%s", YifID: %s, Peer: %v},`, l.Src.ia, sd,
 			l.Dst.ia, ds, l.LinkType == "PEER")
 		res = append(res, edge)
+	}
+	return res
+}
+
+func (g *Graph) ifids() []string {
+	data := make(map[string][]string)
+	for _, l := range g.links {
+		if _, ok := data[l.Src.ia]; !ok {
+			data[l.Src.ia] = make([]string, 0)
+		}
+		if _, ok := data[l.Dst.ia]; !ok {
+			data[l.Dst.ia] = make([]string, 0)
+		}
+		srcIfid := g.IfaceIds[l.Src]
+		dstIfid := g.IfaceIds[l.Dst]
+		src := fmt.Sprintf(`br%s-%d %d%d`,
+			strings.ReplaceAll(l.Src.ia, ":", "_"), len(data[l.Src.ia])+1, srcIfid, dstIfid)
+		dst := fmt.Sprintf(`br%s-%d %d%d`,
+			strings.ReplaceAll(l.Dst.ia, ":", "_"), len(data[l.Dst.ia])+1, dstIfid, srcIfid)
+		data[l.Src.ia] = append(data[l.Src.ia], fmt.Sprintf(`  %s: %s`, src, dst))
+		data[l.Dst.ia] = append(data[l.Dst.ia], fmt.Sprintf(`  %s: %s`, dst, src))
+	}
+	sortedIsds := sortedKeys(data)
+	var res []string
+	for _, isd := range sortedIsds {
+		res = append(res, fmt.Sprintf("%s:", isd))
+		for _, e := range data[isd] {
+			res = append(res, fmt.Sprintf("%s", e))
+		}
 	}
 	return res
 }
