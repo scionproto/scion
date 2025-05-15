@@ -69,7 +69,7 @@ func (i iface) Name() string {
 
 type Graph struct {
 	sortedIfaces []iface
-	IfaceIDs     map[iface]int
+	IfaceIds     map[iface]int
 	links        []link
 }
 
@@ -78,7 +78,7 @@ func newGraph(links []link, staticIfaceIds map[string]int) *Graph {
 	ifaces = sortIfaces(ifaces)
 	g := &Graph{
 		sortedIfaces: ifaces,
-		IfaceIDs:     generateIfaceIds(ifaces, staticIfaceIds),
+		IfaceIds:     generateIfaceIds(ifaces, staticIfaceIds),
 		links:        links,
 	}
 	return g
@@ -120,7 +120,7 @@ func (g *Graph) nodes() []string {
 	var node string
 	var res []string
 	for _, iface := range g.sortedIfaces {
-		id := g.IfaceIDs[iface]
+		id := g.IfaceIds[iface]
 		if curIa == "" || curIa != iface.ia {
 			if node != "" {
 				res = append(res, node)
@@ -156,8 +156,8 @@ func (g *Graph) ifIDs() []string {
 		if _, ok := data[l.Dst.ia]; !ok {
 			data[l.Dst.ia] = make([]string, 0)
 		}
-		srcIfID := g.IfaceIDs[l.Src]
-		dstIfID := g.IfaceIDs[l.Dst]
+		srcIfID := g.IfaceIds[l.Src]
+		dstIfID := g.IfaceIds[l.Dst]
 		src := fmt.Sprintf(`br%s-%d %d%d`,
 			strings.ReplaceAll(l.Src.ia, ":", "_"), len(data[l.Src.ia])+1, srcIfID, dstIfID)
 		dst := fmt.Sprintf(`br%s-%d %d%d`,

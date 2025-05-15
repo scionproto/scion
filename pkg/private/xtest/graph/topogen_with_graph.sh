@@ -44,7 +44,8 @@ for json_file in $out/*.json; do
   while read -r wrong correct; do
     # This works in our case since topogen -t will generate ifIDs only in 10000-30000 range.
     # The only other numbers in topology.json files are: AS IDs (3-digit numbers),
-    # dispatched ports (31000-32767), and MTU (topogen sets it to 1472 by default).
+    # dispatched ports (31000-32767), and MTU (topogen sets it to 1472 by default),
+    # so this script will change only ifIDs.
     sed -i "s/\\b$wrong\\b/$correct/g" "$json_file"
   done < "$MAPPING_FILE"
 done

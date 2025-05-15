@@ -91,9 +91,9 @@ go_test(
 )
 
 genrule(
-    name = "generate_correct_ifids",
+    name = "ifids_topology_big",
     srcs = ["//topology:big"],
-    outs = ["ifids.gen.yaml"],
+    outs = ["ifids.big.gen.yaml"],
     cmd = """
         $(location //pkg/private/xtest/graphupdater:graphupdater) \
         -topoFile=$(location //topology:big) -ifidsFile=$@
@@ -102,16 +102,16 @@ genrule(
 )
 
 run_binary(
-    name = "topogen_big",
+    name = "topogen_topology_big",
     srcs = [
-        ":generate_correct_ifids",
+        ":ifids_topology_big",
         "//tools:topogen",
         "//topology:big",
     ],
     args = [
         "$(locations //tools:topogen)",
         "$(location //topology:big)",
-        "$(location :generate_correct_ifids)",
+        "$(location :ifids_topology_big)",
         "$(RULEDIR)/testdata/big",
     ],
     out_dirs = ["testdata/big"],
@@ -121,6 +121,6 @@ run_binary(
 write_source_files(
     name = "write_files",
     files = {
-        "testdata/big": ":topogen_big",
+        "testdata/big": ":topogen_topology_big",
     },
 )
