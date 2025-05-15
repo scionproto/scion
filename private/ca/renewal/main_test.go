@@ -43,7 +43,8 @@ func genCrypto(t *testing.T) string {
 		"-t", "testdata/golden.topo",
 		"-o", dir,
 	})
-	cmd.SetOutput(&buf)
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
 	err := cmd.Execute()
 	require.NoError(t, err)
 
