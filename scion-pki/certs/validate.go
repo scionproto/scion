@@ -116,7 +116,9 @@ If the value is a timestamp, it is expected to either be an RFC 3339 formatted
 timestamp or a unix timestamp. If the value is a duration, it is used as the
 offset from the current time.`,
 	)
-	cmd.MarkFlagRequired("type")
+	if err := cmd.MarkFlagRequired("type"); err != nil {
+		panic(err)
+	}
 
 	return cmd
 }

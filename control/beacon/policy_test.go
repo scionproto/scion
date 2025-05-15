@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/ptr"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
@@ -32,9 +33,6 @@ var (
 	ia210 = addr.MustParseIA("2-ff00:0:210")
 	ia310 = addr.MustParseIA("3-ff00:0:310")
 	ia311 = addr.MustParseIA("3-ff00:0:311")
-
-	false_val = false
-	true_val  = true
 )
 
 func TestLoadPolicyFromYaml(t *testing.T) {
@@ -84,7 +82,7 @@ func TestFilterApply(t *testing.T) {
 		MaxHopsLength: 2,
 		AsBlackList:   []addr.AS{ia112.AS()},
 		IsdBlackList:  []addr.ISD{2},
-		AllowIsdLoop:  &false_val,
+		AllowIsdLoop:  ptr.To(false),
 	}
 	testCases := []struct {
 		Name         string
@@ -111,39 +109,39 @@ func TestFilterApply(t *testing.T) {
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "Blacklisted ISD[2-ff00:0:210]",
+			Name:         "Blacklisted ISD: [2-ff00:0:210]",
 			Beacon:       newTestBeacon(ia210),
 			Filter:       defaultFilter,
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "AS Repeated [1-ff00:0:110, 1-ff00:0:110]",
+			Name:         "AS Repeated: [1-ff00:0:110, 1-ff00:0:110]",
 			Beacon:       newTestBeacon(ia110, ia110),
 			Filter:       defaultFilter,
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "AS loop [1-ff00:0:110, 1-ff00:0:111, 1-ff00:0:113, 1-ff00:0:110]",
+			Name:         "AS loop: [1-ff00:0:110, 1-ff00:0:111, 1-ff00:0:113, 1-ff00:0:110]",
 			Beacon:       newTestBeacon(ia110, ia111, ia113, ia110),
-			Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: &false_val},
+			Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: ptr.To(false)},
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "ISD loop [1-ff00:0:110, 3-ff00:0:310, 3-ff00:0:311, 1-ff00:0:111]",
+			Name:         "ISD loop: [1-ff00:0:110, 3-ff00:0:310, 3-ff00:0:311, 1-ff00:0:111]",
 			Beacon:       newTestBeacon(ia110, ia310, ia311, ia111),
-			Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: &false_val},
+			Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: ptr.To(false)},
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "ISD/AS Loop [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:110]",
+			Name:         "ISD/AS Loop: [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:110]",
 			Beacon:       newTestBeacon(ia110, ia311, ia110),
-			Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: &true_val},
+			Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: ptr.To(true)},
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "ISD Loop allowed [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:111]",
+			Name:         "ISD Loop allowed: [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:111]",
 			Beacon:       newTestBeacon(ia110, ia311, ia111),
-			Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: &true_val},
+			Filter:       &beacon.Filter{MaxHopsLength: 8, AllowIsdLoop: ptr.To(true)},
 			ErrAssertion: assert.NoError,
 		},
 	}
@@ -163,29 +161,29 @@ func TestFilterLoop(t *testing.T) {
 		ErrAssertion assert.ErrorAssertionFunc
 	}{
 		{
-			Name:         "AS Repeated [1-ff00:0:110, 1-ff00:0:110]",
+			Name:         "AS Repeated: [1-ff00:0:110, 1-ff00:0:110]",
 			Beacon:       newTestBeacon(ia110),
 			Next:         ia110,
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "AS loop [1-ff00:0:110, 1-ff00:0:111, 1-ff00:0:113, 1-ff00:0:110]",
+			Name:         "AS loop: [1-ff00:0:110, 1-ff00:0:111, 1-ff00:0:113, 1-ff00:0:110]",
 			Beacon:       newTestBeacon(ia110, ia111, ia113, ia110),
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "ISD loop [1-ff00:0:110, 3-ff00:0:310, 3-ff00:0:311, 1-ff00:0:111]",
+			Name:         "ISD loop: [1-ff00:0:110, 3-ff00:0:310, 3-ff00:0:311, 1-ff00:0:111]",
 			Beacon:       newTestBeacon(ia110, ia310, ia311, ia111),
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "ISD/AS Loop [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:110]",
+			Name:         "ISD/AS Loop: [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:110]",
 			Beacon:       newTestBeacon(ia110, ia311, ia110),
 			AllowIsdLoop: true,
 			ErrAssertion: assert.Error,
 		},
 		{
-			Name:         "ISD Loop allowed [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:111]",
+			Name:         "ISD Loop allowed: [1-ff00:0:110, 3-ff00:0:311, 1-ff00:0:111]",
 			Beacon:       newTestBeacon(ia110, ia311, ia111),
 			AllowIsdLoop: true,
 			ErrAssertion: assert.NoError,
