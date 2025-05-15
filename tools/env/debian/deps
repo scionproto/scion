@@ -7,4 +7,3 @@ xargs -a "$BASE/pkgs.txt" sudo DEBIAN_FRONTEND=noninteractive apt-get install --
 
 # see https://stackoverflow.com/a/77465534
 sudo DEBIAN_FRONTEND=noninteractive apt-get install --no-remove --no-install-recommends --assume-yes linux-headers-`uname -r`
-sudo ln -s /usr/include/x86_64-linux-gnu/asm /usr/include/asm
