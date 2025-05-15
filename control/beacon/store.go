@@ -59,7 +59,7 @@ func applyStoreOptions(opts []StoreOption) storeOptions {
 }
 
 // Store provides abstracted access to the beacon database in a non-core AS.
-// The store helps to insert beacons and revocations, and selects the best beacons
+// The store helps inserting beacons and revocations, and selects the best beacons
 // for given purposes based on the configured policies. It should not be used in a
 // core AS.
 type Store struct {
@@ -130,7 +130,7 @@ func (s *Store) MaxExpTime(policyType PolicyType) uint8 {
 }
 
 // CoreStore provides abstracted access to the beacon database in a core AS. The
-// store helps to insert beacons and revocations, and selects the best beacons
+// store helps inserting beacons and revocations, and selects the best beacons
 // for given purposes based on the configured policies. It should not be used in
 // a non-core AS.
 type CoreStore struct {
