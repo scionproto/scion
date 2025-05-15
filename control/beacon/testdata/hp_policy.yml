@@ -1,0 +1,29 @@
+---
+HPGroups:
+  "ff00:0:110-69b5":
+    CfgFilePath: testdata/HPGCfg_ff00_0_110-69b5.json
+  "ffaa:0:222-abcd":
+    CfgFilePath: testdata/HPGCfg_ffaa_0_222-abcd.json
+SegmentRegistration:
+  DefaultAction: register
+  HiddenAndPublic: true
+  Policies:
+    2:
+      PS:
+        RegUp: true
+        RegDown: true
+        MaxExpiration: 1h
+      HPS:
+        "ff00:0:110-69b5":
+          RegUp: true
+          RegDown: true
+          MaxExpiration: 1h
+        "ffaa:0:222-abcd":
+          RegUp: true
+          RegDown: true
+          MaxExpiration: 1h
+    3:
+      PS:
+        RegUp: true
+        RegDown: true
+        MaxExpiration: 1h
