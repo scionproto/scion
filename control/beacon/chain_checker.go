@@ -43,7 +43,7 @@ const (
 	defaultCacheMissExpiration = 30 * time.Second
 )
 
-var _ infra.Verifier = chainChecker{}
+var _ infra.Verifier = (chainChecker{})
 
 // chainChecker checks that the certificate chain is available locally. This is used
 // to ensure we do not propagate beacons that are not verifiable.

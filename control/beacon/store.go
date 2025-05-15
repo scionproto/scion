@@ -85,14 +85,14 @@ func NewBeaconStore(policies Policies, db DB, opts ...StoreOption) (*Store, erro
 	return s, nil
 }
 
-// BeaconsToPropagate returns a slice of all beacons to propagate at the time of the call.
+// BeaconsToPropagate returns a slice  all beacons to propagate at the time of the call.
 // The selection is based on the configured propagation policy.
 func (s *Store) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
 // SegmentsToRegister returns a channel that provides all beacons to register at
-// the time of the call. The selections are based on the configured policy for
+// the time of the call. The selections is based on the configured policy for
 // the requested segment type.
 func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
 	switch segType {
@@ -163,7 +163,7 @@ func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 }
 
 // SegmentsToRegister returns a slice of all beacons to register at the time of the call.
-// The selection is based on the configured policy for the requested segment type.
+// The selections is based on the configured policy for the requested segment type.
 func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
 
 	if segType != seg.TypeCore {
