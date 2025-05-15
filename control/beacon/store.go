@@ -59,7 +59,7 @@ func applyStoreOptions(opts []StoreOption) storeOptions {
 }
 
 // Store provides abstracted access to the beacon database in a non-core AS.
-// The store helps inserting beacons and revocations, and selects the best beacons
+// The store helps to insert beacons and revocations, and selects the best beacons
 // for given purposes based on the configured policies. It should not be used in a
 // core AS.
 type Store struct {
@@ -85,14 +85,14 @@ func NewBeaconStore(policies Policies, db DB, opts ...StoreOption) (*Store, erro
 	return s, nil
 }
 
-// BeaconsToPropagate returns a slice  all beacons to propagate at the time of the call.
+// BeaconsToPropagate returns a slice of all beacons to propagate at the time of the call.
 // The selection is based on the configured propagation policy.
 func (s *Store) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
 // SegmentsToRegister returns a channel that provides all beacons to register at
-// the time of the call. The selections is based on the configured policy for
+// the time of the call. The selections are based on the configured policy for
 // the requested segment type.
 func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
 	switch segType {
@@ -130,7 +130,7 @@ func (s *Store) MaxExpTime(policyType PolicyType) uint8 {
 }
 
 // CoreStore provides abstracted access to the beacon database in a core AS. The
-// store helps inserting beacons and revocations, and selects the best beacons
+// store helps to insert beacons and revocations, and selects the best beacons
 // for given purposes based on the configured policies. It should not be used in
 // a non-core AS.
 type CoreStore struct {
@@ -138,7 +138,7 @@ type CoreStore struct {
 	policies CorePolicies
 }
 
-// NewCoreBeaconStore creates a new beacon store for a non-core AS.
+// NewCoreBeaconStore creates a new beacon store for a core AS.
 func NewCoreBeaconStore(policies CorePolicies, db DB, opts ...StoreOption) (*CoreStore, error) {
 	policies.InitDefaults()
 	if err := policies.Validate(); err != nil {
@@ -163,7 +163,7 @@ func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 }
 
 // SegmentsToRegister returns a slice of all beacons to register at the time of the call.
-// The selections is based on the configured policy for the requested segment type.
+// The selection is based on the configured policy for the requested segment type.
 func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
 
 	if segType != seg.TypeCore {

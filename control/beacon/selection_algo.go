@@ -25,7 +25,7 @@ import (
 )
 
 type selectionAlgorithm interface {
-	// SelectBeacons selects the `n` best beacons from the provided slice of beacons.
+	// SelectBeacons selects the `resultSize` best beacons from the provided slice of beacons.
 	SelectBeacons(ctx context.Context, beacons []Beacon, resultSize int) []Beacon
 }
 
@@ -34,9 +34,9 @@ type selectionAlgorithm interface {
 type baseAlgo struct{}
 
 // SelectBeacons implements a very simple selection algorithm. The best beacon
-// is the one with a shortest path. The slice contains the k-1 shortest
+// is the one with the shortest path. The slice contains the resultSize-1 shortest
 // beacons. The last beacon is either the most diverse beacon from the remaining
-// beacons, if the diversity exceeds what has already been served. Or the
+// beacons, if the diversity exceeds what has already been served, or the
 // shortest remaining beacon, otherwise.
 func (a baseAlgo) SelectBeacons(_ context.Context, beacons []Beacon, resultSize int) []Beacon {
 	if len(beacons) <= resultSize {
@@ -52,8 +52,7 @@ func (a baseAlgo) SelectBeacons(_ context.Context, beacons []Beacon, resultSize 
 	if diversityRest > diversity {
 		return append(result, mostDiverseRest)
 	}
-	// If the most diverse beacon was already served, serve shortest from the
-	// rest.
+	// If the most diverse beacon was already served, serve shortest from the rest.
 	return append(result, beacons[resultSize-1])
 }
 
