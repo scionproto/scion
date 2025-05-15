@@ -1,4 +1,8 @@
 version: "2"
+run:
+  skip-dirs:
+    - ^doc/
+  timeout: 3m
 linters:
   default: none
   enable:
