@@ -62,7 +62,6 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//control/beacon:go_default_library",
-        "//control/beaconing/graph:go_default_library",
         "//control/beaconing/mock_beaconing:go_default_library",
         "//control/ifstate:go_default_library",
         "//pkg/addr:go_default_library",
