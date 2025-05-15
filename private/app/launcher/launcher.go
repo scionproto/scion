@@ -24,17 +24,14 @@ import (
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/config"
 	libconfig "github.com/scionproto/scion/private/config"
-	"github.com/scionproto/scion/private/env"
 )
 
 // Configuration keys used by the launcher
@@ -133,34 +130,6 @@ func (a *ApplicationBase) initLogging() error {
 	return nil
 }
 
-func (a *ApplicationBase) executeCommand(ctx context.Context, shortName string) error {
-
-	defer log.Flush()
-	if a.RequiredIPs != nil {
-		ips, err := a.RequiredIPs()
-		if err != nil {
-			return serrors.Wrap("loading required IPs", err)
-		}
-		WaitForNetworkReady(ctx, ips)
-	}
-	if err := env.LogAppStarted(shortName, a.config.GetString(cfgGeneralID)); err != nil {
-		return err
-	}
-	defer env.LogAppStopped(shortName, a.config.GetString(cfgGeneralID))
-	defer log.HandlePanic()
-
-	exportBuildInfo()
-	prom.ExportElementID(a.config.GetString(cfgGeneralID))
-	if err := a.TOMLConfig.Validate(); err != nil {
-		return serrors.Wrap("validate config", err)
-	}
-
-	if a.Main == nil {
-		return nil
-	}
-	return a.Main(ctx)
-}
-
 func (a *ApplicationBase) getLogging() log.Config {
 	return log.Config{
 		Console: log.ConsoleConfig{
@@ -218,15 +187,4 @@ func newCommandTemplate(executable string, shortName string, config config.Sampl
 	cmd.Flags().String(cfgConfigFile, "", "Configuration file (required)")
 	cmd.MarkFlagRequired(cfgConfigFile)
 	return cmd
-}
-
-func exportBuildInfo() {
-	g := promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "scion_build_info",
-			Help: "SCION build information",
-		},
-		[]string{"version"},
-	)
-	g.WithLabelValues(env.StartupVersion).Set(1)
 }
