@@ -97,7 +97,7 @@ class ConfigGenerator(object):
         self._ensure_uniq_ases()
         self._canonicalize_isd_asns()
         topo_dicts, self.all_networks = self._generate_topology()
-        if not self.args.topology_jsons:
+        if not self.args.topology_jsons_only:
             self.networks = remove_v4_nets(self.all_networks)
             self._generate_with_topo(topo_dicts)
             self._write_networks_conf(self.networks, NETWORKS_FILE)

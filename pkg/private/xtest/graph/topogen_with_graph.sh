@@ -1,8 +1,7 @@
 #!/bin/bash
 
 topogen="$1"
-
-# $2 and $3 belong to py_binary with topogen
+# $2 and $3 are other files passed by topogen's py_binary to the Bazel rule running this script.
 topology="$4"
 ifids="$5"
 out="$6"
@@ -33,7 +32,8 @@ for i in "${!lines[@]}"; do
   IFS=' ' read -r br1_wrong num1_wrong br2_wrong num2_wrong <<< "${wrong_lines[i]}"
 
   if [[ -n "$br1" && -n "$num1" && -n "$br2" && -n "$num2" ]]; then
-    # no need to add num1 since it'll create a duplicate (with a colon after the number)
+    # No need to add num1 as it'll create a duplicate: there are entries for both directions.
+    # Also, num1 contains a colon after the number.
     echo "$num2_wrong $num2" >> "$MAPPING_FILE"
   fi
 done
@@ -42,6 +42,9 @@ exec 3<&-
 
 for json_file in $out/*.json; do
   while read -r wrong correct; do
+    # This works in our case since topogen -t will generate ifIDs only in 10000-30000 range.
+    # The only other numbers in topology.json files are: AS IDs (3-digit numbers),
+    # dispatched ports (31000-32767), and MTU (topogen sets it to 1472 by default).
     sed -i "s/\\b$wrong\\b/$correct/g" "$json_file"
   done < "$MAPPING_FILE"
 done

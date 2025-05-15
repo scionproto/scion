@@ -42,7 +42,7 @@ def add_arguments(parser):
                         help='IPv6 network to create subnets in (E.g. "fd00:f00d:cafe::7f00:0000/104"')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
-    parser.add_argument('-t', '--topology-jsons', action='store_true',
+    parser.add_argument('-t', '--topology-jsons-only', action='store_true',
                         help='Create only topology.json files')
     parser.add_argument('--random-ifids', action='store_true',
                         help='Generate random IFIDs')
