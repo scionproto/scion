@@ -122,7 +122,7 @@ func (ca CAPolicy) Equal(o CAPolicy) bool {
 	}
 	return certEqual &&
 		ca.Validity == o.Validity &&
-		ca.CurrentTime == o.CurrentTime
+		ca.CurrentTime.Equal(o.CurrentTime)
 }
 
 // SubjectKeyID computes a subject key identifier for a given public key.
