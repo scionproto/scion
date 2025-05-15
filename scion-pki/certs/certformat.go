@@ -38,12 +38,12 @@ import (
 	"time"
 )
 
-// formatBuffer is a helper to write using sprintf.
+// formatBuffer is a formatted writing helper.
 type formatBuffer struct {
 	bytes.Buffer
 }
 
-// Writef writes a string formated using fmt.Sprintf.
+// Writef writes a formatted string to b.
 func (b *formatBuffer) Writef(format string, args ...any) (int, error) {
 	return fmt.Fprintf(b, format, args...)
 }
