@@ -133,8 +133,8 @@ func mkErrorInfo(cause error, addStack bool, errCtx ...any) errorInfo {
 	// basicError was without a stack trace, then there'll never be one. That's to avoid looking
 	// for it in every level or every constructor. TB revisisted if necessary.
 	// TODO(jiceatscion): should we define a "stackertracer" interface?
-	if r.cause == nil || !(errors.As(cause, &t1) || errors.As(cause, &t2) ||
-		errors.As(cause, &t3) || errors.As(cause, &t4)) {
+	if r.cause == nil || (!errors.As(cause, &t1) && !errors.As(cause, &t2) &&
+		!errors.As(cause, &t3) && !errors.As(cause, &t4)) {
 
 		r.stack = callers()
 	}

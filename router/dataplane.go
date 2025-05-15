@@ -1439,7 +1439,7 @@ func (p *scionPacketProcessor) updateNonConsDirIngressSegID() disposition {
 	// against construction dir the ingress router updates the SegID, ifID == 0
 	// means this comes from this AS itself, so nothing has to be done.
 	// For packets destined to peer links this shouldn't be updated.
-	if !(p.infoField.ConsDir || p.ingressFromLink == 0 || p.peering) {
+	if !p.infoField.ConsDir && p.ingressFromLink != 0 && !p.peering {
 		p.infoField.UpdateSegID(p.hopField.Mac)
 		if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
 			return errorDiscard("error", err)
