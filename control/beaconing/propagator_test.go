@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -164,7 +165,7 @@ func TestPropagatorRunCore(t *testing.T) {
 		},
 	)
 
-	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1121),
+	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), graph.If_110_X_210_X,
 		gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ addr.IA, egIfID uint16,
 			nextHop *net.UDPAddr,
@@ -180,7 +181,7 @@ func TestPropagatorRunCore(t *testing.T) {
 			return sender, nil
 		},
 	)
-	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1113),
+	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), graph.If_110_X_130_A,
 		gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ addr.IA, egIfID uint16,
 			nextHop *net.UDPAddr,

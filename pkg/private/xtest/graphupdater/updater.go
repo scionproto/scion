@@ -1,4 +1,5 @@
 // Copyright 2018 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +20,7 @@ import (
 	"go/format"
 	"os"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
@@ -56,16 +57,30 @@ func LoadGraph(topoFile string) (*Graph, error) {
 	return newGraph(t.Links, graph.StaticIfaceIdMapping), nil
 }
 
-// WriteGraphToFile writes the default graph from topoFile to the destFile.
-func WriteGraphToFile(topoFile, destFile string) error {
+// WriteGraphToFile writes the graph from topoFile to the destFile.
+func WriteGraphToFile(topoFile, destFile, descName string) error {
 	g, err := LoadGraph(topoFile)
 	if err != nil {
 		return err
 	}
 	var buf bytes.Buffer
-	_, err = g.Write(&buf)
+	_, err = g.Write(&buf, descName)
 	if err != nil {
 		return serrors.Wrap("Failed to write graph to byte buffer", err)
+	}
+	fmtCode, err := format.Source(buf.Bytes())
+	if err != nil {
+		return serrors.Wrap("Failed to fmt code", err)
+	}
+	return os.WriteFile(destFile, fmtCode, os.ModePerm)
+}
+
+// WriteLinksToFile writes the links to the destFile.
+func WriteLinksToFile(destFile string) error {
+	var buf bytes.Buffer
+	_, err := writeLinks(&buf)
+	if err != nil {
+		return serrors.Wrap("Failed to write links to byte buffer", err)
 	}
 	fmtCode, err := format.Source(buf.Bytes())
 	if err != nil {
