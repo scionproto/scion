@@ -69,7 +69,7 @@ If the flag \--format is set to "emoji", the format of the output is a string of
 			}
 
 			outputWriter := cmd.OutOrStdout()
-			fmt.Fprintln(outputWriter, output)
+			_, _ = fmt.Fprintln(outputWriter, output)
 
 			return nil
 		},

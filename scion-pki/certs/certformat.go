@@ -38,14 +38,14 @@ import (
 	"time"
 )
 
-// formatBuffer is a helper to write using sprintf.
+// formatBuffer is a formatted writing helper.
 type formatBuffer struct {
 	bytes.Buffer
 }
 
-// Writef writes a string formated using fmt.Sprintf.
+// Writef writes a formatted string to b.
 func (b *formatBuffer) Writef(format string, args ...any) (int, error) {
-	return b.Buffer.WriteString(fmt.Sprintf(format, args...))
+	return fmt.Fprintf(b, format, args...)
 }
 
 type certificateShort struct {
@@ -93,33 +93,33 @@ func newCertificateShort(cert *x509.Certificate) *certificateShort {
 // String returns the certificateShort formated as a string.
 func (c *certificateShort) String() string {
 	var buf formatBuffer
-	buf.Writef("X.509v3 %s Certificate (%s) [Serial: %s]\n", c.Type, c.PublicKeyAlgorithm, c.SerialNumber)
+	_, _ = buf.Writef("X.509v3 %s Certificate (%s) [Serial: %s]\n", c.Type, c.PublicKeyAlgorithm, c.SerialNumber)
 	sans := c.SANs
 	if len(c.Subject) > 0 {
 		sans = append([]string{c.Subject}, sans...)
 	}
 	if len(sans) == 0 {
-		buf.Writef("  Subject: \n")
+		_, _ = buf.Writef("  Subject: \n")
 	} else {
 		for i, s := range sans {
 			if i == 0 {
-				buf.Writef("  Subject:     %s\n", s)
+				_, _ = buf.Writef("  Subject:     %s\n", s)
 			} else {
-				buf.Writef("               %s\n", s)
+				_, _ = buf.Writef("               %s\n", s)
 			}
 		}
 	}
-	buf.Writef("  Issuer:      %s\n", c.Issuer)
+	_, _ = buf.Writef("  Issuer:      %s\n", c.Issuer)
 	if c.Provisioner != nil {
 		if len(c.Provisioner.ID) == 0 {
-			buf.Writef("  Provisioner: %s\n", c.Provisioner.Name)
+			_, _ = buf.Writef("  Provisioner: %s\n", c.Provisioner.Name)
 		} else {
-			buf.Writef("  Provisioner: %s [ID: %s]\n", c.Provisioner.Name, c.Provisioner.ID)
+			_, _ = buf.Writef("  Provisioner: %s [ID: %s]\n", c.Provisioner.Name, c.Provisioner.ID)
 		}
 
 	}
-	buf.Writef("  Valid from:  %s\n", c.NotBefore.Format(time.RFC3339))
-	buf.Writef("          to:  %s\n", c.NotAfter.Format(time.RFC3339))
+	_, _ = buf.Writef("  Valid from:  %s\n", c.NotBefore.Format(time.RFC3339))
+	_, _ = buf.Writef("          to:  %s\n", c.NotAfter.Format(time.RFC3339))
 	return buf.String()
 }
 
@@ -140,19 +140,19 @@ func newCertificateRequestShort(cr *x509.CertificateRequest) *certificateRequest
 // String returns the certificateShort formated as a string.
 func (c *certificateRequestShort) String() string {
 	var buf formatBuffer
-	buf.Writef("X.509v3 Certificate Signing Request (%s)\n", c.PublicKeyAlgorithm)
+	_, _ = buf.Writef("X.509v3 Certificate Signing Request (%s)\n", c.PublicKeyAlgorithm)
 	sans := c.SANs
 	if len(c.Subject) > 0 {
 		sans = append([]string{c.Subject}, sans...)
 	}
 	if len(sans) == 0 {
-		buf.Writef("  Subject: \n")
+		_, _ = buf.Writef("  Subject: \n")
 	} else {
 		for i, s := range sans {
 			if i == 0 {
-				buf.Writef("  Subject:     %s\n", s)
+				_, _ = buf.Writef("  Subject:     %s\n", s)
 			} else {
-				buf.Writef("               %s\n", s)
+				_, _ = buf.Writef("               %s\n", s)
 			}
 		}
 	}
