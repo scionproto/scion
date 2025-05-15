@@ -81,7 +81,7 @@ func NewBeaconStore(policies Policies, db DB, opts ...StoreOption) (*Store, erro
 		},
 		policies: policies,
 	}
-	s.baseStore.usager = &s.policies
+	s.usager = &s.policies
 	return s, nil
 }
 

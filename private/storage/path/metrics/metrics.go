@@ -112,7 +112,7 @@ func (db *metricsPathDB) BeginTransaction(ctx context.Context,
 
 	var tx pathdb.Transaction
 	var err error
-	db.metricsExecutor.metrics.Observe(ctx, promOpBeginTx, func(ctx context.Context) error {
+	db.metrics.Observe(ctx, promOpBeginTx, func(ctx context.Context) error {
 		tx, err = db.db.BeginTransaction(ctx, opts)
 		return err
 	})
@@ -124,7 +124,7 @@ func (db *metricsPathDB) BeginTransaction(ctx context.Context,
 		ctx: ctx,
 		metricsExecutor: &metricsExecutor{
 			pathDB:  tx,
-			metrics: db.metricsExecutor.metrics,
+			metrics: db.metrics,
 		},
 	}, err
 }

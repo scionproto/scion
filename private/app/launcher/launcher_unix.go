@@ -98,12 +98,12 @@ func (a *Application) run() error {
 }
 
 func (a *Application) executeCommand(ctx context.Context, shortName string) error {
-	if err := a.ApplicationBase.loadConfig(); err != nil {
+	if err := a.loadConfig(); err != nil {
 		return err
 	}
-	if err := a.ApplicationBase.initLogging(); err != nil {
+	if err := a.initLogging(); err != nil {
 		return err
 	}
 
-	return a.ApplicationBase.executeCommand(ctx, shortName)
+	return a.executeCommand(ctx, shortName)
 }
