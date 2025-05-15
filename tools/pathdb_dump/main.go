@@ -194,5 +194,5 @@ func defaultDBfilename() (string, error) {
 		reason = "more than one"
 	}
 	return "", fmt.Errorf("found %s files matching '%s'. "+
-		"Please specify the path to a DB file using the -db flag.", reason, glob)
+		"Please specify the path to a DB file using the -db flag", reason, glob)
 }
