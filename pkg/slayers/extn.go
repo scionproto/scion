@@ -347,9 +347,10 @@ func decodeEndToEndExtn(data []byte, p gopacket.PacketBuilder) error {
 }
 
 func checkEndToEndExtnNextHdr(t L4ProtocolType) error {
-	if t == HopByHopClass {
+	switch t {
+	case HopByHopClass:
 		return serrors.New("e2e extension must not come before the HBH extension")
-	} else if t == End2EndClass {
+	case End2EndClass:
 		return serrors.New("e2e extension must not be repeated")
 	}
 	return nil
