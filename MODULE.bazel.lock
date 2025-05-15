@@ -411,7 +411,7 @@
     },
     "@@aspect_rules_js+//npm:extensions.bzl%pnpm": {
       "general": {
-        "bzlTransitiveDigest": "MeYqcsZovx3KMjrN53tGCwQiYYIcAn+Sd1VBH2qIbr4=",
+        "bzlTransitiveDigest": "cYE3QE61mjLIM5IdiE+TCpLJPIIsMr0Plg/2aOdcHOA=",
         "usagesDigest": "8ggfSW1eOJDzHp5oo9r33sAB0sGvuQg4MjIOnRBgj2E=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
