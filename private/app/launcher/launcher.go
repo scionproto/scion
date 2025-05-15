@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/config"
-	libconfig "github.com/scionproto/scion/private/config"
 )
 
 // Configuration keys used by the launcher
@@ -50,7 +49,7 @@ type ApplicationBase struct {
 	// supports additional methods (e.g., custom logging or instance ID) and
 	// extract them from the config if that is the case. See the XxxConfig interfaces
 	// in this package for more information.
-	TOMLConfig libconfig.Config
+	TOMLConfig config.Config
 
 	// Samplers contains additional configuration samplers to be included
 	// under the sample subcommand. If empty, no additional samplers are
@@ -102,7 +101,7 @@ func (a *ApplicationBase) loadConfig() error {
 
 	}
 
-	if err := libconfig.LoadFile(a.config.GetString(cfgConfigFile), a.TOMLConfig); err != nil {
+	if err := config.LoadFile(a.config.GetString(cfgConfigFile), a.TOMLConfig); err != nil {
 		return serrors.Wrap("loading config from file", err,
 			"file", a.config.GetString(cfgConfigFile))
 
