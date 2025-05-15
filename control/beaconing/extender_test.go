@@ -93,6 +93,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			// Setup interfaces with active parent, child and one peer interface.
 			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 			for _, peer := range tc.peers {
+				//nolint:staticcheck // SA1019: Activate is fine for testing.
 				intfs.Get(peer).Activate(peerRemoteIfs[peer])
 			}
 			ext := &beaconing.DefaultExtender{
