@@ -10,8 +10,7 @@ load("//tools/lint:write_source_files.bzl", "write_source_files")
 load("//tools/lint/python:flake8_config.bzl", "flake8_lint_config")
 
 # gazelle:prefix github.com/scionproto/scion
-# gazelle:map_kind go_library go_library //tools/lint:go.bzl
-# gazelle:map_kind go_test go_test //tools/lint:go.bzl
+# gazelle:map_kind go_test go_test //tools:go.bzl
 # gazelle:exclude docker/_build/**
 # gazelle:exclude proto/**
 # gazelle:exclude doc/**
@@ -239,11 +238,13 @@ spectral_bin.spectral_binary(
 write_source_files(
     name = "write_all_source_files",
     additional_update_targets = [
+        "//control/beaconing:write_files",
         "//control/mgmtapi:write_files",
         "//daemon/mgmtapi:write_files",
         "//dispatcher/mgmtapi:write_files",
         "//doc/command:write_files",
         "//gateway/mgmtapi:write_files",
+        "//pkg/private/xtest/graph:write_files",
         "//pkg/proto/control_plane/v1/control_planeconnect:write_files",
         "//pkg/proto/daemon/v1/daemonconnect:write_files",
         "//pkg/proto/discovery/v1/discoveryconnect:write_files",

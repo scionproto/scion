@@ -1,4 +1,6 @@
-// Copyright 2018 Anapaya Systems
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// Placeholder for generated code during lint.
 
-import (
-	"testing"
+//go:build lint
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+package ebpf
 
-	"github.com/scionproto/scion/pkg/private/xtest/graph"
-)
+import "github.com/cilium/ebpf"
 
-func TestGeneratedUpToDate(t *testing.T) {
-	g, err := LoadGraph("../../../../" + DefaultTopoFile)
-	require.NoError(t, err)
-	graphMapping := make(map[string]int)
-	for i, id := range g.IfaceIds {
-		graphMapping[i.Name()] = id
-	}
-	assert.Equal(t, graph.StaticIfaceIdMapping, graphMapping,
-		"Generated graph is out of date, run graphupdater")
+func loadPortfilter() (*ebpf.CollectionSpec, error) {
+	return nil, nil
 }

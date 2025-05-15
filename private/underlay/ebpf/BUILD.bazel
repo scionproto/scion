@@ -1,0 +1,91 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
+
+genrule(
+    # The generated file is bazel-bin/private/underlay/ebpf/portfilter_bpfel.go
+    name = "gen_bpf_filter_go",
+    srcs = [
+        "portfilter.c",
+        "bpf_helpers.h",
+        "bpf_helper_defs.h",
+    ],
+    outs = [
+        "portfilter_bpfel.go",
+        "portfilter_bpfel.o",
+    ],
+    cmd = """
+        ARCH=$$(uname -m)
+        if [ "$$ARCH" = "x86_64" ]; then
+            INC=/usr/include/x86_64-linux-gnu
+        elif [ "$$ARCH" = "aarch64" ]; then
+            INC=/usr/include/aarch64-linux-gnu
+        else
+            echo "Unsupported arch: $$ARCH" >&2
+            exit 1
+        fi
+        GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) \
+            -output-dir $$(dirname $(location portfilter_bpfel.go)) \
+            -tags linux \
+            --cflags="-I$$INC" \
+            portfilter $(location portfilter.c)
+    """,
+    tools = ["@com_github_cilium_ebpf//cmd/bpf2go"],
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "bpf_helper_defs.h",
+        "bpf_helpers.h",
+        "portfilter.go",
+        "portfilter_bpfel.go",
+        "portfilter_lint.go",  # keep
+    ],
+    embedsrcs = [
+        "portfilter_bpfel.o",  #keep
+    ],
+    importpath = "github.com/scionproto/scion/private/underlay/ebpf",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_cilium_ebpf//:go_default_library"],
+)
+
+# Builds the portfilter test; but it will be missing the required capabilities; so we must not
+# attempt to run it. We are forced to name the artefact "go_default_test"; otherwise gazelle
+# creates its own incorrect version.
+go_test(
+    name = "go_default_test",
+    srcs = ["portfilter_test.go"],
+    tags = ["manual"],
+    deps = [
+        ":go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//afpacket:go_default_library",
+        "@com_github_gopacket_gopacket//layers:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+        "@com_github_vishvananda_netlink//:go_default_library",
+    ],
+)
+
+# Adds required capabilities to the portfilter test. Otherwise it cannot be executed.
+genrule(
+    name = "gen_portfilter_test_cap",
+    testonly = True,
+    srcs = [
+        "go_default_test",
+    ],
+    outs = [
+        "portfilter_test_cap",
+    ],
+    cmd_bash = "cp $< $@ ; /usr/bin/sudo setcap \"cap_bpf=ep cap_net_admin=ep cap_sys_admin=ep cap_net_raw=ep\" $@",
+)
+
+# This is the rule that actually runs the portfilter test.
+sh_test(
+    name = "portfilter_test",
+    testonly = True,
+    srcs = ["portfilter_test_cap"],
+    tags = [
+        "supports-graceful-termination",
+        "unit",
+    ],
+)

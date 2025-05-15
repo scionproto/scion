@@ -85,7 +85,7 @@ mocks:
 mocksdiff:
 	bazel run //tools:gomocks -- diff
 
-gazelle:
+gazelle: go.mod
 	bazel run //:gazelle --verbose_failures --config=quiet
 	./tools/buildrill/go_integration_test_sync
 
@@ -123,8 +123,7 @@ GO_BUILD_TAGS_ARG=$(shell bazel info --ui_event_filters=-stdout,-stderr --announ
 
 lint-go-golangci:
 	$(info ==> $@)
-	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
-		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.64.5 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
+	@tools/quiet bazel run --config=quiet @rules_go//go -- run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8 run --config="${PWD}/.golangcilint.yml" --timeout=3m $(GO_BUILD_TAGS_ARG),lint --exclude-dirs doc ./...
 
 lint-go-semgrep:
 	$(info ==> $@)
@@ -145,7 +144,7 @@ lint-protobuf: lint-protobuf-buf
 
 lint-protobuf-buf:
 	$(info ==> $@)
-	@tools/quiet bazel run --config=quiet @buf//:buf -- lint $(PWD) --path $(PWD)/proto
+	@tools/quiet bazel run --config=quiet @rules_go//go -- run github.com/bufbuild/buf/cmd/buf@v1.53.0 lint --disable-symlinks
 
 lint-openapi: lint-openapi-spectral
 

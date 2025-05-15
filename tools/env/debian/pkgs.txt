@@ -3,11 +3,13 @@ gawk
 bridge-utils
 build-essential
 cgroup-tools
+clang
 curl
 g++
 gcc
 git
 jq
+llvm
 make
 moreutils
 net-tools
