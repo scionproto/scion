@@ -1,5 +1,7 @@
+load("@aspect_bazel_lib//lib:run_binary.bzl", "run_binary")
 load("@rules_go//go:def.bzl", "go_library")
 load("//tools:go.bzl", "go_test")
+load("//tools/lint:write_source_files.bzl", "write_source_files")
 
 go_library(
     name = "go_default_library",
@@ -86,4 +88,39 @@ go_test(
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],
+)
+
+genrule(
+    name = "ifids_topology_big",
+    srcs = ["//topology:big"],
+    outs = ["ifids.big.gen.yaml"],
+    cmd = """
+        $(location //pkg/private/xtest/graphupdater:graphupdater) \
+        -topoFile=$(location //topology:big) -ifidsFile=$@
+    """,
+    tools = ["//pkg/private/xtest/graphupdater"],
+)
+
+run_binary(
+    name = "topogen_topology_big",
+    srcs = [
+        ":ifids_topology_big",
+        "//tools:topogen",
+        "//topology:big",
+    ],
+    args = [
+        "$(locations //tools:topogen)",
+        "$(location //topology:big)",
+        "$(location :ifids_topology_big)",
+        "$(RULEDIR)/testdata/big",
+    ],
+    out_dirs = ["testdata/big"],
+    tool = "//pkg/private/xtest/graph:topogen_with_graph",
+)
+
+write_source_files(
+    name = "write_files",
+    files = {
+        "testdata/big": ":topogen_topology_big",
+    },
 )
