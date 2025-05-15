@@ -203,10 +203,10 @@ The template is expressed in JSON. A valid example::
 			certFile := args[0]
 			keyFile := args[1]
 			printErr := func(f string, ctx ...any) {
-				fmt.Fprintf(cmd.ErrOrStderr(), f, ctx...)
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), f, ctx...)
 			}
 			printf := func(f string, ctx ...any) {
-				fmt.Fprintf(cmd.OutOrStdout(), f, ctx...)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), f, ctx...)
 			}
 
 			expiryChecker, err := parseExpiresIn(flags.expiresIn)
@@ -275,7 +275,7 @@ The template is expressed in JSON. A valid example::
 			if err != nil {
 				return serrors.Wrap("connecting to SCION Daemon", err)
 			}
-			defer sd.Close()
+			defer func() { _ = sd.Close() }()
 
 			info, err := app.QueryASInfo(daemonCtx, sd)
 			if err != nil {
@@ -608,7 +608,9 @@ The template is expressed in JSON. A valid example::
 	cmd.Flags().BoolVar(&flags.noProbe, "no-probe", false, "do not probe paths for health")
 	cmd.Flags().BoolVar(&flags.refresh, "refresh", false, "set refresh flag for path request")
 
-	cmd.MarkFlagRequired("trc")
+	if err := cmd.MarkFlagRequired("trc"); err != nil {
+		panic(err)
+	}
 
 	return cmd
 }
@@ -648,12 +650,12 @@ func (r *renewer) requestLocal(
 			// Do the SVC resolution
 			entries, err := r.Daemon.SVCInfo(ctx, []addr.SVC{hs})
 			if err != nil {
-				fmt.Fprintf(r.StdErr, "Failed to resolve SVC address: %s\n", err)
+				_, _ = fmt.Fprintf(r.StdErr, "Failed to resolve SVC address: %s\n", err)
 				return nil
 			}
 			resolved, ok := entries[hs]
 			if !ok {
-				fmt.Fprintf(r.StdErr, "No SVC address found. [svc=%s]", hs)
+				_, _ = fmt.Fprintf(r.StdErr, "No SVC address found. [svc=%s]", hs)
 				return nil
 			}
 			// Filter the returned addresses.
@@ -661,7 +663,7 @@ func (r *renewer) requestLocal(
 			for _, addr := range resolved {
 				_, _, err := net.SplitHostPort(addr)
 				if err != nil {
-					fmt.Fprintf(r.StdErr, "Failed to parse addr %s: %s", addr, err)
+					_, _ = fmt.Fprintf(r.StdErr, "Failed to parse addr %s: %s", addr, err)
 					continue
 				}
 				addrs = append(addrs, resolver.Address{Addr: addr})
@@ -757,7 +759,7 @@ func (r *renewer) requestRemote(
 	if err != nil {
 		return nil, serrors.Wrap("dialing", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	dialer := &grpc.QUICDialer{
 		Rewriter: &infraenv.AddressRewriter{
@@ -793,7 +795,7 @@ func (r *renewer) doRequest(
 	if err != nil {
 		return nil, serrors.Wrap("dialing gRPC connection", err, "remote", remote)
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 	client := cppb.NewChainRenewalServiceClient(c)
 	reply, err := client.ChainRenewal(ctx, req, grpc.RetryProfile...)
 	if err != nil {
