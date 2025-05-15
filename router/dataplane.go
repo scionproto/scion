@@ -1145,8 +1145,8 @@ type slowPathType int8
 
 const (
 	slowPathSCMP               slowPathType = 0 // >=0 means it is an SCMP error
-	slowPathRouterAlertIngress              = -1
-	slowPathRouterAlertEgress               = -2
+	slowPathRouterAlertIngress slowPathType = -1
+	slowPathRouterAlertEgress  slowPathType = -2
 )
 
 func (p *slowPathPacketProcessor) packSCMP(
