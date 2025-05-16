@@ -76,11 +76,12 @@ Building an A-ISD
    all ASes in the A-ISD. However, unlike normal ISD cores, A-COREs do not
    he "core" links to any other (A-)ISDs.
 
-3. **TBD**: Pick an (A-)ISD number. This proposal originally envisaged to not have
-any number assigned to the A-ISD. However, some feedback included to use
-an ISD number from the `private range (16-63)
-<https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
-This would resolve some limitations, see discussion below **TODO** reference)
+3. Pick an (A-)ISD number. This proposal originally envisaged to not have
+   any number assigned to the A-ISD, see
+   `Alternative: Avoid using ISD number altogether`_.
+   However, some feedback included to use an ISD number from the `private range (16-63)
+   <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
+   This would resolve several limitations.
 
 
 The resulting A-ISD is built mostly like a normal ISD: It has a TRC, performs
@@ -96,23 +97,6 @@ However, there are some differences:
 Note: An A-ISD can contain ASes (including A-COREs) and links that are not
 visible outside of the A-ISD.
 
-
-**TODO** A-ISD Number
----------------------
-
-This would simplify some things:
-
-- BRs can easily tell which certificate to use for path authentication.
-  As a result we may be able to lift the restriction that inner A-ISDs must
-  be fully included in parent A-ISDs (strict A-ISD hierarchy).
-  However, with only 48 A-ISD number available, an AS can participate in
-  at most 48 A-ISDs (nested or overlapping).
-- Endhosts can easily tell which certificate to use for path authentication.
-- CS can use it for signing and authenticating PCBs.
-
-However, we need to ensure that endhost libraries can deal with local AS's ISD number
-being different from the ISD number use in an UP/DOWN path (path stitching).
-We also need to ensure that the A-ISD numbers differ in an A-ISD hierarchy.
 
 Example: Simple A-ISD
 ^^^^^^^^^^^^^^^^^^^^^
@@ -406,6 +390,9 @@ Advantages of avoiding A-ISD-IDs:
 - Another advantage is that any AS has exactly one ISD number
   (and no A-ISD number). This may avoid some complexity in control services
   and in managing ASes.
+- Endhosts do not need to deal with local AS's ISD number being different
+  from the ISD number use in an UP/DOWN path (path stitching).
+- No need to ensure that the A-ISD numbers differ in an A-ISD hierarchy.
 
 Disadvantages:
 
