@@ -13,7 +13,6 @@ Other references:
 - Nested ISDs (Scion Book 1, Section 3.6): https://scion-architecture.net/pdf/SCION-book.pdf
 
 
-
 Abstract
 ========
 *TL;DR This proposal aims to resolve scaling issues with large numbers
@@ -130,20 +129,12 @@ Example: An A-ISD spread over two ISDs
 
 The following diagram shows an A-ISD that has ASes in multiple ISDs.
 
-**TODO** Having A-COREs in a single ISD means that the A-ISD has a designated ISD.
-With having A-COREs in multiple ISDs, we don't have that clear designation.
-It is not clear whether this is somehow a problem are even an advantage.
+.. image:: fig/anonymous_isd/2-2-ISD-1-A-CORE.png
 
 Something to consider: If an AS in an A-ISD requests a segment that cannot be resolved locally,
 it will forward the request to a CORE AS, but which CORE AS?
 For building a path to an A-AS, we should only ask the local A-CORE. For paths to outside
 the A-ISD we should only ask the surrounding ISD's core.
-
-**TODO** Also to discuss: can an A-CORE be a normal CORE at the same time?
-Does that complicate things?
-Similarily, can an A-CORE act as A-CORE for two different A-ISDs at the same time?
-
-.. image:: fig/anonymous_isd/2-2-ISD-1-A-CORE.png
 
 Example: An A-ISD spread over two ISDs with two A-COREs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -202,33 +193,8 @@ hop field verification with the innermost certificate.
 
 Border Routers
 --------------
-If we have A-ISD-IDs, this is straight forward. The A-ISD is use in the the
-SCION header for source and destination ISD. This make it easy to determine the
-TRC to use.
-
-If we don't have A-ISD-IDs, border routers need to have some additional state in order to compute the
-correct TRC for a given path. For every AS, they need a list that represents the AS's A-ISD
-hierarchy, the first entry is the outermost A-ISD and the last entry is the innermost A-ISD.
-At each level, we store a reference to the AS's TRC certificate for that A-ISD.
-
-When a border router receives a packet, it looks at the first and last AS in the
-path header. For both ASes it looks up the hierarchy list.
-
-- If at least one of the does not have a list (meaning it is not in any A-ISD known to the BR)
-  the we use the normal (rooted in the ISD's TRC) AS certificate for both.
-- If they both have a list, then we walk through both lists until they differ.
-  THis gives us the deepest common A-ISD and the associate certificate.
-- The lists cannot differ in the first entry, that would violate the
-  A-ISD-hierarchy principle.
-
-**TODO** remove?
-For example, for any route to an AS that is in the same A-ISD as the
-source AS, the path service will return segments that go through the
-local A-CORE as well as segments that go through the ISD's core.
-The endhost **must** then use the segments that go through the A-CORE.
-More specifically, if both ASes are in a hierarchy of nested A-ISDs,
-the endhost must use the A-CORE of the innermost A-ISD that it has in
-common with the destination AS.
+This is straight forward. The A-ISD is use in the the SCION header for source
+and destination ISD. This make it easy to determine the TRC to use.
 
 
 Endhost: Path Verification
@@ -321,13 +287,8 @@ Rationale
 =========
 [A discussion of alternate approaches and the trade-offs, advantages, and disadvantages of the specified approach.]
 
-Alternative: Use private ISD numbers (Jonghoon)
------------------------------------------------
-For internal communication, an A-ISD could use ISD numbers from the private range (not
-globally unique).
-- This requires AS numbers to be globally unique
-- When receiving PCBs or on the BR, we could use this to identify the correct TRC / certificate
-
+Advantages and Disadvantages
+----------------------------
 
 Advantages
 ^^^^^^^^^^
@@ -407,6 +368,52 @@ Possible "solutions":
 * Allow BRs to forward unchecked traffic indide A-ISDs.
 
 
+Alternative: Avoid using ISD number altogether
+----------------------------------------------
+Instead of using A-ISD-IDs from the private range (16-64), we could avoid
+using any IDs altogether.
+
+If we don't have A-ISD-IDs, border routers need to have some additional state in order
+to compute the
+correct TRC for a given path. For every AS, they need a list that represents the AS's A-ISD
+hierarchy, the first entry is the outermost A-ISD and the last entry is the innermost A-ISD.
+At each level, we store a reference to the AS's TRC certificate for that A-ISD.
+
+When a border router receives a packet, it looks at the first and last AS in the
+path header. For both ASes it looks up the hierarchy list.
+
+- If at least one of the does not have a list (meaning it is not in any A-ISD known to the BR)
+  the we use the normal (rooted in the ISD's TRC) AS certificate for both.
+- If they both have a list, then we walk through both lists until they differ.
+  THis gives us the deepest common A-ISD and the associate certificate.
+- The lists cannot differ in the first entry, that would violate the
+  A-ISD-hierarchy principle.
+
+A similar logic would be used on endhosts that want to authenticate paths.
+
+For example, for any route to an AS that is in the same A-ISD as the
+source AS, the path service will return segments that go through the
+local A-CORE as well as segments that go through the ISD's core.
+The endhost **must** then use the segments that go through the A-CORE.
+More specifically, if both ASes are in a hierarchy of nested A-ISDs,
+the endhost must use the A-CORE of the innermost A-ISD that it has in
+common with the destination AS.
+
+Advantages of avoiding A-ISD-IDs:
+
+- One advantage would be that we do not need to modify the dataplane,
+  i.e. the SCION packet header would contain
+  the original ISD for source/destination instead of the private ISDs.
+- Another advantage is that any AS has exactly one ISD number
+  (and no A-ISD number). This may avoid some complexity in control services
+  and in managing ASes.
+
+Disadvantages:
+
+- One disadvantage is clearly the added complexity in border routers and endhosts
+  for authenticating path segments.
+
+
 Compatibility
 =============
 [A discussion of breaking changes and how this change can be deployed.]
@@ -433,13 +440,11 @@ Implementation
      participates in. A-COREs can be each other's parent (parent must be in different ISD).
      This allows any A-AS member to transparently use any ISD that participates
      in the A-ISD.
-     **TODO move this to design section**
      **TODO how does path stitching(beaconing) work? -> Same as peering ...?!
 
 3. Border routers:
 
-   - They need to obtain lists of all ASes in the local A-ISDs.
-   - Update path authentication such that
+   - They need to obtain and handle certificates from the local A-ISDs.
 
 
 
