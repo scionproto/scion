@@ -37,11 +37,11 @@ import (
 func TestTCPDial(t *testing.T) {
 	lis, err := net.Listen("tcp4", "127.0.0.1:0")
 	require.NoError(t, err)
-	defer lis.Close()
+	defer func() { _ = lis.Close() }()
 
 	noGRPCLis, err := net.Listen("tcp4", "127.0.0.1:0")
 	require.NoError(t, err)
-	defer noGRPCLis.Close()
+	defer func() { _ = noGRPCLis.Close() }()
 
 	s := grpc.NewServer()
 	helloworldpb.RegisterGreeterServer(s, &server{})
@@ -57,7 +57,7 @@ func TestTCPDial(t *testing.T) {
 	getUnusedAddr := func(t *testing.T) string {
 		l, err := net.Listen("tcp4", "127.0.0.1:0")
 		require.NoError(t, err)
-		t.Cleanup(func() { l.Close() })
+		t.Cleanup(func() { _ = l.Close() })
 		return l.Addr().String()
 	}
 

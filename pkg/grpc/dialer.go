@@ -21,6 +21,7 @@ import (
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/resolver/manual"
@@ -41,14 +42,39 @@ type Dialer interface {
 // dialer interface. It simply uses the string of the address to dial.
 type SimpleDialer struct{}
 
-// Dial dials the address by converting it to a string.
+// Dial creates a new client and blocks until con is in state ready.
 func (SimpleDialer) Dial(ctx context.Context, address net.Addr) (*grpc.ClientConn, error) {
-	return grpc.DialContext(ctx, address.String(),
+	target := address.String()
+
+	con, err := grpc.NewClient(
+		target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "tcp", target)
+		}),
 		UnaryClientInterceptor(),
 		StreamClientInterceptor(),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Manually wait until the connection is ready simulating the use of grpc.WithBlock()
+	// even though this is no longer recommended
+	// (see https://github.com/grpc/grpc-go/blob/master/Documentation/anti-patterns.md)
+	// to maintain compatibility until we remove gRPC completely
+	// (see https://github.com/scionproto/scion/issues/4434).
+	for {
+		s := con.GetState()
+		if s == connectivity.Ready {
+			break
+		}
+		if !con.WaitForStateChange(ctx, s) {
+			_ = con.Close()
+			return nil, ctx.Err() // context timeout or cancel
+		}
+	}
+	return con, nil
 }
 
 // XXX(roosd):
@@ -96,29 +122,43 @@ type TCPDialer struct {
 
 // Dial dials a gRPC connection over TCP. It resolves svc addresses.
 func (t *TCPDialer) Dial(ctx context.Context, dst net.Addr) (*grpc.ClientConn, error) {
+	var (
+		target string
+		opts   []grpc.DialOption
+	)
+
 	if v, ok := dst.(*snet.SVCAddr); ok {
-		// XXX(matzf) is this really needed!?
+		// resolve SVC→addresses
 		targets := t.SvcResolver(v.SVC)
 		if len(targets) == 0 {
 			return nil, serrors.New("could not resolve")
 		}
 
+		// build a manual "svc" resolver
 		r := manual.NewBuilderWithScheme("svc")
 		r.InitialState(resolver.State{Addresses: targets})
-		return grpc.DialContext(ctx, r.Scheme()+":///"+v.SVC.BaseString(),
-			grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		target = r.Scheme() + ":///" + v.SVC.BaseString()
+
+		// use round_robin over our manual resolver
+		opts = append(opts,
 			grpc.WithResolvers(r),
-			UnaryClientInterceptor(),
-			StreamClientInterceptor(),
+			grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`),
 		)
+	} else {
+		// prefix with passthrough:// to get the same behaviour
+		// that the deprecated DialContext used.
+		target = "passthrough:///" + dst.String()
 	}
 
-	return grpc.DialContext(ctx, dst.String(),
+	// common options
+	opts = append(opts,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		UnaryClientInterceptor(),
 		StreamClientInterceptor(),
 	)
+
+	// NewClient replaces the deprecated DialContext / Dial
+	return grpc.NewClient(target, opts...)
 }
 
 // AddressRewriter redirects to QUIC endpoints.
@@ -155,7 +195,8 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 	dialer := func(context.Context, string) (net.Conn, error) {
 		return d.Dialer.Dial(ctx, addr)
 	}
-	return grpc.DialContext(ctx, addr.String(),
+	return grpc.NewClient(
+		addr.String(),
 		grpc.WithTransportCredentials(PassThroughCredentials{}),
 		grpc.WithContextDialer(dialer),
 		UnaryClientInterceptor(),
