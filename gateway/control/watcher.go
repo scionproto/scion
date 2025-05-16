@@ -145,7 +145,7 @@ type watcherItem struct {
 
 func (w *watcherItem) Close() error {
 	w.cancel()
-	return w.prefixWatcher.fetcher.Close()
+	return w.fetcher.Close()
 }
 
 // gatewayDiagnostics represents the gathered diagnostics from the prefixes.

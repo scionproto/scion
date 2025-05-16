@@ -430,7 +430,7 @@ func readFrom(conn *snet.Conn, pld []byte) (int, net.Addr, error) {
 	n, remoteAddr, err := conn.ReadFrom(pld)
 	// Attach more context to error
 	var opErr *snet.OpError
-	if !(errors.As(err, &opErr) && opErr.RevInfo() != nil) {
+	if !errors.As(err, &opErr) || opErr.RevInfo() == nil {
 		return n, remoteAddr, err
 	}
 	return n, remoteAddr, serrors.WrapNoStack("error", err,

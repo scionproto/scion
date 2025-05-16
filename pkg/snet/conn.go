@@ -105,10 +105,10 @@ func (c *Conn) RemoteAddr() net.Addr {
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {
-	if err := c.scionConnReader.SetReadDeadline(t); err != nil {
+	if err := c.SetReadDeadline(t); err != nil {
 		return err
 	}
-	if err := c.scionConnWriter.SetWriteDeadline(t); err != nil {
+	if err := c.SetWriteDeadline(t); err != nil {
 		return err
 	}
 	return nil

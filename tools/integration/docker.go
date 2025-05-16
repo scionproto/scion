@@ -82,7 +82,7 @@ func (di *dockerIntegration) StartClient(ctx context.Context,
 // TesterID returns the ID of the tester container.
 func TesterID(a *snet.UDPAddr) string {
 	ia := addr.FormatIA(a.IA, addr.WithFileSeparator())
-	envID, ok := os.LookupEnv(fmt.Sprintf("tester_%s", strings.Replace(ia, "-", "_", -1)))
+	envID, ok := os.LookupEnv(fmt.Sprintf("tester_%s", strings.ReplaceAll(ia, "-", "_")))
 	if !ok {
 		return fmt.Sprintf("tester_%s", ia)
 	}

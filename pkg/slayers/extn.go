@@ -245,7 +245,7 @@ func (h *HopByHopExtn) SerializeTo(b gopacket.SerializeBuffer,
 		o = append(o, (*tlvOption)(v))
 	}
 
-	return h.extnBase.serializeToWithTLVOptions(b, opts, o)
+	return h.serializeToWithTLVOptions(b, opts, o)
 }
 
 // DecodeFromBytes implementation according to gopacket.DecodingLayer.
@@ -347,9 +347,10 @@ func decodeEndToEndExtn(data []byte, p gopacket.PacketBuilder) error {
 }
 
 func checkEndToEndExtnNextHdr(t L4ProtocolType) error {
-	if t == HopByHopClass {
+	switch t {
+	case HopByHopClass:
 		return serrors.New("e2e extension must not come before the HBH extension")
-	} else if t == End2EndClass {
+	case End2EndClass:
 		return serrors.New("e2e extension must not be repeated")
 	}
 	return nil
@@ -368,7 +369,7 @@ func (e *EndToEndExtn) SerializeTo(b gopacket.SerializeBuffer,
 		o = append(o, (*tlvOption)(v))
 	}
 
-	return e.extnBase.serializeToWithTLVOptions(b, opts, o)
+	return e.serializeToWithTLVOptions(b, opts, o)
 }
 
 // FindOption returns the first option entry of the given type if any exists,

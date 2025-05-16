@@ -57,7 +57,7 @@ func (u *UDP) TransportFlow() gopacket.Flow {
 func (u *UDP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	if len(data) < 8 {
 		df.SetTruncated()
-		return fmt.Errorf("Invalid UDP header. Length %d less than 8", len(data))
+		return fmt.Errorf("invalid UDP header. Length %d less than 8", len(data))
 	}
 	u.SrcPort = binary.BigEndian.Uint16(data[0:2])
 	u.sPort = data[0:2]

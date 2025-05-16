@@ -24,17 +24,13 @@ import (
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/config"
-	libconfig "github.com/scionproto/scion/private/config"
-	"github.com/scionproto/scion/private/env"
 )
 
 // Configuration keys used by the launcher
@@ -53,7 +49,7 @@ type ApplicationBase struct {
 	// supports additional methods (e.g., custom logging or instance ID) and
 	// extract them from the config if that is the case. See the XxxConfig interfaces
 	// in this package for more information.
-	TOMLConfig libconfig.Config
+	TOMLConfig config.Config
 
 	// Samplers contains additional configuration samplers to be included
 	// under the sample subcommand. If empty, no additional samplers are
@@ -105,7 +101,7 @@ func (a *ApplicationBase) loadConfig() error {
 
 	}
 
-	if err := libconfig.LoadFile(a.config.GetString(cfgConfigFile), a.TOMLConfig); err != nil {
+	if err := config.LoadFile(a.config.GetString(cfgConfigFile), a.TOMLConfig); err != nil {
 		return serrors.Wrap("loading config from file", err,
 			"file", a.config.GetString(cfgConfigFile))
 
@@ -131,34 +127,6 @@ func (a *ApplicationBase) initLogging() error {
 		return serrors.Wrap("initialize logging", err)
 	}
 	return nil
-}
-
-func (a *ApplicationBase) executeCommand(ctx context.Context, shortName string) error {
-
-	defer log.Flush()
-	if a.RequiredIPs != nil {
-		ips, err := a.RequiredIPs()
-		if err != nil {
-			return serrors.Wrap("loading required IPs", err)
-		}
-		WaitForNetworkReady(ctx, ips)
-	}
-	if err := env.LogAppStarted(shortName, a.config.GetString(cfgGeneralID)); err != nil {
-		return err
-	}
-	defer env.LogAppStopped(shortName, a.config.GetString(cfgGeneralID))
-	defer log.HandlePanic()
-
-	exportBuildInfo()
-	prom.ExportElementID(a.config.GetString(cfgGeneralID))
-	if err := a.TOMLConfig.Validate(); err != nil {
-		return serrors.Wrap("validate config", err)
-	}
-
-	if a.Main == nil {
-		return nil
-	}
-	return a.Main(ctx)
 }
 
 func (a *ApplicationBase) getLogging() log.Config {
@@ -218,15 +186,4 @@ func newCommandTemplate(executable string, shortName string, config config.Sampl
 	cmd.Flags().String(cfgConfigFile, "", "Configuration file (required)")
 	cmd.MarkFlagRequired(cfgConfigFile)
 	return cmd
-}
-
-func exportBuildInfo() {
-	g := promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "scion_build_info",
-			Help: "SCION build information",
-		},
-		[]string{"version"},
-	)
-	g.WithLabelValues(env.StartupVersion).Set(1)
 }
