@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bazelbuild/rules_go/go/tools/bazel"
+	"github.com/bazelbuild/rules_go/go/runfiles"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -90,11 +90,13 @@ func setupTest(t *testing.T) testState {
 	s := testState{
 		extraEnv: []string{"TOPO_CS_RELOAD_CONFIG_DIR=" + tmpDir},
 	}
-	scionPKI, err := bazel.Runfile(*scionPKILocation)
+	rf, err := runfiles.New()
 	require.NoError(t, err)
-	cryptoLib, err := bazel.Runfile(*cryptoLibLocation)
+	scionPKI, err := rf.Rlocation(*scionPKILocation)
 	require.NoError(t, err)
-	topoFile, err := bazel.Runfile(*topoLocation)
+	cryptoLib, err := rf.Rlocation(*cryptoLibLocation)
+	require.NoError(t, err)
+	topoFile, err := rf.Rlocation(*topoLocation)
 	require.NoError(t, err)
 	s.mustExec(t, *genCryptoLocation, scionPKI, "crypto.tar", topoFile, cryptoLib)
 	s.mustExec(t, "tar", "-xf", "crypto.tar", "-C", tmpDir)
