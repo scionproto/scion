@@ -3,7 +3,7 @@ Anonymous / Private ISDs
 ************************
 
 - Author(s): Tilmann Zäschke (+ ideas from Jonghoon Kwon)
-- Last updated: 2025-05-02
+- Last updated: 2025-05-16
 - Discussion at: :issue:`NNNN`
 - Status: **WIP**
 
