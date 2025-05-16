@@ -17,7 +17,7 @@ Abstract
 ========
 *TL;DR This proposal aims to resolve scaling issues with large numbers
 of ISD and core ASes. As a side effect it introducees new privacy
-features, censorship protection, and removes the need for
+features, censorship protection, and (maybe) removes the need for
 extra-ISD peering links.*
 
 The current ISD design combines several features:
