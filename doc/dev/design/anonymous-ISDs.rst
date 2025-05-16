@@ -52,13 +52,12 @@ Terminology
 -----------
 - A-AS - An AS that participates in an A-ISD. The A-AS itself is not anonymous.
 - A-ISD - Anonymous ISD
-- A-CORE - The core router(s) of an anonymous ISD. A-ISD provide
-  TRCs and local beaconing but (usually) do not participate in the
-  normal ISDs' core routing
+- A-CORE - The core router(s) of an anonymous ISD. A-ISD provide  TRCs and local
+  beaconing but (usually) do not participate in the normal ISDs' core routing
 - BR - Border router
 - CS - Control service
-- P-AS - A private (hidden) AS. P-ASes are part of an A-ISD but not visible from outside
-  their A-ISD.
+- P-AS - A private (hidden) AS. P-ASes are part of an A-ISD but not visible from
+  outside their A-ISD.
 
 
 Proposal
