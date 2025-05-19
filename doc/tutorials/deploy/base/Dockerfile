@@ -1,10 +1,13 @@
-FROM debian:12-slim
+# syntax = docker/dockerfile:1.3
+FROM --platform=$BUILDPLATFORM debian:12-slim
 
-ARG RELEASE="https://github.com/scionproto/scion/releases/download/v0.12.0/scion_0.12.0_deb_amd64.tar.gz"
+ARG TARGETARCH
+ARG SCION_VER=0.12.0
+ARG RELEASE="https://github.com/scionproto/scion/releases/download/v${SCION_VER}/scion_${SCION_VER}_deb_${TARGETARCH}.tar.gz"
 
 # Tell systemd it's running inside Docker. Without this, systemd may emit warnings
 # and fail to boot certain units (especially networking-related).
-ENV container docker
+ENV container=docker
 
 # Force debconf (called by apt-get) to be non-interactive.
 # This prevents interactive prompts during package installation.

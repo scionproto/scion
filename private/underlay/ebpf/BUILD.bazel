@@ -13,7 +13,22 @@ genrule(
         "sockfilter_bpfel.go",
         "sockfilter_bpfel.o",
     ],
-    cmd = "GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) -output-dir $$(dirname $(location sockfilter_bpfel.go)) -tags linux sockfilter $(location sockfilter.c)",
+    cmd = """
+        ARCH=$$(uname -m)
+        if [ "$$ARCH" = "x86_64" ]; then
+            INC=/usr/include/x86_64-linux-gnu
+        elif [ "$$ARCH" = "aarch64" ]; then
+            INC=/usr/include/aarch64-linux-gnu
+        else
+            echo "Unsupported arch: $$ARCH" >&2
+            exit 1
+        fi
+        GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) \
+            -output-dir $$(dirname $(location sockfilter_bpfel.go)) \
+            -tags linux \
+            --cflags="-I$$INC" \
+            sockfilter $(location sockfilter.c)
+    """,
     tools = ["@com_github_cilium_ebpf//cmd/bpf2go"],
 )
 
@@ -29,7 +44,22 @@ genrule(
         "kfilter_bpfel.go",
         "kfilter_bpfel.o",
     ],
-    cmd = "GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) -output-dir $$(dirname $(location kfilter_bpfel.go)) -tags linux kfilter $(location kfilter.c)",
+    cmd = """
+        ARCH=$$(uname -m)
+        if [ "$$ARCH" = "x86_64" ]; then
+            INC=/usr/include/x86_64-linux-gnu
+        elif [ "$$ARCH" = "aarch64" ]; then
+            INC=/usr/include/aarch64-linux-gnu
+        else
+            echo "Unsupported arch: $$ARCH" >&2
+            exit 1
+        fi
+        GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) \
+            -output-dir $$(dirname $(location kfilter_bpfel.go)) \
+            -tags linux \
+            --cflags="-I$$INC" \
+            kfilter $(location kfilter.c)
+    """,
     tools = ["@com_github_cilium_ebpf//cmd/bpf2go"],
 )
 
