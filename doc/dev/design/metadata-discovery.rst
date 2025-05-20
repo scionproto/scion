@@ -112,6 +112,18 @@ to do it all.
   in the ``staticInfoConfig.json``.
 
 
+File Format
+-----------
+Optionally: It may be useful to allow an additional attribute for each value,
+for example: `override=true`.
+This attribute should indicate that a value was manually overridden and should not be
+modified by measurements.
+
+It is a bit unclear what the use case really is for this. Geolocation should normally
+only run autodetection if no value is available. Maybe it is useful for bandwidth
+when the autodetection gets incorrect values from the providers service API?
+
+
 Management API
 --------------
 
@@ -120,6 +132,10 @@ by administrators to monitor metadata and edit non-measurable metadata
 (notes, addresses, more accurate geolocation, ...). However, this is optional
 and can be done by monitoring or manually editing the ``staticInfoConfig.json`` file.
 
+If we decide to have a remote monitoring API, in order to avoid concurrency issues
+we should probably remove the runtime reparsing of the file. Reparsing of the
+file would thus be an interim solution until the management API is available.
+At that point, the file should only be parsed at startup of the metadata service.
 
 Rationale
 =========
