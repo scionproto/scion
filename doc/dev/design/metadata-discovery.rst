@@ -137,6 +137,7 @@ we should probably remove the runtime reparsing of the file. Reparsing of the
 file would thus be an interim solution until the management API is available.
 At that point, the file should only be parsed at startup of the metadata service.
 
+
 Rationale
 =========
 
