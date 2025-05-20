@@ -186,9 +186,10 @@ class RouterBMTest(base.TestBase, RouterBM):
     """
 
     # TODO(jiceatscion): We construct intf_map during setup and we use it later, during
-    # _run(). As a result, running setup, run, at teardown separately is not possible for
-    # this test. May be it would be possible to reconstruct the map without actually setup the
-    # interfaces, assuming brload isn't being changed in-between.
+    # _run(). As a result, running setup, run, at teardown separately is difficult.
+    # During run and teardown, we reconstruct the map without actually setup the
+    # interfaces. This assumes that brload isn't being changed in-between, since the map is
+    # based on the requirements that it outputs.
 
     router_cpus: list[int] = [0]
 
@@ -267,7 +268,7 @@ class RouterBMTest(base.TestBase, RouterBM):
         logger.info(f"router cpus: {self.router_cpus}")
         logger.info(f"brload cpus: {self.brload_cpus}")
 
-    def create_interface(self, req: IntfReq, ns: str):
+    def create_interface(self, req: IntfReq, ns: str, doit: bool):
         """Creates a pair of virtual interfaces, with one end in the given network namespace and the
         other in the host stack.
 
@@ -306,7 +307,10 @@ class RouterBMTest(base.TestBase, RouterBM):
             * The IP address to be assigned to that interface.
             * The IP address of one neighbor.
           ns: The network namespace where that interface must exist.
-
+          doit: If true, do it for real. Else, assume it is already done and just re-populate the
+                interface map. That is necessary for split operations, where test_setup, test_run,
+                and test_teardown are used. Of course this will only work well if requested
+                interfaces have not changed.
         """
 
         phys_label = req.label if req.exclusive == "true" else "mx"
@@ -323,40 +327,42 @@ class RouterBMTest(base.TestBase, RouterBM):
         else:
             peer_mac = mac_for_ip(req.peer_ip)
             mac = mac_for_ip(req.ip)
-            sudo("ip", "link", "add", host_intf, "type", "veth", "peer", "name", br_intf)
-            sudo("ip", "link", "set", host_intf, "mtu", "9000")
-            sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure the real addr isn't used
+            if doit:
+                sudo("ip", "link", "add", host_intf, "type", "veth", "peer", "name", br_intf)
+                sudo("ip", "link", "set", host_intf, "mtu", "9000")
+                sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure the real addr isn't used
 
-            # Do not assign the host addresses but create one link-local addr.
-            # Brload needs some src IP to send arp requests.
-            sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
-                 "broadcast", "169.254.255.255",
-                 "dev", host_intf, "scope", "link")
+                # Do not assign the host addresses but create one link-local addr.
+                # Brload needs some src IP to send arp requests.
+                sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
+                     "broadcast", "169.254.255.255",
+                     "dev", host_intf, "scope", "link")
 
-            sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
-            sudo("ethtool", "-K", br_intf, "rx", "off", "tx", "off")
-            sudo("ip", "link", "set", br_intf, "mtu", "9000")
-            sudo("ip", "link", "set", br_intf, "address", mac)
+                sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
+                sudo("ethtool", "-K", br_intf, "rx", "off", "tx", "off")
+                sudo("ip", "link", "set", br_intf, "mtu", "9000")
+                sudo("ip", "link", "set", br_intf, "address", mac)
 
-            # The network namespace
-            sudo("ip", "link", "set", br_intf, "netns", ns)
+                # The network namespace
+                sudo("ip", "link", "set", br_intf, "netns", ns)
+                sudo("ip", "netns", "exec", ns,
+                     "sysctl", "-qw", f"net.ipv6.conf.{br_intf}.disable_ipv6=1")
+                sudo("ip", "netns", "exec", ns,
+                     "sysctl", "-qw", "net.ipv4.conf.all.rp_filter=0")
+                sudo("ip", "netns", "exec", ns,
+                     "sysctl", "-qw", f"net.ipv4.conf.{br_intf}.rp_filter=0")
+
+        if doit:
+            # Add the router side IP addresses (even if we're multiplexing on an existing interface).
             sudo("ip", "netns", "exec", ns,
-                 "sysctl", "-qw", f"net.ipv6.conf.{br_intf}.disable_ipv6=1")
-            sudo("ip", "netns", "exec", ns,
-                 "sysctl", "-qw", "net.ipv4.conf.all.rp_filter=0")
-            sudo("ip", "netns", "exec", ns,
-                 "sysctl", "-qw", f"net.ipv4.conf.{br_intf}.rp_filter=0")
+                 "ip", "addr", "add", f"{req.ip}/{req.prefix_len}",
+                 "broadcast",
+                 ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False).broadcast_address,
+                 "dev", br_intf)
 
-        # Add the router side IP addresses (even if we're multiplexing on an existing interface).
-        sudo("ip", "netns", "exec", ns,
-             "ip", "addr", "add", f"{req.ip}/{req.prefix_len}",
-             "broadcast",
-             ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False).broadcast_address,
-             "dev", br_intf)
-
-        # Fit for duty.
-        sudo("ip", "link", "set", host_intf, "up")
-        sudo("ip", "netns", "exec", ns, "ip", "link", "set", br_intf, "up")
+            # Fit for duty.
+            sudo("ip", "link", "set", host_intf, "up")
+            sudo("ip", "netns", "exec", ns, "ip", "link", "set", br_intf, "up")
 
         # Ship it.
         self.intf_map[req.label] = Intf(host_intf, mac, peer_mac)
@@ -388,6 +394,28 @@ class RouterBMTest(base.TestBase, RouterBM):
                     break
         except Exception as e:
             logger.info(e)
+
+    # Args:
+    #   doit: If True, the interfaces realy need to be created. Otherwise, this is just to re-
+    #         populate the map (needed if invoked in several phases (setup, run, teardown).
+    #
+    def create_interfaces(self, doit: bool):
+        # Run test brload test with --show-interfaces and set up the veth that it needs.
+        # The router uses one end and the test uses the other end to feed it with (and possibly
+        # capture) traffic.
+        # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
+        output = self.brload("show-interfaces")
+        for line in output.splitlines():
+            elems = line.split(",")
+            if len(elems) != 5:
+                continue
+            t = IntfReq._make(elems)
+
+            # If we're supposed to re-populate the map with already created interfaces, and if we
+            # see that the map is already populated; we can just stop.
+            if t.label in self.intf_map and not doit:
+                break
+            self.create_interface(t, "benchmark", doit)
 
     def setup_prepare(self):
         super().setup_prepare()
@@ -426,18 +454,7 @@ class RouterBMTest(base.TestBase, RouterBM):
         # value 64, so that packets sent from router will match the expected value.
         sudo("ip", "netns", "exec", "benchmark", "sysctl", "-w", "net.ipv4.ip_default_ttl=64")
 
-        # Run test brload test with --show-interfaces and set up the veth that it needs.
-        # The router uses one end and the test uses the other end to feed it with (and possibly
-        # capture) traffic.
-        # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
-        output = self.brload("show-interfaces")
-
-        for line in output.splitlines():
-            elems = line.split(",")
-            if len(elems) != 5:
-                continue
-            t = IntfReq._make(elems)
-            self.create_interface(t, "benchmark")
+        self.create_interfaces(True)
 
         # Now the router can start.
         docker("run",
@@ -472,8 +489,11 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         # We don't need that symlink any more
         sudo("rm", "/var/run/netns/benchmark")
+        logger.info("Setup complete")
 
     def teardown(self):
+        super().teardown()
+        self.create_interfaces(False)
         docker["logs", "router"].run_fg(retcode=None)
         docker("rm", "-f", "prometheus")
         docker("rm", "-f", "router")
@@ -481,6 +501,7 @@ class RouterBMTest(base.TestBase, RouterBM):
         sudo("chown", "-R", whoami().strip(), self.artifacts)
 
     def _run(self):
+        self.create_interfaces(False)
         results = self.run_bm(list(TEST_CASES.keys()))
         if results.cores != len(self.router_cpus):
             raise RuntimeError("Wrong number of cores used by the router; "
