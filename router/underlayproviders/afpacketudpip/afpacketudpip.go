@@ -361,8 +361,8 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 		// Since it may be recycled...
 		pool.ResetPacket(p)
 
-		data := p.WithHeader(minHeadRoom)
-		info, err := u.afp.ReadPacketDataTo(data)
+		data := p.WithHeader(minHeadRoom) // data now maps to where we dump the whole packet
+		_, err := u.afp.ReadPacketDataTo(data)
 		if err != nil {
 			continue
 		}
@@ -373,21 +373,20 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 		if !ipLayer.CanDecode().Contains(ethLayer.NextLayerType()) {
 			continue
 		}
-		data = ethLayer.LayerPayload()
+		data = ethLayer.LayerPayload() // chop off the eth header
 		if err := ipLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 			continue
 		}
 		if !udpLayer.CanDecode().Contains(ipLayer.NextLayerType()) {
 			continue
 		}
-		data = ipLayer.LayerPayload()
+		data = ipLayer.LayerPayload() // chop off the ip header
 		if err := udpLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 			continue
 		}
-		data = udpLayer.LayerPayload()
-		dataLen := len(data)
-		hdrLen := info.CaptureLength - dataLen
-		p.RawPacket = p.RawPacket[hdrLen:]
+		p.RawPacket = udpLayer.LayerPayload() // chop off the udp header. The rest is SCION.
+
+		// Retrieve src and port from the decoded IP and UDP layers.
 		srcIP, ok := netip.AddrFromSlice(ipLayer.SrcIP)
 		if !ok {
 			// WTF?
@@ -518,6 +517,7 @@ func makeHashSeed() uint32 {
 	return hashSeed
 }
 
+// Expensive. Call only to make a few prefab headers.
 func packHeader(src, dst *netip.AddrPort) []byte {
 
 	ethernet := layers.Ethernet{
@@ -544,11 +544,15 @@ func packHeader(src, dst *netip.AddrPort) []byte {
 	_ = udp.SetNetworkLayerForChecksum(&ip)
 	sb := gopacket.NewSerializeBuffer()
 	gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
-	return sb.Bytes()
+
+	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
+	// ethernet minimum.
+	return sb.Bytes()[:42]
 }
 
 // FIXME!!!: IpV6
 // FIXME: can do cleaner and more legible... and maybe faster.
+// TODO(jiceatscion): probably more efficient if method of link.
 func addHeader(p *router.Packet, header []byte, dst *netip.AddrPort) {
 	payloadLen := len(p.RawPacket)
 	p.RawPacket = p.WithHeader(len(header))
@@ -559,17 +563,20 @@ func addHeader(p *router.Packet, header []byte, dst *netip.AddrPort) {
 	if dst != nil {
 		copy(p.RawPacket, net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x2, 0x2})
 		copy(p.RawPacket[14+16:], dst.Addr().AsSlice()) // Can do cheaper?
+		binary.BigEndian.PutUint16(p.RawPacket[14+20+2:], dst.Port())
 	}
-	binary.BigEndian.PutUint16(p.RawPacket[14+20+2:], dst.Port())
+
+	// Fix the IP total length field
+	binary.BigEndian.PutUint16(p.RawPacket[14+2:], uint16(payloadLen)+20+8)
+
+	// Update UDP length
+	binary.BigEndian.PutUint16(p.RawPacket[14+20+4:], uint16(payloadLen)+8)
 
 	// For IPv4 fix the IP checksum
 	p.RawPacket[14+10] = 0
 	p.RawPacket[14+11] = 0
 	csum := gopacket.ComputeChecksum(p.RawPacket[14:14+20], 0)
 	binary.BigEndian.PutUint16(p.RawPacket[14+10:], gopacket.FoldChecksum(csum))
-
-	// Update UDP length
-	binary.BigEndian.PutUint16(p.RawPacket[14+20+4:], uint16(payloadLen)+8)
 
 	// For IPV4 we can screw the UDP checksum
 	p.RawPacket[14+20+6] = 0
@@ -715,7 +722,7 @@ func (l *ptpLink) stop() {
 }
 
 func (l *ptpLink) IfID() uint16 {
-	return 0
+	return l.ifID
 }
 
 func (l *ptpLink) Metrics() *router.InterfaceMetrics {
@@ -723,7 +730,7 @@ func (l *ptpLink) Metrics() *router.InterfaceMetrics {
 }
 
 func (l *ptpLink) Scope() router.LinkScope {
-	return router.Sibling
+	return l.scope
 }
 
 func (l *ptpLink) BFDSession() *bfd.Session {
@@ -818,8 +825,9 @@ func (u *provider) NewInternalLink(
 
 	// We prepare an incomplete header; it is still faster to patch it than recreate it
 	// from scratch for every packet.
+	unspecDst := netip.AddrPortFrom(netip.IPv4Unspecified(), 0)
 	il := &internalLink{
-		header:           packHeader(&localAddr, &netip.AddrPort{}),
+		header:           packHeader(&localAddr, &unspecDst),
 		egressQ:          c.queue,
 		metrics:          metrics,
 		svc:              u.svc,
