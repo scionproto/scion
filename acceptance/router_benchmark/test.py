@@ -330,7 +330,7 @@ class RouterBMTest(base.TestBase, RouterBM):
             if doit:
                 sudo("ip", "link", "add", host_intf, "type", "veth", "peer", "name", br_intf)
                 sudo("ip", "link", "set", host_intf, "mtu", "9000")
-                sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure the real addr isn't used
+                sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure real addr not used
 
                 # Do not assign the host addresses but create one link-local addr.
                 # Brload needs some src IP to send arp requests.
@@ -353,7 +353,7 @@ class RouterBMTest(base.TestBase, RouterBM):
                      "sysctl", "-qw", f"net.ipv4.conf.{br_intf}.rp_filter=0")
 
         if doit:
-            # Add the router side IP addresses (even if we're multiplexing on an existing interface).
+            # Add the router side IP addresses (even if we're multiplexing on an existing intf).
             sudo("ip", "netns", "exec", ns,
                  "ip", "addr", "add", f"{req.ip}/{req.prefix_len}",
                  "broadcast",

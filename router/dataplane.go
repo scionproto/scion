@@ -99,7 +99,7 @@ func AddUnderlay(name string, newProv ProviderFactory) {
 	if underlayProviders == nil {
 		underlayProviders = make(map[string]ProviderFactory)
 	}
-	oldProv, _ := underlayProviders[name]
+	oldProv := underlayProviders[name]
 	if oldProv != nil {
 		if oldProv.Priority() > newProv.Priority() {
 			return

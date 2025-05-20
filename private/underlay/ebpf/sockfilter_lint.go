@@ -22,6 +22,6 @@ package ebpf
 
 import "github.com/cilium/ebpf"
 
-func loadPortfilter() (*ebpf.CollectionSpec, error) {
+func loadSockfilter() (*ebpf.CollectionSpec, error) {
 	return nil, nil
 }

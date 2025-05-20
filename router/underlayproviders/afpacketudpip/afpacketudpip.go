@@ -44,11 +44,10 @@ import (
 )
 
 var (
-	errResolveOnSiblingLink  = errors.New("unsupported address resolution on sibling link")
-	errResolveOnExternalLink = errors.New("unsupported address resolution on external link")
-	errInvalidServiceAddress = errors.New("invalid service address")
-	errShortPacket           = errors.New("packet is too short")
-	errDuplicateRemote       = errors.New("duplicate remote address")
+	errResolveOnNonInternalLink = errors.New("unsupported address resolution on link not internal")
+	errInvalidServiceAddress    = errors.New("invalid service address")
+	errShortPacket              = errors.New("packet is too short")
+	errDuplicateRemote          = errors.New("duplicate remote address")
 )
 
 // An interface to enable unit testing.
@@ -543,7 +542,11 @@ func packHeader(src, dst *netip.AddrPort) []byte {
 	}
 	_ = udp.SetNetworkLayerForChecksum(&ip)
 	sb := gopacket.NewSerializeBuffer()
-	gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
+	err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
+	if err != nil {
+		// The only possible reason for this is in the few lines above.
+		panic("Cannot serialize static header")
+	}
 
 	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
 	// ethernet minimum.
@@ -741,9 +744,9 @@ func (l *ptpLink) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
 
-// Resolve should not be useful on a sibling link so we don't implement it yet.
+// Resolve should not be useful on a sibling or external link so we don't implement it yet.
 func (l *ptpLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
-	return errResolveOnSiblingLink
+	return errResolveOnNonInternalLink
 }
 
 func (l *ptpLink) Send(p *router.Packet) bool {

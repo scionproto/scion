@@ -102,7 +102,7 @@ func bpfKFilter(ifIndex int, port uint16) (link.Link, *ebpf.Collection, error) {
 		Anchor:    link.Head(),
 	})
 
-	return l, coll, nil
+	return l, coll, err
 }
 
 func bpfSockFilter(afp *afpacket.TPacket, port uint16) (*ebpf.Collection, error) {
