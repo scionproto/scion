@@ -994,10 +994,10 @@ func newPacketProcessor(d *dataPlane) *scionPacketProcessor {
 	return p
 }
 
-func (p *scionPacketProcessor) reset() error {
+func (p *scionPacketProcessor) reset() {
 	p.pkt = nil
 	p.ingressFromLink = 0
-	// p.scionLayer // cannot easily be reset
+	// p.scionLayer // cannot easily be reset but no need (so far).
 	p.path = nil
 	p.hopField = path.HopField{}
 	p.infoField = path.InfoField{}
@@ -1009,7 +1009,6 @@ func (p *scionPacketProcessor) reset() error {
 	p.hbhLayer = slayers.HopByHopExtnSkipper{}
 	// Reset e2e layer
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
-	return nil
 }
 
 // Convenience function to log an error and return the pDiscard disposition.
@@ -1020,9 +1019,7 @@ func errorDiscard(ctx ...any) disposition {
 }
 
 func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
-	if err := p.reset(); err != nil {
-		return errorDiscard("error", err)
-	}
+	p.reset()
 	p.pkt = pkt
 	p.ingressFromLink = pkt.Link.IfID()
 
@@ -1279,8 +1276,7 @@ func (p *scionPacketProcessor) validateIngressID() disposition {
 		errCode = slayers.SCMPCodeUnknownHopFieldEgress
 	}
 	if p.ingressFromLink != 0 && p.ingressFromLink != hdrIngressID {
-		log.Debug("SCMP response", "cause", errIngressInterfaceInvalid,
-			"pkt_ingress", hdrIngressID, "router_ingress", p.ingressFromLink)
+		log.Debug("SCMP response", "cause", errIngressInterfaceInvalid)
 		p.pkt.slowPathRequest = slowPathRequest{
 			spType:  slowPathType(slayers.SCMPTypeParameterProblem),
 			code:    errCode,
@@ -1295,22 +1291,26 @@ func (p *scionPacketProcessor) validateSrcDstIA() disposition {
 	srcIsLocal := (p.scionLayer.SrcIA == p.d.localIA)
 	dstIsLocal := (p.scionLayer.DstIA == p.d.localIA)
 	if p.ingressFromLink == 0 {
-		// Outbound
+		// In via internal or sibling (may only be outbound)
 		// Only check SrcIA if first hop, for transit this already checked by ingress router.
 		// Note: SCMP error messages triggered by the sibling router may use paths that
 		// don't start with the first hop.
 		if p.path.IsFirstHop() && !srcIsLocal {
+			// How did it get here?
 			return p.respInvalidSrcIA()
 		}
 		if dstIsLocal {
+			// That would be hairpin; not allowed.
 			return p.respInvalidDstIA()
 		}
 	} else {
-		// Inbound
+		// In via external Link (may only be local dst or transit).
 		if srcIsLocal {
+			// Absurd: path can't contain its starting point more than once.
 			return p.respInvalidSrcIA()
 		}
 		if p.path.IsLastHop() != dstIsLocal {
+			// How did it get here?
 			return p.respInvalidDstIA()
 		}
 	}
