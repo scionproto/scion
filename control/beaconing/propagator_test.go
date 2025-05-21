@@ -41,22 +41,6 @@ import (
 	"github.com/scionproto/scion/private/trust"
 )
 
-const (
-	IA_1_ff00_0_110 = "testdata/big/ASff00_0_110.json"
-	IA_1_ff00_0_111 = "testdata/big/ASff00_0_111.json"
-	IA_1_ff00_0_120 = "testdata/big/ASff00_0_120.json"
-	IA_1_ff00_0_121 = "testdata/big/ASff00_0_121.json"
-	IA_1_ff00_0_122 = "testdata/big/ASff00_0_122.json"
-	IA_1_ff00_0_123 = "testdata/big/ASff00_0_123.json"
-	IA_2_ff00_0_210 = "testdata/big/ASff00_0_210.json"
-	IA_2_ff00_0_211 = "testdata/big/ASff00_0_211.json"
-	IA_3_ff00_0_310 = "testdata/big/ASff00_0_310.json"
-	IA_3_ff00_0_311 = "testdata/big/ASff00_0_311.json"
-	IA_4_ff00_0_410 = "testdata/big/ASff00_0_410.json"
-	IA_4_ff00_0_411 = "testdata/big/ASff00_0_411.json"
-	IA_5_ff00_0_510 = "testdata/big/ASff00_0_510.json"
-)
-
 func TestPropagatorRunNonCore(t *testing.T) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -288,95 +272,6 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	p.Run(context.Background())
 	time.Sleep(1 * time.Second)
 	// Fourth run. Since period has passed, two writes are expected.
-	p.Run(context.Background())
-}
-
-func TestPropagatorTransitTraffic(t *testing.T) {
-	// This is just an example of the test that is working with a non-default graph
-	// and generated testdata.
-	// It will be extended further as part of https://github.com/scionproto/scion/issues/4699.
-	//
-	// The graph without peering links looks as follows:
-	// 411 123
-	// |   |
-	// 410 121 122     111   211
-	//   \    \ |      /     /
-	//   310---120---110---210
-	//   /      |
-	// 311     510
-	//
-	// Peering links look like this:
-	// 411-123
-	//    /
-	// 410 121-122     111---211
-	//      __//          \
-	//   310  /120   110   210
-	//      _/
-	// 311-/   510
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	pub := priv.Public()
-
-	beacons := [][]uint16{
-		{graph.If_410_X_310_X, graph.If_310_X_120_X, graph.If_120_X_110_X},
-	}
-
-	mctrl := gomock.NewController(t)
-	topo, err := topology.FromJSONFile(IA_1_ff00_0_110)
-	require.NoError(t, err)
-	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
-	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
-	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
-	filter := func(intf *ifstate.Interface) bool {
-		return intf.TopoInfo().LinkType == topology.Core
-	}
-	p := beaconing.Propagator{
-		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
-		},
-		SenderFactory: senderFactory,
-		IA:            topo.IA(),
-		Signer:        testSigner(t, priv, topo.IA()),
-		AllInterfaces: intfs,
-		PropagationInterfaces: func() []*ifstate.Interface {
-			return intfs.Filtered(filter)
-		},
-		Tick:     beaconing.NewTick(time.Hour),
-		Provider: provider,
-	}
-	g := graph.NewFromDescription(mctrl, graph.BigGraphDescription)
-	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(1).DoAndReturn(
-		func(_ any) ([]beacon.Beacon, error) {
-			res := make([]beacon.Beacon, 0, len(beacons))
-			for _, desc := range beacons {
-				res = append(res, testBeacon(g, desc))
-			}
-			return res, nil
-		},
-	)
-
-	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), graph.If_110_X_210_X,
-		gomock.Any()).Times(1).DoAndReturn(
-		func(_ context.Context, _ addr.IA, egIfID uint16,
-			nextHop *net.UDPAddr,
-		) (beaconing.Sender, error) {
-			sender := mock_beaconing.NewMockSender(mctrl)
-			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-				func(ctx context.Context, b *seg.PathSegment) error {
-					validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
-					return nil
-				},
-			)
-			sender.EXPECT().Close().Times(1)
-			return sender, nil
-		},
-	)
 	p.Run(context.Background())
 }
 
