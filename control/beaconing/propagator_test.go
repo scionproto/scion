@@ -21,7 +21,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"fmt"
 	"net"
 	"strings"
 	"testing"
@@ -287,10 +286,6 @@ func TestPropagatorFastRecovery(t *testing.T) {
 }
 
 func TestPropagatorTransitTraffic(t *testing.T) {
-	// This is just an example of the test that is working with a non-default graph
-	// and generated testdata.
-	// It will be extended further as part of https://github.com/scionproto/scion/issues/4699.
-	//
 	// The graph without peering links looks as follows:
 	// 411 123
 	// |   |
@@ -311,60 +306,64 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 
 	var tests = []struct {
 		name                string
-		explanation         string
 		topoFile            string
-		ifID                uint16
 		filter              func(*ifstate.Interface) bool
 		beacons             [][]uint16
-		noSendExpected      bool
+		ifIDs               []uint16
+		filteredIfIDs       []uint16
 		allowTransitTraffic bool
 	}{
 		{
 			name: strings.Join([]string{"Core beaconing",
 				"propagation expected from 1-ff00:0:110 to 2-ff00:0:210",
 				"transit traffic allowed"}, ","),
-			explanation: "beaconing as usual",
-			topoFile:    IA_1_ff00_0_110,
-			ifID:        graph.If_110_X_210_X,
-			filter:      coreLinkTypeFilter,
+			topoFile: IA_1_ff00_0_110,
+			filter:   coreLinkTypeFilter,
 			beacons: [][]uint16{
 				{graph.If_410_X_310_X, graph.If_310_X_120_X, graph.If_120_X_110_X},
 				{graph.If_510_X_120_X, graph.If_120_X_110_X},
 			},
-			noSendExpected:      false,
+			ifIDs:               []uint16{graph.If_110_X_210_X},
+			filteredIfIDs:       []uint16{},
 			allowTransitTraffic: true,
 		},
 		{
 			name: strings.Join([]string{"Core beaconing",
 				"propagation not expected from 1-ff00:0:110",
 				"transit traffic not allowed"}, ","),
-			explanation: "transit traffic is not allowed via 1-ff00:0:110",
-			topoFile:    IA_1_ff00_0_110,
-			ifID:        graph.If_110_X_210_X,
-			filter:      coreLinkTypeFilter,
+			topoFile: IA_1_ff00_0_110,
+			filter:   coreLinkTypeFilter,
 			beacons: [][]uint16{
 				{graph.If_410_X_310_X, graph.If_310_X_120_X, graph.If_120_X_110_X},
 			},
-			noSendExpected:      true,
+			ifIDs:               []uint16{},
+			allowTransitTraffic: false,
+		},
+		{
+			name: strings.Join([]string{"Core beaconing",
+				"propagation expected from 1-ff00:0:120 to 1-ff00:0:110",
+				"propagation not expected from 1-ff00:0:120 to 5-ff00:0:510",
+				"transit traffic not allowed"}, ","),
+			topoFile: IA_1_ff00_0_120,
+			filter:   coreLinkTypeFilter,
+			beacons: [][]uint16{
+				{graph.If_410_X_310_X, graph.If_310_X_120_X},
+			},
+			ifIDs:               []uint16{graph.If_120_X_110_X},
+			filteredIfIDs:       []uint16{graph.If_120_X_510_X},
 			allowTransitTraffic: false,
 		},
 	}
 
 	for _, test := range tests {
-		name := test.name
-		if test.explanation != "" {
-			name += fmt.Sprintf(" (explanation: %s)", test.explanation)
-		}
-		t.Run(name, func(t *testing.T) {
-			runTransitTrafficTest(t, test.topoFile, test.ifID, test.filter,
-				test.beacons, test.noSendExpected, test.allowTransitTraffic)
+		t.Run(test.name, func(t *testing.T) {
+			runTransitTrafficTest(t, test.topoFile, test.filter, test.beacons, test.ifIDs, test.filteredIfIDs, test.allowTransitTraffic)
 		})
 	}
 }
 
-func runTransitTrafficTest(t *testing.T, topoFile string, ifID uint16,
-	filter func(*ifstate.Interface) bool, beacons [][]uint16,
-	noSendExpected bool, allowTransitTraffic bool) {
+func runTransitTrafficTest(t *testing.T, topoFile string, filter func(*ifstate.Interface) bool,
+	beacons [][]uint16, ifIDs, filteredIfIDs []uint16, allowTransitTraffic bool) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	pub := priv.Public()
@@ -409,26 +408,28 @@ func runTransitTrafficTest(t *testing.T, topoFile string, ifID uint16,
 		},
 	)
 
-	if noSendExpected {
+	if len(ifIDs) == 0 {
 		senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Times(0).Return(mock_beaconing.NewMockSender(mctrl), nil)
 	} else {
-		senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), ifID,
-			gomock.Any()).Times(1).DoAndReturn(
-			func(_ context.Context, _ addr.IA, egIfID uint16,
-				nextHop *net.UDPAddr,
-			) (beaconing.Sender, error) {
-				sender := mock_beaconing.NewMockSender(mctrl)
-				sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(len(beacons)).DoAndReturn(
-					func(ctx context.Context, b *seg.PathSegment) error {
-						validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
-						return nil
-					},
-				)
-				sender.EXPECT().Close().Times(1)
-				return sender, nil
-			},
-		)
+		for _, ifID := range ifIDs {
+			senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), ifID,
+				gomock.Any()).Times(1).DoAndReturn(
+				func(_ context.Context, _ addr.IA, egIfID uint16,
+					nextHop *net.UDPAddr,
+				) (beaconing.Sender, error) {
+					sender := mock_beaconing.NewMockSender(mctrl)
+					sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(len(beacons)).DoAndReturn(
+						func(ctx context.Context, b *seg.PathSegment) error {
+							validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
+							return nil
+						},
+					)
+					sender.EXPECT().Close().Times(1)
+					return sender, nil
+				},
+			)
+		}
 	}
 
 	p.Run(context.Background())

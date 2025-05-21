@@ -15,6 +15,7 @@
 package beacon
 
 import (
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -352,13 +353,18 @@ func FilterTransitTraffic(beacon Beacon, next addr.IA, allowTransitTraffic bool)
 	if allowTransitTraffic {
 		return nil
 	}
-	hops := buildHops(beacon)
-	isds := make(map[addr.ISD]struct{})
-	for _, ia := range hops {
-		isds[ia.ISD()] = struct{}{}
+	if len(beacon.Segment.ASEntries) == 0 {
+		return nil
 	}
+	isds := make(map[addr.ISD]struct{})
+	for _, asEntry := range beacon.Segment.ASEntries {
+		isds[asEntry.Local.ISD()] = struct{}{}
+	}
+	curISD := beacon.Segment.ASEntries[len(beacon.Segment.ASEntries)-1].Next.ISD()
+	isds[curISD] = struct{}{}
 	isds[next.ISD()] = struct{}{}
-	if len(isds) > 2 {
+	if (curISD != next.ISD()) && (len(isds) > 2) {
+		fmt.Println("transit traffic filtered: ", next.ISD())
 		return serrors.New("Transit traffic", "isd", next.ISD())
 	}
 	return nil
