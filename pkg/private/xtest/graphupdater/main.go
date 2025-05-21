@@ -58,6 +58,7 @@ func writeIfIDsToFile() {
 		os.Exit(1)
 	}
 	fmt.Printf("Successfully written the ifIDs yaml to %s\n", *ifIDsFile)
+}
 
 func writeGraphToFile() {
 	err := WriteGraphToFile(*topoFile, *graphFile, *descName)

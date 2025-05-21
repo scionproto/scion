@@ -18,7 +18,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -164,7 +166,7 @@ func (g *Graph) ifIDs() []string {
 		data[l.Src.ia] = append(data[l.Src.ia], fmt.Sprintf(`  %s: %s`, src, dst))
 		data[l.Dst.ia] = append(data[l.Dst.ia], fmt.Sprintf(`  %s: %s`, dst, src))
 	}
-	sortedIsds := sortedKeys(data)
+	sortedIsds := slices.Sorted(maps.Keys(data))
 	res := make([]string, 0, len(sortedIsds)*2)
 	for _, isd := range sortedIsds {
 		res = append(res, fmt.Sprintf("%s:", isd))

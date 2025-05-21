@@ -18,7 +18,8 @@ package main
 import (
 	"fmt"
 	"io"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
@@ -44,7 +45,7 @@ func writeLinks(w io.Writer) (int, error) {
 func interfaces(staticIfaceIds map[string]int) []string {
 	var res []string
 
-	keys := sortedKeys(staticIfaceIds)
+	keys := slices.Sorted(maps.Keys(staticIfaceIds))
 
 	for _, srcName := range keys {
 		for _, dstName := range keys {
@@ -56,14 +57,5 @@ func interfaces(staticIfaceIds map[string]int) []string {
 					staticIfaceIds[srcName], staticIfaceIds[dstName]))
 		}
 	}
-	return res
-}
-
-func sortedKeys[T any](m map[string]T) []string {
-	res := make([]string, 0, len(m))
-	for k := range m {
-		res = append(res, k)
-	}
-	sort.Strings(res)
 	return res
 }
