@@ -106,8 +106,7 @@ func (g *Graph) Write(w io.Writer, descName string) (int, error) {
 
 func (g *Graph) WriteIfIDs(w io.Writer) (int, error) {
 	total := 0
-	lines := []string{strings.Join(g.ifIDs(), "\n")}
-	n, err := w.Write([]byte(strings.Join(lines, "\n")))
+	n, err := w.Write([]byte(strings.Join(g.ifIDs(), "\n")))
 	total += n
 	if err != nil {
 		return total, err
