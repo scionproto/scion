@@ -165,7 +165,7 @@ func (g *Graph) ifIDs() []string {
 		data[l.Dst.ia] = append(data[l.Dst.ia], fmt.Sprintf(`  %s: %s`, dst, src))
 	}
 	sortedIsds := sortedKeys(data)
-	var res []string
+	res := make([]string, 0, len(sortedIsds)*2)
 	for _, isd := range sortedIsds {
 		res = append(res, fmt.Sprintf("%s:", isd))
 		res = append(res, data[isd]...)
