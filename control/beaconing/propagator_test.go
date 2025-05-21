@@ -21,7 +21,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,9 +76,6 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
-	filter := func(intf *ifstate.Interface) bool {
-		return intf.TopoInfo().LinkType == topology.Child
-	}
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
 			IA:         topo.IA(),
@@ -92,7 +91,7 @@ func TestPropagatorRunNonCore(t *testing.T) {
 		Signer:        testSigner(t, priv, topo.IA()),
 		AllInterfaces: intfs,
 		PropagationInterfaces: func() []*ifstate.Interface {
-			return intfs.Filtered(filter)
+			return intfs.Filtered(childLinkTypeFilter)
 		},
 		Tick:                beaconing.NewTick(time.Hour),
 		Provider:            provider,
@@ -148,9 +147,6 @@ func TestPropagatorRunCore(t *testing.T) {
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
-	filter := func(intf *ifstate.Interface) bool {
-		return intf.TopoInfo().LinkType == topology.Core
-	}
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
 			IA:         topo.IA(),
@@ -166,7 +162,7 @@ func TestPropagatorRunCore(t *testing.T) {
 		Signer:        testSigner(t, priv, topo.IA()),
 		AllInterfaces: intfs,
 		PropagationInterfaces: func() []*ifstate.Interface {
-			return intfs.Filtered(filter)
+			return intfs.Filtered(coreLinkTypeFilter)
 		},
 		Tick:     beaconing.NewTick(time.Hour),
 		Provider: provider,
@@ -234,9 +230,6 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 	sender := mock_beaconing.NewMockSender(mctrl)
-	filter := func(intf *ifstate.Interface) bool {
-		return intf.TopoInfo().LinkType == topology.Core
-	}
 
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
@@ -253,7 +246,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 		Signer:        testSigner(t, priv, topo.IA()),
 		AllInterfaces: intfs,
 		PropagationInterfaces: func() []*ifstate.Interface {
-			return intfs.Filtered(filter)
+			return intfs.Filtered(coreLinkTypeFilter)
 		},
 		Tick:                beaconing.NewTick(2 * time.Second),
 		Provider:            provider,
@@ -315,23 +308,73 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 	//   310  /120   110   210
 	//      _/
 	// 311-/   510
+
+	var tests = []struct {
+		name                string
+		explanation         string
+		topoFile            string
+		ifID                uint16
+		filter              func(*ifstate.Interface) bool
+		beacons             [][]uint16
+		noSendExpected      bool
+		allowTransitTraffic bool
+	}{
+		{
+			name: strings.Join([]string{"Core beaconing",
+				"propagation expected from 1-ff00:0:110 to 2-ff00:0:210",
+				"transit traffic allowed"}, ","),
+			explanation: "beaconing as usual",
+			topoFile:    IA_1_ff00_0_110,
+			ifID:        graph.If_110_X_210_X,
+			filter:      coreLinkTypeFilter,
+			beacons: [][]uint16{
+				{graph.If_410_X_310_X, graph.If_310_X_120_X, graph.If_120_X_110_X},
+				{graph.If_510_X_120_X, graph.If_120_X_110_X},
+			},
+			noSendExpected:      false,
+			allowTransitTraffic: true,
+		},
+		{
+			name: strings.Join([]string{"Core beaconing",
+				"propagation not expected from 1-ff00:0:110",
+				"transit traffic not allowed"}, ","),
+			explanation: "transit traffic is not allowed via 1-ff00:0:110",
+			topoFile:    IA_1_ff00_0_110,
+			ifID:        graph.If_110_X_210_X,
+			filter:      coreLinkTypeFilter,
+			beacons: [][]uint16{
+				{graph.If_410_X_310_X, graph.If_310_X_120_X, graph.If_120_X_110_X},
+			},
+			noSendExpected:      true,
+			allowTransitTraffic: false,
+		},
+	}
+
+	for _, test := range tests {
+		name := test.name
+		if test.explanation != "" {
+			name += fmt.Sprintf(" (explanation: %s)", test.explanation)
+		}
+		t.Run(name, func(t *testing.T) {
+			runTransitTrafficTest(t, test.topoFile, test.ifID, test.filter,
+				test.beacons, test.noSendExpected, test.allowTransitTraffic)
+		})
+	}
+}
+
+func runTransitTrafficTest(t *testing.T, topoFile string, ifID uint16,
+	filter func(*ifstate.Interface) bool, beacons [][]uint16,
+	noSendExpected bool, allowTransitTraffic bool) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	pub := priv.Public()
 
-	beacons := [][]uint16{
-		{graph.If_410_X_310_X, graph.If_310_X_120_X, graph.If_120_X_110_X},
-	}
-
 	mctrl := gomock.NewController(t)
-	topo, err := topology.FromJSONFile(IA_1_ff00_0_110)
+	topo, err := topology.FromJSONFile(topoFile)
 	require.NoError(t, err)
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
-	filter := func(intf *ifstate.Interface) bool {
-		return intf.TopoInfo().LinkType == topology.Core
-	}
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
 			IA:         topo.IA(),
@@ -351,9 +394,11 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 		},
 		Tick:                beaconing.NewTick(time.Hour),
 		Provider:            provider,
-		AllowTransitTraffic: true,
+		AllowTransitTraffic: allowTransitTraffic,
 	}
 	g := graph.NewFromDescription(mctrl, graph.BigGraphDescription)
+
+	// Provider still provides all beacons as it doesn't know anything about their destination
 	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(1).DoAndReturn(
 		func(_ any) ([]beacon.Beacon, error) {
 			res := make([]beacon.Beacon, 0, len(beacons))
@@ -364,23 +409,37 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 		},
 	)
 
-	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), graph.If_110_X_210_X,
-		gomock.Any()).Times(1).DoAndReturn(
-		func(_ context.Context, _ addr.IA, egIfID uint16,
-			nextHop *net.UDPAddr,
-		) (beaconing.Sender, error) {
-			sender := mock_beaconing.NewMockSender(mctrl)
-			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-				func(ctx context.Context, b *seg.PathSegment) error {
-					validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
-					return nil
-				},
-			)
-			sender.EXPECT().Close().Times(1)
-			return sender, nil
-		},
-	)
+	if noSendExpected {
+		senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), gomock.Any(),
+			gomock.Any()).Times(0).Return(mock_beaconing.NewMockSender(mctrl), nil)
+	} else {
+		senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), ifID,
+			gomock.Any()).Times(1).DoAndReturn(
+			func(_ context.Context, _ addr.IA, egIfID uint16,
+				nextHop *net.UDPAddr,
+			) (beaconing.Sender, error) {
+				sender := mock_beaconing.NewMockSender(mctrl)
+				sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(len(beacons)).DoAndReturn(
+					func(ctx context.Context, b *seg.PathSegment) error {
+						validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
+						return nil
+					},
+				)
+				sender.EXPECT().Close().Times(1)
+				return sender, nil
+			},
+		)
+	}
+
 	p.Run(context.Background())
+}
+
+func childLinkTypeFilter(intf *ifstate.Interface) bool {
+	return intf.TopoInfo().LinkType == topology.Child
+}
+
+func coreLinkTypeFilter(intf *ifstate.Interface) bool {
+	return intf.TopoInfo().LinkType == topology.Core
 }
 
 func validateSend(
