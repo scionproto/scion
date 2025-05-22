@@ -31,11 +31,12 @@ var (
 
 func main() {
 	flag.Parse()
-	if *linksFile != "" {
+	switch {
+	case *linksFile != "":
 		writeLinksToFile()
-	} else if *ifIDsFile != "" {
+	case *ifIDsFile != "":
 		writeIfIDsToFile()
-	} else {
+	default:
 		writeGraphToFile()
 	}
 }
@@ -55,9 +56,8 @@ func writeIfIDsToFile() {
 	if err != nil {
 		fmt.Printf("Failed to write the ifIDs yaml file, err: %v\n", err)
 		os.Exit(1)
-	} else {
-		fmt.Printf("Successfully written the ifIDs yaml to %s\n", *ifIDsFile)
 	}
+	fmt.Printf("Successfully written the ifIDs yaml to %s\n", *ifIDsFile)
 }
 
 func writeGraphToFile() {

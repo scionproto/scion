@@ -18,7 +18,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -106,8 +108,7 @@ func (g *Graph) Write(w io.Writer, descName string) (int, error) {
 
 func (g *Graph) WriteIfIDs(w io.Writer) (int, error) {
 	total := 0
-	lines := []string{strings.Join(g.ifIDs(), "\n")}
-	n, err := w.Write([]byte(strings.Join(lines, "\n")))
+	n, err := w.Write([]byte(strings.Join(g.ifIDs(), "\n")))
 	total += n
 	if err != nil {
 		return total, err
@@ -165,8 +166,8 @@ func (g *Graph) ifIDs() []string {
 		data[l.Src.ia] = append(data[l.Src.ia], fmt.Sprintf(`  %s: %s`, src, dst))
 		data[l.Dst.ia] = append(data[l.Dst.ia], fmt.Sprintf(`  %s: %s`, dst, src))
 	}
-	sortedIsds := sortedKeys(data)
-	var res []string
+	sortedIsds := slices.Sorted(maps.Keys(data))
+	res := make([]string, 0, len(sortedIsds)*2)
 	for _, isd := range sortedIsds {
 		res = append(res, fmt.Sprintf("%s:", isd))
 		res = append(res, data[isd]...)
