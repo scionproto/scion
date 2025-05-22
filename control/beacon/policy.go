@@ -15,7 +15,6 @@
 package beacon
 
 import (
-	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -364,7 +363,6 @@ func FilterTransitTraffic(beacon Beacon, next addr.IA, allowTransitTraffic bool)
 	isds[curISD] = struct{}{}
 	isds[next.ISD()] = struct{}{}
 	if (curISD != next.ISD()) && (len(isds) > 2) {
-		fmt.Println("transit traffic filtered: ", next.ISD())
 		return serrors.New("Transit traffic", "isd", next.ISD())
 	}
 	return nil

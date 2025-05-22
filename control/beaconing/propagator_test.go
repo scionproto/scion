@@ -315,8 +315,8 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 	}{
 		{
 			name: strings.Join([]string{"Core beaconing",
-				"propagation expected from 1-ff00:0:110 to 2-ff00:0:210",
-				"transit traffic allowed"}, ","),
+				"transit traffic allowed",
+				"propagation expected from 1-ff00:0:110 to 2-ff00:0:210"}, ","),
 			topoFile: IA_1_ff00_0_110,
 			filter:   coreLinkTypeFilter,
 			beacons: [][]uint16{
@@ -329,21 +329,49 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 		},
 		{
 			name: strings.Join([]string{"Core beaconing",
-				"propagation not expected from 1-ff00:0:110",
-				"transit traffic not allowed"}, ","),
+				"transit traffic allowed",
+				"propagation expected from 1-ff00:0:120 to 3-ff00:0:310 and 5-ff00:0:510"}, ","),
+			topoFile: IA_1_ff00_0_120,
+			filter:   coreLinkTypeFilter,
+			beacons: [][]uint16{
+				{graph.If_210_X_110_X, graph.If_110_X_120_X},
+			},
+			ifIDs:               []uint16{graph.If_120_X_310_X, graph.If_120_X_510_X},
+			filteredIfIDs:       []uint16{},
+			allowTransitTraffic: true,
+		},
+		{
+			name: strings.Join([]string{"Core beaconing",
+				"transit traffic not allowed",
+				"propagation not expected from 1-ff00:0:110"}, ","),
 			topoFile: IA_1_ff00_0_110,
 			filter:   coreLinkTypeFilter,
 			beacons: [][]uint16{
 				{graph.If_410_X_310_X, graph.If_310_X_120_X, graph.If_120_X_110_X},
+				{graph.If_510_X_120_X, graph.If_120_X_110_X},
 			},
 			ifIDs:               []uint16{},
+			filteredIfIDs:       []uint16{graph.If_110_X_210_X},
 			allowTransitTraffic: false,
 		},
 		{
 			name: strings.Join([]string{"Core beaconing",
+				"transit traffic not allowed",
+				"propagation not expected from 3-ff00:0:310"}, ","),
+			topoFile: IA_3_ff00_0_310,
+			filter:   coreLinkTypeFilter,
+			beacons: [][]uint16{
+				{graph.If_410_X_310_X},
+			},
+			ifIDs:               []uint16{},
+			filteredIfIDs:       []uint16{graph.If_310_X_120_X},
+			allowTransitTraffic: false,
+		},
+		{
+			name: strings.Join([]string{"Core beaconing",
+				"transit traffic not allowed",
 				"propagation expected from 1-ff00:0:120 to 1-ff00:0:110",
-				"propagation not expected from 1-ff00:0:120 to 5-ff00:0:510",
-				"transit traffic not allowed"}, ","),
+				"propagation not expected from 1-ff00:0:120 to 5-ff00:0:510"}, ","),
 			topoFile: IA_1_ff00_0_120,
 			filter:   coreLinkTypeFilter,
 			beacons: [][]uint16{
@@ -351,6 +379,32 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 			},
 			ifIDs:               []uint16{graph.If_120_X_110_X},
 			filteredIfIDs:       []uint16{graph.If_120_X_510_X},
+			allowTransitTraffic: false,
+		},
+		{
+			name: strings.Join([]string{"Core beaconing",
+				"transit traffic not allowed",
+				"propagation expected from 1-ff00:0:110 to 2-ff00:0:210"}, ","),
+			topoFile: IA_1_ff00_0_110,
+			filter:   coreLinkTypeFilter,
+			beacons: [][]uint16{
+				{graph.If_120_X_110_X},
+			},
+			ifIDs:               []uint16{graph.If_110_X_210_X},
+			filteredIfIDs:       []uint16{},
+			allowTransitTraffic: false,
+		},
+		{
+			name: strings.Join([]string{"Core beaconing",
+				"transit traffic not allowed",
+				"propagation expected from 1-ff00:0:120 to 3-ff00:0:310 and 5-ff00:0:510"}, ","),
+			topoFile: IA_1_ff00_0_120,
+			filter:   coreLinkTypeFilter,
+			beacons: [][]uint16{
+				{graph.If_110_X_120_X},
+			},
+			ifIDs:               []uint16{graph.If_120_X_310_X, graph.If_120_X_510_X},
+			filteredIfIDs:       []uint16{},
 			allowTransitTraffic: false,
 		},
 	}
