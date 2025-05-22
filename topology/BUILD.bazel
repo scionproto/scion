@@ -6,11 +6,15 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+filegroup(
+    name = "big",
+    srcs = ["testdata/big.topo"],
+    visibility = ["//visibility:public"],
+)
+
 exports_files(
     [
         "tiny.topo",
         "tiny4.topo",
-        "wide.topo",
-        "router_bm.topo",
     ],
 )
