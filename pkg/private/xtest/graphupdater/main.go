@@ -26,13 +26,17 @@ var (
 	graphFile = flag.String("graphFile", "", "")
 	descName  = flag.String("descName", "", "")
 	linksFile = flag.String("linksFile", "", "")
+	ifIDsFile = flag.String("ifidsFile", "", "")
 )
 
 func main() {
 	flag.Parse()
-	if *linksFile != "" {
+	switch {
+	case *linksFile != "":
 		writeLinksToFile()
-	} else {
+	case *ifIDsFile != "":
+		writeIfIDsToFile()
+	default:
 		writeGraphToFile()
 	}
 }
@@ -45,6 +49,15 @@ func writeLinksToFile() {
 	} else {
 		fmt.Printf("Successfully written the links to %s\n", *linksFile)
 	}
+}
+
+func writeIfIDsToFile() {
+	err := WriteIfIDsToFile(*topoFile, *ifIDsFile)
+	if err != nil {
+		fmt.Printf("Failed to write the ifIDs yaml file, err: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Successfully written the ifIDs yaml to %s\n", *ifIDsFile)
 }
 
 func writeGraphToFile() {

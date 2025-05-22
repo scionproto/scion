@@ -18,7 +18,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -104,6 +106,16 @@ func (g *Graph) Write(w io.Writer, descName string) (int, error) {
 	return total, nil
 }
 
+func (g *Graph) WriteIfIDs(w io.Writer) (int, error) {
+	total := 0
+	n, err := w.Write([]byte(strings.Join(g.ifIDs(), "\n")))
+	total += n
+	if err != nil {
+		return total, err
+	}
+	return total, nil
+}
+
 func (g *Graph) nodes() []string {
 	var curIa string
 	var node string
@@ -132,6 +144,33 @@ func (g *Graph) edges() []string {
 		edge := fmt.Sprintf(`{Xia: "%s", XifID: %s, Yia: "%s", YifID: %s, Peer: %v},`, l.Src.ia, sd,
 			l.Dst.ia, ds, l.LinkType == "PEER")
 		res = append(res, edge)
+	}
+	return res
+}
+
+func (g *Graph) ifIDs() []string {
+	data := make(map[string][]string)
+	for _, l := range g.links {
+		if _, ok := data[l.Src.ia]; !ok {
+			data[l.Src.ia] = make([]string, 0)
+		}
+		if _, ok := data[l.Dst.ia]; !ok {
+			data[l.Dst.ia] = make([]string, 0)
+		}
+		srcIfID := g.IfaceIds[l.Src]
+		dstIfID := g.IfaceIds[l.Dst]
+		src := fmt.Sprintf(`br%s-%d %d%d`,
+			strings.ReplaceAll(l.Src.ia, ":", "_"), len(data[l.Src.ia])+1, srcIfID, dstIfID)
+		dst := fmt.Sprintf(`br%s-%d %d%d`,
+			strings.ReplaceAll(l.Dst.ia, ":", "_"), len(data[l.Dst.ia])+1, dstIfID, srcIfID)
+		data[l.Src.ia] = append(data[l.Src.ia], fmt.Sprintf(`  %s: %s`, src, dst))
+		data[l.Dst.ia] = append(data[l.Dst.ia], fmt.Sprintf(`  %s: %s`, dst, src))
+	}
+	sortedIsds := slices.Sorted(maps.Keys(data))
+	res := make([]string, 0, len(sortedIsds)*2)
+	for _, isd := range sortedIsds {
+		res = append(res, fmt.Sprintf("%s:", isd))
+		res = append(res, data[isd]...)
 	}
 	return res
 }

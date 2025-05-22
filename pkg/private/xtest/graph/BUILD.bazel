@@ -1,3 +1,4 @@
+load("@aspect_bazel_lib//lib:run_binary.bzl", "run_binary")
 load("@rules_go//go:def.bzl", "go_library")
 load("//tools/lint:write_source_files.bzl", "write_source_files")
 
@@ -66,4 +67,10 @@ write_source_files(
         "default_gen.go": ":generate_default",
         "big_gen.go": ":generate_big",
     },
+)
+
+sh_binary(
+    name = "topogen_with_graph",
+    srcs = ["topogen_with_graph.sh"],
+    visibility = ["//visibility:public"],
 )

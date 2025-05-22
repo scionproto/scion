@@ -238,6 +238,7 @@ spectral_bin.spectral_binary(
 write_source_files(
     name = "write_all_source_files",
     additional_update_targets = [
+        "//control/beaconing:write_files",
         "//control/mgmtapi:write_files",
         "//daemon/mgmtapi:write_files",
         "//dispatcher/mgmtapi:write_files",
