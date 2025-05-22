@@ -411,7 +411,8 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			runTransitTrafficTest(t, test.topoFile, test.filter, test.beacons, test.ifIDs, test.filteredIfIDs, test.allowTransitTraffic)
+			runTransitTrafficTest(t, test.topoFile, test.filter, test.beacons,
+				test.ifIDs, test.filteredIfIDs, test.allowTransitTraffic)
 		})
 	}
 }
@@ -463,8 +464,8 @@ func runTransitTrafficTest(t *testing.T, topoFile string, filter func(*ifstate.I
 	)
 
 	if len(ifIDs) == 0 {
-		senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any()).Times(0).Return(mock_beaconing.NewMockSender(mctrl), nil)
+		senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(),
+			gomock.Any(), gomock.Any()).Times(0)
 	} else {
 		for _, ifID := range ifIDs {
 			senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), ifID,
@@ -483,6 +484,10 @@ func runTransitTrafficTest(t *testing.T, topoFile string, filter func(*ifstate.I
 					return sender, nil
 				},
 			)
+		}
+		for _, filteredIfID := range filteredIfIDs {
+			senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(),
+				filteredIfID, gomock.Any()).Times(0)
 		}
 	}
 
