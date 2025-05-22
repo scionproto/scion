@@ -44,18 +44,9 @@ import (
 
 const (
 	IA_1_ff00_0_110 = "testdata/big/ASff00_0_110.json"
-	IA_1_ff00_0_111 = "testdata/big/ASff00_0_111.json"
 	IA_1_ff00_0_120 = "testdata/big/ASff00_0_120.json"
 	IA_1_ff00_0_121 = "testdata/big/ASff00_0_121.json"
-	IA_1_ff00_0_122 = "testdata/big/ASff00_0_122.json"
-	IA_1_ff00_0_123 = "testdata/big/ASff00_0_123.json"
-	IA_2_ff00_0_210 = "testdata/big/ASff00_0_210.json"
-	IA_2_ff00_0_211 = "testdata/big/ASff00_0_211.json"
 	IA_3_ff00_0_310 = "testdata/big/ASff00_0_310.json"
-	IA_3_ff00_0_311 = "testdata/big/ASff00_0_311.json"
-	IA_4_ff00_0_410 = "testdata/big/ASff00_0_410.json"
-	IA_4_ff00_0_411 = "testdata/big/ASff00_0_411.json"
-	IA_5_ff00_0_510 = "testdata/big/ASff00_0_510.json"
 )
 
 func TestPropagatorRunNonCore(t *testing.T) {
@@ -294,15 +285,6 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 	//   310---120---110---210
 	//   /      |
 	// 311     510
-	//
-	// Peering links look like this:
-	// 411-123
-	//    /
-	// 410 121-122     111---211
-	//      __//          \
-	//   310  /120   110   210
-	//      _/
-	// 311-/   510
 
 	var tests = []struct {
 		name                string
@@ -404,6 +386,32 @@ func TestPropagatorTransitTraffic(t *testing.T) {
 				{graph.If_110_X_120_X},
 			},
 			ifIDs:               []uint16{graph.If_120_X_310_X, graph.If_120_X_510_X},
+			filteredIfIDs:       []uint16{},
+			allowTransitTraffic: false,
+		},
+		{
+			name: strings.Join([]string{"Intra-ISD beaconing",
+				"transit traffic allowed",
+				"propagation expected from 1-ff00:0:121 to 1-ff00:0:123"}, ","),
+			topoFile: IA_1_ff00_0_121,
+			filter:   childLinkTypeFilter,
+			beacons: [][]uint16{
+				{graph.If_120_X_121_X},
+			},
+			ifIDs:               []uint16{graph.If_121_X_123_X},
+			filteredIfIDs:       []uint16{},
+			allowTransitTraffic: true,
+		},
+		{
+			name: strings.Join([]string{"Intra-ISD beaconing",
+				"transit traffic not allowed",
+				"propagation expected from 1-ff00:0:121 to 1-ff00:0:123"}, ","),
+			topoFile: IA_1_ff00_0_121,
+			filter:   childLinkTypeFilter,
+			beacons: [][]uint16{
+				{graph.If_120_X_121_X},
+			},
+			ifIDs:               []uint16{graph.If_121_X_123_X},
 			filteredIfIDs:       []uint16{},
 			allowTransitTraffic: false,
 		},
