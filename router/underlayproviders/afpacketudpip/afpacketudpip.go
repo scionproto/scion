@@ -133,7 +133,11 @@ type providerFactory struct{}
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
 // TODO(multi_underlay): batchSize should be an underlay-specific config.
-func (providerFactory) New(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
+func (providerFactory) New(
+	batchSize int,
+	receiveBufferSize int,
+	sendBufferSize int,
+) router.UnderlayProvider {
 	return &provider{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),

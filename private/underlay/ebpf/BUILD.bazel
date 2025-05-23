@@ -1,7 +1,6 @@
+load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_go//go:def.bzl", "go_library")
 load("//tools:go.bzl", "go_test")
-load("@bazel_skylib//rules:native_binary.bzl", "native_test")
-
 
 genrule(
     # The generated file is bazel-bin/private/underlay/ebpf/sockfilter_bpfel.go
