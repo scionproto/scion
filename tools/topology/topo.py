@@ -211,7 +211,7 @@ class TopoGenerator(object):
     def _read_links(self):
         assigned_br_id = {}
         br_ids = defaultdict(int)
-        if_ids = defaultdict(lambda: IFIDGenerator())
+        if_ids = defaultdict(lambda: IFIDGenerator(self.args.topology_jsons_only))
         if not self.args.topo_config_dict.get("links", None):
             return
         for attrs in self.args.topo_config_dict["links"]:
@@ -403,12 +403,14 @@ class LinkEP(TopoID):
 class IFIDGenerator(object):
     """Generates unique interface IDs"""
 
-    def __init__(self):
+    def __init__(self, safe_range=False):
         self._ifids = set()
+        self._min = 10000 if safe_range else 1
+        self._max = 30000 if safe_range else 65536
 
     def new(self):
         while True:
-            ifid = random.randrange(1, 65536)
+            ifid = random.randrange(self._min, self._max)
             if ifid in self._ifids:
                 continue
             self.add(ifid)

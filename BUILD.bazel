@@ -238,11 +238,13 @@ spectral_bin.spectral_binary(
 write_source_files(
     name = "write_all_source_files",
     additional_update_targets = [
+        "//control/beaconing:write_files",
         "//control/mgmtapi:write_files",
         "//daemon/mgmtapi:write_files",
         "//dispatcher/mgmtapi:write_files",
         "//doc/command:write_files",
         "//gateway/mgmtapi:write_files",
+        "//pkg/private/xtest/graph:write_files",
         "//pkg/proto/control_plane/v1/control_planeconnect:write_files",
         "//pkg/proto/daemon/v1/daemonconnect:write_files",
         "//pkg/proto/discovery/v1/discoveryconnect:write_files",
