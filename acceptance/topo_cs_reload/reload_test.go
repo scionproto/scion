@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bazelbuild/rules_go/go/tools/bazel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -90,13 +89,11 @@ func setupTest(t *testing.T) testState {
 	s := testState{
 		extraEnv: []string{"TOPO_CS_RELOAD_CONFIG_DIR=" + tmpDir},
 	}
-	scionPKI, err := bazel.Runfile(*scionPKILocation)
-	require.NoError(t, err)
-	cryptoLib, err := bazel.Runfile(*cryptoLibLocation)
-	require.NoError(t, err)
-	topoFile, err := bazel.Runfile(*topoLocation)
-	require.NoError(t, err)
-	s.mustExec(t, *genCryptoLocation, scionPKI, "crypto.tar", topoFile, cryptoLib)
+	s.mustExec(
+		t,
+		*genCryptoLocation, *scionPKILocation,
+		"crypto.tar", *topoLocation, *cryptoLibLocation,
+	)
 	s.mustExec(t, "tar", "-xf", "crypto.tar", "-C", tmpDir)
 	// first load the docker images from bazel into the docker daemon, the
 	// tars are in the same folder as this test runs in bazel.
