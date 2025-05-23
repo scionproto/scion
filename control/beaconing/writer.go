@@ -113,7 +113,7 @@ func (r *WriteScheduler) Run(ctx context.Context) {
 }
 
 func (r *WriteScheduler) run(ctx context.Context) error {
-	if !(r.Tick.Overdue(r.lastWrite) || r.Tick.Passed()) {
+	if !r.Tick.Overdue(r.lastWrite) && !r.Tick.Passed() {
 		return nil
 	}
 	segments, err := r.Provider.SegmentsToRegister(ctx, r.Type)

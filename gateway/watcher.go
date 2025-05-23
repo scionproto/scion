@@ -75,7 +75,7 @@ func (f *prefixFetcher) Close() error {
 		return serrors.New("already closed")
 	}
 	f.closed = true
-	f.PrefixFetcher.Pather.Close()
+	f.Pather.Close()
 	return nil
 }
 

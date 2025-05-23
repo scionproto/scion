@@ -270,6 +270,7 @@ func (s Server) FetchSV(
 	}
 
 	// Contact CS directly for SV
+	//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 	conn, err := grpc.DialContext(
 		ctx, cs[0], grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)

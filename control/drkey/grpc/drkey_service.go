@@ -333,8 +333,8 @@ func validateHostHostReq(meta drkey.HostHostMeta, localIA addr.IA, peerAddr net.
 	srcHost := net.ParseIP(meta.SrcHost)
 	dstHost := net.ParseIP(meta.DstHost)
 
-	if !((meta.SrcIA.Equal(localIA) && hostAddr.Equal(srcHost)) ||
-		(meta.DstIA.Equal(localIA) && hostAddr.Equal(dstHost))) {
+	if (!meta.SrcIA.Equal(localIA) || !hostAddr.Equal(srcHost)) &&
+		(!meta.DstIA.Equal(localIA) || !hostAddr.Equal(dstHost)) {
 		return serrors.New(
 			"invalid request",
 			"local_isd_as", localIA,

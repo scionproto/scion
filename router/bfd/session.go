@@ -535,7 +535,7 @@ func shouldDiscard(pkt *layers.BFD) (bool, string) {
 		return true, ""
 	}
 	if pkt.YourDiscriminator == 0 {
-		if !((pkt.State == layers.BFDStateAdminDown) || (pkt.State == layers.BFDStateDown)) {
+		if pkt.State != layers.BFDStateAdminDown && pkt.State != layers.BFDStateDown {
 			return true, ""
 		}
 	}

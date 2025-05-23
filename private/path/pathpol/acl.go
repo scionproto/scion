@@ -182,13 +182,13 @@ func (ae *ACLEntry) UnmarshalYAML(unmarshal func(any) error) error {
 }
 
 func getAction(symbol string) (ACLAction, error) {
-	if symbol == allowSymbol {
+	switch symbol {
+	case allowSymbol:
 		return true, nil
-	} else if symbol == denySymbol {
+	case denySymbol:
 		return false, nil
-	} else {
-		return false, serrors.New("Bad action symbol", "action", symbol)
 	}
+	return false, serrors.New("Bad action symbol", "action", symbol)
 }
 
 // ACLAction has two options: Deny and Allow

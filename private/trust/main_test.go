@@ -45,7 +45,8 @@ func genCrypto(t testing.TB) string {
 		"--isd-dir",
 		"--as-validity", "1y",
 	})
-	cmd.SetOutput(&buf)
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
 	err := cmd.Execute()
 	require.NoError(t, err, buf.String())
 
@@ -61,7 +62,8 @@ func genCrypto(t testing.TB) string {
 		"--out=" + filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.pem.trc"),
 		filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"),
 	})
-	cmd.SetOutput(&buf)
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
 	err = cmd.Execute()
 	require.NoError(t, err, buf.String())
 

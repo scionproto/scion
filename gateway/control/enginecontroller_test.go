@@ -551,4 +551,4 @@ type testPktWriter struct {
 	ID uint8
 }
 
-func (_ testPktWriter) Write(gopacket.Packet) {}
+func (testPktWriter) Write(gopacket.Packet) {}

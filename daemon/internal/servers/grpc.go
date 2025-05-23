@@ -36,8 +36,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	pb_daemon "github.com/scionproto/scion/pkg/proto/daemon"
-	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
+	"github.com/scionproto/scion/pkg/proto/daemon"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -71,8 +70,8 @@ type DaemonServer struct {
 
 // Paths serves the paths request.
 func (s *DaemonServer) Paths(ctx context.Context,
-	req *sdpb.PathsRequest,
-) (*sdpb.PathsResponse, error) {
+	req *daemon.PathsRequest,
+) (*daemon.PathsResponse, error) {
 	start := time.Now()
 	dstI := addr.IA(req.DestinationIsdAs).ISD()
 	response, err := s.paths(ctx, req)
@@ -84,8 +83,8 @@ func (s *DaemonServer) Paths(ctx context.Context,
 }
 
 func (s *DaemonServer) paths(ctx context.Context,
-	req *sdpb.PathsRequest,
-) (*sdpb.PathsResponse, error) {
+	req *daemon.PathsRequest,
+) (*daemon.PathsResponse, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancelF context.CancelFunc
 		ctx, cancelF = context.WithTimeout(ctx, 10*time.Second)
@@ -102,7 +101,7 @@ func (s *DaemonServer) paths(ctx context.Context,
 			"src", srcIA, "dst", dstIA, "refresh", req.Refresh)
 		return nil, err
 	}
-	reply := &sdpb.PathsResponse{}
+	reply := &daemon.PathsResponse{}
 	for _, p := range paths {
 		reply.Paths = append(reply.Paths, pathToPB(p))
 	}
@@ -126,11 +125,11 @@ func (s *DaemonServer) fetchPaths(
 	return paths, err
 }
 
-func pathToPB(path snet.Path) *sdpb.Path {
+func pathToPB(path snet.Path) *daemon.Path {
 	meta := path.Metadata()
-	interfaces := make([]*sdpb.PathInterface, len(meta.Interfaces))
+	interfaces := make([]*daemon.PathInterface, len(meta.Interfaces))
 	for i, intf := range meta.Interfaces {
-		interfaces[i] = &sdpb.PathInterface{
+		interfaces[i] = &daemon.PathInterface{
 			Id:    uint64(intf.ID),
 			IsdAs: uint64(intf.IA),
 		}
@@ -142,15 +141,15 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		nanos := int32(v - time.Duration(seconds)*time.Second)
 		latency[i] = &durationpb.Duration{Seconds: seconds, Nanos: nanos}
 	}
-	geo := make([]*sdpb.GeoCoordinates, len(meta.Geo))
+	geo := make([]*daemon.GeoCoordinates, len(meta.Geo))
 	for i, v := range meta.Geo {
-		geo[i] = &sdpb.GeoCoordinates{
+		geo[i] = &daemon.GeoCoordinates{
 			Latitude:  v.Latitude,
 			Longitude: v.Longitude,
 			Address:   v.Address,
 		}
 	}
-	linkType := make([]sdpb.LinkType, len(meta.LinkType))
+	linkType := make([]daemon.LinkType, len(meta.LinkType))
 	for i, v := range meta.LinkType {
 		linkType[i] = linkTypeToPB(v)
 	}
@@ -165,15 +164,15 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		nextHopStr = nextHop.String()
 	}
 
-	epicAuths := &sdpb.EpicAuths{
+	epicAuths := &daemon.EpicAuths{
 		AuthPhvf: append([]byte(nil), meta.EpicAuths.AuthPHVF...),
 		AuthLhvf: append([]byte(nil), meta.EpicAuths.AuthLHVF...),
 	}
 
-	return &sdpb.Path{
+	return &daemon.Path{
 		Raw: raw,
-		Interface: &sdpb.Interface{
-			Address: &sdpb.Underlay{Address: nextHopStr},
+		Interface: &daemon.Interface{
+			Address: &daemon.Underlay{Address: nextHopStr},
 		},
 		Interfaces:   interfaces,
 		Mtu:          uint32(meta.MTU),
@@ -188,16 +187,16 @@ func pathToPB(path snet.Path) *sdpb.Path {
 	}
 }
 
-func linkTypeToPB(lt snet.LinkType) sdpb.LinkType {
+func linkTypeToPB(lt snet.LinkType) daemon.LinkType {
 	switch lt {
 	case snet.LinkTypeDirect:
-		return sdpb.LinkType_LINK_TYPE_DIRECT
+		return daemon.LinkType_LINK_TYPE_DIRECT
 	case snet.LinkTypeMultihop:
-		return sdpb.LinkType_LINK_TYPE_MULTI_HOP
+		return daemon.LinkType_LINK_TYPE_MULTI_HOP
 	case snet.LinkTypeOpennet:
-		return sdpb.LinkType_LINK_TYPE_OPEN_NET
+		return daemon.LinkType_LINK_TYPE_OPEN_NET
 	default:
-		return sdpb.LinkType_LINK_TYPE_UNSPECIFIED
+		return daemon.LinkType_LINK_TYPE_UNSPECIFIED
 	}
 }
 
@@ -226,7 +225,7 @@ func (s *DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA
 }
 
 // AS serves the AS request.
-func (s *DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
+func (s *DaemonServer) AS(ctx context.Context, req *daemon.ASRequest) (*daemon.ASResponse, error) {
 	start := time.Now()
 	response, err := s.as(ctx, req)
 	s.Metrics.ASRequests.inc(
@@ -236,7 +235,7 @@ func (s *DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 	return response, unwrapMetricsError(err)
 }
 
-func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
+func (s *DaemonServer) as(ctx context.Context, req *daemon.ASRequest) (*daemon.ASResponse, error) {
 	reqIA := addr.IA(req.IsdAs)
 	if reqIA.IsZero() {
 		reqIA = s.IA
@@ -250,7 +249,7 @@ func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 		log.FromCtx(ctx).Error("Inspecting ISD-AS", "err", err, "isd_as", reqIA)
 		return nil, serrors.Wrap("inspecting ISD-AS", err, "isd_as", reqIA)
 	}
-	reply := &sdpb.ASResponse{
+	reply := &daemon.ASResponse{
 		IsdAs: uint64(reqIA),
 		Core:  core,
 		Mtu:   mtu,
@@ -260,8 +259,8 @@ func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 
 // Interfaces serves the interfaces request.
 func (s *DaemonServer) Interfaces(ctx context.Context,
-	req *sdpb.InterfacesRequest,
-) (*sdpb.InterfacesResponse, error) {
+	req *daemon.InterfacesRequest,
+) (*daemon.InterfacesResponse, error) {
 	start := time.Now()
 	response, err := s.interfaces(ctx, req)
 	s.Metrics.InterfacesRequests.inc(
@@ -272,10 +271,10 @@ func (s *DaemonServer) Interfaces(ctx context.Context,
 }
 
 func (s *DaemonServer) interfaces(ctx context.Context,
-	_ *sdpb.InterfacesRequest,
-) (*sdpb.InterfacesResponse, error) {
-	reply := &sdpb.InterfacesResponse{
-		Interfaces: make(map[uint64]*sdpb.Interface),
+	_ *daemon.InterfacesRequest,
+) (*daemon.InterfacesResponse, error) {
+	reply := &daemon.InterfacesResponse{
+		Interfaces: make(map[uint64]*daemon.Interface),
 	}
 	topo := s.Topology
 	for _, ifID := range topo.IfIDs() {
@@ -283,8 +282,8 @@ func (s *DaemonServer) interfaces(ctx context.Context,
 		if nextHop == nil {
 			continue
 		}
-		reply.Interfaces[uint64(ifID)] = &sdpb.Interface{
-			Address: &sdpb.Underlay{
+		reply.Interfaces[uint64(ifID)] = &daemon.Interface{
+			Address: &daemon.Underlay{
 				Address: nextHop.String(),
 			},
 		}
@@ -294,8 +293,8 @@ func (s *DaemonServer) interfaces(ctx context.Context,
 
 // Services serves the services request.
 func (s *DaemonServer) Services(ctx context.Context,
-	req *sdpb.ServicesRequest,
-) (*sdpb.ServicesResponse, error) {
+	req *daemon.ServicesRequest,
+) (*daemon.ServicesResponse, error) {
 	start := time.Now()
 	respsonse, err := s.services(ctx, req)
 	s.Metrics.ServicesRequests.inc(
@@ -306,15 +305,15 @@ func (s *DaemonServer) Services(ctx context.Context,
 }
 
 func (s *DaemonServer) services(ctx context.Context,
-	_ *sdpb.ServicesRequest,
-) (*sdpb.ServicesResponse, error) {
-	reply := &sdpb.ServicesResponse{
-		Services: make(map[string]*sdpb.ListService),
+	_ *daemon.ServicesRequest,
+) (*daemon.ServicesResponse, error) {
+	reply := &daemon.ServicesResponse{
+		Services: make(map[string]*daemon.ListService),
 	}
-	list := &sdpb.ListService{}
+	list := &daemon.ListService{}
 	for _, h := range s.Topology.ControlServiceAddresses() {
 		// TODO(lukedirtwalker): build actual URI after it's defined (anapapaya/scion#3587)
-		list.Services = append(list.Services, &sdpb.Service{Uri: h.String()})
+		list.Services = append(list.Services, &daemon.Service{Uri: h.String()})
 	}
 	reply.Services[topology.Control.String()] = list
 	return reply, nil
@@ -322,8 +321,8 @@ func (s *DaemonServer) services(ctx context.Context,
 
 // NotifyInterfaceDown notifies the server about an interface that is down.
 func (s *DaemonServer) NotifyInterfaceDown(ctx context.Context,
-	req *sdpb.NotifyInterfaceDownRequest,
-) (*sdpb.NotifyInterfaceDownResponse, error) {
+	req *daemon.NotifyInterfaceDownRequest,
+) (*daemon.NotifyInterfaceDownResponse, error) {
 	start := time.Now()
 	response, err := s.notifyInterfaceDown(ctx, req)
 	s.Metrics.InterfaceDownNotifications.inc(
@@ -334,8 +333,8 @@ func (s *DaemonServer) NotifyInterfaceDown(ctx context.Context,
 }
 
 func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
-	req *sdpb.NotifyInterfaceDownRequest,
-) (*sdpb.NotifyInterfaceDownResponse, error) {
+	req *daemon.NotifyInterfaceDownRequest,
+) (*daemon.NotifyInterfaceDownResponse, error) {
 	revInfo := &path_mgmt.RevInfo{
 		RawIsdas:     addr.IA(req.IsdAs),
 		IfID:         iface.ID(req.Id),
@@ -351,16 +350,16 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 			result: prom.ErrDB,
 		}
 	}
-	return &sdpb.NotifyInterfaceDownResponse{}, nil
+	return &daemon.NotifyInterfaceDownResponse{}, nil
 }
 
 // PortRange returns the port range for the dispatched ports.
 func (s *DaemonServer) PortRange(
 	_ context.Context,
 	_ *emptypb.Empty,
-) (*sdpb.PortRangeResponse, error) {
+) (*daemon.PortRangeResponse, error) {
 	startPort, endPort := s.Topology.PortRange()
-	return &sdpb.PortRangeResponse{
+	return &daemon.PortRangeResponse{
 		DispatchedPortStart: uint32(startPort),
 		DispatchedPortEnd:   uint32(endPort),
 	}, nil
@@ -368,8 +367,8 @@ func (s *DaemonServer) PortRange(
 
 func (s *DaemonServer) DRKeyASHost(
 	ctx context.Context,
-	req *pb_daemon.DRKeyASHostRequest,
-) (*pb_daemon.DRKeyASHostResponse, error) {
+	req *daemon.DRKeyASHostRequest,
+) (*daemon.DRKeyASHostResponse, error) {
 	if s.DRKeyClient == nil {
 		return nil, serrors.New("DRKey is not available")
 	}
@@ -383,7 +382,7 @@ func (s *DaemonServer) DRKeyASHost(
 		return nil, serrors.Wrap("getting AS-Host from client store", err)
 	}
 
-	return &sdpb.DRKeyASHostResponse{
+	return &daemon.DRKeyASHostResponse{
 		EpochBegin: &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotBefore.Unix()},
 		EpochEnd:   &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotAfter.Unix()},
 		Key:        lvl2Key.Key[:],
@@ -392,8 +391,8 @@ func (s *DaemonServer) DRKeyASHost(
 
 func (s *DaemonServer) DRKeyHostAS(
 	ctx context.Context,
-	req *pb_daemon.DRKeyHostASRequest,
-) (*pb_daemon.DRKeyHostASResponse, error) {
+	req *daemon.DRKeyHostASRequest,
+) (*daemon.DRKeyHostASResponse, error) {
 	if s.DRKeyClient == nil {
 		return nil, serrors.New("DRKey is not available")
 	}
@@ -407,7 +406,7 @@ func (s *DaemonServer) DRKeyHostAS(
 		return nil, serrors.Wrap("getting Host-AS from client store", err)
 	}
 
-	return &sdpb.DRKeyHostASResponse{
+	return &daemon.DRKeyHostASResponse{
 		EpochBegin: &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotBefore.Unix()},
 		EpochEnd:   &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotAfter.Unix()},
 		Key:        lvl2Key.Key[:],
@@ -416,8 +415,8 @@ func (s *DaemonServer) DRKeyHostAS(
 
 func (s *DaemonServer) DRKeyHostHost(
 	ctx context.Context,
-	req *pb_daemon.DRKeyHostHostRequest,
-) (*pb_daemon.DRKeyHostHostResponse, error) {
+	req *daemon.DRKeyHostHostRequest,
+) (*daemon.DRKeyHostHostResponse, error) {
 	if s.DRKeyClient == nil {
 		return nil, serrors.New("DRKey is not available")
 	}
@@ -430,14 +429,14 @@ func (s *DaemonServer) DRKeyHostHost(
 		return nil, serrors.Wrap("getting Host-Host from client store", err)
 	}
 
-	return &sdpb.DRKeyHostHostResponse{
+	return &daemon.DRKeyHostHostResponse{
 		EpochBegin: &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotBefore.Unix()},
 		EpochEnd:   &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotAfter.Unix()},
 		Key:        lvl2Key.Key[:],
 	}, nil
 }
 
-func requestToASHostMeta(req *sdpb.DRKeyASHostRequest) (drkey.ASHostMeta, error) {
+func requestToASHostMeta(req *daemon.DRKeyASHostRequest) (drkey.ASHostMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
 		return drkey.ASHostMeta{}, serrors.Wrap("invalid valTime from pb request", err)
@@ -451,7 +450,7 @@ func requestToASHostMeta(req *sdpb.DRKeyASHostRequest) (drkey.ASHostMeta, error)
 	}, nil
 }
 
-func requestToHostASMeta(req *sdpb.DRKeyHostASRequest) (drkey.HostASMeta, error) {
+func requestToHostASMeta(req *daemon.DRKeyHostASRequest) (drkey.HostASMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
 		return drkey.HostASMeta{}, serrors.Wrap("invalid valTime from pb request", err)
@@ -465,7 +464,7 @@ func requestToHostASMeta(req *sdpb.DRKeyHostASRequest) (drkey.HostASMeta, error)
 	}, nil
 }
 
-func requestToHostHostMeta(req *sdpb.DRKeyHostHostRequest) (drkey.HostHostMeta, error) {
+func requestToHostHostMeta(req *daemon.DRKeyHostHostRequest) (drkey.HostHostMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
 		return drkey.HostHostMeta{}, serrors.Wrap("invalid valTime from pb request", err)

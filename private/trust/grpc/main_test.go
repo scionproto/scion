@@ -35,7 +35,8 @@ func genCrypto(t testing.TB) string {
 		"--isd-dir",
 		"--as-validity", "1y",
 	})
-	cmd.SetOutput(&buf)
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
 	err := cmd.Execute()
 	require.NoError(t, err, buf.String())
 

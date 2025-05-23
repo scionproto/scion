@@ -77,6 +77,7 @@ func TestAcceptLoopParallelism(t *testing.T) {
 				defer cancel()
 
 				dialer := connDialer(t)
+				//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 				conn, err := grpc.DialContext(ctx, "server",
 					grpc.WithTransportCredentials(insecure.NewCredentials()),
 					grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
@@ -129,6 +130,7 @@ func TestGRPCQUIC(t *testing.T) {
 	}()
 
 	dialer := connDialer(t)
+	//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 	conn, err := grpc.DialContext(context.Background(), "server",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {

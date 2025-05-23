@@ -131,7 +131,7 @@ type RoutingPolicyPublisherAdapter struct {
 }
 
 func (cp RoutingPolicyPublisherAdapter) PublishRoutingPolicy(rp *routing.Policy) {
-	cp.ConfigPublisher.Publish(nil, rp)
+	cp.Publish(nil, rp)
 }
 
 type Gateway struct {

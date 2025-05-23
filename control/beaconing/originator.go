@@ -225,10 +225,10 @@ func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {
 }
 
 func (o *beaconOriginator) incrementMetrics(labels originatorLabels) {
-	if o.Originator.Originated == nil {
+	if o.Originated == nil {
 		return
 	}
-	o.Originator.Originated.With(labels.Expand()...).Add(1)
+	o.Originated.With(labels.Expand()...).Add(1)
 }
 
 type originatorLabels struct {

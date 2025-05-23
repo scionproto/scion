@@ -193,11 +193,7 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]uint16 {
 		newSolution(src),
 	}
 	var solution [][]uint16
-	for {
-		if len(queue) == 0 {
-			// Nothing left to explore.
-			break
-		}
+	for len(queue) != 0 {
 		// Explore the next element in the queue.
 		curSolution := queue[0]
 		queue = queue[1:]

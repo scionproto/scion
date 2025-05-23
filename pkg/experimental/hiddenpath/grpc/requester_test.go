@@ -31,7 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	hspb "github.com/scionproto/scion/pkg/proto/hidden_segment"
-	"github.com/scionproto/scion/pkg/proto/hidden_segment/mock_hidden_segment"
+	mockhspb "github.com/scionproto/scion/pkg/proto/hidden_segment/mock_hidden_segment"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/segment/segfetcher"
 	"github.com/scionproto/scion/private/segment/segfetcher/mock_segfetcher"
@@ -109,7 +109,7 @@ func TestRequesterSegments(t *testing.T) {
 				t.Parallel()
 				ctrl := gomock.NewController(t)
 
-				server := mock_hidden_segment.NewMockHiddenSegmentLookupServiceServer(ctrl)
+				server := mockhspb.NewMockHiddenSegmentLookupServiceServer(ctrl)
 				server.EXPECT().HiddenSegments(gomock.Any(), gomock.Any()).
 					Return(&hspb.HiddenSegmentsResponse{
 						Segments: hpgrpc.ToHSPB([]*seg.Meta{&testSeg}),
@@ -158,7 +158,7 @@ func TestAuthoritativeRequesterHiddenSegments(t *testing.T) {
 			server: func(
 				ctrl *gomock.Controller,
 			) hspb.AuthoritativeHiddenSegmentLookupServiceServer {
-				s := mock_hidden_segment.NewMockAuthoritativeHiddenSegmentLookupServiceServer(ctrl)
+				s := mockhspb.NewMockAuthoritativeHiddenSegmentLookupServiceServer(ctrl)
 				s.EXPECT().AuthoritativeHiddenSegments(gomock.Any(), gomock.Any()).
 					Return(&hspb.AuthoritativeHiddenSegmentsResponse{
 						Segments: hpgrpc.ToHSPB([]*seg.Meta{&testSeg}),

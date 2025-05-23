@@ -301,7 +301,7 @@ type testPktWriter struct {
 	ID int
 }
 
-func (_ testPktWriter) Write(gopacket.Packet) {}
+func (testPktWriter) Write(gopacket.Packet) {}
 func (w testPktWriter) String() string {
 	return fmt.Sprintf("%d", w.ID)
 }
