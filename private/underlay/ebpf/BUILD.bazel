@@ -1,5 +1,7 @@
 load("@rules_go//go:def.bzl", "go_library")
 load("//tools:go.bzl", "go_test")
+load("@bazel_skylib//rules:native_binary.bzl", "native_test")
+
 
 genrule(
     # The generated file is bazel-bin/private/underlay/ebpf/sockfilter_bpfel.go
@@ -114,14 +116,14 @@ genrule(
     outs = [
         "portfilter_test_cap",
     ],
-    cmd_bash = "cp $< $@ ; /usr/bin/sudo setcap \"cap_bpf=ep cap_net_admin=ep cap_sys_admin=ep cap_net_raw=ep\" $@",
+    cmd_bash = "cp -f $< $@ ; /usr/bin/sudo setcap \"cap_bpf=ep cap_net_admin=ep cap_sys_admin=ep cap_net_raw=ep\" $@ || echo Failed",
 )
 
 # This is the rule that actually runs the portfilter test.
-sh_test(
+native_test(
     name = "portfilter_test",
     testonly = True,
-    srcs = ["portfilter_test_cap"],
+    src = "portfilter_test_cap",
     tags = [
         "supports-graceful-termination",
         "unit",
