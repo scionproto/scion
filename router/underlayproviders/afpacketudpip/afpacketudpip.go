@@ -316,7 +316,7 @@ func (u *udpConnection) start(batchSize int, pool router.PacketPool) {
 	// Receiver task
 	go func() {
 		defer log.HandlePanic()
-		u.receive(batchSize, pool)
+		u.receive(pool)
 		close(u.receiverDone)
 	}()
 
@@ -344,7 +344,7 @@ func (u *udpConnection) stop() {
 	}
 }
 
-func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
+func (u *udpConnection) receive(pool router.PacketPool) {
 	log.Debug("Receive", "connection", u.name)
 
 	// Since we do not know the real size of the IP header, we have to plan on it being short; so

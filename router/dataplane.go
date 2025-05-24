@@ -187,10 +187,11 @@ func (p *Packet) reset(headroom int) {
 // is *not* modified. This method panics if n is greater than the available headroom in the packet
 // buffer.
 func (p *Packet) WithHeader(n int) []byte {
-	headroom := len(p.buffer) - cap(p.RawPacket) - n
+	start := len(p.buffer) - cap(p.RawPacket) // Where rawPacket starts in the buffer
+	end := start + len(p.RawPacket)           // Where rawPacket ends in the buffer
 
-	// A negative value is a panicable offense.
-	return p.buffer[headroom:]
+	// n>start is a panicable offense.
+	return p.buffer[start-n : end]
 }
 
 // PacketPool allocates and resets packets. There is one packet pool per instance of the dataplane,

@@ -76,6 +76,7 @@ var (
 	logConsole   string
 	dir          string
 	testDuration time.Duration
+	numPackets   int
 	packetSize   int
 	numStreams   uint16
 	caseToRun    caseChoice
@@ -102,6 +103,7 @@ func main() {
 		},
 	}
 	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15, "Test duration")
+	runCmd.Flags().IntVar(&numPackets, "num-packets", -1, "Maximum number of packets")
 	runCmd.Flags().IntVar(&packetSize, "packet-size", 172, "Total size of each packet sent")
 	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
@@ -215,6 +217,7 @@ func run(cmd *cobra.Command) int {
 	metricsBegin := begin.Unix()
 
 	numPkt := 0
+out:
 	for time.Since(begin) < testDuration {
 		// we break every 1000 batches to check the time
 		for range 1000 {
@@ -230,6 +233,10 @@ func run(cmd *cobra.Command) int {
 			if _, err := sender.sendAll(); err != nil {
 				log.Error("writing input packet", "case", string(caseToRun), "error", err)
 				return 1
+			}
+			// We check packet count in one batch increment.
+			if numPackets > 0 && numPackets <= numPkt {
+				break out
 			}
 		}
 	}
