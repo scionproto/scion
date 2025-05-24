@@ -74,7 +74,7 @@ class Results:
 
     def add_case(self, name: str, rate: int, droppage: int, raw_rate: int):
         dropRatio = round(float(droppage) / (rate + droppage), 2)
-        saturated = dropRatio > 0.03
+        saturated = dropRatio >= 0.03
         perf = 0.0
         if self.cores == 3 and self.coremark and self.mmbm:
             perf = round(self.perf_index(rate), 1)
@@ -168,6 +168,7 @@ class RouterBM():
             *map_args,
             "--case", case,
             "--duration", f"{duration}s",
+            # "--num-packets", 1000, (for a short run)
             "--num-streams", "840",
             "--packet-size", f"{self.packet_size}",
         ]
