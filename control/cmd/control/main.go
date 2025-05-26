@@ -488,7 +488,8 @@ func realMain(ctx context.Context) error {
 				},
 			}
 			// Periodically check the connection to the CA backend
-			//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
+			// SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
+			//nolint:staticcheck
 			caHealthChecker := periodic.Start(
 				periodic.Func{
 					TaskName: "ca healthcheck",

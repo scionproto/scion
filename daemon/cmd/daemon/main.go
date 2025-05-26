@@ -225,7 +225,8 @@ func realMain(ctx context.Context) error {
 		}
 		cleaners := drkeyClientEngine.CreateStorageCleaners()
 		for _, cleaner := range cleaners {
-			//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
+			// SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
+			//nolint:staticcheck
 			cleaner_task := periodic.Start(cleaner,
 				5*time.Minute, 5*time.Minute)
 			defer cleaner_task.Stop()
