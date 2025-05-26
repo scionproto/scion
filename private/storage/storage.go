@@ -169,6 +169,7 @@ func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
 	SetConnLimits(db, c)
 
 	// Start a periodic task that cleans up the expired beacons.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	cleaner := periodic.Start(
 		cleaner.New(
 			func(ctx context.Context) (int, error) {
@@ -206,6 +207,7 @@ func NewPathStorage(c DBConfig) (PathDB, error) {
 	SetConnLimits(db, c)
 
 	// Start a periodic task that cleans up the expired path segments.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	cleaner := periodic.Start(
 		cleaner.New(
 			func(ctx context.Context) (int, error) {

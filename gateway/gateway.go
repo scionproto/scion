@@ -282,6 +282,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	revStore := &pathhealth.MemoryRevocationStore{}
 
 	// periodically clean up the revocation store.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	revCleaner := periodic.Start(periodic.Func{
 		Task:     revStore.Cleanup,
 		TaskName: "revocation_store_cleaner",

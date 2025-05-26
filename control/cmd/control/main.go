@@ -488,6 +488,7 @@ func realMain(ctx context.Context) error {
 				},
 			}
 			// Periodically check the connection to the CA backend
+			//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 			caHealthChecker := periodic.Start(
 				periodic.Func{
 					TaskName: "ca healthcheck",
@@ -519,6 +520,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	// Frequently regenerate signers to catch problems, and update the metrics.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	periodic.Start(
 		periodic.Func{
 			TaskName: "signer generator",
@@ -537,6 +539,7 @@ func realMain(ctx context.Context) error {
 		5*time.Second,
 	)
 
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	trcRunner := periodic.Start(
 		periodic.Func{
 			TaskName: "trc expiration updater",
