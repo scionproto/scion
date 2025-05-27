@@ -5,7 +5,10 @@ go_library(
     srcs = [
         "afpacketudpip.go",
         "fnv1acheap.go",
+        "internallink.go",
         "mmsg.go",
+        "ptplink.go",
+        "udpconnection.go",
     ],
     importpath = "github.com/scionproto/scion/router/underlayproviders/afpacketudpip",
     visibility = ["//visibility:public"],

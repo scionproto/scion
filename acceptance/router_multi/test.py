@@ -101,7 +101,7 @@ class RouterTest(base.TestBase):
                         "scion/router:latest")
         else:
             exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
-                        "--cap-add=NET_RAW --cap-add=NET_ADMIN --cap-add=BPF"
+                        "--cap-add=NET_RAW --cap-add=NET_ADMIN --cap-add=BPF "
                         "--network container:pause --name router "
                         "scion/router:latest "
                         "--config /etc/scion/router_nobfd.toml")
