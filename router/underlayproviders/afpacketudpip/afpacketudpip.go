@@ -167,13 +167,14 @@ func (u *provider) NumConnections() int {
 
 func (u *provider) Headroom() int {
 
-	// We advise of enough headroom for ethernet + max(ip) + udp headers. The aggregate of which
-	// constitutes the link-layer header as far as SCION is concerned. On receipt, we cannot predict
-	// if the IP header has options. We align the packet with the assumtion that it does not. As a
-	// result, the payload never starts earlier than planned. This is needed to ensure that the
-	// headroom we leave is never less than the worst case requirement across all underlays.
+	// We advise of enough headroom for ethernet + max(ip) + udp headers on outgoing packets (we do
+	// not need to add extensions and do not use options). On receipt, we cannot predict if the IP
+	// header is v4 or v6 or has options or extentions. We align the packet with the assumtion that
+	// it is v4 with no options. As a result, the payload never starts earlier than planned. This is
+	// needed to ensure that the headroom we leave is never less than the worst case requirement
+	// across all underlays.
 
-	return 14 + 60 + 8
+	return 14 + 40 + 8 // ethernet + basic ipv6 + udp
 }
 
 func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
@@ -260,7 +261,7 @@ type udpConnection struct {
 
 // getUdpConnection returns the appropriate udpConnection; creating it if it doesn't exist yet.
 func (u *provider) getUdpConnection(
-	qSize int, local netip.AddrPort,
+	qSize int, local *netip.AddrPort,
 	metrics *router.InterfaceMetrics,
 ) (*udpConnection, error) {
 
@@ -349,12 +350,17 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 
 	// Since we do not know the real size of the IP header, we have to plan on it being short; so
 	// our payload doesn't encroach on the headroom space. If the header is longer, then we will
-	// leave more headroom than needed.
+	// leave more headroom than needed. We don't even know if we're getting v4 or v6. Assume v4.
+	// As of this writting we do not expect extensions, so the actual headers should
+	// never be greater than the biggest v4 header (14+60+8). Else, the packet hits the can.
 	minHeadRoom := 14 + 20 + 8
 
 	var ethLayer layers.Ethernet
-	var ipLayer layers.IPv4
+	var ipv4Layer layers.IPv4
+	var ipv6Layer layers.IPv6
 	var udpLayer layers.UDP
+	var srcIP netip.Addr
+	var validSrc bool
 
 	// We'll reuse this one until we can deliver it. At which point, we fetch a fresh one.
 	// pool.Reset is much cheaper than pool.Put/Get
@@ -373,28 +379,40 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		if err := ethLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 			continue
 		}
-		if !ipLayer.CanDecode().Contains(ethLayer.NextLayerType()) {
-			continue
-		}
+		networkLayer := ethLayer.NextLayerType()
 		data = ethLayer.LayerPayload() // chop off the eth header
-		if err := ipLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+		if ipv4Layer.CanDecode().Contains(networkLayer) {
+			if err := ipv4Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+				continue
+			}
+			if !udpLayer.CanDecode().Contains(ipv4Layer.NextLayerType()) {
+				continue
+			}
+			// Retrieve src from the decoded IP layers.
+			srcIP, validSrc = netip.AddrFromSlice(ipv4Layer.SrcIP)
+			data = ipv4Layer.LayerPayload() // chop off the ip header
+		} else if ipv6Layer.CanDecode().Contains(networkLayer) {
+			if err := ipv6Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+				continue
+			}
+			if !udpLayer.CanDecode().Contains(ipv4Layer.NextLayerType()) {
+				// Not UPD? Could be extensions...we don't expect any.
+				continue
+			}
+			// Retrieve src from the decoded IP layers.
+			srcIP, validSrc = netip.AddrFromSlice(ipv6Layer.SrcIP)
+			data = ipv6Layer.LayerPayload() // chop off the ip header
+		} else {
 			continue
 		}
-		if !udpLayer.CanDecode().Contains(ipLayer.NextLayerType()) {
+		if !validSrc {
+			// WTF?
 			continue
 		}
-		data = ipLayer.LayerPayload() // chop off the ip header
 		if err := udpLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 			continue
 		}
 		p.RawPacket = udpLayer.LayerPayload() // chop off the udp header. The rest is SCION.
-
-		// Retrieve src and port from the decoded IP and UDP layers.
-		srcIP, ok := netip.AddrFromSlice(ipLayer.SrcIP)
-		if !ok {
-			// WTF?
-			continue
-		}
 		srcAddr := netip.AddrPortFrom(srcIP, uint16(udpLayer.SrcPort))
 
 		// Demultiplex to a link. There is one connection per interface, so they are mostly shared
@@ -520,76 +538,6 @@ func makeHashSeed() uint32 {
 	return hashSeed
 }
 
-// Expensive. Call only to make a few prefab headers.
-func packHeader(src, dst *netip.AddrPort) []byte {
-
-	ethernet := layers.Ethernet{
-		// FIXME! We must get those from the interface and from ARP!
-		SrcMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x1, 0x1},
-		DstMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x2, 0x2},
-		EthernetType: layers.EthernetTypeIPv4,
-	}
-
-	// Fixme!!!: support v4 and v6
-	ip := layers.IPv4{
-		Version:  4,
-		IHL:      5,
-		TTL:      64,
-		SrcIP:    src.Addr().AsSlice(),
-		DstIP:    dst.Addr().AsSlice(),
-		Protocol: layers.IPProtocolUDP,
-		// Flags:    layers.IPv4DontFragment, // Sure about that?
-	}
-	udp := layers.UDP{
-		SrcPort: layers.UDPPort(src.Port()),
-		DstPort: layers.UDPPort(dst.Port()),
-	}
-	_ = udp.SetNetworkLayerForChecksum(&ip)
-	sb := gopacket.NewSerializeBuffer()
-	err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
-	if err != nil {
-		// The only possible reason for this is in the few lines above.
-		panic("Cannot serialize static header")
-	}
-
-	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
-	// ethernet minimum.
-	return sb.Bytes()[:42]
-}
-
-// FIXME!!!: IpV6
-// FIXME: can do cleaner and more legible... and maybe faster.
-// TODO(jiceatscion): probably more efficient if method of link.
-func addHeader(p *router.Packet, header []byte, dst *netip.AddrPort) {
-	payloadLen := len(p.RawPacket)
-	p.RawPacket = p.WithHeader(len(header))
-	copy(p.RawPacket, header)
-
-	// If we were given a dst address, update the canned header with that.
-	// FIXME: get the mac address from the interface.
-	if dst != nil {
-		copy(p.RawPacket, net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x2, 0x2})
-		copy(p.RawPacket[14+16:], dst.Addr().AsSlice()) // Can do cheaper?
-		binary.BigEndian.PutUint16(p.RawPacket[14+20+2:], dst.Port())
-	}
-
-	// Fix the IP total length field
-	binary.BigEndian.PutUint16(p.RawPacket[14+2:], uint16(payloadLen)+20+8)
-
-	// Update UDP length
-	binary.BigEndian.PutUint16(p.RawPacket[14+20+4:], uint16(payloadLen)+8)
-
-	// For IPv4 fix the IP checksum
-	p.RawPacket[14+10] = 0
-	p.RawPacket[14+11] = 0
-	csum := gopacket.ComputeChecksum(p.RawPacket[14:14+20], 0)
-	binary.BigEndian.PutUint16(p.RawPacket[14+10:], gopacket.FoldChecksum(csum))
-
-	// For IPV4 we can screw the UDP checksum
-	p.RawPacket[14+20+6] = 0
-	p.RawPacket[14+20+7] = 0
-}
-
 // ptpLink is a point-to-point link. All links share a single raw socket per NIC. However
 // point to point links are dedicated to a single src/dst pair.
 type ptpLink struct {
@@ -600,9 +548,110 @@ type ptpLink struct {
 	metrics    *router.InterfaceMetrics
 	pool       router.PacketPool
 	bfdSession *bfd.Session
+	scope      router.LinkScope
 	seed       uint32
 	ifID       uint16 // 0 for sibling links
-	scope      router.LinkScope
+	is4        bool
+}
+
+// Expensive. Call only to make a few prefab headers.
+func (l *ptpLink) packHeader(src, dst *netip.AddrPort) {
+
+	sb := gopacket.NewSerializeBuffer()
+	ethernet := layers.Ethernet{
+		// FIXME! We must get those from the interface and from ARP!
+		SrcMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x1, 0x1},
+		DstMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x2, 0x2},
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+	udp := layers.UDP{
+		SrcPort: layers.UDPPort(src.Port()),
+		DstPort: layers.UDPPort(dst.Port()),
+	}
+
+	l.is4 = src.Addr().Is4()
+
+	if l.is4 {
+
+		ip := layers.IPv4{
+			Version:  4,
+			IHL:      5,
+			TTL:      64,
+			SrcIP:    src.Addr().AsSlice(),
+			DstIP:    dst.Addr().AsSlice(),
+			Protocol: layers.IPProtocolUDP,
+			// Flags:    layers.IPv4DontFragment, // Sure about that?
+		}
+		_ = udp.SetNetworkLayerForChecksum(&ip)
+		err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
+		if err != nil {
+			// The only possible reason for this is in the few lines above.
+			panic("Cannot serialize static header")
+		}
+
+		// We have to truncate the result; gopacket is scared of generating a packet shorter than the
+		// ethernet minimum.
+		l.header = sb.Bytes()[:42]
+		return
+	}
+	ip := layers.IPv6{
+		Version:    6,
+		NextHeader: layers.IPProtocolUDP,
+		HopLimit:   64,
+		SrcIP:      src.Addr().AsSlice(),
+		DstIP:      dst.Addr().AsSlice(),
+	}
+	_ = udp.SetNetworkLayerForChecksum(&ip)
+	err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
+	if err != nil {
+		// The only possible reason for this is in the few lines above.
+		panic("Cannot serialize static header")
+	}
+
+	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
+	// ethernet minimum.
+	l.header = sb.Bytes()[:62]
+	return
+}
+
+// FIXME: can do cleaner and more legible... and maybe faster.
+func (l *ptpLink) addHeader(p *router.Packet) {
+	payloadLen := len(p.RawPacket)
+	p.RawPacket = p.WithHeader(len(l.header))
+	copy(p.RawPacket, l.header)
+
+	if l.is4 {
+		// Fix the IP total length field
+		binary.BigEndian.PutUint16(p.RawPacket[14+2:], uint16(payloadLen)+20+8)
+
+		// Update UDP length
+		binary.BigEndian.PutUint16(p.RawPacket[14+20+4:], uint16(payloadLen)+8)
+
+		// For IPv4 fix the IP checksum
+		p.RawPacket[14+10] = 0
+		p.RawPacket[14+11] = 0
+		csum := gopacket.ComputeChecksum(p.RawPacket[14:14+20], 0)
+		binary.BigEndian.PutUint16(p.RawPacket[14+10:], gopacket.FoldChecksum(csum))
+
+		// For IPV4 we can screw the UDP checksum
+		p.RawPacket[14+20+6] = 0
+		p.RawPacket[14+20+7] = 0
+	}
+
+	// Fix the IPv6 payload length field (udp plus the scion stuff)
+	binary.BigEndian.PutUint16(p.RawPacket[14+4:], uint16(payloadLen)+8)
+
+	// Update UDP length
+	binary.BigEndian.PutUint16(p.RawPacket[14+40+4:], uint16(payloadLen)+8)
+
+	// For IPV6 we must compute the UDP checksum.
+	// In theory we could dispense with it as we're a tunneling protocol; however all the plain
+	// udp underlay implementations would drop the packets.
+	protoAsBE32bit := []byte{0, 0, 0, 17}
+	csum := gopacket.ComputeChecksum(p.RawPacket[14+8:14+40], 0)        // src+dst
+	csum = gopacket.ComputeChecksum(p.RawPacket[14+40+4:14+40+6], csum) // UDP length
+	csum = gopacket.ComputeChecksum(protoAsBE32bit, csum)               // 3bytes of 0 plus UDP proto num
+	binary.BigEndian.PutUint16(p.RawPacket[14+40+18:], gopacket.FoldChecksum(csum))
 }
 
 // NewExternalLink returns an external link over the UDP/IP underlay. It is implemented with a
@@ -632,13 +681,12 @@ func (u *provider) NewExternalLink(
 	if l := u.allLinks[remoteAddr]; l != nil {
 		return nil, serrors.Join(errDuplicateRemote, nil, "addr", remote)
 	}
-	c, err := u.getUdpConnection(qSize, localAddr, metrics)
+	c, err := u.getUdpConnection(qSize, &localAddr, metrics)
 	if err != nil {
 		return nil, err
 	}
 
 	el := &ptpLink{
-		header:     packHeader(&localAddr, &remoteAddr),
 		name:       remoteAddr.String(),
 		egressQ:    c.queue,
 		metrics:    metrics,
@@ -647,6 +695,7 @@ func (u *provider) NewExternalLink(
 		ifID:       ifID,
 		scope:      router.External,
 	}
+	el.packHeader(&localAddr, &remoteAddr)
 	c.links[remoteAddr] = el
 	u.allLinks[remoteAddr] = el
 	return el, nil
@@ -682,13 +731,12 @@ func (u *provider) NewSiblingLink(
 	if l := u.allLinks[remoteAddr]; l != nil {
 		return l, nil
 	}
-	c, err := u.getUdpConnection(qSize, localAddr, metrics)
+	c, err := u.getUdpConnection(qSize, &localAddr, metrics)
 	if err != nil {
 		return nil, err
 	}
 	el := &ptpLink{
 		name:       remoteAddr.String(),
-		header:     packHeader(&localAddr, &remoteAddr),
 		egressQ:    c.queue,
 		metrics:    metrics,
 		bfdSession: bfd,
@@ -696,6 +744,7 @@ func (u *provider) NewSiblingLink(
 		ifID:       0,
 		scope:      router.Sibling,
 	}
+	el.packHeader(&localAddr, &remoteAddr)
 	c.links[remoteAddr] = el
 	u.allLinks[remoteAddr] = el
 	return el, nil
@@ -756,7 +805,7 @@ func (l *ptpLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 func (l *ptpLink) Send(p *router.Packet) bool {
 	// We do not have an underlying connection. Instead we supply the entire underlay header. We
 	// have it mostly canned and paste it in front of the packet.
-	addHeader(p, l.header, nil)
+	l.addHeader(p)
 
 	select {
 	case l.egressQ <- p:
@@ -768,7 +817,7 @@ func (l *ptpLink) Send(p *router.Packet) bool {
 
 func (l *ptpLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the header.
-	addHeader(p, l.header, nil)
+	l.addHeader(p)
 
 	l.egressQ <- p
 }
@@ -809,6 +858,109 @@ type internalLink struct {
 	dispatchStart    uint16
 	dispatchEnd      uint16
 	dispatchRedirect uint16
+	is4              bool
+}
+
+// Expensive. Call only to make a few prefab headers.
+func (l *internalLink) packHeader(src *netip.AddrPort) {
+
+	sb := gopacket.NewSerializeBuffer()
+	ethernet := layers.Ethernet{
+		// FIXME! We must get those from the interface and from ARP!
+		SrcMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x1, 0x1},
+		DstMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x2, 0x2},
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+	udp := layers.UDP{
+		SrcPort: layers.UDPPort(src.Port()),
+	}
+	l.is4 = src.Addr().Is4()
+
+	if l.is4 {
+		ip := layers.IPv4{
+			Version:  4,
+			IHL:      5,
+			TTL:      64,
+			SrcIP:    src.Addr().AsSlice(),
+			DstIP:    netip.IPv4Unspecified().AsSlice(),
+			Protocol: layers.IPProtocolUDP,
+			// Flags:    layers.IPv4DontFragment, // Sure about that?
+		}
+		_ = udp.SetNetworkLayerForChecksum(&ip)
+		err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
+		if err != nil {
+			// The only possible reason for this is in the few lines above.
+			panic("Cannot serialize static header")
+		}
+
+		// We have to truncate the result; gopacket is scared of generating a packet shorter than the
+		// ethernet minimum.
+		l.header = sb.Bytes()[:42]
+		return
+	}
+
+	ip := layers.IPv6{
+		Version:    6,
+		NextHeader: layers.IPProtocolUDP,
+		HopLimit:   64,
+		SrcIP:      src.Addr().AsSlice(),
+		DstIP:      netip.IPv6Unspecified().AsSlice(),
+	}
+	_ = udp.SetNetworkLayerForChecksum(&ip)
+	err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
+	if err != nil {
+		// The only possible reason for this is in the few lines above.
+		panic("Cannot serialize static header")
+	}
+
+	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
+	// ethernet minimum.
+	l.header = sb.Bytes()[:62]
+}
+
+// FIXME: can do cleaner and more legible... and maybe faster.
+func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) {
+	payloadLen := len(p.RawPacket)
+	p.RawPacket = p.WithHeader(len(l.header))
+	copy(p.RawPacket, l.header)
+
+	// Inject dest
+	copy(p.RawPacket, net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x2, 0x2})
+	copy(p.RawPacket[14+16:], dst.Addr().AsSlice()) // Can do cheaper?
+	binary.BigEndian.PutUint16(p.RawPacket[14+20+2:], dst.Port())
+
+	if l.is4 {
+		// Fix the IP total length field
+		binary.BigEndian.PutUint16(p.RawPacket[14+2:], uint16(payloadLen)+20+8)
+
+		// Update UDP length
+		binary.BigEndian.PutUint16(p.RawPacket[14+20+4:], uint16(payloadLen)+8)
+
+		// For IPv4 fix the IP checksum
+		p.RawPacket[14+10] = 0
+		p.RawPacket[14+11] = 0
+		csum := gopacket.ComputeChecksum(p.RawPacket[14:14+20], 0)
+		binary.BigEndian.PutUint16(p.RawPacket[14+10:], gopacket.FoldChecksum(csum))
+
+		// For IPV4 we can screw the UDP checksum
+		p.RawPacket[14+20+6] = 0
+		p.RawPacket[14+20+7] = 0
+	}
+
+	// Fix the IPv6 payload length field (udp plus the scion stuff)
+	binary.BigEndian.PutUint16(p.RawPacket[14+4:], uint16(payloadLen)+8)
+
+	// Update UDP length
+	binary.BigEndian.PutUint16(p.RawPacket[14+40+4:], uint16(payloadLen)+8)
+
+	// For IPV6 we must compute the UDP checksum.
+	// In theory we could dispense with it as we're a tunneling protocol; however all the plain
+	// udp underlay implementations would drop the packets.
+	protoAsBE32bit := []byte{0, 0, 0, 17}
+	csum := gopacket.ComputeChecksum(p.RawPacket[14+8:14+40], 0)        // src+dst
+	csum = gopacket.ComputeChecksum(p.RawPacket[14+40+4:14+40+6], csum) // UDP length
+	csum = gopacket.ComputeChecksum(protoAsBE32bit, csum)               // 3bytes of 0 plus UDP proto num
+	binary.BigEndian.PutUint16(p.RawPacket[14+40+18:], gopacket.FoldChecksum(csum))
 }
 
 // NewInternalLink returns a internal link over the UdpIpUnderlay.
@@ -825,16 +977,14 @@ func (u *provider) NewInternalLink(
 	if err != nil {
 		return nil, serrors.Wrap("resolving local address", err)
 	}
-	c, err := u.getUdpConnection(qSize, localAddr, metrics)
+	c, err := u.getUdpConnection(qSize, &localAddr, metrics)
 	if err != nil {
 		return nil, err
 	}
 
 	// We prepare an incomplete header; it is still faster to patch it than recreate it
 	// from scratch for every packet.
-	unspecDst := netip.AddrPortFrom(netip.IPv4Unspecified(), 0)
 	il := &internalLink{
-		header:           packHeader(&localAddr, &unspecDst),
 		egressQ:          c.queue,
 		metrics:          metrics,
 		svc:              u.svc,
@@ -843,6 +993,7 @@ func (u *provider) NewInternalLink(
 		dispatchEnd:      u.dispatchEnd,
 		dispatchRedirect: u.dispatchRedirect,
 	}
+	il.packHeader(&localAddr)
 	c.link = il
 	u.allLinks[netip.AddrPort{}] = il
 	return il, nil
@@ -930,7 +1081,7 @@ func (l *internalLink) Send(p *router.Packet) bool {
 	// Resolve() We need to craft a header in front of the packet.  May be resolve could do that,
 	// instead of just storing the destination in the packet structure. That would save us the
 	// allocation of address but requires some more changes to the dataplane code structure.
-	addHeader(p, l.header, (*netip.AddrPort)(p.RemoteAddr))
+	l.addHeader(p, (*netip.AddrPort)(p.RemoteAddr))
 	select {
 	case l.egressQ <- p:
 	default:
@@ -941,7 +1092,7 @@ func (l *internalLink) Send(p *router.Packet) bool {
 
 func (l *internalLink) SendBlocking(p *router.Packet) {
 	// Likewise: p.remoteAddress -> header.
-	addHeader(p, l.header, (*netip.AddrPort)(p.RemoteAddr))
+	l.addHeader(p, (*netip.AddrPort)(p.RemoteAddr))
 	l.egressQ <- p
 }
 
