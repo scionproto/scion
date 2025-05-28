@@ -151,7 +151,7 @@ type basicError struct {
 func (e basicError) Error() string {
 	var buf bytes.Buffer
 	buf.WriteString(e.msg)
-	buf.WriteString(e.error())
+	buf.WriteString(e.errorInfo.error())
 	return buf.String()
 }
 
@@ -163,7 +163,7 @@ func (e basicError) Unwrap() error {
 // representation.
 func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("msg", e.msg)
-	return e.marshalLogObject(enc)
+	return e.errorInfo.marshalLogObject(enc)
 }
 
 // Wrap returns an error that associates the given error, with the given cause (an underlying
@@ -242,7 +242,7 @@ func (e joinedError) Unwrap() []error {
 // representation. The base error is not dissected. It is treated as a most generic error.
 func (e joinedError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("msg", e.error.Error())
-	return e.marshalLogObject(enc)
+	return e.errorInfo.marshalLogObject(enc)
 }
 
 // Join returns an error that associates the given error, with the given cause (an underlying error)

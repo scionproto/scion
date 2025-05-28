@@ -368,7 +368,7 @@ func TestDataPlaneRun(t *testing.T) {
 								{ConsIngress: 31, ConsEgress: 30},
 								{ConsIngress: 1, ConsEgress: 0},
 							}
-							dpath.PathMeta.CurrHF = 2
+							dpath.Base.PathMeta.CurrHF = 2
 							dpath.HopFields[2].Mac = computeMAC(t, key,
 								dpath.InfoFields[0], dpath.HopFields[2])
 							spkt.Path = dpath
@@ -859,7 +859,7 @@ func TestProcessPkt(t *testing.T) {
 					{ConsIngress: 31, ConsEgress: 30},
 					{ConsIngress: 1, ConsEgress: 0},
 				}
-				dpath.PathMeta.CurrHF = 2
+				dpath.Base.PathMeta.CurrHF = 2
 				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 
 				var dstAddr *net.UDPAddr
@@ -894,15 +894,15 @@ func TestProcessPkt(t *testing.T) {
 
 				// Everything is the same as in the inbound test, except that we tossed in
 				// 64 extra hops and two extra segments.
-				dpath.PathMeta.CurrHF = 2
-				dpath.PathMeta.SegLen = [3]uint8{24, 24, 17}
+				dpath.Base.PathMeta.CurrHF = 2
+				dpath.Base.PathMeta.SegLen = [3]uint8{24, 24, 17}
 				dpath.InfoFields = append(
 					dpath.InfoFields,
 					path.InfoField{SegID: 0x112, ConsDir: true, Timestamp: util.TimeToSecs(now)},
 					path.InfoField{SegID: 0x113, ConsDir: true, Timestamp: util.TimeToSecs(now)},
 				)
-				dpath.NumINF = 3
-				dpath.NumHops = 65
+				dpath.Base.NumINF = 3
+				dpath.Base.NumHops = 65
 				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 
 				var dstAddr *net.UDPAddr
@@ -934,7 +934,7 @@ func TestProcessPkt(t *testing.T) {
 					{ConsIngress: 31, ConsEgress: 30},
 					{ConsIngress: 41, ConsEgress: 40},
 				}
-				dpath.PathMeta.CurrHF = 0
+				dpath.Base.PathMeta.CurrHF = 0
 				dpath.HopFields[0].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[0])
 				ingress := uint16(0)
 				egress := uint16(0)
@@ -966,7 +966,7 @@ func TestProcessPkt(t *testing.T) {
 					{ConsIngress: 1, ConsEgress: 2},
 					{ConsIngress: 40, ConsEgress: 41},
 				}
-				dpath.PathMeta.CurrHF = 1
+				dpath.Base.PathMeta.CurrHF = 1
 				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
 				ingress := uint16(1)
 				egress := uint16(0)
@@ -998,7 +998,7 @@ func TestProcessPkt(t *testing.T) {
 					{ConsIngress: 2, ConsEgress: 1},
 					{ConsIngress: 40, ConsEgress: 41},
 				}
-				dpath.PathMeta.CurrHF = 1
+				dpath.Base.PathMeta.CurrHF = 1
 				dpath.InfoFields[0].ConsDir = false
 				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
 				ingress := uint16(1)
@@ -1422,7 +1422,7 @@ func TestProcessPkt(t *testing.T) {
 					{ConsIngress: 31, ConsEgress: 30},
 					{ConsIngress: 1, ConsEgress: 0},
 				}
-				dpath.PathMeta.CurrHF = 2
+				dpath.Base.PathMeta.CurrHF = 2
 				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 				var dstAddr *net.UDPAddr
 				ingress := uint16(1)
@@ -1808,8 +1808,8 @@ func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
 		{ConsIngress: 31, ConsEgress: 30},
 		{ConsIngress: 0o1, ConsEgress: 0},
 	}
-	dpath.PathMeta.CurrHF = 2
-	dpath.PathMeta.CurrINF = 0
+	dpath.Base.PathMeta.CurrHF = 2
+	dpath.Base.PathMeta.CurrINF = 0
 
 	pktID := epic.PktID{
 		Timestamp: epicTS,

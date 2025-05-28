@@ -224,7 +224,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			actual.Path = rp
 
 			assert.Equal(t, tc.PacketInfo, actual.PacketInfo)
-			assert.Equal(t, tc.Payload, actual.Payload)
+			assert.Equal(t, tc.PacketInfo.Payload, actual.PacketInfo.Payload)
 			actual.Bytes = nil
 			assert.NoError(t, actual.Serialize())
 			assert.Equal(t, tc.Bytes, actual.Bytes)

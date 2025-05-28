@@ -75,7 +75,7 @@ func (f *FilteringPathSelector) Select(selectables []Selectable, current Fingerp
 			Path:        path,
 			Fingerprint: fingerprint,
 			IsCurrent:   isCurrent,
-			IsRevoked:   f.IsRevoked(path),
+			IsRevoked:   f.RevocationStore.IsRevoked(path),
 		})
 	}
 	// Sort the allowed paths according the the perf policy.

@@ -281,7 +281,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		return &net.UDPAddr{
 			IP: p.Source.Host.IP().AsSlice(),
 			Port: func() int {
-				switch p := p.Payload.(type) {
+				switch p := p.PacketInfo.Payload.(type) {
 				case UDPPayload:
 					return int(p.SrcPort)
 				default:

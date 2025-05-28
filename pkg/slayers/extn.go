@@ -245,7 +245,7 @@ func (h *HopByHopExtn) SerializeTo(b gopacket.SerializeBuffer,
 		o = append(o, (*tlvOption)(v))
 	}
 
-	return h.serializeToWithTLVOptions(b, opts, o)
+	return h.extnBase.serializeToWithTLVOptions(b, opts, o)
 }
 
 // DecodeFromBytes implementation according to gopacket.DecodingLayer.
@@ -369,7 +369,7 @@ func (e *EndToEndExtn) SerializeTo(b gopacket.SerializeBuffer,
 		o = append(o, (*tlvOption)(v))
 	}
 
-	return e.serializeToWithTLVOptions(b, opts, o)
+	return e.extnBase.serializeToWithTLVOptions(b, opts, o)
 }
 
 // FindOption returns the first option entry of the given type if any exists,

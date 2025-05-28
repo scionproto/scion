@@ -123,8 +123,8 @@ type silentLogger struct {
 }
 
 func (s silentLogger) Info(msg string, ctx ...any) {
-	s.Debug(msg, ctx...)
+	s.Logger.Debug(msg, ctx...)
 }
 func (s silentLogger) Error(msg string, ctx ...any) {
-	s.Debug(msg, ctx...)
+	s.Logger.Debug(msg, ctx...)
 }

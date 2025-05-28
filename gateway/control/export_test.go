@@ -42,9 +42,9 @@ func (w *GatewayWatcher) RunOnce(ctx context.Context) {
 func (w *GatewayWatcher) RunAllPrefixWatchersOnceForTest(ctx context.Context) error {
 	var eg errgroup.Group
 	for _, wi := range w.currentWatchers {
-		wi.resetRunMarker()
+		wi.prefixWatcher.resetRunMarker()
 		eg.Go(func() error {
-			return wi.Run(ctx)
+			return wi.prefixWatcher.Run(ctx)
 		})
 	}
 	return eg.Wait()
