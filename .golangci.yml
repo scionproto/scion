@@ -27,6 +27,7 @@ linters:
         - "-QF1001" # disable "Apply De Morgan's law".
         # The use of Go ideomatic identifiers is a recommendation, not a law.
         - "-ST1003" # disable "Poorly chosen identifier".
+        - "-QF1008"	# disable "Omit embedded fields from selector expression".
     errcheck:
       exclude-functions:
         - (*github.com/spf13/cobra.Command).MarkFlagRequired
