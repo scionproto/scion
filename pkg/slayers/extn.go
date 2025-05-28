@@ -404,7 +404,7 @@ func (s *HopByHopExtnSkipper) DecodeFromBytes(data []byte, df gopacket.DecodeFee
 	return nil
 }
 
-func (e *HopByHopExtnSkipper) LayerType() gopacket.LayerType {
+func (s *HopByHopExtnSkipper) LayerType() gopacket.LayerType {
 	return LayerTypeHopByHopExtn
 }
 
@@ -412,8 +412,8 @@ func (s *HopByHopExtnSkipper) CanDecode() gopacket.LayerClass {
 	return LayerClassHopByHopExtn
 }
 
-func (h *HopByHopExtnSkipper) NextLayerType() gopacket.LayerType {
-	return scionNextLayerTypeAfterHBH(h.NextHdr)
+func (s *HopByHopExtnSkipper) NextLayerType() gopacket.LayerType {
+	return scionNextLayerTypeAfterHBH(s.NextHdr)
 }
 
 // EndToEndExtnSkipper is a DecodingLayer which decodes an EndToEnd extension
@@ -437,7 +437,7 @@ func (s *EndToEndExtnSkipper) DecodeFromBytes(data []byte, df gopacket.DecodeFee
 	return nil
 }
 
-func (e *EndToEndExtnSkipper) LayerType() gopacket.LayerType {
+func (s *EndToEndExtnSkipper) LayerType() gopacket.LayerType {
 	return LayerTypeEndToEndExtn
 }
 
@@ -445,6 +445,6 @@ func (s *EndToEndExtnSkipper) CanDecode() gopacket.LayerClass {
 	return LayerClassEndToEndExtn
 }
 
-func (e *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {
-	return scionNextLayerTypeAfterE2E(e.NextHdr)
+func (s *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {
+	return scionNextLayerTypeAfterE2E(s.NextHdr)
 }
