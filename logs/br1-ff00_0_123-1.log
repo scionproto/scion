@@ -1,0 +1,37 @@
+2025-05-28 09:12:20.285476+0000	INFO	             env/logging.go:42	=====================> Service started SCION Router br1-ff00_0_123-1
+  Scion version: 
+
+  pid:           188519
+  euid/egid:     1000 1000
+  cmd line:      ["bin/router" "--config" "gen/ASff00_0_123/br1-ff00_0_123-1.toml"]
+
+2025-05-28 09:12:20.295684+0000	DEBUG	          control/iactx.go:111	Configuring Dataplane
+2025-05-28 09:12:20.295854+0000	DEBUG	        router/connector.go:75	CreateIACtx	{"isd_as": "1-ff00:0:123"}
+2025-05-28 09:12:20.296152+0000	DEBUG	       router/connector.go:176	Setting key	{"isd_as": "1-ff00:0:123", "index": 0}
+2025-05-28 09:12:20.296168+0000	DEBUG	        router/connector.go:89	Adding internal interface	{"isd_as": "1-ff00:0:123", "local": "127.0.0.81:31036"}
+2025-05-28 09:12:20.297039+0000	DEBUG	       router/connector.go:108	Adding external interface	{"interface": "22110", "local_isd_as": "1-ff00:0:123", "local_addr": "127.0.0.19:50000", "remote_isd_as": "1-ff00:0:121", "remote_addr": "127.0.0.18:50000", "owned": true, "link_bfd_configured": false, "link_bfd_enabled": true, "dataplane_bfd_enabled": true}
+2025-05-28 09:12:20.303568+0000	DEBUG	       router/connector.go:154	Adding service	{"isd_as": "1-ff00:0:123", "svc": "DS", "address": "127.0.0.82"}
+2025-05-28 09:12:20.303607+0000	DEBUG	       router/connector.go:154	Adding service	{"isd_as": "1-ff00:0:123", "svc": "CS", "address": "127.0.0.82"}
+2025-05-28 09:12:20.303619+0000	DEBUG	       router/connector.go:252	Endhost port range configuration	{"startPort": 31000, "endPort": 32767}
+2025-05-28 09:12:20.303630+0000	DEBUG	          control/iactx.go:119	Dataplane configured successfully	{"config": "{IA: 1-ff00:0:123, BR.Name: br1-ff00_0_123-1"}
+2025-05-28 09:12:20.303892+0000	INFO	            router/main.go:102	Exposing API	{"addr": "127.0.0.81:31142"}
+2025-05-28 09:12:20.304640+0000	DEBUG	       router/dataplane.go:760	Initialize packet pool	{"poolSize": 4363, "headroom": 512}
+2025-05-28 09:12:20.308099+0000	INFO	                env/env.go:201	Exporting prometheus metrics	{"addr": "127.0.0.81:30442"}
+2025-05-28 09:12:20.317345+0000	DEBUG	       router/dataplane.go:835	Initialize slow-path processor with	{"id": 0}
+2025-05-28 09:12:20.317409+0000	DEBUG	            udpip/udpip.go:257	Receive	{"connection": "internal"}
+2025-05-28 09:12:20.317498+0000	DEBUG	            udpip/udpip.go:344	Send	{"connection": "internal"}
+2025-05-28 09:12:20.317542+0000	DEBUG	            udpip/udpip.go:257	Receive	{"connection": "127.0.0.18:50000"}
+2025-05-28 09:12:20.317605+0000	DEBUG	            udpip/udpip.go:344	Send	{"connection": "127.0.0.18:50000"}
+2025-05-28 09:12:20.317635+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 0}
+2025-05-28 09:12:20.317648+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 1}
+2025-05-28 09:12:20.317656+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 2}
+2025-05-28 09:12:20.317665+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 3}
+2025-05-28 09:12:20.317673+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 4}
+2025-05-28 09:12:20.317681+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 5}
+2025-05-28 09:12:20.317692+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 6}
+2025-05-28 09:12:20.317704+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 7}
+2025-05-28 09:12:20.317713+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 8}
+2025-05-28 09:12:20.317722+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 9}
+2025-05-28 09:12:21.290405+0000	DEBUG	            bfd/session.go:257	Bootstrapped
+2025-05-28 09:12:21.290455+0000	DEBUG	            bfd/session.go:464	Transitioned from state Down to state Init on event Down
+2025-05-28 09:12:21.611433+0000	DEBUG	            bfd/session.go:464	Transitioned from state Init to state Up on event Up

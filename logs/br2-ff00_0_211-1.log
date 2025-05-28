@@ -1,0 +1,39 @@
+2025-05-28 09:12:20.295791+0000	INFO	             env/logging.go:42	=====================> Service started SCION Router br2-ff00_0_211-1
+  Scion version: 
+
+  pid:           188567
+  euid/egid:     1000 1000
+  cmd line:      ["bin/router" "--config" "gen/ASff00_0_211/br2-ff00_0_211-1.toml"]
+
+2025-05-28 09:12:20.302559+0000	DEBUG	          control/iactx.go:111	Configuring Dataplane
+2025-05-28 09:12:20.302617+0000	DEBUG	        router/connector.go:75	CreateIACtx	{"isd_as": "2-ff00:0:211"}
+2025-05-28 09:12:20.302994+0000	DEBUG	       router/connector.go:176	Setting key	{"isd_as": "2-ff00:0:211", "index": 0}
+2025-05-28 09:12:20.303007+0000	DEBUG	        router/connector.go:89	Adding internal interface	{"isd_as": "2-ff00:0:211", "local": "127.0.0.97:31046"}
+2025-05-28 09:12:20.304099+0000	DEBUG	       router/connector.go:108	Adding external interface	{"interface": "33081", "local_isd_as": "2-ff00:0:211", "local_addr": "127.0.0.21:50000", "remote_isd_as": "2-ff00:0:210", "remote_addr": "127.0.0.20:50000", "owned": true, "link_bfd_configured": false, "link_bfd_enabled": true, "dataplane_bfd_enabled": true}
+2025-05-28 09:12:20.304708+0000	DEBUG	       router/connector.go:154	Adding service	{"isd_as": "2-ff00:0:211", "svc": "DS", "address": "127.0.0.98"}
+2025-05-28 09:12:20.304734+0000	DEBUG	       router/connector.go:154	Adding service	{"isd_as": "2-ff00:0:211", "svc": "CS", "address": "127.0.0.98"}
+2025-05-28 09:12:20.304747+0000	DEBUG	       router/connector.go:252	Endhost port range configuration	{"startPort": 31000, "endPort": 32767}
+2025-05-28 09:12:20.304754+0000	DEBUG	          control/iactx.go:119	Dataplane configured successfully	{"config": "{IA: 2-ff00:0:211, BR.Name: br2-ff00_0_211-1"}
+2025-05-28 09:12:20.304958+0000	INFO	            router/main.go:102	Exposing API	{"addr": "127.0.0.97:31142"}
+2025-05-28 09:12:20.305504+0000	DEBUG	       router/dataplane.go:760	Initialize packet pool	{"poolSize": 4363, "headroom": 512}
+2025-05-28 09:12:20.313301+0000	INFO	                env/env.go:201	Exporting prometheus metrics	{"addr": "127.0.0.97:30442"}
+2025-05-28 09:12:20.327560+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 2}
+2025-05-28 09:12:20.327598+0000	DEBUG	            udpip/udpip.go:257	Receive	{"connection": "internal"}
+2025-05-28 09:12:20.327694+0000	DEBUG	            udpip/udpip.go:344	Send	{"connection": "internal"}
+2025-05-28 09:12:20.327740+0000	DEBUG	            udpip/udpip.go:257	Receive	{"connection": "127.0.0.20:50000"}
+2025-05-28 09:12:20.327823+0000	DEBUG	            udpip/udpip.go:344	Send	{"connection": "127.0.0.20:50000"}
+2025-05-28 09:12:20.327861+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 0}
+2025-05-28 09:12:20.327874+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 1}
+2025-05-28 09:12:20.327882+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 6}
+2025-05-28 09:12:20.327890+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 3}
+2025-05-28 09:12:20.327897+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 4}
+2025-05-28 09:12:20.327904+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 5}
+2025-05-28 09:12:20.327911+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 8}
+2025-05-28 09:12:20.327935+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 7}
+2025-05-28 09:12:20.327942+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 9}
+2025-05-28 09:12:20.327539+0000	DEBUG	       router/dataplane.go:835	Initialize slow-path processor with	{"id": 0}
+2025-05-28 09:12:21.036531+0000	DEBUG	      router/dataplane.go:1579	SCMP response	{"cause": "bfd session down"}
+2025-05-28 09:12:21.036612+0000	DEBUG	      router/dataplane.go:2413	SCMP	{"typecode": "ExternalInterfaceDown"}
+2025-05-28 09:12:21.324110+0000	DEBUG	            bfd/session.go:257	Bootstrapped
+2025-05-28 09:12:21.324145+0000	DEBUG	            bfd/session.go:464	Transitioned from state Down to state Init on event Down
+2025-05-28 09:12:21.663751+0000	DEBUG	            bfd/session.go:464	Transitioned from state Init to state Up on event Up

@@ -1,0 +1,91 @@
+{
+  "attributes": [
+    "core"
+  ],
+  "isd_as": "1-ff00:0:120",
+  "mtu": 1472,
+  "test_dispatcher": true,
+  "dispatched_ports": "31000-32767",
+  "control_service": {
+    "cs1-ff00_0_120-1": {
+      "addr": "127.0.0.54:31008"
+    }
+  },
+  "discovery_service": {
+    "cs1-ff00_0_120-1": {
+      "addr": "127.0.0.54:31008"
+    }
+  },
+  "border_routers": {
+    "br1-ff00_0_120-1": {
+      "internal_addr": "127.0.0.49:31010",
+      "interfaces": {
+        "26618": {
+          "underlay": {
+            "local": "127.0.0.5:50000",
+            "remote": "127.0.0.4:50000"
+          },
+          "isd_as": "1-ff00:0:110",
+          "link_to": "core",
+          "mtu": 1472
+        }
+      }
+    },
+    "br1-ff00_0_120-2": {
+      "internal_addr": "127.0.0.50:31012",
+      "interfaces": {
+        "57497": {
+          "underlay": {
+            "local": "127.0.0.10:50000",
+            "remote": "127.0.0.11:50000"
+          },
+          "isd_as": "1-ff00:0:121",
+          "link_to": "child",
+          "mtu": 1472
+        }
+      }
+    },
+    "br1-ff00_0_120-3": {
+      "internal_addr": "127.0.0.51:31014",
+      "interfaces": {
+        "38805": {
+          "underlay": {
+            "local": "127.0.0.12:50000",
+            "remote": "127.0.0.13:50000"
+          },
+          "isd_as": "1-ff00:0:122",
+          "link_to": "child",
+          "mtu": 1472
+        }
+      }
+    },
+    "br1-ff00_0_120-4": {
+      "internal_addr": "127.0.0.52:31016",
+      "interfaces": {
+        "40973": {
+          "underlay": {
+            "local": "127.0.0.14:50000",
+            "remote": "127.0.0.15:50000"
+          },
+          "isd_as": "3-ff00:0:310",
+          "link_to": "core",
+          "mtu": 1472
+        }
+      }
+    },
+    "br1-ff00_0_120-5": {
+      "internal_addr": "127.0.0.53:31018",
+      "interfaces": {
+        "64828": {
+          "underlay": {
+            "local": "127.0.0.16:50000",
+            "remote": "127.0.0.17:50000"
+          },
+          "isd_as": "5-ff00:0:510",
+          "link_to": "core",
+          "mtu": 1472
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+[general]
+id = "cs4-ff00_0_411-1"
+config_dir = "gen/ASff00_0_411"
+
+[trust_db]
+connection = "gen-cache/cs4-ff00_0_411-1.trust.db"
+
+[beacon_db]
+connection = "gen-cache/cs4-ff00_0_411-1.beacon.db"
+
+[path_db]
+connection = "gen-cache/cs4-ff00_0_411-1.path.db"
+
+[tracing]
+enabled = true
+debug = true
+agent = "172.17.0.1:6831"
+
+[metrics]
+prometheus = "127.0.0.130:30452"
+
+[api]
+addr = "127.0.0.130:31152"
+
+[features]
+
+[log.console]
+level = "debug"

@@ -1,0 +1,13 @@
+2025-05-28 09:12:20.225542+0000	INFO	        launcher/network.go:43	Waiting for network to be ready	{"ips": ["127.0.0.1"]}
+2025-05-28 09:12:20.225710+0000	INFO	        launcher/network.go:47	Network ready
+2025-05-28 09:12:20.225726+0000	INFO	             env/logging.go:42	=====================> Service started SCION Dispatcher dispatcher
+  Scion version: 
+
+  pid:           188344
+  euid/egid:     1000 1000
+  cmd line:      ["bin/dispatcher" "--config" "gen/dispatcher/disp.toml"]
+
+2025-05-28 09:12:20.225765+0000	INFO	         dispatcher/main.go:90	Exposing API	{"addr": "[127.0.0.1]:31141"}
+2025-05-28 09:12:20.225852+0000	DEBUG	        dispatcher/main.go:144	Dispatcher starting	{"localAddr": "[::]:30041", "dispatcher feature": true}
+2025-05-28 09:12:20.225897+0000	DEBUG	  dispatcher/dispatcher.go:486	local address: [::]:30041
+2025-05-28 09:12:20.225996+0000	INFO	                env/env.go:201	Exporting prometheus metrics	{"addr": "[127.0.0.1]:30441"}

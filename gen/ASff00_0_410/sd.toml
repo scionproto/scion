@@ -1,0 +1,28 @@
+[general]
+id = "sd4-ff00_0_410"
+config_dir = "gen/ASff00_0_410"
+
+[trust_db]
+connection = "gen-cache/sd4-ff00_0_410.trust.db"
+
+[path_db]
+connection = "gen-cache/sd4-ff00_0_410.path.db"
+
+[sd]
+address = "127.0.0.124:30255"
+
+[tracing]
+enabled = true
+debug = true
+agent = "172.17.0.1:6831"
+
+[metrics]
+prometheus = "127.0.0.124:30455"
+
+[features]
+
+[api]
+addr = "127.0.0.124:30955"
+
+[log.console]
+level = "debug"

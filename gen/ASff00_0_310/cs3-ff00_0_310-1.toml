@@ -1,0 +1,35 @@
+[general]
+id = "cs3-ff00_0_310-1"
+config_dir = "gen/ASff00_0_310"
+
+[trust_db]
+connection = "gen-cache/cs3-ff00_0_310-1.trust.db"
+
+[beacon_db]
+connection = "gen-cache/cs3-ff00_0_310-1.beacon.db"
+
+[path_db]
+connection = "gen-cache/cs3-ff00_0_310-1.path.db"
+
+[tracing]
+enabled = true
+debug = true
+agent = "172.17.0.1:6831"
+
+[metrics]
+prometheus = "127.0.0.108:30452"
+
+[api]
+addr = "127.0.0.108:31152"
+
+[features]
+
+[ca]
+mode = "in-process"
+
+[log.console]
+level = "debug"
+
+[beaconing.policies]
+propagation = "gen/ASff00_0_310/policy.yaml"
+core_registration = "gen/ASff00_0_310/policy.yaml"

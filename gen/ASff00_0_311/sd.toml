@@ -1,0 +1,28 @@
+[general]
+id = "sd3-ff00_0_311"
+config_dir = "gen/ASff00_0_311"
+
+[trust_db]
+connection = "gen-cache/sd3-ff00_0_311.trust.db"
+
+[path_db]
+connection = "gen-cache/sd3-ff00_0_311.path.db"
+
+[sd]
+address = "127.0.0.115:30255"
+
+[tracing]
+enabled = true
+debug = true
+agent = "172.17.0.1:6831"
+
+[metrics]
+prometheus = "127.0.0.115:30455"
+
+[features]
+
+[api]
+addr = "127.0.0.115:30955"
+
+[log.console]
+level = "debug"

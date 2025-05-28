@@ -1,0 +1,44 @@
+2025-05-28 09:12:20.319156+0000	INFO	             env/logging.go:42	=====================> Service started SCION Router br4-ff00_0_410-1
+  Scion version: 
+
+  pid:           188659
+  euid/egid:     1000 1000
+  cmd line:      ["bin/router" "--config" "gen/ASff00_0_410/br4-ff00_0_410-1.toml"]
+
+2025-05-28 09:12:20.325180+0000	DEBUG	          control/iactx.go:111	Configuring Dataplane
+2025-05-28 09:12:20.325228+0000	DEBUG	        router/connector.go:75	CreateIACtx	{"isd_as": "4-ff00:0:410"}
+2025-05-28 09:12:20.325863+0000	DEBUG	       router/connector.go:176	Setting key	{"isd_as": "4-ff00:0:410", "index": 0}
+2025-05-28 09:12:20.325885+0000	DEBUG	        router/connector.go:89	Adding internal interface	{"isd_as": "4-ff00:0:410", "local": "127.0.0.121:31062"}
+2025-05-28 09:12:20.327210+0000	DEBUG	       router/connector.go:108	Adding external interface	{"interface": "29506", "local_isd_as": "4-ff00:0:410", "local_addr": "127.0.0.121:31062", "remote_isd_as": "4-ff00:0:411", "remote_addr": "127.0.0.122:31064", "owned": false, "link_bfd_configured": false, "link_bfd_enabled": true, "dataplane_bfd_enabled": true}
+2025-05-28 09:12:20.327876+0000	DEBUG	       router/connector.go:108	Adding external interface	{"interface": "60936", "local_isd_as": "4-ff00:0:410", "local_addr": "127.0.0.23:50000", "remote_isd_as": "3-ff00:0:310", "remote_addr": "127.0.0.22:50000", "owned": true, "link_bfd_configured": false, "link_bfd_enabled": true, "dataplane_bfd_enabled": true}
+2025-05-28 09:12:20.328448+0000	DEBUG	       router/connector.go:154	Adding service	{"isd_as": "4-ff00:0:410", "svc": "DS", "address": "127.0.0.123"}
+2025-05-28 09:12:20.328471+0000	DEBUG	       router/connector.go:154	Adding service	{"isd_as": "4-ff00:0:410", "svc": "CS", "address": "127.0.0.123"}
+2025-05-28 09:12:20.328481+0000	DEBUG	       router/connector.go:252	Endhost port range configuration	{"startPort": 31000, "endPort": 32767}
+2025-05-28 09:12:20.328493+0000	DEBUG	          control/iactx.go:119	Dataplane configured successfully	{"config": "{IA: 4-ff00:0:410, BR.Name: br4-ff00_0_410-1"}
+2025-05-28 09:12:20.328653+0000	INFO	            router/main.go:102	Exposing API	{"addr": "127.0.0.121:31142"}
+2025-05-28 09:12:20.329294+0000	DEBUG	       router/dataplane.go:760	Initialize packet pool	{"poolSize": 5131, "headroom": 512}
+2025-05-28 09:12:20.329348+0000	INFO	                env/env.go:201	Exporting prometheus metrics	{"addr": "127.0.0.121:30442"}
+2025-05-28 09:12:20.337802+0000	DEBUG	            udpip/udpip.go:344	Send	{"connection": "internal"}
+2025-05-28 09:12:20.337893+0000	DEBUG	            udpip/udpip.go:257	Receive	{"connection": "internal"}
+2025-05-28 09:12:20.337996+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 7}
+2025-05-28 09:12:20.338012+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 6}
+2025-05-28 09:12:20.338021+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 8}
+2025-05-28 09:12:20.338028+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 1}
+2025-05-28 09:12:20.338036+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 9}
+2025-05-28 09:12:20.338045+0000	DEBUG	            udpip/udpip.go:344	Send	{"connection": "127.0.0.122:31064"}
+2025-05-28 09:12:20.338080+0000	DEBUG	            udpip/udpip.go:257	Receive	{"connection": "127.0.0.122:31064"}
+2025-05-28 09:12:20.338146+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 3}
+2025-05-28 09:12:20.338178+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 4}
+2025-05-28 09:12:20.338190+0000	DEBUG	            udpip/udpip.go:257	Receive	{"connection": "127.0.0.22:50000"}
+2025-05-28 09:12:20.338259+0000	DEBUG	            udpip/udpip.go:344	Send	{"connection": "127.0.0.22:50000"}
+2025-05-28 09:12:20.338318+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 2}
+2025-05-28 09:12:20.338348+0000	DEBUG	       router/dataplane.go:835	Initialize slow-path processor with	{"id": 0}
+2025-05-28 09:12:20.338396+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 5}
+2025-05-28 09:12:20.338423+0000	DEBUG	       router/dataplane.go:783	Initialize processor with	{"id": 0}
+2025-05-28 09:12:21.063657+0000	DEBUG	      router/dataplane.go:1579	SCMP response	{"cause": "bfd session down"}
+2025-05-28 09:12:21.063739+0000	DEBUG	      router/dataplane.go:2413	SCMP	{"typecode": "ExternalInterfaceDown"}
+2025-05-28 09:12:21.337618+0000	DEBUG	            bfd/session.go:257	Bootstrapped
+2025-05-28 09:12:21.337656+0000	DEBUG	            bfd/session.go:464	Transitioned from state Down to state Init on event Down
+2025-05-28 09:12:21.529003+0000	DEBUG	            bfd/session.go:257	Bootstrapped
+2025-05-28 09:12:21.529035+0000	DEBUG	            bfd/session.go:464	Transitioned from state Down to state Up on event Init
+2025-05-28 09:12:21.671089+0000	DEBUG	            bfd/session.go:464	Transitioned from state Init to state Up on event Up

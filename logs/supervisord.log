@@ -1,0 +1,116 @@
+2025-05-28 11:12:13,684 INFO Included extra file "/home/kt/scion/tools/../gen/supervisord.conf" during parsing
+2025-05-28 11:12:13,705 INFO RPC interface 'supervisor' initialized
+2025-05-28 11:12:13,705 CRIT Server 'inet_http_server' running without any HTTP authentication checking
+2025-05-28 11:12:13,705 INFO RPC interface 'supervisor' initialized
+2025-05-28 11:12:13,705 CRIT Server 'unix_http_server' running without any HTTP authentication checking
+2025-05-28 11:12:13,707 INFO daemonizing the supervisord process
+2025-05-28 11:12:13,707 INFO supervisord started with pid 188288
+2025-05-28 11:12:18,649 INFO Included extra file "/home/kt/scion/tools/../gen/supervisord.conf" during parsing
+2025-05-28 11:12:18,670 INFO RPC interface 'supervisor' initialized
+2025-05-28 11:12:18,670 CRIT Server 'inet_http_server' running without any HTTP authentication checking
+2025-05-28 11:12:18,670 INFO RPC interface 'supervisor' initialized
+2025-05-28 11:12:18,670 CRIT Server 'unix_http_server' running without any HTTP authentication checking
+2025-05-28 11:12:18,672 INFO daemonizing the supervisord process
+2025-05-28 11:12:18,673 INFO supervisord started with pid 188341
+2025-05-28 11:12:20,217 INFO spawned: 'dispatcher' with pid 188344
+2025-05-28 11:12:20,219 INFO spawned: 'br1-ff00_0_110-1' with pid 188345
+2025-05-28 11:12:20,221 INFO spawned: 'br1-ff00_0_110-2' with pid 188346
+2025-05-28 11:12:20,224 INFO spawned: 'br1-ff00_0_110-3' with pid 188351
+2025-05-28 11:12:20,226 INFO spawned: 'cs1-ff00_0_110-1' with pid 188358
+2025-05-28 11:12:20,229 INFO spawned: 'sd1-ff00_0_110' with pid 188370
+2025-05-28 11:12:20,231 INFO spawned: 'br1-ff00_0_111-1' with pid 188379
+2025-05-28 11:12:20,233 INFO spawned: 'cs1-ff00_0_111-1' with pid 188385
+2025-05-28 11:12:20,235 INFO spawned: 'sd1-ff00_0_111' with pid 188393
+2025-05-28 11:12:20,237 INFO spawned: 'br1-ff00_0_120-1' with pid 188398
+2025-05-28 11:12:20,239 INFO spawned: 'br1-ff00_0_120-2' with pid 188408
+2025-05-28 11:12:20,241 INFO spawned: 'br1-ff00_0_120-3' with pid 188419
+2025-05-28 11:12:20,246 INFO spawned: 'br1-ff00_0_120-4' with pid 188437
+2025-05-28 11:12:20,247 INFO spawned: 'br1-ff00_0_120-5' with pid 188444
+2025-05-28 11:12:20,249 INFO spawned: 'cs1-ff00_0_120-1' with pid 188449
+2025-05-28 11:12:20,251 INFO spawned: 'sd1-ff00_0_120' with pid 188456
+2025-05-28 11:12:20,253 INFO spawned: 'br1-ff00_0_121-1' with pid 188463
+2025-05-28 11:12:20,257 INFO spawned: 'br1-ff00_0_121-2' with pid 188481
+2025-05-28 11:12:20,259 INFO spawned: 'cs1-ff00_0_121-1' with pid 188485
+2025-05-28 11:12:20,261 INFO spawned: 'sd1-ff00_0_121' with pid 188495
+2025-05-28 11:12:20,263 INFO spawned: 'br1-ff00_0_122-1' with pid 188497
+2025-05-28 11:12:20,264 INFO spawned: 'cs1-ff00_0_122-1' with pid 188506
+2025-05-28 11:12:20,266 INFO spawned: 'sd1-ff00_0_122' with pid 188511
+2025-05-28 11:12:20,268 INFO spawned: 'br1-ff00_0_123-1' with pid 188519
+2025-05-28 11:12:20,270 INFO spawned: 'cs1-ff00_0_123-1' with pid 188527
+2025-05-28 11:12:20,272 INFO spawned: 'sd1-ff00_0_123' with pid 188532
+2025-05-28 11:12:20,274 INFO spawned: 'br2-ff00_0_210-1' with pid 188542
+2025-05-28 11:12:20,276 INFO spawned: 'br2-ff00_0_210-2' with pid 188548
+2025-05-28 11:12:20,278 INFO spawned: 'cs2-ff00_0_210-1' with pid 188556
+2025-05-28 11:12:20,282 INFO spawned: 'sd2-ff00_0_210' with pid 188564
+2025-05-28 11:12:20,284 INFO spawned: 'br2-ff00_0_211-1' with pid 188567
+2025-05-28 11:12:20,286 INFO spawned: 'cs2-ff00_0_211-1' with pid 188579
+2025-05-28 11:12:20,288 INFO spawned: 'sd2-ff00_0_211' with pid 188588
+2025-05-28 11:12:20,291 INFO spawned: 'br3-ff00_0_310-1' with pid 188605
+2025-05-28 11:12:20,293 INFO spawned: 'br3-ff00_0_310-2' with pid 188615
+2025-05-28 11:12:20,295 INFO spawned: 'br3-ff00_0_310-3' with pid 188618
+2025-05-28 11:12:20,297 INFO spawned: 'cs3-ff00_0_310-1' with pid 188627
+2025-05-28 11:12:20,299 INFO spawned: 'sd3-ff00_0_310' with pid 188630
+2025-05-28 11:12:20,300 INFO spawned: 'br3-ff00_0_311-1' with pid 188631
+2025-05-28 11:12:20,302 INFO spawned: 'cs3-ff00_0_311-1' with pid 188633
+2025-05-28 11:12:20,306 INFO spawned: 'sd3-ff00_0_311' with pid 188645
+2025-05-28 11:12:20,308 INFO spawned: 'br4-ff00_0_410-1' with pid 188659
+2025-05-28 11:12:20,313 INFO spawned: 'br4-ff00_0_410-2' with pid 188680
+2025-05-28 11:12:20,314 INFO spawned: 'cs4-ff00_0_410-1' with pid 188685
+2025-05-28 11:12:20,320 INFO spawned: 'sd4-ff00_0_410' with pid 188710
+2025-05-28 11:12:20,322 INFO spawned: 'br4-ff00_0_411-1' with pid 188714
+2025-05-28 11:12:20,324 INFO spawned: 'cs4-ff00_0_411-1' with pid 188724
+2025-05-28 11:12:20,326 INFO spawned: 'sd4-ff00_0_411' with pid 188729
+2025-05-28 11:12:20,328 INFO spawned: 'br5-ff00_0_510-1' with pid 188733
+2025-05-28 11:12:20,329 INFO spawned: 'cs5-ff00_0_510-1' with pid 188737
+2025-05-28 11:12:20,332 INFO spawned: 'sd5-ff00_0_510' with pid 188753
+2025-05-28 11:12:21,248 INFO success: dispatcher entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_110-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_110-2 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_110-3 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: cs1-ff00_0_110-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: sd1-ff00_0_110 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_111-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: cs1-ff00_0_111-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: sd1-ff00_0_111 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_120-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_120-2 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_120-3 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_120-4 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_120-5 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: cs1-ff00_0_120-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: sd1-ff00_0_120 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_121-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_121-2 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: cs1-ff00_0_121-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: sd1-ff00_0_121 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_122-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: cs1-ff00_0_122-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: sd1-ff00_0_122 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br1-ff00_0_123-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: cs1-ff00_0_123-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: sd1-ff00_0_123 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,494 INFO success: br2-ff00_0_210-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br2-ff00_0_210-2 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: cs2-ff00_0_210-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: sd2-ff00_0_210 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br2-ff00_0_211-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: cs2-ff00_0_211-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: sd2-ff00_0_211 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br3-ff00_0_310-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br3-ff00_0_310-2 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br3-ff00_0_310-3 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: cs3-ff00_0_310-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: sd3-ff00_0_310 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br3-ff00_0_311-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: cs3-ff00_0_311-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: sd3-ff00_0_311 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br4-ff00_0_410-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br4-ff00_0_410-2 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: cs4-ff00_0_410-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: sd4-ff00_0_410 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br4-ff00_0_411-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: cs4-ff00_0_411-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: sd4-ff00_0_411 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: br5-ff00_0_510-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: cs5-ff00_0_510-1 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+2025-05-28 11:12:25,495 INFO success: sd5-ff00_0_510 entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)

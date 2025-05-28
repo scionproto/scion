@@ -1,0 +1,14 @@
+[general]
+id = "br1-ff00_0_121-1"
+config_dir = "gen/ASff00_0_121"
+
+[metrics]
+prometheus = "127.0.0.65:30442"
+
+[features]
+
+[api]
+addr = "127.0.0.65:31142"
+
+[log.console]
+level = "debug"

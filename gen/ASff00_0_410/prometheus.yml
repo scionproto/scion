@@ -1,0 +1,18 @@
+global:
+  evaluation_interval: 1s
+  external_labels:
+    monitor: scion-monitor
+  scrape_interval: 1s
+scrape_configs:
+- file_sd_configs:
+  - files:
+    - prometheus/br.yml
+  job_name: BR
+- file_sd_configs:
+  - files:
+    - prometheus/cs.yml
+  job_name: CS
+- file_sd_configs:
+  - files:
+    - prometheus/sd.yml
+  job_name: SD

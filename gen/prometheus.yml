@@ -1,0 +1,58 @@
+global:
+  evaluation_interval: 1s
+  external_labels:
+    monitor: scion-monitor
+  scrape_interval: 1s
+scrape_configs:
+- file_sd_configs:
+  - files:
+    - ASff00_0_110/prometheus/br.yml
+    - ASff00_0_120/prometheus/br.yml
+    - ASff00_0_111/prometheus/br.yml
+    - ASff00_0_121/prometheus/br.yml
+    - ASff00_0_122/prometheus/br.yml
+    - ASff00_0_123/prometheus/br.yml
+    - ASff00_0_210/prometheus/br.yml
+    - ASff00_0_211/prometheus/br.yml
+    - ASff00_0_310/prometheus/br.yml
+    - ASff00_0_311/prometheus/br.yml
+    - ASff00_0_410/prometheus/br.yml
+    - ASff00_0_411/prometheus/br.yml
+    - ASff00_0_510/prometheus/br.yml
+  job_name: BR
+- file_sd_configs:
+  - files:
+    - ASff00_0_110/prometheus/cs.yml
+    - ASff00_0_120/prometheus/cs.yml
+    - ASff00_0_111/prometheus/cs.yml
+    - ASff00_0_121/prometheus/cs.yml
+    - ASff00_0_122/prometheus/cs.yml
+    - ASff00_0_123/prometheus/cs.yml
+    - ASff00_0_210/prometheus/cs.yml
+    - ASff00_0_211/prometheus/cs.yml
+    - ASff00_0_310/prometheus/cs.yml
+    - ASff00_0_311/prometheus/cs.yml
+    - ASff00_0_410/prometheus/cs.yml
+    - ASff00_0_411/prometheus/cs.yml
+    - ASff00_0_510/prometheus/cs.yml
+  job_name: CS
+- file_sd_configs:
+  - files:
+    - ASff00_0_110/prometheus/sd.yml
+    - ASff00_0_120/prometheus/sd.yml
+    - ASff00_0_111/prometheus/sd.yml
+    - ASff00_0_121/prometheus/sd.yml
+    - ASff00_0_122/prometheus/sd.yml
+    - ASff00_0_123/prometheus/sd.yml
+    - ASff00_0_210/prometheus/sd.yml
+    - ASff00_0_211/prometheus/sd.yml
+    - ASff00_0_310/prometheus/sd.yml
+    - ASff00_0_311/prometheus/sd.yml
+    - ASff00_0_410/prometheus/sd.yml
+    - ASff00_0_411/prometheus/sd.yml
+    - ASff00_0_510/prometheus/sd.yml
+  job_name: SD
+- file_sd_configs:
+  - files:
+    - dispatcher/prometheus/disp.yml
+  job_name: dispatcher

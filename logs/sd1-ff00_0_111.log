@@ -1,0 +1,17 @@
+2025-05-28 09:12:20.246308+0000	INFO	             env/logging.go:42	=====================> Service started SCION Daemon sd1-ff00_0_111
+  Scion version: 
+
+  pid:           188393
+  euid/egid:     1000 1000
+  cmd line:      ["bin/daemon" "--config" "gen/ASff00_0_111/sd.toml"]
+
+2025-05-28 09:12:20.247682+0000	INFO	        storage/storage.go:201	Connecting PathDB	{"backend": "sqlite", "connection": "gen-cache/sd1-ff00_0_111.path.db"}
+2025-05-28 09:12:20.348128+0000	INFO	      periodic/periodic.go:136	Starting periodic task	{"debug_id": "b134bd69", "task": "control_pathstorage_cleaner_cleaner"}
+2025-05-28 09:12:20.348176+0000	INFO	      periodic/periodic.go:136	Starting periodic task	{"debug_id": "addf91f5", "task": "sd_segments_cleaner"}
+2025-05-28 09:12:20.348206+0000	INFO	      periodic/periodic.go:136	Starting periodic task	{"debug_id": "310ecbe9", "task": "sd_revocation_cleaner"}
+2025-05-28 09:12:20.348216+0000	INFO	        storage/storage.go:244	Connecting TrustDB	{"backend": "sqlite", "connection": "gen-cache/sd1-ff00_0_111.trust.db"}
+2025-05-28 09:12:20.438185+0000	INFO	           daemon/daemon.go:69	TRCs loaded	{"files": ["gen/ASff00_0_111/certs/ISD1-B1-S1.trc", "gen/ASff00_0_111/certs/ISD2-B1-S1.trc", "gen/ASff00_0_111/certs/ISD3-B1-S1.trc", "gen/ASff00_0_111/certs/ISD4-B1-S1.trc", "gen/ASff00_0_111/certs/ISD5-B1-S1.trc"]}
+2025-05-28 09:12:20.438241+0000	INFO	           daemon/daemon.go:82	Certificate chains loaded	{"files": []}
+2025-05-28 09:12:20.438271+0000	INFO	      periodic/periodic.go:136	Starting periodic task	{"debug_id": "8ae4f380", "task": "daemon_trc_loader"}
+2025-05-28 09:12:20.438813+0000	INFO	            daemon/main.go:323	Exposing API	{"addr": "127.0.0.43:30955"}
+2025-05-28 09:12:20.439154+0000	INFO	                env/env.go:201	Exporting prometheus metrics	{"addr": "127.0.0.43:30455"}
