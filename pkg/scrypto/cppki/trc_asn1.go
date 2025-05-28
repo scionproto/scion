@@ -46,7 +46,7 @@ type asn1TRCPayload struct {
 	Votes             []int64         `asn1:"votes"`
 	Quorum            int64           `asn1:"votingQuorum"`
 	CoreASes          []string        `asn1:"coreASes"`
-	AuthoritativeASes []string        `as1n:"authoritativeASes"`
+	AuthoritativeASes []string        `asn1:"authoritativeASes"`
 	Description       string          `asn1:"description,utf8"`
 	Certificates      []asn1.RawValue `asn1:"certificates"`
 }
