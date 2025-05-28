@@ -534,15 +534,15 @@ func shouldDiscard(pkt *layers.BFD) (bool, string) {
 	if pkt.MyDiscriminator == 0 {
 		return true, ""
 	}
-	if pkt.YourDiscriminator == 0 {
-		if pkt.State != layers.BFDStateAdminDown && pkt.State != layers.BFDStateDown {
-			return true, ""
-		}
+	if pkt.YourDiscriminator == 0 &&
+		pkt.State != layers.BFDStateAdminDown &&
+		pkt.State != layers.BFDStateDown {
+		return true, ""
 	}
-	if !pkt.AuthPresent {
-		if pkt.AuthHeader != nil && pkt.AuthHeader.AuthType != layers.BFDAuthTypeNone {
-			return true, ""
-		}
+	if !pkt.AuthPresent &&
+		pkt.AuthHeader != nil &&
+		pkt.AuthHeader.AuthType != layers.BFDAuthTypeNone {
+		return true, ""
 	}
 
 	// Authentication is not supported (see Anapaya/scion#3280). We currently discard
