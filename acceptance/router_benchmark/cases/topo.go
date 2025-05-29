@@ -201,7 +201,8 @@ func InitInterfaces(pairs []string) []string {
 
 		// PeerMac (our side): By default we use the real one, but we can be told to use another.
 		// (If the link is virtual ethernet, using the real mac address causes serious performance
-		// issues, the cause of which has yet to be found).
+		// issues: the kernel will waste time trying to process incoming packets and sending icmp
+		// errors back.
 		peerMAC := device.HardwareAddr
 		if len(info) > 1 {
 			peerMAC, err = net.ParseMAC(info[1])

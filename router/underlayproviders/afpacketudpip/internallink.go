@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"sync"
 	"unsafe"
 
 	"github.com/gopacket/gopacket"
@@ -31,12 +32,18 @@ import (
 	"github.com/scionproto/scion/router/bfd"
 )
 
+// internalLink is actually a half link. It is not associated with a specific remote address.
+// TODO(jiceatscion): a lot of code could be deduplicated between the two link implementations.
 type internalLink struct {
 	procQs           []chan *router.Packet
 	header           []byte
+	localMAC         net.HardwareAddr // replace w/ 6 bytes?
+	pool             router.PacketPool
+	hdrMutex         sync.Mutex
+	localAddr        *netip.AddrPort
 	egressQ          chan *router.Packet
 	metrics          *router.InterfaceMetrics
-	pool             router.PacketPool
+	arpCache         map[netip.Addr]*[6]byte
 	svc              *router.Services[netip.AddrPort]
 	seed             uint32
 	dispatchStart    uint16
@@ -45,27 +52,69 @@ type internalLink struct {
 	is4              bool
 }
 
+func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
+	if !l.is4 {
+		// NDP  Not implemented yet
+		return
+	}
+
+	// TODO(jiceatscion): use a canned arp packet?
+	ethernet := layers.Ethernet{
+		SrcMAC:       l.localMAC,
+		DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		EthernetType: layers.EthernetTypeARP,
+	}
+	arp := layers.ARP{
+		AddrType:          layers.LinkTypeEthernet,
+		HwAddressSize:     6,
+		Protocol:          layers.EthernetTypeIPv4,
+		ProtAddressSize:   4,
+		Operation:         layers.ARPRequest,
+		SourceHwAddress:   l.localMAC,
+		SourceProtAddress: l.localAddr.Addr().AsSlice(),
+		DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
+		DstProtAddress:    remoteIP.AsSlice(),
+	}
+	log.Debug("ARP Request sent internal", "whohas", remoteIP, "tell", l.localAddr.Addr())
+	p := l.pool.Get()
+	serBuf := router.NewSerializeProxyStart(p.RawPacket, 60)
+	err := gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
+	if err != nil {
+		// The only possible reason for this is in the few lines above.
+		panic("Cannot serialize arp packet")
+	}
+	p.RawPacket = serBuf.Bytes()
+	select {
+	case l.egressQ <- p:
+	default:
+	}
+}
+
 // Expensive. Call only to make a few prefab headers.
-func (l *internalLink) packHeader(src *netip.AddrPort) {
+// This is called during initialization  only. No need for the mutex.
+// However, addHeader needs to consult/update the arp cache for each packet; that's when the
+// mutex is needed.
+// We prepare an incomplete header; it is still faster to patch it than recreate it
+// from scratch for every packet.
+func (l *internalLink) packHeader() {
 
 	sb := gopacket.NewSerializeBuffer()
+	srcIP := l.localAddr.Addr()
+
 	ethernet := layers.Ethernet{
-		// FIXME! We must get those from the interface and from ARP!
-		SrcMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x1, 0x1},
-		DstMAC:       net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x2, 0x2},
+		SrcMAC:       l.localMAC,
+		DstMAC:       []byte{0, 0, 0, 0, 0, 0},
 		EthernetType: layers.EthernetTypeIPv4,
 	}
 	udp := layers.UDP{
-		SrcPort: layers.UDPPort(src.Port()),
+		SrcPort: layers.UDPPort(l.localAddr.Port()),
 	}
-	l.is4 = src.Addr().Is4()
-
 	if l.is4 {
 		ip := layers.IPv4{
 			Version:  4,
 			IHL:      5,
 			TTL:      64,
-			SrcIP:    src.Addr().AsSlice(),
+			SrcIP:    srcIP.AsSlice(),
 			DstIP:    netip.IPv4Unspecified().AsSlice(),
 			Protocol: layers.IPProtocolUDP,
 			// Flags:    layers.IPv4DontFragment, // Sure about that?
@@ -82,12 +131,11 @@ func (l *internalLink) packHeader(src *netip.AddrPort) {
 		l.header = sb.Bytes()[:42]
 		return
 	}
-
 	ip := layers.IPv6{
 		Version:    6,
 		NextHeader: layers.IPProtocolUDP,
 		HopLimit:   64,
-		SrcIP:      src.Addr().AsSlice(),
+		SrcIP:      srcIP.AsSlice(),
 		DstIP:      netip.IPv6Unspecified().AsSlice(),
 	}
 	_ = udp.SetNetworkLayerForChecksum(&ip)
@@ -96,20 +144,40 @@ func (l *internalLink) packHeader(src *netip.AddrPort) {
 		// The only possible reason for this is in the few lines above.
 		panic("Cannot serialize static header")
 	}
-
 	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
 	// ethernet minimum.
 	l.header = sb.Bytes()[:62]
 }
 
-// FIXME: can do cleaner and more legible... and maybe faster.
-func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) {
+// TODO(jiceatscion): can do cleaner, more legible, faster?
+// This runs asynchronously with updating the arp table. Hence locking hdrMutex.
+func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 	payloadLen := len(p.RawPacket)
+	dstIP := dst.Addr()
+
+	// Resolve the destination MAC address if we can.
+	l.hdrMutex.Lock()
+	dstMac, found := l.arpCache[dstIP]
+	if dstMac == nil { // pending or missing
+		if !found {
+			// Trigger the address resolution.
+			l.arpCache[dstIP] = nil // Mark pending
+			l.hdrMutex.Unlock()
+			l.seekNeighbor(dstIP)
+		} else {
+			l.hdrMutex.Unlock()
+		}
+		// Either way, not ready yet.
+		return false
+	}
+
+	// Prepend the canned header
 	p.RawPacket = p.WithHeader(len(l.header))
 	copy(p.RawPacket, l.header)
+	l.hdrMutex.Unlock()
 
-	// Inject dest
-	copy(p.RawPacket, net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0x2, 0x2})
+	// Inject dest.
+	copy(p.RawPacket, dstMac[:])
 	copy(p.RawPacket[14+16:], dst.Addr().AsSlice()) // Can do cheaper?
 	binary.BigEndian.PutUint16(p.RawPacket[14+20+2:], dst.Port())
 
@@ -129,7 +197,7 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) {
 		// For IPV4 we can screw the UDP checksum
 		p.RawPacket[14+20+6] = 0
 		p.RawPacket[14+20+7] = 0
-		return
+		return true
 	}
 
 	// Fix the IPv6 payload length field (udp plus the scion stuff)
@@ -146,6 +214,7 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) {
 	csum = gopacket.ComputeChecksum(p.RawPacket[14+40+4:14+40+6], csum) // UDP length
 	csum = gopacket.ComputeChecksum(zerosAndProto, csum)                // 3 0s plus UDP proto num
 	binary.BigEndian.PutUint16(p.RawPacket[14+40+18:], gopacket.FoldChecksum(csum))
+	return true
 }
 
 func (l *internalLink) start(
@@ -230,7 +299,10 @@ func (l *internalLink) Send(p *router.Packet) bool {
 	// Resolve() We need to craft a header in front of the packet.  May be resolve could do that,
 	// instead of just storing the destination in the packet structure. That would save us the
 	// allocation of address but requires some more changes to the dataplane code structure.
-	l.addHeader(p, (*netip.AddrPort)(p.RemoteAddr))
+	if !l.addHeader(p, (*netip.AddrPort)(p.RemoteAddr)) {
+		// Cannot yet resolve that address.
+		return false
+	}
 	select {
 	case l.egressQ <- p:
 	default:
@@ -241,8 +313,10 @@ func (l *internalLink) Send(p *router.Packet) bool {
 
 func (l *internalLink) SendBlocking(p *router.Packet) {
 	// Likewise: p.remoteAddress -> header.
-	l.addHeader(p, (*netip.AddrPort)(p.RemoteAddr))
-	l.egressQ <- p
+	if !l.addHeader(p, (*netip.AddrPort)(p.RemoteAddr)) {
+		// FIXME(jiceatscion): this function could not fail. Now it can.
+		l.egressQ <- p
+	}
 }
 
 // receive delivers an incoming packet to the appropriate processing queue.
@@ -277,6 +351,84 @@ func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 	}
 }
 
+func (l *internalLink) handleNeighbor(
+	isReq bool,
+	targetIP, senderIP netip.Addr,
+	targetMAC, senderMAC [6]byte,
+) {
+	// Don't pollute our table with stuff that we can't have asked. However, per RFC826, update
+	// what we already have when given a chance.
+	// We avoid replacing cache entries with identical values to limit GC pressure.
+	// We respond only to peers that we keep in the cache.
+	l.hdrMutex.Lock()
+	currentSenderMAC, have := l.arpCache[senderIP]
+	if (targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified()) || have {
+		// Good to cache or update
+		if currentSenderMAC == nil || *currentSenderMAC != senderMAC {
+			// An actual new address.
+			currentSenderMAC = &senderMAC
+			l.arpCache[senderIP] = currentSenderMAC
+			log.Debug("ARP updated cache ptp", "IP", senderIP, "isat", senderMAC,
+				"on", l.localAddr.Addr())
+		}
+	} else {
+		// Not good to cache. No response either.
+		isReq = false
+	}
+	l.hdrMutex.Unlock()
+
+	// Respond?
+	// TODO(jiceatscion): since we find the interfaces by address, we assume the addresses are
+	// assigned in the regular ip stack. So the kernel should be doing the responding just fine.
+	// Therefore, may be responding isn't required; at least as long as we use assigned addresses.
+	if !isReq {
+		return
+	}
+	if !l.is4 {
+		// NDP  Not implemented yet
+		log.Debug("V6 cannot repond", "IP", senderIP, "isat", senderMAC, "on", l.localAddr.Addr())
+		return
+	}
+
+	if targetIP == senderIP {
+		// gratuitous request (at least in the V4 world).
+		return
+	}
+	// TODO(jiceatscion): is it worth checking that the sender MAC is valid too?
+
+	// TODO(jiceatscion): use a canned arp packet?
+	ethernet := layers.Ethernet{
+		SrcMAC:       l.localMAC,
+		DstMAC:       currentSenderMAC[:],
+		EthernetType: layers.EthernetTypeARP,
+	}
+	arp := layers.ARP{
+		AddrType:          layers.LinkTypeEthernet,
+		HwAddressSize:     6,
+		Protocol:          layers.EthernetTypeIPv4,
+		ProtAddressSize:   4,
+		Operation:         layers.ARPReply,
+		SourceHwAddress:   l.localMAC,
+		SourceProtAddress: l.localAddr.Addr().AsSlice(),
+		DstHwAddress:      currentSenderMAC[:],
+		DstProtAddress:    senderIP.AsSlice(),
+	}
+	log.Debug("ARP Response sent internal", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
+		"to", senderIP)
+	p := l.pool.Get()
+	serBuf := router.NewSerializeProxyStart(p.RawPacket, 60)
+	err := gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
+	if err != nil {
+		// The only possible reason for this is in the few lines above.
+		panic("Cannot serialize arp packet")
+	}
+	p.RawPacket = serBuf.Bytes()
+	select {
+	case l.egressQ <- p:
+	default:
+	}
+}
+
 func newInternalLink(
 	localAddr *netip.AddrPort,
 	conn *udpConnection,
@@ -284,18 +436,21 @@ func newInternalLink(
 	dispatchStart, dispatchEnd, dispatchRedirect uint16,
 	metrics *router.InterfaceMetrics,
 ) *internalLink {
-	// We prepare an incomplete header; it is still faster to patch it than recreate it
-	// from scratch for every packet.
 	il := &internalLink{
+		localMAC:         conn.localMAC,
+		localAddr:        localAddr,
 		egressQ:          conn.queue,
 		metrics:          metrics,
+		arpCache:         make(map[netip.Addr]*[6]byte),
 		svc:              svc,
 		seed:             conn.seed,
 		dispatchStart:    dispatchStart,
 		dispatchEnd:      dispatchEnd,
 		dispatchRedirect: dispatchRedirect,
+		is4:              localAddr.Addr().Is4(),
 	}
-	il.packHeader(localAddr)
+	il.packHeader()
 	conn.link = il
+	log.Debug("Link", "local", localAddr, "localMAC", conn.localMAC)
 	return il
 }

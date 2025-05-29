@@ -39,6 +39,9 @@ BM_PACKET_SIZE = 1500
 # Router profiling ON or OFF?
 PROFILING = False
 
+# DEBUG run: set this to True to reduce number of packets and skip microbenchmarks and warmup.
+DEBUG_RUN = False
+
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
     "in": 700000,
@@ -190,6 +193,7 @@ class RouterBMTest(base.TestBase, RouterBM):
     # During run and teardown, we reconstruct the map without actually setup the
     # interfaces. This assumes that brload isn't being changed in-between, since the map is
     # based on the requirements that it outputs.
+    debug_run = DEBUG_RUN
 
     router_cpus: list[int] = [0]
 
@@ -372,6 +376,8 @@ class RouterBMTest(base.TestBase, RouterBM):
             self.profiling_addr = req.ip
 
     def fetch_horsepower(self):
+        if self.debug_run:
+            return
         try:
             coremark_exe = self.get_executable("coremark")
             output = taskset("-c", self.router_cpus[0], coremark_exe.executable)

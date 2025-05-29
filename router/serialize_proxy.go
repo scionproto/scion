@@ -42,7 +42,7 @@ func NewSerializeProxy(buf []byte) serializeProxy {
 	return NewSerializeProxyStart(buf, cap(buf))
 }
 
-// newSerializeProxyStart returns a new serializeProxy. The initial prepend/append point is set to
+// NewSerializeProxyStart returns a new serializeProxy. The initial prepend/append point is set to
 // the given start value. This has the same effect as calling clear(start).
 func NewSerializeProxyStart(buf []byte, start int) serializeProxy {
 	serBuf := serializeProxy{

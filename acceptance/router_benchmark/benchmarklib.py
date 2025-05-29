@@ -168,10 +168,12 @@ class RouterBM():
             *map_args,
             "--case", case,
             "--duration", f"{duration}s",
-            # "--num-packets", 1000, # (for a short run)
             "--num-streams", "840",
             "--packet-size", f"{self.packet_size}",
         ]
+        if self.debug_run:
+            brload_args.extend(["--num-packets", 1000])
+
         if self.brload_cpus:
             brload_args = [
                 "taskset", "-c", ",".join(map(str, self.brload_cpus)),
@@ -320,13 +322,16 @@ class RouterBM():
 
         # Run one test (30% size) as warm-up to trigger any frequency scaling, else the first test
         # can get much lower performance.
-        logger.debug("Warmup")
-        self.exec_br_load(test_cases[0], map_args, 5)
+        if self.debug_run:
+            cores = 3
+        else:
+            logger.debug("Warmup")
+            self.exec_br_load(test_cases[0], map_args, 5)
 
-        # Fetch the core count once. It doesn't change while the router is running.
-        # We cannot get this until the router has been up for a few seconds. If you shorten
-        # the warmup for some reason, make sure to add a delay.
-        cores = self.core_count()
+            # Fetch the core count once. It doesn't change while the router is running.
+            # We cannot get this until the router has been up for a few seconds. If you shorten
+            # the warmup for some reason, make sure to add a delay.
+            cores = self.core_count()
 
         # At long last, run the tests.
         results = Results(cores, self.coremark, self.mmbm, self.packet_size)

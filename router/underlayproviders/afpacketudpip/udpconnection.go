@@ -33,6 +33,7 @@ import (
 // about logs and metrics. This allows UDP connections to be shared between links, which is the
 // norm in this case; since a raw socket receives traffic for all ports.
 type udpConnection struct {
+	localMAC     net.HardwareAddr
 	name         string                     // for logs. It's more informative than ifID.
 	link         udpLink                    // Default Link for ingest.
 	links        map[netip.AddrPort]udpLink // Link map for ingest from specific remote addresses.
@@ -44,31 +45,6 @@ type udpConnection struct {
 	senderDone   chan struct{}
 	seed         uint32
 	running      atomic.Bool
-}
-
-func newUdpConnection(
-	intf net.Interface,
-	qSize int,
-	connOpener ConnOpener,
-	port uint16,
-	metrics *router.InterfaceMetrics,
-) (*udpConnection, error) {
-	queue := make(chan *router.Packet, qSize)
-	afp, filter, err := connOpener.Open(intf.Index, port)
-	if err != nil {
-		return nil, err
-	}
-	return &udpConnection{
-		name:         intf.Name,
-		afp:          afp,
-		filter:       filter,
-		queue:        queue,
-		links:        make(map[netip.AddrPort]udpLink),
-		metrics:      metrics,
-		seed:         makeHashSeed(),
-		receiverDone: make(chan struct{}),
-		senderDone:   make(chan struct{}),
-	}, nil
 }
 
 // start puts the connection in the running state. In that state, the connection can deliver
@@ -110,9 +86,40 @@ func (u *udpConnection) stop() {
 	}
 }
 
-func (u *udpConnection) receive(pool router.PacketPool) {
-	log.Debug("Receive", "connection", u.name)
+func (u *udpConnection) handleArp(arp *layers.ARP) {
+	if arp.AddrType != layers.LinkTypeEthernet ||
+		arp.HwAddressSize != 6 ||
+		arp.Protocol != layers.EthernetTypeIPv4 ||
+		arp.ProtAddressSize != 4 {
+		return
+	}
+	targetIP := netip.AddrFrom4([4]byte(arp.DstProtAddress))
+	senderIP := netip.AddrFrom4([4]byte(arp.SourceProtAddress))
 
+	// Get the MACs out of the packet too; it's all just slices referring to it.
+	// Reduce them to just 6 bytes while we are at it. We know they're that; it was decoded ok.
+	targetMAC := [6]byte(arp.DstHwAddress)
+	senderMAC := [6]byte(arp.SourceHwAddress)
+
+	// TODO(jiceatscion): ignore gratuitous reqs
+	isReq := (arp.Operation == layers.ARPRequest)
+
+	// We have to pass all requests to all links. Sometimes the sender uses an IP address
+	// that we don't know about (e.g. the traffic generator uses interfaces with a different
+	// IP assigned - which the arp lib uses).
+	for _, l := range u.links {
+		l.handleNeighbor(isReq, targetIP, senderIP, targetMAC, senderMAC)
+	}
+	if u.link != nil {
+		u.link.handleNeighbor(isReq, targetIP, senderIP, targetMAC, senderMAC)
+	}
+}
+
+func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6) {
+	log.Debug("V6 NDP not implemented")
+}
+
+func (u *udpConnection) receive(pool router.PacketPool) {
 	// Since we do not know the real size of the IP header, we have to plan on it being short; so
 	// our payload doesn't encroach on the headroom space. If the header is longer, then we will
 	// leave more headroom than needed. We don't even know if we're getting v4 or v6. Assume v4.
@@ -121,6 +128,8 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 	minHeadRoom := 14 + 20 + 8
 
 	var ethLayer layers.Ethernet
+	var arpLayer layers.ARP
+	var icmp6Layer layers.ICMPv6
 	var ipv4Layer layers.IPv4
 	var ipv6Layer layers.IPv6
 	var udpLayer layers.UDP
@@ -146,7 +155,8 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		}
 		networkLayer := ethLayer.NextLayerType()
 		data = ethLayer.LayerPayload() // chop off the eth header
-		if ipv4Layer.CanDecode().Contains(networkLayer) {
+		switch {
+		case ipv4Layer.CanDecode().Contains(networkLayer):
 			if err := ipv4Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 				continue
 			}
@@ -156,7 +166,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 			// Retrieve src from the decoded IP layers.
 			srcIP, validSrc = netip.AddrFromSlice(ipv4Layer.SrcIP)
 			data = ipv4Layer.LayerPayload() // chop off the ip header
-		} else if ipv6Layer.CanDecode().Contains(networkLayer) {
+		case ipv6Layer.CanDecode().Contains(networkLayer):
 			if err := ipv6Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 				continue
 			}
@@ -167,7 +177,17 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 			// Retrieve src from the decoded IP layers.
 			srcIP, validSrc = netip.AddrFromSlice(ipv6Layer.SrcIP)
 			data = ipv6Layer.LayerPayload() // chop off the ip header
-		} else {
+		case arpLayer.CanDecode().Contains(networkLayer):
+			if err := arpLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err == nil {
+				u.handleArp(&arpLayer) // The packet stays with us.
+			}
+			continue
+		case icmp6Layer.CanDecode().Contains(networkLayer): // The packet stays with us.
+			if err := icmp6Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err == nil {
+				u.handleV6NDP(&icmp6Layer)
+			}
+			continue
+		default:
 			continue
 		}
 		if !validSrc {
@@ -177,14 +197,13 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		if err := udpLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 			continue
 		}
-		p.RawPacket = udpLayer.LayerPayload() // chop off the udp header. The rest is SCION.
-		srcAddr := netip.AddrPortFrom(srcIP, uint16(udpLayer.SrcPort))
 
 		// Demultiplex to a link. There is one connection per interface, so they are mostly shared
 		// between links; including the internal link. The internal link catches all remote
 		// addresses that no other link claims. That is what u.link is. Connections that are not
 		// shared with the internal link do not have it as they should not accept packets from
 		// unknown sources (but they might receive them: the ebpf filter only looks at port).
+		srcAddr := netip.AddrPortFrom(srcIP, uint16(udpLayer.SrcPort))
 		l := u.link
 		if u.links != nil {
 			if ll, found := u.links[srcAddr]; found {
@@ -199,6 +218,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		// even in this implementation. Instead of using a netip.AddrPort, we could
 		// point directly at some space in the packet buffer (not the header itself - it
 		// gets overwritten by SCMP).
+		p.RawPacket = udpLayer.LayerPayload() // chop off the udp header. The rest is SCION.
 		l.receive(&srcAddr, p)
 		p = pool.Get() // we need a fresh packet buffer now.
 	}
@@ -208,6 +228,8 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 	pool.Put(p)
 }
 
+// TODO(jiceatscion): This way of doing things isn't efficient here. The mpktSender API was lifted
+// from brload, where it made more sense than here...simplify by merging mst of mpktSender in-here.
 func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*router.Packet) int {
 	i := 0
 	if needsBlocking {
@@ -239,8 +261,6 @@ var seropts = gopacket.SerializeOptions{
 }
 
 func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
-	log.Debug("Send", "connection", u.name)
-
 	// We use this somewhat like a ring buffer.
 	pkts := make([]*router.Packet, batchSize)
 
@@ -301,4 +321,30 @@ func makeHashSeed() uint32 {
 		hashSeed = hashFNV1a(hashSeed, c)
 	}
 	return hashSeed
+}
+
+func newUdpConnection(
+	intf net.Interface,
+	qSize int,
+	connOpener ConnOpener,
+	port uint16,
+	metrics *router.InterfaceMetrics,
+) (*udpConnection, error) {
+	queue := make(chan *router.Packet, qSize)
+	afp, filter, err := connOpener.Open(intf.Index, port)
+	if err != nil {
+		return nil, err
+	}
+	return &udpConnection{
+		localMAC:     intf.HardwareAddr,
+		name:         intf.Name,
+		afp:          afp,
+		filter:       filter,
+		queue:        queue,
+		links:        make(map[netip.AddrPort]udpLink),
+		metrics:      metrics,
+		seed:         makeHashSeed(),
+		receiverDone: make(chan struct{}),
+		senderDone:   make(chan struct{}),
+	}, nil
 }

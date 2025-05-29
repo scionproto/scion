@@ -84,10 +84,8 @@ func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHa
 	return handle, filter, nil
 }
 
-// provider implements UnderlayProvider by making and returning Udp/Ip links.
-//
-// This is currently the only implementation. The goal of splitting out this code from the router
-// is to enable other implementations.
+// provider implements UnderlayProvider by making and returning Udp/Ip links on top of
+// packet sockets.
 type provider struct {
 	mu                sync.Mutex // Prevents race between adding connections and Start/Stop.
 	batchSize         int
@@ -107,6 +105,11 @@ type udpLink interface {
 	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
 	receive(srcAddr *netip.AddrPort, p *router.Packet)
+	handleNeighbor(
+		isReq bool,
+		targetIP, senderIP netip.Addr,
+		targetMAC, senderMAC [6]byte,
+	)
 }
 
 func init() {
@@ -240,6 +243,10 @@ func (u *provider) getUdpConnection(
 	metrics *router.InterfaceMetrics,
 ) (*udpConnection, error) {
 
+	localAddr := local.Addr()
+	localPort := local.Port()
+	localAddrStr := localAddr.String()
+
 	// TODO(jiceatscion): We don't really need to go through every interface every time.
 	interfaces, _ := net.Interfaces()
 	for _, intf := range interfaces {
@@ -249,15 +256,17 @@ func (u *provider) getUdpConnection(
 				// at what the underlying type is to make our comparison.
 				ipNet, ok := addr.(*net.IPNet)
 				if ok {
-					if ipNet.IP.String() == local.Addr().String() {
+					if ipNet.IP.String() == localAddrStr {
 						c := u.allConnections[intf.Index]
-						if c != nil {
-							return c, nil
+						if c == nil {
+							c, err = newUdpConnection(intf, qSize, u.connOpener, localPort, metrics)
+							if err != nil {
+								return nil, err
+							}
 						}
-						c, err := newUdpConnection(intf, qSize, u.connOpener, local.Port(), metrics)
-						if err != nil {
-							return nil, err
-						}
+						// FIXME(jiceatscion): as of today this only works as long as we don't
+						// need different ports enabled on the same interface. One socket=>
+						// one bpf filter => one port.
 						u.allConnections[intf.Index] = c
 						return c, nil
 					}
