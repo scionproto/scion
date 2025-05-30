@@ -90,12 +90,8 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 	}
 }
 
-// Expensive. Call only to make a few prefab headers.
-// This is called during initialization  only. No need for the mutex.
-// However, addHeader needs to consult/update the arp cache for each packet; that's when the
-// mutex is needed.
-// We prepare an incomplete header; it is still faster to patch it than recreate it
-// from scratch for every packet.
+// This is called during initialization only and does not need the arpCache. The header
+// is incomplete and gets patched for each packet.
 func (l *internalLink) packHeader() {
 
 	sb := gopacket.NewSerializeBuffer()
@@ -149,10 +145,11 @@ func (l *internalLink) packHeader() {
 	l.header = sb.Bytes()[:62]
 }
 
-// TODO(jiceatscion): can do cleaner, more legible, faster?
-// This runs asynchronously with updating the arp table. Hence locking hdrMutex.
+// addHeader fetches the canned header, which never changes, pastes it on the packet, and patches
+// in the destination. If the destination is not resolved, this method returns false and the
+// packet is left with an incorrect header. Note that an address resolution is triggered if the
+// destination is not already resolved.
 func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
-	payloadLen := len(p.RawPacket)
 	dstIP := dst.Addr()
 
 	// Resolve the destination MAC address if we can.
@@ -170,17 +167,25 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 		// Either way, not ready yet.
 		return false
 	}
+	l.hdrMutex.Unlock()
 
 	// Prepend the canned header
 	p.RawPacket = p.WithHeader(len(l.header))
 	copy(p.RawPacket, l.header)
-	l.hdrMutex.Unlock()
 
 	// Inject dest.
 	copy(p.RawPacket, dstMac[:])
 	copy(p.RawPacket[14+16:], dst.Addr().AsSlice()) // Can do cheaper?
 	binary.BigEndian.PutUint16(p.RawPacket[14+20+2:], dst.Port())
+	return true
+}
 
+// TODO(jiceatscion): can do cleaner, more legible, faster?
+func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool {
+	payloadLen := len(p.RawPacket)
+	if !l.addHeader(p, dst) {
+		return false
+	}
 	if l.is4 {
 		// Fix the IP total length field
 		binary.BigEndian.PutUint16(p.RawPacket[14+2:], uint16(payloadLen)+20+8)
@@ -299,7 +304,7 @@ func (l *internalLink) Send(p *router.Packet) bool {
 	// Resolve() We need to craft a header in front of the packet.  May be resolve could do that,
 	// instead of just storing the destination in the packet structure. That would save us the
 	// allocation of address but requires some more changes to the dataplane code structure.
-	if !l.addHeader(p, (*netip.AddrPort)(p.RemoteAddr)) {
+	if !l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
 		// Cannot yet resolve that address.
 		return false
 	}
@@ -313,7 +318,7 @@ func (l *internalLink) Send(p *router.Packet) bool {
 
 func (l *internalLink) SendBlocking(p *router.Packet) {
 	// Likewise: p.remoteAddress -> header.
-	if !l.addHeader(p, (*netip.AddrPort)(p.RemoteAddr)) {
+	if !l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
 		// FIXME(jiceatscion): this function could not fail. Now it can.
 		l.egressQ <- p
 	}

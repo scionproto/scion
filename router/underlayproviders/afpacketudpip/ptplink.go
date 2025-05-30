@@ -46,7 +46,7 @@ type ptpLink struct {
 	egressQ    chan<- *router.Packet
 	metrics    *router.InterfaceMetrics
 	bfdSession *bfd.Session
-	arpCache   map[netip.Addr]*[6]byte
+	remoteMAC  *[6]byte
 	scope      router.LinkScope
 	seed       uint32
 	ifID       uint16 // 0 for sibling links
@@ -95,26 +95,18 @@ func (l *ptpLink) seekNeighbor(remoteIP netip.Addr) {
 	}
 }
 
+var pending = [6]byte{0, 0, 0, 0, 0, 0}
+
 // Expensive. Call only to make a few prefab headers.
 // This must be called with hdrMutex locked.
 func (l *ptpLink) packHeader() {
-	// Currently we only do the address resolution and build the header once.
-	// FIXME(jiceatscion): the ARP cache should be allowed to expire.
-	if l.header != nil {
-		return
-	}
-
-	// No header yet. Build it if we can.
 	dstIP := l.remoteAddr.Addr()
-	dstMac, found := l.arpCache[dstIP]
-	if dstMac == nil {
-		if !found {
-			// Trigger the address resolution and then wait.
-			l.arpCache[dstIP] = nil // mark pending
-			l.seekNeighbor(dstIP)
-		}
-		// Either way, not ready yet.
-		// FIXME(jiceatscion): we should repeat the attempt every so often.
+	if l.remoteMAC == nil {
+		// Trigger the address resolution and then wait.
+		l.remoteMAC = &pending
+		l.seekNeighbor(dstIP)
+	}
+	if l.remoteMAC == &pending {
 		return
 	}
 
@@ -124,7 +116,7 @@ func (l *ptpLink) packHeader() {
 
 	ethernet := layers.Ethernet{
 		SrcMAC:       l.localMAC,
-		DstMAC:       dstMac[:],
+		DstMAC:       l.remoteMAC[:],
 		EthernetType: layers.EthernetTypeIPv4,
 	}
 	udp := layers.UDP{
@@ -172,18 +164,31 @@ func (l *ptpLink) packHeader() {
 	l.header = sb.Bytes()[:62]
 }
 
-// TODO(jiceatscion): can do cleaner, more legible, faster?
+// addHeader fetches the then-most-current version of the canned header and pastes it on the packet.
+// If no canned header is available, this method returns false and the packet is left without a
+// header. Note that packHeader triggers an address resolution if a canned header cannot be
+// constructed immediately.
 func (l *ptpLink) addHeader(p *router.Packet) bool {
-	payloadLen := len(p.RawPacket)
 	l.hdrMutex.Lock()
-	l.packHeader()
 	if l.header == nil {
-		l.hdrMutex.Unlock()
+		l.packHeader()
+	}
+	header := l.header
+	l.hdrMutex.Unlock()
+	if header == nil {
 		return false
 	}
-	p.RawPacket = p.WithHeader(len(l.header))
-	copy(p.RawPacket, l.header)
-	l.hdrMutex.Unlock()
+	p.RawPacket = p.WithHeader(len(header))
+	copy(p.RawPacket, header)
+	return true
+}
+
+// TODO(jiceatscion): can do cleaner, more legible, faster?
+func (l *ptpLink) finishPacket(p *router.Packet) bool {
+	payloadLen := len(p.RawPacket)
+	if !l.addHeader(p) {
+		return false
+	}
 
 	if l.is4 {
 		// Fix the IP total length field
@@ -276,8 +281,8 @@ func (l *ptpLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 func (l *ptpLink) Send(p *router.Packet) bool {
 	// We do not have an underlying connection. Instead we supply the entire underlay header. We
 	// have it mostly canned and paste it in front of the packet.
-	if !l.addHeader(p) {
-		// Remote address not resolved yet.
+	if !l.finishPacket(p) {
+		// Cannot (because remote address not resolved).
 		return false
 	}
 
@@ -291,7 +296,7 @@ func (l *ptpLink) Send(p *router.Packet) bool {
 
 func (l *ptpLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the header.
-	if !l.addHeader(p) {
+	if !l.finishPacket(p) {
 		// FIXME(jiceatscion): this function could not fail. Now it can.
 		return
 	}
@@ -330,18 +335,20 @@ func (l *ptpLink) handleNeighbor(
 	targetIP, senderIP netip.Addr,
 	targetMAC, senderMAC [6]byte,
 ) {
-	// Don't pollute our table with stuff that we can't have asked. However, per RFC826, update
-	// what we already have when given a chance.
-	// We avoid replacing cache entries with identical values to limit GC pressure.
-	// We respond only to peers that we keep in the cache.
+	// We only care or know our one remote host. However we respond to every deserving query.
+	// Per RFC826 we update opportunistically.
 	l.hdrMutex.Lock()
-	currentSenderMAC, have := l.arpCache[senderIP]
-	if (targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified()) || have {
-		// Good to cache or update
-		if currentSenderMAC == nil || *currentSenderMAC != senderMAC {
+
+	// This is needed to minimize GC pressure. It gets assigned to a dynamically allocated
+	// copy only when there is no better choice.
+	var senderMacP *[6]byte
+
+	if senderIP == l.remoteAddr.Addr() {
+		// We want.
+		if l.remoteMAC == nil || *l.remoteMAC != senderMAC {
 			// An actual new address.
-			currentSenderMAC = &senderMAC
-			l.arpCache[senderIP] = currentSenderMAC
+			l.remoteMAC = &senderMAC
+
 			log.Debug("ARP updated cache ptp", "IP", senderIP, "isat", senderMAC,
 				"on", l.localAddr.Addr())
 
@@ -350,8 +357,14 @@ func (l *ptpLink) handleNeighbor(
 				l.header = nil
 			}
 		}
+		// We point at something that we're keeping anyway.
+		senderMacP = l.remoteMAC
+	} else if targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified() {
+		// Don't want but may deserve a response
+		// No choice, senderMAC escapes to the heap.
+		senderMacP = &senderMAC
 	} else {
-		// Not good to cache. No response either.
+		// We don't want and no response needed.
 		isReq = false
 	}
 	l.hdrMutex.Unlock()
@@ -378,7 +391,7 @@ func (l *ptpLink) handleNeighbor(
 	// TODO(jiceatscion): use a canned arp packet?
 	ethernet := layers.Ethernet{
 		SrcMAC:       l.localMAC,
-		DstMAC:       currentSenderMAC[:],
+		DstMAC:       senderMacP[:],
 		EthernetType: layers.EthernetTypeARP,
 	}
 	arp := layers.ARP{
@@ -389,7 +402,7 @@ func (l *ptpLink) handleNeighbor(
 		Operation:         layers.ARPReply,
 		SourceHwAddress:   l.localMAC,
 		SourceProtAddress: l.localAddr.Addr().AsSlice(),
-		DstHwAddress:      currentSenderMAC[:],
+		DstHwAddress:      senderMacP[:],
 		DstProtAddress:    senderIP.AsSlice(),
 	}
 	log.Debug("ARP Response sent ptp", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
@@ -423,7 +436,6 @@ func newPtpLinkExternal(
 		egressQ:    conn.queue,
 		metrics:    metrics,
 		bfdSession: bfd,
-		arpCache:   make(map[netip.Addr]*[6]byte),
 		seed:       conn.seed,
 		ifID:       ifID,
 		scope:      router.External,
@@ -449,7 +461,6 @@ func newPtpLinkSibling(
 		egressQ:    conn.queue,
 		metrics:    metrics,
 		bfdSession: bfd,
-		arpCache:   make(map[netip.Addr]*[6]byte),
 		seed:       conn.seed,
 		ifID:       0,
 		scope:      router.Sibling,
