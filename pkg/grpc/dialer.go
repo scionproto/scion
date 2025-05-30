@@ -43,8 +43,10 @@ type SimpleDialer struct{}
 
 // Dial dials the address by converting it to a string.
 func (SimpleDialer) Dial(ctx context.Context, address net.Addr) (*grpc.ClientConn, error) {
+	//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 	return grpc.DialContext(ctx, address.String(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 		grpc.WithBlock(),
 		UnaryClientInterceptor(),
 		StreamClientInterceptor(),
@@ -105,6 +107,7 @@ func (t *TCPDialer) Dial(ctx context.Context, dst net.Addr) (*grpc.ClientConn, e
 
 		r := manual.NewBuilderWithScheme("svc")
 		r.InitialState(resolver.State{Addresses: targets})
+		//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 		return grpc.DialContext(ctx, r.Scheme()+":///"+v.SVC.BaseString(),
 			grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -114,6 +117,7 @@ func (t *TCPDialer) Dial(ctx context.Context, dst net.Addr) (*grpc.ClientConn, e
 		)
 	}
 
+	//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 	return grpc.DialContext(ctx, dst.String(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		UnaryClientInterceptor(),
@@ -155,6 +159,7 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 	dialer := func(context.Context, string) (net.Conn, error) {
 		return d.Dialer.Dial(ctx, addr)
 	}
+	//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 	return grpc.DialContext(ctx, addr.String(),
 		grpc.WithTransportCredentials(PassThroughCredentials{}),
 		grpc.WithContextDialer(dialer),

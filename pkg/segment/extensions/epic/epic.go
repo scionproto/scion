@@ -89,7 +89,7 @@ func (ed *Detached) DigestInput() ([]byte, error) {
 	bufSize := 2 + (1+len(ed.AuthPeerEntries))*AuthLen
 	b := make([]byte, bufSize)
 
-	var totalLen uint16 = uint16(1 + len(ed.AuthPeerEntries))
+	totalLen := uint16(1 + len(ed.AuthPeerEntries))
 	binary.BigEndian.PutUint16(b, totalLen)
 
 	if len(ed.AuthHopEntry) != AuthLen {

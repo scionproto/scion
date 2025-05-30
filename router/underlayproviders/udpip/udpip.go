@@ -58,11 +58,11 @@ type ConnOpener interface {
 // The default ConnOpener for this underlay: opens a UDP BatchConn.
 type uo struct{}
 
-func (_ uo) Open(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
+func (uo) Open(l netip.AddrPort, r netip.AddrPort, c *conn.Config) (router.BatchConn, error) {
 	return conn.New(l, r, c)
 }
 
-func (_ uo) UDPCanReuseLocal() bool {
+func (uo) UDPCanReuseLocal() bool {
 	// By default we follow the local UDP capabilities. Unit tests can chose to model one behavior
 	// or the other.
 	return conn.UDPCanReuseLocal()

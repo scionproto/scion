@@ -215,7 +215,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		defer clean()
 
 		if *integration.Docker {
-			socket = strings.Replace(socket, doneDir, "/share/logs/socks", -1)
+			socket = strings.ReplaceAll(socket, doneDir, "/share/logs/socks")
 		}
 
 		// CI collapses if parallelism is too high.
