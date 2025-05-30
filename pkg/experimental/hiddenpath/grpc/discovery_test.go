@@ -27,7 +27,6 @@ import (
 	hpgrpc "github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/proto/discovery"
-	dspb "github.com/scionproto/scion/pkg/proto/discovery"
 	"github.com/scionproto/scion/pkg/proto/discovery/mock_discovery"
 )
 
@@ -38,15 +37,15 @@ func TestDiscovererDiscover(t *testing.T) {
 		assertErr assert.ErrorAssertionFunc
 	}{
 		"valid both entries": {
-			server: func(ctrl *gomock.Controller) dspb.DiscoveryServiceServer {
+			server: func(ctrl *gomock.Controller) discovery.DiscoveryServiceServer {
 				s := mock_discovery.NewMockDiscoveryServiceServer(ctrl)
 				s.EXPECT().HiddenSegmentServices(gomock.Any(), gomock.Any()).Return(
-					&dspb.HiddenSegmentServicesResponse{
-						Lookup: []*dspb.HiddenSegmentLookupServer{
+					&discovery.HiddenSegmentServicesResponse{
+						Lookup: []*discovery.HiddenSegmentLookupServer{
 							{Address: "10.0.0.1:404"},
 							{Address: "10.0.0.2:405"},
 						},
-						Registration: []*dspb.HiddenSegmentRegistrationServer{
+						Registration: []*discovery.HiddenSegmentRegistrationServer{
 							{Address: "10.0.0.3:404"},
 							{Address: "10.0.0.4:405"},
 						},
@@ -74,7 +73,7 @@ func TestDiscovererDiscover(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			svc := xtest.NewGRPCService()
-			dspb.RegisterDiscoveryServiceServer(svc.Server(), tc.server(ctrl))
+			discovery.RegisterDiscoveryServiceServer(svc.Server(), tc.server(ctrl))
 			svc.Start(t)
 
 			d := hpgrpc.Discoverer{Dialer: svc}

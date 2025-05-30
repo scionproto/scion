@@ -46,7 +46,7 @@ type asn1TRCPayload struct {
 	Votes             []int64         `asn1:"votes"`
 	Quorum            int64           `asn1:"votingQuorum"`
 	CoreASes          []string        `asn1:"coreASes"`
-	AuthoritativeASes []string        `as1n:"authoritativeASes"`
+	AuthoritativeASes []string        `asn1:"authoritativeASes"`
 	Description       string          `asn1:"description,utf8"`
 	Certificates      []asn1.RawValue `asn1:"certificates"`
 }
@@ -106,40 +106,40 @@ func DecodeTRC(raw []byte) (TRC, error) {
 }
 
 // Encode encodes the payload in ASN.1 DER format.
-func (pld *TRC) Encode() ([]byte, error) {
-	if err := pld.Validate(); err != nil {
+func (trc *TRC) Encode() ([]byte, error) {
+	if err := trc.Validate(); err != nil {
 		return nil, err
 	}
-	certs, err := encodeCertificates(pld.Certificates)
+	certs, err := encodeCertificates(trc.Certificates)
 	if err != nil {
 		return nil, err
 	}
-	cores, err := encodeASes(pld.CoreASes)
+	cores, err := encodeASes(trc.CoreASes)
 	if err != nil {
 		return nil, err
 	}
-	auths, err := encodeASes(pld.AuthoritativeASes)
+	auths, err := encodeASes(trc.AuthoritativeASes)
 	if err != nil {
 		return nil, err
 	}
 	a := asn1TRCPayload{
-		Version: int64(pld.Version - 1),
+		Version: int64(trc.Version - 1),
 		ID: asn1ID{
-			ISD:    int64(pld.ID.ISD),
-			Serial: int64(pld.ID.Serial),
-			Base:   int64(pld.ID.Base),
+			ISD:    int64(trc.ID.ISD),
+			Serial: int64(trc.ID.Serial),
+			Base:   int64(trc.ID.Base),
 		},
 		Validity: asn1Validity{
-			NotBefore: pld.Validity.NotBefore.UTC().Truncate(time.Second),
-			NotAfter:  pld.Validity.NotAfter.UTC().Truncate(time.Second),
+			NotBefore: trc.Validity.NotBefore.UTC().Truncate(time.Second),
+			NotAfter:  trc.Validity.NotAfter.UTC().Truncate(time.Second),
 		},
-		GracePeriod:       int64(pld.GracePeriod / time.Second),
-		NoTrustReset:      pld.NoTrustReset,
-		Votes:             encodeVotes(pld.Votes),
-		Quorum:            int64(pld.Quorum),
+		GracePeriod:       int64(trc.GracePeriod / time.Second),
+		NoTrustReset:      trc.NoTrustReset,
+		Votes:             encodeVotes(trc.Votes),
+		Quorum:            int64(trc.Quorum),
 		CoreASes:          cores,
 		AuthoritativeASes: auths,
-		Description:       pld.Description,
+		Description:       trc.Description,
 		Certificates:      certs,
 	}
 	return asn1.Marshal(a)

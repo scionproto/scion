@@ -59,13 +59,13 @@ func (d Deriver) DeriveASHost(
 }
 
 // DeriveHostAS returns the HostAS derived key.
-func (p Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error) {
+func (d Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error) {
 	host, err := addr.ParseHost(srcHost)
 	if err != nil {
 		return drkey.Key{}, serrors.Wrap("parsing src host", err)
 	}
 	buf := make([]byte, 32)
-	l, err := p.serializeLevel2Input(buf, drkey.HostAS, host)
+	l, err := d.serializeLevel2Input(buf, drkey.HostAS, host)
 	if err != nil {
 		return drkey.Key{}, serrors.Wrap("serializing drkey level 2 input", err)
 	}

@@ -44,8 +44,8 @@ const (
 	EndhostPort = 30041
 )
 
-func (o Type) String() string {
-	switch o {
+func (ot Type) String() string {
+	switch ot {
 	case UDPIPv4:
 		return UDPIPv4Name
 	case UDPIPv6:
@@ -53,7 +53,7 @@ func (o Type) String() string {
 	case UDPIPv46:
 		return UDPIPv46Name
 	default:
-		return fmt.Sprintf("UNKNOWN (%d)", o)
+		return fmt.Sprintf("UNKNOWN (%d)", ot)
 	}
 }
 

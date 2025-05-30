@@ -280,6 +280,6 @@ func ExtractServices(s *Services[netip.AddrPort]) map[addr.SVC][]netip.AddrPort 
 
 // We cannot know which tests are going to mock which underlay and what the opener's
 // signature is. So we'll let the underlay implementation type-assert it.
-func (dp *DataPlane) SetConnOpener(underlay string, opener any) {
-	dp.underlays[underlay].SetConnOpener(opener)
+func (d *DataPlane) SetConnOpener(underlay string, opener any) {
+	d.underlays[underlay].SetConnOpener(opener)
 }
