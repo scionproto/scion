@@ -220,7 +220,7 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 	argsCopy := append([]string(nil), args...)
 	for i, arg := range argsCopy {
 		if strings.Contains(arg, pattern) {
-			argsCopy[i] = strings.Replace(arg, pattern, replacement, -1)
+			argsCopy[i] = strings.ReplaceAll(arg, pattern, replacement)
 		}
 	}
 	return argsCopy

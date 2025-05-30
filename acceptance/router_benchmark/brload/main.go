@@ -51,7 +51,7 @@ func (c *caseChoice) String() string {
 func (c *caseChoice) Set(v string) error {
 	_, ok := allCases[v]
 	if !ok {
-		return errors.New("No such case")
+		return errors.New("no such case")
 	}
 	*c = caseChoice(v)
 	return nil

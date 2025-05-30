@@ -90,10 +90,13 @@ func setupTest(t *testing.T) testState {
 	s := testState{
 		extraEnv: []string{"TOPO_CS_RELOAD_CONFIG_DIR=" + tmpDir},
 	}
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4775).
 	scionPKI, err := bazel.Runfile(*scionPKILocation)
 	require.NoError(t, err)
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4775).
 	cryptoLib, err := bazel.Runfile(*cryptoLibLocation)
 	require.NoError(t, err)
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4775).
 	topoFile, err := bazel.Runfile(*topoLocation)
 	require.NoError(t, err)
 	s.mustExec(t, *genCryptoLocation, scionPKI, "crypto.tar", topoFile, cryptoLib)

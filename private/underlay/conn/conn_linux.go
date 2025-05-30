@@ -35,12 +35,12 @@ import (
 // connected to a given remote address, will receive ony traffic from that remote address.
 // The router's udp/ip underlay uses this, if possible, rather than using the un-connected internal
 // socket when taking to sibling routers.
-func (cc *connUDPBase) initConnUDP(
+func (c *connUDPBase) initConnUDP(
 	network string,
 	laddr, raddr netip.AddrPort,
 	cfg *Config) error {
 
-	var c *net.UDPConn
+	var conn *net.UDPConn
 	var err error
 	if !laddr.IsValid() {
 		return serrors.New("listen address must be specified")
@@ -66,7 +66,7 @@ func (cc *connUDPBase) initConnUDP(
 			return serrors.Wrap("Error listening on socket", err,
 				"network", network, "listen", laddr)
 		}
-		c = ci.(*net.UDPConn)
+		conn = ci.(*net.UDPConn)
 	} else {
 		dialer := net.Dialer{
 			Control: func(n, a string, rc syscall.RawConn) error {
@@ -87,12 +87,12 @@ func (cc *connUDPBase) initConnUDP(
 			return serrors.Wrap("Error listening on socket", err,
 				"network", network, "listen", laddr)
 		}
-		c = ci.(*net.UDPConn)
+		conn = ci.(*net.UDPConn)
 	}
 
 	// Set and confirm send buffer size
 	if cfg.SendBufferSize != 0 {
-		before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_SNDBUF)
+		before, err := sockctrl.GetsockoptInt(conn, syscall.SOL_SOCKET, syscall.SO_SNDBUF)
 		if err != nil {
 			return serrors.Wrap("Error getting SO_SNDBUF socket option (before)", err,
 				"listen", laddr,
@@ -100,13 +100,13 @@ func (cc *connUDPBase) initConnUDP(
 			)
 		}
 		target := cfg.SendBufferSize
-		if err = c.SetWriteBuffer(target); err != nil {
+		if err = conn.SetWriteBuffer(target); err != nil {
 			return serrors.Wrap("Error setting send buffer size", err,
 				"listen", laddr,
 				"remote", raddr,
 			)
 		}
-		after, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_SNDBUF)
+		after, err := sockctrl.GetsockoptInt(conn, syscall.SOL_SOCKET, syscall.SO_SNDBUF)
 		if err != nil {
 			return serrors.Wrap("Error getting SO_SNDBUF socket option (after)", err,
 				"listen", laddr,
@@ -126,7 +126,7 @@ func (cc *connUDPBase) initConnUDP(
 
 	// Set and confirm receive buffer size
 	if cfg.ReceiveBufferSize != 0 {
-		before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+		before, err := sockctrl.GetsockoptInt(conn, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 		if err != nil {
 			return serrors.Wrap("Error getting SO_RCVBUF socket option (before)", err,
 				"listen", laddr,
@@ -134,13 +134,13 @@ func (cc *connUDPBase) initConnUDP(
 			)
 		}
 		target := cfg.ReceiveBufferSize
-		if err = c.SetReadBuffer(target); err != nil {
+		if err = conn.SetReadBuffer(target); err != nil {
 			return serrors.Wrap("Error setting recv buffer size", err,
 				"listen", laddr,
 				"remote", raddr,
 			)
 		}
-		after, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+		after, err := sockctrl.GetsockoptInt(conn, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 		if err != nil {
 			return serrors.Wrap("Error getting SO_RCVBUF socket option (after)", err,
 				"listen", laddr,
@@ -158,9 +158,9 @@ func (cc *connUDPBase) initConnUDP(
 		}
 	}
 
-	cc.conn = c
-	cc.Listen = laddr
-	cc.Remote = raddr
+	c.conn = conn
+	c.Listen = laddr
+	c.Remote = raddr
 	return nil
 }
 

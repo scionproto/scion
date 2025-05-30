@@ -87,10 +87,7 @@ func TestGatewayWatcherRun(t *testing.T) {
 		assert.NoError(t, bg.Wait())
 	})
 
-	for {
-		if metrics.GaugeValue(remotes) > 0 {
-			break
-		}
+	for metrics.GaugeValue(remotes) <= 0 {
 		time.Sleep(10 * time.Millisecond)
 	}
 	cancel()
