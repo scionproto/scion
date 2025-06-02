@@ -18,7 +18,6 @@ Due to technical limitations, the Docker containers do not use systemd. To view 
      cat /var/log/scion/dispatcher.log # Dispatcher service
      cat /var/log/scion/gateway.log # IP Gateway service
      cat /var/log/scion/router.log # Router service
-     cat /var/log/scion/router.log # Router service
 
 Setup
 -----
