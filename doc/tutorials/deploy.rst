@@ -9,6 +9,16 @@ This document helps you set up a freestanding SCION demo network, which consists
 **Note**: This tutorial does **not** describe how to set up SCION endhosts. For endhosts please follow the instructions of your `SCION library or application <https://github.com/scionproto/awesome-scion>`_.
 
 **Note**: Alternatively, if you want to skip the manual setup you can automatically set up the network with Docker 🐳 by running ``make up`` from within `scion/doc/tutorials/deploy <https://github.com/scionproto/scion/tree/master/doc/tutorials/deploy>`_. Run ``make down`` to stop the setup or ``make purge`` to remove it completely.
+Due to technical limitations, the Docker containers do not use systemd. To view logs of an individual service in this setup read the following files within the container:
+
+  .. code-block:: sh
+
+     cat /var/log/scion/control.log # Control service
+     cat /var/log/scion/daemon.log # Daemon service
+     cat /var/log/scion/dispatcher.log # Dispatcher service
+     cat /var/log/scion/gateway.log # IP Gateway service
+     cat /var/log/scion/router.log # Router service
+     cat /var/log/scion/router.log # Router service
 
 Setup
 -----
