@@ -11,8 +11,6 @@ services:
       as_net_01: {}
       transit_net:
         ipv4_address: 10.100.0.11
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup
     tmpfs:
       - /run
       - /run/lock
@@ -24,9 +22,6 @@ services:
       as_net_02: {}
       transit_net:
         ipv4_address: 10.100.0.12
-
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup
     tmpfs:
       - /run
       - /run/lock
@@ -38,8 +33,6 @@ services:
       as_net_03: {}
       transit_net:
         ipv4_address: 10.100.0.13
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup
     tmpfs:
       - /run
       - /run/lock
@@ -51,8 +44,6 @@ services:
       as_net_04: {}
       transit_net:
         ipv4_address: 10.100.0.14
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup
     tmpfs:
       - /run
       - /run/lock
@@ -64,8 +55,6 @@ services:
       as_net_05: {}
       transit_net:
         ipv4_address: 10.100.0.15
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup
     tmpfs:
       - /run
       - /run/lock

@@ -18,4 +18,4 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN head -c 16 /dev/urandom | base64 > /etc/scion/keys/master0.key && \
     head -c 16 /dev/urandom | base64 > /etc/scion/keys/master1.key
 
-CMD ["/lib/systemd/systemd", "--unit=multi-user.target"]
+CMD ["/usr/local/bin/start-scion.sh"]
