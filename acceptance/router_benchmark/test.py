@@ -42,6 +42,11 @@ PROFILING = False
 # DEBUG run: set this to True to reduce number of packets and skip microbenchmarks and warmup.
 DEBUG_RUN = False
 
+# MAX_CPUS: the totla number of cpus that the test will try to harness. The standard for this
+# test is 4: 1 for brload and 3 for the router. Any different number invalidates the performance
+# index (which will be reported as 0).
+MAX_CPUS = 7 # 6 go to the router instead of 3.
+
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
     "in": 700000,
@@ -76,13 +81,13 @@ def choose_cpus_from_unshared_cache(caches: list[int], cores: list[int]) -> list
     is the configuration that causes the least performance variability.
 
     Returns:
-      A list of up to 4 vcpus. All are first choice.
+      A list of up to MAX_CPUS vcpus. All are first choice.
     """
 
     chosen = [cpus[0] for cpus in caches.values() if len(cpus) == 1]
 
     logger.info(f"CPUs from unshared cache: best={len(chosen)}")
-    return sorted(chosen)[0:4]
+    return sorted(chosen)[0:MAX_CPUS]
 
 
 def choose_cpus_from_single_cache(caches: list[int], cores: list[int]) -> list[int]:
@@ -96,16 +101,16 @@ def choose_cpus_from_single_cache(caches: list[int], cores: list[int]) -> list[i
     activities.
 
     Returns:
-      A list of up to 4 vcpus. The ones at the head of the list are the best.
+      A list of up to MAX_CPUS vcpus. The ones at the head of the list are the best.
     """
 
     best = {cpus[0] for cpus in cores.values() if len(cpus) == 1}
     chosen = set()
     for cpus in caches.values():
         chosen = set(cpus) & best
-        if len(chosen) >= 4:
+        if len(chosen) >= MAX_CPUS:
             logger.info(f"CPUs from single cache: best={len(chosen)}")
-            return sorted(chosen)[0:4]
+            return sorted(chosen)[0:MAX_CPUS]
 
     # Not enough. Add second-best CPUs (one from each hyperthreaded core)
     # and filter the cache sets again.
@@ -125,7 +130,7 @@ def choose_cpus_from_single_cache(caches: list[int], cores: list[int]) -> list[i
                 f"best={len(chosen & best)} "
                 f"second_best={len(chosen & second_best)}")
 
-    return (sorted(chosen & best) + sorted(chosen & second_best))[0:4]
+    return (sorted(chosen & best) + sorted(chosen & second_best))[0:MAX_CPUS]
 
 
 def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int]:
@@ -133,13 +138,13 @@ def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int
 
     This variant gives up on cache discrimination and applies only the second level criteria:
 
-    Collect up to 4 cpus by selecting, in that order:
+    Collect up to MAX_CPUS cpus by selecting, in that order:
     * cpus of non-hyperthreaded cores.
     * only one cpu of each hyperthreaded core.
     * any remaining cpu.
 
     Returns:
-      A list of up to 4 vcpus. The ones at the head of the list are the best.
+      A list of up to MAX_CPUS vcpus. The ones at the head of the list are the best.
     """
 
     cpus_by_core = list(cores.values())  # What we get is a list of cpu groups.
@@ -153,7 +158,7 @@ def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int
     quality += 1
 
     # Collect the rest, one round at a time.
-    while len(cpus_by_core) > 0 and len(chosen) < 4:
+    while len(cpus_by_core) > 0 and len(chosen) < MAX_CPUS:
         other = ([cpus.pop(0) for cpus in cpus_by_core])
         cpus_by_core = [cpus for cpus in cpus_by_core if len(cpus) > 0]
         report[quality] += len(other)
@@ -164,7 +169,7 @@ def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int
                 f"best={report[0]} second_best={report[1]} other={report[2]}")
 
     # The last round can get too many, so truncate to promised length.
-    return chosen[0:4]
+    return chosen[0:MAX_CPUS]
 
 
 class RouterBMTest(base.TestBase, RouterBM):
@@ -220,9 +225,9 @@ class RouterBMTest(base.TestBase, RouterBM):
         self.choose_cpus()
 
     def choose_cpus(self):
-        """Chooses 4 cpus and assigns 3 for the router and 1 for the blaster.
+        """Chooses MAC_CPUS cpus and assigns 1 to the blaster and the rest to the router.
 
-        Try various policies in decreasing order of preference. We use fewer than 4 cores
+        Try various policies in decreasing order of preference. We use fewer than MAX_CPUS cores
         only as a last resort
         """
 
@@ -254,9 +259,9 @@ class RouterBMTest(base.TestBase, RouterBM):
             cores[core].append(cpu)
 
         chosen = choose_cpus_from_unshared_cache(caches, cores)
-        if len(chosen) < 4:
+        if len(chosen) < MAX_CPUS:
             chosen = choose_cpus_from_single_cache(caches, cores)
-        if len(chosen) < 4:
+        if len(chosen) < MAX_CPUS:
             chosen = choose_cpus_from_best_cores(caches, cores)
 
         # Make the best of what we got. All but the last cpu go to the router. Those are the
