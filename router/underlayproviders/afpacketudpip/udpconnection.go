@@ -29,6 +29,8 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
+var ndpMcastPrefix = []byte{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0xff}
+
 // udpConnection is a TPacket connection with a sending queue and a demultiplexer. The rest is
 // about logs and metrics. This allows UDP connections to be shared between links, which is the
 // norm in this case; since a raw socket receives traffic for all ports.
@@ -97,8 +99,10 @@ func (u *udpConnection) handleArp(arp *layers.ARP) {
 	senderIP := netip.AddrFrom4([4]byte(arp.SourceProtAddress))
 
 	// Get the MACs out of the packet too; it's all just slices referring to it.
-	// Reduce them to just 6 bytes while we are at it. We know they're that; it was decoded ok.
-	targetMAC := [6]byte(arp.DstHwAddress)
+	// Reduce them to just 6 bytes while we are at it.
+	if len(arp.SourceHwAddress) != 6 {
+		return
+	}
 	senderMAC := [6]byte(arp.SourceHwAddress)
 
 	// TODO(jiceatscion): ignore gratuitous reqs
@@ -106,17 +110,78 @@ func (u *udpConnection) handleArp(arp *layers.ARP) {
 
 	// We have to pass all requests to all links. Sometimes the sender uses an IP address
 	// that we don't know about (e.g. the traffic generator uses interfaces with a different
-	// IP assigned - which the arp lib uses).
+	// IP assigned - which the arp lib then uses to make requests).
 	for _, l := range u.links {
-		l.handleNeighbor(isReq, targetIP, senderIP, targetMAC, senderMAC)
+		l.handleNeighbor(isReq, targetIP, senderIP, senderMAC)
 	}
 	if u.link != nil {
-		u.link.handleNeighbor(isReq, targetIP, senderIP, targetMAC, senderMAC)
+		u.link.handleNeighbor(isReq, targetIP, senderIP, senderMAC)
 	}
 }
 
-func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6) {
-	log.Debug("V6 NDP not implemented")
+// Handle NDP minimally.
+// Terminology just as shitty as ARP; just different - Summary of the protocol:
+//
+// |                     Sollicitations   |   advertisements
+// ---------------------------------------------------------------
+// IP to be resolved:    TargetAddress    |   TargetAddress
+// IP of pkt sender:     from IP header   |   TargetAddress
+// MAC to be found:      -                |   OptTargetAddress
+// MAC of pkt sender:    OptSourceAddress |   -
+func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP netip.Addr) {
+	data := icmp6.LayerPayload()
+	var isReq bool
+	var valid bool
+	var targetIP netip.Addr
+	var remoteMAC [6]byte
+
+	switch icmp6.TypeCode {
+	case layers.ICMPv6TypeNeighborSolicitation:
+		var query layers.ICMPv6NeighborSolicitation
+		if err := query.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+			targetIP, valid = netip.AddrFromSlice(query.TargetAddress)
+			if !valid {
+				return
+			}
+		}
+		isReq = true
+		for _, opt := range query.Options {
+			if opt.Type == layers.ICMPv6OptSourceAddress {
+				if len(opt.Data) != 6 {
+					return
+				}
+				remoteMAC = [6]byte(opt.Data)
+			}
+		}
+	case layers.ICMPv6TypeNeighborAdvertisement:
+		var response layers.ICMPv6NeighborAdvertisement
+		if err := response.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+			targetIP, valid = netip.AddrFromSlice(response.TargetAddress)
+			if !valid {
+				return
+			}
+			for _, opt := range response.Options {
+				if opt.Type == layers.ICMPv6OptTargetAddress {
+					if len(opt.Data) != 6 {
+						return
+					}
+					remoteMAC = [6]byte(opt.Data)
+				}
+			}
+		}
+	default:
+		return
+	}
+
+	// We have to pass all requests to all links. Sometimes the sender uses an IP address
+	// that we don't know about (e.g. the traffic generator uses interfaces with a different
+	// IP assigned - which the arp lib then uses to make requests).
+	for _, l := range u.links {
+		l.handleNeighbor(isReq, targetIP, srcIP, remoteMAC)
+	}
+	if u.link != nil {
+		u.link.handleNeighbor(isReq, targetIP, srcIP, remoteMAC)
+	}
 }
 
 func (u *udpConnection) receive(pool router.PacketPool) {
@@ -153,45 +218,48 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		if err := ethLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 			continue
 		}
-		networkLayer := ethLayer.NextLayerType()
 		data = ethLayer.LayerPayload() // chop off the eth header
-		switch {
-		case ipv4Layer.CanDecode().Contains(networkLayer):
+		switch ethLayer.EthernetType {
+		case layers.EthernetTypeIPv4:
 			if err := ipv4Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 				continue
 			}
-			if !udpLayer.CanDecode().Contains(ipv4Layer.NextLayerType()) {
+			if ipv4Layer.Protocol != layers.IPProtocolUDP {
 				continue
 			}
 			// Retrieve src from the decoded IP layers.
 			srcIP, validSrc = netip.AddrFromSlice(ipv4Layer.SrcIP)
-			data = ipv4Layer.LayerPayload() // chop off the ip header
-		case ipv6Layer.CanDecode().Contains(networkLayer):
-			if err := ipv6Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+			if !validSrc {
+				// WTF?
 				continue
 			}
-			if !udpLayer.CanDecode().Contains(ipv4Layer.NextLayerType()) {
-				// Not UPD? Could be extensions...we don't expect any.
+			data = ipv4Layer.LayerPayload() // chop off the ip header
+		case layers.EthernetTypeIPv6:
+			if err := ipv6Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 				continue
 			}
 			// Retrieve src from the decoded IP layers.
 			srcIP, validSrc = netip.AddrFromSlice(ipv6Layer.SrcIP)
+			if !validSrc {
+				// WTF?
+				continue
+			}
 			data = ipv6Layer.LayerPayload() // chop off the ip header
-		case arpLayer.CanDecode().Contains(networkLayer):
+			if ipv6Layer.NextHeader == layers.IPProtocolICMPv6 {
+				if err := icmp6Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err == nil {
+					u.handleV6NDP(&icmp6Layer, srcIP) // The packet stays with us.
+				}
+				continue
+			} else if ipv6Layer.NextHeader != layers.IPProtocolUDP {
+				// Not UPD either? Could be extensions. We don't expect any.
+				continue
+			}
+		case layers.EthernetTypeARP:
 			if err := arpLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err == nil {
 				u.handleArp(&arpLayer) // The packet stays with us.
 			}
 			continue
-		case icmp6Layer.CanDecode().Contains(networkLayer): // The packet stays with us.
-			if err := icmp6Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err == nil {
-				u.handleV6NDP(&icmp6Layer)
-			}
-			continue
 		default:
-			continue
-		}
-		if !validSrc {
-			// WTF?
 			continue
 		}
 		if err := udpLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {

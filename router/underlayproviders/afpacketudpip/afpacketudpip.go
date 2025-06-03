@@ -51,6 +51,11 @@ type ConnOpener interface {
 // The default ConnOpener for this underlay: opens a afpacket socket.
 type uo struct{}
 
+// TODO(jiceatscion): we should also make the interface join the ipv6 ndp multicast group,
+// to make sure that we receive address resolution solicitations. The reason this is not
+// strictly needed is because the regular netorking stack has aleady done it for us. The day we
+// no-longer assign our addresses to interfaces via the regular networking stack, all this
+// will stop working.
 func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHandle, error) {
 	intf, err := net.InterfaceByIndex(index)
 	if err != nil {
@@ -105,11 +110,7 @@ type udpLink interface {
 	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
 	receive(srcAddr *netip.AddrPort, p *router.Packet)
-	handleNeighbor(
-		isReq bool,
-		targetIP, senderIP netip.Addr,
-		targetMAC, senderMAC [6]byte,
-	)
+	handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remoteHw [6]byte)
 }
 
 func init() {

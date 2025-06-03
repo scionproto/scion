@@ -53,37 +53,65 @@ type internalLink struct {
 }
 
 func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
-	if !l.is4 {
-		// NDP  Not implemented yet
-		return
-	}
-
-	// TODO(jiceatscion): use a canned arp packet?
-	ethernet := layers.Ethernet{
-		SrcMAC:       l.localMAC,
-		DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-		EthernetType: layers.EthernetTypeARP,
-	}
-	arp := layers.ARP{
-		AddrType:          layers.LinkTypeEthernet,
-		HwAddressSize:     6,
-		Protocol:          layers.EthernetTypeIPv4,
-		ProtAddressSize:   4,
-		Operation:         layers.ARPRequest,
-		SourceHwAddress:   l.localMAC,
-		SourceProtAddress: l.localAddr.Addr().AsSlice(),
-		DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
-		DstProtAddress:    remoteIP.AsSlice(),
-	}
-	log.Debug("ARP Request sent internal", "whohas", remoteIP, "tell", l.localAddr.Addr())
 	p := l.pool.Get()
 	serBuf := router.NewSerializeProxyStart(p.RawPacket, 60)
-	err := gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
+	var err error
+
+	// TODO(jiceatscion): use a canned arp packet?
+	if l.is4 {
+		ethernet := layers.Ethernet{
+			SrcMAC:       l.localMAC,
+			DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+			EthernetType: layers.EthernetTypeARP,
+		}
+		arp := layers.ARP{
+			AddrType:          layers.LinkTypeEthernet,
+			HwAddressSize:     6,
+			Protocol:          layers.EthernetTypeIPv4,
+			ProtAddressSize:   4,
+			Operation:         layers.ARPRequest,
+			SourceHwAddress:   l.localMAC,
+			SourceProtAddress: l.localAddr.Addr().AsSlice(),
+			DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
+			DstProtAddress:    remoteIP.AsSlice(),
+		}
+		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
+	} else {
+		mcAddr := remoteIP.AsSlice()
+		copy(mcAddr, ndpMcastPrefix)
+		ethernet := layers.Ethernet{
+			SrcMAC:       l.localMAC,
+			DstMAC:       net.HardwareAddr{0x33, 0x33, 0xff, mcAddr[13], mcAddr[14], mcAddr[15]},
+			EthernetType: layers.EthernetTypeIPv6,
+		}
+		ipv6 := layers.IPv6{
+			Version:    6,
+			NextHeader: layers.IPProtocolICMPv6,
+			HopLimit:   64,
+			SrcIP:      l.localAddr.Addr().AsSlice(),
+			DstIP:      mcAddr,
+		}
+		icmp6 := layers.ICMPv6{
+			TypeCode: layers.ICMPv6TypeNeighborSolicitation,
+		}
+		request := layers.ICMPv6NeighborSolicitation{
+			TargetAddress: remoteIP.AsSlice(),
+			Options: layers.ICMPv6Options{
+				layers.ICMPv6Option{Type: layers.ICMPv6OptSourceAddress, Data: l.localMAC},
+			},
+		}
+		_ = icmp6.SetNetworkLayerForChecksum(&ipv6)
+		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &ipv6, &icmp6, &request)
+	}
+
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
 		panic("Cannot serialize arp packet")
 	}
 	p.RawPacket = serBuf.Bytes()
+
+	log.Debug("ARP Request sent internal", "whohas", remoteIP, "tell", l.localAddr.Addr())
+
 	select {
 	case l.egressQ <- p:
 	default:
@@ -356,24 +384,20 @@ func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 	}
 }
 
-func (l *internalLink) handleNeighbor(
-	isReq bool,
-	targetIP, senderIP netip.Addr,
-	targetMAC, senderMAC [6]byte,
-) {
+func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remoteHw [6]byte) {
 	// Don't pollute our table with stuff that we can't have asked. However, per RFC826, update
 	// what we already have when given a chance.
 	// We avoid replacing cache entries with identical values to limit GC pressure.
 	// We respond only to peers that we keep in the cache.
 	l.hdrMutex.Lock()
-	currentSenderMAC, have := l.arpCache[senderIP]
+	remoteHwP, have := l.arpCache[senderIP]
 	if (targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified()) || have {
 		// Good to cache or update
-		if currentSenderMAC == nil || *currentSenderMAC != senderMAC {
+		if remoteHwP == nil || *remoteHwP != remoteHw {
 			// An actual new address.
-			currentSenderMAC = &senderMAC
-			l.arpCache[senderIP] = currentSenderMAC
-			log.Debug("ARP updated cache ptp", "IP", senderIP, "isat", senderMAC,
+			remoteHwP = &remoteHw
+			l.arpCache[senderIP] = remoteHwP
+			log.Debug("ARP updated cache ptp", "IP", senderIP, "isat", remoteHw,
 				"on", l.localAddr.Addr())
 		}
 	} else {
@@ -389,45 +413,68 @@ func (l *internalLink) handleNeighbor(
 	if !isReq {
 		return
 	}
-	if !l.is4 {
-		// NDP  Not implemented yet
-		log.Debug("V6 cannot repond", "IP", senderIP, "isat", senderMAC, "on", l.localAddr.Addr())
-		return
-	}
-
 	if targetIP == senderIP {
-		// gratuitous request (at least in the V4 world).
+		// gratuitous request in the V4 world. Invalid in the V6 world.
 		return
 	}
-	// TODO(jiceatscion): is it worth checking that the sender MAC is valid too?
 
-	// TODO(jiceatscion): use a canned arp packet?
-	ethernet := layers.Ethernet{
-		SrcMAC:       l.localMAC,
-		DstMAC:       currentSenderMAC[:],
-		EthernetType: layers.EthernetTypeARP,
-	}
-	arp := layers.ARP{
-		AddrType:          layers.LinkTypeEthernet,
-		HwAddressSize:     6,
-		Protocol:          layers.EthernetTypeIPv4,
-		ProtAddressSize:   4,
-		Operation:         layers.ARPReply,
-		SourceHwAddress:   l.localMAC,
-		SourceProtAddress: l.localAddr.Addr().AsSlice(),
-		DstHwAddress:      currentSenderMAC[:],
-		DstProtAddress:    senderIP.AsSlice(),
-	}
-	log.Debug("ARP Response sent internal", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
-		"to", senderIP)
 	p := l.pool.Get()
 	serBuf := router.NewSerializeProxyStart(p.RawPacket, 60)
-	err := gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
+	var err error
+
+	if l.is4 {
+		ethernet := layers.Ethernet{
+			SrcMAC:       l.localMAC,
+			DstMAC:       remoteHwP[:],
+			EthernetType: layers.EthernetTypeARP,
+		}
+		arp := layers.ARP{
+			AddrType:          layers.LinkTypeEthernet,
+			HwAddressSize:     6,
+			Protocol:          layers.EthernetTypeIPv4,
+			ProtAddressSize:   4,
+			Operation:         layers.ARPReply,
+			SourceHwAddress:   l.localMAC,
+			SourceProtAddress: l.localAddr.Addr().AsSlice(),
+			DstHwAddress:      remoteHwP[:],
+			DstProtAddress:    senderIP.AsSlice(),
+		}
+		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
+	} else {
+		ethernet := layers.Ethernet{
+			SrcMAC:       l.localMAC,
+			DstMAC:       remoteHwP[:],
+			EthernetType: layers.EthernetTypeIPv6,
+		}
+		ipv6 := layers.IPv6{
+			Version:    6,
+			NextHeader: layers.IPProtocolICMPv6,
+			HopLimit:   64,
+			SrcIP:      l.localAddr.Addr().AsSlice(),
+			DstIP:      senderIP.AsSlice(),
+		}
+		icmp6 := layers.ICMPv6{
+			TypeCode: layers.ICMPv6TypeNeighborAdvertisement,
+		}
+		response := layers.ICMPv6NeighborAdvertisement{
+			Flags:         0x60, // Sollicited | Override.
+			TargetAddress: l.localAddr.Addr().AsSlice(),
+			Options: layers.ICMPv6Options{
+				layers.ICMPv6Option{Type: layers.ICMPv6OptTargetAddress, Data: remoteHwP[:]},
+			},
+		}
+		_ = icmp6.SetNetworkLayerForChecksum(&ipv6)
+		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &ipv6, &icmp6, &response)
+	}
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
 		panic("Cannot serialize arp packet")
 	}
 	p.RawPacket = serBuf.Bytes()
+
+	log.Debug("ARP Response sent internal", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
+		"to", senderIP)
+
 	select {
 	case l.egressQ <- p:
 	default:
