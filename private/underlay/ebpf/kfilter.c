@@ -7,6 +7,7 @@
 #include <linux/bpf.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/udp.h>
 #include "bpf_helpers.h"
 
@@ -42,13 +43,30 @@ struct {
 SEC("tcx/ingress")
 int bpf_k_filter(struct __sk_buff *skb)
 {
-  __u8 proto;
-  bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &proto, 1);
-  if (proto != IPPROTO_UDP) {
-    return -1; // TC_NEXT
-  }
+  __u16 ethtype;
+  bpf_skb_load_bytes(skb, 12, &ethtype, 2);
+
+  __u8 ipproto;
   __u16 portNbo;
-  bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest), &portNbo, 2);
+
+  if (ethtype == 0x0008) {
+    bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &ipproto, 1);
+
+    if (ipproto != IPPROTO_UDP) {
+      return -1; // TC_NEXT
+    }
+    bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest),
+        &portNbo, 2);
+  } else if (ethtype == 0xDD86) {
+    bpf_skb_load_bytes(skb, 14 + offsetof(struct ipv6hdr, nexthdr), &ipproto, 1);
+    if (ipproto != IPPROTO_UDP) {
+      return -1; // TC_NEXT
+    }
+    bpf_skb_load_bytes(skb, 14 + sizeof(struct ipv6hdr) + offsetof(struct udphdr, dest),
+		       &portNbo, 2);
+  } else {
+      return -1; // TC_NEXT
+  }
 
   __u32 index = 0;
   __u16 *forbiddenPort = bpf_map_lookup_elem(&k_map_flt, &index);

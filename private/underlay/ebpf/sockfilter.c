@@ -7,6 +7,7 @@
 #include <linux/bpf.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/udp.h>
 #include <linux/if_ether.h>
 #include "bpf_helpers.h"
@@ -53,13 +54,27 @@ int bpf_sock_filter(struct __sk_buff *skb)
   }
 
   __u8 ipproto;
-  bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &ipproto, 1);
+  __u16 portNbo;
 
-  if (ipproto != IPPROTO_UDP) {
+  if (ethtype == 0x0008) {
+    bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &ipproto, 1);
+    if (ipproto != IPPROTO_UDP) {
+      return 0;
+    }
+    bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest), &portNbo, 2);
+  } else if (ethtype == 0xDD86) {
+    bpf_skb_load_bytes(skb, 14 + offsetof(struct ipv6hdr, nexthdr), &ipproto, 1);
+    if (ipproto == IPPROTO_ICMPV6) {
+      return skb->len;
+    }
+    if (ipproto != IPPROTO_UDP) {
+      return 0;
+    }
+    bpf_skb_load_bytes(skb, 14 + sizeof(struct ipv6hdr) + offsetof(struct udphdr, dest),
+		       &portNbo, 2);
+  } else {
     return 0;
   }
-  __u16 portNbo;
-  bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest), &portNbo, 2);
 
   __u32 index = 0;
   __u16 *allowedPort = bpf_map_lookup_elem(&sock_map_flt, &index);

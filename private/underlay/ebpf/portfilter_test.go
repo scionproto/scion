@@ -176,9 +176,15 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(buf[:5]), "hello")
 
-	// The raw socket shouldn't have gotten anything.
-	p, _, err := afpHandleB.ZeroCopyReadPacketData()
-	if !errors.Is(err, afpacket.ErrTimeout) {
+	// The raw socket shouldn't have gotten anything (except a random ARP).
+	for {
+		p, _, err := afpHandleB.ZeroCopyReadPacketData()
+		if errors.Is(err, afpacket.ErrTimeout) {
+			break
+		}
+		if p[12] == 0x06 && p[13] == 0x08 {
+			continue
+		}
 		t.Fatalf("Received on raw socket: %s\n", p)
 	}
 
