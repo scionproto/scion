@@ -45,7 +45,7 @@ DEBUG_RUN = False
 # MAX_CPUS: the totla number of cpus that the test will try to harness. The standard for this
 # test is 4: 1 for brload and 3 for the router. Any different number invalidates the performance
 # index (which will be reported as 0).
-MAX_CPUS = 7 # 6 go to the router instead of 3.
+MAX_CPUS = 6 # 5 go to the router instead of 3.
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
