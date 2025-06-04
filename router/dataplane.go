@@ -839,7 +839,7 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 		}
 		if !fwLink.Send(p) {
 			d.packetPool.Put(p)
-			metrics[sc].DroppedPacketsBusyForwarder.Inc()
+			metrics[sc].DroppedPacketsBusyForwarder[p.trafficType].Inc()
 		}
 	}
 }
@@ -931,6 +931,10 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 	if err != nil {
 		return err
 	}
+
+	// Difficult to draw a hard line, but let's say that from here on, this packet is no longer
+	// an incoming packet, but is a slowpath packet (i.e. an error response).
+	pkt.trafficType = ttSlowPath
 	pathType := p.scionLayer.PathType
 	switch pathType {
 	case scion.PathType:

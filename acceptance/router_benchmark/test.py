@@ -43,9 +43,9 @@ PROFILING = False
 DEBUG_RUN = False
 
 # MAX_CPUS: the totla number of cpus that the test will try to harness. The standard for this
-# test is 4: 1 for brload and 3 for the router. Any different number invalidates the performance
+# test is 5: 2 for brload and 3 for the router. Any different number invalidates the performance
 # index (which will be reported as 0).
-MAX_CPUS = 4
+MAX_CPUS = 5
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
@@ -271,8 +271,8 @@ class RouterBMTest(base.TestBase, RouterBM):
             self.router_cpus = chosen
             self.brload_cpus = chosen
         else:
-            self.router_cpus = chosen[:-1]
-            self.brload_cpus = chosen[-1:]
+            self.router_cpus = chosen[:-2]
+            self.brload_cpus = chosen[-2:]
 
         logger.info(f"router cpus: {self.router_cpus}")
         logger.info(f"brload cpus: {self.brload_cpus}")
