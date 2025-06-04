@@ -74,6 +74,10 @@ func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHa
 		return nil, nil, serrors.Wrap("creating TPacket", err)
 	}
 
+	// Caution: an afpacket socket normally receives its own outgoing traffic. mpkSender configures
+	// the socket to avoid that but if you ever remove mpkSender, you need to do something about it.
+	// The bpf does *not* do it either and should not. It is inefficient.
+
 	filter, err := ebpf.BpfPortFilter(index, handle, localPort)
 	if err != nil {
 		return nil, nil, serrors.Wrap("adding port filter", err)
