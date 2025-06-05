@@ -141,7 +141,7 @@ func (l *internalLink) packHeader() {
 			SrcIP:    srcIP.AsSlice(),
 			DstIP:    netip.IPv4Unspecified().AsSlice(),
 			Protocol: layers.IPProtocolUDP,
-			// Flags:    layers.IPv4DontFragment, // Sure about that?
+			Flags:    layers.IPv4DontFragment, // Sure about that?
 		}
 		_ = udp.SetNetworkLayerForChecksum(&ip)
 		err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
@@ -503,6 +503,6 @@ func newInternalLink(
 	}
 	il.packHeader()
 	conn.link = il
-	log.Debug("Link", "local", localAddr, "localMAC", conn.localMAC)
+	log.Debug("Link", "scope", "internal", "local", localAddr, "localMAC", conn.localMAC)
 	return il
 }

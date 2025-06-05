@@ -39,6 +39,9 @@ def sudo(command: str) -> str:
     return cmd.sudo("-A", str.split(command))
 
 
+# Can't assign the host-side addresses to the interfaces. If we do that the kernel tries
+# to resolve the ports that aren't there (because brload is using a raw socket) and sends
+# errors back.
 def create_veth(host: str, container: str, ip: str, mac: str, ns: str, neighbors: List[str]):
     sudo("ip link add %s mtu 8000 type veth peer name %s mtu 8000" % (host, container))
     sudo("sysctl -qw net.ipv6.conf.%s.disable_ipv6=1" % host)

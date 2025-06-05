@@ -15,7 +15,11 @@
 
 package runner
 
-import "github.com/gopacket/gopacket"
+import (
+	"net"
+
+	"github.com/gopacket/gopacket"
+)
 
 type NormalizePacketFn func(gopacket.Packet)
 
@@ -23,6 +27,7 @@ type NormalizePacketFn func(gopacket.Packet)
 type Case struct {
 	Name              string
 	WriteTo, ReadFrom string
+	LocalMAC          net.HardwareAddr
 	Input, Want       []byte
 	StoreDir          string
 	IgnoreNonMatching bool

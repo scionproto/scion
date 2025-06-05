@@ -108,7 +108,13 @@ type ExpectedPacket struct {
 // packets using the storer. If the received packet in the device is matching
 // the expected packet and no other packet is received nil is returned.
 // Otherwise details of what went wrong are returned in the error.
-func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacketFn) error {
+func (c *RunConfig) ExpectPacket(
+	pkt ExpectedPacket,
+	normalizeFn NormalizePacketFn,
+	localMAC net.HardwareAddr,
+	handles map[string]*afpacket.TPacket,
+) error {
+
 	timerCh := time.After(pkt.Timeout)
 	c.packetChans[len(c.deviceNames)] = reflect.SelectCase{
 		Dir:  reflect.SelectRecv,
@@ -132,6 +138,83 @@ func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacket
 		if !ok {
 			errors = append(errors, serrors.New("got non gopacket.Packet",
 				"type", common.TypeOf(pktV.Interface())))
+			continue
+		}
+		// We're only configuring V4 addresses. So, only IPv4 traffic is ours.
+		// Even on veth, there can be other things scooting by; such as ARP. Speaking of
+		// ARP: we have to respond. Neighbor entries that the test harness shoves into the router
+		// won't work: the router can also use a raw socket.
+		if got.LinkLayer() == nil {
+			log.Debug("No link hdr")
+			continue
+		}
+		if got.LinkLayer().LayerType() != layers.LayerTypeEthernet {
+			log.Debug("Not ethernet")
+			continue
+		}
+		ethHdr := got.LinkLayer().(*layers.Ethernet)
+		if ethHdr.EthernetType == layers.EthernetTypeARP {
+			arpData := ethHdr.LayerPayload()
+			var req layers.ARP
+			if req.DecodeFromBytes(arpData, gopacket.NilDecodeFeedback) != nil {
+				log.Debug("Bad ARP pkt")
+				continue
+			}
+			afp := handles[c.deviceNames[idx]]
+			if afp == nil {
+				log.Debug("Cannot respond to arp: came in through unknown device")
+				continue
+			}
+			ethernet := layers.Ethernet{
+				SrcMAC:       localMAC,
+				DstMAC:       req.SourceHwAddress,
+				EthernetType: layers.EthernetTypeARP,
+			}
+			arp := layers.ARP{
+				AddrType:          layers.LinkTypeEthernet,
+				HwAddressSize:     6,
+				Protocol:          layers.EthernetTypeIPv4,
+				ProtAddressSize:   4,
+				Operation:         layers.ARPReply,
+				SourceHwAddress:   localMAC,
+				SourceProtAddress: req.DstProtAddress,
+				DstHwAddress:      req.SourceHwAddress,
+				DstProtAddress:    req.SourceProtAddress,
+			}
+			var seropts = gopacket.SerializeOptions{
+				FixLengths:       true,
+				ComputeChecksums: true,
+			}
+			serBuf := gopacket.NewSerializeBuffer()
+			if gopacket.SerializeLayers(serBuf, seropts, &ethernet, &arp) != nil {
+				log.Debug("Could not serialize arp response")
+				continue
+			}
+			log.Debug("Response to ARP", "ip", arp.SourceProtAddress, "isat", arp.SourceHwAddress)
+			afp.WritePacketData(serBuf.Bytes())
+			continue
+		}
+		if ethHdr.EthernetType != layers.EthernetTypeIPv4 {
+			log.Debug("Not IPv4")
+			continue
+		}
+		if got.NetworkLayer() == nil {
+			log.Debug("No netwk hdr")
+			continue
+		}
+		ipHdr := got.NetworkLayer().(*layers.IPv4)
+		if ipHdr.Protocol != layers.IPProtocolUDP {
+			log.Debug("Not UDP")
+			continue
+		}
+		if got.TransportLayer() == nil {
+			log.Debug("No transport hdr")
+			continue
+		}
+		udpHdr := got.TransportLayer().(*layers.UDP)
+		if udpHdr.DstPort < 30000 || udpHdr.DstPort >= 60000 {
+			// treat that as noise
+			log.Debug("Not ours", "got", got)
 			continue
 		}
 		pkt.Storer.storePkt(fmt.Sprintf("got-%d", i), got)
@@ -188,26 +271,38 @@ func (t *Case) Run(cfg *RunConfig) error {
 		defer storer.storePkt("want", wantPkt)
 	}
 
-	if err := cfg.WritePacket(t.WriteTo, t.Input); err != nil {
-		return serrors.Wrap("writing input packet", err)
-	}
-	ePkt := ExpectedPacket{
-		Storer:            storer,
-		DevName:           t.ReadFrom,
-		Timeout:           350 * time.Millisecond,
-		IgnoreNonMatching: t.IgnoreNonMatching,
-		Pkt:               wantPkt,
-	}
-	normalizePacket := t.NormalizePacket
-	if normalizePacket == nil {
-		normalizePacket = DefaultNormalizePacket
-	}
-	err := cfg.ExpectPacket(ePkt, normalizePacket)
-	if err == nil {
-		return nil
-	}
-	if errors.Is(err, errTimeout) {
-		log.Debug(t.Name, "msg", "timeout occurred")
+	// Retry once after a short delay: the router may need to arp resolve the destination. When that
+	// happens, the router drops the trigger packet. It's a router not a transactional DB.
+	var err error
+	for attempts := range 2 {
+		if err = cfg.WritePacket(t.WriteTo, t.Input); err != nil {
+			return serrors.Wrap("writing input packet", err)
+		}
+		ePkt := ExpectedPacket{
+			Storer:            storer,
+			DevName:           t.ReadFrom,
+			Timeout:           350 * time.Millisecond,
+			IgnoreNonMatching: t.IgnoreNonMatching,
+			Pkt:               wantPkt,
+		}
+		normalizePacket := t.NormalizePacket
+		if normalizePacket == nil {
+			normalizePacket = DefaultNormalizePacket
+		}
+
+		err = cfg.ExpectPacket(ePkt, normalizePacket, t.LocalMAC, cfg.handles)
+		if err == nil {
+			return nil
+		}
+		if errors.Is(err, errTimeout) {
+			if attempts > 0 {
+				log.Debug(t.Name, "msg", "timeout occurred")
+			} else {
+				time.Sleep(1 * time.Second)
+			}
+		} else {
+			break
+		}
 	}
 	return serrors.Wrap("Errors were found", err,
 		"Packets are stored in", t.StoreDir)

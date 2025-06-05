@@ -154,7 +154,7 @@ func (l *ptpLink) packHeader() {
 			SrcIP:    srcIP.AsSlice(),
 			DstIP:    dstIP.AsSlice(),
 			Protocol: layers.IPProtocolUDP,
-			// Flags:    layers.IPv4DontFragment, // Sure about that?
+			Flags:    layers.IPv4DontFragment, // Sure about that?
 		}
 		_ = udp.SetNetworkLayerForChecksum(&ip)
 		err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
@@ -212,7 +212,6 @@ func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	if !l.addHeader(p) {
 		return false
 	}
-
 	if l.is4 {
 		// Fix the IP total length field
 		binary.BigEndian.PutUint16(p.RawPacket[14+2:], uint16(payloadLen)+20+8)
