@@ -157,7 +157,7 @@ func (c *RunConfig) handleArp(
 		log.Debug("Could not serialize arp response")
 		return
 	}
-	log.Debug("Response to ARP", "ip", arp.SourceProtAddress, "isat", arp.SourceHwAddress)
+	log.Debug("ARP Response", "ip", arp)
 	_ = afp.WritePacketData(serBuf.Bytes())
 }
 
@@ -248,6 +248,9 @@ func (c *RunConfig) ExpectPacket(
 		pkt.Storer.storePkt(fmt.Sprintf("got-%d", i), got)
 		// Packet received
 		if c.deviceNames[idx] != pkt.DevName {
+			if pkt.IgnoreNonMatching {
+				continue
+			}
 			errors = append(errors, serrors.New("received packet on unexpected interface",
 				"pkt", i, "expected", pkt.DevName, "actual", c.deviceNames[idx], "packet", got))
 			continue
