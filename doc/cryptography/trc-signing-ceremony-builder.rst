@@ -681,8 +681,8 @@ TRC Signing Ceremony - Script Builder
         --not-after <span x-text="cert.notAfter"></span> \
         --common-name "<span x-text="cert.commonName"></span>" \
         <span x-text="form.paths.workingDir"></span>/subject.tmpl \
-        <span x-text="cert.key"></span> \
         <span x-text="cert.cert"></span></div></pre></div>
+        <span x-text="cert.key"></span> \
             </div></template>
         </div></template>
 
