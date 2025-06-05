@@ -176,6 +176,8 @@ func SCMPBadPktLen(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPBadPktLen",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPBadPktLen"),
@@ -338,6 +340,8 @@ func SCMPQuoteCut(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPQuoteCut",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPQuoteCut"),
@@ -450,6 +454,8 @@ func NoSCMPReplyForSCMPError(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "NoSCMPReplyForSCMPError",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "no_pkt_expected",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            nil,
 		StoreDir:        filepath.Join(artifactsDir, "NoSCMPReplyForSCMPError"),

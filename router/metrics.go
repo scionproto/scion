@@ -316,24 +316,26 @@ func newTrafficMetrics(
 	for t := ttOther; t < ttMax; t++ {
 		ttLabels := prometheus.Labels{"type": t.String()}
 		c.Output[t] = newOutputMetrics(metrics, ifLabels, scLabels, ttLabels)
-		c.DroppedPacketsBusyForwarder[t] =
-			metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(ttLabels).With(reasonMap)
+		c.DroppedPacketsBusyForwarder[t] = metrics.DroppedPacketsTotal.MustCurryWith(
+			ifLabels).MustCurryWith(scLabels).MustCurryWith(ttLabels).With(reasonMap)
 		c.DroppedPacketsBusyForwarder[t].Add(0)
-
 	}
 
 	ttLabels := prometheus.Labels{"type": ttOther.String()}
 	reasonMap["reason"] = "invalid"
 	c.DroppedPacketsInvalid =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(ttLabels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(
+			ttLabels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_processor"
 	c.DroppedPacketsBusyProcessor =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(ttLabels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(
+			ttLabels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_slow_path"
 	c.DroppedPacketsBusySlowPath =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(ttLabels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(
+			ttLabels).With(reasonMap)
 
 	c.InputBytesTotal.Add(0)
 	c.InputPacketsTotal.Add(0)

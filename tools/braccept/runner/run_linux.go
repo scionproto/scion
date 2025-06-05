@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -104,6 +105,62 @@ type ExpectedPacket struct {
 	Pkt               gopacket.Packet
 }
 
+// Handles arp packets (silently - respond if we can, else just drop).
+func (c *RunConfig) handleArp(
+	ethHdr *layers.Ethernet,
+	localIP net.IP,
+	localMAC net.HardwareAddr,
+	afp *afpacket.TPacket,
+) {
+	arpData := ethHdr.LayerPayload()
+	var req layers.ARP
+	if req.DecodeFromBytes(arpData, gopacket.NilDecodeFeedback) != nil {
+		log.Debug("Bad ARP pkt")
+		return
+	}
+	if req.Operation != layers.ARPRequest {
+		// We don't need an arp cache we know all addresses. So, we only respond to requests.
+		return
+	}
+	if slices.Equal(req.SourceProtAddress, net.IPv4zero) {
+		// Probe. Respond if we have the target address. Since i'm not sure it's legal to
+		// respond with the unspecified address as the target, use ours. Which is technically
+		// the correct value anyway.
+		req.SourceProtAddress = localIP // will become dstProtAddress in the response.
+	}
+	if !slices.Equal(req.DstProtAddress, localIP) {
+		// Gratuitous req or not for us. No response.
+		return
+	}
+	ethernet := layers.Ethernet{
+		SrcMAC:       localMAC,
+		DstMAC:       req.SourceHwAddress,
+		EthernetType: layers.EthernetTypeARP,
+	}
+	arp := layers.ARP{
+		AddrType:          layers.LinkTypeEthernet,
+		HwAddressSize:     6,
+		Protocol:          layers.EthernetTypeIPv4,
+		ProtAddressSize:   4,
+		Operation:         layers.ARPReply,
+		SourceHwAddress:   localMAC,
+		SourceProtAddress: req.DstProtAddress,
+		DstHwAddress:      req.SourceHwAddress,
+		DstProtAddress:    req.SourceProtAddress,
+	}
+	var seropts = gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	serBuf := gopacket.NewSerializeBuffer()
+	if gopacket.SerializeLayers(serBuf, seropts, &ethernet, &arp) != nil {
+		log.Debug("Could not serialize arp response")
+		return
+	}
+	log.Debug("Response to ARP", "ip", arp.SourceProtAddress, "isat", arp.SourceHwAddress)
+	_ = afp.WritePacketData(serBuf.Bytes())
+}
+
 // ExpectPacket expects packet pkt on the device devName. It stores all received
 // packets using the storer. If the received packet in the device is matching
 // the expected packet and no other packet is received nil is returned.
@@ -111,6 +168,7 @@ type ExpectedPacket struct {
 func (c *RunConfig) ExpectPacket(
 	pkt ExpectedPacket,
 	normalizeFn NormalizePacketFn,
+	localIP net.IP,
 	localMAC net.HardwareAddr,
 	handles map[string]*afpacket.TPacket,
 ) error {
@@ -154,44 +212,11 @@ func (c *RunConfig) ExpectPacket(
 		}
 		ethHdr := got.LinkLayer().(*layers.Ethernet)
 		if ethHdr.EthernetType == layers.EthernetTypeARP {
-			arpData := ethHdr.LayerPayload()
-			var req layers.ARP
-			if req.DecodeFromBytes(arpData, gopacket.NilDecodeFeedback) != nil {
-				log.Debug("Bad ARP pkt")
-				continue
-			}
-			afp := handles[c.deviceNames[idx]]
-			if afp == nil {
+			if afp := handles[c.deviceNames[idx]]; afp != nil {
+				c.handleArp(ethHdr, localIP, localMAC, afp)
+			} else {
 				log.Debug("Cannot respond to arp: came in through unknown device")
-				continue
 			}
-			ethernet := layers.Ethernet{
-				SrcMAC:       localMAC,
-				DstMAC:       req.SourceHwAddress,
-				EthernetType: layers.EthernetTypeARP,
-			}
-			arp := layers.ARP{
-				AddrType:          layers.LinkTypeEthernet,
-				HwAddressSize:     6,
-				Protocol:          layers.EthernetTypeIPv4,
-				ProtAddressSize:   4,
-				Operation:         layers.ARPReply,
-				SourceHwAddress:   localMAC,
-				SourceProtAddress: req.DstProtAddress,
-				DstHwAddress:      req.SourceHwAddress,
-				DstProtAddress:    req.SourceProtAddress,
-			}
-			var seropts = gopacket.SerializeOptions{
-				FixLengths:       true,
-				ComputeChecksums: true,
-			}
-			serBuf := gopacket.NewSerializeBuffer()
-			if gopacket.SerializeLayers(serBuf, seropts, &ethernet, &arp) != nil {
-				log.Debug("Could not serialize arp response")
-				continue
-			}
-			log.Debug("Response to ARP", "ip", arp.SourceProtAddress, "isat", arp.SourceHwAddress)
-			afp.WritePacketData(serBuf.Bytes())
 			continue
 		}
 		if ethHdr.EthernetType != layers.EthernetTypeIPv4 {
@@ -212,9 +237,12 @@ func (c *RunConfig) ExpectPacket(
 			continue
 		}
 		udpHdr := got.TransportLayer().(*layers.UDP)
-		if udpHdr.DstPort < 30000 || udpHdr.DstPort >= 60000 {
+		// TODO(jiceatscion): also include the real expected port in the test case metadata?
+		// We're being pretty sloppy here, but then, this is a closed veth, so there can't
+		// be completely arbitrary noise either.
+		if udpHdr.DstPort < 20000 || udpHdr.DstPort >= 60000 {
 			// treat that as noise
-			log.Debug("Not ours", "got", got)
+			log.Debug("Not ours")
 			continue
 		}
 		pkt.Storer.storePkt(fmt.Sprintf("got-%d", i), got)
@@ -290,7 +318,7 @@ func (t *Case) Run(cfg *RunConfig) error {
 			normalizePacket = DefaultNormalizePacket
 		}
 
-		err = cfg.ExpectPacket(ePkt, normalizePacket, t.LocalMAC, cfg.handles)
+		err = cfg.ExpectPacket(ePkt, normalizePacket, t.LocalIP, t.LocalMAC, cfg.handles)
 		if err == nil {
 			return nil
 		}

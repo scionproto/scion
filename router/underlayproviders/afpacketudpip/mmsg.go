@@ -53,7 +53,7 @@ func newMpktSender(tp *afpacket.TPacket) *mpktSender {
 	sender.tp = tp
 
 	// If we're going to send, we need to make sure we're not receiving our own stuff. The default
-	// behaviour is less than clear. The loopback doesn't work wih veth, but likely does with
+	// behaviour is less than clear. The loopback doesn't work with veth, but likely does with
 	// else.
 	err := unix.SetsockoptInt(sender.fd, unix.SOL_PACKET, unix.PACKET_IGNORE_OUTGOING, 1)
 	if err != nil {

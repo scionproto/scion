@@ -28,6 +28,7 @@ type Case struct {
 	Name              string
 	WriteTo, ReadFrom string
 	LocalMAC          net.HardwareAddr
+	LocalIP           net.IP
 	Input, Want       []byte
 	StoreDir          string
 	IgnoreNonMatching bool
