@@ -149,5 +149,12 @@ type UnderlayProvider interface {
 	NewInternalLink(localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error)
 }
 
-// NewProviderFn is a function that instantiates an underlay provider.
-type NewProviderFn func(batchSize, receiveBufferSize, sendBufferSize int) UnderlayProvider
+// ProviderFactory allows the instatiation of a provider.
+// Priority is a crude way to allow choosing between multiple interchangeable underlays
+// (because they use the same addressing scheme and wire format; only differing
+// in implementation). We need to find something more flexible. The higher, the more
+// desirable.
+type ProviderFactory interface {
+	New(batchSize, receiveBufferSize, sendBufferSize int) UnderlayProvider
+	Priority() int
+}

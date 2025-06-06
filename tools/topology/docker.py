@@ -148,7 +148,8 @@ class DockerGenerator(object):
                 'networks': {},
                 'user': self.user,
                 'volumes': ['%s:/etc/scion:ro' % base],
-                'command': ['--config', '/etc/scion/%s.toml' % k]
+                'command': ['--config', '/etc/scion/%s.toml' % k],
+                'cap_add': ['NET_ADMIN', 'NET_RAW', 'BPF']
             }
             # add data networks:
             net_keys = [k, k + '_internal']
