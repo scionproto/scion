@@ -54,7 +54,7 @@ type internalLink struct {
 
 func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 	p := l.pool.Get()
-	serBuf := router.NewSerializeProxyStart(p.RawPacket, 60)
+	serBuf := router.NewSerializeProxyStart(p.RawPacket, 128)
 	var err error
 
 	// TODO(jiceatscion): use a canned arp packet?
@@ -75,6 +75,7 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 			DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
 			DstProtAddress:    remoteIP.AsSlice(),
 		}
+		serBuf.AppendBytes(18) // frame size padding
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
 	} else {
 		mcAddr := remoteIP.AsSlice()
@@ -125,15 +126,15 @@ func (l *internalLink) packHeader() {
 	sb := gopacket.NewSerializeBuffer()
 	srcIP := l.localAddr.Addr()
 
-	ethernet := layers.Ethernet{
-		SrcMAC:       l.localMAC,
-		DstMAC:       []byte{0, 0, 0, 0, 0, 0},
-		EthernetType: layers.EthernetTypeIPv4,
-	}
-	udp := layers.UDP{
-		SrcPort: layers.UDPPort(l.localAddr.Port()),
-	}
 	if l.is4 {
+		ethernet := layers.Ethernet{
+			SrcMAC:       l.localMAC,
+			DstMAC:       []byte{0, 0, 0, 0, 0, 0},
+			EthernetType: layers.EthernetTypeIPv4,
+		}
+		udp := layers.UDP{
+			SrcPort: layers.UDPPort(l.localAddr.Port()),
+		}
 		ip := layers.IPv4{
 			Version:  4,
 			IHL:      5,
@@ -155,6 +156,14 @@ func (l *internalLink) packHeader() {
 		l.header = sb.Bytes()[:42]
 		return
 	}
+	ethernet := layers.Ethernet{
+		SrcMAC:       l.localMAC,
+		DstMAC:       []byte{0, 0, 0, 0, 0, 0},
+		EthernetType: layers.EthernetTypeIPv6,
+	}
+	udp := layers.UDP{
+		SrcPort: layers.UDPPort(l.localAddr.Port()),
+	}
 	ip := layers.IPv6{
 		Version:    6,
 		NextHeader: layers.IPProtocolUDP,
@@ -166,7 +175,7 @@ func (l *internalLink) packHeader() {
 	err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
-		panic("Cannot serialize static header")
+		panic(fmt.Sprintf("Cannot serialize static header: [%v] srcMAC: [% X]", err, ethernet.SrcMAC))
 	}
 	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
 	// ethernet minimum.
@@ -419,7 +428,7 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 	}
 
 	p := l.pool.Get()
-	serBuf := router.NewSerializeProxyStart(p.RawPacket, 60)
+	serBuf := router.NewSerializeProxyStart(p.RawPacket, 128)
 	var err error
 
 	if l.is4 {
@@ -439,6 +448,7 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 			DstHwAddress:      remoteHwP[:],
 			DstProtAddress:    senderIP.AsSlice(),
 		}
+		serBuf.AppendBytes(18) // frame size padding
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
 	} else {
 		ethernet := layers.Ethernet{

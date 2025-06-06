@@ -55,7 +55,7 @@ type ptpLink struct {
 
 func (l *ptpLink) seekNeighbor(remoteIP netip.Addr) {
 	p := l.pool.Get()
-	serBuf := router.NewSerializeProxyStart(p.RawPacket, 60)
+	serBuf := router.NewSerializeProxyStart(p.RawPacket, 128)
 	var err error
 
 	if l.is4 {
@@ -137,16 +137,16 @@ func (l *ptpLink) packHeader() {
 	sb := gopacket.NewSerializeBuffer()
 	srcIP := l.localAddr.Addr()
 
-	ethernet := layers.Ethernet{
-		SrcMAC:       l.localMAC,
-		DstMAC:       l.remoteMAC[:],
-		EthernetType: layers.EthernetTypeIPv4,
-	}
-	udp := layers.UDP{
-		SrcPort: layers.UDPPort(l.localAddr.Port()),
-		DstPort: layers.UDPPort(l.remoteAddr.Port()),
-	}
 	if l.is4 {
+		ethernet := layers.Ethernet{
+			SrcMAC:       l.localMAC,
+			DstMAC:       l.remoteMAC[:],
+			EthernetType: layers.EthernetTypeIPv4,
+		}
+		udp := layers.UDP{
+			SrcPort: layers.UDPPort(l.localAddr.Port()),
+			DstPort: layers.UDPPort(l.remoteAddr.Port()),
+		}
 		ip := layers.IPv4{
 			Version:  4,
 			IHL:      5,
@@ -168,6 +168,16 @@ func (l *ptpLink) packHeader() {
 		l.header = sb.Bytes()[:42]
 		return
 	}
+	ethernet := layers.Ethernet{
+		SrcMAC:       l.localMAC,
+		DstMAC:       l.remoteMAC[:],
+		EthernetType: layers.EthernetTypeIPv6,
+	}
+	udp := layers.UDP{
+		SrcPort: layers.UDPPort(l.localAddr.Port()),
+		DstPort: layers.UDPPort(l.remoteAddr.Port()),
+	}
+
 	ip := layers.IPv6{
 		Version:    6,
 		NextHeader: layers.IPProtocolUDP,
@@ -398,7 +408,7 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 		return
 	}
 	p := l.pool.Get()
-	serBuf := router.NewSerializeProxyStart(p.RawPacket, 60)
+	serBuf := router.NewSerializeProxyStart(p.RawPacket, 128)
 	var err error
 
 	if l.is4 {

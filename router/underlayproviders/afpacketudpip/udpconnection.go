@@ -15,7 +15,8 @@
 package afpacketudpip
 
 import (
-	"crypto/rand"
+	"encoding/binary"
+	"math/rand"
 	"net"
 	"net/netip"
 	"sync/atomic"
@@ -403,8 +404,20 @@ func newUdpConnection(
 	if err != nil {
 		return nil, err
 	}
+	hwAddr := intf.HardwareAddr
+
+	// Catering to tests that use a local IPv6 address on the loopback interface which has no mac
+	// address assigned. We make one up and rely on the fact the everything bounces to everyone
+	// anyway. Not sure how well the non-recipient routers will handle the junk traffic because we
+	// don't filter it explicitly.
+	if len(hwAddr) == 0 {
+		num := rand.Uint32()
+		hwAddr = net.HardwareAddr{0, 0, 0, 0, 0, 0}
+		binary.BigEndian.PutUint32(hwAddr, uint32(num))
+		hwAddr[0] = 0x02
+	}
 	return &udpConnection{
-		localMAC:     intf.HardwareAddr,
+		localMAC:     hwAddr,
 		name:         intf.Name,
 		afp:          afp,
 		filter:       filter,
