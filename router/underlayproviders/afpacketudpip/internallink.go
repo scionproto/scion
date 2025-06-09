@@ -78,7 +78,17 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 		serBuf.AppendBytes(18) // frame size padding
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
 	} else {
-		mcAddr := remoteIP.AsSlice()
+		var code layers.ICMPv6TypeCode
+		var mcAddr []byte
+
+		// We can do announcements too. The intent is conveyed using the IPv4 convention.
+		if l.localAddr.Addr() == remoteIP {
+			mcAddr = netip.IPv6LinkLocalAllNodes().AsSlice()
+			code = layers.ICMPv6TypeNeighborAdvertisement
+		} else {
+			mcAddr = remoteIP.AsSlice()
+			code = layers.ICMPv6TypeNeighborSolicitation
+		}
 		copy(mcAddr, ndpMcastPrefix)
 		ethernet := layers.Ethernet{
 			SrcMAC:       l.localMAC,
@@ -93,7 +103,7 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 			DstIP:      mcAddr,
 		}
 		icmp6 := layers.ICMPv6{
-			TypeCode: layers.ICMPv6TypeNeighborSolicitation,
+			TypeCode: code,
 		}
 		request := layers.ICMPv6NeighborSolicitation{
 			TargetAddress: remoteIP.AsSlice(),
@@ -111,7 +121,7 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 	}
 	p.RawPacket = serBuf.Bytes()
 
-	log.Debug("ARP Request sent internal", "whohas", remoteIP, "tell", l.localAddr.Addr())
+	log.Debug("Neighbor request sent internal", "whohas", remoteIP, "tell", l.localAddr.Addr())
 
 	select {
 	case l.egressQ <- p:
@@ -406,7 +416,7 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 			// An actual new address.
 			remoteHwP = &remoteHw
 			l.arpCache[senderIP] = remoteHwP
-			log.Debug("ARP updated cache ptp", "IP", senderIP, "isat", remoteHw,
+			log.Debug("Neighbor cache updated ptp", "IP", senderIP, "isat", remoteHw,
 				"on", l.localAddr.Addr())
 		}
 	} else {
@@ -482,7 +492,7 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 	}
 	p.RawPacket = serBuf.Bytes()
 
-	log.Debug("ARP Response sent internal", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
+	log.Debug("Neighbor response sent internal", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
 		"to", senderIP)
 
 	select {
@@ -513,6 +523,10 @@ func newInternalLink(
 	}
 	il.packHeader()
 	conn.link = il
+
+	// An announcementmay avoid the address resolution round-trip and loss of the first packet.
+	il.seekNeighbor(il.localAddr.Addr())
+
 	log.Debug("Link", "scope", "internal", "local", localAddr, "localMAC", conn.localMAC)
 	return il
 }

@@ -110,7 +110,7 @@ func (l *ptpLink) seekNeighbor(remoteIP netip.Addr) {
 	}
 	p.RawPacket = serBuf.Bytes()
 
-	log.Debug("ARP Request sent ptp", "whohas", remoteIP, "tell", l.localAddr.Addr())
+	log.Debug("Neighbor request sent ptp", "whohas", remoteIP, "tell", l.localAddr.Addr())
 
 	select {
 	case l.egressQ <- p:
@@ -376,7 +376,7 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 			// An actual new address.
 			l.remoteMAC = &remoteHw
 
-			log.Debug("ARP updated cache ptp", "IP", senderIP, "isat", remoteHw,
+			log.Debug("Neighbor cache updated ptp", "IP", senderIP, "isat", remoteHw,
 				"on", l.localAddr.Addr())
 
 			// Invalidate the packed header if needed.
@@ -457,11 +457,11 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 	}
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
-		panic(fmt.Sprintf("Cannot serialize arp packet : %v", err))
+		panic(fmt.Sprintf("Cannot serialize neighbor response: %v", err))
 	}
 	p.RawPacket = serBuf.Bytes()
 
-	log.Debug("ARP Response sent ptp", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
+	log.Debug("Neighbor response sent ptp", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
 		"to", senderIP)
 
 	select {
@@ -491,6 +491,11 @@ func newPtpLinkExternal(
 		is4:        localAddr.Addr().Is4(),
 	}
 	conn.links[*remoteAddr] = l
+
+	// Packheader also announces ourselves. As a result, there's a decent chance that both sides
+	// have their mutual addresses resolved before the first real packet is sent.
+	l.packHeader()
+
 	log.Debug("Link", "scope", "external", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l
@@ -516,6 +521,11 @@ func newPtpLinkSibling(
 		is4:        localAddr.Addr().Is4(),
 	}
 	conn.links[*remoteAddr] = l
+
+	// Packheader also announces ourselves. As a result, there's a decent chance that both sides
+	// have their mutual addresses resolved before the first real packet is sent.
+	l.packHeader()
+
 	log.Debug("Link", "scope", "sibling", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l
