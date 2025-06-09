@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/gopacket/gopacket"
@@ -45,7 +46,7 @@ type internalLink struct {
 	localAddr        *netip.AddrPort
 	egressQ          chan *router.Packet
 	metrics          *router.InterfaceMetrics
-	arpCache         map[netip.Addr]*[6]byte
+	neighbors        neighborCache
 	svc              *router.Services[netip.AddrPort]
 	seed             uint32
 	dispatchStart    uint16
@@ -130,7 +131,7 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 	}
 }
 
-// This is called during initialization only and does not need the arpCache. The header
+// This is called during initialization only and does not need the neighbors cache. The header
 // is incomplete and gets patched for each packet.
 func (l *internalLink) packHeader() {
 
@@ -201,11 +202,10 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 	dstIP := dst.Addr()
 	// Resolve the destination MAC address if we can.
 	l.hdrMutex.Lock()
-	dstMac, found := l.arpCache[dstIP]
+	dstMac, found := l.neighbors.get(dstIP)
 	if dstMac == nil { // pending or missing
 		if !found {
 			// Trigger the address resolution.
-			l.arpCache[dstIP] = nil // Mark pending
 			l.hdrMutex.Unlock()
 			l.seekNeighbor(dstIP)
 		} else {
@@ -278,6 +278,13 @@ func (l *internalLink) start(
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
+
+	go func(neighbors neighborCache) {
+		for {
+			neighbors.tick()
+			time.Sleep(neighborTick)
+		}
+	}(l.neighbors)
 
 	// An announcement may avoid the address resolution round-trip and loss of the first packet.
 	l.seekNeighbor(l.localAddr.Addr())
@@ -409,21 +416,16 @@ func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remoteHw [6]byte) {
 	// Don't pollute our table with stuff that we can't have asked. However, per RFC826, update
 	// what we already have when given a chance.
-	// We avoid replacing cache entries with identical values to limit GC pressure.
+	// remoteHwP always points at an in-cache MAC address, which reduces GC pressure.
 	// We respond only to peers that we keep in the cache.
 	l.hdrMutex.Lock()
-	remoteHwP, have := l.arpCache[senderIP]
-	if (targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified()) || have {
+	found := l.neighbors.check(senderIP)
+	var remoteHwP *[6]byte
+	if (targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified()) || found {
 		// Good to cache or update
-		if remoteHwP == nil || *remoteHwP != remoteHw {
-			// An actual new address.
-			remoteHwP = &remoteHw
-			l.arpCache[senderIP] = remoteHwP
-			log.Debug("Neighbor cache updated ptp", "IP", senderIP, "isat", remoteHw,
-				"on", l.localAddr.Addr())
-		}
+		remoteHwP = l.neighbors.put(senderIP, remoteHw)
 	} else {
-		// Not good to cache. No response either.
+		// Not in cacheable => No response needed either.
 		isReq = false
 	}
 	l.hdrMutex.Unlock()
@@ -516,7 +518,7 @@ func newInternalLink(
 		localAddr:        localAddr,
 		egressQ:          conn.queue,
 		metrics:          metrics,
-		arpCache:         make(map[netip.Addr]*[6]byte),
+		neighbors:        neighborCache{},
 		svc:              svc,
 		seed:             conn.seed,
 		dispatchStart:    dispatchStart,
