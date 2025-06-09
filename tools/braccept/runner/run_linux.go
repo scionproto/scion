@@ -329,7 +329,7 @@ func (t *Case) Run(cfg *RunConfig) error {
 			if attempts > 0 {
 				log.Debug(t.Name, "msg", "timeout occurred")
 			} else {
-				time.Sleep(1 * time.Second)
+				time.Sleep(100 * time.Millisecond)
 			}
 		} else {
 			break
