@@ -34,6 +34,8 @@ import (
 
 // internalLink is actually a half link. It is not associated with a specific remote address.
 // TODO(jiceatscion): a lot of code could be deduplicated between the two link implementations.
+// TODO(jiceatscion): We need to expire pending cache entries after a few seconds; else failures
+// stick.
 type internalLink struct {
 	procQs           []chan *router.Packet
 	header           []byte
@@ -114,7 +116,6 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 		_ = icmp6.SetNetworkLayerForChecksum(&ipv6)
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &ipv6, &icmp6, &request)
 	}
-
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
 		panic("Cannot serialize arp packet")
@@ -198,7 +199,6 @@ func (l *internalLink) packHeader() {
 // destination is not already resolved.
 func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 	dstIP := dst.Addr()
-
 	// Resolve the destination MAC address if we can.
 	l.hdrMutex.Lock()
 	dstMac, found := l.arpCache[dstIP]
@@ -278,6 +278,9 @@ func (l *internalLink) start(
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
+
+	// An announcement may avoid the address resolution round-trip and loss of the first packet.
+	l.seekNeighbor(l.localAddr.Addr())
 }
 
 func (l *internalLink) stop() {
@@ -523,9 +526,6 @@ func newInternalLink(
 	}
 	il.packHeader()
 	conn.link = il
-
-	// An announcementmay avoid the address resolution round-trip and loss of the first packet.
-	il.seekNeighbor(il.localAddr.Addr())
 
 	log.Debug("Link", "scope", "internal", "local", localAddr, "localMAC", conn.localMAC)
 	return il

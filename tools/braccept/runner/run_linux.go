@@ -115,7 +115,6 @@ func (c *RunConfig) handleArp(
 	arpData := ethHdr.LayerPayload()
 	var req layers.ARP
 	if req.DecodeFromBytes(arpData, gopacket.NilDecodeFeedback) != nil {
-		log.Debug("Bad ARP pkt")
 		return
 	}
 	if req.Operation != layers.ARPRequest {
@@ -157,7 +156,6 @@ func (c *RunConfig) handleArp(
 		log.Debug("Could not serialize arp response")
 		return
 	}
-	log.Debug("ARP Response", "ip", arp)
 	_ = afp.WritePacketData(serBuf.Bytes())
 }
 
@@ -229,7 +227,6 @@ func (c *RunConfig) ExpectPacket(
 		}
 		ipHdr := got.NetworkLayer().(*layers.IPv4)
 		if ipHdr.Protocol != layers.IPProtocolUDP {
-			log.Debug("Not UDP")
 			continue
 		}
 		if got.TransportLayer() == nil {

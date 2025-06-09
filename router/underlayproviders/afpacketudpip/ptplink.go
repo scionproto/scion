@@ -118,6 +118,7 @@ func (l *ptpLink) seekNeighbor(remoteIP netip.Addr) {
 	}
 }
 
+// TODO(jiceatscion): We need to expire pending entries after a few seconds; else failures stick.
 var pending = [6]byte{0, 0, 0, 0, 0, 0}
 
 // Expensive. Call only to make a few prefab headers.
@@ -267,6 +268,11 @@ func (l *ptpLink) start(
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
+
+	// Announces ourselves, so there's a decent chance that both sides have their mutual addresses
+	// resolved before the first real packet is sent.
+	l.seekNeighbor(l.localAddr.Addr())
+
 	if l.bfdSession == nil {
 		return
 	}
@@ -492,10 +498,6 @@ func newPtpLinkExternal(
 	}
 	conn.links[*remoteAddr] = l
 
-	// Packheader also announces ourselves. As a result, there's a decent chance that both sides
-	// have their mutual addresses resolved before the first real packet is sent.
-	l.packHeader()
-
 	log.Debug("Link", "scope", "external", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l
@@ -521,10 +523,6 @@ func newPtpLinkSibling(
 		is4:        localAddr.Addr().Is4(),
 	}
 	conn.links[*remoteAddr] = l
-
-	// Packheader also announces ourselves. As a result, there's a decent chance that both sides
-	// have their mutual addresses resolved before the first real packet is sent.
-	l.packHeader()
 
 	log.Debug("Link", "scope", "sibling", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
