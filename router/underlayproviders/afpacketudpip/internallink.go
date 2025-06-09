@@ -281,7 +281,9 @@ func (l *internalLink) start(
 
 	go func(neighbors neighborCache) {
 		for {
+			l.hdrMutex.Lock()
 			neighbors.tick()
+			l.hdrMutex.Unlock()
 			time.Sleep(neighborTick)
 		}
 	}(l.neighbors)
