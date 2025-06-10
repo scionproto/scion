@@ -60,7 +60,7 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 	serBuf := router.NewSerializeProxyStart(p.RawPacket, 128)
 	var err error
 
-	// TODO(jiceatscion): use a canned arp packet?
+	// TODO(jiceatscion): use a canned packet?
 	if l.is4 {
 		ethernet := layers.Ethernet{
 			SrcMAC:       l.localMAC,
@@ -78,7 +78,7 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 			DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
 			DstProtAddress:    remoteIP.AsSlice(),
 		}
-		serBuf.AppendBytes(18) // frame size padding
+		_, _ = serBuf.AppendBytes(18) // frame size padding
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
 	} else {
 		var code layers.ICMPv6TypeCode
@@ -119,7 +119,7 @@ func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
 	}
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
-		panic("Cannot serialize arp packet")
+		panic("cannot serialize neighbor response")
 	}
 	p.RawPacket = serBuf.Bytes()
 
@@ -160,7 +160,7 @@ func (l *internalLink) packHeader() {
 		err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
 		if err != nil {
 			// The only possible reason for this is in the few lines above.
-			panic("Cannot serialize static header")
+			panic("cannot serialize static header")
 		}
 
 		// We have to truncate the result; gopacket is scared of generating a packet shorter than
@@ -187,7 +187,7 @@ func (l *internalLink) packHeader() {
 	err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
-		panic(fmt.Sprintf("Cannot serialize static header: [%v] srcMAC: [% X]", err, ethernet.SrcMAC))
+		panic("cannot serialize static header")
 	}
 	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
 	// ethernet minimum.
@@ -465,7 +465,7 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 			DstHwAddress:      remoteHwP[:],
 			DstProtAddress:    senderIP.AsSlice(),
 		}
-		serBuf.AppendBytes(18) // frame size padding
+		_, _ = serBuf.AppendBytes(18) // frame size padding
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
 	} else {
 		ethernet := layers.Ethernet{
@@ -495,11 +495,11 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 	}
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
-		panic("Cannot serialize arp packet")
+		panic("cannot serialize neighbor response")
 	}
 	p.RawPacket = serBuf.Bytes()
 
-	log.Debug("Neighbor response sent internal", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
+	log.Debug("Neighbor response internal", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
 		"to", senderIP)
 
 	select {

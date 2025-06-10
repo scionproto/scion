@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"net"
 	"net/netip"
 	"sync"
@@ -106,7 +105,7 @@ func (l *ptpLink) seekNeighbor(remoteIP netip.Addr) {
 
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
-		panic("Cannot serialize arp packet")
+		panic("cannot serialize neighbor response")
 	}
 	p.RawPacket = serBuf.Bytes()
 
@@ -161,7 +160,7 @@ func (l *ptpLink) packHeader() {
 		err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
 		if err != nil {
 			// The only possible reason for this is in the few lines above.
-			panic("Cannot serialize static header")
+			panic("cannot serialize static header")
 		}
 
 		// We have to truncate the result; gopacket is scared of generating a packet shorter than
@@ -190,7 +189,7 @@ func (l *ptpLink) packHeader() {
 	err := gopacket.SerializeLayers(sb, seropts, &ethernet, &ip, &udp)
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
-		panic("Cannot serialize static header")
+		panic("cannot serialize static header")
 	}
 
 	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
@@ -463,7 +462,7 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 	}
 	if err != nil {
 		// The only possible reason for this is in the few lines above.
-		panic(fmt.Sprintf("Cannot serialize neighbor response: %v", err))
+		panic("cannot serialize neighbor response")
 	}
 	p.RawPacket = serBuf.Bytes()
 

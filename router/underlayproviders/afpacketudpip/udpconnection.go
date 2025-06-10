@@ -413,7 +413,7 @@ func newUdpConnection(
 	if len(hwAddr) == 0 {
 		num := rand.Uint32()
 		hwAddr = net.HardwareAddr{0, 0, 0, 0, 0, 0}
-		binary.BigEndian.PutUint32(hwAddr, uint32(num))
+		binary.BigEndian.PutUint32(hwAddr, num)
 		hwAddr[0] = 0x02
 	}
 	return &udpConnection{
