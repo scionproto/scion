@@ -20,7 +20,6 @@ import (
 	"errors"
 	"net"
 	"net/netip"
-	"sync"
 
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
@@ -39,97 +38,41 @@ type ptpLink struct {
 	header     []byte
 	localMAC   net.HardwareAddr // replace w/ 6 bytes?
 	pool       router.PacketPool
-	hdrMutex   sync.Mutex
 	localAddr  *netip.AddrPort
 	remoteAddr *netip.AddrPort
 	egressQ    chan<- *router.Packet
 	metrics    *router.InterfaceMetrics
 	bfdSession *bfd.Session
-	remoteMAC  *[6]byte
+	neighbors  *neighborCache
 	scope      router.LinkScope
 	seed       uint32
 	ifID       uint16 // 0 for sibling links
 	is4        bool
 }
 
-func (l *ptpLink) seekNeighbor(remoteIP netip.Addr) {
+func (l *ptpLink) seekNeighbor(remoteIP *netip.Addr) {
 	p := l.pool.Get()
-	serBuf := router.NewSerializeProxyStart(p.RawPacket, 128)
-	var err error
-
-	if l.is4 {
-		ethernet := layers.Ethernet{
-			SrcMAC:       l.localMAC,
-			DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-			EthernetType: layers.EthernetTypeARP,
-		}
-		arp := layers.ARP{
-			AddrType:          layers.LinkTypeEthernet,
-			HwAddressSize:     6,
-			Protocol:          layers.EthernetTypeIPv4,
-			ProtAddressSize:   4,
-			Operation:         layers.ARPRequest,
-			SourceHwAddress:   l.localMAC,
-			SourceProtAddress: l.localAddr.Addr().AsSlice(),
-			DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
-			DstProtAddress:    remoteIP.AsSlice(),
-		}
-		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
-	} else {
-		mcAddr := remoteIP.AsSlice()
-		copy(mcAddr, ndpMcastPrefix)
-		ethernet := layers.Ethernet{
-			SrcMAC:       l.localMAC,
-			DstMAC:       net.HardwareAddr{0x33, 0x33, 0xff, mcAddr[13], mcAddr[14], mcAddr[15]},
-			EthernetType: layers.EthernetTypeIPv6,
-		}
-		ipv6 := layers.IPv6{
-			Version:    6,
-			NextHeader: layers.IPProtocolICMPv6,
-			HopLimit:   64,
-			SrcIP:      l.localAddr.Addr().AsSlice(),
-			DstIP:      mcAddr,
-		}
-		icmp6 := layers.ICMPv6{
-			TypeCode: layers.ICMPv6TypeNeighborSolicitation,
-		}
-		request := layers.ICMPv6NeighborSolicitation{
-			TargetAddress: remoteIP.AsSlice(),
-			Options: layers.ICMPv6Options{
-				layers.ICMPv6Option{Type: layers.ICMPv6OptSourceAddress, Data: l.localMAC},
-			},
-		}
-		_ = icmp6.SetNetworkLayerForChecksum(&ipv6)
-		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &ipv6, &icmp6, &request)
-	}
-
-	if err != nil {
-		// The only possible reason for this is in the few lines above.
-		panic("cannot serialize neighbor response")
-	}
-	p.RawPacket = serBuf.Bytes()
-
-	log.Debug("Neighbor request sent ptp", "whohas", remoteIP, "tell", l.localAddr.Addr())
-
+	localIP := l.localAddr.Addr()
+	packNeighborReq(p, &localIP, l.localMAC, remoteIP, l.is4)
+	log.Debug("Neighbor request sent ptp", "whohas", remoteIP, "tell", localIP)
 	select {
 	case l.egressQ <- p:
 	default:
 	}
 }
 
-// TODO(jiceatscion): We need to expire pending entries after a few seconds; else failures stick.
-var pending = [6]byte{0, 0, 0, 0, 0, 0}
-
 // Expensive. Call only to make a few prefab headers.
-// This must be called with hdrMutex locked.
+// This must be called with the neighbors cache locked.
 func (l *ptpLink) packHeader() {
 	dstIP := l.remoteAddr.Addr()
-	if l.remoteMAC == nil {
-		// Trigger the address resolution and then wait.
-		l.remoteMAC = &pending
-		l.seekNeighbor(dstIP)
-	}
-	if l.remoteMAC == &pending {
+	dstMac, found := l.neighbors.get(dstIP)
+	if dstMac == nil { // pending or missing
+		if !found {
+			// Trigger the address resolution.
+			// TODO(jiceatscion): could be done outside critical section.
+			l.seekNeighbor(&dstIP)
+		}
+		// Either way, not ready yet.
 		return
 	}
 
@@ -140,7 +83,7 @@ func (l *ptpLink) packHeader() {
 	if l.is4 {
 		ethernet := layers.Ethernet{
 			SrcMAC:       l.localMAC,
-			DstMAC:       l.remoteMAC[:],
+			DstMAC:       dstMac[:],
 			EthernetType: layers.EthernetTypeIPv4,
 		}
 		udp := layers.UDP{
@@ -170,7 +113,7 @@ func (l *ptpLink) packHeader() {
 	}
 	ethernet := layers.Ethernet{
 		SrcMAC:       l.localMAC,
-		DstMAC:       l.remoteMAC[:],
+		DstMAC:       dstMac[:],
 		EthernetType: layers.EthernetTypeIPv6,
 	}
 	udp := layers.UDP{
@@ -202,12 +145,12 @@ func (l *ptpLink) packHeader() {
 // header. Note that packHeader triggers an address resolution if a canned header cannot be
 // constructed immediately.
 func (l *ptpLink) addHeader(p *router.Packet) bool {
-	l.hdrMutex.Lock()
+	l.neighbors.Lock()
 	if l.header == nil {
 		l.packHeader()
 	}
 	header := l.header
-	l.hdrMutex.Unlock()
+	l.neighbors.Unlock()
 	if header == nil {
 		return false
 	}
@@ -270,7 +213,11 @@ func (l *ptpLink) start(
 
 	// Announces ourselves, so there's a decent chance that both sides have their mutual addresses
 	// resolved before the first real packet is sent.
-	l.seekNeighbor(l.localAddr.Addr())
+	localIP := l.localAddr.Addr()
+	l.seekNeighbor(&localIP)
+
+	// cache ticker is desirable.
+	l.neighbors.start()
 
 	if l.bfdSession == nil {
 		return
@@ -288,6 +235,7 @@ func (l *ptpLink) stop() {
 		return
 	}
 	l.bfdSession.Close()
+	l.neighbors.stop()
 }
 
 func (l *ptpLink) IfID() uint16 {
@@ -369,37 +317,30 @@ func (l *ptpLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remoteHw [6]byte) {
 	// We only care or know our one remote host. However we respond to every deserving query.
 	// Per RFC826 we update opportunistically.
-	l.hdrMutex.Lock()
+	l.neighbors.Lock()
 
 	// This is needed to minimize GC pressure. It gets assigned to a dynamically allocated
 	// copy only when there is no better choice.
 	var remoteHwP *[6]byte
+	var changed bool
 
 	if senderIP == l.remoteAddr.Addr() {
 		// We want.
-		if l.remoteMAC == nil || *l.remoteMAC != remoteHw {
-			// An actual new address.
-			l.remoteMAC = &remoteHw
-
-			log.Debug("Neighbor cache updated ptp", "IP", senderIP, "isat", remoteHw,
-				"on", l.localAddr.Addr())
-
-			// Invalidate the packed header if needed.
-			if l.remoteAddr.Addr() == senderIP {
-				l.header = nil
-			}
+		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
+		// Invalidate the packed header.
+		if changed {
+			log.Debug("Neighbor cache updated ptp", "IP", senderIP, "isat", remoteHw)
+			l.header = nil
 		}
-		// We point at something that we're keeping anyway.
-		remoteHwP = l.remoteMAC
 	} else if targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified() {
-		// Don't want but may deserve a response
+		// We don't want but may deserve a response.
 		// No choice, senderMAC escapes to the heap.
 		remoteHwP = &remoteHw
 	} else {
 		// We don't want and no response needed.
 		isReq = false
 	}
-	l.hdrMutex.Unlock()
+	l.neighbors.Unlock()
 
 	// Respond?
 	// TODO(jiceatscion): since we find the interfaces by address, we assume the addresses are
@@ -413,62 +354,9 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 		return
 	}
 	p := l.pool.Get()
-	serBuf := router.NewSerializeProxyStart(p.RawPacket, 128)
-	var err error
-
-	if l.is4 {
-		ethernet := layers.Ethernet{
-			SrcMAC:       l.localMAC,
-			DstMAC:       remoteHwP[:],
-			EthernetType: layers.EthernetTypeARP,
-		}
-		arp := layers.ARP{
-			AddrType:          layers.LinkTypeEthernet,
-			HwAddressSize:     6,
-			Protocol:          layers.EthernetTypeIPv4,
-			ProtAddressSize:   4,
-			Operation:         layers.ARPReply,
-			SourceHwAddress:   l.localMAC,
-			SourceProtAddress: l.localAddr.Addr().AsSlice(),
-			DstHwAddress:      remoteHwP[:],
-			DstProtAddress:    senderIP.AsSlice(),
-		}
-		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
-	} else {
-		ethernet := layers.Ethernet{
-			SrcMAC:       l.localMAC,
-			DstMAC:       remoteHwP[:],
-			EthernetType: layers.EthernetTypeIPv6,
-		}
-		ipv6 := layers.IPv6{
-			Version:    6,
-			NextHeader: layers.IPProtocolICMPv6,
-			HopLimit:   64,
-			SrcIP:      l.localAddr.Addr().AsSlice(),
-			DstIP:      senderIP.AsSlice(),
-		}
-		icmp6 := layers.ICMPv6{
-			TypeCode: layers.ICMPv6TypeNeighborAdvertisement,
-		}
-		response := layers.ICMPv6NeighborAdvertisement{
-			Flags:         0x60, // Sollicited | Override.
-			TargetAddress: l.localAddr.Addr().AsSlice(),
-			Options: layers.ICMPv6Options{
-				layers.ICMPv6Option{Type: layers.ICMPv6OptTargetAddress, Data: remoteHwP[:]},
-			},
-		}
-		_ = icmp6.SetNetworkLayerForChecksum(&ipv6)
-		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &ipv6, &icmp6, &response)
-	}
-	if err != nil {
-		// The only possible reason for this is in the few lines above.
-		panic("cannot serialize neighbor response")
-	}
-	p.RawPacket = serBuf.Bytes()
-
-	log.Debug("Neighbor response sent ptp", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
-		"to", senderIP)
-
+	localIP := l.localAddr.Addr()
+	packNeighborResp(p, &localIP, l.localMAC[:], &senderIP, remoteHwP[:], l.is4)
+	log.Debug("Neighbor response ptp", "amhere", localIP, "localMAC", l.localMAC, "to", senderIP)
 	select {
 	case l.egressQ <- p:
 	default:
@@ -492,6 +380,7 @@ func newPtpLinkExternal(
 		bfdSession: bfd,
 		seed:       conn.seed,
 		ifID:       ifID,
+		neighbors:  newNeighborCache(),
 		scope:      router.External,
 		is4:        localAddr.Addr().Is4(),
 	}
@@ -518,6 +407,7 @@ func newPtpLinkSibling(
 		bfdSession: bfd,
 		seed:       conn.seed,
 		ifID:       0,
+		neighbors:  newNeighborCache(),
 		scope:      router.Sibling,
 		is4:        localAddr.Addr().Is4(),
 	}

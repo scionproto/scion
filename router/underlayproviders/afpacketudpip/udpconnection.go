@@ -37,7 +37,7 @@ var ndpMcastPrefix = []byte{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0xff}
 // norm in this case; since a raw socket receives traffic for all ports.
 type udpConnection struct {
 	localMAC     net.HardwareAddr
-	name         string                     // for logs. It's more informative than ifID.
+	name         string                     // For logs. It's more informative than ifID.
 	link         udpLink                    // Default Link for ingest.
 	links        map[netip.AddrPort]udpLink // Link map for ingest from specific remote addresses.
 	afp          *afpacket.TPacket
@@ -121,7 +121,7 @@ func (u *udpConnection) handleArp(arp *layers.ARP) {
 }
 
 // Handle NDP minimally.
-// Terminology just as shitty as ARP; just different - Summary of the protocol:
+// Terminology just as shitty as ARP; only different - Summary of the protocol:
 //
 // |                     Sollicitations   |   advertisements
 // ---------------------------------------------------------------

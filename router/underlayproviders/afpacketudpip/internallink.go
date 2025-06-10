@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"sync"
-	"time"
 	"unsafe"
 
 	"github.com/gopacket/gopacket"
@@ -35,18 +33,15 @@ import (
 
 // internalLink is actually a half link. It is not associated with a specific remote address.
 // TODO(jiceatscion): a lot of code could be deduplicated between the two link implementations.
-// TODO(jiceatscion): We need to expire pending cache entries after a few seconds; else failures
-// stick.
 type internalLink struct {
 	procQs           []chan *router.Packet
 	header           []byte
 	localMAC         net.HardwareAddr // replace w/ 6 bytes?
 	pool             router.PacketPool
-	hdrMutex         sync.Mutex
 	localAddr        *netip.AddrPort
 	egressQ          chan *router.Packet
 	metrics          *router.InterfaceMetrics
-	neighbors        neighborCache
+	neighbors        *neighborCache
 	svc              *router.Services[netip.AddrPort]
 	seed             uint32
 	dispatchStart    uint16
@@ -55,76 +50,11 @@ type internalLink struct {
 	is4              bool
 }
 
-func (l *internalLink) seekNeighbor(remoteIP netip.Addr) {
+func (l *internalLink) seekNeighbor(remoteIP *netip.Addr) {
 	p := l.pool.Get()
-	serBuf := router.NewSerializeProxyStart(p.RawPacket, 128)
-	var err error
-
-	// TODO(jiceatscion): use a canned packet?
-	if l.is4 {
-		ethernet := layers.Ethernet{
-			SrcMAC:       l.localMAC,
-			DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-			EthernetType: layers.EthernetTypeARP,
-		}
-		arp := layers.ARP{
-			AddrType:          layers.LinkTypeEthernet,
-			HwAddressSize:     6,
-			Protocol:          layers.EthernetTypeIPv4,
-			ProtAddressSize:   4,
-			Operation:         layers.ARPRequest,
-			SourceHwAddress:   l.localMAC,
-			SourceProtAddress: l.localAddr.Addr().AsSlice(),
-			DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
-			DstProtAddress:    remoteIP.AsSlice(),
-		}
-		_, _ = serBuf.AppendBytes(18) // frame size padding
-		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
-	} else {
-		var code layers.ICMPv6TypeCode
-		var mcAddr []byte
-
-		// We can do announcements too. The intent is conveyed using the IPv4 convention.
-		if l.localAddr.Addr() == remoteIP {
-			mcAddr = netip.IPv6LinkLocalAllNodes().AsSlice()
-			code = layers.ICMPv6TypeNeighborAdvertisement
-		} else {
-			mcAddr = remoteIP.AsSlice()
-			code = layers.ICMPv6TypeNeighborSolicitation
-		}
-		copy(mcAddr, ndpMcastPrefix)
-		ethernet := layers.Ethernet{
-			SrcMAC:       l.localMAC,
-			DstMAC:       net.HardwareAddr{0x33, 0x33, 0xff, mcAddr[13], mcAddr[14], mcAddr[15]},
-			EthernetType: layers.EthernetTypeIPv6,
-		}
-		ipv6 := layers.IPv6{
-			Version:    6,
-			NextHeader: layers.IPProtocolICMPv6,
-			HopLimit:   64,
-			SrcIP:      l.localAddr.Addr().AsSlice(),
-			DstIP:      mcAddr,
-		}
-		icmp6 := layers.ICMPv6{
-			TypeCode: code,
-		}
-		request := layers.ICMPv6NeighborSolicitation{
-			TargetAddress: remoteIP.AsSlice(),
-			Options: layers.ICMPv6Options{
-				layers.ICMPv6Option{Type: layers.ICMPv6OptSourceAddress, Data: l.localMAC},
-			},
-		}
-		_ = icmp6.SetNetworkLayerForChecksum(&ipv6)
-		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &ipv6, &icmp6, &request)
-	}
-	if err != nil {
-		// The only possible reason for this is in the few lines above.
-		panic("cannot serialize neighbor response")
-	}
-	p.RawPacket = serBuf.Bytes()
-
-	log.Debug("Neighbor request sent internal", "whohas", remoteIP, "tell", l.localAddr.Addr())
-
+	localIP := l.localAddr.Addr()
+	packNeighborReq(p, &localIP, l.localMAC, remoteIP, l.is4)
+	log.Debug("Neighbor request sent internal", "whohas", remoteIP, "tell", localIP)
 	select {
 	case l.egressQ <- p:
 	default:
@@ -201,20 +131,20 @@ func (l *internalLink) packHeader() {
 func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 	dstIP := dst.Addr()
 	// Resolve the destination MAC address if we can.
-	l.hdrMutex.Lock()
+	l.neighbors.Lock()
 	dstMac, found := l.neighbors.get(dstIP)
 	if dstMac == nil { // pending or missing
 		if !found {
 			// Trigger the address resolution.
-			l.hdrMutex.Unlock()
-			l.seekNeighbor(dstIP)
+			l.neighbors.Unlock()
+			l.seekNeighbor(&dstIP)
 		} else {
-			l.hdrMutex.Unlock()
+			l.neighbors.Unlock()
 		}
 		// Either way, not ready yet.
 		return false
 	}
-	l.hdrMutex.Unlock()
+	l.neighbors.Unlock()
 
 	// Prepend the canned header
 	p.RawPacket = p.WithHeader(len(l.header))
@@ -279,20 +209,16 @@ func (l *internalLink) start(
 	l.procQs = procQs
 	l.pool = pool
 
-	go func(neighbors neighborCache) {
-		for {
-			l.hdrMutex.Lock()
-			neighbors.tick()
-			l.hdrMutex.Unlock()
-			time.Sleep(neighborTick)
-		}
-	}(l.neighbors)
-
 	// An announcement may avoid the address resolution round-trip and loss of the first packet.
-	l.seekNeighbor(l.localAddr.Addr())
+	localIP := l.localAddr.Addr()
+	l.seekNeighbor(&localIP)
+
+	// cache ticker is desirable.
+	l.neighbors.start()
 }
 
 func (l *internalLink) stop() {
+	l.neighbors.stop()
 }
 
 func (l *internalLink) IfID() uint16 {
@@ -420,17 +346,21 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 	// what we already have when given a chance.
 	// remoteHwP always points at an in-cache MAC address, which reduces GC pressure.
 	// We respond only to peers that we keep in the cache.
-	l.hdrMutex.Lock()
+	l.neighbors.Lock()
 	found := l.neighbors.check(senderIP)
 	var remoteHwP *[6]byte
+	var changed bool
 	if (targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified()) || found {
 		// Good to cache or update
-		remoteHwP = l.neighbors.put(senderIP, remoteHw)
+		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
+		if changed {
+			log.Debug("Neighbor cache updated internal", "IP", senderIP, "isat", remoteHw)
+		}
 	} else {
 		// Not in cacheable => No response needed either.
 		isReq = false
 	}
-	l.hdrMutex.Unlock()
+	l.neighbors.Unlock()
 
 	// Respond?
 	// TODO(jiceatscion): since we find the interfaces by address, we assume the addresses are
@@ -443,65 +373,11 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 		// gratuitous request in the V4 world. Invalid in the V6 world.
 		return
 	}
-
 	p := l.pool.Get()
-	serBuf := router.NewSerializeProxyStart(p.RawPacket, 128)
-	var err error
-
-	if l.is4 {
-		ethernet := layers.Ethernet{
-			SrcMAC:       l.localMAC,
-			DstMAC:       remoteHwP[:],
-			EthernetType: layers.EthernetTypeARP,
-		}
-		arp := layers.ARP{
-			AddrType:          layers.LinkTypeEthernet,
-			HwAddressSize:     6,
-			Protocol:          layers.EthernetTypeIPv4,
-			ProtAddressSize:   4,
-			Operation:         layers.ARPReply,
-			SourceHwAddress:   l.localMAC,
-			SourceProtAddress: l.localAddr.Addr().AsSlice(),
-			DstHwAddress:      remoteHwP[:],
-			DstProtAddress:    senderIP.AsSlice(),
-		}
-		_, _ = serBuf.AppendBytes(18) // frame size padding
-		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
-	} else {
-		ethernet := layers.Ethernet{
-			SrcMAC:       l.localMAC,
-			DstMAC:       remoteHwP[:],
-			EthernetType: layers.EthernetTypeIPv6,
-		}
-		ipv6 := layers.IPv6{
-			Version:    6,
-			NextHeader: layers.IPProtocolICMPv6,
-			HopLimit:   64,
-			SrcIP:      l.localAddr.Addr().AsSlice(),
-			DstIP:      senderIP.AsSlice(),
-		}
-		icmp6 := layers.ICMPv6{
-			TypeCode: layers.ICMPv6TypeNeighborAdvertisement,
-		}
-		response := layers.ICMPv6NeighborAdvertisement{
-			Flags:         0x60, // Sollicited | Override.
-			TargetAddress: l.localAddr.Addr().AsSlice(),
-			Options: layers.ICMPv6Options{
-				layers.ICMPv6Option{Type: layers.ICMPv6OptTargetAddress, Data: remoteHwP[:]},
-			},
-		}
-		_ = icmp6.SetNetworkLayerForChecksum(&ipv6)
-		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &ipv6, &icmp6, &response)
-	}
-	if err != nil {
-		// The only possible reason for this is in the few lines above.
-		panic("cannot serialize neighbor response")
-	}
-	p.RawPacket = serBuf.Bytes()
-
-	log.Debug("Neighbor response internal", "amhere", l.localAddr.Addr(), "localMAC", l.localMAC,
+	localIP := l.localAddr.Addr()
+	packNeighborResp(p, &localIP, l.localMAC[:], &senderIP, remoteHwP[:], l.is4)
+	log.Debug("Neighbor response internal", "amhere", localIP, "localMAC", l.localMAC,
 		"to", senderIP)
-
 	select {
 	case l.egressQ <- p:
 	default:
@@ -520,7 +396,7 @@ func newInternalLink(
 		localAddr:        localAddr,
 		egressQ:          conn.queue,
 		metrics:          metrics,
-		neighbors:        neighborCache{},
+		neighbors:        newNeighborCache(),
 		svc:              svc,
 		seed:             conn.seed,
 		dispatchStart:    dispatchStart,
