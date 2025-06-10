@@ -145,6 +145,7 @@ class DockerGenerator(object):
             image = docker_image(self.args, 'router')
             entry = {
                 'image': image,
+                'privileged': True,
                 'networks': {},
                 'user': self.user,
                 'volumes': ['%s:/etc/scion:ro' % base],

@@ -121,6 +121,7 @@ func (cache *neighborCache) start() {
 		defer log.HandlePanic()
 		for cache.running.Load() {
 			cache.tick()
+			time.Sleep(neighborTick)
 		}
 		close(cache.tickerDone)
 	}()
