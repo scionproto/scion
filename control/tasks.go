@@ -76,6 +76,8 @@ type TasksConfig struct {
 	AllowIsdLoop bool
 
 	EPIC bool
+
+	Registrars beacon.SegmentRegistrars
 }
 
 // Originator starts a periodic beacon origination task. For non-core ASes, no
