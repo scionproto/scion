@@ -352,7 +352,7 @@ type Store interface {
 	// parsing error) occurs; otherwise, it returns a slice containing the beacons (which
 	// potentially could be empty when no beacon is found) and no error.
 	// The selections is based on the configured propagation policy for the requested segment type.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.Beacon, error)
+	SegmentsToRegister(ctx context.Context, segType seg.Type) (map[string][]beacon.Beacon, error)
 	// InsertBeacon adds a verified beacon to the store, ignoring revocations.
 	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
 	// UpdatePolicy updates the policy. Beacons that are filtered by all

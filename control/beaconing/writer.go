@@ -45,7 +45,7 @@ type SegmentProvider interface {
 	// SegmentsToRegister returns the segments that should be registered for the
 	// given segment type. The returned slice must not be nil if the returned
 	// error is nil.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.Beacon, error)
+	SegmentsToRegister(ctx context.Context, segType seg.Type) (map[string][]beacon.Beacon, error)
 }
 
 // SegmentStore stores segments in the path database.
@@ -72,7 +72,7 @@ type Writer interface {
 	// interface IDs of the local IA. The returned statistics should provide
 	// insights about how many segments have been successfully written. The
 	// method should return an error if the writing did fail.
-	Write(ctx context.Context, segs []beacon.Beacon, peers []uint16) (WriteStats, error)
+	Write(ctx context.Context, segs map[string][]beacon.Beacon, peers []uint16) (WriteStats, error)
 }
 
 var _ periodic.Task = (*WriteScheduler)(nil)
@@ -156,7 +156,7 @@ type RemoteWriter struct {
 // Write writes the segment at the source AS of the segment.
 func (r *RemoteWriter) Write(
 	ctx context.Context,
-	segments []beacon.Beacon,
+	segments map[string][]beacon.Beacon,
 	peers []uint16,
 ) (WriteStats, error) {
 
@@ -164,7 +164,7 @@ func (r *RemoteWriter) Write(
 	s := newSummary()
 	var expected int
 	var wg sync.WaitGroup
-	for _, b := range segments {
+	for _, b := range segments["default"] {
 		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}
@@ -215,14 +215,14 @@ type LocalWriter struct {
 // Write terminates the segments and registers them in the SegmentStore.
 func (r *LocalWriter) Write(
 	ctx context.Context,
-	segments []beacon.Beacon,
+	segments map[string][]beacon.Beacon,
 	peers []uint16,
 ) (WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
 	beacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
-	for _, b := range segments {
+	for _, b := range segments["default"] {
 		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}
