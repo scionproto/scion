@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/path/pathpol"
 )
 
 // PolicyType is the policy type.
@@ -189,6 +190,8 @@ type Policy struct {
 	Filter Filter `yaml:"Filter"`
 	// Type is the policy type.
 	Type PolicyType `yaml:"Type"`
+	// RegistrationPolicies contains the registration policies for this policy.
+	RegistrationPolicies []RegistrationPolicy `yaml:"RegistrationPolicies"`
 }
 
 // InitDefaults initializes the default values for unset fields.
@@ -203,7 +206,21 @@ func (p *Policy) InitDefaults() {
 		m := DefaultMaxExpTime
 		p.MaxExpTime = &m
 	}
+	for _, regPolicy := range p.RegistrationPolicies {
+		regPolicy.InitDefaults()
+	}
 	p.Filter.InitDefaults()
+}
+
+func (p *Policy) Validate() error {
+	for i := 0; i < len(p.RegistrationPolicies); i++ {
+		for j := i + 1; j < len(p.RegistrationPolicies); j++ {
+			if p.RegistrationPolicies[i].Name == p.RegistrationPolicies[j].Name {
+				return serrors.New("duplicate registration policy names found", "name", p.RegistrationPolicies[i].Name)
+			}
+		}
+	}
+	return nil
 }
 
 func (p *Policy) initDefaults(t PolicyType) {
@@ -211,6 +228,26 @@ func (p *Policy) initDefaults(t PolicyType) {
 	if p.Type == "" {
 		p.Type = t
 	}
+}
+
+// RegistrationPolicy contains the parameters for a registration policy.
+// A registration policy is used to register segments with a registrar.
+type RegistrationPolicy struct {
+	Name         string                    `yaml:"Name"`
+	Description  string                    `yaml:"Description"`
+	Matcher      RegistrationPolicyMatcher `yaml:"Matcher"`
+	Plugin       string                    `yaml:"Plugin"`
+	PluginConfig map[string]any            `yaml:"PluginConfig"`
+}
+
+// RegistrationPolicyMatcher contains the matching criteria for a registration policy.
+type RegistrationPolicyMatcher struct {
+	Sequence []pathpol.Sequence `yaml:"Sequence"`
+	ACL      *pathpol.ACL       `yaml:"ACL"`
+}
+
+// InitDefaults initializes the default values for unset fields in the registration policy.
+func (p *RegistrationPolicy) InitDefaults() {
 }
 
 // ParsePolicyYaml parses the policy in yaml format and initializes the default values.
