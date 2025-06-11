@@ -56,6 +56,9 @@ func loadPolicy(fn string, t beacon.PolicyType) (beacon.Policy, error) {
 		if err != nil {
 			return policy, serrors.Wrap("loading beaconing policy", err, "file", fn, "type", t)
 		}
+		if err := p.Validate(); err != nil {
+			return policy, serrors.Wrap("validating beaconing policy", err, "file", fn, "type", t)
+		}
 		policy = *p
 	}
 	policy.InitDefaults()
