@@ -31,10 +31,18 @@ import (
 
 func TestStoreSegmentsToRegister(t *testing.T) {
 	testStoreSelection(t, func(store *beacon.Store) ([]beacon.Beacon, error) {
-		return store.SegmentsToRegister(context.Background(), seg.TypeUp)
+		s, err := store.SegmentsToRegister(context.Background(), seg.TypeUp)
+		if err != nil {
+			return nil, err
+		}
+		return s["default"], nil
 	})
 	testStoreSelection(t, func(store *beacon.Store) ([]beacon.Beacon, error) {
-		return store.SegmentsToRegister(context.Background(), seg.TypeDown)
+		s, err := store.SegmentsToRegister(context.Background(), seg.TypeDown)
+		if err != nil {
+			return nil, err
+		}
+		return s["default"], nil
 	})
 }
 
@@ -142,7 +150,11 @@ func testStoreSelection(t *testing.T,
 
 func TestCoreStoreSegmentsToRegister(t *testing.T) {
 	testCoreStoreSelection(t, func(store *beacon.CoreStore) ([]beacon.Beacon, error) {
-		return store.SegmentsToRegister(context.Background(), seg.TypeCore)
+		s, err := store.SegmentsToRegister(context.Background(), seg.TypeCore)
+		if err != nil {
+			return nil, err
+		}
+		return s["default"], nil
 	})
 }
 

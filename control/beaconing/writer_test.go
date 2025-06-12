@@ -118,12 +118,14 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ any) ([]beacon.Beacon, error) {
+				func(_, _ any) (map[string][]beacon.Beacon, error) {
 					res := make([]beacon.Beacon, 0, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
 					}
-					return res, nil
+					return map[string][]beacon.Beacon{
+						"default": res,
+					}, nil
 				})
 
 			var stored []*seg.Meta
@@ -208,12 +210,14 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ any) ([]beacon.Beacon, error) {
+				func(_, _ any) (map[string][]beacon.Beacon, error) {
 					res := make([]beacon.Beacon, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
 					}
-					return res, nil
+					return map[string][]beacon.Beacon{
+						"default": res,
+					}, nil
 				})
 			type regMsg struct {
 				Meta seg.Meta
