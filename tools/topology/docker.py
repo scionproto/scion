@@ -18,8 +18,8 @@ import os
 from typing import Mapping
 # External packages
 import yaml
+
 # SCION
-from topology.defines import DOCKER_COMPOSE_CONFIG_VERSION
 from topology.util import write_file
 from topology.common import (
     ArgsTopoDicts,
@@ -53,7 +53,6 @@ class DockerGenerator(object):
         """
         self.args = args
         self.dc_conf = {
-            'version': DOCKER_COMPOSE_CONFIG_VERSION,
             'name': 'scion',
             'services': {},
             'networks': {},
@@ -145,9 +144,7 @@ class DockerGenerator(object):
             image = docker_image(self.args, 'router')
             entry = {
                 'image': image,
-                'privileged': True,
                 'networks': {},
-                'user': self.user,
                 'volumes': ['%s:/etc/scion:ro' % base],
                 'command': ['--config', '/etc/scion/%s.toml' % k],
                 'cap_add': ['NET_ADMIN', 'NET_RAW', 'BPF']
