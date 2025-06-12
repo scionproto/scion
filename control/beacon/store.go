@@ -106,7 +106,7 @@ func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) (map[s
 	}
 	beacons, err := s.getBeacons(ctx, policy)
 	if err != nil {
-		return nil, serrors.Wrap("getting beacons for segment registration", err)
+		return nil, err
 	}
 	return map[string][]Beacon{
 		"default": beacons,
@@ -179,7 +179,7 @@ func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) (m
 	}
 	beacons, err := s.getBeacons(ctx, &s.policies.CoreReg)
 	if err != nil {
-		return nil, serrors.Wrap("getting beacons for core registration", err)
+		return nil, err
 	}
 	return map[string][]Beacon{
 		"default": beacons,
