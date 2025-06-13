@@ -19,6 +19,7 @@ import (
 	"math/rand"
 	"net"
 	"net/netip"
+	"slices"
 	"sync/atomic"
 
 	"github.com/gopacket/gopacket"
@@ -406,11 +407,11 @@ func newUdpConnection(
 	}
 	hwAddr := intf.HardwareAddr
 
-	// Catering to tests that use a local IPv6 address on the loopback interface which has no mac
+	// Catering to tests that use a local address (on the loopback interface) which has no mac
 	// address assigned. We make one up and rely on the fact the everything bounces to everyone
 	// anyway. Not sure how well the non-recipient routers will handle the junk traffic because we
 	// don't filter it explicitly.
-	if len(hwAddr) == 0 {
+	if len(hwAddr) == 0 || slices.Equal(hwAddr, net.HardwareAddr{0, 0, 0, 0, 0, 0}) {
 		num := rand.Uint32()
 		hwAddr = net.HardwareAddr{0, 0, 0, 0, 0, 0}
 		binary.BigEndian.PutUint32(hwAddr, num)

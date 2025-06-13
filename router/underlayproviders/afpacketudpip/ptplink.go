@@ -66,13 +66,13 @@ func (l *ptpLink) seekNeighbor(remoteIP *netip.Addr) {
 func (l *ptpLink) packHeader() {
 	dstIP := l.remoteAddr.Addr()
 	dstMac, found := l.neighbors.get(dstIP)
-	if dstMac == nil { // pending or missing
-		if !found {
-			// Trigger the address resolution.
-			// TODO(jiceatscion): could be done outside critical section.
-			l.seekNeighbor(&dstIP)
-		}
-		// Either way, not ready yet.
+	if !found {
+		// Unknown or stale: trigger the address resolution.
+		// TODO(jiceatscion): could be done outside critical section.
+		l.seekNeighbor(&dstIP)
+	}
+	if dstMac == nil {
+		// ... not even a stale address to work with.
 		return
 	}
 
@@ -317,7 +317,6 @@ func (l *ptpLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remoteHw [6]byte) {
 	// We only care or know our one remote host. However we respond to every deserving query.
 	// Per RFC826 we update opportunistically.
-	l.neighbors.Lock()
 
 	// This is needed to minimize GC pressure. It gets assigned to a dynamically allocated
 	// copy only when there is no better choice.
@@ -325,12 +324,16 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 	var changed bool
 
 	if senderIP == l.remoteAddr.Addr() {
-		// We want.
+		l.neighbors.Lock()
+		// We want, regardless of cache content.
 		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
-		// Invalidate the packed header.
+		if changed {
+			// Time to rebuild the packed header.
+			l.header = nil
+		}
+		l.neighbors.Unlock()
 		if changed {
 			log.Debug("Neighbor cache updated ptp", "IP", senderIP, "isat", remoteHw)
-			l.header = nil
 		}
 	} else if targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified() {
 		// We don't want but may deserve a response.
@@ -340,7 +343,6 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 		// We don't want and no response needed.
 		isReq = false
 	}
-	l.neighbors.Unlock()
 
 	// Respond?
 	// TODO(jiceatscion): since we find the interfaces by address, we assume the addresses are

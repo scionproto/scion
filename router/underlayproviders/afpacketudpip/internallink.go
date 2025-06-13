@@ -133,18 +133,15 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 	// Resolve the destination MAC address if we can.
 	l.neighbors.Lock()
 	dstMac, found := l.neighbors.get(dstIP)
-	if dstMac == nil { // pending or missing
-		if !found {
-			// Trigger the address resolution.
-			l.neighbors.Unlock()
-			l.seekNeighbor(&dstIP)
-		} else {
-			l.neighbors.Unlock()
-		}
-		// Either way, not ready yet.
+	l.neighbors.Unlock()
+	if !found {
+		// Stale or unknown: trigger the address resolution.
+		l.seekNeighbor(&dstIP)
+	}
+	if dstMac == nil {
+		// ...and we don't even have a stale address to offer.
 		return false
 	}
-	l.neighbors.Unlock()
 
 	// Prepend the canned header
 	p.RawPacket = p.WithHeader(len(l.header))
@@ -290,7 +287,6 @@ func (l *internalLink) Send(p *router.Packet) bool {
 	// instead of just storing the destination in the packet structure. That would save us the
 	// allocation of address but requires some more changes to the dataplane code structure.
 	if !l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
-		// Cannot yet resolve that address.
 		return false
 	}
 	select {
@@ -346,21 +342,22 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 	// what we already have when given a chance.
 	// remoteHwP always points at an in-cache MAC address, which reduces GC pressure.
 	// We respond only to peers that we keep in the cache.
-	l.neighbors.Lock()
-	found := l.neighbors.check(senderIP)
 	var remoteHwP *[6]byte
 	var changed bool
+	l.neighbors.Lock()
+	found := l.neighbors.check(senderIP)
 	if (targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified()) || found {
 		// Good to cache or update
 		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
-		if changed {
-			log.Debug("Neighbor cache updated internal", "IP", senderIP, "isat", remoteHw)
-		}
 	} else {
 		// Not in cacheable => No response needed either.
 		isReq = false
 	}
 	l.neighbors.Unlock()
+
+	if changed {
+		log.Debug("Neighbor cache updated internal", "IP", senderIP, "isat", remoteHw)
+	}
 
 	// Respond?
 	// TODO(jiceatscion): since we find the interfaces by address, we assume the addresses are

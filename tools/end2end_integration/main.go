@@ -38,7 +38,7 @@ import (
 var (
 	subset      string
 	attempts    int
-	timeout     = &util.DurWrap{Duration: 10 * time.Second}
+	timeout     = &util.DurWrap{Duration: 5 * time.Second}
 	parallelism int
 	name        string
 	cmd         string
@@ -105,8 +105,10 @@ func realMain() int {
 }
 
 // addFlags adds the necessary flags.
+// Note that in the general case attempts=1 is unwise. Packets do get lost, especially if an arp
+// resolution is needed before sending anything.
 func addFlags() {
-	flag.IntVar(&attempts, "attempts", 1, "Number of attempts per client before giving up.")
+	flag.IntVar(&attempts, "attempts", 3, "Number of attempts per client before giving up.")
 	flag.StringVar(&cmd, "cmd", "./bin/end2end",
 		"The end2end binary to run (default: ./bin/end2end)")
 	flag.StringVar(&name, "name", "end2end_integration",

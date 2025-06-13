@@ -261,8 +261,8 @@ func (u *provider) getUdpConnection(
 				// at what the underlying type is to make our comparison.
 				ipNet, ok := addr.(*net.IPNet)
 				if ok {
-					// We match V4 loopback addresses to the lo interface in support of how
-					// we configure test topologies when running with the supervisor: v4 loopack
+					// We match loopback addresses to the lo interface in support of how
+					// we configure test topologies when running with the supervisor: loopack
 					// addresses are not explicitly assigned.
 					if ipNet.IP.String() == localAddrStr ||
 						(localAddr.IsLoopback() && intf.Name == "lo") {

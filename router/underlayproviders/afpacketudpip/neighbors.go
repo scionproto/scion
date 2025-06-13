@@ -28,10 +28,11 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
+// ARP cache parameters.
 const (
-	neighborTick = 1 * time.Second // Cache clock period.
-	neighborTTL  = 20              // Time until a resolved entry is stale.
-	neighborTTR  = 3               // Time until giving up on an unresolved entry.
+	neighborTick = 500 * time.Millisecond // Cache clock period.
+	neighborTTL  = 60                     // Time to live of freshly resolved entry.
+	neighborTTR  = 2                      // Time to live if not (re)solved.
 )
 
 type neighbor struct {
@@ -43,10 +44,11 @@ type neighbor struct {
 // neighborCache is a cache of IP address to MAC address mapping. It is not automatically
 // re-entrant: you must use lock() and unlock() explicitly. The reason is that we have two different
 // usage patterns; one of which needs to manipulate another object in the same critical section.
-// There is a builtin entry expiration ticker. Calling start() will activate it and stop()
-// will deactivate it. While active, the ticker deletes entries that have been in the cache for too
-// long. Pending entries live for neighborTTR seconds and resolved entries live for neighborTTL
-// seconds.
+// There is a builtin entry expiration ticker. Calling start() will activate it and stop() will
+// deactivate it. While active, the ticker deletes entries that have been in the cache for too
+// long. Resolved entries live for neighborTTL seconds. Once their time is below neighborTTR a
+// resolution is triggered in case of use. Unresolved entries live for no more than neighborTTR
+// secons.
 type neighborCache struct {
 	sync.Mutex
 	mappings   map[netip.Addr]neighbor
@@ -60,19 +62,20 @@ type neighborCache struct {
 // long as specified by the TTR.
 func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, bool) {
 	entry := cache.mappings[ip]
-	if entry.timer > 0 {
-		// Valid.
+	if entry.timer != 0 {
+		// Already resolved or being resolved. If there's a (stale) address, it's better
+		// than nothing so, use it.
 		return entry.mac, true
 	}
-	if entry.timer < 0 {
-		// Already pending
-		return nil, true
-	}
-	// Unknown. Must trigger a resolution.
-	cache.mappings[ip] = neighbor{nil, -neighborTTR}
-	return nil, false
+	// Unknown or is stale. Trigger a new resolution. In the meantime, we can still use the stale
+	// address if there is one.
+	entry.timer = neighborTTR
+	cache.mappings[ip] = entry
+	return entry.mac, false
 }
 
+// Check returns true if we have any kind of interrest in the address: either we already know it
+// (and so an update would be good), or we're trying to resolve it.
 func (cache *neighborCache) check(ip netip.Addr) bool {
 	return cache.mappings[ip].timer != 0
 }
@@ -96,15 +99,11 @@ func (cache *neighborCache) tick() {
 	cache.Lock()
 	for k, n := range cache.mappings {
 		if n.timer == 0 {
-			// Stale. Throw away.
+			// Completely stale. Throw away.
 			delete(cache.mappings, k)
 			continue
 		}
-		if n.timer > 0 {
-			n.timer--
-		} else {
-			n.timer++
-		}
+		n.timer--
 		cache.mappings[k] = n
 	}
 	cache.Unlock()
