@@ -14,7 +14,7 @@
 
 //go:build linux
 
-package main
+package afpacketudpip
 
 import (
 	"reflect"
@@ -23,6 +23,9 @@ import (
 	"github.com/gopacket/gopacket/afpacket"
 	"golang.org/x/sys/unix"
 )
+
+// TODO(jiceatscion): there is another copy of this code in router_benchmark. Move this to a common
+// package (in underlay for example).
 
 type mmsgHdr struct {
 	hdr unix.Msghdr
@@ -56,7 +59,6 @@ func newMpktSender(tp *afpacket.TPacket) *mpktSender {
 	if err != nil {
 		panic(err)
 	}
-
 	return sender
 }
 

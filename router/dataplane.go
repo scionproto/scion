@@ -89,16 +89,23 @@ type BatchConn interface {
 }
 
 // underlayProviders is a map of our underlay providers. Each entry associates a name with a
-// NewProviderFn. A new instance of that provider is created by every invocation so multiple
+// descriptor. A new instance of that provider is created by every invocation so multiple
 // dataplane instances can co-exist (as is routinely done by tests).
-var underlayProviders map[string]NewProviderFn
+var underlayProviders map[string]ProviderFactory
 
-// AddUnderlay registers the named factory function.
-func AddUnderlay(name string, newProvider func(int, int, int) UnderlayProvider) {
+// AddUnderlay registers the named factory function with the given priority.
+// If a provider by the same name is already registered, we keep the one with highest priority.
+func AddUnderlay(name string, newProv ProviderFactory) {
 	if underlayProviders == nil {
-		underlayProviders = make(map[string]NewProviderFn)
+		underlayProviders = make(map[string]ProviderFactory)
 	}
-	underlayProviders[name] = newProvider
+	oldProv := underlayProviders[name]
+	if oldProv != nil {
+		if oldProv.Priority() > newProv.Priority() {
+			return
+		}
+	}
+	underlayProviders[name] = newProv
 }
 
 type disposition int
@@ -180,10 +187,11 @@ func (p *Packet) reset(headroom int) {
 // is *not* modified. This method panics if n is greater than the available headroom in the packet
 // buffer.
 func (p *Packet) WithHeader(n int) []byte {
-	headroom := len(p.buffer) - cap(p.RawPacket) - n
+	start := len(p.buffer) - cap(p.RawPacket) // Where rawPacket starts in the buffer
+	end := start + len(p.RawPacket)           // Where rawPacket ends in the buffer
 
-	// A negative value is a panicable offense.
-	return p.buffer[headroom:]
+	// n>start is a panicable offense.
+	return p.buffer[start-n : end]
 }
 
 // PacketPool allocates and resets packets. There is one packet pool per instance of the dataplane,
@@ -210,6 +218,11 @@ func (p *PacketPool) Get() *Packet {
 func (p *PacketPool) Put(pkt *Packet) {
 	p.pool <- pkt
 
+}
+
+// ResetPacket resets the packet as if it had been obtained from Get.
+func (p *PacketPool) ResetPacket(pkt *Packet) {
+	pkt.reset(p.headroom)
 }
 
 // makePacketPool creates a packetpool of size poolSize, that configures packet buffers with the
@@ -240,9 +253,9 @@ type dataPlane struct {
 	RunConfig                      RunConfig
 
 	// The pool that stores all the packet buffers as described in the design document. See
-	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
-	// To avoid garbage collection, most the meta-data that is produced during the processing of a
-	// packet is kept in a data structure (packet struct) that is pooled and recycled along with
+	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst To avoid
+	// garbage collection, most the meta-data that is produced during the processing of a packet is
+	// kept in a data structure (packet struct) that is pooled and recycled along with the
 	// corresponding packet buffer. The packet struct refers permanently to the packet buffer. The
 	// packet structure is fetched from the pool passed-around through the various channels and
 	// returned to the pool. To reduce the cost of copying, the packet structure is passed by
@@ -323,7 +336,7 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 
 	return dataPlane{
 		underlays: map[string]UnderlayProvider{
-			"udpip": underlayProviders["udpip"](
+			"udpip": underlayProviders["udpip"].New(
 				runConfig.BatchSize,
 				runConfig.SendBufferSize,
 				runConfig.ReceiveBufferSize,
@@ -475,7 +488,7 @@ func (d *dataPlane) AddExternalInterface(
 		if !exists {
 			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
 		}
-		underlay = underlayProvider(
+		underlay = underlayProvider.New(
 			d.RunConfig.BatchSize,
 			d.RunConfig.SendBufferSize,
 			d.RunConfig.ReceiveBufferSize,
@@ -621,7 +634,7 @@ func (d *dataPlane) AddNextHop(
 		if !exists {
 			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
 		}
-		underlay = underlayProvider(
+		underlay = underlayProvider.New(
 			d.RunConfig.BatchSize,
 			d.RunConfig.SendBufferSize,
 			d.RunConfig.ReceiveBufferSize,
@@ -826,7 +839,7 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 		}
 		if !fwLink.Send(p) {
 			d.packetPool.Put(p)
-			metrics[sc].DroppedPacketsBusyForwarder.Inc()
+			metrics[sc].DroppedPacketsBusyForwarder[p.trafficType].Inc()
 		}
 	}
 }
@@ -918,6 +931,10 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 	if err != nil {
 		return err
 	}
+
+	// Difficult to draw a hard line, but let's say that from here on, this packet is no longer
+	// an incoming packet, but is a slowpath packet (i.e. an error response).
+	pkt.trafficType = ttSlowPath
 	pathType := p.scionLayer.PathType
 	switch pathType {
 	case scion.PathType:
@@ -982,10 +999,10 @@ func newPacketProcessor(d *dataPlane) *scionPacketProcessor {
 	return p
 }
 
-func (p *scionPacketProcessor) reset() error {
+func (p *scionPacketProcessor) reset() {
 	p.pkt = nil
 	p.ingressFromLink = 0
-	// p.scionLayer // cannot easily be reset
+	// p.scionLayer // cannot easily be reset but no need (so far).
 	p.path = nil
 	p.hopField = path.HopField{}
 	p.infoField = path.InfoField{}
@@ -997,7 +1014,6 @@ func (p *scionPacketProcessor) reset() error {
 	p.hbhLayer = slayers.HopByHopExtnSkipper{}
 	// Reset e2e layer
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
-	return nil
 }
 
 // Convenience function to log an error and return the pDiscard disposition.
@@ -1008,9 +1024,7 @@ func errorDiscard(ctx ...any) disposition {
 }
 
 func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
-	if err := p.reset(); err != nil {
-		return errorDiscard("error", err)
-	}
+	p.reset()
 	p.pkt = pkt
 	p.ingressFromLink = pkt.Link.IfID()
 
@@ -1267,8 +1281,7 @@ func (p *scionPacketProcessor) validateIngressID() disposition {
 		errCode = slayers.SCMPCodeUnknownHopFieldEgress
 	}
 	if p.ingressFromLink != 0 && p.ingressFromLink != hdrIngressID {
-		log.Debug("SCMP response", "cause", errIngressInterfaceInvalid,
-			"pkt_ingress", hdrIngressID, "router_ingress", p.ingressFromLink)
+		log.Debug("SCMP response", "cause", errIngressInterfaceInvalid)
 		p.pkt.slowPathRequest = slowPathRequest{
 			spType:  slowPathType(slayers.SCMPTypeParameterProblem),
 			code:    errCode,
@@ -1283,22 +1296,26 @@ func (p *scionPacketProcessor) validateSrcDstIA() disposition {
 	srcIsLocal := (p.scionLayer.SrcIA == p.d.localIA)
 	dstIsLocal := (p.scionLayer.DstIA == p.d.localIA)
 	if p.ingressFromLink == 0 {
-		// Outbound
+		// In via internal or sibling (may only be outbound)
 		// Only check SrcIA if first hop, for transit this already checked by ingress router.
 		// Note: SCMP error messages triggered by the sibling router may use paths that
 		// don't start with the first hop.
 		if p.path.IsFirstHop() && !srcIsLocal {
+			// How did it get here?
 			return p.respInvalidSrcIA()
 		}
 		if dstIsLocal {
+			// That would be hairpin; not allowed.
 			return p.respInvalidDstIA()
 		}
 	} else {
-		// Inbound
+		// In via external Link (may only be local dst or transit).
 		if srcIsLocal {
+			// Absurd: path can't contain its starting point more than once.
 			return p.respInvalidSrcIA()
 		}
 		if p.path.IsLastHop() != dstIsLocal {
+			// How did it get here?
 			return p.respInvalidDstIA()
 		}
 	}
@@ -2071,7 +2088,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
 	payloadOffset := len(rawPkt) - len(s.LayerPayload())
 
 	// Prepends must go just before payload. (and any Append will wreck it)
-	serBuf := newSerializeProxyStart(rawPkt, payloadOffset)
+	serBuf := NewSerializeProxyStart(rawPkt, payloadOffset)
 	return s.SerializeTo(&serBuf, gopacket.SerializeOptions{})
 }
 
@@ -2164,7 +2181,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 
 	p := b.dataPlane.packetPool.Get()
 
-	serBuf := newSerializeProxy(p.RawPacket) // set for prepend-only by default. Perfect here.
+	serBuf := NewSerializeProxy(p.RawPacket) // set for prepend-only by default. Perfect here.
 
 	// serialized bytes lend directly into p.RawPacket (aligned at the end).
 	err := gopacket.SerializeLayers(&serBuf, gopacket.SerializeOptions{FixLengths: true},
@@ -2324,7 +2341,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		if hdrLen+p.d.underlayHeadroom > headroom {
 			// Not enough headroom. Pack at end.
 			quote := p.pkt.RawPacket[:quoteLen]
-			serBuf = newSerializeProxy(p.pkt.RawPacket)
+			serBuf = NewSerializeProxy(p.pkt.RawPacket)
 			err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 			if err != nil {
 				return serrors.JoinNoStack(
@@ -2335,7 +2352,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			// serialize buffer before we pack the SCMP header in from of it. AppendBytes will do
 			// that; it exposes the underlying buffer but doesn't modify it.
 			p.pkt.RawPacket = p.pkt.buffer[0:(quoteLen + headroom)]
-			serBuf = newSerializeProxyStart(p.pkt.RawPacket, headroom)
+			serBuf = NewSerializeProxyStart(p.pkt.RawPacket, headroom)
 			_, _ = serBuf.AppendBytes(quoteLen) // Implementation never fails.
 			err = scmpP.SerializeTo(&serBuf, sopts)
 			if err != nil {
@@ -2351,7 +2368,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	} else {
 		// We do not need to preserve the packet. Just pack our headers at the end of the buffer.
 		// (this is what serializeProxy does by default).
-		serBuf = newSerializeProxy(p.pkt.RawPacket)
+		serBuf = NewSerializeProxy(p.pkt.RawPacket)
 		err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP)
 		if err != nil {
 			return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")
