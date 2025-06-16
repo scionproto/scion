@@ -54,7 +54,6 @@ func (l *internalLink) seekNeighbor(remoteIP *netip.Addr) {
 	p := l.pool.Get()
 	localIP := l.localAddr.Addr()
 	packNeighborReq(p, &localIP, l.localMAC, remoteIP, l.is4)
-	log.Debug("Neighbor request sent internal", "whohas", remoteIP, "tell", localIP)
 	select {
 	case l.egressQ <- p:
 	default:
@@ -158,7 +157,12 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool {
 	payloadLen := len(p.RawPacket)
 	if !l.addHeader(p, dst) {
+		// time.Sleep(100 * time.Millisecond) // Be stubborn some tests expect zero loss.
+		// if !l.addHeader(p, dst) {
+		log.Debug("Dropped packet for lack of address resolution", "from", l.localAddr,
+			"to", dst)
 		return false
+		// }
 	}
 	if l.is4 {
 		// Fix the IP total length field
@@ -192,7 +196,7 @@ func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool 
 	csum := gopacket.ComputeChecksum(p.RawPacket[14+8:14+40], 0)        // src+dst
 	csum = gopacket.ComputeChecksum(p.RawPacket[14+40+4:14+40+6], csum) // UDP length
 	csum = gopacket.ComputeChecksum(zerosAndProto, csum)                // 3 0s plus UDP proto num
-	binary.BigEndian.PutUint16(p.RawPacket[14+40+18:], gopacket.FoldChecksum(csum))
+	binary.BigEndian.PutUint16(p.RawPacket[14+40+6:], gopacket.FoldChecksum(csum))
 	return true
 }
 
@@ -206,7 +210,8 @@ func (l *internalLink) start(
 	l.procQs = procQs
 	l.pool = pool
 
-	// An announcement may avoid the address resolution round-trip and loss of the first packet.
+	// We do not have a known peer that we can resolve ahead of time, but we can at least save
+	// peers that are already up from having to resolve us and drop the first packet.
 	localIP := l.localAddr.Addr()
 	l.seekNeighbor(&localIP)
 
@@ -277,7 +282,6 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	// more than the pool saves (verified experimentally).
 	addrPort := netip.AddrPortFrom(dstAddr, port)
 	p.RemoteAddr = unsafe.Pointer(&addrPort)
-
 	return nil
 }
 
@@ -343,21 +347,21 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 	// remoteHwP always points at an in-cache MAC address, which reduces GC pressure.
 	// We respond only to peers that we keep in the cache.
 	var remoteHwP *[6]byte
-	var changed bool
+
 	l.neighbors.Lock()
 	found := l.neighbors.check(senderIP)
-	if (targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified()) || found {
+	if (targetIP == l.localAddr.Addr() &&
+		remoteHw != [6]byte{0, 0, 0, 0, 0, 0} &&
+		senderIP != targetIP &&
+		!senderIP.IsUnspecified()) || found {
+
 		// Good to cache or update
-		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
+		remoteHwP, _ = l.neighbors.put(senderIP, remoteHw)
 	} else {
 		// Not in cacheable => No response needed either.
 		isReq = false
 	}
 	l.neighbors.Unlock()
-
-	if changed {
-		log.Debug("Neighbor cache updated internal", "IP", senderIP, "isat", remoteHw)
-	}
 
 	// Respond?
 	// TODO(jiceatscion): since we find the interfaces by address, we assume the addresses are
@@ -373,8 +377,6 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 	p := l.pool.Get()
 	localIP := l.localAddr.Addr()
 	packNeighborResp(p, &localIP, l.localMAC[:], &senderIP, remoteHwP[:], l.is4)
-	log.Debug("Neighbor response internal", "amhere", localIP, "localMAC", l.localMAC,
-		"to", senderIP)
 	select {
 	case l.egressQ <- p:
 	default:

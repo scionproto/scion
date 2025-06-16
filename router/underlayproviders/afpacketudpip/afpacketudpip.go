@@ -93,14 +93,19 @@ func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHa
 	return handle, filter, nil
 }
 
+type IfKey struct {
+	ifIndex int
+	port    uint16
+}
+
 // provider implements UnderlayProvider by making and returning Udp/Ip links on top of
 // packet sockets.
 type provider struct {
 	mu                sync.Mutex // Prevents race between adding connections and Start/Stop.
 	batchSize         int
 	allLinks          map[netip.AddrPort]udpLink
-	allConnections    map[int]*udpConnection // One per network interface
-	connOpener        ConnOpener             // uo{}, except for unit tests
+	allConnections    map[IfKey]*udpConnection // One per network interface and port combination.
+	connOpener        ConnOpener               // uo{}, except for unit tests
 	svc               *router.Services[netip.AddrPort]
 	receiveBufferSize int
 	sendBufferSize    int
@@ -141,7 +146,7 @@ func (providerFactory) New(
 	return &provider{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
-		allConnections:    make(map[int]*udpConnection),
+		allConnections:    make(map[IfKey]*udpConnection),
 		connOpener:        uo{},
 		svc:               router.NewServices[netip.AddrPort](),
 		receiveBufferSize: receiveBufferSize,
@@ -267,17 +272,14 @@ func (u *provider) getUdpConnection(
 					if ipNet.IP.String() == localAddrStr ||
 						(localAddr.IsLoopback() && intf.Name == "lo") {
 
-						c := u.allConnections[intf.Index]
+						c := u.allConnections[IfKey{intf.Index, localPort}]
 						if c == nil {
 							c, err = newUdpConnection(intf, qSize, u.connOpener, localPort, metrics)
 							if err != nil {
 								return nil, err
 							}
 						}
-						// FIXME(jiceatscion): as of today this only works as long as we don't
-						// need different ports enabled on the same interface. One socket=>
-						// one bpf filter => one port.
-						u.allConnections[intf.Index] = c
+						u.allConnections[IfKey{intf.Index, localPort}] = c
 						return c, nil
 					}
 				}

@@ -137,14 +137,15 @@ func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP netip.Addr) {
 	var targetIP netip.Addr
 	var remoteMAC [6]byte
 
-	switch icmp6.TypeCode {
+	switch icmp6.TypeCode.Type() {
 	case layers.ICMPv6TypeNeighborSolicitation:
 		var query layers.ICMPv6NeighborSolicitation
 		if err := query.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
-			targetIP, valid = netip.AddrFromSlice(query.TargetAddress)
-			if !valid {
-				return
-			}
+			return
+		}
+		targetIP, valid = netip.AddrFromSlice(query.TargetAddress)
+		if !valid {
+			return
 		}
 		isReq = true
 		for _, opt := range query.Options {
@@ -158,17 +159,18 @@ func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP netip.Addr) {
 	case layers.ICMPv6TypeNeighborAdvertisement:
 		var response layers.ICMPv6NeighborAdvertisement
 		if err := response.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
-			targetIP, valid = netip.AddrFromSlice(response.TargetAddress)
-			if !valid {
-				return
-			}
-			for _, opt := range response.Options {
-				if opt.Type == layers.ICMPv6OptTargetAddress {
-					if len(opt.Data) != 6 {
-						return
-					}
-					remoteMAC = [6]byte(opt.Data)
+			return
+		}
+		targetIP, valid = netip.AddrFromSlice(response.TargetAddress)
+		if !valid {
+			return
+		}
+		for _, opt := range response.Options {
+			if opt.Type == layers.ICMPv6OptTargetAddress {
+				if len(opt.Data) != 6 {
+					return
 				}
+				remoteMAC = [6]byte(opt.Data)
 			}
 		}
 	default:
@@ -194,20 +196,20 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 	// never be greater than the biggest v4 header (14+60+8). Else, the packet hits the can.
 	minHeadRoom := 14 + 20 + 8
 
-	var ethLayer layers.Ethernet
-	var arpLayer layers.ARP
-	var icmp6Layer layers.ICMPv6
-	var ipv4Layer layers.IPv4
-	var ipv6Layer layers.IPv6
-	var udpLayer layers.UDP
-	var srcIP netip.Addr
-	var validSrc bool
-
 	// We'll reuse this one until we can deliver it. At which point, we fetch a fresh one.
 	// pool.Reset is much cheaper than pool.Put/Get
 	p := pool.Get()
 
 	for u.running.Load() {
+		var ethLayer layers.Ethernet
+		var arpLayer layers.ARP
+		var icmp6Layer layers.ICMPv6
+		var ipv4Layer layers.IPv4
+		var ipv6Layer layers.IPv6
+		var udpLayer layers.UDP
+		var srcIP netip.Addr
+		var validSrc bool
+
 		// Since it may be recycled...
 		pool.ResetPacket(p)
 
@@ -216,8 +218,24 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		if err != nil {
 			continue
 		}
+
+		// DissectAndShow(data, "Received") // Enabled only if debug logging.
+
 		// Now we need to figure out the real length of the headers and the src addr.
 		if err := ethLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+			continue
+		}
+		// FIXME(jiceatscion): Expensive and not strictly necessary, but cuts down on noise while
+		// debugging. We get *everything* going through that interface; regardless of which ethernet
+		// address we think we have. That is especially relevant when using the loopback network for
+		// tests. WE *MUST* accept some seemingly foreign destinations (e.g. the loopback interface
+		// has address 0::0, even if we like to pretend otherwise). It would be better to improve
+		// the filtering either in EPBF or in links, so we do not actually care what the Dst MAC
+		// address is.
+		if ethLayer.DstMAC[0] != 0x33 &&
+			!slices.Equal(ethLayer.DstMAC, u.localMAC) &&
+			!slices.Equal(ethLayer.DstMAC, net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}) &&
+			!slices.Equal(ethLayer.DstMAC, net.HardwareAddr{0, 0, 0, 0, 0, 0}) {
 			continue
 		}
 		data = ethLayer.LayerPayload() // chop off the eth header
@@ -359,6 +377,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 		}
 		router.UpdateOutputMetrics(metrics, pkts[:written])
 		for _, p := range pkts[:written] {
+			// DissectAndShow(p.RawPacket, "Successfully Output")  // Enabled only if debug logging.
 			pool.Put(p)
 		}
 		if written != toWrite {

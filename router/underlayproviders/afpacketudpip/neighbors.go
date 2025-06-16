@@ -31,8 +31,8 @@ import (
 // ARP cache parameters.
 const (
 	neighborTick = 500 * time.Millisecond // Cache clock period.
-	neighborTTL  = 60                     // Time to live of freshly resolved entry.
-	neighborTTR  = 2                      // Time to live if not (re)solved.
+	neighborTTL  = 60                     // Time to live of resolved entry (in ticks).
+	neighborTTR  = 1                      // Time to live of entry that needs resolution (in ticks).
 )
 
 type neighbor struct {
@@ -63,12 +63,12 @@ type neighborCache struct {
 func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, bool) {
 	entry := cache.mappings[ip]
 	if entry.timer != 0 {
-		// Already resolved or being resolved. If there's a (stale) address, it's better
-		// than nothing so, use it.
+		// Already resolved or being resolved. May be we have a good address, or a stale one, or
+		// nothing at all. Nothing else to do.
 		return entry.mac, true
 	}
-	// Unknown or is stale. Trigger a new resolution. In the meantime, we can still use the stale
-	// address if there is one.
+	// Unknown or just got stale. Trigger a new resolution. In the meantime, we can still use the
+	// stale address if there is one.
 	entry.timer = neighborTTR
 	cache.mappings[ip] = entry
 	return entry.mac, false
@@ -169,7 +169,7 @@ func packNeighborReq(
 		}
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
 	} else {
-		var code layers.ICMPv6TypeCode
+		var code uint8
 		var mcAddr []byte
 
 		// We can do announcements too. The intent is conveyed using the IPv4 convention.
@@ -194,7 +194,7 @@ func packNeighborReq(
 			DstIP:      mcAddr,
 		}
 		icmp6 := layers.ICMPv6{
-			TypeCode: code,
+			TypeCode: layers.CreateICMPv6TypeCode(code, 0),
 		}
 		request := layers.ICMPv6NeighborSolicitation{
 			TargetAddress: remoteIP.AsSlice(),
@@ -257,7 +257,7 @@ func packNeighborResp(
 			DstIP:      remoteIP.AsSlice(),
 		}
 		icmp6 := layers.ICMPv6{
-			TypeCode: layers.ICMPv6TypeNeighborAdvertisement,
+			TypeCode: layers.CreateICMPv6TypeCode(layers.ICMPv6TypeNeighborAdvertisement, 0),
 		}
 		response := layers.ICMPv6NeighborAdvertisement{
 			Flags:         0x60, // Sollicited | Override.

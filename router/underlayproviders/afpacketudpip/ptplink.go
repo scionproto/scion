@@ -20,6 +20,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"time"
 
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
@@ -54,7 +55,6 @@ func (l *ptpLink) seekNeighbor(remoteIP *netip.Addr) {
 	p := l.pool.Get()
 	localIP := l.localAddr.Addr()
 	packNeighborReq(p, &localIP, l.localMAC, remoteIP, l.is4)
-	log.Debug("Neighbor request sent ptp", "whohas", remoteIP, "tell", localIP)
 	select {
 	case l.egressQ <- p:
 	default:
@@ -163,7 +163,12 @@ func (l *ptpLink) addHeader(p *router.Packet) bool {
 func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	payloadLen := len(p.RawPacket)
 	if !l.addHeader(p) {
-		return false
+		time.Sleep(100 * time.Millisecond) // Be stubborn; some tests expect zero loss.
+		if !l.addHeader(p) {
+			log.Debug("Dropped packet for lack of address resolution", "from", l.localAddr,
+				"to", l.remoteAddr)
+			return false
+		}
 	}
 	if l.is4 {
 		// Fix the IP total length field
@@ -197,7 +202,7 @@ func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	csum := gopacket.ComputeChecksum(p.RawPacket[14+8:14+40], 0)        // src+dst
 	csum = gopacket.ComputeChecksum(p.RawPacket[14+40+4:14+40+6], csum) // UDP length
 	csum = gopacket.ComputeChecksum(zerosAndProto, csum)                // 3 0s plus UDP proto num
-	binary.BigEndian.PutUint16(p.RawPacket[14+40+18:], gopacket.FoldChecksum(csum))
+	binary.BigEndian.PutUint16(p.RawPacket[14+40+6:], gopacket.FoldChecksum(csum))
 	return true
 }
 
@@ -211,10 +216,10 @@ func (l *ptpLink) start(
 	l.procQs = procQs
 	l.pool = pool
 
-	// Announces ourselves, so there's a decent chance that both sides have their mutual addresses
-	// resolved before the first real packet is sent.
-	localIP := l.localAddr.Addr()
-	l.seekNeighbor(&localIP)
+	// Since we have only one peer, try and resolve it in case it's up. That's like an
+	// announcement, but we can also get a response.
+	peerIP := l.remoteAddr.Addr()
+	l.seekNeighbor(&peerIP)
 
 	// cache ticker is desirable.
 	l.neighbors.start()
@@ -260,6 +265,7 @@ func (l *ptpLink) IsUp() bool {
 
 // Resolve should not be useful on a sibling or external link so we don't implement it yet.
 func (l *ptpLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
+	log.Debug("Trying to resolve inbound address on non-internal link")
 	return errResolveOnNonInternalLink
 }
 
@@ -323,7 +329,7 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 	var remoteHwP *[6]byte
 	var changed bool
 
-	if senderIP == l.remoteAddr.Addr() {
+	if senderIP == l.remoteAddr.Addr() && remoteHw != [6]byte{0, 0, 0, 0, 0, 0} {
 		l.neighbors.Lock()
 		// We want, regardless of cache content.
 		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
@@ -332,9 +338,6 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 			l.header = nil
 		}
 		l.neighbors.Unlock()
-		if changed {
-			log.Debug("Neighbor cache updated ptp", "IP", senderIP, "isat", remoteHw)
-		}
 	} else if targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified() {
 		// We don't want but may deserve a response.
 		// No choice, senderMAC escapes to the heap.
@@ -358,7 +361,6 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 	p := l.pool.Get()
 	localIP := l.localAddr.Addr()
 	packNeighborResp(p, &localIP, l.localMAC[:], &senderIP, remoteHwP[:], l.is4)
-	log.Debug("Neighbor response ptp", "amhere", localIP, "localMAC", l.localMAC, "to", senderIP)
 	select {
 	case l.egressQ <- p:
 	default:
