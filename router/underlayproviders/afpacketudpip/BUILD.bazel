@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "afpacketudpip.go",
+        "dbg.go",
         "fnv1acheap.go",
         "internallink.go",
         "mmsg.go",
@@ -25,13 +26,8 @@ go_library(
         "@com_github_gopacket_gopacket//:go_default_library",
         "@com_github_gopacket_gopacket//afpacket:go_default_library",
         "@com_github_gopacket_gopacket//layers:go_default_library",
-    ] + select({
-        "@rules_go//go/platform:android": [
-            "@org_golang_x_sys//unix:go_default_library",
-        ],
-        "@rules_go//go/platform:linux": [
-            "@org_golang_x_sys//unix:go_default_library",
-        ],
-        "//conditions:default": [],
-    }),
+        "@org_golang_x_sys//unix:go_default_library",
+        "@org_uber_go_zap//:go_default_library",
+        "@org_uber_go_zap//zapcore:go_default_library",
+    ],
 )

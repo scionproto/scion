@@ -38,7 +38,6 @@ import (
 )
 
 var (
-	ethNdpMcastPrefix           = [3]byte{0x33, 0x33, 0xff}
 	errResolveOnNonInternalLink = errors.New("unsupported address resolution on link not internal")
 	errInvalidServiceAddress    = errors.New("invalid service address")
 	errShortPacket              = errors.New("packet is too short")
