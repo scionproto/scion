@@ -20,11 +20,13 @@ import (
 	"maps"
 	"net"
 	"net/netip"
+	"reflect"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/gopacket/gopacket/afpacket"
+	"golang.org/x/sys/unix"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -36,6 +38,7 @@ import (
 )
 
 var (
+	ethNdpMcastPrefix           = [3]byte{0x33, 0x33, 0xff}
 	errResolveOnNonInternalLink = errors.New("unsupported address resolution on link not internal")
 	errInvalidServiceAddress    = errors.New("invalid service address")
 	errShortPacket              = errors.New("packet is too short")
@@ -247,6 +250,27 @@ func (u *provider) Stop() {
 	}
 }
 
+// chgMcastGrp adds the given (TPacket, interface) pair to the given multicast group.
+func addMcastGrp(tp *afpacket.TPacket, ifIndex int, mcastAddr net.HardwareAddr) {
+	// Unceremonious but necessary until we submit a change (which would have to be more general
+	// than this) to the afpacket project and get it merged.
+	fdv := reflect.ValueOf(tp).Elem().FieldByName("fd")
+	tpfd := int(fdv.Int())
+
+	mreq := unix.PacketMreq{
+		Ifindex: int32(ifIndex),
+		Type:    unix.PACKET_MR_MULTICAST,
+		Alen:    6,
+	}
+	copy(mreq.Address[0:6], mcastAddr[:])
+
+	opt := unix.PACKET_ADD_MEMBERSHIP
+
+	if err := unix.SetsockoptPacketMreq(tpfd, unix.SOL_PACKET, opt, &mreq); err != nil {
+		panic(err)
+	}
+}
+
 // getUdpConnection returns the appropriate udpConnection; creating it if it doesn't exist yet.
 func (u *provider) getUdpConnection(
 	qSize int, local *netip.AddrPort,
@@ -278,8 +302,15 @@ func (u *provider) getUdpConnection(
 							if err != nil {
 								return nil, err
 							}
+							u.allConnections[IfKey{intf.Index, localPort}] = c
 						}
-						u.allConnections[IfKey{intf.Index, localPort}] = c
+						if localAddr.Is6() {
+							addrBytes := localAddr.As16()
+							mcastGrp := net.HardwareAddr{
+								0x33, 0x33, 0xff, addrBytes[13], addrBytes[14], addrBytes[15],
+							}
+							addMcastGrp(c.afp, intf.Index, mcastGrp)
+						}
 						return c, nil
 					}
 				}

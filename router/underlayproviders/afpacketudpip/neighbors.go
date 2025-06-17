@@ -35,6 +35,8 @@ const (
 	neighborTTR  = 1                      // Time to live of entry that needs resolution (in ticks).
 )
 
+var ndpMcastPrefix = []byte{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0xff}
+
 type neighbor struct {
 	mac *[6]byte
 	// timer keeps track of the time that the entry has been resolved or pending:
@@ -171,19 +173,22 @@ func packNeighborReq(
 	} else {
 		var code uint8
 		var mcAddr []byte
+		var dstMAC []byte
 
 		// We can do announcements too. The intent is conveyed using the IPv4 convention.
 		if *localIP == *remoteIP {
 			mcAddr = netip.IPv6LinkLocalAllNodes().AsSlice()
 			code = layers.ICMPv6TypeNeighborAdvertisement
+			dstMAC = net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 		} else {
 			mcAddr = remoteIP.AsSlice()
+			copy(mcAddr, ndpMcastPrefix)
 			code = layers.ICMPv6TypeNeighborSolicitation
+			dstMAC = net.HardwareAddr{0x33, 0x33, 0xff, mcAddr[13], mcAddr[14], mcAddr[15]}
 		}
-		copy(mcAddr, ndpMcastPrefix)
 		ethernet := layers.Ethernet{
 			SrcMAC:       localMAC,
-			DstMAC:       net.HardwareAddr{0x33, 0x33, 0xff, mcAddr[13], mcAddr[14], mcAddr[15]},
+			DstMAC:       dstMAC,
 			EthernetType: layers.EthernetTypeIPv6,
 		}
 		ipv6 := layers.IPv6{

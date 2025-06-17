@@ -31,8 +31,6 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
-var ndpMcastPrefix = []byte{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0xff}
-
 // udpConnection is a TPacket connection with a sending queue and a demultiplexer. The rest is
 // about logs and metrics. This allows UDP connections to be shared between links, which is the
 // norm in this case; since a raw socket receives traffic for all ports.
