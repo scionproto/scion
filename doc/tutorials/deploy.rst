@@ -254,6 +254,17 @@ Execute the following commands on every AS:
 
 These steps need to be repeated on each host scion01 - scion05.
 
+Make sure your services are running and didn't fail to start:
+
+.. code-block:: sh
+
+   sudo systemctl status scion-*
+
+If any service failed, you can view the logs using journalctl, for example:
+
+.. code-block:: sh
+
+   sudo journalctl -u scion-router@br.service
 
 .. _step3:
 
