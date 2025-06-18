@@ -32,11 +32,11 @@ The sample SCION demo setup consists of one ISD with three core and two non-core
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
 Hostname ISD  AS        Purpose  Notes           IP Address    OS                     Disk  RAM
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
-scion01  15   ffaa:1:1  Core     Voting, CA      10.100.0.11  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion02  15   ffaa:1:2  Core     Non-Voting, CA  10.100.0.12  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion03  15   ffaa:1:3  Core     Voting          10.100.0.13  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion04  15   ffaa:1:4  Non-Core                 10.100.0.14  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion05  15   ffaa:1:5  Non-Core                 10.100.0.15  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion01  15   ffaa:1:1  Core     Voting, CA      10.100.0.11  **Ubuntu** 24.04 LTS    4 GB  1 GB
+scion02  15   ffaa:1:2  Core     Non-Voting, CA  10.100.0.12  **Ubuntu** 24.04 LTS    4 GB  1 GB
+scion03  15   ffaa:1:3  Core     Voting          10.100.0.13  **Ubuntu** 24.04 LTS    4 GB  1 GB
+scion04  15   ffaa:1:4  Non-Core                 10.100.0.14  **Ubuntu** 24.04 LTS    4 GB  1 GB
+scion05  15   ffaa:1:5  Non-Core                 10.100.0.15  **Ubuntu** 24.04 LTS    4 GB  1 GB
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
 
 *Table 1: Required Infrastructure*
@@ -62,7 +62,7 @@ Infrastructure Prerequisites
 
 This deployment requires five virtual machines (VMs) - one for each AS. We recommend using Ubuntu VMs for this.
 
-- 5 VMs - **Ubuntu** 22.04.5 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_.
+- 5 VMs - **Ubuntu** 24.04.x LTS (Noble Numbat). For more information, see `Ubuntu Noble Numbat <https://releases.ubuntu.com/noble/>`_.
 - Each VM should have at least one IP address reachable by the other VMs. (If on AWS, be sure to set up the appropriate security groups.)
 - Each VM will need internet access to download the required files (or you will need an alternate way to download the SCION binaries).
 - One VM (scion01) should have SSH access (password or SSH keys) to the other hosts scion{02-05} to copy generated configuration files and keys.
