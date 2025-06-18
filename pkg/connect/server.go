@@ -22,6 +22,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 
 	"github.com/scionproto/scion/pkg/log"
@@ -30,21 +31,32 @@ import (
 // AttachPeer creates a middleware that attaches the remote address to the
 // context with the grpc-go peer mechanism.
 func AttachPeer(next http.Handler) http.Handler {
+	authInfo := func(r *http.Request) credentials.AuthInfo {
+		if r.TLS == nil {
+			return nil
+		}
+		if r.TLS.PeerCertificates == nil {
+			return nil
+		}
+		return credentials.TLSInfo{
+			State: *r.TLS,
+		}
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := log.FromCtx(r.Context())
 		if addr, ok := r.Context().Value(http3.RemoteAddrContextKey).(net.Addr); ok {
 			logger.Debug("HTTP3 request", "remote", addr)
-			ctx := peer.NewContext(r.Context(), &peer.Peer{Addr: addr})
+			ctx := peer.NewContext(r.Context(), &peer.Peer{Addr: addr, AuthInfo: authInfo(r)})
 			r = r.WithContext(ctx)
 		} else if addrPort, err := netip.ParseAddrPort(r.RemoteAddr); err == nil {
 			logger.Debug("HTTP request", "remote", addrPort)
 			tcpAddr := net.TCPAddrFromAddrPort(addrPort)
-			ctx := peer.NewContext(r.Context(), &peer.Peer{Addr: tcpAddr})
+			ctx := peer.NewContext(r.Context(), &peer.Peer{Addr: tcpAddr, AuthInfo: authInfo(r)})
 			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)
 	})
-
 }
 
 type QUICConnServer interface {

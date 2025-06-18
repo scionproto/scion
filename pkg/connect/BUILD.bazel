@@ -14,6 +14,7 @@ go_library(
         "//pkg/snet/squic:go_default_library",
         "@com_github_quic_go_quic_go//:go_default_library",
         "@com_github_quic_go_quic_go//http3:go_default_library",
+        "@org_golang_google_grpc//credentials:go_default_library",
         "@org_golang_google_grpc//peer:go_default_library",
     ],
 )

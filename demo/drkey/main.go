@@ -157,8 +157,10 @@ func realMain() int {
 		}
 		fmt.Printf(
 			"Server: host key = %s, protocol = %s, fetch-sv = %v"+
-				"\n\tduration without cache: %s\n\tduration with cache: %s\n",
+				"\n\tduration without cache: %s\n\tduration with cache: %s"+
+				"\n\tserver: %s\n\tclient: %s\n",
 			hex.EncodeToString(serverKey.Key[:]), meta.ProtoId, fetchSV, t2.Sub(t0), t2.Sub(t1),
+			serverAddr, clientAddr,
 		)
 	} else {
 		// Client: fetch key from daemon
@@ -176,8 +178,10 @@ func realMain() int {
 		t1 = time.Now()
 
 		fmt.Printf(
-			"Client: host key = %s, protocol = %s\n\tduration: %s\n",
+			"Client: host key = %s, protocol = %s\n\tduration: %s\n"+
+				"\n\tserver: %s\n\tclient: %s\n",
 			hex.EncodeToString(clientKey.Key[:]), meta.ProtoId, t1.Sub(t0),
+			serverAddr, clientAddr,
 		)
 	}
 	return 0

@@ -135,9 +135,9 @@ func Happy[R any](ctx context.Context, fast, slow Caller[R]) (R, error) {
 		return zero, serrors.List(errs[:]).ToError()
 	// Fast request failed. Return slow.
 	case errs[0] != nil:
-		return reps[1], nil
+		return reps[1], errs[1]
 	// Fast succeeded. Return fast (even if slow succeeded too)
 	default:
-		return reps[0], nil
+		return reps[0], errs[0]
 	}
 }
