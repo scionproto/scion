@@ -151,3 +151,58 @@ func ResolveLocal(dst net.IP) (net.IP, error) {
 	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
 	return srcIP, nil
 }
+
+func ExtractServiceAddress(a addr.SVC, path snet.Path) net.Addr {
+	if path == nil {
+		panic("path is nil")
+	}
+
+	destination := path.Destination()
+	if destination.IsZero() {
+		panic("path destination is invalid")
+	}
+	metadata := path.Metadata()
+	if metadata != nil {
+		discoveredInfo, hasDiscoveryInfo := metadata.DiscoveryInformation[destination]
+		switch a {
+		case addr.SvcCS:
+			if hasDiscoveryInfo && len(discoveredInfo.ControlServices) > 0 {
+				// Use the first control service if available
+				cs := discoveredInfo.ControlServices[0]
+				ret := &snet.UDPAddr{
+					IA:      destination,
+					Path:    path.Dataplane(),
+					NextHop: path.UnderlayNextHop(),
+					Host: &net.UDPAddr{
+						IP:   cs.Addr().AsSlice(),
+						Port: int(cs.Port()),
+					},
+				}
+
+				return ret
+			}
+		case addr.SvcDS:
+			if hasDiscoveryInfo && len(discoveredInfo.DiscoveryServices) > 0 {
+				// Use the first data service if available
+				ds := discoveredInfo.DiscoveryServices[0]
+				ret := &snet.UDPAddr{
+					IA:      destination,
+					Path:    path.Dataplane(),
+					NextHop: path.UnderlayNextHop(),
+					Host: &net.UDPAddr{
+						IP:   ds.Addr().AsSlice(),
+						Port: int(ds.Port()),
+					},
+				}
+
+				return ret
+			}
+		}
+	}
+	return &snet.SVCAddr{
+		IA:      destination,
+		Path:    path.Dataplane(),
+		NextHop: path.UnderlayNextHop(),
+		SVC:     a,
+	}
+}

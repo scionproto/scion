@@ -26,7 +26,7 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//pkg/segment:go_default_library",
         "//pkg/snet:go_default_library",
-        "//pkg/snet/path:go_default_library",
+        "//pkg/snet/addrutil:go_default_library",
         "//private/config:go_default_library",
         "//private/pathdb:go_default_library",
         "//private/pathdb/query:go_default_library",

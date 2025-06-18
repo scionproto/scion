@@ -21,7 +21,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 )
 
 // Servers is a list of discovered remote hidden segment server.
@@ -88,15 +88,12 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 	if p == nil {
 		return nil, serrors.Wrap("no path found to remote", err)
 	}
-	dsAddr := &snet.SVCAddr{
-		IA:      ia,
-		NextHop: p.UnderlayNextHop(),
-		Path:    p.Dataplane(),
-		SVC:     addr.SvcDS,
-	}
-	if dsAddr.Path == nil {
-		dsAddr.Path = path.Empty{}
-	}
+
+	dsAddr := addrutil.ExtractServiceAddress(addr.SvcDS, p)
+	// TODO: Why is this necessary?
+	// if dsAddr.Path == nil {
+	// 	dsAddr.Path = path.Empty{}
+	// }
 	hps, err := discoverer.Discover(ctx, dsAddr)
 	if err != nil {
 		return nil, serrors.Wrap("discovering hidden path server", err)
@@ -108,7 +105,7 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 	return &snet.UDPAddr{
 		IA:      ia,
 		Host:    a,
-		NextHop: dsAddr.NextHop,
-		Path:    dsAddr.Path,
+		NextHop: p.UnderlayNextHop(),
+		Path:    p.Dataplane(),
 	}, nil
 }

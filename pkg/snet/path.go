@@ -145,7 +145,6 @@ type PathMetadata struct {
 
 	DiscoveryInformation map[addr.IA]DiscoveryInformation
 }
-
 type DiscoveryInformation struct {
 	ControlServices   []netip.AddrPort
 	DiscoveryServices []netip.AddrPort
