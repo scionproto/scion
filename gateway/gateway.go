@@ -500,10 +500,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Resolver: &svc.Resolver{
 				LocalIA: localIA,
 				// Reuse the network with SCMP error support.
-				ConnFactory: scionNetwork.Dispatcher,
-				LocalIP:     g.ServiceDiscoveryClientIP,
+				Network: scionNetwork,
+				LocalIP: g.ServiceDiscoveryClientIP,
 			},
-			SVCResolutionFraction: 1.337,
 		},
 	}
 	remoteMonitor := &control.RemoteMonitor{
@@ -518,30 +517,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Policies: &policies.Policies{
 				PathPolicy: control.DefaultPathPolicy,
 			},
-<<<<<<< HEAD
-			Dialer: &libgrpc.QUICDialer{
-				Dialer: quicClientDialer,
-				Rewriter: &infraenv.AddressRewriter{
-					// Use the local Daemon to construct paths to the target AS.
-					Router: pathRouter,
-					// We never resolve addresses in the local AS, so pass a nil here.
-					SVCRouter: nil,
-					Resolver: &svc.Resolver{
-						LocalIA: localIA,
-						// Reuse the network with SCMP error support.
-						Network: scionNetwork,
-						LocalIP: g.ServiceDiscoveryClientIP,
-					},
-				},
-			},
-=======
 			Dialer: grpcDialer,
 			ConnectDialer: (&squic.EarlyDialerFactory{
 				Transport: quicClientDialer.Transport,
 				TLSConfig: connect.AdaptTLS(quicClientDialer.TLSConfig),
 				Rewriter:  grpcDialer.Rewriter,
 			}).NewDialer,
->>>>>>> 244e9b483 (THE GRAND MERGE)
 		},
 	}
 

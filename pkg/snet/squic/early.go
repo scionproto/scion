@@ -30,7 +30,7 @@ import (
 )
 
 type AddressRewriter interface {
-	RedirectToQUIC(ctx context.Context, address net.Addr) (net.Addr, bool, error)
+	RedirectToQUIC(ctx context.Context, address net.Addr) (net.Addr, error)
 }
 
 type EarlyDialerOptions struct {
@@ -93,9 +93,9 @@ func (d *EarlyDialer) DialEarly(ctx context.Context, _ string, _ *tls.Config, _ 
 		defer cancel()
 	}
 
-	addr, _, err := d.Rewriter.RedirectToQUIC(ctx, d.Addr)
+	addr, err := d.Rewriter.RedirectToQUIC(ctx, d.Addr)
 	if err != nil {
-		return nil, serrors.WrapStr("resolving SVC address", err)
+		return nil, serrors.Wrap("resolving SVC address", err)
 	}
 	if _, ok := addr.(*snet.UDPAddr); !ok {
 		return nil, serrors.New("wrong address type after svc resolution",
@@ -128,18 +128,18 @@ func (d *EarlyDialer) DialEarly(ctx context.Context, _ string, _ *tls.Config, _ 
 		}
 		var transportErr *quic.TransportError
 		if !errors.As(err, &transportErr) || transportErr.ErrorCode != quic.ConnectionRefused {
-			return nil, serrors.WrapStr("dialing QUIC/SCION", err)
+			return nil, serrors.Wrap("dialing QUIC/SCION", err)
 		}
 
 		jitter := time.Duration(mrand.Int63n(int64(5 * time.Millisecond)))
 		select {
 		case <-time.After(sleep + jitter):
 		case <-ctx.Done():
-			return nil, serrors.WrapStr("timed out connecting to busy server", err)
+			return nil, serrors.Wrap("timed out connecting to busy server", err)
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, serrors.WrapStr("dialing QUIC/SCION, after loop", err)
+		return nil, serrors.Wrap("dialing QUIC/SCION, after loop", err)
 	}
 	return session, nil
 }
