@@ -186,8 +186,6 @@ func pathToPB(path snet.Path) *daemon.Path {
 				),
 			}
 		}
-	} else {
-		log.Debug("!!! No discovery information in path metadata")
 	}
 
 	return &daemon.Path{

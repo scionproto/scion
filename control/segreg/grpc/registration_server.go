@@ -95,8 +95,24 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		NextHop: peer.NextHop,
 		SVC:     addr.SvcCS,
 	}
-	// TODO: get remote address from some of the segments.
-	// Do we have to check the segment type?
+
+	// Let's see if any of the segments has the remote CS address and if there
+	// is one, pick it.
+	for _, seg := range segs {
+		for _, asE := range seg.Segment.ASEntries {
+			if asE.Local != peer.IA {
+				continue
+			}
+			if disco := asE.Extensions.Discovery; disco != nil && len(disco.ControlServices) > 0 {
+				remoteAddr = &snet.UDPAddr{
+					IA:      peer.IA,
+					Path:    peer.Path,
+					NextHop: peer.NextHop,
+					Host:    net.UDPAddrFromAddrPort(disco.ControlServices[0]),
+				}
+			}
+		}
+	}
 
 	res := s.SegHandler.Handle(ctx,
 		seghandler.Segments{
