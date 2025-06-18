@@ -184,13 +184,19 @@ In practice, the private keys of ASes are of course never revealed to other enti
 
   .. code-block:: bash
 
-     cd /tmp/tutorial-scion-certs
-     for i in {1..5}
-     do
-        ssh scion0$i 'mkdir -p /etc/scion/{crypto/as,certs}'
-        scp AS$i/cp-as.{key,pem} scion0$i:/etc/scion/crypto/as/
-        scp ISD15-B1-S1.trc scion0$i:/etc/scion/certs/
-     done
+      cd /tmp/tutorial-scion-certs
+
+      for i in {1..5}; do
+         ssh scion0$i 'sudo mkdir -p /etc/scion/crypto/as /etc/scion/certs'
+
+         scp AS$i/cp-as.pem   scion0$i:/tmp/cp-as.pem
+         scp AS$i/cp-as.key   scion0$i:/tmp/cp-as.key
+         scp ISD15-B1-S1.trc  scion0$i:/tmp/ISD15-B1-S1.trc
+
+         ssh scion0$i 'sudo mv /tmp/cp-as.pem /etc/scion/crypto/as/'
+         ssh scion0$i 'sudo mv /tmp/cp-as.key /etc/scion/crypto/as/'
+         ssh scion0$i 'sudo mv /tmp/ISD15-B1-S1.trc /etc/scion/certs/'
+      done
 
 
 Step 3 - Generate Forwarding Secret Keys
@@ -200,8 +206,9 @@ Two symmetric keys *master0.key* and *master1.key* are required per AS as the fo
 
 .. code-block:: bash
 
-   head -c 16 /dev/urandom | base64 - > /etc/scion/keys/master0.key
-   head -c 16 /dev/urandom | base64 - > /etc/scion/keys/master1.key
+   sudo mkdir -p /etc/scion/keys
+   sudo sh -c 'head -c 16 /dev/urandom | base64 > /etc/scion/keys/master0.key'
+   sudo sh -c 'head -c 16 /dev/urandom | base64 > /etc/scion/keys/master1.key'
 
 Repeat the above on each host scion01 - scion05.
 
@@ -227,6 +234,11 @@ and :doc:`/manuals/dispatcher` processes, by starting their systemd units. The d
 automatically as dependency of the control service and daemon.
 
 Execute the following commands on every AS:
+
+.. code-block:: sh
+
+   # Make scion user own the config dir
+   sudo chown -R scion:scion /etc/scion
 
 .. code-block:: sh
 
