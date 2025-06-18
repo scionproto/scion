@@ -31,6 +31,7 @@ go_library(
         "//pkg/scrypto/cppki:go_default_library",
         "//pkg/segment:go_default_library",
         "//pkg/segment/extensions/digest:go_default_library",
+        "//pkg/segment/extensions/discovery:go_default_library",
         "//pkg/segment/extensions/epic:go_default_library",
         "//pkg/segment/extensions/staticinfo:go_default_library",
         "//pkg/segment/iface:go_default_library",

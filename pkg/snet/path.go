@@ -18,7 +18,9 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"maps"
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -140,6 +142,13 @@ type PathMetadata struct {
 
 	// EpicAuths contains the EPIC authenticators.
 	EpicAuths EpicAuths
+
+	DiscoveryInformation map[addr.IA]DiscoveryInformation
+}
+
+type DiscoveryInformation struct {
+	ControlServices   []netip.AddrPort
+	DiscoveryServices []netip.AddrPort
 }
 
 func (pm *PathMetadata) Copy() *PathMetadata {
@@ -161,6 +170,7 @@ func (pm *PathMetadata) Copy() *PathMetadata {
 			AuthPHVF: append([]byte(nil), pm.EpicAuths.AuthPHVF...),
 			AuthLHVF: append([]byte(nil), pm.EpicAuths.AuthLHVF...),
 		},
+		DiscoveryInformation: maps.Clone(pm.DiscoveryInformation),
 	}
 }
 
