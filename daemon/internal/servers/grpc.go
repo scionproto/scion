@@ -176,8 +176,14 @@ func pathToPB(path snet.Path) *daemon.Path {
 		discovery = make(map[uint64]*daemon.DiscoveryInformation, len(di))
 		for ia, info := range di {
 			discovery[uint64(ia)] = &daemon.DiscoveryInformation{
-				ControlServiceAddresses:   slices.Transform(info.ControlServices, netip.AddrPort.String),
-				DiscoveryServiceAddresses: slices.Transform(info.DiscoveryServices, netip.AddrPort.String),
+				ControlServiceAddresses: slices.Transform(
+					info.ControlServices,
+					netip.AddrPort.String,
+				),
+				DiscoveryServiceAddresses: slices.Transform(
+					info.DiscoveryServices,
+					netip.AddrPort.String,
+				),
 			}
 		}
 	} else {
