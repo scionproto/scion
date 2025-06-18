@@ -20,11 +20,11 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
 
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/proto/control_plane"
+	"github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet/squic"
 	"github.com/scionproto/scion/private/segment/segfetcher"
@@ -40,10 +40,14 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 	server net.Addr) (segfetcher.SegmentsReply, error) {
 
 	peer := make(chan net.Addr, 1)
-	dialer := f.Dialer(server, squic.WithPeerChannel(peer), squic.WithDialTimeout(segfetchergrpc.DefaultRPCDialTimeout))
+	dialer := f.Dialer(
+		server,
+		squic.WithPeerChannel(peer),
+		squic.WithDialTimeout(segfetchergrpc.DefaultRPCDialTimeout),
+	)
 	client := control_planeconnect.NewSegmentLookupServiceClient(
 		libconnect.HTTPClient{
-			RoundTripper: &http3.RoundTripper{
+			RoundTripper: &http3.Transport{
 				Dial: dialer.DialEarly,
 			},
 		},

@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	"github.com/scionproto/scion/pkg/proto/hidden_segment"
 	"github.com/scionproto/scion/pkg/proto/hidden_segment/v1/hidden_segmentconnect"
@@ -31,7 +32,10 @@ type SegmentServer struct {
 	*grpc.SegmentServer
 }
 
-func (m SegmentServer) HiddenSegments(ctx context.Context, req *connect.Request[hidden_segment.HiddenSegmentsRequest]) (*connect.Response[hidden_segment.HiddenSegmentsResponse], error) {
+func (m SegmentServer) HiddenSegments(
+	ctx context.Context,
+	req *connect.Request[hidden_segment.HiddenSegmentsRequest],
+) (*connect.Response[hidden_segment.HiddenSegmentsResponse], error) {
 	rep, err := m.SegmentServer.HiddenSegments(ctx, req.Msg)
 	if err != nil {
 		return nil, err

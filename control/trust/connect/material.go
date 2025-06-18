@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+
 	"github.com/scionproto/scion/control/trust/grpc"
 	"github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
@@ -29,7 +30,10 @@ type MaterialServer struct {
 	*grpc.MaterialServer
 }
 
-func (m MaterialServer) Chains(ctx context.Context, req *connect.Request[control_plane.ChainsRequest]) (*connect.Response[control_plane.ChainsResponse], error) {
+func (m MaterialServer) Chains(
+	ctx context.Context,
+	req *connect.Request[control_plane.ChainsRequest],
+) (*connect.Response[control_plane.ChainsResponse], error) {
 	rep, err := m.MaterialServer.Chains(ctx, req.Msg)
 	if err != nil {
 		return nil, err
@@ -37,7 +41,10 @@ func (m MaterialServer) Chains(ctx context.Context, req *connect.Request[control
 	return connect.NewResponse(rep), nil
 }
 
-func (m MaterialServer) TRC(ctx context.Context, req *connect.Request[control_plane.TRCRequest]) (*connect.Response[control_plane.TRCResponse], error) {
+func (m MaterialServer) TRC(
+	ctx context.Context,
+	req *connect.Request[control_plane.TRCRequest],
+) (*connect.Response[control_plane.TRCResponse], error) {
 	rep, err := m.MaterialServer.TRC(ctx, req.Msg)
 	if err != nil {
 		return nil, err

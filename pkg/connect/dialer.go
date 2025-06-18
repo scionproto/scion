@@ -22,6 +22,7 @@ import (
 	"strconv"
 
 	"github.com/quic-go/quic-go/http3"
+
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/squic"
 )
@@ -41,7 +42,7 @@ func BaseUrl(server net.Addr) string {
 }
 
 type HTTPClient struct {
-	RoundTripper *http3.RoundTripper
+	RoundTripper *http3.Transport
 }
 
 func (c HTTPClient) Do(req *http.Request) (*http.Response, error) {

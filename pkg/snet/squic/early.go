@@ -86,7 +86,12 @@ type EarlyDialer struct {
 	DialTimeout time.Duration
 }
 
-func (d *EarlyDialer) DialEarly(ctx context.Context, _ string, _ *tls.Config, _ *quic.Config) (quic.EarlyConnection, error) {
+func (d *EarlyDialer) DialEarly(
+	ctx context.Context,
+	_ string,
+	_ *tls.Config,
+	_ *quic.Config,
+) (quic.EarlyConnection, error) {
 	if d.DialTimeout != 0 {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, d.DialTimeout)

@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+
 	"github.com/scionproto/scion/control/drkey/grpc"
 	"github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
@@ -32,7 +33,10 @@ type Server struct {
 	*grpc.Server
 }
 
-func (m Server) DRKeyLevel1(ctx context.Context, req *connect.Request[control_plane.DRKeyLevel1Request]) (*connect.Response[control_plane.DRKeyLevel1Response], error) {
+func (m Server) DRKeyLevel1(
+	ctx context.Context,
+	req *connect.Request[control_plane.DRKeyLevel1Request],
+) (*connect.Response[control_plane.DRKeyLevel1Response], error) {
 	rep, err := m.Server.DRKeyLevel1(ctx, req.Msg)
 	if err != nil {
 		return nil, err
@@ -40,7 +44,10 @@ func (m Server) DRKeyLevel1(ctx context.Context, req *connect.Request[control_pl
 	return connect.NewResponse(rep), nil
 }
 
-func (m Server) DRKeyIntraLevel1(ctx context.Context, req *connect.Request[control_plane.DRKeyIntraLevel1Request]) (*connect.Response[control_plane.DRKeyIntraLevel1Response], error) {
+func (m Server) DRKeyIntraLevel1(
+	ctx context.Context,
+	req *connect.Request[control_plane.DRKeyIntraLevel1Request],
+) (*connect.Response[control_plane.DRKeyIntraLevel1Response], error) {
 	rep, err := m.Server.DRKeyIntraLevel1(ctx, req.Msg)
 	if err != nil {
 		return nil, err
@@ -48,7 +55,10 @@ func (m Server) DRKeyIntraLevel1(ctx context.Context, req *connect.Request[contr
 	return connect.NewResponse(rep), nil
 }
 
-func (m Server) DRKeyASHost(ctx context.Context, req *connect.Request[control_plane.DRKeyASHostRequest]) (*connect.Response[control_plane.DRKeyASHostResponse], error) {
+func (m Server) DRKeyASHost(
+	ctx context.Context,
+	req *connect.Request[control_plane.DRKeyASHostRequest],
+) (*connect.Response[control_plane.DRKeyASHostResponse], error) {
 	rep, err := m.Server.DRKeyASHost(ctx, req.Msg)
 	if err != nil {
 		return nil, err
@@ -56,7 +66,10 @@ func (m Server) DRKeyASHost(ctx context.Context, req *connect.Request[control_pl
 	return connect.NewResponse(rep), nil
 }
 
-func (m Server) DRKeyHostAS(ctx context.Context, req *connect.Request[control_plane.DRKeyHostASRequest]) (*connect.Response[control_plane.DRKeyHostASResponse], error) {
+func (m Server) DRKeyHostAS(
+	ctx context.Context,
+	req *connect.Request[control_plane.DRKeyHostASRequest],
+) (*connect.Response[control_plane.DRKeyHostASResponse], error) {
 	rep, err := m.Server.DRKeyHostAS(ctx, req.Msg)
 	if err != nil {
 		return nil, err
@@ -64,7 +77,10 @@ func (m Server) DRKeyHostAS(ctx context.Context, req *connect.Request[control_pl
 	return connect.NewResponse(rep), nil
 }
 
-func (m Server) DRKeyHostHost(ctx context.Context, req *connect.Request[control_plane.DRKeyHostHostRequest]) (*connect.Response[control_plane.DRKeyHostHostResponse], error) {
+func (m Server) DRKeyHostHost(
+	ctx context.Context,
+	req *connect.Request[control_plane.DRKeyHostHostRequest],
+) (*connect.Response[control_plane.DRKeyHostHostResponse], error) {
 	rep, err := m.Server.DRKeyHostHost(ctx, req.Msg)
 	if err != nil {
 		return nil, err
@@ -72,7 +88,10 @@ func (m Server) DRKeyHostHost(ctx context.Context, req *connect.Request[control_
 	return connect.NewResponse(rep), nil
 }
 
-func (m Server) DRKeySecretValue(ctx context.Context, req *connect.Request[control_plane.DRKeySecretValueRequest]) (*connect.Response[control_plane.DRKeySecretValueResponse], error) {
+func (m Server) DRKeySecretValue(
+	ctx context.Context,
+	req *connect.Request[control_plane.DRKeySecretValueRequest],
+) (*connect.Response[control_plane.DRKeySecretValueResponse], error) {
 	rep, err := m.Server.DRKeySecretValue(ctx, req.Msg)
 	if err != nil {
 		return nil, err

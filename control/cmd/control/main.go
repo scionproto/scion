@@ -43,7 +43,6 @@ import (
 	cs "github.com/scionproto/scion/control"
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
-	"github.com/scionproto/scion/control/beaconing/connect"
 	beaconingconnect "github.com/scionproto/scion/control/beaconing/connect"
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
 	"github.com/scionproto/scion/control/beaconing/happy"
@@ -366,8 +365,12 @@ func realMain(ctx context.Context) error {
 		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 	}
 	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
-	connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{MaterialServer: trustServer}))
-	connectIntra.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{MaterialServer: trustServer}))
+	connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
+		MaterialServer: trustServer,
+	}))
+	connectIntra.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
+		MaterialServer: trustServer,
+	}))
 
 	// Handle beaconing.
 	segmentCreationServer := &beaconinggrpc.SegmentCreationServer{
@@ -415,10 +418,14 @@ func realMain(ctx context.Context) error {
 	}
 
 	// Always register a forwarding lookup for AS internal requests.
-	connectIntra.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{LookupServer: forwardingLookupServer}))
+	connectIntra.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{
+		LookupServer: forwardingLookupServer,
+	}))
 	if topo.Core() {
 		cppb.RegisterSegmentLookupServiceServer(quicServer, authLookupServer)
-		connectInter.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{LookupServer: authLookupServer}))
+		connectInter.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{
+			LookupServer: authLookupServer,
+		}))
 	}
 
 	// Handle segment registration.
@@ -437,7 +444,9 @@ func realMain(ctx context.Context) error {
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
 		}
 		cppb.RegisterSegmentRegistrationServiceServer(quicServer, registrationServer)
-		connectInter.Handle(cpconnect.NewSegmentRegistrationServiceHandler(segregconnect.RegistrationServer{RegistrationServer: registrationServer}))
+		connectInter.Handle(cpconnect.NewSegmentRegistrationServiceHandler(
+			segregconnect.RegistrationServer{RegistrationServer: registrationServer},
+		))
 	}
 
 	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
@@ -562,8 +571,12 @@ func realMain(ctx context.Context) error {
 		}
 
 		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
-		connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{RenewalServer: renewalServer}))
-		connectIntra.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{RenewalServer: renewalServer}))
+		connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
+			RenewalServer: renewalServer,
+		}))
+		connectIntra.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
+			RenewalServer: renewalServer,
+		}))
 	}
 
 	// Frequently regenerate signers to catch problems, and update the metrics.
@@ -720,8 +733,12 @@ func realMain(ctx context.Context) error {
 			AllowedSVHostProto:        globalCfg.DRKey.Delegation.ToAllowedSet(),
 		}
 		cppb.RegisterDRKeyInterServiceServer(quicServer, drkeyService)
-		connectInter.Handle(cpconnect.NewDRKeyInterServiceHandler(drkeyconnect.Server{Server: drkeyService}))
-		connectIntra.Handle(cpconnect.NewDRKeyIntraServiceHandler(drkeyconnect.Server{Server: drkeyService}))
+		connectInter.Handle(cpconnect.NewDRKeyInterServiceHandler(drkeyconnect.Server{
+			Server: drkeyService,
+		}))
+		connectIntra.Handle(cpconnect.NewDRKeyIntraServiceHandler(drkeyconnect.Server{
+			Server: drkeyService,
+		}))
 		log.Info("DRKey is enabled")
 	} else {
 		log.Info("DRKey is DISABLED by configuration")
@@ -735,6 +752,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	grpcConns := make(chan quic.Connection)
+	//nolint:contextcheck // false positive.
 	g.Go(func() error {
 		defer log.HandlePanic()
 		listener := quicStack.Listener
@@ -784,10 +802,13 @@ func realMain(ctx context.Context) error {
 		}
 		return nil
 	})
+	//nolint:contextcheck // false positive.
 	cleanup.Add(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
-		intraServer.Shutdown(ctx)
+		if err := intraServer.Shutdown(ctx); err != nil && ctx.Err() == nil {
+			return err
+		}
 		return nil
 	})
 
@@ -883,7 +904,7 @@ func realMain(ctx context.Context) error {
 		PathDB:   pathDB,
 		RevCache: revCache,
 		BeaconSenderFactory: &happy.BeaconSenderFactory{
-			Connect: &connect.BeaconSenderFactory{
+			Connect: &beaconingconnect.BeaconSenderFactory{
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
 					TLSConfig: func() *tls.Config {

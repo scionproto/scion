@@ -20,6 +20,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/quic-go/quic-go/http3"
+
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/onehop"
 	"github.com/scionproto/scion/pkg/addr"
@@ -37,12 +38,12 @@ type BeaconSenderFactory struct {
 func (f *BeaconSenderFactory) NewSender(
 	ctx context.Context,
 	dstIA addr.IA,
-	egIfId uint16,
+	egIfID uint16,
 	nextHop *net.UDPAddr,
 ) (beaconing.Sender, error) {
 	addr := &onehop.Addr{
 		IA:      dstIA,
-		Egress:  egIfId,
+		Egress:  egIfID,
 		SVC:     addr.SvcCS,
 		NextHop: nextHop,
 	}
@@ -50,7 +51,7 @@ func (f *BeaconSenderFactory) NewSender(
 	return &BeaconSender{
 		Addr: "https://" + addr.SVC.BaseString(),
 		Client: &libconnect.HTTPClient{
-			RoundTripper: &http3.RoundTripper{
+			RoundTripper: &http3.Transport{
 				Dial: dialer.DialEarly,
 			},
 		},
@@ -87,20 +88,22 @@ func (r Registrar) RegisterSegment(ctx context.Context, meta seg.Meta, remote ne
 	dialer := r.Dialer(remote, squic.WithPeerChannel(peer))
 	client := control_planeconnect.NewSegmentRegistrationServiceClient(
 		libconnect.HTTPClient{
-			RoundTripper: &http3.RoundTripper{
+			RoundTripper: &http3.Transport{
 				Dial: dialer.DialEarly,
 			},
 		},
 		libconnect.BaseUrl(remote),
 	)
-	_, err := client.SegmentsRegistration(ctx, connect.NewRequest(&control_plane.SegmentsRegistrationRequest{
-		Segments: map[int32]*control_plane.SegmentsRegistrationRequest_Segments{
-			int32(meta.Type): {
-				Segments: []*control_plane.PathSegment{
-					seg.PathSegmentToPB(meta.Segment),
+	_, err := client.SegmentsRegistration(ctx,
+		connect.NewRequest(&control_plane.SegmentsRegistrationRequest{
+			Segments: map[int32]*control_plane.SegmentsRegistrationRequest_Segments{
+				int32(meta.Type): {
+					Segments: []*control_plane.PathSegment{
+						seg.PathSegmentToPB(meta.Segment),
+					},
 				},
 			},
-		},
-	}))
+		}),
+	)
 	return err
 }

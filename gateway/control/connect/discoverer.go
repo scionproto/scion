@@ -19,6 +19,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/quic-go/quic-go/http3"
+
 	"github.com/scionproto/scion/gateway/control"
 	"github.com/scionproto/scion/gateway/control/grpc"
 	"github.com/scionproto/scion/pkg/addr"
@@ -54,7 +55,7 @@ func (d Discoverer) Gateways(ctx context.Context) ([]control.Gateway, error) {
 	dialer := d.Dialer(ds)
 	client := discoveryconnect.NewDiscoveryServiceClient(
 		libconnect.HTTPClient{
-			RoundTripper: &http3.RoundTripper{
+			RoundTripper: &http3.Transport{
 				Dial: dialer.DialEarly,
 			},
 		},

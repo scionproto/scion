@@ -21,6 +21,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/quic-go/quic-go/http3"
+
 	"github.com/scionproto/scion/control/drkey/grpc"
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"

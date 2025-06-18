@@ -21,6 +21,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/quic-go/quic-go/http3"
+
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -44,7 +45,7 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 	dialer := f.Dialer(server)
 	client := control_planeconnect.NewTrustMaterialServiceClient(
 		libconnect.HTTPClient{
-			RoundTripper: &http3.RoundTripper{
+			RoundTripper: &http3.Transport{
 				Dial: dialer.DialEarly,
 			},
 		},
@@ -70,7 +71,7 @@ func (f Fetcher) TRC(ctx context.Context, id cppki.TRCID,
 	dialer := f.Dialer(server)
 	client := control_planeconnect.NewTrustMaterialServiceClient(
 		libconnect.HTTPClient{
-			RoundTripper: &http3.RoundTripper{
+			RoundTripper: &http3.Transport{
 				Dial: dialer.DialEarly,
 			},
 		},
@@ -80,6 +81,7 @@ func (f Fetcher) TRC(ctx context.Context, id cppki.TRCID,
 	if err != nil {
 		return cppki.SignedTRC{}, serrors.Wrap("fetching chains over connect", err)
 	}
+	//nolint:forbidigo // generated field.
 	trc, err := cppki.DecodeSignedTRC(rep.Msg.Trc)
 	if err != nil {
 		return cppki.SignedTRC{}, serrors.Wrap("parse TRC reply", err)

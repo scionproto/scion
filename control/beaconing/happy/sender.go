@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,14 +35,14 @@ type BeaconSenderFactory struct {
 func (f *BeaconSenderFactory) NewSender(
 	ctx context.Context,
 	dstIA addr.IA,
-	egIfId uint16,
+	egIfID uint16,
 	nextHop *net.UDPAddr,
 ) (beaconing.Sender, error) {
-	connectSender, err := f.Connect.NewSender(ctx, dstIA, egIfId, nextHop)
+	connectSender, err := f.Connect.NewSender(ctx, dstIA, egIfID, nextHop)
 	if err != nil {
 		return nil, err
 	}
-	grpcSender, err := f.Grpc.NewSender(ctx, dstIA, egIfId, nextHop)
+	grpcSender, err := f.Grpc.NewSender(ctx, dstIA, egIfID, nextHop)
 	if err != nil {
 		return nil, err
 	}

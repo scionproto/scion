@@ -20,6 +20,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/quic-go/quic-go/http3"
+
 	"github.com/scionproto/scion/gateway/control"
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
@@ -54,7 +55,7 @@ func (f PrefixFetcher) Prefixes(ctx context.Context, gateway *net.UDPAddr) ([]*n
 	dialer := f.Dialer(remote)
 	client := gatewayconnect.NewIPPrefixesServiceClient(
 		libconnect.HTTPClient{
-			RoundTripper: &http3.RoundTripper{
+			RoundTripper: &http3.Transport{
 				Dial: dialer.DialEarly,
 			},
 		},
