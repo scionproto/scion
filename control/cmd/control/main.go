@@ -50,7 +50,9 @@ import (
 	"github.com/scionproto/scion/control/beaconing/happy"
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
+	drkeyconnect "github.com/scionproto/scion/control/drkey/connect"
 	drkeygrpc "github.com/scionproto/scion/control/drkey/grpc"
+	drkeyhappy "github.com/scionproto/scion/control/drkey/happy"
 	"github.com/scionproto/scion/control/ifstate"
 	api "github.com/scionproto/scion/control/mgmtapi"
 	"github.com/scionproto/scion/control/onehop"
@@ -690,13 +692,24 @@ func realMain(ctx context.Context) error {
 		}
 		defer level1DB.Close()
 
-		drkeyFetcher := drkeygrpc.Fetcher{
-			Dialer: &libgrpc.QUICDialer{
-				Rewriter: nc.AddressRewriter(),
-				Dialer:   quicStack.Dialer,
+		drkeyFetcher := drkeyhappy.Fetcher{
+			Connect: &drkeyconnect.Fetcher{
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.Dialer.Transport,
+					TLSConfig: libconnect.AdaptTLS(quicStack.Dialer.TLSConfig),
+					Rewriter:  dialer.Rewriter,
+				}).NewDialer,
+				Router:     segreq.NewRouter(fetcherCfg),
+				MaxRetries: 20,
 			},
-			Router:     segreq.NewRouter(fetcherCfg),
-			MaxRetries: 20,
+			Grpc: &drkeygrpc.Fetcher{
+				Dialer: &libgrpc.QUICDialer{
+					Rewriter: nc.AddressRewriter(),
+					Dialer:   quicStack.Dialer,
+				},
+				Router:     segreq.NewRouter(fetcherCfg),
+				MaxRetries: 20,
+			},
 		}
 		prefetchKeeper, err := drkey.NewLevel1ARC(globalCfg.DRKey.PrefetchEntries)
 		if err != nil {
@@ -716,7 +729,8 @@ func realMain(ctx context.Context) error {
 			AllowedSVHostProto:        globalCfg.DRKey.Delegation.ToAllowedSet(),
 		}
 		cppb.RegisterDRKeyInterServiceServer(quicServer, drkeyService)
-		//cppb.RegisterDRKeyIntraServiceServer(tcpServer, drkeyService)
+		connectIntra.Handle(cpconnect.NewDRKeyIntraServiceHandler(drkeyconnect.Server{Server: drkeyService}))
+		connectIntra.Handle(cpconnect.NewDRKeyIntraServiceHandler(drkeyconnect.Server{Server: drkeyService}))
 		log.Info("DRKey is enabled")
 	} else {
 		log.Info("DRKey is DISABLED by configuration")

@@ -1,4 +1,4 @@
-// Copyright 2022 ETH Zurich
+// Copyright 2025 SCION Association, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package grpc
+package connect
 
 import (
 	"context"
 	"errors"
 	"time"
 
+	"connectrpc.com/connect"
+	"github.com/quic-go/quic-go/http3"
+	"github.com/scionproto/scion/control/drkey/grpc"
 	"github.com/scionproto/scion/pkg/addr"
+	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/drkey"
-	sc_grpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
+	"github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/squic"
 )
 
 const (
@@ -43,7 +48,8 @@ var errNotReachable = serrors.New("remote not reachable")
 
 // Fetcher obtains Level1 DRKey from a remote CS.
 type Fetcher struct {
-	Dialer     sc_grpc.Dialer
+	// Dialer dials a new QUIC connection.
+	Dialer     libconnect.Dialer
 	Router     snet.Router
 	MaxRetries int
 
@@ -56,7 +62,7 @@ func (f *Fetcher) Level1(
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
 
-	req := Level1MetaToProtoRequest(meta)
+	req := grpc.Level1MetaToProtoRequest(meta)
 
 	// Keep retrying until the reaching MaxRetries.
 	// getLevel1Key will use different paths out of Router retrieved paths.
@@ -77,7 +83,7 @@ func (f *Fetcher) Level1(
 			)
 		}
 		if err == nil {
-			lvl1Key, err := GetLevel1KeyFromReply(meta, rep)
+			lvl1Key, err := grpc.GetLevel1KeyFromReply(meta, rep)
 			if err != nil {
 				return drkey.Level1Key{}, serrors.Wrap("obtaining level 1 key from reply", err)
 			}
@@ -109,19 +115,21 @@ func (f *Fetcher) getLevel1Key(
 		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}
-	dialCtx, cancelF := context.WithTimeout(ctx, defaultRPCDialTimeout)
-	defer cancelF()
-	conn, err := f.Dialer.Dial(dialCtx, remote)
-	if err != nil {
-		return nil, serrors.Wrap("dialing", err)
-	}
-	defer conn.Close()
-	client := cppb.NewDRKeyInterServiceClient(conn)
-	rep, err := client.DRKeyLevel1(ctx, req)
+	dialer := f.Dialer(remote, squic.WithDialTimeout(defaultRPCDialTimeout))
+	client := control_planeconnect.NewDRKeyInterServiceClient(
+		libconnect.HTTPClient{
+			RoundTripper: &http3.Transport{
+				Dial: dialer.DialEarly,
+			},
+		},
+		libconnect.BaseUrl(remote),
+	)
+	rep, err := client.DRKeyLevel1(ctx, connect.NewRequest(req))
 	if err != nil {
 		return nil, serrors.Wrap("requesting level 1 key", err)
 	}
-	return rep, nil
+
+	return rep.Msg, nil
 }
 
 func (f *Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error) {
