@@ -3,18 +3,11 @@ module github.com/scionproto/scion
 go 1.24.2
 
 require (
-<<<<<<< HEAD
 	connectrpc.com/connect v1.18.1
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bazelbuild/rules_go v0.53.0
 	github.com/buildkite/go-buildkite/v4 v4.1.0
 	github.com/cilium/ebpf v0.18.0
-=======
-	connectrpc.com/connect v1.12.0
-	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20220209173558-ad29539cd2e9
-	github.com/bazelbuild/rules_go v0.38.1
-	github.com/buildkite/go-buildkite/v2 v2.9.0
->>>>>>> 244e9b483 (THE GRAND MERGE)
 	github.com/dchest/cmac v1.0.0
 	github.com/fatih/color v1.18.0
 	github.com/getkin/kin-openapi v0.131.0
@@ -102,7 +95,6 @@ require (
 	github.com/mdlayher/packet v1.1.2 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
-<<<<<<< HEAD
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/oasdiff/yaml v0.0.0-20250309154309-f31be36b4037 // indirect
@@ -112,16 +104,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.63.0 // indirect
-=======
-	github.com/onsi/ginkgo/v2 v2.9.5 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.9 // indirect
-	github.com/perimeterx/marshmallow v1.1.4 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_model v0.3.0 // indirect
-	github.com/prometheus/common v0.37.0 // indirect
-	github.com/quic-go/qpack v0.4.0 // indirect
-	github.com/quic-go/qtls-go1-20 v0.4.1 // indirect
->>>>>>> 244e9b483 (THE GRAND MERGE)
+	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
