@@ -92,7 +92,7 @@ OS Setup
 
   The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 VMs. This will need to be updated on scion01-scion05. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
 
-  Set this up on scion01-scion05.
+  Set this up on scion01:
 
   .. code-block:: sh
 
@@ -153,8 +153,6 @@ On scion01, download the topology1.json file. On scion02, download topology2.jso
 
    wget LINK_TO_TOPOLOGY.JSON_FILE -O /etc/scion/topology.json
 
-The AS topology files reference the hosts scion01-05 by host name.
-Ensure that you have set up the ``/etc/hosts`` file (:ref:`see above <step0>`) or replace the hostnames with IP addresses.
 
 Step 2 - Generate the Required Certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -172,7 +170,7 @@ In practice, the private keys of ASes are of course never revealed to other enti
 
 
 
-#. To generate all required certificates, execute the following script on any machine where ``scion-pki`` is installed (e.g. scion01).
+#. To generate all required certificates, execute the following script on scion01:
 
    .. literalinclude:: ./deploy/base/pki-generation.bash
       :language: bash
