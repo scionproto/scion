@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 )
 
 const (
@@ -103,12 +104,7 @@ func (f *Fetcher) getLevel1Key(
 	if err != nil {
 		return nil, err
 	}
-	remote := &snet.SVCAddr{
-		IA:      srcIA,
-		Path:    path.Dataplane(),
-		NextHop: path.UnderlayNextHop(),
-		SVC:     addr.SvcCS,
-	}
+	remote := addrutil.ExtractServiceAddress(addr.SvcCS, path)
 	dialCtx, cancelF := context.WithTimeout(ctx, defaultRPCDialTimeout)
 	defer cancelF()
 	conn, err := f.Dialer.Dial(dialCtx, remote)

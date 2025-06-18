@@ -195,12 +195,8 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 			return nil, segfetcher.ErrNotReachable
 		}
 		path = paths[rand.IntN(len(paths))]
-		return &snet.SVCAddr{
-			IA:      path.Destination(),
-			Path:    path.Dataplane(),
-			NextHop: path.UnderlayNextHop(),
-			SVC:     addr.SvcCS,
-		}, nil
+		addr := addrutil.ExtractServiceAddress(addr.SvcCS, path)
+		return addr, nil
 	default:
 		panic(
 			"unsupported segment type for request forwarding: " +
@@ -208,6 +204,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 				req.SegType.String(),
 		)
 	}
+
 }
 
 func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (net.Addr, error) {
