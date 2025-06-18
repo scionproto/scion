@@ -729,7 +729,7 @@ func realMain(ctx context.Context) error {
 			AllowedSVHostProto:        globalCfg.DRKey.Delegation.ToAllowedSet(),
 		}
 		cppb.RegisterDRKeyInterServiceServer(quicServer, drkeyService)
-		connectIntra.Handle(cpconnect.NewDRKeyIntraServiceHandler(drkeyconnect.Server{Server: drkeyService}))
+		connectInter.Handle(cpconnect.NewDRKeyInterServiceHandler(drkeyconnect.Server{Server: drkeyService}))
 		connectIntra.Handle(cpconnect.NewDRKeyIntraServiceHandler(drkeyconnect.Server{Server: drkeyService}))
 		log.Info("DRKey is enabled")
 	} else {
