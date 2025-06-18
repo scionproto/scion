@@ -1,5 +1,0 @@
-version: v1
-plugins:
-  - plugin: connect-go
-    out: pkg
-    opt: paths=source_relative

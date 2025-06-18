@@ -45,8 +45,6 @@ type SegmentCreationServer struct {
 func (s SegmentCreationServer) Beacon(ctx context.Context,
 	req *cppb.BeaconRequest) (*cppb.BeaconResponse, error) {
 
-	// Need to patch https://github.com/quic-go/quic-go/blob/9414ea49100d5cf75a2044d85a6becf3985171db/http3/server.go#L578C19-L578C36
-	// to get the peer address into the context.
 	gPeer, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, serrors.New("peer must exist")
