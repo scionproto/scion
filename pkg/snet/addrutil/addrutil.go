@@ -39,7 +39,7 @@ type Pather struct {
 }
 
 // GetPath computes the remote address with a path based on the provided segment.
-func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error) {
+func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (net.Addr, error) {
 	if len(ps.ASEntries) == 0 {
 		return nil, serrors.New("empty path")
 	}
@@ -86,6 +86,26 @@ func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error
 	nextHop := p.NextHopper.UnderlayNextHop(ifID)
 	if nextHop == nil {
 		return nil, serrors.New("first-hop border router not found", "intf_id", ifID)
+	}
+	if disco := ps.ASEntries[0].Extensions.Discovery; disco != nil {
+		if svc == addr.SvcCS && len(disco.ControlServices) > 0 {
+			// take any (the first) control service address
+			return &snet.UDPAddr{
+				IA:      ps.FirstIA(),
+				Path:    path,
+				NextHop: nextHop,
+				Host:    net.UDPAddrFromAddrPort(disco.ControlServices[0]),
+			}, nil
+		}
+		if svc == addr.SvcDS && len(disco.DiscoveryServices) > 0 {
+			// take any (the first) discovery service address
+			return &snet.UDPAddr{
+				IA:      ps.FirstIA(),
+				Path:    path,
+				NextHop: nextHop,
+				Host:    net.UDPAddrFromAddrPort(disco.DiscoveryServices[0]),
+			}, nil
+		}
 	}
 	return &snet.SVCAddr{
 		IA:      ps.FirstIA(),
