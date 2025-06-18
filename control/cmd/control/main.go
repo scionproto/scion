@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"net/netip"
@@ -248,14 +249,6 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.Wrap("initializing QUIC stack", err)
 	}
-<<<<<<< HEAD
-	tcpStack, err := nc.TCPStack()
-	if err != nil {
-		return serrors.Wrap("initializing TCP stack", err)
-	}
-=======
-	defer quicStack.RedirectCloser()
->>>>>>> 244e9b483 (THE GRAND MERGE)
 	dialer := &libgrpc.QUICDialer{
 		Rewriter: &onehop.AddressRewriter{
 			Rewriter: nc.AddressRewriter(),
@@ -445,13 +438,9 @@ func realMain(ctx context.Context) error {
 				},
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
-<<<<<<< HEAD
-		})
-=======
 		}
 		cppb.RegisterSegmentRegistrationServiceServer(quicServer, registrationServer)
 		connectInter.Handle(cpconnect.NewSegmentRegistrationServiceHandler(segregconnect.RegistrationServer{RegistrationServer: registrationServer}))
->>>>>>> 244e9b483 (THE GRAND MERGE)
 	}
 
 	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
@@ -745,10 +734,6 @@ func realMain(ctx context.Context) error {
 	grpcConns := make(chan quic.Connection)
 	g.Go(func() error {
 		defer log.HandlePanic()
-<<<<<<< HEAD
-		if err := quicServer.Serve(quicStack.Listener); err != nil {
-			return serrors.Wrap("serving gRPC/QUIC API", err)
-=======
 		// TODO can be generic function, demux mux by next proto
 		listener := quicStack.Listener
 		for {
@@ -772,7 +757,6 @@ func realMain(ctx context.Context) error {
 					fmt.Println("<- conn ok")
 				}
 			}()
->>>>>>> 244e9b483 (THE GRAND MERGE)
 		}
 	})
 
@@ -794,17 +778,12 @@ func realMain(ctx context.Context) error {
 	}
 	g.Go(func() error {
 		defer log.HandlePanic()
-<<<<<<< HEAD
-		if err := tcpServer.Serve(tcpStack); err != nil {
-			return serrors.Wrap("serving gRPC/TCP API", err)
-=======
 		tcpListener, err := nc.TCPStack()
 		if err != nil {
 			return serrors.WrapStr("initializing TCP stack", err)
 		}
 		if err := intraServer.Serve(tcpListener); err != nil {
 			return serrors.WrapStr("serving connect/TCP API", err)
->>>>>>> 244e9b483 (THE GRAND MERGE)
 		}
 		return nil
 	})
@@ -923,24 +902,6 @@ func realMain(ctx context.Context) error {
 				Dialer: dialer,
 			},
 		},
-<<<<<<< HEAD
-		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
-		BeaconStore:     beaconStore,
-		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) ([]beaconing.Signer, error) {
-			signers, err := signer.SignerGen.Generate(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if len(signers) == 0 {
-				return nil, nil
-			}
-			r := make([]beaconing.Signer, 0, len(signers))
-			for _, s := range signers {
-				r = append(r, s)
-			}
-			return r, nil
-		}),
-=======
 		SegmentRegister: &happy.Registrar{
 			Connect: beaconingconnect.Registrar{
 				Dialer: (&squic.EarlyDialerFactory{
@@ -956,8 +917,20 @@ func realMain(ctx context.Context) error {
 			Grpc: beaconinggrpc.Registrar{Dialer: dialer},
 		},
 		BeaconStore: beaconStore,
-		SignerGen:   signer.SignerGen,
->>>>>>> 244e9b483 (THE GRAND MERGE)
+		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) ([]beaconing.Signer, error) {
+			signers, err := signer.SignerGen.Generate(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if len(signers) == 0 {
+				return nil, nil
+			}
+			r := make([]beaconing.Signer, 0, len(signers))
+			for _, s := range signers {
+				r = append(r, s)
+			}
+			return r, nil
+		}),
 		Inspector:   inspector,
 		Metrics:     metrics,
 		DRKeyEngine: drkeyEngine,
