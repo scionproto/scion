@@ -1,20 +1,6 @@
-<<<<<<< HEAD
 load("//tools/proto:connect.bzl", "go_connect_library")
 
 go_connect_library(
     name = "go_default_library",
     proto = "daemon",
-=======
-load("//tools/lint:go.bzl", "go_library")
-
-go_library(
-    name = "go_default_library",
-    srcs = ["daemon.connect.go"],
-    importpath = "github.com/scionproto/scion/pkg/proto/daemon/v1/daemonconnect",
-    visibility = ["//visibility:public"],
-    deps = [
-        "//pkg/proto/daemon:go_default_library",
-        "@com_connectrpc_connect//:go_default_library",
-    ],
->>>>>>> 244e9b483 (THE GRAND MERGE)
 )

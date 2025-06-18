@@ -9,11 +9,11 @@ go_library(
         "//pkg/addr:go_default_library",
         "//pkg/connect:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//pkg/proto/control_plane/v1/control_planeconnect:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
         "//private/trust:go_default_library",
         "//private/trust/grpc:go_default_library",
         "@com_connectrpc_connect//:go_default_library",
         "@com_github_quic_go_quic_go//http3:go_default_library",
+        "@com_github_scionproto_scion//pkg/proto/control_plane/v1/control_planeconnect:go_default_library",
     ],
 )

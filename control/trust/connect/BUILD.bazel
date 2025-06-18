@@ -8,7 +8,7 @@ go_library(
     deps = [
         "//control/trust/grpc:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
-        "//pkg/proto/control_plane/v1/control_planeconnect:go_default_library",
         "@com_connectrpc_connect//:go_default_library",
+        "@com_github_scionproto_scion//pkg/proto/control_plane/v1/control_planeconnect:go_default_library",
     ],
 )

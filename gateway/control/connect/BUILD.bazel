@@ -16,11 +16,11 @@ go_library(
         "//pkg/connect:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/proto/discovery:go_default_library",
-        "//pkg/proto/discovery/v1/discoveryconnect:go_default_library",
         "//pkg/proto/gateway:go_default_library",
-        "//pkg/proto/gateway/v1/gatewayconnect:go_default_library",
         "//pkg/snet:go_default_library",
         "@com_connectrpc_connect//:go_default_library",
         "@com_github_quic_go_quic_go//http3:go_default_library",
+        "@com_github_scionproto_scion//pkg/proto/discovery/v1/discoveryconnect:go_default_library",
+        "@com_github_scionproto_scion//pkg/proto/gateway/v1/gatewayconnect:go_default_library",
     ],
 )

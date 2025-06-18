@@ -7,8 +7,8 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/proto/discovery:go_default_library",
-        "//pkg/proto/discovery/v1/discoveryconnect:go_default_library",
         "//private/discovery:go_default_library",
         "@com_connectrpc_connect//:go_default_library",
+        "@com_github_scionproto_scion//pkg/proto/discovery/v1/discoveryconnect:go_default_library",
     ],
 )
