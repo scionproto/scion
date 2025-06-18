@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -38,6 +39,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/proto/daemon"
 	"github.com/scionproto/scion/pkg/segment/iface"
+	"github.com/scionproto/scion/pkg/slices"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/revcache"
@@ -169,21 +171,41 @@ func pathToPB(path snet.Path) *daemon.Path {
 		AuthLhvf: append([]byte(nil), meta.EpicAuths.AuthLHVF...),
 	}
 
+	var discovery map[uint64]*daemon.DiscoveryInformation
+	if di := meta.DiscoveryInformation; di != nil {
+		discovery = make(map[uint64]*daemon.DiscoveryInformation, len(di))
+		for ia, info := range di {
+			discovery[uint64(ia)] = &daemon.DiscoveryInformation{
+				ControlServiceAddresses: slices.Transform(
+					info.ControlServices,
+					netip.AddrPort.String,
+				),
+				DiscoveryServiceAddresses: slices.Transform(
+					info.DiscoveryServices,
+					netip.AddrPort.String,
+				),
+			}
+		}
+	} else {
+		log.Debug("!!! No discovery information in path metadata")
+	}
+
 	return &daemon.Path{
 		Raw: raw,
 		Interface: &daemon.Interface{
 			Address: &daemon.Underlay{Address: nextHopStr},
 		},
-		Interfaces:   interfaces,
-		Mtu:          uint32(meta.MTU),
-		Expiration:   &timestamppb.Timestamp{Seconds: meta.Expiry.Unix()},
-		Latency:      latency,
-		Bandwidth:    meta.Bandwidth,
-		Geo:          geo,
-		LinkType:     linkType,
-		InternalHops: meta.InternalHops,
-		Notes:        meta.Notes,
-		EpicAuths:    epicAuths,
+		Interfaces:           interfaces,
+		Mtu:                  uint32(meta.MTU),
+		Expiration:           &timestamppb.Timestamp{Seconds: meta.Expiry.Unix()},
+		Latency:              latency,
+		Bandwidth:            meta.Bandwidth,
+		Geo:                  geo,
+		LinkType:             linkType,
+		InternalHops:         meta.InternalHops,
+		Notes:                meta.Notes,
+		EpicAuths:            epicAuths,
+		DiscoveryInformation: discovery,
 	}
 }
 
