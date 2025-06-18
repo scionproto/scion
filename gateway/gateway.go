@@ -520,7 +520,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Dialer: grpcDialer,
 			ConnectDialer: (&squic.EarlyDialerFactory{
 				Transport: quicClientDialer.Transport,
-				TLSConfig: connect.AdaptTLS(quicClientDialer.TLSConfig),
+				TLSConfig: connect.AdaptClientTLS(quicClientDialer.TLSConfig),
 				Rewriter:  grpcDialer.Rewriter,
 			}).NewDialer,
 		},

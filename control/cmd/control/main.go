@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"net/netip"
@@ -302,7 +301,7 @@ func realMain(ctx context.Context) error {
 				IA: topo.IA(),
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
-					TLSConfig: libconnect.AdaptTLS(quicStack.InsecureDialer.TLSConfig),
+					TLSConfig: libconnect.AdaptClientTLS(quicStack.InsecureDialer.TLSConfig),
 					Rewriter:  dialer.Rewriter,
 				}).NewDialer,
 			},
@@ -335,12 +334,8 @@ func realMain(ctx context.Context) error {
 			Connect: &segfetcherconnect.Requester{
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
-					TLSConfig: func() *tls.Config {
-						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
-						cfg.NextProtos = []string{"h3", "SCION"}
-						return cfg
-					}(),
-					Rewriter: dialer.Rewriter,
+					TLSConfig: libconnect.AdaptClientTLS(quicStack.InsecureDialer.TLSConfig),
+					Rewriter:  dialer.Rewriter,
 				}).NewDialer,
 			},
 			Grpc: &segfetchergrpc.Requester{
@@ -692,7 +687,7 @@ func realMain(ctx context.Context) error {
 			Connect: &drkeyconnect.Fetcher{
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.Dialer.Transport,
-					TLSConfig: libconnect.AdaptTLS(quicStack.Dialer.TLSConfig),
+					TLSConfig: libconnect.AdaptClientTLS(quicStack.Dialer.TLSConfig),
 					Rewriter:  dialer.Rewriter,
 				}).NewDialer,
 				Router:     segreq.NewRouter(fetcherCfg),
@@ -733,8 +728,6 @@ func realMain(ctx context.Context) error {
 	}
 
 	promgrpc.Register(quicServer)
-	// FIXME: prom middleware
-	//promgrpc.Register(tcpServer)
 
 	var cleanup app.Cleanup
 	connectServer := http3.Server{
@@ -744,7 +737,6 @@ func realMain(ctx context.Context) error {
 	grpcConns := make(chan quic.Connection)
 	g.Go(func() error {
 		defer log.HandlePanic()
-		// FIXME: can be generic function, demux mux by next proto
 		listener := quicStack.Listener
 		for {
 			conn, err := listener.Accept(context.Background())
@@ -756,15 +748,13 @@ func realMain(ctx context.Context) error {
 			}
 			go func() {
 				defer log.HandlePanic()
-				fmt.Println("protocol", conn.ConnectionState().TLS.NegotiatedProtocol)
-				if conn.ConnectionState().TLS.NegotiatedProtocol == "h3" {
-					if err := connectServer.ServeQUICConn(conn); err != nil {
-						log.Debug(err.Error())
-					}
-				} else {
-					fmt.Println("<- conn")
+				if conn.ConnectionState().TLS.NegotiatedProtocol != "h3" {
 					grpcConns <- conn
-					fmt.Println("<- conn ok")
+					return
+				}
+
+				if err := connectServer.ServeQUICConn(conn); err != nil {
+					log.Debug("Error handling connectrpc connection", "err", err)
 				}
 			}()
 		}
@@ -773,12 +763,9 @@ func realMain(ctx context.Context) error {
 	g.Go(func() error {
 		defer log.HandlePanic()
 		grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
-		fmt.Println("serving gRPC")
 		if err := quicServer.Serve(grpcListener); err != nil {
-			panic(err)
-			// FIXME: return serrors.Wrap("serving gRPC/TCP API", err)
+			return serrors.Wrap("serving gRPC/SCION API", err)
 		}
-		fmt.Println("whwwwwat?")
 		return nil
 	})
 	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
@@ -798,7 +785,6 @@ func realMain(ctx context.Context) error {
 		return nil
 	})
 	cleanup.Add(func() error {
-		// TODO: add cleanup.AddCtx ?
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
 		intraServer.Shutdown(ctx)

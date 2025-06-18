@@ -54,3 +54,11 @@ func AdaptTLS(cfg *tls.Config) *tls.Config {
 	c.NextProtos = []string{"h3", "SCION"}
 	return c
 }
+
+// AdaptClientTLS adapts the TLS config for use with a client, specifically
+// setting the NextProtos to "h3" to require HTTP/3 support.
+func AdaptClientTLS(cfg *tls.Config) *tls.Config {
+	c := cfg.Clone()
+	c.NextProtos = []string{"h3"}
+	return c
+}
