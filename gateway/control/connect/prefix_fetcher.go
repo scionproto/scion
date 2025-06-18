@@ -62,7 +62,7 @@ func (f PrefixFetcher) Prefixes(ctx context.Context, gateway *net.UDPAddr) ([]*n
 	)
 	rep, err := client.Prefixes(ctx, connect.NewRequest(&gpb.PrefixesRequest{}))
 	if err != nil {
-		return nil, serrors.WrapStr("receiving IP prefixes", err)
+		return nil, serrors.Wrap("receiving IP prefixes", err)
 	}
 	prefixes := make([]*net.IPNet, 0, len(rep.Msg.Prefixes))
 	for _, pb := range rep.Msg.Prefixes {

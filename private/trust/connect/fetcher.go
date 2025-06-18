@@ -38,14 +38,14 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 	)
 	rep, err := client.Chains(ctx, connect.NewRequest(grpc.ChainQueryToReq(query)))
 	if err != nil {
-		return nil, serrors.WrapStr("fetching chains over connect", err)
+		return nil, serrors.Wrap("fetching chains over connect", err)
 	}
 	chains, _, err := grpc.RepToChains(rep.Msg.Chains)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing chains", err)
+		return nil, serrors.Wrap("parsing chains", err)
 	}
 	if err := grpc.CheckChainsMatchQuery(query, chains); err != nil {
-		return nil, serrors.WrapStr("chains do not match query", err)
+		return nil, serrors.Wrap("chains do not match query", err)
 	}
 	return chains, nil
 }
@@ -64,11 +64,11 @@ func (f Fetcher) TRC(ctx context.Context, id cppki.TRCID,
 	)
 	rep, err := client.TRC(ctx, connect.NewRequest(grpc.IDToReq(id)))
 	if err != nil {
-		return cppki.SignedTRC{}, serrors.WrapStr("fetching chains over connect", err)
+		return cppki.SignedTRC{}, serrors.Wrap("fetching chains over connect", err)
 	}
 	trc, err := cppki.DecodeSignedTRC(rep.Msg.Trc)
 	if err != nil {
-		return cppki.SignedTRC{}, serrors.WrapStr("parse TRC reply", err)
+		return cppki.SignedTRC{}, serrors.Wrap("parse TRC reply", err)
 	}
 	if trc.TRC.ID != id {
 		return cppki.SignedTRC{}, serrors.New("received wrong TRC", "expected", id,

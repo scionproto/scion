@@ -766,7 +766,7 @@ func realMain(ctx context.Context) error {
 		fmt.Println("serving gRPC")
 		if err := quicServer.Serve(grpcListener); err != nil {
 			panic(err)
-			//return serrors.WrapStr("serving gRPC/TCP API", err)
+			//return serrors.Wrap("serving gRPC/TCP API", err)
 		}
 		fmt.Println("whwwwwat?")
 		return nil
@@ -780,10 +780,10 @@ func realMain(ctx context.Context) error {
 		defer log.HandlePanic()
 		tcpListener, err := nc.TCPStack()
 		if err != nil {
-			return serrors.WrapStr("initializing TCP stack", err)
+			return serrors.Wrap("initializing TCP stack", err)
 		}
 		if err := intraServer.Serve(tcpListener); err != nil {
-			return serrors.WrapStr("serving connect/TCP API", err)
+			return serrors.Wrap("serving connect/TCP API", err)
 		}
 		return nil
 	})

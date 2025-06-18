@@ -49,7 +49,7 @@ func (d Discoverer) Gateways(ctx context.Context) ([]control.Gateway, error) {
 
 	rep, err := client.Gateways(ctx, connect.NewRequest(&dpb.GatewaysRequest{}))
 	if err != nil {
-		return nil, serrors.WrapStr("receiving gateways", err)
+		return nil, serrors.Wrap("receiving gateways", err)
 	}
 	return grpc.TransformGateways(rep.Msg.Gateways)
 }
