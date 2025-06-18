@@ -1,20 +1,6 @@
-<<<<<<< HEAD
 load("//tools/proto:connect.bzl", "go_connect_library")
 
 go_connect_library(
     name = "go_default_library",
     proto = "hidden_segment",
-=======
-load("//tools/lint:go.bzl", "go_library")
-
-go_library(
-    name = "go_default_library",
-    srcs = ["hidden_segment.connect.go"],
-    importpath = "github.com/scionproto/scion/pkg/proto/hidden_segment/v1/hidden_segmentconnect",
-    visibility = ["//visibility:public"],
-    deps = [
-        "//pkg/proto/hidden_segment:go_default_library",
-        "@com_connectrpc_connect//:go_default_library",
-    ],
->>>>>>> 244e9b483 (THE GRAND MERGE)
 )
