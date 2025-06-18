@@ -628,18 +628,14 @@ func realMain(ctx context.Context) error {
 		dconnect.NewDiscoveryServiceHandler(discoveryconnect.Topology{Topology: ds}),
 	)
 
-	// dsHealth := health.NewServer()
-	// dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)
-	// healthpb.RegisterHealthServer(tcpServer, dsHealth)
-
 	hpCfg := cs.HiddenPathConfigurator{
-		LocalIA:       topo.IA(),
-		Verifier:      verifier,
-		Signer:        signer,
-		PathDB:        pathDB,
-		Dialer:        dialer,
-		FetcherConfig: fetcherCfg,
-		//IntraASTCPServer:  tcpServer,
+		LocalIA:           topo.IA(),
+		Verifier:          verifier,
+		Signer:            signer,
+		PathDB:            pathDB,
+		Dialer:            dialer,
+		FetcherConfig:     fetcherCfg,
+		IntraASTCPServer:  connectIntra,
 		InterASQUICServer: quicServer,
 	}
 	hpWriterCfg, err := hpCfg.Setup(globalCfg.PS.HiddenPathsCfg)
@@ -737,7 +733,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	promgrpc.Register(quicServer)
-	// TODO prom middleware
+	// FIXME: prom middleware
 	//promgrpc.Register(tcpServer)
 
 	var cleanup app.Cleanup
@@ -748,7 +744,7 @@ func realMain(ctx context.Context) error {
 	grpcConns := make(chan quic.Connection)
 	g.Go(func() error {
 		defer log.HandlePanic()
-		// TODO can be generic function, demux mux by next proto
+		// FIXME: can be generic function, demux mux by next proto
 		listener := quicStack.Listener
 		for {
 			conn, err := listener.Accept(context.Background())
@@ -780,7 +776,7 @@ func realMain(ctx context.Context) error {
 		fmt.Println("serving gRPC")
 		if err := quicServer.Serve(grpcListener); err != nil {
 			panic(err)
-			//return serrors.Wrap("serving gRPC/TCP API", err)
+			// FIXME: return serrors.Wrap("serving gRPC/TCP API", err)
 		}
 		fmt.Println("whwwwwat?")
 		return nil
