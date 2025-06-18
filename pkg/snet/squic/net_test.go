@@ -210,7 +210,7 @@ func netListener(t *testing.T) (net.Listener, *net.UDPConn) {
 	srvConn := newConn(t)
 	listener, err := quic.Listen(srvConn, tlsConfig(t), nil)
 	require.NoError(t, err)
-	return squic.NewConnListener(listener), srvConn
+	return squic.NewConnListener(make(chan quic.Connection), listener.Addr()), srvConn
 }
 
 func connDialer(t *testing.T) *squic.ConnDialer {
