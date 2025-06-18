@@ -217,13 +217,17 @@ Step 4 - Service Configuration Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Next, you have to download the service configuration file for the router and control service into the ``/etc/scion/`` directory of each AS host scion01-scion05.
-Refer to the :ref:`router-conf-toml` and :ref:`control-conf-toml` manuals for details.
-We use default settings for most of the available options, so that the same configuration file can be used in all of the VMs.
-
-Download the files, then copy it into the ``/etc/scion/`` directory of each host scion01 - scion05.
 
 - **Border router**: :download:`br.toml <deploy/base/br.toml>`
 - **Control service**: :download:`cs.toml <deploy/base/cs.toml>`
+
+.. code-block:: sh
+
+   sudo wget LINK_TO_BR.TOML_FILE -O /etc/scion/br.toml
+   sudo wget LINK_TO_CS.TOML_FILE -O /etc/scion/cs.toml
+
+Refer to the :ref:`router-conf-toml` and :ref:`control-conf-toml` manuals for details.
+We use default settings for most of the available options, so that the same configuration file can be used in all of the VMs.
 
 Step 5 - Start the Services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
