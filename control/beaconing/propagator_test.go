@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -63,13 +64,14 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	}
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+			IA:                   topo.IA(),
+			MTU:                  topo.MTU(),
+			SignerGen:            testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
+			Intfs:                intfs,
+			MAC:                  macFactory,
+			MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+			StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+			DiscoveryInformation: func() *discovery.Extension { return nil },
 		},
 		SenderFactory: senderFactory,
 		IA:            topo.IA(),
@@ -136,13 +138,14 @@ func TestPropagatorRunCore(t *testing.T) {
 	}
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+			IA:                   topo.IA(),
+			MTU:                  topo.MTU(),
+			SignerGen:            testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
+			Intfs:                intfs,
+			MAC:                  macFactory,
+			MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+			StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+			DiscoveryInformation: func() *discovery.Extension { return nil },
 		},
 		SenderFactory: senderFactory,
 		IA:            topo.IA(),
@@ -223,13 +226,14 @@ func TestPropagatorFastRecovery(t *testing.T) {
 
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+			IA:                   topo.IA(),
+			MTU:                  topo.MTU(),
+			SignerGen:            testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
+			Intfs:                intfs,
+			MAC:                  macFactory,
+			MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+			StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+			DiscoveryInformation: func() *discovery.Extension { return nil },
 		},
 		SenderFactory: senderFactory,
 		IA:            topo.IA(),
