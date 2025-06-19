@@ -30,69 +30,73 @@ import (
 )
 
 func TestExtractServiceAddress(t *testing.T) {
-	t.Run("valid Control Service with discovery info, returns no error and UDPAddr", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		dummyIA := addr.MustParseIA("1-ff00:0:2")
+	t.Run("valid Control Service with discovery info, returns no error and UDPAddr",
+		func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			dummyIA := addr.MustParseIA("1-ff00:0:2")
 
-		path := mock_snet.NewMockPath(ctrl)
+			path := mock_snet.NewMockPath(ctrl)
 
-		addrPort := netip.AddrPortFrom(netip.MustParseAddr("192.168.2.100"), 30652)
-		discoveryInfo := make(map[addr.IA]snet.DiscoveryInformation)
-		discoveryInfo[dummyIA] = snet.DiscoveryInformation{
-			ControlServices: []netip.AddrPort{addrPort},
-		}
-		metadata := &snet.PathMetadata{
-			Interfaces:           make([]snet.PathInterface, 1), // just non-empty
-			DiscoveryInformation: discoveryInfo,
-		}
+			addrPort := netip.AddrPortFrom(netip.MustParseAddr("192.168.2.100"), 30652)
+			discoveryInfo := make(map[addr.IA]snet.DiscoveryInformation)
+			discoveryInfo[dummyIA] = snet.DiscoveryInformation{
+				ControlServices: []netip.AddrPort{addrPort},
+			}
+			metadata := &snet.PathMetadata{
+				Interfaces:           make([]snet.PathInterface, 1), // just non-empty
+				DiscoveryInformation: discoveryInfo,
+			}
 
-		path.EXPECT().Metadata().Return(metadata)
-		path.EXPECT().Dataplane().Return(snetpath.SCION{})
-		path.EXPECT().Destination().Return(dummyIA)
-		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()})
+			path.EXPECT().Metadata().Return(metadata)
+			path.EXPECT().Dataplane().Return(snetpath.SCION{})
+			path.EXPECT().Destination().Return(dummyIA)
+			path.EXPECT().UnderlayNextHop().Return(
+				&net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
+			)
 
-		want := &snet.UDPAddr{
-			IA:      dummyIA,
-			Path:    snetpath.SCION{},
-			NextHop: &net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
-			Host:    &net.UDPAddr{IP: netip.MustParseAddr("192.168.2.100").AsSlice(), Port: 30652},
-		}
+			want := &snet.UDPAddr{
+				IA:      dummyIA,
+				Path:    snetpath.SCION{},
+				NextHop: &net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
+				Host:    &net.UDPAddr{IP: netip.MustParseAddr("192.168.2.100").AsSlice(), Port: 30652},
+			}
 
-		retrievedAddr := addrutil.ExtractServiceAddress(addr.SvcCS, path)
+			retrievedAddr := addrutil.ExtractServiceAddress(addr.SvcCS, path)
 
-		assert.Equal(t, want, retrievedAddr)
-	})
+			assert.Equal(t, want, retrievedAddr)
+		})
 
-	t.Run("valid Discovery Service with discovery info, returns no error and UDPAddr", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		dummyIA := addr.MustParseIA("1-ff00:0:2")
+	t.Run("valid Discovery Service with discovery info, returns no error and UDPAddr",
+		func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			dummyIA := addr.MustParseIA("1-ff00:0:2")
 
-		path := mock_snet.NewMockPath(ctrl)
+			path := mock_snet.NewMockPath(ctrl)
 
-		addrPort := netip.AddrPortFrom(netip.MustParseAddr("192.168.2.100"), 30652)
-		discoveryInfo := make(map[addr.IA]snet.DiscoveryInformation)
-		discoveryInfo[dummyIA] = snet.DiscoveryInformation{
-			DiscoveryServices: []netip.AddrPort{addrPort},
-		}
-		metadata := &snet.PathMetadata{
-			Interfaces:           make([]snet.PathInterface, 1), // just non-empty
-			DiscoveryInformation: discoveryInfo,
-		}
+			addrPort := netip.AddrPortFrom(netip.MustParseAddr("192.168.2.100"), 30652)
+			discoveryInfo := make(map[addr.IA]snet.DiscoveryInformation)
+			discoveryInfo[dummyIA] = snet.DiscoveryInformation{
+				DiscoveryServices: []netip.AddrPort{addrPort},
+			}
+			metadata := &snet.PathMetadata{
+				Interfaces:           make([]snet.PathInterface, 1), // just non-empty
+				DiscoveryInformation: discoveryInfo,
+			}
 
-		path.EXPECT().Metadata().Return(metadata)
-		path.EXPECT().Dataplane().Return(snetpath.SCION{})
-		path.EXPECT().Destination().Return(dummyIA)
-		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()})
+			path.EXPECT().Metadata().Return(metadata)
+			path.EXPECT().Dataplane().Return(snetpath.SCION{})
+			path.EXPECT().Destination().Return(dummyIA)
+			path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()})
 
-		want := &snet.UDPAddr{
-			IA:      dummyIA,
-			Path:    snetpath.SCION{},
-			NextHop: &net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
-			Host:    &net.UDPAddr{IP: netip.MustParseAddr("192.168.2.100").AsSlice(), Port: 30652},
-		}
+			want := &snet.UDPAddr{
+				IA:      dummyIA,
+				Path:    snetpath.SCION{},
+				NextHop: &net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
+				Host:    &net.UDPAddr{IP: netip.MustParseAddr("192.168.2.100").AsSlice(), Port: 30652},
+			}
 
-		retrievedAddr := addrutil.ExtractServiceAddress(addr.SvcDS, path)
+			retrievedAddr := addrutil.ExtractServiceAddress(addr.SvcDS, path)
 
-		assert.Equal(t, want, retrievedAddr)
-	})
+			assert.Equal(t, want, retrievedAddr)
+		})
 }

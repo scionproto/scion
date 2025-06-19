@@ -134,7 +134,8 @@ func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 		NextHop: peerPath.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}
-	if disco := segment.ASEntries[0].Extensions.Discovery; disco != nil && len(disco.ControlServices) > 0 {
+	if disco := segment.ASEntries[0].Extensions.Discovery; disco != nil &&
+		len(disco.ControlServices) > 0 {
 		// take any (the first) control service address
 		remoteAddr = &snet.UDPAddr{
 			IA:      segment.FirstIA(),
