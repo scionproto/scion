@@ -58,7 +58,10 @@ func TestExtractServiceAddress(t *testing.T) {
 				IA:      dummyIA,
 				Path:    snetpath.SCION{},
 				NextHop: &net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
-				Host:    &net.UDPAddr{IP: netip.MustParseAddr("192.168.2.100").AsSlice(), Port: 30652},
+				Host: &net.UDPAddr{
+					IP:   netip.MustParseAddr("192.168.2.100").AsSlice(),
+					Port: 30652,
+				},
 			}
 
 			retrievedAddr := addrutil.ExtractServiceAddress(addr.SvcCS, path)
@@ -86,13 +89,18 @@ func TestExtractServiceAddress(t *testing.T) {
 			path.EXPECT().Metadata().Return(metadata)
 			path.EXPECT().Dataplane().Return(snetpath.SCION{})
 			path.EXPECT().Destination().Return(dummyIA)
-			path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()})
+			path.EXPECT().UnderlayNextHop().Return(
+				&net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
+			)
 
 			want := &snet.UDPAddr{
 				IA:      dummyIA,
 				Path:    snetpath.SCION{},
 				NextHop: &net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
-				Host:    &net.UDPAddr{IP: netip.MustParseAddr("192.168.2.100").AsSlice(), Port: 30652},
+				Host: &net.UDPAddr{
+					IP:   netip.MustParseAddr("192.168.2.100").AsSlice(),
+					Port: 30652,
+				},
 			}
 
 			retrievedAddr := addrutil.ExtractServiceAddress(addr.SvcDS, path)
