@@ -1912,6 +1912,10 @@ func (d *dataPlane) resolveLocalDst(
 		}
 	}
 
+	if a.Type() == addr.HostTypeSVC && s.PathType != onehop.PathType {
+		panic("resolveLocalDst called with SVC address, but not OHP")
+	}
+
 	// Let the internal (it better be) link resolve the destination to an underlay address.
 	return d.interfaces[packet.egress].Resolve(packet, a, p)
 }
