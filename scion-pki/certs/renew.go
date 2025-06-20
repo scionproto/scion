@@ -708,7 +708,7 @@ func (r *renewer) requestRemote(
 			NextHop: path.UnderlayNextHop(),
 		}
 	case *snet.SVCAddr:
-		dst = addrutil.ExtractServiceAddress(addr.SvcCS, path)
+		dst = addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
 	default:
 		panic(fmt.Sprintf("unsupported remote address: %#v", remote))
 	}

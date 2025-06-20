@@ -152,15 +152,19 @@ func ResolveLocal(dst net.IP) (net.IP, error) {
 	return srcIP, nil
 }
 
-func ExtractServiceAddress(a addr.SVC, path snet.Path) net.Addr {
+// ExtractDestinationServiceAddress extracts the destination service address
+// from the provided path. If the path contains discovery information, it will
+// use the first available control or discovery service address based on the
+// provided service type (addr.SvcCS or addr.SvcDS). If no discovery information
+// is available, it will return a SVC address with the destination IA and the
+// path's underlay next hop.
+// The caller must ensure that the path is not nil.
+func ExtractDestinationServiceAddress(a addr.SVC, path snet.Path) net.Addr {
 	if path == nil {
 		panic("path is nil")
 	}
 
 	destination := path.Destination()
-	if destination.IsZero() {
-		panic("path destination is invalid")
-	}
 	metadata := path.Metadata()
 	if metadata != nil {
 		discoveredInfo, hasDiscoveryInfo := metadata.DiscoveryInformation[destination]

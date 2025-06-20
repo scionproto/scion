@@ -195,7 +195,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 			return nil, segfetcher.ErrNotReachable
 		}
 		path = paths[rand.IntN(len(paths))]
-		addr := addrutil.ExtractServiceAddress(addr.SvcCS, path)
+		addr := addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
 		return addr, nil
 	default:
 		panic(

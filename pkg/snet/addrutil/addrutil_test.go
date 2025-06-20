@@ -64,7 +64,7 @@ func TestExtractServiceAddress(t *testing.T) {
 				},
 			}
 
-			retrievedAddr := addrutil.ExtractServiceAddress(addr.SvcCS, path)
+			retrievedAddr := addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
 
 			assert.Equal(t, want, retrievedAddr)
 		})
@@ -103,7 +103,7 @@ func TestExtractServiceAddress(t *testing.T) {
 				},
 			}
 
-			retrievedAddr := addrutil.ExtractServiceAddress(addr.SvcDS, path)
+			retrievedAddr := addrutil.ExtractDestinationServiceAddress(addr.SvcDS, path)
 
 			assert.Equal(t, want, retrievedAddr)
 		})

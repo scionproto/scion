@@ -104,7 +104,7 @@ func (f *Fetcher) getLevel1Key(
 	if err != nil {
 		return nil, err
 	}
-	remote := addrutil.ExtractServiceAddress(addr.SvcCS, path)
+	remote := addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
 	dialCtx, cancelF := context.WithTimeout(ctx, defaultRPCDialTimeout)
 	defer cancelF()
 	conn, err := f.Dialer.Dial(dialCtx, remote)

@@ -89,7 +89,7 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 		return nil, serrors.Wrap("no path found to remote", err)
 	}
 
-	dsAddr := addrutil.ExtractServiceAddress(addr.SvcDS, p)
+	dsAddr := addrutil.ExtractDestinationServiceAddress(addr.SvcDS, p)
 	// TODO: Why is this necessary?
 	// if dsAddr.Path == nil {
 	// 	dsAddr.Path = path.Empty{}

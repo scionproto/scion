@@ -38,7 +38,7 @@ func (d Discoverer) Gateways(ctx context.Context) ([]control.Gateway, error) {
 	if len(paths) == 0 {
 		return nil, serrors.New("no path available")
 	}
-	ds := addrutil.ExtractServiceAddress(addr.SvcDS, paths[0])
+	ds := addrutil.ExtractDestinationServiceAddress(addr.SvcDS, paths[0])
 	conn, err := d.Dialer.Dial(ctx, ds)
 	if err != nil {
 		return nil, err

@@ -73,7 +73,7 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 	if err != nil || path == nil {
 		return nil, serrors.Wrap("unable to find path to any core AS", err, "isd", dstISD)
 	}
-	ret := addrutil.ExtractServiceAddress(addr.SvcCS, path)
+	ret := addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
 	return ret, nil
 }
 
