@@ -26,7 +26,9 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
@@ -136,8 +138,50 @@ func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 	}
 }
 
-func (t *TasksConfig) segmentWriter(segType seg.Type,
-	policyType beacon.PolicyType) *periodic.Runner {
+type RegistrarWriter struct {
+	SegmentType seg.Type
+	PolicyType  beacon.PolicyType
+	Plugins     beacon.SegmentRegistrars
+}
+
+var _ beaconing.Writer = (*RegistrarWriter)(nil)
+
+func (w *RegistrarWriter) Write(ctx context.Context, segments map[string][]beacon.Beacon, peers []uint16) (beaconing.WriteStats, error) {
+	logger := log.FromCtx(ctx)
+	// Maintain the write stats.
+	writeStats := beaconing.WriteStats{}
+	for name, beacons := range segments {
+		pluginMap, ok := w.Plugins[w.PolicyType]
+		if !ok {
+			return beaconing.WriteStats{}, serrors.New("no segment registrar found for policy type",
+				"policy_type", w.PolicyType)
+		}
+		registrar, ok := pluginMap[name]
+		if !ok {
+			return beaconing.WriteStats{}, serrors.New("no segment registrar found with name",
+				"name", name)
+		}
+		stats, err := registrar.RegisterSegments(ctx, w.SegmentType, beacons)
+		if err != nil {
+			return beaconing.WriteStats{}, serrors.Wrap("registering segments", err,
+				"segment_type", w.SegmentType, "policy", name)
+		}
+		// Log the segment-specific errors encountered during registration.
+		numRegistered := len(beacons)
+		for id, err := range stats.Status {
+			if err != nil {
+				logger.Error("Failed to register segment", "segment_id", id, "err", err)
+				numRegistered -= 1
+			}
+		}
+		// Update the write stats with the number of segments successfully registered.
+		writeStats.Count += numRegistered
+	}
+	// TODO: Populate writeStats.StartIAs.
+	return writeStats, nil
+}
+
+func (t *TasksConfig) segmentWriter(segType seg.Type, policyType beacon.PolicyType) *periodic.Runner {
 
 	var internalErr, registered metrics.Counter
 	if t.Metrics != nil {
