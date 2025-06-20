@@ -58,6 +58,29 @@ func applyStoreOptions(opts []StoreOption) storeOptions {
 	return o
 }
 
+// bucketBeacons takes a slice of beacons and buckets them according to the
+// registration policies defined in the provided policy.
+func bucketBeacons(beacons []Beacon, policy *Policy) map[string][]Beacon {
+	// Go through every beacon, and bucket it into the first registration policy that matches it.
+	// If no registration policy matches, use the default bucket.
+	beaconBuckets := make(map[string][]Beacon)
+	for _, b := range beacons {
+		found := false
+		for _, regPolicy := range policy.RegistrationPolicies {
+			if regPolicy.Matcher.Match(b) {
+				beaconBuckets[regPolicy.Name] = append(beaconBuckets[regPolicy.Name], b)
+				found = true
+				break
+			}
+		}
+		// If no registration policy matches, use the default bucket.
+		if !found {
+			beaconBuckets["default"] = append(beaconBuckets["default"], b)
+		}
+	}
+	return beaconBuckets
+}
+
 // Store provides abstracted access to the beacon database in a non-core AS.
 // The store helps to insert beacons and revocations, and selects the best beacons
 // for given purposes based on the configured policies. It should not be used in a
@@ -108,9 +131,7 @@ func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) (map[s
 	if err != nil {
 		return nil, err
 	}
-	return map[string][]Beacon{
-		"default": beacons,
-	}, nil
+	return bucketBeacons(beacons, policy), nil
 }
 
 // getBeacons fetches the candidate beacons from the database and serves the
@@ -181,9 +202,7 @@ func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) (m
 	if err != nil {
 		return nil, err
 	}
-	return map[string][]Beacon{
-		"default": beacons,
-	}, nil
+	return bucketBeacons(beacons, &s.policies.CoreReg), nil
 }
 
 // getBeacons fetches the candidate beacons from the database and serves the

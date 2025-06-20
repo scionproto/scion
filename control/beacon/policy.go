@@ -23,6 +23,8 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/iface"
+	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/path/pathpol"
 )
 
@@ -240,14 +242,67 @@ type RegistrationPolicy struct {
 	PluginConfig map[string]any            `yaml:"PluginConfig"`
 }
 
-// RegistrationPolicyMatcher contains the matching criteria for a registration policy.
-type RegistrationPolicyMatcher struct {
-	Sequence []pathpol.Sequence `yaml:"Sequence"`
-	ACL      *pathpol.ACL       `yaml:"ACL"`
-}
-
 // InitDefaults initializes the default values for unset fields in the registration policy.
 func (p *RegistrationPolicy) InitDefaults() {
+}
+
+// beaconAsPath implements snet.Path with respect to a Beacon.
+type beaconAsPath struct {
+	beacon Beacon
+	snet.Path
+}
+
+var _ snet.Path = (*beaconAsPath)(nil)
+
+// wrapBeacon wraps a Beacon into a beaconAsPath which "trivially" implements snet.Path.
+// Since snet.Path is set to nil, calling the methods that are not explicitly overwritten will panic!
+func wrapBeacon(beacon Beacon) *beaconAsPath {
+	return &beaconAsPath{
+		beacon: beacon,
+		Path:   nil,
+	}
+}
+
+// Metadata returns the metadata of the beacon.
+// It only sets the PathMetadata.Interfaces field.
+func (b *beaconAsPath) Metadata() *snet.PathMetadata {
+	md := snet.PathMetadata{}
+	md.Interfaces = make([]snet.PathInterface, 0)
+	for i, entry := range b.beacon.Segment.ASEntries {
+		// For the AS entries that are not the first, add the interface with ingress interface.
+		if i > 0 {
+			md.Interfaces = append(md.Interfaces, snet.PathInterface{
+				IA: entry.Local,
+				ID: iface.ID(entry.HopEntry.HopField.ConsIngress),
+			})
+		}
+		// For the AS entries that are not the last, add the interface with egress interface.
+		if i < len(b.beacon.Segment.ASEntries)-1 {
+			md.Interfaces = append(md.Interfaces, snet.PathInterface{
+				IA: entry.Next,
+				ID: iface.ID(entry.HopEntry.HopField.ConsEgress),
+			})
+		}
+	}
+	return &md
+}
+
+// RegistrationPolicyMatcher contains the matching criteria for a registration policy.
+type RegistrationPolicyMatcher struct {
+	Sequence *pathpol.Sequence `yaml:"Sequence"`
+	ACL      *pathpol.ACL      `yaml:"ACL"`
+}
+
+// Match returns true iff the given beacon matches the registration policy matcher.
+// Note that an empty matcher matches everything.
+func (m *RegistrationPolicyMatcher) Match(beacon Beacon) bool {
+	if m.Sequence != nil && len(m.Sequence.Eval([]snet.Path{wrapBeacon(beacon)})) == 0 {
+		return false
+	}
+	if m.ACL != nil && len(m.ACL.Eval([]snet.Path{wrapBeacon(beacon)})) == 0 {
+		return false
+	}
+	return true
 }
 
 // ParsePolicyYaml parses the policy in yaml format and initializes the default values.
