@@ -56,12 +56,14 @@ The topology of the ISD includes the inter-AS connections to neighboring ASes, a
 The difference between the core and non-core ASes is that core ASes are transit nodes.
 When going from ``ffaa:1:3`` to ``ffaa:1:2`` you will see a direct path and one going via the other core AS ``ffaa:1:1``, but you will NOT see a path going via ``ffaa:1:5`` or ``ffaa:1:4`` because they are non-core.
 
-ubuntu@scion03:~$ scion showpaths 15-ffaa:1:2
-Available paths to 15-ffaa:1:2
-2 Hops:
-[0] Hops: [15-ffaa:1:3 2>2 15-ffaa:1:2] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-3 Hops:
-[1] Hops: [15-ffaa:1:3 1>3 15-ffaa:1:1 2>1 15-ffaa:1:2] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+.. code-block:: sh
+
+   ubuntu@scion03:~$ scion showpaths 15-ffaa:1:2
+   Available paths to 15-ffaa:1:2
+   2 Hops:
+   [0] Hops: [15-ffaa:1:3 2>2 15-ffaa:1:2] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+   3 Hops:
+   [1] Hops: [15-ffaa:1:3 1>3 15-ffaa:1:1 2>1 15-ffaa:1:2] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
 
 .. _prerequisites:
 
