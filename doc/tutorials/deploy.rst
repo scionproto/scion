@@ -101,7 +101,7 @@ OS Setup
 
 - Set up the host file
 
-  The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 VMs. This will need to be updated on scion01-scion05. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
+  The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 VMs. Set this up on one of the machines, so that you can then use it as a jump box. This tutorial uses scion01. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
 
   Set this up on scion01:
 
