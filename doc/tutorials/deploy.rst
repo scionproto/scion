@@ -77,6 +77,7 @@ This deployment requires five virtual machines (VMs) - one for each AS. We recom
 - Using the naming convention for each VM of scion01, scion02, scion03, scion04, and scion05 will help follow along with this tutorial.
 - The VM names scion01-scion05 can be configured in /etc/hosts.
 
+**Note**: You can automatically prepare the VMs using Vagrant by running ``make vm-up``.
 
 Tasks to Perform
 ----------------
