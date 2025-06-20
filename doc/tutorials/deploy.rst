@@ -168,8 +168,9 @@ On scion01, download the topology1.json file. On scion02, download topology2.jso
 Step 2 - Generate the Required Certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The various cryptographic certificates need to be generated for each of the ASes.
-This requires first setting up the :term:`TRC` for this ISD, and then issuing AS-certificates from the :term:`CAs <CA>`.
+SCION's control plane messages and path information are all authenticated through the SCION PKI (Public Key Infrastructure).
+Setting up the PKI in a freshly created :term:`Isolation Domain <ISD>`, like in this tutorial, requires an initial trust bootstrapping process to create the initial :term:`TRC` for this ISD.
+Then, various certificates need to be generated for the intermediate :term:`CAs <CA>` and for each AS.
 
 For the sake of simplicity in this tutorial, we create all the keys and certificates centrally, and distribute the crypto material to the individual ASes.
 In practice, the private keys of ASes are of course never revealed to other entities; the TRC would be created in a :ref:`trc-ceremony` involving representatives of all core ASes. The creation of the AS-certificates would involve a certificate-signing request to the CA.
