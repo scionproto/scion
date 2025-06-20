@@ -4,6 +4,7 @@
 
 import http.server
 import threading
+import time
 
 from acceptance.common import base
 from acceptance.common import scion
@@ -113,7 +114,8 @@ class Test(base.TestTopogen):
 
         super().setup_start()
 
-        self.await_connectivity()
+        self.await_connectivity() # <- This isn't reliable
+        time.sleep(10)            # So this is here and may be too long
         self._server.shutdown()  # by now configuration must have been downloaded everywhere
 
     def _run(self):
@@ -141,7 +143,7 @@ class Test(base.TestTopogen):
 
     def _showpaths_run(self, source_as: str, destination_as: str):
         print(self.execute_tester(ISD_AS(self._ases[source_as]),
-                                  "scion", "sp", self._ases[destination_as], "--timeout", "2s"))
+                                  "scion", "sp", self._ases[destination_as], "--timeout", "5s"))
 
 
 def configuration_server(server):

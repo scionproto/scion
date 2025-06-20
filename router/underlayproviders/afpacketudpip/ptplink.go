@@ -162,13 +162,22 @@ func (l *ptpLink) addHeader(p *router.Packet) bool {
 // TODO(jiceatscion): can do cleaner, more legible, faster?
 func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	payloadLen := len(p.RawPacket)
-	if !l.addHeader(p) {
-		time.Sleep(100 * time.Millisecond) // Be stubborn; some tests expect zero loss.
-		if !l.addHeader(p) {
-			log.Debug("Dropped packet for lack of address resolution", "from", l.localAddr,
-				"to", l.remoteAddr)
-			return false
+	var good bool
+	for a := range 1 { // Be stubborn; some tests expect zero loss.
+		good = l.addHeader(p)
+		if good {
+			if a > 0 {
+				log.Debug("Resolved with retries", "from", l.localAddr,
+					"to", l.remoteAddr, "attempts", a+1)
+			}
+			break
 		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !good {
+		log.Debug("Dropped packet for lack of address resolution", "from", l.localAddr,
+			"to", l.remoteAddr)
+		return false
 	}
 	if l.is4 {
 		// Fix the IP total length field
@@ -219,6 +228,7 @@ func (l *ptpLink) start(
 	// Since we have only one peer, try and resolve it in case it's up. That's like an
 	// announcement, but we can also get a response.
 	peerIP := l.remoteAddr.Addr()
+	log.Debug("Annoucing", "sender", l.localAddr.Addr(), "peer", peerIP)
 	l.seekNeighbor(&peerIP)
 
 	// cache ticker is desirable.
@@ -334,6 +344,7 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 		// We want, regardless of cache content.
 		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
 		if changed {
+			log.Debug("Learned address", "local", l.localAddr.Addr(), "add", senderIP)
 			// Time to rebuild the packed header.
 			l.header = nil
 		}

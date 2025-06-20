@@ -31,7 +31,7 @@ import (
 // ARP cache parameters.
 const (
 	neighborTick = 500 * time.Millisecond // Cache clock period.
-	neighborTTL  = 60                     // Time to live of resolved entry (in ticks).
+	neighborTTL  = 120                    // Time to live of resolved entry (in ticks).
 	neighborTTR  = 1                      // Time to live of entry that needs resolution (in ticks).
 )
 

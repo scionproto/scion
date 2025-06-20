@@ -108,7 +108,7 @@ def topogen_test(
 
     py_test(
         name = name,
-        size = "large",
+        size = "medium",
         srcs = [src],
         main = src,
         args = args + common_args,

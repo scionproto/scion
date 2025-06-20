@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"time"
 	"unsafe"
 
 	"github.com/gopacket/gopacket"
@@ -156,13 +157,22 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 // TODO(jiceatscion): can do cleaner, more legible, faster?
 func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool {
 	payloadLen := len(p.RawPacket)
-	if !l.addHeader(p, dst) {
-		// time.Sleep(100 * time.Millisecond) // Be stubborn some tests expect zero loss.
-		// if !l.addHeader(p, dst) {
+	var good bool
+	for a := range 1 { // Be stubborn; some tests expect zero loss.
+		good = l.addHeader(p, dst)
+		if good {
+			if a > 0 {
+				log.Debug("Resolved with retries", "from", l.localAddr,
+					"to", dst, "attempts", a+1)
+			}
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !good {
 		log.Debug("Dropped packet for lack of address resolution", "from", l.localAddr,
 			"to", dst)
 		return false
-		// }
 	}
 	if l.is4 {
 		// Fix the IP total length field
@@ -356,7 +366,11 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 		!senderIP.IsUnspecified()) || found {
 
 		// Good to cache or update
-		remoteHwP, _ = l.neighbors.put(senderIP, remoteHw)
+		var chg bool
+		remoteHwP, chg = l.neighbors.put(senderIP, remoteHw)
+		if chg {
+			log.Debug("Learned address", "local", l.localAddr.Addr(), "add", senderIP)
+		}
 	} else {
 		// Not in cacheable => No response needed either.
 		isReq = false
