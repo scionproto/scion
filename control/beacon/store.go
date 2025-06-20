@@ -61,8 +61,8 @@ func applyStoreOptions(opts []StoreOption) storeOptions {
 // bucketBeacons takes a slice of beacons and buckets them according to the
 // registration policies defined in the provided policy.
 func bucketBeacons(beacons []Beacon, policy *Policy) map[string][]Beacon {
-	// Go through every beacon, and bucket it into the first registration policy that matches it.
-	// If no registration policy matches, use the default bucket.
+	// Go through every beacon, and bucket it into the first registration policy
+	// that matches it. If no registration policy matches, use the default bucket.
 	beaconBuckets := make(map[string][]Beacon)
 	for _, b := range beacons {
 		found := false
@@ -117,7 +117,9 @@ func (s *Store) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 // SegmentsToRegister returns a channel that provides all beacons to register at
 // the time of the call. The selections are based on the configured policy for
 // the requested segment type.
-func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) (map[string][]Beacon, error) {
+func (s *Store) SegmentsToRegister(
+	ctx context.Context, segType seg.Type,
+) (map[string][]Beacon, error) {
 	var policy *Policy
 	switch segType {
 	case seg.TypeDown:
@@ -193,8 +195,9 @@ func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 
 // SegmentsToRegister returns a slice of all beacons to register at the time of the call.
 // The selection is based on the configured policy for the requested segment type.
-func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) (map[string][]Beacon, error) {
-
+func (s *CoreStore) SegmentsToRegister(
+	ctx context.Context, segType seg.Type,
+) (map[string][]Beacon, error) {
 	if segType != seg.TypeCore {
 		return nil, serrors.New("Unsupported segment type", "type", segType)
 	}

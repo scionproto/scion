@@ -146,11 +146,13 @@ type RegistrarWriter struct {
 
 var _ beaconing.Writer = (*RegistrarWriter)(nil)
 
-func (w *RegistrarWriter) Write(ctx context.Context, segments map[string][]beacon.Beacon, peers []uint16) (beaconing.WriteStats, error) {
+func (w *RegistrarWriter) Write(
+	ctx context.Context, beacons map[string][]beacon.Beacon, peers []uint16,
+) (beaconing.WriteStats, error) {
 	logger := log.FromCtx(ctx)
 	// Maintain the write stats.
-	writeStats := beaconing.WriteStats{}
-	for name, beacons := range segments {
+	writeStats := beaconing.WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
+	for name, beacons := range beacons {
 		pluginMap, ok := w.Plugins[w.PolicyType]
 		if !ok {
 			return beaconing.WriteStats{}, serrors.New("no segment registrar found for policy type",
@@ -174,6 +176,12 @@ func (w *RegistrarWriter) Write(ctx context.Context, segments map[string][]beaco
 				numRegistered -= 1
 			}
 		}
+		// Collect the start IAs from the segments that were registered (no error).
+		for _, beacon := range beacons {
+			if stats.Status[string(beacon.Segment.FullID())] == nil {
+				writeStats.StartIAs[beacon.Segment.FirstIA()] = struct{}{}
+			}
+		}
 		// Update the write stats with the number of segments successfully registered.
 		writeStats.Count += numRegistered
 	}
@@ -181,7 +189,9 @@ func (w *RegistrarWriter) Write(ctx context.Context, segments map[string][]beaco
 	return writeStats, nil
 }
 
-func (t *TasksConfig) segmentWriter(segType seg.Type, policyType beacon.PolicyType) *periodic.Runner {
+func (t *TasksConfig) segmentWriter(
+	segType seg.Type, policyType beacon.PolicyType,
+) *periodic.Runner {
 
 	var internalErr, registered metrics.Counter
 	if t.Metrics != nil {

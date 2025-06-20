@@ -218,7 +218,8 @@ func (p *Policy) Validate() error {
 	for i := 0; i < len(p.RegistrationPolicies); i++ {
 		for j := i + 1; j < len(p.RegistrationPolicies); j++ {
 			if p.RegistrationPolicies[i].Name == p.RegistrationPolicies[j].Name {
-				return serrors.New("duplicate registration policy names found", "name", p.RegistrationPolicies[i].Name)
+				return serrors.New("duplicate registration policy names found",
+					"name", p.RegistrationPolicies[i].Name)
 			}
 		}
 	}
@@ -255,7 +256,8 @@ type beaconAsPath struct {
 var _ snet.Path = (*beaconAsPath)(nil)
 
 // wrapBeacon wraps a Beacon into a beaconAsPath which "trivially" implements snet.Path.
-// Since snet.Path is set to nil, calling the methods that are not explicitly overwritten will panic!
+// Since snet.Path is set to nil, calling the methods that are not explicitly overwritten
+// will panic!
 func wrapBeacon(beacon Beacon) *beaconAsPath {
 	return &beaconAsPath{
 		beacon: beacon,

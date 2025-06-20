@@ -279,7 +279,12 @@ func realMain(ctx context.Context) error {
 			if err != nil {
 				return serrors.Wrap("creating segment registrar", err)
 			}
-			segmentRegistrars.Register(policy.Type, regPolicy.Name, registrar)
+			if err := segmentRegistrars.Register(
+				policy.Type, regPolicy.Name, registrar,
+			); err != nil {
+				return serrors.Wrap("registering segment registrar", err,
+					"policy_type", policy.Type, "registration_policy", regPolicy.Name)
+			}
 		}
 	}
 
@@ -874,7 +879,10 @@ func createBeaconStore(
 		return nil, nil, false, err
 	}
 	store, err := beacon.NewBeaconStore(policies, db, beacon.WithCheckChain(provider))
-	return store, []beacon.Policy{policies.DownReg, policies.UpReg}, *policies.Prop.Filter.AllowIsdLoop, err
+	return store,
+		[]beacon.Policy{policies.DownReg, policies.UpReg},
+		*policies.Prop.Filter.AllowIsdLoop,
+		err
 }
 
 func adaptInterfaceMap(in map[iface.ID]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
