@@ -8,7 +8,6 @@ go_library(
         "chain_checker.go",
         "db.go",
         "policy.go",
-        "registration.go",
         "selection_algo.go",
         "store.go",
     ],

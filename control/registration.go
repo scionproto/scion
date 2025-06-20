@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beacon
+package control
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/scionproto/scion/control/beacon"
+	"github.com/scionproto/scion/control/beaconing"
+	"github.com/scionproto/scion/control/ifstate"
 	seg "github.com/scionproto/scion/pkg/segment"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -27,7 +30,11 @@ type SegmentRegistrationPlugin interface {
 	// ID returns the unique identifier of the plugin.
 	ID() string
 	// New creates a new instance of the plugin with the provided configuration.
-	New(ctx context.Context, config map[string]any) (SegmentRegistrar, error)
+	New(
+		ctx context.Context,
+		t *TasksConfig,
+		config map[string]any,
+	) (SegmentRegistrar, error)
 	// Validate validates the configuration of the plugin.
 	Validate(config map[string]any) error
 }
@@ -36,14 +43,17 @@ type SegmentRegistrar interface {
 	// RegisterSegments registers the given segments with the given type according
 	// to the plugin's logic.
 	RegisterSegments(
-		ctx context.Context, segmentType seg.Type, segments []Beacon,
+		ctx context.Context,
+		segmentType seg.Type,
+		policyType beacon.PolicyType,
+		segments []beacon.Beacon,
 	) (RegistrationStats, error)
 }
 
-type SegmentRegistrars map[PolicyType]map[string]SegmentRegistrar
+type SegmentRegistrars map[beacon.PolicyType]map[string]SegmentRegistrar
 
 func (s SegmentRegistrars) Register(
-	policyType PolicyType, registrationPolicy string, registrar SegmentRegistrar,
+	policyType beacon.PolicyType, registrationPolicy string, registrar SegmentRegistrar,
 ) error {
 	if _, ok := s[policyType]; !ok {
 		s[policyType] = make(map[string]SegmentRegistrar)
@@ -57,7 +67,7 @@ func (s SegmentRegistrars) Register(
 }
 
 func (s SegmentRegistrars) Get(
-	policyType PolicyType, registrationPolicy string,
+	policyType beacon.PolicyType, registrationPolicy string,
 ) (SegmentRegistrar, error) {
 	if _, ok := s[policyType]; !ok {
 		return nil, serrors.New("no registrars found for policy type",
@@ -91,14 +101,17 @@ func RegisterPlugin(p SegmentRegistrationPlugin) {
 
 type DefaultSegmentRegistrationPlugin struct{}
 
+var _ SegmentRegistrationPlugin = (*DefaultSegmentRegistrationPlugin)(nil)
+
 func (p *DefaultSegmentRegistrationPlugin) ID() string {
 	return "default"
 }
 
 func (p *DefaultSegmentRegistrationPlugin) New(
-	ctx context.Context, config map[string]any,
+	ctx context.Context,
+	t *TasksConfig,
+	config map[string]any,
 ) (SegmentRegistrar, error) {
-	// TODO: Implement.
 	return &DefaultSegmentRegistrar{}, nil
 }
 
@@ -109,66 +122,19 @@ func (p *DefaultSegmentRegistrationPlugin) Validate(
 	return nil
 }
 
-type DefaultSegmentRegistrar struct{}
+type DefaultSegmentRegistrar struct {
+	Intfs    *ifstate.Interfaces
+	Extender beaconing.Extender
+}
 
 func (r *DefaultSegmentRegistrar) RegisterSegments(
-	ctx context.Context, segmentType seg.Type, segments []Beacon,
+	ctx context.Context,
+	segmentType seg.Type,
+	policyType beacon.PolicyType,
+	segments []beacon.Beacon,
 ) (RegistrationStats, error) {
 	// TODO: Implement.
+
 	// if segType is Up or Core (!= Down), register locally and otherwise register remotely.
-	return RegistrationStats{}, nil
-}
-
-type LocalSegmentRegistrationPlugin struct{}
-
-func (p *LocalSegmentRegistrationPlugin) ID() string {
-	return "local"
-}
-
-func (p *LocalSegmentRegistrationPlugin) New(
-	ctx context.Context, config map[string]any,
-) (SegmentRegistrar, error) {
-	// TODO: Implement.
-	return &LocalSegmentRegistrar{}, nil
-}
-
-func (p *LocalSegmentRegistrationPlugin) Validate(config map[string]any) error {
-	// TODO: Implement.
-	return nil
-}
-
-type LocalSegmentRegistrar struct{}
-
-func (r *LocalSegmentRegistrar) RegisterSegments(
-	ctx context.Context, segmentType seg.Type, segments []Beacon,
-) (RegistrationStats, error) {
-	// TODO: Implement.
-	return RegistrationStats{}, nil
-}
-
-type RemoteSegmentRegistrationPlugin struct{}
-
-func (p *RemoteSegmentRegistrationPlugin) ID() string {
-	return "remote"
-}
-
-func (p *RemoteSegmentRegistrationPlugin) New(
-	ctx context.Context, config map[string]any,
-) (SegmentRegistrar, error) {
-	// TODO: Implement.
-	return &RemoteSegmentRegistrar{}, nil
-}
-
-func (p *RemoteSegmentRegistrationPlugin) Validate(config map[string]any) error {
-	// TODO: Implement.
-	return nil
-}
-
-type RemoteSegmentRegistrar struct{}
-
-func (r *RemoteSegmentRegistrar) RegisterSegments(
-	ctx context.Context, segmentType seg.Type, segments []Beacon,
-) (RegistrationStats, error) {
-	// TODO: Implement.
 	return RegistrationStats{}, nil
 }

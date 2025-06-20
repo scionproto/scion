@@ -266,28 +266,6 @@ func realMain(ctx context.Context) error {
 		return serrors.Wrap("initializing beacon store", err)
 	}
 
-	// Initialize the segment registrars.
-	segmentRegistrars := make(beacon.SegmentRegistrars)
-	for _, policy := range regPolicies {
-		for _, regPolicy := range policy.RegistrationPolicies {
-			plugin, ok := beacon.SegmentRegistrationPlugins[regPolicy.Plugin]
-			if !ok {
-				return serrors.New("unknown segment registration plugin",
-					"plugin", regPolicy.Plugin)
-			}
-			registrar, err := plugin.New(errCtx, regPolicy.PluginConfig)
-			if err != nil {
-				return serrors.Wrap("creating segment registrar", err)
-			}
-			if err := segmentRegistrars.Register(
-				policy.Type, regPolicy.Name, registrar,
-			); err != nil {
-				return serrors.Wrap("registering segment registrar", err,
-					"policy_type", policy.Type, "registration_policy", regPolicy.Name)
-			}
-		}
-	}
-
 	trustengineCache := globalCfg.TrustEngine.Cache.New()
 	cacheHits := libmetrics.NewPromCounter(trustmetrics.CacheHitsTotal)
 	inspector := trust.CachingInspector{
@@ -789,7 +767,7 @@ func realMain(ctx context.Context) error {
 		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
-	tasks, err := cs.StartTasks(cs.TasksConfig{
+	tc := cs.TasksConfig{
 		IA:            topo.IA(),
 		Core:          topo.Core(),
 		MTU:           topo.MTU(),
@@ -837,9 +815,11 @@ func realMain(ctx context.Context) error {
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
 		EPIC:                      globalCfg.BS.EPIC,
-
-		Registrars: segmentRegistrars,
-	})
+	}
+	if err := tc.InitPlugins(errCtx, regPolicies); err != nil {
+		return serrors.Wrap("initializing tasks plugins", err)
+	}
+	tasks, err := cs.StartTasks(tc)
 	if err != nil {
 		return serrors.Wrap("starting periodic tasks", err)
 	}

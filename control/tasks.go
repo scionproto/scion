@@ -79,7 +79,38 @@ type TasksConfig struct {
 
 	EPIC bool
 
-	Registrars beacon.SegmentRegistrars
+	registrars SegmentRegistrars
+}
+
+// InitPlugins initializes the segment registration plugins based on the provided
+// registration policies. This must be called before starting the tasks.
+func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Policy) error {
+	if t.registrars != nil {
+		return nil
+	}
+	// Initialize the segment registrars.
+	segmentRegistrars := make(SegmentRegistrars)
+	for _, policy := range regPolicies {
+		for _, regPolicy := range policy.RegistrationPolicies {
+			plugin, ok := SegmentRegistrationPlugins[regPolicy.Plugin]
+			if !ok {
+				return serrors.New("unknown segment registration plugin",
+					"plugin", regPolicy.Plugin)
+			}
+			registrar, err := plugin.New(ctx, t, regPolicy.PluginConfig)
+			if err != nil {
+				return serrors.Wrap("creating segment registrar", err)
+			}
+			if err := segmentRegistrars.Register(
+				policy.Type, regPolicy.Name, registrar,
+			); err != nil {
+				return serrors.Wrap("registering segment registrar", err,
+					"policy_type", policy.Type, "registration_policy", regPolicy.Name)
+			}
+		}
+	}
+	t.registrars = segmentRegistrars
+	return nil
 }
 
 // Originator starts a periodic beacon origination task. For non-core ASes, no
@@ -141,7 +172,7 @@ func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 type RegistrarWriter struct {
 	SegmentType seg.Type
 	PolicyType  beacon.PolicyType
-	Plugins     beacon.SegmentRegistrars
+	Plugins     SegmentRegistrars
 }
 
 var _ beaconing.Writer = (*RegistrarWriter)(nil)
@@ -163,7 +194,7 @@ func (w *RegistrarWriter) Write(
 			return beaconing.WriteStats{}, serrors.New("no segment registrar found with name",
 				"name", name)
 		}
-		stats, err := registrar.RegisterSegments(ctx, w.SegmentType, beacons)
+		stats, err := registrar.RegisterSegments(ctx, w.SegmentType, w.PolicyType, beacons)
 		if err != nil {
 			return beaconing.WriteStats{}, serrors.Wrap("registering segments", err,
 				"segment_type", w.SegmentType, "policy", name)
@@ -185,7 +216,6 @@ func (w *RegistrarWriter) Write(
 		// Update the write stats with the number of segments successfully registered.
 		writeStats.Count += numRegistered
 	}
-	// TODO: Populate writeStats.StartIAs.
 	return writeStats, nil
 }
 
