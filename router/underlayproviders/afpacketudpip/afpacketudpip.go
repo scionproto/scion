@@ -17,6 +17,7 @@ package afpacketudpip
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"net"
 	"net/netip"
@@ -82,7 +83,9 @@ func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHa
 
 	filter, err := ebpf.BpfPortFilter(index, handle, localPort)
 	if err != nil {
-		return nil, nil, serrors.Wrap("adding port filter", err)
+		return nil, nil, serrors.Wrap(fmt.Sprintf(
+			"adding port filter to inteface %s", intf.Name,
+		), err)
 	}
 
 	// Drain
