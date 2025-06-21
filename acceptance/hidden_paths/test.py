@@ -114,9 +114,9 @@ class Test(base.TestTopogen):
 
         super().setup_start()
 
-        self.await_connectivity() # <- This isn't reliable
-        time.sleep(10)            # So this is here and may be too long
-        self._server.shutdown()  # by now configuration must have been downloaded everywhere
+        self.await_connectivity()  # <- This isn't reliable
+        time.sleep(10)             # So this is here and may be too long
+        self._server.shutdown()    # by now configuration must have been downloaded everywhere
 
     def _run(self):
         # Group 3

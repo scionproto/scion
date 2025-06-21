@@ -115,15 +115,15 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*R
 		},
 	}
 
-	// Packets DO get lost. We need retries; and we need a shorter deadline; else
-	// we would just stay stuck for the entire time and make a single attempt.
+	// Packets DO get lost. We need retries. (This means that RoundTrip must use a deadline for
+	// each attempt that is much shorter than our deadline for completion).
 	var reply *Reply
-	for a := range 15 {
+	for a := range 16 {
 		reply, err = r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.UnderlayNextHop())
 		if err != nil {
 			continue
 		}
-		log.Debug("SVC resolver succeded", "attempts", a+1)
+		log.Debug("SVC resolver succeeded", "attempts", a+1)
 		return reply, nil
 	}
 	log.Debug("SVC resolver failed")
@@ -165,7 +165,6 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 		return nil, errNilUnderlay
 	}
 
-	c.SetWriteDeadline(time.Now().Add(300 * time.Millisecond))
 	if err := c.WriteTo(pkt, u); err != nil {
 		select {
 		case <-ctx.Done():
@@ -177,7 +176,9 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 
 	var replyPacket snet.Packet
 	var replyOv net.UDPAddr
-	c.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
+	if err := c.SetReadDeadline(time.Now().Add(300 * time.Millisecond)); err != nil {
+		return nil, err
+	}
 	if err := c.ReadFrom(&replyPacket, &replyOv); err != nil {
 		select {
 		case <-ctx.Done():
