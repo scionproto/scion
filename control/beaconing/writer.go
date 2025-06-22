@@ -66,6 +66,17 @@ type WriteStats struct {
 	StartIAs map[addr.IA]struct{}
 }
 
+// Extend extends the current WriteStats with another WriteStats.
+func (s *WriteStats) Extend(other WriteStats) {
+	if s.StartIAs == nil {
+		s.StartIAs = make(map[addr.IA]struct{})
+	}
+	s.Count += other.Count
+	for ia := range other.StartIAs {
+		s.StartIAs[ia] = struct{}{}
+	}
+}
+
 // Writer writes segments.
 type Writer interface {
 	// Write writes passed slice of segments.Peers indicate the peering

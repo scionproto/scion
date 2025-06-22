@@ -97,7 +97,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 				return serrors.New("unknown segment registration plugin",
 					"plugin", regPolicy.Plugin)
 			}
-			registrar, err := plugin.New(ctx, t, regPolicy.PluginConfig)
+			registrar, err := plugin.New(ctx, t, policy.Type, regPolicy.PluginConfig)
 			if err != nil {
 				return serrors.Wrap("creating segment registrar", err)
 			}
@@ -170,9 +170,8 @@ func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 }
 
 type RegistrarWriter struct {
-	SegmentType seg.Type
-	PolicyType  beacon.PolicyType
-	Plugins     SegmentRegistrars
+	PolicyType beacon.PolicyType
+	Plugins    SegmentRegistrars
 }
 
 var _ beaconing.Writer = (*RegistrarWriter)(nil)
@@ -181,7 +180,6 @@ func (w *RegistrarWriter) Write(
 	ctx context.Context, beacons map[string][]beacon.Beacon, peers []uint16,
 ) (beaconing.WriteStats, error) {
 	logger := log.FromCtx(ctx)
-	// Maintain the write stats.
 	writeStats := beaconing.WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
 	for name, beacons := range beacons {
 		pluginMap, ok := w.Plugins[w.PolicyType]
@@ -194,27 +192,19 @@ func (w *RegistrarWriter) Write(
 			return beaconing.WriteStats{}, serrors.New("no segment registrar found with name",
 				"name", name)
 		}
-		stats, err := registrar.RegisterSegments(ctx, w.SegmentType, w.PolicyType, beacons)
+		stats, err := registrar.RegisterSegments(ctx, beacons, peers)
 		if err != nil {
 			return beaconing.WriteStats{}, serrors.Wrap("registering segments", err,
-				"segment_type", w.SegmentType, "policy", name)
+				"policy", name)
 		}
 		// Log the segment-specific errors encountered during registration.
-		numRegistered := len(beacons)
 		for id, err := range stats.Status {
 			if err != nil {
 				logger.Error("Failed to register segment", "segment_id", id, "err", err)
-				numRegistered -= 1
 			}
 		}
-		// Collect the start IAs from the segments that were registered (no error).
-		for _, beacon := range beacons {
-			if stats.Status[string(beacon.Segment.FullID())] == nil {
-				writeStats.StartIAs[beacon.Segment.FirstIA()] = struct{}{}
-			}
-		}
-		// Update the write stats with the number of segments successfully registered.
-		writeStats.Count += numRegistered
+		// Extend the write stats with the bucket-specific write stats.
+		writeStats.Extend(stats.WriteStats)
 	}
 	return writeStats, nil
 }
