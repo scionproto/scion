@@ -29,6 +29,8 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
+var DEFAULT_PLUGIN = &DefaultSegmentRegistrationPlugin{}
+
 type SegmentRegistrationPlugin interface {
 	// ID returns the unique identifier of the plugin.
 	ID() string
@@ -67,6 +69,20 @@ func (s SegmentRegistrars) Register(
 			"policy_type", policyType, "registration_policy", registrationPolicy)
 	}
 	s[policyType][registrationPolicy] = registrar
+	return nil
+}
+
+func (s SegmentRegistrars) RegisterDefault(
+	policyType beacon.PolicyType, registrar SegmentRegistrar,
+) error {
+	if _, ok := s[policyType]; !ok {
+		s[policyType] = make(map[string]SegmentRegistrar)
+	}
+	if _, ok := s[policyType][beacon.DEFAULT_PLUGIN_ID]; ok {
+		return serrors.New("default registrar already registered for policy type",
+			"policy_type", policyType)
+	}
+	s[policyType][beacon.DEFAULT_PLUGIN_ID] = registrar
 	return nil
 }
 
@@ -110,7 +126,7 @@ type DefaultSegmentRegistrationPlugin struct{}
 var _ SegmentRegistrationPlugin = (*DefaultSegmentRegistrationPlugin)(nil)
 
 func (p *DefaultSegmentRegistrationPlugin) ID() string {
-	return "default"
+	return beacon.DEFAULT_PLUGIN_ID
 }
 
 func (p *DefaultSegmentRegistrationPlugin) New(
@@ -200,7 +216,7 @@ func (r *DefaultSegmentRegistrar) RegisterSegments(
 	peers []uint16,
 ) (RegistrationStats, error) {
 	writeStats, err := r.writer.Write(ctx, map[string][]beacon.Beacon{
-		"default": segments,
+		beacon.DEFAULT_PLUGIN_ID: segments,
 	}, peers)
 	if err != nil {
 		return RegistrationStats{}, serrors.Wrap("failed to register segments", err,

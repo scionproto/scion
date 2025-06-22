@@ -82,13 +82,13 @@ type TasksConfig struct {
 
 // InitPlugins initializes the segment registration plugins based on the provided
 // registration policies. This must be called before starting the tasks.
-func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Policy) error {
+func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy) error {
 	if t.registrars != nil {
 		return nil
 	}
 	// Initialize the segment registrars.
 	segmentRegistrars := make(SegmentRegistrars)
-	for _, policy := range regPolicies {
+	for _, policy := range policies {
 		for _, regPolicy := range policy.RegistrationPolicies {
 			plugin, ok := SegmentRegistrationPlugins[regPolicy.Plugin]
 			if !ok {
@@ -97,7 +97,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 			}
 			segType, ok := SegmentTypeFromPolicyType(policy.Type)
 			if !ok {
-				return serrors.New("unsupported policy type for segment registrar plugin",
+				return serrors.New("unsupported policy type for segment registration plugin",
 					"policy_type", policy.Type)
 			}
 			registrar, err := plugin.New(ctx, t, segType, policy.Type, regPolicy.PluginConfig)
@@ -109,6 +109,32 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 			); err != nil {
 				return serrors.Wrap("registering segment registrar", err,
 					"policy_type", policy.Type, "registration_policy", regPolicy.Name)
+			}
+		}
+	}
+	// For the policy types that do not have any plugins registered, we construct a registrar from
+	// the default plugin.
+	// This is done for the sake of backward compatibility.
+	defaultPlugin := DefaultSegmentRegistrationPlugin{}
+	for _, policyType := range []beacon.PolicyType{
+		beacon.UpRegPolicy,
+		beacon.DownRegPolicy,
+		beacon.CoreRegPolicy,
+	} {
+		if _, ok := segmentRegistrars[policyType]; !ok {
+			segType, _ := SegmentTypeFromPolicyType(policyType)
+			defaultRegistrar, err := defaultPlugin.New(
+				ctx, t, segType, policyType, nil,
+			)
+			if err != nil {
+				return serrors.Wrap("creating default segment registrar", err,
+					"policy_type", policyType)
+			}
+			if err := segmentRegistrars.RegisterDefault(
+				policyType, defaultRegistrar,
+			); err != nil {
+				return serrors.Wrap("registering default segment registrar", err,
+					"policy_type", policyType)
 			}
 		}
 	}
@@ -187,15 +213,10 @@ func (w *RegistrarWriter) Write(
 	logger := log.FromCtx(ctx)
 	writeStats := beaconing.WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
 	for name, beacons := range beacons {
-		pluginMap, ok := w.Plugins[w.PolicyType]
-		if !ok {
-			return beaconing.WriteStats{}, serrors.New("no segment registrar found for policy type",
-				"policy_type", w.PolicyType)
-		}
-		registrar, ok := pluginMap[name]
-		if !ok {
-			return beaconing.WriteStats{}, serrors.New("no segment registrar found with name",
-				"name", name)
+		registrar, err := w.Plugins.Get(w.PolicyType, name)
+		if err != nil {
+			return beaconing.WriteStats{}, serrors.Wrap("getting segment registrar", err,
+				"policy", w.PolicyType, "name", name)
 		}
 		stats, err := registrar.RegisterSegments(ctx, beacons, peers)
 		if err != nil {
@@ -235,6 +256,7 @@ func (t *TasksConfig) segmentWriter(
 		},
 		Tick: beaconing.NewTick(t.RegistrationInterval),
 	}
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }
 

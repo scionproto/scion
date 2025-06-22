@@ -175,7 +175,7 @@ func (r *RemoteWriter) Write(
 	s := newSummary()
 	var expected int
 	var wg sync.WaitGroup
-	for _, b := range segments["default"] {
+	for _, b := range segments[beacon.DEFAULT_PLUGIN_ID] {
 		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}
@@ -233,7 +233,7 @@ func (r *LocalWriter) Write(
 	logger := log.FromCtx(ctx)
 	beacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
-	for _, b := range segments["default"] {
+	for _, b := range segments[beacon.DEFAULT_PLUGIN_ID] {
 		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}

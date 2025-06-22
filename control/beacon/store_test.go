@@ -35,14 +35,14 @@ func TestStoreSegmentsToRegister(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return s["default"], nil
+		return s[beacon.DEFAULT_PLUGIN_ID], nil
 	})
 	testStoreSelection(t, func(store *beacon.Store) ([]beacon.Beacon, error) {
 		s, err := store.SegmentsToRegister(context.Background(), seg.TypeDown)
 		if err != nil {
 			return nil, err
 		}
-		return s["default"], nil
+		return s[beacon.DEFAULT_PLUGIN_ID], nil
 	})
 }
 
@@ -154,7 +154,7 @@ func TestCoreStoreSegmentsToRegister(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return s["default"], nil
+		return s[beacon.DEFAULT_PLUGIN_ID], nil
 	})
 }
 

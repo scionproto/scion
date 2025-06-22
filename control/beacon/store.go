@@ -58,24 +58,28 @@ func applyStoreOptions(opts []StoreOption) storeOptions {
 	return o
 }
 
+const DEFAULT_PLUGIN_ID string = "default"
+
 // bucketBeacons takes a slice of beacons and buckets them according to the
 // registration policies defined in the provided policy.
+// The beacons that do not match any registration policy are dropped.
+// If the policy defines no registration policy, all the beacons will be put into
+// the default bucket, indexed by DEFAULT_PLUGIN_ID.
 func bucketBeacons(beacons []Beacon, policy *Policy) map[string][]Beacon {
+	if len(policy.RegistrationPolicies) == 0 {
+		return map[string][]Beacon{
+			DEFAULT_PLUGIN_ID: beacons,
+		}
+	}
 	// Go through every beacon, and bucket it into the first registration policy
-	// that matches it. If no registration policy matches, use the default bucket.
+	// that matches it.
 	beaconBuckets := make(map[string][]Beacon)
 	for _, b := range beacons {
-		found := false
 		for _, regPolicy := range policy.RegistrationPolicies {
 			if regPolicy.Matcher.Match(b) {
 				beaconBuckets[regPolicy.Name] = append(beaconBuckets[regPolicy.Name], b)
-				found = true
 				break
 			}
-		}
-		// If no registration policy matches, use the default bucket.
-		if !found {
-			beaconBuckets["default"] = append(beaconBuckets["default"], b)
 		}
 	}
 	return beaconBuckets

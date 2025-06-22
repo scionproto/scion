@@ -79,7 +79,7 @@ func (w *BeaconWriter) Write(ctx context.Context, segments map[string][]beacon.B
 	var expected int
 	var wg sync.WaitGroup
 
-	for _, b := range segments["default"] {
+	for _, b := range segments[beacon.DEFAULT_PLUGIN_ID] {
 		if w.Intfs.Get(b.InIfID) == nil {
 			logger.Error("Received beacon for non-existing interface", "interface", b.InIfID)
 			metrics.CounterInc(w.InternalErrors)
