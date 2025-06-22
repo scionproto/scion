@@ -95,7 +95,12 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 				return serrors.New("unknown segment registration plugin",
 					"plugin", regPolicy.Plugin)
 			}
-			registrar, err := plugin.New(ctx, t, policy.Type, regPolicy.PluginConfig)
+			segType, ok := SegmentTypeFromPolicyType(policy.Type)
+			if !ok {
+				return serrors.New("unsupported policy type for segment registrar plugin",
+					"policy_type", policy.Type)
+			}
+			registrar, err := plugin.New(ctx, t, segType, policy.Type, regPolicy.PluginConfig)
 			if err != nil {
 				return serrors.Wrap("creating segment registrar", err)
 			}
@@ -215,16 +220,20 @@ func (t *TasksConfig) segmentWriter(
 	if t.registrars == nil {
 		panic("segment registrars not initialized, call InitPlugins first")
 	}
-	writer := &RegistrarWriter{
-		PolicyType: policyType,
-		Plugins:    t.registrars,
+	segType, ok := SegmentTypeFromPolicyType(policyType)
+	if !ok {
+		panic(serrors.New("invalid policy type for segment writer",
+			"policy_type", policyType))
 	}
 	r := &beaconing.WriteScheduler{
 		Provider: t.BeaconStore,
 		Intfs:    t.AllInterfaces,
-		Type:     seg.TypeDown, // Type is not used in this case.
-		Writer:   writer,
-		Tick:     beaconing.NewTick(t.RegistrationInterval),
+		Type:     segType,
+		Writer: &RegistrarWriter{
+			PolicyType: policyType,
+			Plugins:    t.registrars,
+		},
+		Tick: beaconing.NewTick(t.RegistrationInterval),
 	}
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }

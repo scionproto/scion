@@ -18,6 +18,7 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	seg "github.com/scionproto/scion/pkg/segment"
 )
 
 // LoadCorePolicies loads the policies for beaconing in a core CS.
@@ -63,4 +64,19 @@ func loadPolicy(fn string, t beacon.PolicyType) (beacon.Policy, error) {
 	}
 	policy.InitDefaults()
 	return policy, nil
+}
+
+// SegmentTypeFromPolicyType converts a beacon.PolicyType to a segment.Type.
+// It returns false for the policy types that do not correspond directly to a segment type.
+func SegmentTypeFromPolicyType(policyType beacon.PolicyType) (seg.Type, bool) {
+	switch policyType {
+	case beacon.UpRegPolicy:
+		return seg.TypeUp, true
+	case beacon.DownRegPolicy:
+		return seg.TypeDown, true
+	case beacon.CoreRegPolicy:
+		return seg.TypeCore, true
+	default:
+		return 0, false
+	}
 }

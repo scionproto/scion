@@ -36,6 +36,7 @@ type SegmentRegistrationPlugin interface {
 	New(
 		ctx context.Context,
 		t *TasksConfig,
+		segmentType seg.Type,
 		policyType beacon.PolicyType,
 		config map[string]any,
 	) (SegmentRegistrar, error)
@@ -115,6 +116,7 @@ func (p *DefaultSegmentRegistrationPlugin) ID() string {
 func (p *DefaultSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	t *TasksConfig,
+	segType seg.Type,
 	policyType beacon.PolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
@@ -123,19 +125,6 @@ func (p *DefaultSegmentRegistrationPlugin) New(
 	if t.Metrics != nil {
 		internalErr = metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
 		registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
-	}
-	// Convert the policy type to the segment type.
-	var segType seg.Type
-	switch policyType {
-	case beacon.DownRegPolicy:
-		segType = seg.TypeDown
-	case beacon.UpRegPolicy:
-		segType = seg.TypeUp
-	case beacon.CoreRegPolicy:
-		segType = seg.TypeCore
-	default:
-		return nil, serrors.New("unsupported policy type for segment registration",
-			"policy_type", policyType)
 	}
 	// Create either a local, hidden or remote writer.
 	var writer beaconing.Writer
@@ -151,7 +140,6 @@ func (p *DefaultSegmentRegistrationPlugin) New(
 			}),
 			Store: &seghandler.DefaultStorage{PathDB: t.PathDB},
 		}
-
 	case t.HiddenPathRegistrationCfg != nil:
 		writer = &hiddenpath.BeaconWriter{
 			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
