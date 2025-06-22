@@ -31,11 +31,9 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/revcache"
-	"github.com/scionproto/scion/private/segment/seghandler"
 	"github.com/scionproto/scion/private/trust"
 )
 
@@ -161,14 +159,16 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 // SegmentWriters starts periodic segment registration tasks.
 func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 	if t.Core {
-		return []*periodic.Runner{t.segmentWriter(seg.TypeCore, beacon.CoreRegPolicy)}
+		return []*periodic.Runner{t.segmentWriter(beacon.CoreRegPolicy)}
 	}
 	return []*periodic.Runner{
-		t.segmentWriter(seg.TypeDown, beacon.DownRegPolicy),
-		t.segmentWriter(seg.TypeUp, beacon.UpRegPolicy),
+		t.segmentWriter(beacon.DownRegPolicy),
+		t.segmentWriter(beacon.UpRegPolicy),
 	}
 }
 
+// RegistrarWriter is a beaconing.Writer that invokes the correct segment registrar
+// from the Plugins depending on PolicyType.
 type RegistrarWriter struct {
 	PolicyType beacon.PolicyType
 	Plugins    SegmentRegistrars
@@ -210,74 +210,22 @@ func (w *RegistrarWriter) Write(
 }
 
 func (t *TasksConfig) segmentWriter(
-	segType seg.Type, policyType beacon.PolicyType,
+	policyType beacon.PolicyType,
 ) *periodic.Runner {
-
-	var internalErr, registered metrics.Counter
-	if t.Metrics != nil {
-		internalErr = metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
-		registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
+	if t.registrars == nil {
+		panic("segment registrars not initialized, call InitPlugins first")
 	}
-	var writer beaconing.Writer
-	switch {
-	case segType != seg.TypeDown:
-		writer = &beaconing.LocalWriter{
-			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
-			Registered:     registered,
-			Type:           segType,
-			Intfs:          t.AllInterfaces,
-			Extender: t.extender("registrar", t.IA, t.MTU, func() uint8 {
-				return t.BeaconStore.MaxExpTime(policyType)
-			}),
-			Store: &seghandler.DefaultStorage{PathDB: t.PathDB},
-		}
-
-	case t.HiddenPathRegistrationCfg != nil:
-		writer = &hiddenpath.BeaconWriter{
-			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
-			Registered:     registered,
-			Intfs:          t.AllInterfaces,
-			Extender: t.extender("registrar", t.IA, t.MTU, func() uint8 {
-				return t.BeaconStore.MaxExpTime(policyType)
-			}),
-			RPC: t.HiddenPathRegistrationCfg.RPC,
-			Pather: addrutil.Pather{
-				NextHopper: t.NextHopper,
-			},
-			RegistrationPolicy: t.HiddenPathRegistrationCfg.Policy,
-			AddressResolver: hiddenpath.RegistrationResolver{
-				Router:     t.HiddenPathRegistrationCfg.Router,
-				Discoverer: t.HiddenPathRegistrationCfg.Discoverer,
-			},
-		}
-	default:
-		writer = &beaconing.RemoteWriter{
-			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
-			Registered:     registered,
-			Type:           segType,
-			Intfs:          t.AllInterfaces,
-			Extender: t.extender("registrar", t.IA, t.MTU, func() uint8 {
-				return t.BeaconStore.MaxExpTime(policyType)
-			}),
-			RPC: t.SegmentRegister,
-			Pather: addrutil.Pather{
-				NextHopper: t.NextHopper,
-			},
-		}
+	writer := &RegistrarWriter{
+		PolicyType: policyType,
+		Plugins:    t.registrars,
 	}
 	r := &beaconing.WriteScheduler{
 		Provider: t.BeaconStore,
 		Intfs:    t.AllInterfaces,
-		Type:     segType,
+		Type:     seg.TypeDown, // Type is not used in this case.
 		Writer:   writer,
 		Tick:     beaconing.NewTick(t.RegistrationInterval),
 	}
-	// The period of the task is short because we want to retry quickly
-	// if we fail fast. So during one interval we'll make as many attempts
-	// as we can until we succeed. After succeeding, the task does nothing
-	// until the end of the interval. The interval itself is used as a
-	// timeout. If we fail slow we give up at the end of the cycle.
-	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }
 

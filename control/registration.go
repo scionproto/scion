@@ -195,7 +195,7 @@ func (p *DefaultSegmentRegistrationPlugin) New(
 func (p *DefaultSegmentRegistrationPlugin) Validate(
 	config map[string]any,
 ) error {
-	// Default plugin does not have any configuration.
+	// Default plugin does not have any configuration to validate.
 	return nil
 }
 
