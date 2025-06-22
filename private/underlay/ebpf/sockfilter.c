@@ -12,18 +12,19 @@
 #include <linux/if_ether.h>
 #include "bpf_helpers.h"
 
-// This tells our bpf program which port goes to the AF_PACKET socket.
+// This tells our bpf program which port goes to the AF_PACKET socket (and not the kernel).
 //
-// This is a very small array; e.g. length 1. So it is just a plain sequence
-// of allowed port numbers. Those must be in network byte order.
+// This is a set of port numbers. Those must be in network byte order.
 //
-// This is the exact same data used by kfilter to perform the opposite filtering.
-// Ideally there would be only one map shared by both.
+// This is the same data used by kfilter to perform the opposite filtering. We may have several
+// ports to filter for a given raw socket. We can have several sockets, each with a one-port
+// filter, but we do not want to be bound by that constraint (and it may be less efficient).
+// So we need a map with multiple ports.
 struct {
-  __uint(type, BPF_MAP_TYPE_ARRAY);
-  __type(key, __u32); // Plain int. Index into the array.
-  __type(value, __u16); // A port number.
-  __uint(max_entries, 1);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __type(key, __u16); // A port number.
+  __type(value, __u8); // Nothing. The map is just a set of keys.
+  __uint(max_entries, 64);
 } sock_map_flt SEC(".maps");
 
 // AF_PACKET sockets receive cloned traffic; all of it. We drop everything we
@@ -76,9 +77,8 @@ int bpf_sock_filter(struct __sk_buff *skb)
     return 0;
   }
 
-  __u32 index = 0;
-  __u16 *allowedPort = bpf_map_lookup_elem(&sock_map_flt, &index);
-  if (allowedPort == NULL || *allowedPort != portNbo) {
+  __u8 *allowed = bpf_map_lookup_elem(&sock_map_flt, &portNbo);
+  if (allowed == NULL) {
       return 0;
   }
   return skb->len;

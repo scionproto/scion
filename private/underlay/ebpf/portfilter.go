@@ -26,72 +26,71 @@ import (
 	"github.com/gopacket/gopacket/afpacket"
 )
 
-// FilterHandle holds both filters and keeps them alive until Closed. prog is the SockFilter
-// program and link refers to the traffic control filter for the kernel stack. As long as such an
-// object exists, the two filters remain active.
-type FilterHandle struct {
-	kLink link.Link
-	kObjs *ebpf.Collection
-	sObjs *ebpf.Collection
-}
-
-// Close causes both filters to go away.
-func (fh *FilterHandle) Close() {
-	fh.kLink.Close()
-	fh.kObjs.Close()
-	fh.sObjs.Close()
-}
-
-func (fh *FilterHandle) Info() (*link.Info, error) {
-	return fh.kLink.Info()
-}
-
-// Loads a port filter bpf socket filter program that only allows UDP traffic to the given port
-// number. This function returns a file descriptor referencing the loaded program (and indirectly,
-// the associated map). This program can then be attached to a (typically raw) socket and will
-// filter the traffic to be delivered to that socket. (For example, with Go TPacket:
-// myTpacketHandle.SetEBPF(filter_fd). When the socket is closed the program and its
-// map are discarded by the kernel.
-//
-// Note that multiple filters could end-up attached to the same network interface. This should work
-// but it would be more efficient to discover that a filter is already in place and simply expand
-// its table. An embelishment for later,
-//
-// For any of this to work, the calling process must have the following capabilities:
+// For any of the below to work, the calling process must have the following capabilities:
 // cap_bpf, cap_net_admin, cap_net_raw. For example, the buildfile applies to following command
 // to the portfilter_test executable:
 //
-//	/usr/bin/sudo setcap "cap_bpf+ep cap_net_admin+ep cap_net_raw+ep" $@
-func bpfKFilter(ifIndex int, port uint16) (link.Link, *ebpf.Collection, error) {
-	spec, err := loadKfilter()
-	if err != nil {
-		return nil, nil, err
-	}
-	coll, err := ebpf.NewCollection(spec)
-	if err != nil {
-		return nil, nil, err
-	}
-	// We only need the collection to initialize stuff.
-	defer coll.Close()
+//	/usr/bin/sudo setcap "cap_bpf+ep cap_net_admin+ep cap_net_raw+ep" executable_file
 
-	// We keep the program.
-	prog := coll.Programs["bpf_k_filter"]
-	if prog == nil {
-		panic("no program named bpf_k_filter found")
-	}
+// KFilterHandle holds the interface->kernel filter and keeps it alive until Closed. Link refers to
+// the traffic control filter for the kernel stack. As long as such an object exists, the filter
+// remain active. kObjs refers to the filter resources; that is the program and its map.
+type KFilterHandle struct {
+	kLink link.Link
+	kObjs *ebpf.Collection
+}
 
-	// Now load the map and populate it with our port mapping.
-	myMap := coll.Maps["k_map_flt"]
+// Close causes the filter to go away.
+func (kf *KFilterHandle) Close() {
+	kf.kLink.Close()
+	kf.kObjs.Close()
+}
+
+// Adds the given port to the map of the given filter. As a result UDP/IP packets destined to that
+// port will be filtered out from the kernel networking stack.
+func (kf *KFilterHandle) AddPort(port uint16) {
+	myMap := kf.kObjs.Maps["k_map_flt"]
 	if myMap == nil {
 		panic(fmt.Errorf("no map named k_map_flt found"))
 	}
 
 	// map.Put plays crystal ball with key and value so it accepts either
 	// pointers or values.
-	idx := uint32(0)
 	portNbo := htons(port)
-	if err := myMap.Put(idx, portNbo); err != nil {
-		panic(fmt.Sprintf("error: %v, key=%p, val=%p\n", err, &idx, &portNbo))
+	b := uint8(0)
+	if err := myMap.Put(portNbo, b); err != nil {
+		panic(fmt.Sprintf("error kFilter AddPort: %v, key=%p\n", err, &portNbo))
+	}
+}
+
+// BpfKFilter attaches a SCHED_CLS program to the network interface "ifIndex". The SCHED_CLS program
+// filters all traffic to specified ports from interface "ifIndex" out of the kernel networking
+// stack.
+//
+// Specifically, all traffic is delivered to the kernel networking stack, except UDP/IP to a port
+// that has been added to the map.
+//
+// Note that every call to this function results in attaching a new filter to the interface. The
+// filters operate serially.
+//
+// To insert ports into the filter's map, use the AddPort method.
+//
+// Returns: a handle referring to the program and map. Calling the handle's Close() method will
+// discard both.
+func BpfKFilter(ifIndex int) (*KFilterHandle, error) {
+	spec, err := loadKfilter()
+	if err != nil {
+		return nil, err
+	}
+	coll, err := ebpf.NewCollection(spec)
+	if err != nil {
+		return nil, err
+	}
+
+	// We keep the program.
+	prog := coll.Programs["bpf_k_filter"]
+	if prog == nil {
+		panic("no program named bpf_k_filter found")
 	}
 
 	// Attach the program to the interface. We attach it at head; it has almost zero cost.
@@ -101,11 +100,61 @@ func bpfKFilter(ifIndex int, port uint16) (link.Link, *ebpf.Collection, error) {
 		Attach:    ebpf.AttachTCXIngress,
 		Anchor:    link.Head(),
 	})
+	if err != nil {
+		prog.Close()
+		coll.Close()
+		return nil, err
+	}
 
-	return l, coll, err
+	// Bw compat for now.
+	kf := &KFilterHandle{kLink: l, kObjs: coll}
+	return kf, nil
 }
 
-func bpfSockFilter(afp *afpacket.TPacket, port uint16) (*ebpf.Collection, error) {
+// SFilterHandle holds the socket->application filter and keeps it alive until Closed. sObjs is the
+// SockFilter rsources; that is, the program and its map. As long as such an object exists, the
+// filter remains active.
+type SFilterHandle struct {
+	sObjs *ebpf.Collection
+}
+
+// Close causes the filter to go away.
+func (fh *SFilterHandle) Close() {
+	fh.sObjs.Close()
+}
+
+// Adds the given port to the map of the given filter. As a result UDP/IP packets destined to that
+// port will be delivered to the associated socket.
+func (sf *SFilterHandle) AddPort(port uint16) {
+	// Now load the map and populate it with our port mapping.
+	myMap := sf.sObjs.Maps["sock_map_flt"]
+	if myMap == nil {
+		panic(fmt.Errorf("no map named sock_map_flt found"))
+	}
+
+	// map.Put plays crystal ball with key and value so it accepts either
+	// pointers or values.
+	portNbo := htons(port)
+	b := uint8(0)
+	if err := myMap.Put(portNbo, b); err != nil {
+		panic(fmt.Sprintf("error sFilter AddPort: %v, key=%p\n", err, &portNbo))
+	}
+}
+
+// BpfSockFilter attaches a SOCK_FILTER program to the raw socket "afp".  The SOCK_FILTER program
+// only allows traffic to specified ports to reach the socket referred to by "afp". Only the
+// following traffic is delivered to the socket:
+//
+// UDP/IP: only if the destination port has been added to the map.
+// ARP: all
+// ICMPv6: all
+//
+// Note this function replaces any SOCK_FILTER already attached to the socket. There can be only
+// one. To insert ports into the filter's map, use the AddPort method.
+//
+// Returns: a handle referring to the program and map. Calling the handle's Close() method will
+// discard both.
+func BpfSFilter(afp *afpacket.TPacket) (*SFilterHandle, error) {
 	spec, err := loadSockfilter()
 	if err != nil {
 		return nil, err
@@ -114,8 +163,6 @@ func bpfSockFilter(afp *afpacket.TPacket, port uint16) (*ebpf.Collection, error)
 	if err != nil {
 		return nil, err
 	}
-	// We only need the collection to initialize stuff.
-	defer coll.Close()
 
 	// We keep the program, so the collection can be closed without closing the program.
 	prog := coll.Programs["bpf_sock_filter"]
@@ -123,57 +170,16 @@ func bpfSockFilter(afp *afpacket.TPacket, port uint16) (*ebpf.Collection, error)
 		panic("no program named pbf_sock_filter found")
 	}
 
-	// Now load the map and populate it with our port mapping.
-	myMap := coll.Maps["sock_map_flt"]
-	if myMap == nil {
-		panic(fmt.Errorf("no map named sock_map_flt found"))
-	}
-
-	// map.Put plays crystal ball with key and value so it accepts either
-	// pointers or values.
-	idx := uint32(0)
-	portNbo := htons(port)
-	if err := myMap.Put(idx, portNbo); err != nil {
-		panic(fmt.Sprintf("error: %v, key=%p, val=%p\n", err, &idx, &portNbo))
-	}
-
 	err = afp.SetEBPF(int32(prog.FD()))
 	if err != nil {
 		prog.Close()
+		coll.Close()
 		return nil, err
 	}
 
-	return coll, nil
-}
-
-// BpfPortFilter: attaches a SCHED_CLS program to the network interface "ifIndex" and a SOCK_FILTER
-// program to the raw socket "afp". The SCHED_CLS program filters all traffic to port "port" from
-// interface "ifIndex" out of the kernel networking stack. The SOCK_FILTER program only allows
-// traffic to port "port" to reach the socket referred to by "afp".
-//
-// Returns: a handle referring to both programs. Calling the handle's Close() method will discard
-// the programs.
-func BpfPortFilter(
-	ifIndex int,
-	afp *afpacket.TPacket,
-	port uint16,
-) (*FilterHandle, error) {
-	kLink, kObjs, err := bpfKFilter(ifIndex, port)
-	if err != nil {
-		return nil, err
-	}
-
-	sObjs, err := bpfSockFilter(afp, port)
-	if err != nil {
-		kLink.Close()
-		return nil, err
-	}
-
-	return &FilterHandle{
-		kLink: kLink,
-		kObjs: kObjs,
-		sObjs: sObjs,
-	}, nil
+	// bw compat for now.
+	sf := &SFilterHandle{sObjs: coll}
+	return sf, nil
 }
 
 func htons(i uint16) uint16 {

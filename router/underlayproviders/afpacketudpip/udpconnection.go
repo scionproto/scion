@@ -36,11 +36,12 @@ import (
 // norm in this case; since a raw socket receives traffic for all ports.
 type udpConnection struct {
 	localMAC     net.HardwareAddr
+	connFilters  udpConnFilters
 	name         string                     // For logs. It's more informative than ifID.
 	link         udpLink                    // Default Link for ingest.
 	links        map[netip.AddrPort]udpLink // Link map for ingest from specific remote addresses.
 	afp          *afpacket.TPacket
-	filter       *ebpf.FilterHandle
+	sFilter      *ebpf.SFilterHandle
 	queue        chan *router.Packet
 	metrics      *router.InterfaceMetrics
 	receiverDone chan struct{}
@@ -80,9 +81,9 @@ func (u *udpConnection) stop() {
 	wasRunning := u.running.Swap(false)
 
 	if wasRunning {
-		u.afp.Close()    // Unblock receiver
-		u.filter.Close() // Discard the filter progs
-		close(u.queue)   // Unblock sender
+		u.afp.Close()  // Unblock receiver
+		close(u.queue) // Unblock sender
+		u.connFilters.Close()
 		<-u.receiverDone
 		<-u.senderDone
 	}
@@ -414,11 +415,10 @@ func newUdpConnection(
 	intf net.Interface,
 	qSize int,
 	connOpener ConnOpener,
-	port uint16,
 	metrics *router.InterfaceMetrics,
 ) (*udpConnection, error) {
 	queue := make(chan *router.Packet, qSize)
-	afp, filter, err := connOpener.Open(intf.Index, port)
+	afp, connFilters, err := connOpener.Open(intf.Index)
 	if err != nil {
 		return nil, err
 	}
@@ -436,9 +436,9 @@ func newUdpConnection(
 	}
 	return &udpConnection{
 		localMAC:     hwAddr,
+		connFilters:  connFilters,
 		name:         intf.Name,
 		afp:          afp,
-		filter:       filter,
 		queue:        queue,
 		links:        make(map[netip.AddrPort]udpLink),
 		metrics:      metrics,

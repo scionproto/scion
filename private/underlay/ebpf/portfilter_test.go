@@ -118,7 +118,10 @@ func TestRawSocket(t *testing.T) {
 		afpacket.OptFrameSize(4096),
 	)
 	require.NoError(t, err)
-	filterA, err := ebpf.BpfPortFilter(intfA.Index, afpHandleA, 50000)
+	kFilterA, err := ebpf.BpfKFilter(intfA.Index)
+	kFilterA.AddPort(50000)
+	sFilterA, err := ebpf.BpfSFilter(afpHandleA)
+	sFilterA.AddPort(50000)
 	require.NoError(t, err)
 	rawAddrA, err := net.ResolveUDPAddr("udp4", "10.123.100.1:50000")
 	require.NoError(t, err)
@@ -135,7 +138,10 @@ func TestRawSocket(t *testing.T) {
 		afpacket.OptPollTimeout(200*time.Millisecond),
 	)
 	require.NoError(t, err)
-	filterB, err := ebpf.BpfPortFilter(intfB.Index, afpHandleB, 50000)
+	kFilterB, err := ebpf.BpfKFilter(intfB.Index)
+	kFilterB.AddPort(50000)
+	sFilterB, err := ebpf.BpfSFilter(afpHandleB)
+	sFilterB.AddPort(50000)
 	require.NoError(t, err)
 
 	rawAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50000")
@@ -176,16 +182,21 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(buf[:5]), "hello")
 
-	// The raw socket shouldn't have gotten anything (except a random ARP).
+	// The raw socket shouldn't have gotten anything (except a random ARP/NDP).
 	for {
 		p, _, err := afpHandleB.ZeroCopyReadPacketData()
 		if errors.Is(err, afpacket.ErrTimeout) {
 			break
 		}
 		if p[12] == 0x06 && p[13] == 0x08 {
+			// ARP
 			continue
 		}
-		t.Fatalf("Received on raw socket: %s\n", p)
+		if p[12] == 0x86 && p[13] == 0xDD {
+			// IPv6 (likely NDP, since we didn't send any v6 packet).
+			continue
+		}
+		t.Fatalf("Received on raw socket: % X\n", p)
 	}
 
 	// To raw sockets; port 50000
@@ -213,8 +224,10 @@ func TestRawSocket(t *testing.T) {
 	afpHandleB.Close()
 	connB.Close()
 	connB2.Close()
-	filterA.Close()
-	filterB.Close()
+	kFilterA.Close()
+	sFilterA.Close()
+	sFilterB.Close()
+	kFilterB.Close()
 }
 
 var pktOptions = gopacket.SerializeOptions{

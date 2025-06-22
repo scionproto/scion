@@ -11,18 +11,21 @@
 #include <linux/udp.h>
 #include "bpf_helpers.h"
 
-// This tells our bpf program which port(s) goes to the AF_PACKET socket.
+// This tells our bpf program which port(s) goes to the AF_PACKET socket and therefore not to the
+// kernel.
 //
-// This is a very small array; e.g. length 1. So it is just a plain sequence of allowed port
-// numbers. Those must be in network byte order.
+// This is a set of port numbers. Those must be in network byte order.
 //
-// This is the exact same data used by portfilter to perform the opposite filtering.
-// Ideally there would be only one map shared by both.
+// This is the same data used by sockfilter to perform the opposite filtering. We may have many
+// ports to filter for a given interface. We could have several one-port filters in series, we would
+// easily exceed the number of filters that can be attached to an interface (not mentionning this
+// would be inefficient). So we need a map with multiple ports.
+
 struct {
-  __uint(type, BPF_MAP_TYPE_ARRAY);
-  __type(key, __u32); // Plain int. Index into the array.
-  __type(value, __u16); // A port number.
-  __uint(max_entries, 1);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __type(key, __u16); // A port number.
+  __type(value, __u8); // Nothing. The map is just a set of keys.
+  __uint(max_entries, 64);
 } k_map_flt SEC(".maps");
 
 // The traffic that goes to the AF_PACKET socket, must not get to the regular kernel networking
@@ -33,7 +36,7 @@ struct {
 // port. If it is UDP and if the port is found in sock_map_filt, then the packet is dropped (because
 // the AF_PACKET socket will get and process it).
 //
-// This is far from ideal because I have yet to find a way to dispatch traffic before it is cloned
+// This is not ideal because I have yet to find a way to dispatch traffic before it is cloned
 // for AF_PACKET handling but after it is turned into an SKB. To solve that problem we need to go to
 // XDP.
 //
@@ -68,9 +71,8 @@ int bpf_k_filter(struct __sk_buff *skb)
       return -1; // TC_NEXT
   }
 
-  __u32 index = 0;
-  __u16 *forbiddenPort = bpf_map_lookup_elem(&k_map_flt, &index);
-  if (forbiddenPort == NULL || *forbiddenPort != portNbo) {
+  __u8 *forbidden = bpf_map_lookup_elem(&k_map_flt, &portNbo);
+  if (forbidden == NULL) {
     return -1; // TC_NEXT
   }
   return 2; // TC_DROP

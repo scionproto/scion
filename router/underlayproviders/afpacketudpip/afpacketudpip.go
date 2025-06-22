@@ -30,6 +30,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/private/underlay/conn"
@@ -45,47 +46,67 @@ var (
 	errDuplicateRemote          = errors.New("duplicate remote address")
 )
 
-// An interface to enable unit testing.
+// udpConnFilters holds the port filter handles.
+// There are scalability concerns regarding the kFilter (attached directly to an interface):  only
+// a limited number of filters can be attached to an interface and it is inefficient to have many.
+// Deduplication is accomplished for free as a result of deduplicating udpConnections: we create
+// only one per interface and add ports to the single filter as we add links sharing it.
+type udpConnFilters struct {
+	kFilter *ebpf.KFilterHandle
+	sFilter *ebpf.SFilterHandle
+}
+
+func (uf udpConnFilters) AddPort(port uint16) {
+	uf.kFilter.AddPort(port)
+	uf.sFilter.AddPort(port)
+}
+
+func (uf udpConnFilters) Close() {
+	uf.kFilter.Close()
+	uf.sFilter.Close()
+}
+
+// An interface to enable unit testing of this specific underlay implementation.
+// (Well... that would still be hard - To be improved).
 type ConnOpener interface {
 	// Creates a connection as specified.
-	Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHandle, error)
+	Open(index int) (*afpacket.TPacket, udpConnFilters, error)
 }
 
 // The default ConnOpener for this underlay: opens a afpacket socket.
-type uo struct{}
+type udpOpener struct{}
 
-// TODO(jiceatscion): we should also make the interface join the ipv6 ndp multicast group,
-// to make sure that we receive address resolution solicitations. The reason this is not
-// strictly needed is because the regular netorking stack has aleady done it for us. The day we
-// no-longer assign our addresses to interfaces via the regular networking stack, all this
-// will stop working.
-func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHandle, error) {
+func (uo udpOpener) Open(index int) (*afpacket.TPacket, udpConnFilters, error) {
 	intf, err := net.InterfaceByIndex(index)
 	if err != nil {
-		return nil, nil, serrors.Wrap("finding interface", err)
+		return nil, udpConnFilters{}, serrors.Wrap("finding interface", err)
 	}
-	// Note that we have to make the TPacket non-blocking eventhough we have nothing special to do
-	// in the absence of traffic, because it needs to be drained of packets after adding the filter.
-	// The draining, and only that, requires a non-blocking operation. We use a longish timeout
-	// since the rest of the time we don't actually want to wake up.
+
+	// We have to make the TPacket non-blocking because it needs to be drained of packets after
+	// adding the filter. We use a longish timeout since the rest of the time we don't actually want
+	// to wake up.  Caution: an afpacket socket normally receives its own outgoing traffic.
+	// mpkSender configures the socket to avoid that but if you ever remove mpkSender, you
+	// need to do something about it. The bpf does *not* do it either and should not. It is
+	// inefficient.
 	handle, err := afpacket.NewTPacket(
 		afpacket.OptInterface(intf.Name),
 		afpacket.OptPollTimeout(200*time.Millisecond),
 		// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
 	)
 	if err != nil {
-		return nil, nil, serrors.Wrap("creating TPacket", err)
+		return nil, udpConnFilters{}, serrors.Wrap("creating TPacket", err)
 	}
 
-	// Caution: an afpacket socket normally receives its own outgoing traffic. mpkSender configures
-	// the socket to avoid that but if you ever remove mpkSender, you need to do something about it.
-	// The bpf does *not* do it either and should not. It is inefficient.
-
-	filter, err := ebpf.BpfPortFilter(index, handle, localPort)
+	kFilter, err := ebpf.BpfKFilter(index)
 	if err != nil {
-		return nil, nil, serrors.Wrap(fmt.Sprintf(
-			"adding port filter to inteface %s", intf.Name,
+		return nil, udpConnFilters{}, serrors.Wrap(fmt.Sprintf(
+			"adding port filter to interface %s", intf.Name,
 		), err)
+	}
+	sFilter, err := ebpf.BpfSFilter(handle)
+	if err != nil {
+		return nil, udpConnFilters{}, serrors.Wrap(fmt.Sprintf(
+			"adding port filter to rawSocket %s", intf.Name), err)
 	}
 
 	// Drain
@@ -95,12 +116,8 @@ func (_ uo) Open(index int, localPort uint16) (*afpacket.TPacket, *ebpf.FilterHa
 			break
 		}
 	}
-	return handle, filter, nil
-}
-
-type IfKey struct {
-	ifIndex int
-	port    uint16
+	log.Debug("Added port filter to interface", "name", intf.Name)
+	return handle, udpConnFilters{kFilter, sFilter}, nil
 }
 
 // provider implements UnderlayProvider by making and returning Udp/Ip links on top of
@@ -109,8 +126,8 @@ type provider struct {
 	mu                sync.Mutex // Prevents race between adding connections and Start/Stop.
 	batchSize         int
 	allLinks          map[netip.AddrPort]udpLink
-	allConnections    map[IfKey]*udpConnection // One per network interface and port combination.
-	connOpener        ConnOpener               // uo{}, except for unit tests
+	allConnections    map[int]*udpConnection // One per network interface and port combination.
+	connOpener        ConnOpener             // uo{}, except for unit tests
 	svc               *router.Services[netip.AddrPort]
 	receiveBufferSize int
 	sendBufferSize    int
@@ -151,8 +168,8 @@ func (providerFactory) New(
 	return &provider{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
-		allConnections:    make(map[IfKey]*udpConnection),
-		connOpener:        uo{},
+		allConnections:    make(map[int]*udpConnection),
+		connOpener:        udpOpener{},
 		svc:               router.NewServices[netip.AddrPort](),
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
@@ -294,18 +311,22 @@ func (u *provider) getUdpConnection(
 				if ok {
 					// We match loopback addresses to the lo interface in support of how
 					// we configure test topologies when running with the supervisor: loopack
-					// addresses are not explicitly assigned.
+					// addresses are not explicitly assigned. There is exactly one udpConnection
+					// per socket, one socket per interface.
 					if ipNet.IP.String() == localAddrStr ||
 						(localAddr.IsLoopback() && intf.Name == "lo") {
 
-						c := u.allConnections[IfKey{intf.Index, localPort}]
+						c := u.allConnections[intf.Index]
 						if c == nil {
-							c, err = newUdpConnection(intf, qSize, u.connOpener, localPort, metrics)
+							log.Debug("New UDP connection creeated", "addr", localAddrStr,
+								"interface", intf.Name)
+							c, err = newUdpConnection(intf, qSize, u.connOpener, metrics)
 							if err != nil {
 								return nil, err
 							}
-							u.allConnections[IfKey{intf.Index, localPort}] = c
+							u.allConnections[intf.Index] = c
 						}
+						c.connFilters.AddPort(localPort)
 						if localAddr.Is6() {
 							addrBytes := localAddr.As16()
 							mcastGrp := net.HardwareAddr{
