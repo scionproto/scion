@@ -124,7 +124,7 @@ func TestRegistrarRun(t *testing.T) {
 						res = append(res, testBeacon(g, desc))
 					}
 					return map[string][]beacon.Beacon{
-						beacon.DEFAULT_PLUGIN_ID: res,
+						beacon.DEFAULT_GROUP_ID: res,
 					}, nil
 				})
 
@@ -216,7 +216,7 @@ func TestRegistrarRun(t *testing.T) {
 						res = append(res, testBeacon(g, desc))
 					}
 					return map[string][]beacon.Beacon{
-						beacon.DEFAULT_PLUGIN_ID: res,
+						beacon.DEFAULT_GROUP_ID: res,
 					}, nil
 				})
 			type regMsg struct {

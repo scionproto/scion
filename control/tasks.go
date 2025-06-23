@@ -90,7 +90,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy)
 	segmentRegistrars := make(SegmentRegistrars)
 	for _, policy := range policies {
 		for _, regPolicy := range policy.RegistrationPolicies {
-			plugin, ok := SegmentRegistrationPlugins[regPolicy.Plugin]
+			plugin, ok := GetPlugin(regPolicy.Plugin)
 			if !ok {
 				return serrors.New("unknown segment registration plugin",
 					"plugin", regPolicy.Plugin)
@@ -208,7 +208,9 @@ type RegistrarWriter struct {
 var _ beaconing.Writer = (*RegistrarWriter)(nil)
 
 func (w *RegistrarWriter) Write(
-	ctx context.Context, beacons map[string][]beacon.Beacon, peers []uint16,
+	ctx context.Context,
+	beacons beacon.GroupedBeacons,
+	peers []uint16,
 ) (beaconing.WriteStats, error) {
 	logger := log.FromCtx(ctx)
 	writeStats := beaconing.WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
@@ -229,7 +231,7 @@ func (w *RegistrarWriter) Write(
 				logger.Error("Failed to register segment", "segment_id", id, "err", err)
 			}
 		}
-		// Extend the write stats with the bucket-specific write stats.
+		// Extend the write stats with the plugin-specific write stats.
 		writeStats.Extend(stats.WriteStats)
 	}
 	return writeStats, nil
@@ -405,7 +407,7 @@ type Store interface {
 	// parsing error) occurs; otherwise, it returns a slice containing the beacons (which
 	// potentially could be empty when no beacon is found) and no error.
 	// The selections is based on the configured propagation policy for the requested segment type.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) (map[string][]beacon.Beacon, error)
+	SegmentsToRegister(ctx context.Context, segType seg.Type) (beacon.GroupedBeacons, error)
 	// InsertBeacon adds a verified beacon to the store, ignoring revocations.
 	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
 	// UpdatePolicy updates the policy. Beacons that are filtered by all

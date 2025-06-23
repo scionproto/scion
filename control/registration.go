@@ -78,11 +78,11 @@ func (s SegmentRegistrars) RegisterDefault(
 	if _, ok := s[policyType]; !ok {
 		s[policyType] = make(map[string]SegmentRegistrar)
 	}
-	if _, ok := s[policyType][beacon.DEFAULT_PLUGIN_ID]; ok {
+	if _, ok := s[policyType][beacon.DEFAULT_GROUP_ID]; ok {
 		return serrors.New("default registrar already registered for policy type",
 			"policy_type", policyType)
 	}
-	s[policyType][beacon.DEFAULT_PLUGIN_ID] = registrar
+	s[policyType][beacon.DEFAULT_GROUP_ID] = registrar
 	return nil
 }
 
@@ -110,15 +110,20 @@ type RegistrationStats struct {
 	WriteStats beaconing.WriteStats
 }
 
-// SegmentRegistrationPlugins is a global map of registered segment registration plugins.
-var SegmentRegistrationPlugins = map[string]SegmentRegistrationPlugin{}
+// segmentRegistrationPlugins is a global map of registered segment registration plugins.
+var segmentRegistrationPlugins = map[string]SegmentRegistrationPlugin{}
 
 func RegisterPlugin(p SegmentRegistrationPlugin) {
 	id := p.ID()
-	if _, ok := SegmentRegistrationPlugins[id]; ok {
+	if _, ok := segmentRegistrationPlugins[id]; ok {
 		panic(fmt.Sprintf("plugin %q already registered", id))
 	}
-	SegmentRegistrationPlugins[id] = p
+	segmentRegistrationPlugins[id] = p
+}
+
+func GetPlugin(id string) (SegmentRegistrationPlugin, bool) {
+	p, ok := segmentRegistrationPlugins[id]
+	return p, ok
 }
 
 type DefaultSegmentRegistrationPlugin struct{}
@@ -126,7 +131,7 @@ type DefaultSegmentRegistrationPlugin struct{}
 var _ SegmentRegistrationPlugin = (*DefaultSegmentRegistrationPlugin)(nil)
 
 func (p *DefaultSegmentRegistrationPlugin) ID() string {
-	return beacon.DEFAULT_PLUGIN_ID
+	return beacon.DEFAULT_GROUP_ID
 }
 
 func (p *DefaultSegmentRegistrationPlugin) New(
@@ -216,7 +221,7 @@ func (r *DefaultSegmentRegistrar) RegisterSegments(
 	peers []uint16,
 ) (RegistrationStats, error) {
 	writeStats, err := r.writer.Write(ctx, map[string][]beacon.Beacon{
-		beacon.DEFAULT_PLUGIN_ID: segments,
+		beacon.DEFAULT_GROUP_ID: segments,
 	}, peers)
 	if err != nil {
 		return RegistrationStats{}, serrors.Wrap("failed to register segments", err,

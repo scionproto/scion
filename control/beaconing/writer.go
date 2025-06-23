@@ -45,7 +45,7 @@ type SegmentProvider interface {
 	// SegmentsToRegister returns the segments that should be registered for the
 	// given segment type. The returned slice must not be nil if the returned
 	// error is nil.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) (map[string][]beacon.Beacon, error)
+	SegmentsToRegister(ctx context.Context, segType seg.Type) (beacon.GroupedBeacons, error)
 }
 
 // SegmentStore stores segments in the path database.
@@ -83,7 +83,7 @@ type Writer interface {
 	// interface IDs of the local IA. The returned statistics should provide
 	// insights about how many segments have been successfully written. The
 	// method should return an error if the writing did fail.
-	Write(ctx context.Context, segs map[string][]beacon.Beacon, peers []uint16) (WriteStats, error)
+	Write(ctx context.Context, segs beacon.GroupedBeacons, peers []uint16) (WriteStats, error)
 }
 
 var _ periodic.Task = (*WriteScheduler)(nil)
@@ -144,6 +144,7 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 }
 
 // RemoteWriter writes segments via an RPC to the source AS of a segment.
+// It only writes the segments that are grouped under beacon.DEFAULT_GROUP_ID.
 type RemoteWriter struct {
 	// InternalErrors counts errors that happened before being able to send a
 	// segment to a remote. This can be during terminating the segment, looking
@@ -165,9 +166,11 @@ type RemoteWriter struct {
 }
 
 // Write writes the segment at the source AS of the segment.
+//
+// Only beacons[beacon.DEFAULT_GROUP_ID] are considered.
 func (r *RemoteWriter) Write(
 	ctx context.Context,
-	segments map[string][]beacon.Beacon,
+	beacons beacon.GroupedBeacons,
 	peers []uint16,
 ) (WriteStats, error) {
 
@@ -175,7 +178,7 @@ func (r *RemoteWriter) Write(
 	s := newSummary()
 	var expected int
 	var wg sync.WaitGroup
-	for _, b := range segments[beacon.DEFAULT_PLUGIN_ID] {
+	for _, b := range beacons[beacon.DEFAULT_GROUP_ID] {
 		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}
@@ -205,6 +208,7 @@ func (r *RemoteWriter) Write(
 }
 
 // LocalWriter can be used to write segments in the SegmentStore.
+// It only writes the segments that are grouped under beacon.DEFAULT_GROUP_ID.
 type LocalWriter struct {
 	// InternalErrors counts errors that happened before being able to send a
 	// segment to a remote. This can for example be during the termination of
@@ -224,16 +228,19 @@ type LocalWriter struct {
 }
 
 // Write terminates the segments and registers them in the SegmentStore.
+//
+// Only beacons[beacon.DEFAULT_GROUP_ID] are considered.
 func (r *LocalWriter) Write(
 	ctx context.Context,
-	segments map[string][]beacon.Beacon,
+	beacons beacon.GroupedBeacons,
 	peers []uint16,
 ) (WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
-	beacons := make(map[string]beacon.Beacon)
+	// beacons keyed with their logging ID.
+	logBeacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
-	for _, b := range segments[beacon.DEFAULT_PLUGIN_ID] {
+	for _, b := range beacons[beacon.DEFAULT_GROUP_ID] {
 		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}
@@ -244,7 +251,7 @@ func (r *LocalWriter) Write(
 			continue
 		}
 		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: b.Segment})
-		beacons[b.Segment.GetLoggingID()] = b
+		logBeacons[b.Segment.GetLoggingID()] = b
 	}
 	if len(toRegister) == 0 {
 		return WriteStats{}, nil
@@ -254,8 +261,8 @@ func (r *LocalWriter) Write(
 		metrics.CounterInc(r.InternalErrors)
 		return WriteStats{}, err
 	}
-	r.updateMetricsFromStat(stats, beacons)
-	sum := summarizeStats(stats, beacons)
+	r.updateMetricsFromStat(stats, logBeacons)
+	sum := summarizeStats(stats, logBeacons)
 	return WriteStats{Count: sum.count, StartIAs: sum.srcs}, nil
 }
 
