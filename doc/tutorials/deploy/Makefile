@@ -33,3 +33,9 @@ down:
 purge: down
 	docker ps -aq --filter "name=scion" | xargs -r docker rm -f
 	docker network ls -q --filter "name=sciontutorial" | xargs -r docker network rm
+
+vm-up:
+	vagrant up
+
+vm-purge:
+	vagrant destroy
