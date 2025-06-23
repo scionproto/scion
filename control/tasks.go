@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
-	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -95,7 +94,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy)
 				return serrors.New("unknown segment registration plugin",
 					"plugin", regPolicy.Plugin)
 			}
-			segType, ok := SegmentTypeFromPolicyType(policy.Type)
+			segType, ok := SegmentTypeFromRegPolicyType(policy.Type)
 			if !ok {
 				return serrors.New("unsupported policy type for segment registration plugin",
 					"policy_type", policy.Type)
@@ -122,7 +121,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy)
 		beacon.CoreRegPolicy,
 	} {
 		if _, ok := segmentRegistrars[policyType]; !ok {
-			segType, _ := SegmentTypeFromPolicyType(policyType)
+			segType, _ := SegmentTypeFromRegPolicyType(policyType)
 			defaultRegistrar, err := defaultPlugin.New(
 				ctx, t, segType, policyType, nil,
 			)
@@ -198,52 +197,14 @@ func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 	}
 }
 
-// RegistrarWriter is a beaconing.Writer that invokes the correct segment registrar
-// from the Plugins depending on PolicyType.
-type RegistrarWriter struct {
-	PolicyType beacon.PolicyType
-	Plugins    SegmentRegistrars
-}
-
-var _ beaconing.Writer = (*RegistrarWriter)(nil)
-
-func (w *RegistrarWriter) Write(
-	ctx context.Context,
-	beacons beacon.GroupedBeacons,
-	peers []uint16,
-) (beaconing.WriteStats, error) {
-	logger := log.FromCtx(ctx)
-	writeStats := beaconing.WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
-	for name, beacons := range beacons {
-		registrar, err := w.Plugins.Get(w.PolicyType, name)
-		if err != nil {
-			return beaconing.WriteStats{}, serrors.Wrap("getting segment registrar", err,
-				"policy", w.PolicyType, "name", name)
-		}
-		stats, err := registrar.RegisterSegments(ctx, beacons, peers)
-		if err != nil {
-			return beaconing.WriteStats{}, serrors.Wrap("registering segments", err,
-				"policy", name)
-		}
-		// Log the segment-specific errors encountered during registration.
-		for id, err := range stats.Status {
-			if err != nil {
-				logger.Error("Failed to register segment", "segment_id", id, "err", err)
-			}
-		}
-		// Extend the write stats with the plugin-specific write stats.
-		writeStats.Extend(stats.WriteStats)
-	}
-	return writeStats, nil
-}
-
+// segmentWriter starts a periodic segment registration task for the given policy type.
 func (t *TasksConfig) segmentWriter(
 	policyType beacon.PolicyType,
 ) *periodic.Runner {
 	if t.registrars == nil {
 		panic("segment registrars not initialized, call InitPlugins first")
 	}
-	segType, ok := SegmentTypeFromPolicyType(policyType)
+	segType, ok := SegmentTypeFromRegPolicyType(policyType)
 	if !ok {
 		panic(serrors.New("invalid policy type for segment writer",
 			"policy_type", policyType))
@@ -252,7 +213,7 @@ func (t *TasksConfig) segmentWriter(
 		Provider: t.BeaconStore,
 		Intfs:    t.AllInterfaces,
 		Type:     segType,
-		Writer: &RegistrarWriter{
+		Writer: &GroupWriter{
 			PolicyType: policyType,
 			Plugins:    t.registrars,
 		},

@@ -66,9 +66,11 @@ func loadPolicy(fn string, t beacon.PolicyType) (beacon.Policy, error) {
 	return policy, nil
 }
 
-// SegmentTypeFromPolicyType converts a beacon.PolicyType to a segment.Type.
-// It returns false for the policy types that do not correspond directly to a segment type.
-func SegmentTypeFromPolicyType(policyType beacon.PolicyType) (seg.Type, bool) {
+// SegmentTypeFromRegPolicyType converts a registration beacon.PolicyType to a segment.Type.
+//
+// The second return value is false iff the conversion fails. This happens if the given policy
+// type is not a registration policy, e.g., PropPolicy.
+func SegmentTypeFromRegPolicyType(policyType beacon.PolicyType) (seg.Type, bool) {
 	switch policyType {
 	case beacon.UpRegPolicy:
 		return seg.TypeUp, true
@@ -76,6 +78,7 @@ func SegmentTypeFromPolicyType(policyType beacon.PolicyType) (seg.Type, bool) {
 		return seg.TypeDown, true
 	case beacon.CoreRegPolicy:
 		return seg.TypeCore, true
+	// Not a registration policy
 	default:
 		return 0, false
 	}

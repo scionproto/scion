@@ -144,7 +144,7 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 }
 
 // RemoteWriter writes segments via an RPC to the source AS of a segment.
-// It only writes the segments that are grouped under beacon.DEFAULT_GROUP_ID.
+// It only writes the segments that are grouped under beacon.DEFAULT_GROUP.
 type RemoteWriter struct {
 	// InternalErrors counts errors that happened before being able to send a
 	// segment to a remote. This can be during terminating the segment, looking
@@ -167,7 +167,7 @@ type RemoteWriter struct {
 
 // Write writes the segment at the source AS of the segment.
 //
-// Only beacons[beacon.DEFAULT_GROUP_ID] are considered.
+// Only beacons[beacon.DEFAULT_GROUP] are considered.
 func (r *RemoteWriter) Write(
 	ctx context.Context,
 	beacons beacon.GroupedBeacons,
@@ -178,7 +178,7 @@ func (r *RemoteWriter) Write(
 	s := newSummary()
 	var expected int
 	var wg sync.WaitGroup
-	for _, b := range beacons[beacon.DEFAULT_GROUP_ID] {
+	for _, b := range beacons[beacon.DEFAULT_GROUP] {
 		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}
@@ -208,7 +208,7 @@ func (r *RemoteWriter) Write(
 }
 
 // LocalWriter can be used to write segments in the SegmentStore.
-// It only writes the segments that are grouped under beacon.DEFAULT_GROUP_ID.
+// It only writes the segments that are grouped under beacon.DEFAULT_GROUP.
 type LocalWriter struct {
 	// InternalErrors counts errors that happened before being able to send a
 	// segment to a remote. This can for example be during the termination of
@@ -229,7 +229,7 @@ type LocalWriter struct {
 
 // Write terminates the segments and registers them in the SegmentStore.
 //
-// Only beacons[beacon.DEFAULT_GROUP_ID] are considered.
+// Only beacons[beacon.DEFAULT_GROUP] are considered.
 func (r *LocalWriter) Write(
 	ctx context.Context,
 	beacons beacon.GroupedBeacons,
@@ -240,7 +240,7 @@ func (r *LocalWriter) Write(
 	// beacons keyed with their logging ID.
 	logBeacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
-	for _, b := range beacons[beacon.DEFAULT_GROUP_ID] {
+	for _, b := range beacons[beacon.DEFAULT_GROUP] {
 		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}

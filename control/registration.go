@@ -20,7 +20,9 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
@@ -28,8 +30,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
-
-var DEFAULT_PLUGIN = &DefaultSegmentRegistrationPlugin{}
 
 type SegmentRegistrationPlugin interface {
 	// ID returns the unique identifier of the plugin.
@@ -78,11 +78,11 @@ func (s SegmentRegistrars) RegisterDefault(
 	if _, ok := s[policyType]; !ok {
 		s[policyType] = make(map[string]SegmentRegistrar)
 	}
-	if _, ok := s[policyType][beacon.DEFAULT_GROUP_ID]; ok {
+	if _, ok := s[policyType][beacon.DEFAULT_GROUP]; ok {
 		return serrors.New("default registrar already registered for policy type",
 			"policy_type", policyType)
 	}
-	s[policyType][beacon.DEFAULT_GROUP_ID] = registrar
+	s[policyType][beacon.DEFAULT_GROUP] = registrar
 	return nil
 }
 
@@ -131,7 +131,7 @@ type DefaultSegmentRegistrationPlugin struct{}
 var _ SegmentRegistrationPlugin = (*DefaultSegmentRegistrationPlugin)(nil)
 
 func (p *DefaultSegmentRegistrationPlugin) ID() string {
-	return beacon.DEFAULT_GROUP_ID
+	return beacon.DEFAULT_GROUP
 }
 
 func (p *DefaultSegmentRegistrationPlugin) New(
@@ -221,15 +221,59 @@ func (r *DefaultSegmentRegistrar) RegisterSegments(
 	peers []uint16,
 ) (RegistrationStats, error) {
 	writeStats, err := r.writer.Write(ctx, map[string][]beacon.Beacon{
-		beacon.DEFAULT_GROUP_ID: segments,
+		beacon.DEFAULT_GROUP: segments,
 	}, peers)
 	if err != nil {
 		return RegistrationStats{}, serrors.Wrap("failed to register segments", err,
 			"seg_type", r.segType, "num_segments", len(segments), "peers", peers)
 	}
-	// TODO: Populate the Status field. This is a relatively big task!
+	// TODO: Populate the Status field.
 	return RegistrationStats{
 		Status:     make(map[string]error),
 		WriteStats: writeStats,
 	}, nil
+}
+
+// GroupWriter is a beaconing.Writer that writes beacons across multiple segment registrars
+// registered in Plugins. It is parameterized by a PolicyType, which determines the registrars
+// that will be used.
+type GroupWriter struct {
+	PolicyType beacon.PolicyType
+	Plugins    SegmentRegistrars
+}
+
+var _ beaconing.Writer = (*GroupWriter)(nil)
+
+// Write writes beacons to multiple segment registrars based on the PolicyType.
+//
+// For every group of beacons, the correct registrar is selected based on the
+// PolicyType and the group name (which should correspond to the plugin ID).
+func (w *GroupWriter) Write(
+	ctx context.Context,
+	beacons beacon.GroupedBeacons,
+	peers []uint16,
+) (beaconing.WriteStats, error) {
+	logger := log.FromCtx(ctx)
+	writeStats := beaconing.WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
+	for name, beacons := range beacons {
+		registrar, err := w.Plugins.Get(w.PolicyType, name)
+		if err != nil {
+			return beaconing.WriteStats{}, serrors.Wrap("getting segment registrar", err,
+				"policy", w.PolicyType, "name", name)
+		}
+		stats, err := registrar.RegisterSegments(ctx, beacons, peers)
+		if err != nil {
+			return beaconing.WriteStats{}, serrors.Wrap("registering segments", err,
+				"policy", name)
+		}
+		// Log the segment-specific errors encountered during registration.
+		for id, err := range stats.Status {
+			if err != nil {
+				logger.Error("Failed to register segment", "segment_id", id, "err", err)
+			}
+		}
+		// Extend the write stats with the plugin-specific write stats.
+		writeStats.Extend(stats.WriteStats)
+	}
+	return writeStats, nil
 }

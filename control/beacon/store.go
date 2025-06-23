@@ -63,12 +63,12 @@ func applyStoreOptions(opts []StoreOption) storeOptions {
 // be forwarded to that plugin.
 type GroupedBeacons map[string][]Beacon
 
-// DEFAULT_GROUP_ID is the ID of the default beacon group.
+// DEFAULT_GROUP defines the default beacon group.
 // This means that if a policy does not define any registration policies,
 // all the beacons should be put into this group.
 //
 // This should also correspond to the ID of the default plugin.
-const DEFAULT_GROUP_ID string = "default"
+const DEFAULT_GROUP string = "default"
 
 // groupBeacons takes a slice of beacons and groups them according to the
 // registration policies defined in the provided policy, i.e., the plugin name.
@@ -76,11 +76,11 @@ const DEFAULT_GROUP_ID string = "default"
 // The beacons that do not match any registration policy are dropped.
 //
 // If the policy defines no registration policy, all the beacons will be put into
-// the default group, indexed by DEFAULT_GROUP_ID.
+// the default group, indexed by DEFAULT_GROUP.
 func groupBeacons(beacons []Beacon, policy *Policy) GroupedBeacons {
 	if len(policy.RegistrationPolicies) == 0 {
 		return map[string][]Beacon{
-			DEFAULT_GROUP_ID: beacons,
+			DEFAULT_GROUP: beacons,
 		}
 	}
 	// Go through every beacon, and group it into the first registration policy
