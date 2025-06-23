@@ -27,7 +27,6 @@ import (
 	"github.com/gopacket/gopacket/layers"
 
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/private/underlay/ebpf"
 	"github.com/scionproto/scion/router"
 )
 
@@ -41,7 +40,6 @@ type udpConnection struct {
 	link         udpLink                    // Default Link for ingest.
 	links        map[netip.AddrPort]udpLink // Link map for ingest from specific remote addresses.
 	afp          *afpacket.TPacket
-	sFilter      *ebpf.SFilterHandle
 	queue        chan *router.Packet
 	metrics      *router.InterfaceMetrics
 	receiverDone chan struct{}
@@ -96,8 +94,9 @@ func (u *udpConnection) handleArp(arp *layers.ARP) {
 		arp.ProtAddressSize != 4 {
 		return
 	}
-	targetIP := netip.AddrFrom4([4]byte(arp.DstProtAddress))
-	senderIP := netip.AddrFrom4([4]byte(arp.SourceProtAddress))
+	var targetIP netip.Addr
+	var senderIP netip.Addr
+	var rcptIP netip.Addr
 
 	// Get the MACs out of the packet too; it's all just slices referring to it.
 	// Reduce them to just 6 bytes while we are at it.
@@ -109,14 +108,24 @@ func (u *udpConnection) handleArp(arp *layers.ARP) {
 	// TODO(jiceatscion): ignore gratuitous reqs
 	isReq := (arp.Operation == layers.ARPRequest)
 
+	if isReq {
+		targetIP = netip.AddrFrom4([4]byte(arp.DstProtAddress))
+		senderIP = netip.AddrFrom4([4]byte(arp.SourceProtAddress))
+		rcptIP = targetIP
+	} else {
+		targetIP = netip.AddrFrom4([4]byte(arp.SourceProtAddress))
+		senderIP = targetIP
+		rcptIP = netip.AddrFrom4([4]byte(arp.DstProtAddress))
+	}
+
 	// We have to pass all requests to all links. Sometimes the sender uses an IP address
 	// that we don't know about (e.g. the traffic generator uses interfaces with a different
 	// IP assigned - which the arp lib then uses to make requests).
 	for _, l := range u.links {
-		l.handleNeighbor(isReq, targetIP, senderIP, senderMAC)
+		l.handleNeighbor(isReq, targetIP, senderIP, rcptIP, senderMAC)
 	}
 	if u.link != nil {
-		u.link.handleNeighbor(isReq, targetIP, senderIP, senderMAC)
+		u.link.handleNeighbor(isReq, targetIP, senderIP, rcptIP, senderMAC)
 	}
 }
 
@@ -129,11 +138,12 @@ func (u *udpConnection) handleArp(arp *layers.ARP) {
 // IP of pkt sender:     from IP header   |   TargetAddress
 // MAC to be found:      -                |   OptTargetAddress
 // MAC of pkt sender:    OptSourceAddress |   -
-func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP netip.Addr) {
+func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP, dstIP netip.Addr) {
 	data := icmp6.LayerPayload()
 	var isReq bool
 	var valid bool
 	var targetIP netip.Addr
+	var rcptIP netip.Addr
 	var remoteMAC [6]byte
 
 	switch icmp6.TypeCode.Type() {
@@ -146,6 +156,7 @@ func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP netip.Addr) {
 		if !valid {
 			return
 		}
+		rcptIP = targetIP // Even if it arrived via mcast.
 		isReq = true
 		for _, opt := range query.Options {
 			if opt.Type == layers.ICMPv6OptSourceAddress {
@@ -164,6 +175,7 @@ func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP netip.Addr) {
 		if !valid {
 			return
 		}
+		rcptIP = dstIP
 		for _, opt := range response.Options {
 			if opt.Type == layers.ICMPv6OptTargetAddress {
 				if len(opt.Data) != 6 {
@@ -180,10 +192,10 @@ func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP netip.Addr) {
 	// that we don't know about (e.g. the traffic generator uses interfaces with a different
 	// IP assigned - which the arp lib then uses to make requests).
 	for _, l := range u.links {
-		l.handleNeighbor(isReq, targetIP, srcIP, remoteMAC)
+		l.handleNeighbor(isReq, targetIP, srcIP, rcptIP, remoteMAC)
 	}
 	if u.link != nil {
-		u.link.handleNeighbor(isReq, targetIP, srcIP, remoteMAC)
+		u.link.handleNeighbor(isReq, targetIP, srcIP, rcptIP, remoteMAC)
 	}
 }
 
@@ -207,6 +219,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		var ipv6Layer layers.IPv6
 		var udpLayer layers.UDP
 		var srcIP netip.Addr
+		var dstIP netip.Addr
 		var validSrc bool
 
 		// Since it may be recycled...
@@ -263,10 +276,15 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 				// WTF?
 				continue
 			}
+			dstIP, validSrc = netip.AddrFromSlice(ipv6Layer.DstIP)
+			if !validSrc {
+				// WTF?
+				continue
+			}
 			data = ipv6Layer.LayerPayload() // chop off the ip header
 			if ipv6Layer.NextHeader == layers.IPProtocolICMPv6 {
 				if err := icmp6Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err == nil {
-					u.handleV6NDP(&icmp6Layer, srcIP) // The packet stays with us.
+					u.handleV6NDP(&icmp6Layer, srcIP, dstIP) // The packet stays with us.
 				}
 				continue
 			} else if ipv6Layer.NextHeader != layers.IPProtocolUDP {
@@ -382,7 +400,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 		if written != toWrite {
 			// Only one is dropped at this time. We'll retry the rest.
 			sc := router.ClassOfSize(len(pkts[written].RawPacket))
-			metrics[sc].DroppedPacketsInvalid.Inc()
+			metrics[sc].DroppedPacketsInvalid.Inc() // Need other drop reason counter
 			pool.Put(pkts[written])
 			toWrite -= (written + 1)
 			// Shift the leftovers to the head of the buffers.

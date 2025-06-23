@@ -28,13 +28,17 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
-// ARP cache parameters.
+// ARP cache parameters. The longuish TTL is because I suspect that linux rate limits responses,
+// so, we have to resolve stuff other than a SCION router not too often. This is simplistic
+// compared to Linux's arp life-cycle. Like Linux, we consider entries only when they get used;
+// otherwise we just decrease their TTL.
 const (
 	neighborTick = 500 * time.Millisecond // Cache clock period.
-	neighborTTL  = 120                    // Time to live of resolved entry (in ticks).
-	neighborTTR  = 1                      // Time to live of entry that needs resolution (in ticks).
+	neighborTTL  = 1200                   // Time to live of resolved entry (in ticks).
+	neighborTTR  = 1                      // Remaining TTL before resolution (in ticks).
 )
 
+// FF02:0000:0000:0000:0000:0001:FF00:0000/104
 var ndpMcastPrefix = []byte{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0xff}
 
 type neighbor struct {
@@ -171,20 +175,20 @@ func packNeighborReq(
 		}
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
 	} else {
-		var code uint8
+		var typ uint8
 		var mcAddr []byte
 		var dstMAC []byte
 
 		// We can do announcements too. The intent is conveyed using the IPv4 convention.
 		if *localIP == *remoteIP {
 			mcAddr = netip.IPv6LinkLocalAllNodes().AsSlice()
-			code = layers.ICMPv6TypeNeighborAdvertisement
+			typ = layers.ICMPv6TypeNeighborAdvertisement
 			dstMAC = net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 		} else {
 			mcAddr = remoteIP.AsSlice()
-			copy(mcAddr, ndpMcastPrefix)
-			code = layers.ICMPv6TypeNeighborSolicitation
-			dstMAC = net.HardwareAddr{0x33, 0x33, 0xff, mcAddr[13], mcAddr[14], mcAddr[15]}
+			copy(mcAddr[0:13], ndpMcastPrefix)
+			typ = layers.ICMPv6TypeNeighborSolicitation
+			dstMAC = net.HardwareAddr{0x33, 0x33, mcAddr[12], mcAddr[13], mcAddr[14], mcAddr[15]}
 		}
 		ethernet := layers.Ethernet{
 			SrcMAC:       localMAC,
@@ -199,7 +203,7 @@ func packNeighborReq(
 			DstIP:      mcAddr,
 		}
 		icmp6 := layers.ICMPv6{
-			TypeCode: layers.CreateICMPv6TypeCode(code, 0),
+			TypeCode: layers.CreateICMPv6TypeCode(typ, 0),
 		}
 		request := layers.ICMPv6NeighborSolicitation{
 			TargetAddress: remoteIP.AsSlice(),

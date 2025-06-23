@@ -158,19 +158,19 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool {
 	payloadLen := len(p.RawPacket)
 	var good bool
-	for a := range 1 { // Be stubborn; some tests expect zero loss.
+	for a := range 5 { // Be stubborn; some tests expect zero loss.
 		good = l.addHeader(p, dst)
 		if good {
 			if a > 0 {
-				log.Debug("Resolved with retries", "from", l.localAddr,
+				log.Debug("***** Address resolved with retries", "from", l.localAddr,
 					"to", dst, "attempts", a+1)
 			}
 			break
 		}
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 	}
 	if !good {
-		log.Debug("Dropped packet for lack of address resolution", "from", l.localAddr,
+		log.Debug("***** Dropping due to address resolution", "from", l.localAddr,
 			"to", dst)
 		return false
 	}
@@ -295,28 +295,38 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
-func (l *internalLink) Send(p *router.Packet) bool {
+func (l *internalLink) Send(p *router.Packet) {
 	// TODO(jiceatscion): The packet's destination is in the packet's meta-data; it was put there by
 	// Resolve() We need to craft a header in front of the packet.  May be resolve could do that,
 	// instead of just storing the destination in the packet structure. That would save us the
 	// allocation of address but requires some more changes to the dataplane code structure.
 	if !l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
-		return false
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
+		return
 	}
 	select {
 	case l.egressQ <- p:
 	default:
-		return false
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+		l.pool.Put(p)
 	}
-	return true
 }
 
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *internalLink) SendBlocking(p *router.Packet) {
 	// Likewise: p.remoteAddress -> header.
+	// FIXME(jiceatscion): this function could not fail. Now it can.
 	if !l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
-		// FIXME(jiceatscion): this function could not fail. Now it can.
-		l.egressQ <- p
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
+		return
 	}
+	l.egressQ <- p
 }
 
 // receive delivers an incoming packet to the appropriate processing queue.
@@ -351,7 +361,27 @@ func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 	}
 }
 
-func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remoteHw [6]byte) {
+// We have to deal with the idiosyncracies of both ARP and NDP, here.
+// In ARP responses the address of the recipient is DstProtAddress while the address being
+// resolved is SourceProtAddress. In NDP responses, the address of the recipient is in the IP header
+// and the address being resolved is always TargetAddress. In ARP requests the address of the sender
+// is srcProtAddress while the address being resolved dstProtAddress. In NDP requests the address
+// of the sender is in the IP header, while the address being resolved is TargetAddress.
+// Since this method is alled for both requests and responses and for both ARP and NDP, we have
+// to make our own convention:
+// target is always the address being resolved.
+// sender is always the sender of the packet.
+// rcpt is always the intended recipient, when one is specified. It is also the target when isReq
+// is true.
+//
+// We do use requests to populate our cache, which means that we use sender for that, instead of
+// target. That way we gain knowledge from requests, even when the target is something else (for
+// example, the local address).
+func (l *internalLink) handleNeighbor(
+	isReq bool,
+	targetIP, senderIP, rcptIP netip.Addr,
+	remoteHw [6]byte,
+) {
 	// Don't pollute our table with stuff that we can't have asked. However, per RFC826, update
 	// what we already have when given a chance.
 	// remoteHwP always points at an in-cache MAC address, which reduces GC pressure.
@@ -359,20 +389,21 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 	var remoteHwP *[6]byte
 
 	l.neighbors.Lock()
-	found := l.neighbors.check(senderIP)
-	if (targetIP == l.localAddr.Addr() &&
-		remoteHw != [6]byte{0, 0, 0, 0, 0, 0} &&
-		senderIP != targetIP &&
+	found := l.neighbors.check(senderIP) // pending => found.
+	if (rcptIP == l.localAddr.Addr() &&
+		remoteHw != [6]byte{0, 0, 0, 0, 0, 0} && // TB checked in case of interface "lo".
+		senderIP != targetIP && // could be response or could be gratuitous. If !found, not wanted.
 		!senderIP.IsUnspecified()) || found {
 
 		// Good to cache or update
 		var chg bool
 		remoteHwP, chg = l.neighbors.put(senderIP, remoteHw)
 		if chg {
-			log.Debug("Learned address", "local", l.localAddr.Addr(), "add", senderIP)
+			log.Debug("Learned address", "local", l.localAddr.Addr(),
+				"addr", senderIP, "isat", remoteHw)
 		}
 	} else {
-		// Not in cacheable => No response needed either.
+		// Not cacheable => No response needed either.
 		isReq = false
 	}
 	l.neighbors.Unlock()
@@ -384,8 +415,8 @@ func (l *internalLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr,
 	if !isReq {
 		return
 	}
-	if targetIP == senderIP {
-		// gratuitous request in the V4 world. Invalid in the V6 world.
+	if targetIP != l.localAddr.Addr() {
+		// Can be a gratuitous request or simply a request for another host.
 		return
 	}
 	p := l.pool.Get()
@@ -420,6 +451,6 @@ func newInternalLink(
 	il.packHeader()
 	conn.link = il
 
-	log.Debug("Link", "scope", "internal", "local", localAddr, "localMAC", conn.localMAC)
+	log.Debug("***** Link", "scope", "internal", "local", localAddr, "localMAC", conn.localMAC)
 	return il
 }

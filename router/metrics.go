@@ -413,7 +413,7 @@ func UpdateOutputMetrics(metrics *InterfaceMetrics, packets []*Packet) {
 	for _, p := range packets {
 		s := len(p.RawPacket)
 		sc := ClassOfSize(s)
-		tt := p.trafficType
+		tt := p.TrafficType
 		writtenPkts[tt][sc]++
 		writtenBytes[tt][sc] += s
 	}

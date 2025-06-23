@@ -146,7 +146,7 @@ type Packet struct {
 	egress uint16
 	// The type of traffic. This is used for metrics at the forwarding stage, but is most
 	// economically determined at the processing stage. So store it here. It's 2 bytes long.
-	trafficType trafficType
+	TrafficType trafficType
 	// Pad to 64 bytes. For 64bit arch, add 1 byte. For 32bit arch, add 29 bytes.
 	_ [1 + is32bit*28]byte
 }
@@ -837,10 +837,7 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			continue
 		}
-		if !fwLink.Send(p) {
-			d.packetPool.Put(p)
-			metrics[sc].DroppedPacketsBusyForwarder[p.trafficType].Inc()
-		}
+		fwLink.Send(p)
 	}
 }
 
@@ -870,9 +867,7 @@ func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 			d.packetPool.Put(p)
 			continue
 		}
-		if !egressLink.Send(p) {
-			d.packetPool.Put(p)
-		}
+		egressLink.Send(p)
 	}
 }
 
@@ -934,7 +929,7 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 
 	// Difficult to draw a hard line, but let's say that from here on, this packet is no longer
 	// an incoming packet, but is a slowpath packet (i.e. an error response).
-	pkt.trafficType = ttSlowPath
+	pkt.TrafficType = ttSlowPath
 	pathType := p.scionLayer.PathType
 	switch pathType {
 	case scion.PathType:
@@ -1187,7 +1182,7 @@ func (p *slowPathPacketProcessor) packSCMP(
 
 	// We're about to send a packet that has little to do with the one we received.
 	// The original traffic type, if one had been set, no-longer applies.
-	p.pkt.trafficType = ttOther
+	p.pkt.TrafficType = ttOther
 
 	// The packet does not need any addressing: the slowpath processor always sends the packet back
 	// on the link that delivered it (p.pkt.link). In case the link is an unconnected one, it did
@@ -1766,7 +1761,7 @@ func (p *scionPacketProcessor) process() disposition {
 		if disp != pForward {
 			return disp
 		}
-		p.pkt.trafficType = ttIn
+		p.pkt.TrafficType = ttIn
 		return pForward
 	}
 
@@ -1826,13 +1821,13 @@ func (p *scionPacketProcessor) process() disposition {
 			// Therefore it is BRTransit
 			tt = ttBrTransit
 		}
-		p.pkt.trafficType = tt
+		p.pkt.TrafficType = tt
 		return pForward
 	}
 
 	// ASTransit in: pkt leaving this AS through another BR.
 	// We already know the egressID is valid. The packet can go straight to forwarding.
-	p.pkt.trafficType = ttInTransit
+	p.pkt.TrafficType = ttInTransit
 	return pForward
 }
 
@@ -2198,12 +2193,12 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	// the forwarding queue is an serious internal error. Let that panic.
 	fwLink := b.dataPlane.interfaces[b.ifID]
 
-	if !fwLink.Send(p) {
-		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
-		// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
-		b.dataPlane.packetPool.Put(p)
-	}
-	return err
+	// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
+	// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
+	// TODO(jiceatscion): the underlay will still count a dropped packet. We migh want to avoid
+	// that.
+	fwLink.Send(p)
+	return nil
 }
 
 func (p *slowPathPacketProcessor) prepareSCMP(

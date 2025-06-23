@@ -60,7 +60,7 @@ type Link interface {
 	// Resolve finds and sets the packet's internal underlay destination for the given dst and port.
 	Resolve(p *Packet, dst addr.Host, port uint16) error
 	// Send queues the packet for sending over this link; discarding if the queue is full.
-	Send(p *Packet) bool
+	Send(p *Packet)
 	// SendBlocking queues the packet for sending over this link; blocking while the queue is full.
 	SendBlocking(p *Packet)
 }

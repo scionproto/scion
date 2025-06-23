@@ -141,7 +141,7 @@ type udpLink interface {
 	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
 	receive(srcAddr *netip.AddrPort, p *router.Packet)
-	handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remoteHw [6]byte)
+	handleNeighbor(isReq bool, targetIP, senderIP, rcptIP netip.Addr, remoteHw [6]byte)
 }
 
 func init() {
@@ -269,7 +269,7 @@ func (u *provider) Stop() {
 	}
 }
 
-// chgMcastGrp adds the given (TPacket, interface) pair to the given multicast group.
+// addMcastGrp adds the given (TPacket, interface) pair to the given multicast group.
 func addMcastGrp(tp *afpacket.TPacket, ifIndex int, mcastAddr net.HardwareAddr) {
 	// Unceremonious but necessary until we submit a change (which would have to be more general
 	// than this) to the afpacket project and get it merged.
@@ -330,7 +330,8 @@ func (u *provider) getUdpConnection(
 						if localAddr.Is6() {
 							addrBytes := localAddr.As16()
 							mcastGrp := net.HardwareAddr{
-								0x33, 0x33, 0xff, addrBytes[13], addrBytes[14], addrBytes[15],
+								0x33, 0x33, ndpMcastPrefix[12],
+								addrBytes[13], addrBytes[14], addrBytes[15],
 							}
 							addMcastGrp(c.afp, intf.Index, mcastGrp)
 						}

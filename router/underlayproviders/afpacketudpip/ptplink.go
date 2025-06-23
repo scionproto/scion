@@ -163,19 +163,19 @@ func (l *ptpLink) addHeader(p *router.Packet) bool {
 func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	payloadLen := len(p.RawPacket)
 	var good bool
-	for a := range 1 { // Be stubborn; some tests expect zero loss.
+	for a := range 5 { // Be stubborn; some tests expect zero loss.
 		good = l.addHeader(p)
 		if good {
 			if a > 0 {
-				log.Debug("Resolved with retries", "from", l.localAddr,
+				log.Debug("***** Address resolved with retries", "from", l.localAddr,
 					"to", l.remoteAddr, "attempts", a+1)
 			}
 			break
 		}
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 	}
 	if !good {
-		log.Debug("Dropped packet for lack of address resolution", "from", l.localAddr,
+		log.Debug("***** Dropping due to address resolution", "from", l.localAddr,
 			"to", l.remoteAddr)
 		return false
 	}
@@ -228,7 +228,6 @@ func (l *ptpLink) start(
 	// Since we have only one peer, try and resolve it in case it's up. That's like an
 	// announcement, but we can also get a response.
 	peerIP := l.remoteAddr.Addr()
-	log.Debug("Annoucing", "sender", l.localAddr.Addr(), "peer", peerIP)
 	l.seekNeighbor(&peerIP)
 
 	// cache ticker is desirable.
@@ -279,26 +278,34 @@ func (l *ptpLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 	return errResolveOnNonInternalLink
 }
 
-func (l *ptpLink) Send(p *router.Packet) bool {
+func (l *ptpLink) Send(p *router.Packet) {
 	// We do not have an underlying connection. Instead we supply the entire underlay header. We
 	// have it mostly canned and paste it in front of the packet.
 	if !l.finishPacket(p) {
 		// Cannot (because remote address not resolved).
-		return false
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
+		return
 	}
 
 	select {
 	case l.egressQ <- p:
 	default:
-		return false
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+		l.pool.Put(p)
 	}
-	return true
 }
 
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *ptpLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the header.
 	if !l.finishPacket(p) {
-		// FIXME(jiceatscion): this function could not fail. Now it can.
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 		return
 	}
 
@@ -330,9 +337,12 @@ func (l *ptpLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 	}
 }
 
-func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remoteHw [6]byte) {
+func (l *ptpLink) handleNeighbor(
+	isReq bool,
+	targetIP, senderIP, _rcptIP netip.Addr,
+	remoteHw [6]byte,
+) {
 	// We only care or know our one remote host. However we respond to every deserving query.
-	// Per RFC826 we update opportunistically.
 
 	// This is needed to minimize GC pressure. It gets assigned to a dynamically allocated
 	// copy only when there is no better choice.
@@ -350,7 +360,7 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 		}
 		l.neighbors.Unlock()
 	} else if targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified() {
-		// We don't want but may deserve a response.
+		// We don't want but it may deserve a response.
 		// No choice, senderMAC escapes to the heap.
 		remoteHwP = &remoteHw
 	} else {
@@ -365,8 +375,8 @@ func (l *ptpLink) handleNeighbor(isReq bool, targetIP, senderIP netip.Addr, remo
 	if !isReq {
 		return
 	}
-	if targetIP == senderIP {
-		// gratuitous request (at least in the V4 world).
+	if targetIP != l.localAddr.Addr() {
+		// Can be a gratuitous request or simply a request for another host.
 		return
 	}
 	p := l.pool.Get()
@@ -401,7 +411,7 @@ func newPtpLinkExternal(
 	}
 	conn.links[*remoteAddr] = l
 
-	log.Debug("Link", "scope", "external", "local", localAddr, "localMAC", conn.localMAC,
+	log.Debug("***** Link", "scope", "external", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l
 }
@@ -428,7 +438,7 @@ func newPtpLinkSibling(
 	}
 	conn.links[*remoteAddr] = l
 
-	log.Debug("Link", "scope", "sibling", "local", localAddr, "localMAC", conn.localMAC,
+	log.Debug("***** Link", "scope", "sibling", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l
 }
