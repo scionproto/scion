@@ -56,6 +56,8 @@ type SegmentRegistrar interface {
 	) (RegistrationStats, error)
 }
 
+// SegmentRegistrars maps a policy type to a map of registration policy names
+// to their corresponding segment registrars.
 type SegmentRegistrars map[beacon.PolicyType]map[string]SegmentRegistrar
 
 func (s SegmentRegistrars) Register(
@@ -72,6 +74,8 @@ func (s SegmentRegistrars) Register(
 	return nil
 }
 
+// RegisterDefault registers a default registrar for a given policy type.
+// The default registrar is associated with the name beacon.DEFAULT_GROUP.
 func (s SegmentRegistrars) RegisterDefault(
 	policyType beacon.PolicyType, registrar SegmentRegistrar,
 ) error {
@@ -113,7 +117,9 @@ type RegistrationStats struct {
 // segmentRegistrationPlugins is a global map of registered segment registration plugins.
 var segmentRegistrationPlugins = map[string]SegmentRegistrationPlugin{}
 
-func RegisterPlugin(p SegmentRegistrationPlugin) {
+// RegisterSegmentRegPlugin registers a segment registration plugin using its unique ID.
+// It panics if a plugin with the same ID is already registered.
+func RegisterSegmentRegPlugin(p SegmentRegistrationPlugin) {
 	id := p.ID()
 	if _, ok := segmentRegistrationPlugins[id]; ok {
 		panic(fmt.Sprintf("plugin %q already registered", id))
@@ -121,7 +127,9 @@ func RegisterPlugin(p SegmentRegistrationPlugin) {
 	segmentRegistrationPlugins[id] = p
 }
 
-func GetPlugin(id string) (SegmentRegistrationPlugin, bool) {
+// GetSegmentRegPlugin retrieves a segment registration plugin by its ID.
+// The second return value is false if no plugin with the given ID is found in the registry.
+func GetSegmentRegPlugin(id string) (SegmentRegistrationPlugin, bool) {
 	p, ok := segmentRegistrationPlugins[id]
 	return p, ok
 }
@@ -246,8 +254,8 @@ var _ beaconing.Writer = (*GroupWriter)(nil)
 
 // Write writes beacons to multiple segment registrars based on the PolicyType.
 //
-// For every group of beacons, the correct registrar is selected based on the
-// PolicyType and the group name (which should correspond to the plugin ID).
+// For every group of beacons, the correct registrar is selected based on the PolicyType
+// and the group's name (which should correspond to the registration policy name).
 func (w *GroupWriter) Write(
 	ctx context.Context,
 	beacons beacon.GroupedBeacons,

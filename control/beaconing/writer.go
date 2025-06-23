@@ -79,11 +79,11 @@ func (s *WriteStats) Extend(other WriteStats) {
 
 // Writer writes segments.
 type Writer interface {
-	// Write writes passed slice of segments.Peers indicate the peering
+	// Write writes passed slice of segments. Peers indicate the peering
 	// interface IDs of the local IA. The returned statistics should provide
 	// insights about how many segments have been successfully written. The
 	// method should return an error if the writing did fail.
-	Write(ctx context.Context, segs beacon.GroupedBeacons, peers []uint16) (WriteStats, error)
+	Write(ctx context.Context, beacons beacon.GroupedBeacons, peers []uint16) (WriteStats, error)
 }
 
 var _ periodic.Task = (*WriteScheduler)(nil)

@@ -843,11 +843,15 @@ func realMain(ctx context.Context) error {
 	return g.Wait()
 }
 
+// loadedPolicies is a struct that holds the loaded policies.
+// It can either be core policies or non-core policies, but not both.
 type loadedPolicies struct {
 	CorePolicies    *beacon.CorePolicies
 	NonCorePolicies *beacon.Policies
 }
 
+// loadPolicies loads the policies based on the given policyConfig and
+// the core flag, which must be true iff the service is core.
 func loadPolicies(
 	core bool,
 	policyConfig config.Policies,

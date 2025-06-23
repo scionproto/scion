@@ -89,7 +89,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy)
 	segmentRegistrars := make(SegmentRegistrars)
 	for _, policy := range policies {
 		for _, regPolicy := range policy.RegistrationPolicies {
-			plugin, ok := GetPlugin(regPolicy.Plugin)
+			plugin, ok := GetSegmentRegPlugin(regPolicy.Plugin)
 			if !ok {
 				return serrors.New("unknown segment registration plugin",
 					"plugin", regPolicy.Plugin)

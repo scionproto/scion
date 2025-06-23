@@ -214,8 +214,9 @@ func (p *Policy) InitDefaults() {
 	p.Filter.InitDefaults()
 }
 
+// Validate checks that the policy does not have duplicate registration policy names.
 func (p *Policy) Validate() error {
-	for i := 0; i < len(p.RegistrationPolicies); i++ {
+	for i := range len(p.RegistrationPolicies) {
 		for j := i + 1; j < len(p.RegistrationPolicies); j++ {
 			if p.RegistrationPolicies[i].Name == p.RegistrationPolicies[j].Name {
 				return serrors.New("duplicate registration policy names found",

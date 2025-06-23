@@ -58,9 +58,8 @@ func applyStoreOptions(opts []StoreOption) storeOptions {
 	return o
 }
 
-// GroupedBeacons is a map where the key is the registration policy name
-// (i.e., the plugin name) and the value is a slice of beacons that should
-// be forwarded to that plugin.
+// GroupedBeacons is a map where the key is the registration policy name and the value is a
+// slice of beacons that should be handled by that registration policy.
 type GroupedBeacons map[string][]Beacon
 
 // DEFAULT_GROUP defines the default beacon group.
@@ -70,8 +69,8 @@ type GroupedBeacons map[string][]Beacon
 // This should also correspond to the ID of the default plugin.
 const DEFAULT_GROUP string = "default"
 
-// groupBeacons takes a slice of beacons and groups them according to the
-// registration policies defined in the provided policy, i.e., the plugin name.
+// groupBeacons takes a slice of beacons and groups them according to the registration policies
+// defined in the provided policy.
 //
 // The beacons that do not match any registration policy are dropped.
 //
