@@ -15,9 +15,10 @@
 package beacon
 
 import (
+	"io"
 	"os"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ptr"
@@ -213,9 +214,11 @@ func (p *Policy) initDefaults(t PolicyType) {
 }
 
 // ParsePolicyYaml parses the policy in yaml format and initializes the default values.
-func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
+func ParsePolicyYaml(r io.Reader, t PolicyType) (*Policy, error) {
+	d := yaml.NewDecoder(r)
+	d.KnownFields(true)
 	p := &Policy{}
-	if err := yaml.UnmarshalStrict(b, p); err != nil {
+	if err := d.Decode(p); err != nil {
 		return nil, serrors.Wrap("Unable to parse policy", err)
 	}
 	if p.Type != "" && p.Type != t {
@@ -229,11 +232,11 @@ func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
 // LoadPolicyFromYaml loads the policy from a yaml file and initializes the
 // default values.
 func LoadPolicyFromYaml(path string, t PolicyType) (*Policy, error) {
-	b, err := os.ReadFile(path)
+	f, err := os.OpenFile(path, os.O_RDONLY, 0o644)
 	if err != nil {
-		return nil, serrors.Wrap("Unable to read policy file", err, "path", path)
+		return nil, serrors.Wrap("Unable to open policy file", err, "path", path)
 	}
-	return ParsePolicyYaml(b, t)
+	return ParsePolicyYaml(f, t)
 }
 
 // Filter filters beacons.

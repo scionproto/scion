@@ -55,7 +55,7 @@ require (
 	google.golang.org/grpc v1.71.1
 	google.golang.org/grpc/examples v0.0.0-20240321213419-eb5828bae753
 	google.golang.org/protobuf v1.36.6
-	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.37.0
 	zgo.at/zcache/v2 v2.1.0
 )
@@ -124,7 +124,7 @@ require (
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	modernc.org/libc v1.62.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.9.1 // indirect
