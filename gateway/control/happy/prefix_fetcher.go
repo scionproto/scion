@@ -40,5 +40,6 @@ func (f PrefixFetcher) Prefixes(ctx context.Context, gateway *net.UDPAddr) ([]*n
 			Input1: gateway,
 			Typ:    "gateway.v1.IPPrefixesService.Prefixes",
 		},
+		happy.Config{},
 	)
 }

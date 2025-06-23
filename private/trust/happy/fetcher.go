@@ -46,6 +46,7 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 			Input2: server,
 			Typ:    "control_plane.v1.TrustMaterialService.Chains",
 		},
+		happy.Config{},
 	)
 }
 
@@ -66,5 +67,6 @@ func (f Fetcher) TRC(ctx context.Context, id cppki.TRCID,
 			Input2: server,
 			Typ:    "control_plane.v1.TrustMaterialService.TRC",
 		},
+		happy.Config{},
 	)
 }

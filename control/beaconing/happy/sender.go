@@ -70,6 +70,7 @@ func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
 			Input1: b,
 			Typ:    "control_plane.v1.SegmentCreationService.Beacon",
 		},
+		happy.Config{},
 	)
 	return err
 }
@@ -105,6 +106,7 @@ func (r *Registrar) RegisterSegment(ctx context.Context, meta seg.Meta, remote n
 			Input2: remote,
 			Typ:    "control_plane.v1.SegmentRegistrationService.SegmentsRegistration",
 		},
+		happy.Config{},
 	)
 	return err
 }

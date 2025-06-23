@@ -40,5 +40,6 @@ func (f Fetcher) Level1(ctx context.Context, meta libdrkey.Level1Meta) (libdrkey
 			Input1: meta,
 			Typ:    "control_plane.v1.DRKeyInterService.DRKeyLevel1",
 		},
+		happy.Config{},
 	)
 }

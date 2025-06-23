@@ -23,6 +23,8 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
+const DefaultDelay = 500 * time.Millisecond
+
 type Caller[R any] interface {
 	Invoke(context.Context) (R, error)
 	Type() string
@@ -82,62 +84,103 @@ func (d NoReturn2[I1, I2]) Call(ctx context.Context, i1 I1, i2 I2) (struct{}, er
 	return struct{}{}, d(ctx, i1, i2)
 }
 
-func Happy[R any](ctx context.Context, fast, slow Caller[R]) (R, error) {
+type Config struct {
+	// Delay is the time to wait before invoking the fallback caller.
+	Delay *time.Duration
+	// NoPreferred indicates that the preferred caller should not be invoked,
+	// and only the fallback caller should be used.
+	NoPreferred bool
+	// NoFallback indicates that the fallback caller should not be invoked,
+	// and only the preferred caller should be used.
+	NoFallback bool
+}
+
+func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config) (R, error) {
 	logger := log.FromCtx(ctx)
 
+	if cfg.NoPreferred && cfg.NoFallback {
+		return *new(R), serrors.New("both preferred and fallback callers are disabled")
+	}
+
 	var (
-		wg   sync.WaitGroup
-		reps [2]R
-		errs [2]error
+		wg    sync.WaitGroup
+		reps  [2]R
+		errs  [2]error
+		delay = DefaultDelay
 	)
 
-	wg.Add(2)
-	abortCtx, cancel := context.WithCancel(ctx)
-	go func() {
-		defer log.HandlePanic()
-		defer wg.Done()
-		rep, err := fast.Invoke(abortCtx)
-		if err == nil {
-			reps[0] = rep
-			logger.Debug("Received response via connect", "type", fast.Type())
-			cancel()
-		} else {
-			logger.Debug("Failed to receive via connect", "type", fast.Type(), "err", err)
-		}
-		errs[0] = err
-	}()
+	const (
+		idxPreferred = 0
+		idxFallback  = 1
+	)
 
-	go func() {
-		defer log.HandlePanic()
-		defer wg.Done()
-		select {
-		case <-abortCtx.Done():
-			return
-		case <-time.After(500 * time.Millisecond):
-		}
-		rep, err := slow.Invoke(abortCtx)
-		if err == nil {
-			reps[0] = rep
-			logger.Debug("Received response via grpc", "type", slow.Type())
-			cancel()
-		} else {
-			logger.Debug("Failed to receive on grpc", "type", slow.Type(), "err", err)
-		}
-		errs[1] = err
-	}()
+	if cfg.Delay != nil {
+		delay = *cfg.Delay
+	}
+	if cfg.NoPreferred {
+		delay = 0 // If preferred is disabled, no delay is needed.
+	}
+
+	abortCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if !cfg.NoPreferred {
+		wg.Add(1)
+		go func() {
+			defer log.HandlePanic()
+			defer wg.Done()
+			rep, err := preferred.Invoke(abortCtx)
+			if err == nil {
+				reps[idxPreferred] = rep
+				logger.Debug("Received response via connect", "type", preferred.Type())
+				cancel()
+			} else {
+				logger.Debug("Failed to receive via connect", "type", preferred.Type(), "err", err)
+			}
+			errs[idxPreferred] = err
+		}()
+	} else {
+		logger.Debug("Skipping preferred caller", "type", preferred.Type())
+		errs[idxPreferred] = serrors.New("preferred caller is disabled")
+	}
+
+	if !cfg.NoFallback {
+		wg.Add(1)
+		go func() {
+			defer log.HandlePanic()
+			defer wg.Done()
+			select {
+			case <-abortCtx.Done():
+				return
+			case <-time.After(delay):
+			}
+			rep, err := fallback.Invoke(abortCtx)
+			if err == nil {
+				reps[idxFallback] = rep
+				logger.Debug("Received response via grpc", "type", fallback.Type())
+				cancel()
+			} else {
+				logger.Debug("Failed to receive on grpc", "type", fallback.Type(), "err", err)
+			}
+			errs[idxPreferred] = err
+		}()
+	} else {
+		logger.Debug("Skipping fallback caller", "type", fallback.Type())
+		errs[idxPreferred] = serrors.New("fallback caller is disabled")
+	}
 
 	wg.Wait()
 
 	var zero R
 	switch {
 	// Both requests failed.
-	case errs[0] != nil && errs[1] != nil:
+	case errs[idxPreferred] != nil && errs[idxFallback] != nil:
 		return zero, serrors.List(errs[:]).ToError()
-	// Fast request failed. Return slow.
-	case errs[0] != nil:
-		return reps[1], errs[1]
-	// Fast succeeded. Return fast (even if slow succeeded too)
+	// Fast request failed. Return fallback.
+	case errs[idxPreferred] != nil:
+		return reps[idxFallback], errs[idxFallback]
+	// Fast succeeded. Return fast (even if fallback succeeded too)
 	default:
-		return reps[0], errs[0]
+		return reps[idxPreferred], errs[idxPreferred]
 	}
 }

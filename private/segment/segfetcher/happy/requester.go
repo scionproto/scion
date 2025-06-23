@@ -45,5 +45,6 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 			Input2: server,
 			Typ:    "control_plane.v1.SegmentLookupService.Segments",
 		},
+		happy.Config{},
 	)
 }
