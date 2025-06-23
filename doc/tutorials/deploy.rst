@@ -53,7 +53,7 @@ The topology of the ISD includes the inter-AS connections to neighboring ASes, a
 
    *Figure 1 - Topology of the sample SCION demo environment. It consists of 1 ISD, 3 core ASes and 2 non-core ASes.*
 
-The difference between the core and non-core ASes is that core ASes are inter-ISD transit nodes.
+The difference between the core and non-core ASes is that core ASes are transit nodes for the entire ISD while non-core are transit nodes only for their own child ASes.
 When going from ``ffaa:1:3`` to ``ffaa:1:2`` you will see a direct path and one going via the other core AS ``ffaa:1:1``, but you will NOT see a path going via ``ffaa:1:5`` or ``ffaa:1:4`` because they are non-core.
 
 .. code-block:: sh
