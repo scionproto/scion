@@ -98,6 +98,12 @@ import (
 
 var globalCfg config.Config
 
+// SegmentRegistrationPlugins is a list of plugins that can be used to register segments.
+var SegmentRegistrationPlugins = []cs.SegmentRegistrationPlugin{
+	&cs.IgnoreSegmentRegistrationPlugin{},
+	&cs.DefaultSegmentRegistrationPlugin{},
+}
+
 func main() {
 	application := launcher.Application{
 		ApplicationBase: launcher.ApplicationBase{
@@ -818,6 +824,9 @@ func realMain(ctx context.Context) error {
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
 		EPIC:                      globalCfg.BS.EPIC,
+	}
+	for _, plugin := range SegmentRegistrationPlugins {
+		cs.RegisterSegmentRegPlugin(plugin)
 	}
 	if err := tc.InitPlugins(errCtx, policies.RegistrationPolicies()); err != nil {
 		return serrors.Wrap("initializing tasks plugins", err)

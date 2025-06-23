@@ -5,6 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "hiddenpaths.go",
+        "ignore.go",
         "messaging.go",
         "observability.go",
         "policy.go",
