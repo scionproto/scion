@@ -250,10 +250,13 @@ func realMain(ctx context.Context) error {
 		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
 	})
 
-	beaconStore, regPolicies, isdLoopAllowed, err := createBeaconStore(
+	policies, err := loadPolicies(topo.Core(), globalCfg.BS.Policies)
+	if err != nil {
+		return serrors.Wrap("loading policies", err)
+	}
+	beaconStore, isdLoopAllowed, err := createBeaconStore(
+		policies,
 		beaconDB,
-		topo.Core(),
-		globalCfg.BS.Policies,
 		trust.FetchingProvider{
 			DB:       trustDB,
 			Recurser: trust.NeverRecurser{},
@@ -816,7 +819,7 @@ func realMain(ctx context.Context) error {
 		AllowIsdLoop:              isdLoopAllowed,
 		EPIC:                      globalCfg.BS.EPIC,
 	}
-	if err := tc.InitPlugins(errCtx, regPolicies); err != nil {
+	if err := tc.InitPlugins(errCtx, policies.RegistrationPolicies()); err != nil {
 		return serrors.Wrap("initializing tasks plugins", err)
 	}
 	tasks, err := cs.StartTasks(tc)
@@ -840,29 +843,59 @@ func realMain(ctx context.Context) error {
 	return g.Wait()
 }
 
-func createBeaconStore(
-	db storage.BeaconDB,
+type loadedPolicies struct {
+	CorePolicies    *beacon.CorePolicies
+	NonCorePolicies *beacon.Policies
+}
+
+func loadPolicies(
 	core bool,
 	policyConfig config.Policies,
-	provider beacon.ChainProvider,
-) (cs.Store, []beacon.Policy, bool, error) {
+) (loadedPolicies, error) {
 	if core {
 		policies, err := cs.LoadCorePolicies(policyConfig)
 		if err != nil {
-			return nil, nil, false, err
+			return loadedPolicies{}, serrors.Wrap("loading core policies", err)
 		}
-		store, err := beacon.NewCoreBeaconStore(policies, db, beacon.WithCheckChain(provider))
-		return store, []beacon.Policy{policies.CoreReg}, *policies.Prop.Filter.AllowIsdLoop, err
+		return loadedPolicies{CorePolicies: &policies}, nil
+	} else {
+		policies, err := cs.LoadNonCorePolicies(policyConfig)
+		if err != nil {
+			return loadedPolicies{}, serrors.Wrap("loading non-core policies", err)
+		}
+		return loadedPolicies{NonCorePolicies: &policies}, nil
 	}
-	policies, err := cs.LoadNonCorePolicies(policyConfig)
-	if err != nil {
-		return nil, nil, false, err
+}
+
+// RegistrationPolicies returns the policies that are used for segment registration.
+func (l loadedPolicies) RegistrationPolicies() []beacon.Policy {
+	switch {
+	case l.CorePolicies != nil:
+		return []beacon.Policy{l.CorePolicies.CoreReg}
+	case l.NonCorePolicies != nil:
+		return []beacon.Policy{l.NonCorePolicies.UpReg, l.NonCorePolicies.DownReg}
+	default:
+		return nil
 	}
-	store, err := beacon.NewBeaconStore(policies, db, beacon.WithCheckChain(provider))
-	return store,
-		[]beacon.Policy{policies.DownReg, policies.UpReg},
-		*policies.Prop.Filter.AllowIsdLoop,
-		err
+}
+
+func createBeaconStore(
+	policies loadedPolicies,
+	db storage.BeaconDB,
+	provider beacon.ChainProvider,
+) (cs.Store, bool, error) {
+	switch {
+	case policies.CorePolicies != nil:
+		policies := policies.CorePolicies
+		store, err := beacon.NewCoreBeaconStore(*policies, db, beacon.WithCheckChain(provider))
+		return store, *policies.Prop.Filter.AllowIsdLoop, err
+	case policies.NonCorePolicies != nil:
+		policies := policies.NonCorePolicies
+		store, err := beacon.NewBeaconStore(*policies, db, beacon.WithCheckChain(provider))
+		return store, *policies.Prop.Filter.AllowIsdLoop, err
+	default:
+		return nil, false, serrors.New("no policies loaded")
+	}
 }
 
 func adaptInterfaceMap(in map[iface.ID]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
