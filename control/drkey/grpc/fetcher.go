@@ -17,6 +17,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -47,6 +48,7 @@ type Fetcher struct {
 	Router     snet.Router
 	MaxRetries int
 
+	once       sync.Once
 	errorPaths map[snet.PathFingerprint]struct{}
 }
 
@@ -55,6 +57,7 @@ func (f *Fetcher) Level1(
 	ctx context.Context,
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
+	f.init()
 
 	req := Level1MetaToProtoRequest(meta)
 
@@ -142,4 +145,10 @@ func (f *Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error)
 	// we've tried out all the paths; we reset the map to retry them.
 	clear(f.errorPaths)
 	return paths[0], nil
+}
+
+func (f *Fetcher) init() {
+	f.once.Do(func() {
+		f.errorPaths = make(map[snet.PathFingerprint]struct{})
+	})
 }
