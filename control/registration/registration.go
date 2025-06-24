@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
-	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/metrics"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -31,13 +30,11 @@ import (
 
 // PluginConstructor contains the parameters for segment registrar construction.
 type PluginConstructor struct {
-	Intfs          *ifstate.Interfaces
 	InternalErrors metrics.Counter
 	Registered     metrics.Counter
 	LocalStore     beaconing.SegmentStore
 	RemoteStore    beaconing.RPC
 	NextHopper     interface{ UnderlayNextHop(uint16) *net.UDPAddr }
-	Extender       beaconing.Extender
 
 	HiddenPathRPC       hiddenpath.Register
 	HiddenPathRegPolicy hiddenpath.RegistrationPolicy

@@ -5,8 +5,12 @@ go_library(
     srcs = [
         "default.go",
         "group_writer.go",
+        "hidden.go",
         "ignore.go",
+        "local.go",
         "registration.go",
+        "remote.go",
+        "util.go",
     ],
     importpath = "github.com/scionproto/scion/control/registration",
     visibility = ["//visibility:public"],
@@ -18,8 +22,10 @@ go_library(
         "//pkg/experimental/hiddenpath:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/metrics:go_default_library",
+        "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/segment:go_default_library",
         "//pkg/snet/addrutil:go_default_library",
+        "//private/segment/seghandler:go_default_library",
     ],
 )

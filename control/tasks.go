@@ -84,18 +84,16 @@ type TasksConfig struct {
 func NewPluginConstructor(
 	t *TasksConfig,
 	policyType beacon.PolicyType,
+	segType seg.Type,
 ) registration.PluginConstructor {
 	pc := registration.PluginConstructor{
-		Intfs:       t.AllInterfaces,
 		LocalStore:  &seghandler.DefaultStorage{PathDB: t.PathDB},
 		RemoteStore: t.SegmentRegister,
 		NextHopper:  t.NextHopper,
-		Extender: t.extender("registrar", t.IA, t.MTU, func() uint8 {
-			return t.BeaconStore.MaxExpTime(policyType)
-		}),
 	}
 	if t.Metrics != nil {
-		pc.InternalErrors = metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
+		internalErr := metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
+		pc.InternalErrors = metrics.CounterWith(internalErr, "seg_type", segType.String())
 		pc.Registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
 	}
 	if t.HiddenPathRegistrationCfg != nil {
@@ -119,17 +117,17 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy)
 	// Initialize the segment registrars.
 	segmentRegistrars := make(registration.SegmentRegistrars)
 	for _, policy := range policies {
-		constructor := NewPluginConstructor(t, policy.Type)
+		segType, ok := SegmentTypeFromRegPolicyType(policy.Type)
+		if !ok {
+			return serrors.New("unsupported policy type for segment registration plugin",
+				"policy_type", policy.Type)
+		}
+		constructor := NewPluginConstructor(t, policy.Type, segType)
 		for _, regPolicy := range policy.RegistrationPolicies {
 			plugin, ok := registration.GetSegmentRegPlugin(regPolicy.Plugin)
 			if !ok {
 				return serrors.New("unknown segment registration plugin",
 					"plugin", regPolicy.Plugin)
-			}
-			segType, ok := SegmentTypeFromRegPolicyType(policy.Type)
-			if !ok {
-				return serrors.New("unsupported policy type for segment registration plugin",
-					"policy_type", policy.Type)
 			}
 			registrar, err := plugin.New(
 				ctx, constructor, segType, policy.Type, regPolicy.PluginConfig,
@@ -154,9 +152,9 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy)
 		beacon.DownRegPolicy,
 		beacon.CoreRegPolicy,
 	} {
-		constructor := NewPluginConstructor(t, policyType)
+		segType, _ := SegmentTypeFromRegPolicyType(policyType)
+		constructor := NewPluginConstructor(t, policyType, segType)
 		if _, ok := segmentRegistrars[policyType]; !ok {
-			segType, _ := SegmentTypeFromRegPolicyType(policyType)
 			defaultRegistrar, err := defaultPlugin.New(
 				ctx, constructor, segType, policyType, nil,
 			)

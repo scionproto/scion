@@ -18,12 +18,7 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/control/beacon"
-	"github.com/scionproto/scion/control/beaconing"
-	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
-	"github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
-	"github.com/scionproto/scion/pkg/snet/addrutil"
 )
 
 // DefaultSegmentRegistrationPlugin is the default registration plugin.
@@ -35,58 +30,6 @@ func (p *DefaultSegmentRegistrationPlugin) ID() string {
 	return beacon.DEFAULT_GROUP
 }
 
-func (p *DefaultSegmentRegistrationPlugin) New(
-	ctx context.Context,
-	pc PluginConstructor,
-	segType seg.Type,
-	policyType beacon.PolicyType,
-	config map[string]any,
-) (SegmentRegistrar, error) {
-	// Create either a local, hidden or remote writer.
-	var writer beaconing.Writer
-	switch {
-	case segType != seg.TypeDown:
-		writer = &beaconing.LocalWriter{
-			InternalErrors: metrics.CounterWith(pc.InternalErrors, "seg_type", segType.String()),
-			Registered:     pc.Registered,
-			Type:           segType,
-			Intfs:          pc.Intfs,
-			Extender:       pc.Extender,
-			Store:          pc.LocalStore,
-		}
-	case pc.HiddenPathRPC != nil:
-		writer = &hiddenpath.BeaconWriter{
-			InternalErrors: metrics.CounterWith(pc.InternalErrors, "seg_type", segType.String()),
-			Registered:     pc.Registered,
-			Intfs:          pc.Intfs,
-			Extender:       pc.Extender,
-			RPC:            pc.HiddenPathRPC,
-			Pather: addrutil.Pather{
-				NextHopper: pc.NextHopper,
-			},
-			RegistrationPolicy: pc.HiddenPathRegPolicy,
-			AddressResolver:    pc.HiddenPathResolver,
-		}
-	default:
-		writer = &beaconing.RemoteWriter{
-			InternalErrors: metrics.CounterWith(pc.InternalErrors, "seg_type", segType.String()),
-			Registered:     pc.Registered,
-			Type:           segType,
-			Intfs:          pc.Intfs,
-			Extender:       pc.Extender,
-			RPC:            pc.RemoteStore,
-			Pather: addrutil.Pather{
-				NextHopper: pc.NextHopper,
-			},
-		}
-	}
-	// Construct the registrar with the underlying writer.
-	return &DefaultSegmentRegistrar{
-		segType: segType,
-		writer:  writer,
-	}, nil
-}
-
 func (p *DefaultSegmentRegistrationPlugin) Validate(
 	config map[string]any,
 ) error {
@@ -94,28 +37,22 @@ func (p *DefaultSegmentRegistrationPlugin) Validate(
 	return nil
 }
 
-type DefaultSegmentRegistrar struct {
-	segType seg.Type
-	writer  beaconing.Writer
-}
-
-var _ SegmentRegistrar = (*DefaultSegmentRegistrar)(nil)
-
-func (r *DefaultSegmentRegistrar) RegisterSegments(
+func (p *DefaultSegmentRegistrationPlugin) New(
 	ctx context.Context,
-	segments []beacon.Beacon,
-	peers []uint16,
-) (RegistrationStats, error) {
-	writeStats, err := r.writer.Write(ctx, map[string][]beacon.Beacon{
-		beacon.DEFAULT_GROUP: segments,
-	}, peers)
-	if err != nil {
-		return RegistrationStats{}, serrors.Wrap("failed to register segments", err,
-			"seg_type", r.segType, "num_segments", len(segments), "peers", peers)
+	pc PluginConstructor,
+	segType seg.Type,
+	policyType beacon.PolicyType,
+	config map[string]any,
+) (SegmentRegistrar, error) {
+	// Create either a local, hidden or remote plugin.
+	var writer SegmentRegistrationPlugin
+	switch {
+	case segType != seg.TypeDown:
+		writer = &LocalSegmentRegistrationPlugin{}
+	case pc.HiddenPathRPC != nil:
+		writer = &HiddenPathRegistrationPlugin{}
+	default:
+		writer = &RemoteSegmentRegistrationPlugin{}
 	}
-	// TODO: Populate the Status field.
-	return RegistrationStats{
-		Status:     make(map[string]error),
-		WriteStats: writeStats,
-	}, nil
+	return writer.New(ctx, pc, segType, policyType, config)
 }
