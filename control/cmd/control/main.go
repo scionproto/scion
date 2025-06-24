@@ -46,6 +46,7 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	api "github.com/scionproto/scion/control/mgmtapi"
 	"github.com/scionproto/scion/control/onehop"
+	"github.com/scionproto/scion/control/registration"
 	segreggrpc "github.com/scionproto/scion/control/segreg/grpc"
 	"github.com/scionproto/scion/control/segreq"
 	segreqgrpc "github.com/scionproto/scion/control/segreq/grpc"
@@ -99,9 +100,9 @@ import (
 var globalCfg config.Config
 
 // SegmentRegistrationPlugins is a list of plugins that can be used to register segments.
-var SegmentRegistrationPlugins = []cs.SegmentRegistrationPlugin{
-	&cs.IgnoreSegmentRegistrationPlugin{},
-	&cs.DefaultSegmentRegistrationPlugin{},
+var SegmentRegistrationPlugins = []registration.SegmentRegistrationPlugin{
+	&registration.IgnoreSegmentRegistrationPlugin{},
+	&registration.DefaultSegmentRegistrationPlugin{},
 }
 
 func main() {
@@ -826,7 +827,7 @@ func realMain(ctx context.Context) error {
 		EPIC:                      globalCfg.BS.EPIC,
 	}
 	for _, plugin := range SegmentRegistrationPlugins {
-		cs.RegisterSegmentRegPlugin(plugin)
+		registration.RegisterSegmentRegPlugin(plugin)
 	}
 	if err := tc.InitPlugins(errCtx, policies.RegistrationPolicies()); err != nil {
 		return serrors.Wrap("initializing tasks plugins", err)

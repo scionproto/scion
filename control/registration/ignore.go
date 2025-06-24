@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package control
+package registration
 
 import (
 	"context"
@@ -106,14 +106,14 @@ func (p *IgnoreSegmentRegistrationPlugin) Validate(
 ) error {
 	_, err := parseConfig(config)
 	if err != nil {
-		return serrors.Wrap("validating plugin configufation", err)
+		return serrors.Wrap("validating plugin configuration", err)
 	}
 	return nil
 }
 
 func (p *IgnoreSegmentRegistrationPlugin) New(
 	ctx context.Context,
-	t *TasksConfig,
+	pc PluginConstructor,
 	segType seg.Type,
 	policyType beacon.PolicyType,
 	config map[string]any,

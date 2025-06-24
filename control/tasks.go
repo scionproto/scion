@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/drkey"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/control/registration"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -33,6 +34,7 @@ import (
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/revcache"
+	"github.com/scionproto/scion/private/segment/seghandler"
 	"github.com/scionproto/scion/private/trust"
 )
 
@@ -76,7 +78,36 @@ type TasksConfig struct {
 
 	EPIC bool
 
-	registrars SegmentRegistrars
+	registrars registration.SegmentRegistrars
+}
+
+func NewPluginConstructor(
+	t *TasksConfig,
+	policyType beacon.PolicyType,
+) registration.PluginConstructor {
+	pc := registration.PluginConstructor{
+		Intfs:       t.AllInterfaces,
+		LocalStore:  &seghandler.DefaultStorage{PathDB: t.PathDB},
+		RemoteStore: t.SegmentRegister,
+		NextHopper:  t.NextHopper,
+		Extender: t.extender("registrar", t.IA, t.MTU, func() uint8 {
+			return t.BeaconStore.MaxExpTime(policyType)
+		}),
+	}
+	if t.Metrics != nil {
+		pc.InternalErrors = metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
+		pc.Registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
+	}
+	if t.HiddenPathRegistrationCfg != nil {
+		pc.HiddenPathRPC = t.HiddenPathRegistrationCfg.RPC
+		pc.HiddenPathRegPolicy = t.HiddenPathRegistrationCfg.Policy
+		pc.HiddenPathResolver = hiddenpath.RegistrationResolver{
+			Router:     t.HiddenPathRegistrationCfg.Router,
+			Discoverer: t.HiddenPathRegistrationCfg.Discoverer,
+		}
+	}
+
+	return pc
 }
 
 // InitPlugins initializes the segment registration plugins based on the provided
@@ -86,10 +117,11 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy)
 		return nil
 	}
 	// Initialize the segment registrars.
-	segmentRegistrars := make(SegmentRegistrars)
+	segmentRegistrars := make(registration.SegmentRegistrars)
 	for _, policy := range policies {
+		constructor := NewPluginConstructor(t, policy.Type)
 		for _, regPolicy := range policy.RegistrationPolicies {
-			plugin, ok := GetSegmentRegPlugin(regPolicy.Plugin)
+			plugin, ok := registration.GetSegmentRegPlugin(regPolicy.Plugin)
 			if !ok {
 				return serrors.New("unknown segment registration plugin",
 					"plugin", regPolicy.Plugin)
@@ -99,7 +131,9 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy)
 				return serrors.New("unsupported policy type for segment registration plugin",
 					"policy_type", policy.Type)
 			}
-			registrar, err := plugin.New(ctx, t, segType, policy.Type, regPolicy.PluginConfig)
+			registrar, err := plugin.New(
+				ctx, constructor, segType, policy.Type, regPolicy.PluginConfig,
+			)
 			if err != nil {
 				return serrors.Wrap("creating segment registrar", err)
 			}
@@ -114,16 +148,17 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy)
 	// For the policy types that do not have any plugins registered, we construct a registrar from
 	// the default plugin.
 	// This is done for the sake of backward compatibility.
-	defaultPlugin := DefaultSegmentRegistrationPlugin{}
+	defaultPlugin := registration.DefaultSegmentRegistrationPlugin{}
 	for _, policyType := range []beacon.PolicyType{
 		beacon.UpRegPolicy,
 		beacon.DownRegPolicy,
 		beacon.CoreRegPolicy,
 	} {
+		constructor := NewPluginConstructor(t, policyType)
 		if _, ok := segmentRegistrars[policyType]; !ok {
 			segType, _ := SegmentTypeFromRegPolicyType(policyType)
 			defaultRegistrar, err := defaultPlugin.New(
-				ctx, t, segType, policyType, nil,
+				ctx, constructor, segType, policyType, nil,
 			)
 			if err != nil {
 				return serrors.Wrap("creating default segment registrar", err,
@@ -213,7 +248,7 @@ func (t *TasksConfig) segmentWriter(
 		Provider: t.BeaconStore,
 		Intfs:    t.AllInterfaces,
 		Type:     segType,
-		Writer: &GroupWriter{
+		Writer: &registration.GroupWriter{
 			PolicyType: policyType,
 			Plugins:    t.registrars,
 		},
