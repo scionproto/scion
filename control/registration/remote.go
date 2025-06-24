@@ -49,14 +49,12 @@ func (p *RemoteSegmentRegistrationPlugin) New(
 	policyType beacon.PolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
-	if segType == seg.TypeDown {
-		return nil, serrors.New("local segment registration does not support down segments")
-	}
 	return &RemoteWriter{
 		InternalErrors: pc.InternalErrors,
 		Registered:     pc.Registered,
 		Type:           segType,
 		RPC:            pc.RemoteStore,
+		Pather:         pc.Pather,
 	}, nil
 }
 
@@ -73,6 +71,8 @@ type RemoteWriter struct {
 	Type seg.Type
 	// RPC is used to send the segment to a remote.
 	RPC beaconing.RPC
+	// Pather is used to construct paths to the originator of a beacon.
+	Pather beaconing.Pather
 }
 
 var _ SegmentRegistrar = (*RemoteWriter)(nil)
@@ -93,6 +93,7 @@ func (r *RemoteWriter) RegisterSegments(
 			rpc:     r.RPC,
 			summary: s,
 			wg:      &wg,
+			pather:  r.Pather,
 		}
 
 		// Avoid head-of-line blocking when sending message to slow servers.

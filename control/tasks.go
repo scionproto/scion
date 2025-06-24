@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/revcache"
@@ -90,7 +91,9 @@ func NewPluginConstructor(
 	pc := registration.PluginConstructor{
 		LocalStore:  &seghandler.DefaultStorage{PathDB: t.PathDB},
 		RemoteStore: t.SegmentRegister,
-		NextHopper:  t.NextHopper,
+		Pather: addrutil.Pather{
+			NextHopper: t.NextHopper,
+		},
 	}
 	if t.Metrics != nil {
 		internalErr := metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
@@ -252,6 +255,15 @@ func (t *TasksConfig) segmentWriter(
 		Writer: &registration.GroupWriter{
 			PolicyType: policyType,
 			Plugins:    t.registrars,
+			Intfs:      t.AllInterfaces,
+			Extender: t.extender("segment_writer", t.IA, t.MTU, func() uint8 {
+				return t.BeaconStore.MaxExpTime(policyType)
+			}),
+			InternalErrors: metrics.CounterWith(
+				metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal),
+				"seg_type",
+				segType.String(),
+			),
 		},
 		Tick: beaconing.NewTick(t.RegistrationInterval),
 	}

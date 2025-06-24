@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
-	"github.com/scionproto/scion/pkg/snet/addrutil"
 )
 
 type HiddenPathRegistrationPlugin struct{}
@@ -61,10 +60,8 @@ func (p *HiddenPathRegistrationPlugin) New(
 		InternalErrors:     pc.InternalErrors,
 		Registered:         pc.Registered,
 		RegistrationPolicy: pc.HiddenPathRegPolicy,
-		Pather: addrutil.Pather{
-			NextHopper: pc.NextHopper,
-		},
-		AddressResolver: pc.HiddenPathResolver,
+		Pather:             pc.Pather,
+		AddressResolver:    pc.HiddenPathResolver,
 	}, nil
 }
 
@@ -72,7 +69,7 @@ type HiddenPathWriter struct {
 	InternalErrors     metrics.Counter
 	Registered         metrics.Counter
 	RegistrationPolicy hiddenpath.RegistrationPolicy
-	Pather             addrutil.Pather
+	Pather             beaconing.Pather
 	AddressResolver    hiddenpath.AddressResolver
 	RPC                hiddenpath.Register
 }

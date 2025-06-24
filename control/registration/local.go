@@ -20,7 +20,6 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/segment/seghandler"
 )
@@ -45,9 +44,6 @@ func (p *LocalSegmentRegistrationPlugin) New(
 	policyType beacon.PolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
-	if segType == seg.TypeDown {
-		return nil, serrors.New("local segment registration does not support down segments")
-	}
 	return &LocalWriter{
 		InternalErrors: pc.InternalErrors,
 		Registered:     pc.Registered,

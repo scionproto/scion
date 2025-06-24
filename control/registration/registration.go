@@ -17,13 +17,13 @@ package registration
 import (
 	"context"
 	"fmt"
-	"net"
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/metrics"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -34,7 +34,7 @@ type PluginConstructor struct {
 	Registered     metrics.Counter
 	LocalStore     beaconing.SegmentStore
 	RemoteStore    beaconing.RPC
-	NextHopper     interface{ UnderlayNextHop(uint16) *net.UDPAddr }
+	Pather         addrutil.Pather
 
 	HiddenPathRPC       hiddenpath.Register
 	HiddenPathRegPolicy hiddenpath.RegistrationPolicy
