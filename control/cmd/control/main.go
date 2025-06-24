@@ -101,6 +101,9 @@ var globalCfg config.Config
 
 // SegmentRegistrationPlugins is a list of plugins that can be used to register segments.
 var SegmentRegistrationPlugins = []registration.SegmentRegistrationPlugin{
+	&registration.LocalSegmentRegistrationPlugin{},
+	&registration.RemoteSegmentRegistrationPlugin{},
+	&registration.HiddenSegmentRegistrationPlugin{},
 	&registration.IgnoreSegmentRegistrationPlugin{},
 	&registration.DefaultSegmentRegistrationPlugin{},
 }

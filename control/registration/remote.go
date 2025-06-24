@@ -49,7 +49,7 @@ func (p *RemoteSegmentRegistrationPlugin) New(
 	policyType beacon.PolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
-	return &RemoteWriter{
+	return &RemoteSegmentRegistrar{
 		InternalErrors: pc.InternalErrors,
 		Registered:     pc.Registered,
 		Type:           segType,
@@ -58,11 +58,11 @@ func (p *RemoteSegmentRegistrationPlugin) New(
 	}, nil
 }
 
-// RemoteWriter writes segments via an RPC to the source AS of a segment.
-type RemoteWriter struct {
+// RemoteSegmentRegistrar writes segments via an RPC to the source AS of a segment.
+type RemoteSegmentRegistrar struct {
 	// InternalErrors counts errors that happened before being able to send a
-	// segment to a remote. This can be during terminating the segment, looking
-	// up the remote etc. If the counter is nil errors are not counted.
+	// segment to a remote. This can be during looking up the remote etc.
+	// If the counter is nil errors are not counted.
 	InternalErrors metrics.Counter
 	// Registered counts the amount of registered segments. A label is used to
 	// indicate the status of the registration.
@@ -75,10 +75,10 @@ type RemoteWriter struct {
 	Pather beaconing.Pather
 }
 
-var _ SegmentRegistrar = (*RemoteWriter)(nil)
+var _ SegmentRegistrar = (*RemoteSegmentRegistrar)(nil)
 
-// Write writes the segment at the source AS of the segment.
-func (r *RemoteWriter) RegisterSegments(
+// RegisterSegments writes the segment at the source AS of the segment.
+func (r *RemoteSegmentRegistrar) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
@@ -110,7 +110,7 @@ func (r *RemoteWriter) RegisterSegments(
 
 // remoteWriter registers one segment with the path server.
 type remoteWriter struct {
-	writer  *RemoteWriter
+	writer  *RemoteSegmentRegistrar
 	rpc     beaconing.RPC
 	pather  beaconing.Pather
 	summary *summary

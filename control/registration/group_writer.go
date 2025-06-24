@@ -27,14 +27,14 @@ import (
 )
 
 // GroupWriter is a beaconing.Writer that terminates and writes beacons across multiple segment
-// registrarsregistered in Plugins. It is parameterized by a PolicyType, which determines the
+// registrars registered in Plugins. It is parameterized by a PolicyType, which determines the
 // registrars that will be used.
 type GroupWriter struct {
+	PolicyType     beacon.PolicyType
+	Plugins        SegmentRegistrars
 	Intfs          *ifstate.Interfaces
 	Extender       beaconing.Extender
 	InternalErrors metrics.Counter
-	PolicyType     beacon.PolicyType
-	Plugins        SegmentRegistrars
 }
 
 var _ beaconing.Writer = (*GroupWriter)(nil)

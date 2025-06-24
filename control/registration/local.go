@@ -44,7 +44,7 @@ func (p *LocalSegmentRegistrationPlugin) New(
 	policyType beacon.PolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
-	return &LocalWriter{
+	return &LocalSegmentRegistrar{
 		InternalErrors: pc.InternalErrors,
 		Registered:     pc.Registered,
 		Type:           segType,
@@ -52,30 +52,28 @@ func (p *LocalSegmentRegistrationPlugin) New(
 	}, nil
 }
 
-// LocalWriter can be used to write segments in the SegmentStore.
-type LocalWriter struct {
-	// InternalErrors counts errors that happened before being able to send a
-	// segment to a remote. This can for example be during the termination of
-	// the segment. If the counter is nil errors are not counted.
+// LocalSegmentRegistrar can be used to write segments in the local SegmentStore.
+type LocalSegmentRegistrar struct {
+	// InternalErrors counts errors that happened before being able to store the
+	// segment locally.
 	InternalErrors metrics.Counter
 	// Registered counts the amount of registered segments. A label is used to
 	// indicate the status of the registration.
 	Registered metrics.Counter
 	// Type is the type of segment that is handled by this writer.
 	Type seg.Type
-	// Store is used to store the terminated segments.
+	// Store is used to store the segments.
 	Store beaconing.SegmentStore
 }
 
-var _ SegmentRegistrar = (*LocalWriter)(nil)
+var _ SegmentRegistrar = (*LocalSegmentRegistrar)(nil)
 
-// Write terminates the segments and registers them in the SegmentStore.
-func (r *LocalWriter) RegisterSegments(
+// RegisterSegments registers the segments in the local SegmentStore.
+func (r *LocalSegmentRegistrar) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
 ) (RegistrationStats, error) {
-
 	// beacons keyed with their logging ID.
 	logBeacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
@@ -84,6 +82,7 @@ func (r *LocalWriter) RegisterSegments(
 		logBeacons[b.Segment.GetLoggingID()] = b
 	}
 	if len(toRegister) == 0 {
+		// Nothing to register.
 		return RegistrationStats{}, nil
 	}
 	stats, err := r.Store.StoreSegs(ctx, toRegister)
@@ -101,7 +100,7 @@ func (r *LocalWriter) RegisterSegments(
 }
 
 // updateMetricsFromStat is used to update the metrics for local DB inserts.
-func (r *LocalWriter) updateMetricsFromStat(s seghandler.SegStats, b map[string]beacon.Beacon) {
+func (r *LocalSegmentRegistrar) updateMetricsFromStat(s seghandler.SegStats, b map[string]beacon.Beacon) {
 	for _, id := range s.InsertedSegs {
 		metrics.CounterInc(metrics.CounterWith(r.Registered, writerLabels{
 			StartIA: b[id].Segment.FirstIA(),

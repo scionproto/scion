@@ -50,7 +50,7 @@ func (p *DefaultSegmentRegistrationPlugin) New(
 	case segType != seg.TypeDown:
 		writer = &LocalSegmentRegistrationPlugin{}
 	case pc.HiddenPathRPC != nil:
-		writer = &HiddenPathRegistrationPlugin{}
+		writer = &HiddenSegmentRegistrationPlugin{}
 	default:
 		writer = &RemoteSegmentRegistrationPlugin{}
 	}

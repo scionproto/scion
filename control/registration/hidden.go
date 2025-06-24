@@ -30,19 +30,19 @@ import (
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
-type HiddenPathRegistrationPlugin struct{}
+type HiddenSegmentRegistrationPlugin struct{}
 
-var _ SegmentRegistrationPlugin = (*HiddenPathRegistrationPlugin)(nil)
+var _ SegmentRegistrationPlugin = (*HiddenSegmentRegistrationPlugin)(nil)
 
-func (p *HiddenPathRegistrationPlugin) ID() string {
+func (p *HiddenSegmentRegistrationPlugin) ID() string {
 	return "hidden_path"
 }
 
-func (p *HiddenPathRegistrationPlugin) Validate(config map[string]any) error {
+func (p *HiddenSegmentRegistrationPlugin) Validate(config map[string]any) error {
 	return nil
 }
 
-func (p *HiddenPathRegistrationPlugin) New(
+func (p *HiddenSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	pc PluginConstructor,
 	segType seg.Type,
@@ -55,7 +55,7 @@ func (p *HiddenPathRegistrationPlugin) New(
 	if pc.HiddenPathRPC == nil {
 		return nil, serrors.New("hidden path RPC is not configured")
 	}
-	return &HiddenPathWriter{
+	return &HiddenSegmentRegistrar{
 		RPC:                pc.HiddenPathRPC,
 		InternalErrors:     pc.InternalErrors,
 		Registered:         pc.Registered,
@@ -65,7 +65,7 @@ func (p *HiddenPathRegistrationPlugin) New(
 	}, nil
 }
 
-type HiddenPathWriter struct {
+type HiddenSegmentRegistrar struct {
 	InternalErrors     metrics.Counter
 	Registered         metrics.Counter
 	RegistrationPolicy hiddenpath.RegistrationPolicy
@@ -74,15 +74,13 @@ type HiddenPathWriter struct {
 	RPC                hiddenpath.Register
 }
 
-var _ SegmentRegistrar = (*HiddenPathWriter)(nil)
+var _ SegmentRegistrar = (*HiddenSegmentRegistrar)(nil)
 
-// Write iterates the segments channel and for each of the segments: it extends
-// it, it finds the remotes via the registration policy, it finds a path for
-// each remote, it sends the segment via the found path. Peers are the peer
-// interfaces in this AS.
-//
-// Only beacons[beacon.DEFAULT_GROUP] are considered.
-func (w *HiddenPathWriter) RegisterSegments(
+// RegisterSegments iterates the segments channel and for each of the segments:
+// it extends it, it finds the remotes via the registration policy, it finds a
+// path for each remote, it sends the segment via the found path. Peers are the
+// peer interfaces in this AS.
+func (w *HiddenSegmentRegistrar) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
