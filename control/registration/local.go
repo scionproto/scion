@@ -19,6 +19,7 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/metrics"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/segment/seghandler"
@@ -85,22 +86,39 @@ func (r *LocalSegmentRegistrar) RegisterSegments(
 		// Nothing to register.
 		return RegistrationStats{}, nil
 	}
+	status := make(map[string]error, len(toRegister))
 	stats, err := r.Store.StoreSegs(ctx, toRegister)
+	// If an error occurred while storing, no segments were registered, since StoreSegs
+	// does a batch insert. As a result, we report every segment failing with the returned error.
 	if err != nil {
 		metrics.CounterInc(r.InternalErrors)
-		return RegistrationStats{}, err
+		for _, b := range toRegister {
+			status[string(b.Segment.FullID())] = err
+		}
+		return RegistrationStats{
+			WriteStats: beaconing.WriteStats{
+				Count:    0,
+				StartIAs: make(map[addr.IA]struct{}),
+			},
+			Status: status,
+		}, nil
 	}
 	r.updateMetricsFromStat(stats, logBeacons)
 	sum := summarizeStats(stats, logBeacons)
 	return RegistrationStats{
-		// TODO: populate the status map with errors if any.
-		Status:     make(map[string]error),
-		WriteStats: beaconing.WriteStats{Count: sum.count, StartIAs: sum.srcs},
+		WriteStats: beaconing.WriteStats{
+			Count:    sum.count,
+			StartIAs: sum.srcs,
+		},
+		Status: make(map[string]error),
 	}, nil
 }
 
 // updateMetricsFromStat is used to update the metrics for local DB inserts.
-func (r *LocalSegmentRegistrar) updateMetricsFromStat(s seghandler.SegStats, b map[string]beacon.Beacon) {
+func (r *LocalSegmentRegistrar) updateMetricsFromStat(
+	s seghandler.SegStats,
+	b map[string]beacon.Beacon,
+) {
 	for _, id := range s.InsertedSegs {
 		metrics.CounterInc(metrics.CounterWith(r.Registered, writerLabels{
 			StartIA: b[id].Segment.FirstIA(),

@@ -86,6 +86,10 @@ func (r *RemoteSegmentRegistrar) RegisterSegments(
 	s := newSummary()
 	var expected int
 	var wg sync.WaitGroup
+
+	// Segment-specific errors.
+	status := make(map[string]error)
+
 	for _, b := range beacons {
 		expected++
 		s := remoteWriter{
@@ -97,14 +101,18 @@ func (r *RemoteSegmentRegistrar) RegisterSegments(
 		}
 
 		// Avoid head-of-line blocking when sending message to slow servers.
-		s.start(ctx, b)
+		s.start(ctx, b, status)
 	}
 	wg.Wait()
 	if expected > 0 && s.count <= 0 {
 		return RegistrationStats{}, serrors.New("no beacons registered", "candidates", expected)
 	}
 	return RegistrationStats{
-		WriteStats: beaconing.WriteStats{Count: s.count, StartIAs: s.srcs},
+		WriteStats: beaconing.WriteStats{
+			Count:    s.count,
+			StartIAs: s.srcs,
+		},
+		Status: status,
 	}, nil
 }
 
@@ -119,12 +127,16 @@ type remoteWriter struct {
 
 // start extends the beacon and starts a go routine that registers the beacon
 // with the path server.
-func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon) {
+//
+// If an error occurs, it is logged, the internal error counter is incremented,
+// and the status map is updated.
+func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon, status map[string]error) {
 	logger := log.FromCtx(ctx)
 	addr, err := r.pather.GetPath(addr.SvcCS, bseg.Segment)
 	if err != nil {
 		logger.Error("Unable to choose server", "err", err)
 		metrics.CounterInc(r.writer.InternalErrors)
+		status[string(bseg.Segment.FullID())] = err
 		return
 	}
 	r.startSendSegReg(ctx, bseg, seg.Meta{Type: r.writer.Type, Segment: bseg.Segment}, addr)
@@ -132,8 +144,12 @@ func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon) {
 
 // startSendSegReg adds to the wait group and starts a goroutine that sends the
 // registration message to the peer.
-func (r *remoteWriter) startSendSegReg(ctx context.Context, bseg beacon.Beacon,
-	reg seg.Meta, addr net.Addr) {
+func (r *remoteWriter) startSendSegReg(
+	ctx context.Context,
+	bseg beacon.Beacon,
+	reg seg.Meta,
+	addr net.Addr,
+) {
 
 	r.wg.Add(1)
 	go func() {

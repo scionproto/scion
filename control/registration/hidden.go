@@ -91,6 +91,9 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 	var expected int
 	var wg sync.WaitGroup
 
+	// Segment-specific errors.
+	status := make(map[string]error)
+
 	for _, b := range beacons {
 		regPolicy, ok := w.RegistrationPolicy[uint64(b.InIfID)]
 		if !ok {
@@ -121,7 +124,7 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 				go func(bseg beacon.Beacon) {
 					defer log.HandlePanic()
 					defer wg.Done()
-					rw.run(ctx, bseg)
+					rw.run(ctx, bseg, status)
 				}(b)
 			}
 		}
@@ -132,7 +135,11 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 		return RegistrationStats{}, serrors.New("no beacons registered", "candidates", expected)
 	}
 	return RegistrationStats{
-		WriteStats: beaconing.WriteStats{Count: summary.count, StartIAs: summary.srcs},
+		Status: status,
+		WriteStats: beaconing.WriteStats{
+			Count:    summary.count,
+			StartIAs: summary.srcs,
+		},
 	}, nil
 }
 
@@ -147,7 +154,14 @@ type hiddenPathRemoteWriter struct {
 }
 
 // run resolves, and writes the segment to the remote registry.
-func (w *hiddenPathRemoteWriter) run(ctx context.Context, bseg beacon.Beacon) {
+//
+// If an error occurs, it logs the error, increments the internal errors counter, and updates the
+// status map.
+func (w *hiddenPathRemoteWriter) run(
+	ctx context.Context,
+	bseg beacon.Beacon,
+	status map[string]error,
+) {
 	reg := hiddenpath.SegmentRegistration{
 		Seg:     seg.Meta{Type: seg.TypeDown, Segment: bseg.Segment},
 		GroupID: w.hiddenPathGroup,
@@ -159,6 +173,7 @@ func (w *hiddenPathRemoteWriter) run(ctx context.Context, bseg beacon.Beacon) {
 	if err != nil {
 		logger.Error("Unable to choose server", "hp_group", w.hpGroup(), "err", err)
 		metrics.CounterInc(w.internalErrors)
+		status[string(bseg.Segment.FullID())] = err
 		return
 	}
 
@@ -173,6 +188,7 @@ func (w *hiddenPathRemoteWriter) run(ctx context.Context, bseg beacon.Beacon) {
 			"seg_type", w.segTypeString(), "addr", addr, "hp_group", w.hpGroup(), "err", err)
 		metrics.CounterInc(metrics.CounterWith(w.registered,
 			labels.WithResult(prom.ErrNetwork).Expand()...))
+		status[string(bseg.Segment.FullID())] = err
 		return
 	}
 	w.summary.AddSrc(bseg.Segment.FirstIA())
