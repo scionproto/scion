@@ -236,6 +236,7 @@ func LoadPolicyFromYaml(path string, t PolicyType) (*Policy, error) {
 	if err != nil {
 		return nil, serrors.Wrap("Unable to open policy file", err, "path", path)
 	}
+	defer func() { _ = f.Close() }()
 	return ParsePolicyYaml(f, t)
 }
 
