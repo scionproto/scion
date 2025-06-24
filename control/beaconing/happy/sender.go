@@ -16,6 +16,7 @@ package happy
 
 import (
 	"context"
+	"errors"
 	"net"
 
 	"github.com/scionproto/scion/control/beaconing"
@@ -40,11 +41,11 @@ func (f *BeaconSenderFactory) NewSender(
 ) (beaconing.Sender, error) {
 	connectSender, err := f.Connect.NewSender(ctx, dstIA, egIfID, nextHop)
 	if err != nil {
-		return nil, err
+		return nil, serrors.Wrap("creating connect sender", err)
 	}
 	grpcSender, err := f.Grpc.NewSender(ctx, dstIA, egIfID, nextHop)
 	if err != nil {
-		return nil, err
+		return nil, serrors.Wrap("creating grpc sender", err)
 	}
 	return BeaconSender{
 		Connect: connectSender,
@@ -76,14 +77,7 @@ func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
 }
 
 func (s BeaconSender) Close() error {
-	var errs serrors.List
-	if err := s.Connect.Close(); err != nil {
-		errs = append(errs, err)
-	}
-	if err := s.Grpc.Close(); err != nil {
-		errs = append(errs, err)
-	}
-	return errs.ToError()
+	return errors.Join(s.Connect.Close(), s.Grpc.Close())
 }
 
 type Registrar struct {

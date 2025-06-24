@@ -72,7 +72,7 @@ func (f *Fetcher) Level1(
 	// by using longer lived grpc connections over different paths and thereby
 	// explicitly keeping track of the path health.
 	var errList serrors.List
-	f.errorPaths = make(map[snet.PathFingerprint]struct{})
+	clear(f.errorPaths)
 	for i := 0; i < f.MaxRetries; i++ {
 		rep, err := f.getLevel1Key(ctx, meta.SrcIA, req)
 		if errors.Is(err, errNotReachable) {
@@ -149,6 +149,6 @@ func (f *Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error)
 		return p, nil
 	}
 	// we've tried out all the paths; we reset the map to retry them.
-	f.errorPaths = make(map[snet.PathFingerprint]struct{})
+	clear(f.errorPaths)
 	return paths[0], nil
 }

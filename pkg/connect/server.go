@@ -16,6 +16,7 @@ package connect
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/netip"
@@ -85,8 +86,7 @@ func (d ConnectionDispatcher) Run(ctx context.Context) error {
 			return http.ErrServerClosed
 		}
 		if err != nil {
-			// If the context has been canceled, we do not report an error.
-			if ctx.Err() != nil {
+			if errors.Is(err, context.Canceled) {
 				return nil
 			}
 			return err
