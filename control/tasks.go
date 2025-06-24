@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/control/registration"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -110,17 +111,19 @@ func NewPluginConstructor(
 
 // InitPlugins initializes the segment registration plugins based on the provided
 // registration policies. This must be called before starting the tasks.
-func (t *TasksConfig) InitPlugins(ctx context.Context, policies []beacon.Policy) error {
+func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Policy) error {
+	logger := log.FromCtx(ctx)
 	if t.registrars != nil {
 		return nil
 	}
 	// Initialize the segment registrars.
 	segmentRegistrars := make(registration.SegmentRegistrars)
-	for _, policy := range policies {
+	for _, policy := range regPolicies {
 		segType, ok := SegmentTypeFromRegPolicyType(policy.Type)
 		if !ok {
-			return serrors.New("unsupported policy type for segment registration plugin",
+			logger.Error("Unsupported policy type for segment registration plugin",
 				"policy_type", policy.Type)
+			continue
 		}
 		constructor := NewPluginConstructor(t, policy.Type, segType)
 		for _, regPolicy := range policy.RegistrationPolicies {
