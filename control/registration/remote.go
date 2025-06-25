@@ -45,10 +45,10 @@ func (p *RemoteSegmentRegistrationPlugin) Validate(config map[string]any) error 
 func (p *RemoteSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	pc PluginConstructor,
-	segType seg.Type,
-	policyType beacon.PolicyType,
+	policyType beacon.RegPolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
+	segType := policyType.SegmentType()
 	return &RemoteSegmentRegistrar{
 		InternalErrors: pc.InternalErrors,
 		Registered:     pc.Registered,

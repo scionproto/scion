@@ -85,8 +85,7 @@ type TasksConfig struct {
 
 func NewPluginConstructor(
 	t *TasksConfig,
-	policyType beacon.PolicyType,
-	segType seg.Type,
+	policyType beacon.RegPolicyType,
 ) registration.PluginConstructor {
 	pc := registration.PluginConstructor{
 		LocalStore:  &seghandler.DefaultStorage{PathDB: t.PathDB},
@@ -97,7 +96,9 @@ func NewPluginConstructor(
 	}
 	if t.Metrics != nil {
 		internalErr := metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
-		pc.InternalErrors = metrics.CounterWith(internalErr, "seg_type", segType.String())
+		pc.InternalErrors = metrics.CounterWith(
+			internalErr, "seg_type", policyType.SegmentType().String(),
+		)
 		pc.Registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
 	}
 	if t.HiddenPathRegistrationCfg != nil {
@@ -122,13 +123,13 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 	// Initialize the segment registrars.
 	segmentRegistrars := make(registration.SegmentRegistrars)
 	for _, policy := range regPolicies {
-		segType, ok := SegmentTypeFromRegPolicyType(policy.Type)
+		polType, ok := policy.Type.ToRegPolicyType()
 		if !ok {
 			logger.Error("Unsupported policy type for segment registration plugin",
 				"policy_type", policy.Type)
 			continue
 		}
-		constructor := NewPluginConstructor(t, policy.Type, segType)
+		constructor := NewPluginConstructor(t, polType)
 		for _, regPolicy := range policy.RegistrationPolicies {
 			plugin, ok := registration.GetSegmentRegPlugin(regPolicy.Plugin)
 			if !ok {
@@ -136,13 +137,13 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 					"plugin", regPolicy.Plugin)
 			}
 			registrar, err := plugin.New(
-				ctx, constructor, segType, policy.Type, regPolicy.PluginConfig,
+				ctx, constructor, polType, regPolicy.PluginConfig,
 			)
 			if err != nil {
 				return serrors.Wrap("creating segment registrar", err)
 			}
 			if err := segmentRegistrars.Register(
-				policy.Type, regPolicy.Name, registrar,
+				polType, regPolicy.Name, registrar,
 			); err != nil {
 				return serrors.Wrap("registering segment registrar", err,
 					"policy_type", policy.Type, "registration_policy", regPolicy.Name)
@@ -153,26 +154,25 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 	// the default plugin.
 	// This is done for the sake of backward compatibility.
 	defaultPlugin := registration.DefaultSegmentRegistrationPlugin{}
-	for _, policyType := range []beacon.PolicyType{
-		beacon.UpRegPolicy,
-		beacon.DownRegPolicy,
-		beacon.CoreRegPolicy,
+	for _, polType := range []beacon.RegPolicyType{
+		beacon.RegPolicyTypeUp,
+		beacon.RegPolicyTypeDown,
+		beacon.RegPolicyTypeCore,
 	} {
-		segType, _ := SegmentTypeFromRegPolicyType(policyType)
-		constructor := NewPluginConstructor(t, policyType, segType)
-		if _, ok := segmentRegistrars[policyType]; !ok {
+		constructor := NewPluginConstructor(t, polType)
+		if _, ok := segmentRegistrars[polType]; !ok {
 			defaultRegistrar, err := defaultPlugin.New(
-				ctx, constructor, segType, policyType, nil,
+				ctx, constructor, polType, nil,
 			)
 			if err != nil {
 				return serrors.Wrap("creating default segment registrar", err,
-					"policy_type", policyType)
+					"policy_type", polType)
 			}
 			if err := segmentRegistrars.RegisterDefault(
-				policyType, defaultRegistrar,
+				polType, defaultRegistrar,
 			); err != nil {
 				return serrors.Wrap("registering default segment registrar", err,
-					"policy_type", policyType)
+					"policy_type", polType)
 			}
 		}
 	}
@@ -228,41 +228,36 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 // SegmentWriters starts periodic segment registration tasks.
 func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 	if t.Core {
-		return []*periodic.Runner{t.segmentWriter(beacon.CoreRegPolicy)}
+		return []*periodic.Runner{t.segmentWriter(beacon.RegPolicyTypeCore)}
 	}
 	return []*periodic.Runner{
-		t.segmentWriter(beacon.DownRegPolicy),
-		t.segmentWriter(beacon.UpRegPolicy),
+		t.segmentWriter(beacon.RegPolicyTypeDown),
+		t.segmentWriter(beacon.RegPolicyTypeUp),
 	}
 }
 
 // segmentWriter starts a periodic segment registration task for the given policy type.
 func (t *TasksConfig) segmentWriter(
-	policyType beacon.PolicyType,
+	policyType beacon.RegPolicyType,
 ) *periodic.Runner {
 	if t.registrars == nil {
 		panic("segment registrars not initialized, call InitPlugins first")
 	}
-	segType, ok := SegmentTypeFromRegPolicyType(policyType)
-	if !ok {
-		panic(serrors.New("invalid policy type for segment writer",
-			"policy_type", policyType))
-	}
 	r := &beaconing.WriteScheduler{
 		Provider: t.BeaconStore,
 		Intfs:    t.AllInterfaces,
-		Type:     segType,
+		Type:     policyType.SegmentType(),
 		Writer: &registration.GroupWriter{
 			PolicyType: policyType,
 			Plugins:    t.registrars,
 			Intfs:      t.AllInterfaces,
 			Extender: t.extender("segment_writer", t.IA, t.MTU, func() uint8 {
-				return t.BeaconStore.MaxExpTime(policyType)
+				return t.BeaconStore.MaxExpTime(policyType.ToPolicyType())
 			}),
 			InternalErrors: metrics.CounterWith(
 				metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal),
 				"seg_type",
-				segType.String(),
+				policyType.SegmentType().String(),
 			),
 		},
 		Tick: beaconing.NewTick(t.RegistrationInterval),

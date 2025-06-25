@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/path/pathpol"
@@ -41,6 +42,61 @@ const (
 	// CoreRegPolicy is the registration policy for core segments.
 	CoreRegPolicy PolicyType = "CoreSegmentRegistration"
 )
+
+// RegPolicyType is the registration policy type, which is a subset of PolicyType.
+type RegPolicyType string
+
+const (
+	// RegPolicyTypeUp is the registration policy type for up segments.
+	RegPolicyTypeUp RegPolicyType = RegPolicyType(UpRegPolicy)
+	// RegPolicyTypeDown is the registration policy type for down segments.
+	RegPolicyTypeDown RegPolicyType = RegPolicyType(DownRegPolicy)
+	// RegPolicyTypeCore is the registration policy type for core segments.
+	RegPolicyTypeCore RegPolicyType = RegPolicyType(CoreRegPolicy)
+)
+
+// ToRegPolicyType converts a PolicyType to a RegPolicyType if it is a registration policy type.
+// The second return value indicates whether the conversion was successful.
+func (p PolicyType) ToRegPolicyType() (RegPolicyType, bool) {
+	switch p {
+	case UpRegPolicy:
+		return RegPolicyTypeUp, true
+	case DownRegPolicy:
+		return RegPolicyTypeDown, true
+	case CoreRegPolicy:
+		return RegPolicyTypeCore, true
+	default:
+		return "", false
+	}
+}
+
+// SegmentType returns the segment type associated with this registration policy.
+func (p RegPolicyType) SegmentType() segment.Type {
+	switch p {
+	case RegPolicyTypeUp:
+		return segment.TypeUp
+	case RegPolicyTypeDown:
+		return segment.TypeDown
+	case RegPolicyTypeCore:
+		return segment.TypeCore
+	default:
+		panic("unreachable: invalid registration policy type")
+	}
+}
+
+// ToPolicyType converts a RegPolicyType to a generic PolicyType.
+func (p RegPolicyType) ToPolicyType() PolicyType {
+	switch p {
+	case RegPolicyTypeUp:
+		return UpRegPolicy
+	case RegPolicyTypeDown:
+		return DownRegPolicy
+	case RegPolicyTypeCore:
+		return CoreRegPolicy
+	default:
+		panic("unreachable: invalid registration policy type")
+	}
+}
 
 const (
 	// DefaultBestSetSize is the default BestSetSize value.

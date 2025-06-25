@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/metrics"
-	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -48,8 +47,7 @@ type SegmentRegistrationPlugin interface {
 	New(
 		ctx context.Context,
 		params PluginConstructor,
-		segmentType seg.Type,
-		policyType beacon.PolicyType,
+		policyType beacon.RegPolicyType,
 		config map[string]any,
 	) (SegmentRegistrar, error)
 	// Validate validates the configuration of the plugin.
@@ -69,10 +67,10 @@ type SegmentRegistrar interface {
 
 // SegmentRegistrars maps a policy type to a map of registration policy names
 // to their corresponding segment registrars.
-type SegmentRegistrars map[beacon.PolicyType]map[string]SegmentRegistrar
+type SegmentRegistrars map[beacon.RegPolicyType]map[string]SegmentRegistrar
 
 func (s SegmentRegistrars) Register(
-	policyType beacon.PolicyType, registrationPolicy string, registrar SegmentRegistrar,
+	policyType beacon.RegPolicyType, registrationPolicy string, registrar SegmentRegistrar,
 ) error {
 	if _, ok := s[policyType]; !ok {
 		s[policyType] = make(map[string]SegmentRegistrar)
@@ -88,7 +86,7 @@ func (s SegmentRegistrars) Register(
 // RegisterDefault registers a default registrar for a given policy type.
 // The default registrar is associated with the name beacon.DEFAULT_GROUP.
 func (s SegmentRegistrars) RegisterDefault(
-	policyType beacon.PolicyType, registrar SegmentRegistrar,
+	policyType beacon.RegPolicyType, registrar SegmentRegistrar,
 ) error {
 	if _, ok := s[policyType]; !ok {
 		s[policyType] = make(map[string]SegmentRegistrar)
@@ -102,7 +100,7 @@ func (s SegmentRegistrars) RegisterDefault(
 }
 
 func (s SegmentRegistrars) Get(
-	policyType beacon.PolicyType, registrationPolicy string,
+	policyType beacon.RegPolicyType, registrationPolicy string,
 ) (SegmentRegistrar, error) {
 	if _, ok := s[policyType]; !ok {
 		return nil, serrors.New("no registrars found for policy type",

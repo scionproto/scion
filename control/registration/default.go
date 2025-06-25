@@ -40,10 +40,10 @@ func (p *DefaultSegmentRegistrationPlugin) Validate(
 func (p *DefaultSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	pc PluginConstructor,
-	segType seg.Type,
-	policyType beacon.PolicyType,
+	policyType beacon.RegPolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
+	segType := policyType.SegmentType()
 	// Create either a local, hidden or remote plugin.
 	var writer SegmentRegistrationPlugin
 	switch {
@@ -54,5 +54,5 @@ func (p *DefaultSegmentRegistrationPlugin) New(
 	default:
 		writer = &RemoteSegmentRegistrationPlugin{}
 	}
-	return writer.New(ctx, pc, segType, policyType, config)
+	return writer.New(ctx, pc, policyType, config)
 }

@@ -45,10 +45,10 @@ func (p *HiddenSegmentRegistrationPlugin) Validate(config map[string]any) error 
 func (p *HiddenSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	pc PluginConstructor,
-	segType seg.Type,
-	policyType beacon.PolicyType,
+	policyType beacon.RegPolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
+	segType := policyType.SegmentType()
 	if segType != seg.TypeDown {
 		return nil, serrors.New("hidden path registration only supports down segments")
 	}

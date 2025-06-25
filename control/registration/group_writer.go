@@ -30,7 +30,7 @@ import (
 // registrars registered in Plugins. It is parameterized by a PolicyType, which determines the
 // registrars that will be used.
 type GroupWriter struct {
-	PolicyType     beacon.PolicyType
+	PolicyType     beacon.RegPolicyType
 	Plugins        SegmentRegistrars
 	Intfs          *ifstate.Interfaces
 	Extender       beaconing.Extender

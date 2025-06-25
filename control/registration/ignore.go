@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	seg "github.com/scionproto/scion/pkg/segment"
 )
 
 const (
@@ -114,8 +113,7 @@ func (p *IgnoreSegmentRegistrationPlugin) Validate(
 func (p *IgnoreSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	pc PluginConstructor,
-	segType seg.Type,
-	policyType beacon.PolicyType,
+	policyType beacon.RegPolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
 	conf, err := parseConfig(config)
