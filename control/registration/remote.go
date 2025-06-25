@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
@@ -86,38 +85,32 @@ func (r *RemoteSegmentRegistrar) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
-) (RegistrationStats, error) {
-	s := newSummary()
+) *RegistrationSummary {
+	logger := log.FromCtx(ctx)
+
+	summary := NewSummary()
 	var expected int
 	var wg sync.WaitGroup
-
-	// Segment-specific errors.
-	status := make(map[string]error)
 
 	for _, b := range beacons {
 		expected++
 		s := remoteWriter{
 			writer:  r,
 			rpc:     r.RPC,
-			summary: s,
+			summary: summary,
 			wg:      &wg,
 			pather:  r.Pather,
 		}
 
 		// Avoid head-of-line blocking when sending message to slow servers.
-		s.start(ctx, b, status)
+		s.start(ctx, b)
 	}
 	wg.Wait()
-	if expected > 0 && s.count <= 0 {
-		return RegistrationStats{}, serrors.New("no beacons registered", "candidates", expected)
+	if expected > 0 && summary.count <= 0 {
+		logger.Error("No beacons registered", "candidates", expected)
+		return nil
 	}
-	return RegistrationStats{
-		WriteStats: beaconing.WriteStats{
-			Count:    s.count,
-			StartIAs: s.srcs,
-		},
-		Status: status,
-	}, nil
+	return summary
 }
 
 // remoteWriter registers one segment with the path server.
@@ -125,7 +118,7 @@ type remoteWriter struct {
 	writer  *RemoteSegmentRegistrar
 	rpc     beaconing.RPC
 	pather  beaconing.Pather
-	summary *summary
+	summary *RegistrationSummary
 	wg      *sync.WaitGroup
 }
 
@@ -134,13 +127,12 @@ type remoteWriter struct {
 //
 // If an error occurs, it is logged, the internal error counter is incremented,
 // and the status map is updated.
-func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon, status map[string]error) {
+func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon) {
 	logger := log.FromCtx(ctx)
 	addr, err := r.pather.GetPath(addr.SvcCS, bseg.Segment)
 	if err != nil {
 		logger.Error("Unable to choose server", "err", err)
 		metrics.CounterInc(r.writer.InternalErrors)
-		status[string(bseg.Segment.FullID())] = err
 		return
 	}
 	r.startSendSegReg(ctx, bseg, seg.Meta{Type: r.writer.Type, Segment: bseg.Segment}, addr)
@@ -174,8 +166,7 @@ func (r *remoteWriter) startSendSegReg(
 				labels.WithResult(prom.ErrNetwork).Expand()...))
 			return
 		}
-		r.summary.AddSrc(bseg.Segment.FirstIA())
-		r.summary.Inc()
+		r.summary.RecordSegment(bseg.Segment)
 
 		metrics.CounterInc(metrics.CounterWith(r.writer.Registered,
 			labels.WithResult(prom.Success).Expand()...))

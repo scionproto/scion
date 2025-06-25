@@ -19,7 +19,7 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
-	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/segment/seghandler"
@@ -74,7 +74,8 @@ func (r *LocalSegmentRegistrar) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
-) (RegistrationStats, error) {
+) *RegistrationSummary {
+	logger := log.FromCtx(ctx)
 	// beacons keyed with their logging ID.
 	logBeacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
@@ -84,38 +85,22 @@ func (r *LocalSegmentRegistrar) RegisterSegments(
 	}
 	if len(toRegister) == 0 {
 		// Nothing to register.
-		return RegistrationStats{}, nil
+		return nil
 	}
-	status := make(map[string]error, len(toRegister))
 	stats, err := r.Store.StoreSegs(ctx, toRegister)
 	// If an error occurred while storing, no segments were registered, since StoreSegs
 	// does a batch insert. As a result, we report every segment failing with the returned error.
 	if err != nil {
 		metrics.CounterInc(r.InternalErrors)
-		for _, b := range toRegister {
-			status[string(b.Segment.FullID())] = err
-		}
-		return RegistrationStats{
-			WriteStats: beaconing.WriteStats{
-				Count:    0,
-				StartIAs: make(map[addr.IA]struct{}),
-			},
-			Status: status,
-		}, nil
+		logger.Error("Unable to register segments", "err", err, "count", len(toRegister))
+		return nil
 	}
-	r.updateMetricsFromStat(stats, logBeacons)
-	sum := summarizeStats(stats, logBeacons)
-	return RegistrationStats{
-		WriteStats: beaconing.WriteStats{
-			Count:    sum.count,
-			StartIAs: sum.srcs,
-		},
-		Status: make(map[string]error),
-	}, nil
+	r.updateMetricsFromStats(stats, logBeacons)
+	return SummarizeSegStats(stats, logBeacons)
 }
 
 // updateMetricsFromStat is used to update the metrics for local DB inserts.
-func (r *LocalSegmentRegistrar) updateMetricsFromStat(
+func (r *LocalSegmentRegistrar) updateMetricsFromStats(
 	s seghandler.SegStats,
 	b map[string]beacon.Beacon,
 ) {

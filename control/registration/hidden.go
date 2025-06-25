@@ -83,10 +83,10 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
-) (RegistrationStats, error) {
+) *RegistrationSummary {
 
 	logger := log.FromCtx(ctx)
-	summary := newSummary()
+	summary := NewSummary()
 	var expected int
 	var wg sync.WaitGroup
 
@@ -131,22 +131,17 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 
 	wg.Wait()
 	if expected > 0 && summary.count <= 0 {
-		return RegistrationStats{}, serrors.New("no beacons registered", "candidates", expected)
+		logger.Error("No beacons registered", "candidates", expected)
+		return nil
 	}
-	return RegistrationStats{
-		Status: status,
-		WriteStats: beaconing.WriteStats{
-			Count:    summary.count,
-			StartIAs: summary.srcs,
-		},
-	}, nil
+	return summary
 }
 
 // hiddenPathRemoteWriter registers one segment with the path server.
 type hiddenPathRemoteWriter struct {
 	internalErrors  metrics.Counter
 	registered      metrics.Counter
-	summary         *summary
+	summary         *RegistrationSummary
 	hiddenPathGroup hiddenpath.GroupID
 	resolveRemote   func(context.Context) (net.Addr, error)
 	rpc             hiddenpath.Register
@@ -190,8 +185,7 @@ func (w *hiddenPathRemoteWriter) run(
 		status[string(bseg.Segment.FullID())] = err
 		return
 	}
-	w.summary.AddSrc(bseg.Segment.FirstIA())
-	w.summary.Inc()
+	w.summary.RecordSegment(bseg.Segment)
 
 	metrics.CounterInc(metrics.CounterWith(w.registered,
 		labels.WithResult(prom.Success).Expand()...))

@@ -20,7 +20,6 @@ import (
 	"text/template"
 
 	"github.com/scionproto/scion/control/beacon"
-	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -136,7 +135,7 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 	ctx context.Context,
 	segments []beacon.Beacon,
 	peers []uint16,
-) (RegistrationStats, error) {
+) *RegistrationSummary {
 	logger := log.FromCtx(ctx)
 
 	// Build up a registration status that reports success for all segments.
@@ -145,15 +144,13 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 		startIA := b.Segment.FirstIA()
 		startIAs[startIA] = struct{}{}
 	}
-	regStats := RegistrationStats{
-		Status:     make(map[string]error),
-		WriteStats: beaconing.WriteStats{Count: len(segments), StartIAs: startIAs},
-	}
 
 	// If no message is configured, we do not log anything.
 	if r.Message == nil {
-		return regStats, nil
+		return nil
 	}
+
+	summary := NewSummary()
 
 	for _, b := range segments {
 		var sb strings.Builder
@@ -161,7 +158,10 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 		if err := r.Message.Execute(&sb, tmplData{
 			Segment: b,
 		}); err != nil {
-			return RegistrationStats{}, serrors.Wrap("executing message template", err)
+			logger.Error("Failed to execute message template",
+				"err", err,
+			)
+			continue
 		}
 		s := sb.String()
 		// Log the message at the configured log level.
@@ -175,6 +175,7 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 		default:
 			panic("unexpected log level") // This should never happen due to validation.
 		}
+		summary.RecordBeacon(&b)
 	}
-	return regStats, nil
+	return summary
 }

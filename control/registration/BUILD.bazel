@@ -10,6 +10,7 @@ go_library(
         "local.go",
         "registration.go",
         "remote.go",
+        "summary.go",
         "util.go",
     ],
     importpath = "github.com/scionproto/scion/control/registration",

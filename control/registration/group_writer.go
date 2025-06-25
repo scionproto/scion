@@ -78,7 +78,6 @@ func (w *GroupWriter) Write(
 	allBeacons beacon.GroupedBeacons,
 	peers []uint16,
 ) (beaconing.WriteStats, error) {
-	logger := log.FromCtx(ctx)
 	processedBeacons := w.processSegments(ctx, allBeacons, peers)
 	writeStats := beaconing.WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
 	for name, beacons := range processedBeacons {
@@ -87,19 +86,14 @@ func (w *GroupWriter) Write(
 			return beaconing.WriteStats{}, serrors.Wrap("getting segment registrar", err,
 				"policy", w.PolicyType, "name", name)
 		}
-		stats, err := registrar.RegisterSegments(ctx, beacons, peers)
-		if err != nil {
-			return beaconing.WriteStats{}, serrors.Wrap("registering segments", err,
-				"policy", name)
-		}
-		// Log the segment-specific errors encountered during registration.
-		for id, err := range stats.Status {
-			if err != nil {
-				logger.Error("Failed to register segment", "segment_id", id, "err", err)
-			}
-		}
+		sum := registrar.RegisterSegments(ctx, beacons, peers)
 		// Extend the write stats with the plugin-specific write stats.
-		writeStats.Extend(stats.WriteStats)
+		if sum != nil {
+			writeStats.Extend(beaconing.WriteStats{
+				Count:    sum.GetCount(),
+				StartIAs: sum.GetSrcs(),
+			})
+		}
 	}
 	return writeStats, nil
 }
