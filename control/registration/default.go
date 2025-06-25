@@ -22,12 +22,17 @@ import (
 )
 
 // DefaultSegmentRegistrationPlugin is the default registration plugin.
-type DefaultSegmentRegistrationPlugin struct{}
+type DefaultSegmentRegistrationPlugin struct {
+	LocalPlugin  *LocalSegmentRegistrationPlugin
+	RemotePlugin *RemoteSegmentRegistrationPlugin
+	// optional
+	HiddenPlugin *HiddenSegmentRegistrationPlugin
+}
 
 var _ SegmentRegistrationPlugin = (*DefaultSegmentRegistrationPlugin)(nil)
 
 func (p *DefaultSegmentRegistrationPlugin) ID() string {
-	return beacon.DEFAULT_GROUP
+	return DEFAULT_PLUGIN_ID
 }
 
 func (p *DefaultSegmentRegistrationPlugin) Validate(
@@ -39,20 +44,19 @@ func (p *DefaultSegmentRegistrationPlugin) Validate(
 
 func (p *DefaultSegmentRegistrationPlugin) New(
 	ctx context.Context,
-	pc PluginConstructor,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
-	// Create either a local, hidden or remote plugin.
-	var writer SegmentRegistrationPlugin
+	// Use either the local, hidden or remote plugin.
+	var plugin SegmentRegistrationPlugin
 	switch {
 	case segType != seg.TypeDown:
-		writer = &LocalSegmentRegistrationPlugin{}
-	case pc.HiddenPathRPC != nil:
-		writer = &HiddenSegmentRegistrationPlugin{}
+		plugin = p.LocalPlugin
+	case p.HiddenPlugin != nil:
+		plugin = p.HiddenPlugin
 	default:
-		writer = &RemoteSegmentRegistrationPlugin{}
+		plugin = p.RemotePlugin
 	}
-	return writer.New(ctx, pc, policyType, config)
+	return plugin.New(ctx, policyType, config)
 }

@@ -29,7 +29,20 @@ import (
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
-type RemoteSegmentRegistrationPlugin struct{}
+type RemoteSegmentRegistrationPlugin struct {
+	// InternalErrors counts errors that happened before being able to send a
+	// segment to a remote. This can be during looking up the remote etc.
+	// If the counter is nil errors are not counted.
+	InternalErrors metrics.Counter
+	// Registered counts the amount of registered segments. A label is used to
+	// indicate the status of the registration.
+	Registered metrics.Counter
+
+	// RPC is used to send the segment to a remote.
+	RPC beaconing.RPC
+	// Pather is used to construct paths to the originator of a beacon.
+	Pather beaconing.Pather
+}
 
 var _ SegmentRegistrationPlugin = (*RemoteSegmentRegistrationPlugin)(nil)
 
@@ -44,35 +57,26 @@ func (p *RemoteSegmentRegistrationPlugin) Validate(config map[string]any) error 
 
 func (p *RemoteSegmentRegistrationPlugin) New(
 	ctx context.Context,
-	pc PluginConstructor,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
 	return &RemoteSegmentRegistrar{
-		InternalErrors: pc.InternalErrors,
-		Registered:     pc.Registered,
-		Type:           segType,
-		RPC:            pc.RemoteStore,
-		Pather:         pc.Pather,
+		RemoteSegmentRegistrationPlugin: *p,
+		InternalErrors: metrics.CounterWith(
+			p.InternalErrors,
+			"seg_type", segType.String(),
+		),
+		Type: segType,
 	}, nil
 }
 
 // RemoteSegmentRegistrar writes segments via an RPC to the source AS of a segment.
 type RemoteSegmentRegistrar struct {
-	// InternalErrors counts errors that happened before being able to send a
-	// segment to a remote. This can be during looking up the remote etc.
-	// If the counter is nil errors are not counted.
+	RemoteSegmentRegistrationPlugin
 	InternalErrors metrics.Counter
-	// Registered counts the amount of registered segments. A label is used to
-	// indicate the status of the registration.
-	Registered metrics.Counter
 	// Type is the type of segment that is handled by this writer.
 	Type seg.Type
-	// RPC is used to send the segment to a remote.
-	RPC beaconing.RPC
-	// Pather is used to construct paths to the originator of a beacon.
-	Pather beaconing.Pather
 }
 
 var _ SegmentRegistrar = (*RemoteSegmentRegistrar)(nil)

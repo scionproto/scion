@@ -54,6 +54,7 @@ import (
 	cstrustgrpc "github.com/scionproto/scion/control/trust/grpc"
 	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
@@ -65,6 +66,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/private/app"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/app/command"
@@ -98,15 +100,6 @@ import (
 )
 
 var globalCfg config.Config
-
-// SegmentRegistrationPlugins is a list of plugins that can be used to register segments.
-var SegmentRegistrationPlugins = []registration.SegmentRegistrationPlugin{
-	&registration.LocalSegmentRegistrationPlugin{},
-	&registration.RemoteSegmentRegistrationPlugin{},
-	&registration.HiddenSegmentRegistrationPlugin{},
-	&registration.IgnoreSegmentRegistrationPlugin{},
-	&registration.DefaultSegmentRegistrationPlugin{},
-}
 
 func main() {
 	application := launcher.Application{
@@ -780,6 +773,7 @@ func realMain(ctx context.Context) error {
 		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
+	rpc := beaconinggrpc.Registrar{Dialer: dialer}
 	tc := cs.TasksConfig{
 		IA:            topo.IA(),
 		Core:          topo.Core(),
@@ -798,7 +792,7 @@ func realMain(ctx context.Context) error {
 		BeaconSenderFactory: &beaconinggrpc.BeaconSenderFactory{
 			Dialer: dialer,
 		},
-		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
+		SegmentRegister: rpc,
 		BeaconStore:     beaconStore,
 		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) ([]beaconing.Signer, error) {
 			signers, err := signer.SignerGen.Generate(ctx)
@@ -829,7 +823,61 @@ func realMain(ctx context.Context) error {
 		AllowIsdLoop:              isdLoopAllowed,
 		EPIC:                      globalCfg.BS.EPIC,
 	}
-	for _, plugin := range SegmentRegistrationPlugins {
+
+	var internalErr, registered libmetrics.Counter
+	if metrics != nil {
+		internalErr = libmetrics.NewPromCounter(metrics.BeaconingRegistrarInternalErrorsTotal)
+		registered = libmetrics.NewPromCounter(metrics.BeaconingRegisteredTotal)
+	}
+
+	pather := addrutil.Pather{
+		NextHopper: topo,
+	}
+	// initialize the plugins
+	localPlugin := &registration.LocalSegmentRegistrationPlugin{
+		InternalErrors: internalErr,
+		Registered:     registered,
+		Store:          &seghandler.DefaultStorage{PathDB: pathDB},
+	}
+	remotePlugin := &registration.RemoteSegmentRegistrationPlugin{
+		InternalErrors: internalErr,
+		Registered:     registered,
+		RPC:            rpc,
+		Pather:         pather,
+	}
+	var hiddenPathPlugin *registration.HiddenSegmentRegistrationPlugin
+	// Construct the hidden path plugin if the hidden path configuration exists.
+	if hpWriterCfg != nil {
+		hiddenPathPlugin = &registration.HiddenSegmentRegistrationPlugin{
+			InternalErrors:     internalErr,
+			Registered:         registered,
+			Pather:             pather,
+			RegistrationPolicy: hpWriterCfg.Policy,
+			RPC:                hpWriterCfg.RPC,
+			AddressResolver: hiddenpath.RegistrationResolver{
+				Router:     hpWriterCfg.Router,
+				Discoverer: hpWriterCfg.Discoverer,
+			},
+		}
+	}
+	ignorePlugin := &registration.IgnoreSegmentRegistrationPlugin{}
+	defaultPlugin := &registration.DefaultSegmentRegistrationPlugin{
+		LocalPlugin:  localPlugin,
+		RemotePlugin: remotePlugin,
+		HiddenPlugin: hiddenPathPlugin,
+	}
+	// plugins is a list of plugins that can be used to register segments.
+	plugins := []registration.SegmentRegistrationPlugin{
+		localPlugin,
+		remotePlugin,
+		ignorePlugin,
+		defaultPlugin,
+	}
+	if hiddenPathPlugin != nil {
+		plugins = append(plugins, hiddenPathPlugin)
+	}
+
+	for _, plugin := range plugins {
 		registration.RegisterSegmentRegPlugin(plugin)
 	}
 	if err := tc.InitPlugins(errCtx, policies.RegistrationPolicies()); err != nil {

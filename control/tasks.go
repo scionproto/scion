@@ -32,11 +32,9 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/revcache"
-	"github.com/scionproto/scion/private/segment/seghandler"
 	"github.com/scionproto/scion/private/trust"
 )
 
@@ -83,36 +81,6 @@ type TasksConfig struct {
 	registrars registration.SegmentRegistrars
 }
 
-func NewPluginConstructor(
-	t *TasksConfig,
-	policyType beacon.RegPolicyType,
-) registration.PluginConstructor {
-	pc := registration.PluginConstructor{
-		LocalStore:  &seghandler.DefaultStorage{PathDB: t.PathDB},
-		RemoteStore: t.SegmentRegister,
-		Pather: addrutil.Pather{
-			NextHopper: t.NextHopper,
-		},
-	}
-	if t.Metrics != nil {
-		internalErr := metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
-		pc.InternalErrors = metrics.CounterWith(
-			internalErr, "seg_type", policyType.SegmentType().String(),
-		)
-		pc.Registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
-	}
-	if t.HiddenPathRegistrationCfg != nil {
-		pc.HiddenPathRPC = t.HiddenPathRegistrationCfg.RPC
-		pc.HiddenPathRegPolicy = t.HiddenPathRegistrationCfg.Policy
-		pc.HiddenPathResolver = hiddenpath.RegistrationResolver{
-			Router:     t.HiddenPathRegistrationCfg.Router,
-			Discoverer: t.HiddenPathRegistrationCfg.Discoverer,
-		}
-	}
-
-	return pc
-}
-
 // InitPlugins initializes the segment registration plugins based on the provided
 // registration policies. This must be called before starting the tasks.
 func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Policy) error {
@@ -129,7 +97,6 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 				"policy_type", policy.Type)
 			continue
 		}
-		constructor := NewPluginConstructor(t, polType)
 		for _, regPolicy := range policy.RegistrationPolicies {
 			plugin, ok := registration.GetSegmentRegPlugin(regPolicy.Plugin)
 			if !ok {
@@ -137,7 +104,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 					"plugin", regPolicy.Plugin)
 			}
 			registrar, err := plugin.New(
-				ctx, constructor, polType, regPolicy.PluginConfig,
+				ctx, polType, regPolicy.PluginConfig,
 			)
 			if err != nil {
 				return serrors.Wrap("creating segment registrar", err)
@@ -153,16 +120,18 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 	// For the policy types that do not have any plugins registered, we construct a registrar from
 	// the default plugin.
 	// This is done for the sake of backward compatibility.
-	defaultPlugin := registration.DefaultSegmentRegistrationPlugin{}
+	defaultPlugin, ok := registration.GetDefaultSegmentRegPlugin()
+	if !ok {
+		return serrors.New("default segment registration plugin not registered")
+	}
 	for _, polType := range []beacon.RegPolicyType{
 		beacon.RegPolicyTypeUp,
 		beacon.RegPolicyTypeDown,
 		beacon.RegPolicyTypeCore,
 	} {
-		constructor := NewPluginConstructor(t, polType)
 		if _, ok := segmentRegistrars[polType]; !ok {
 			defaultRegistrar, err := defaultPlugin.New(
-				ctx, constructor, polType, nil,
+				ctx, polType, nil,
 			)
 			if err != nil {
 				return serrors.Wrap("creating default segment registrar", err,

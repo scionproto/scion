@@ -112,7 +112,6 @@ func (p *IgnoreSegmentRegistrationPlugin) Validate(
 
 func (p *IgnoreSegmentRegistrationPlugin) New(
 	ctx context.Context,
-	pc PluginConstructor,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {

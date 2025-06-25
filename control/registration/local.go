@@ -25,9 +25,12 @@ import (
 	"github.com/scionproto/scion/private/segment/seghandler"
 )
 
-// TODO: make the plugin also the registrar
-// TODO: move back to the writer.go
-type LocalSegmentRegistrationPlugin struct{}
+type LocalSegmentRegistrationPlugin struct {
+	InternalErrors metrics.Counter
+	Registered     metrics.Counter
+
+	Store beaconing.SegmentStore
+}
 
 var _ SegmentRegistrationPlugin = (*LocalSegmentRegistrationPlugin)(nil)
 
@@ -42,31 +45,26 @@ func (p *LocalSegmentRegistrationPlugin) Validate(config map[string]any) error {
 
 func (p *LocalSegmentRegistrationPlugin) New(
 	ctx context.Context,
-	pc PluginConstructor,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
 	return &LocalSegmentRegistrar{
-		InternalErrors: pc.InternalErrors,
-		Registered:     pc.Registered,
-		Type:           segType,
-		Store:          pc.LocalStore,
+		LocalSegmentRegistrationPlugin: *p,
+		InternalErrors: metrics.CounterWith(
+			p.InternalErrors,
+			"seg_type", segType.String(),
+		),
+		Type: segType,
 	}, nil
 }
 
 // LocalSegmentRegistrar can be used to write segments in the local SegmentStore.
 type LocalSegmentRegistrar struct {
-	// InternalErrors counts errors that happened before being able to store the
-	// segment locally.
+	LocalSegmentRegistrationPlugin
 	InternalErrors metrics.Counter
-	// Registered counts the amount of registered segments. A label is used to
-	// indicate the status of the registration.
-	Registered metrics.Counter
 	// Type is the type of segment that is handled by this writer.
 	Type seg.Type
-	// Store is used to store the segments.
-	Store beaconing.SegmentStore
 }
 
 var _ SegmentRegistrar = (*LocalSegmentRegistrar)(nil)

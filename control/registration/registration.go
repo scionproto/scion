@@ -20,25 +20,13 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
-	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
-	"github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/snet/addrutil"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// PluginConstructor contains the parameters for segment registrar construction.
-type PluginConstructor struct {
-	InternalErrors metrics.Counter
-	Registered     metrics.Counter
-	LocalStore     beaconing.SegmentStore
-	RemoteStore    beaconing.RPC
-	Pather         addrutil.Pather
-
-	HiddenPathRPC       hiddenpath.Register
-	HiddenPathRegPolicy hiddenpath.RegistrationPolicy
-	HiddenPathResolver  hiddenpath.RegistrationResolver
-}
+// DEFAULT_PLUGIN_ID is the id for the default segment registration plugin.
+// It is used for the policy types that do not have any plugins registered.
+const DEFAULT_PLUGIN_ID string = beacon.DEFAULT_GROUP
 
 type SegmentRegistrationPlugin interface {
 	// ID returns the unique identifier of the plugin.
@@ -46,7 +34,6 @@ type SegmentRegistrationPlugin interface {
 	// New creates a new instance of the plugin with the provided configuration.
 	New(
 		ctx context.Context,
-		params PluginConstructor,
 		policyType beacon.RegPolicyType,
 		config map[string]any,
 	) (SegmentRegistrar, error)
@@ -141,4 +128,14 @@ func RegisterSegmentRegPlugin(p SegmentRegistrationPlugin) {
 func GetSegmentRegPlugin(id string) (SegmentRegistrationPlugin, bool) {
 	p, ok := segmentRegistrationPlugins[id]
 	return p, ok
+}
+
+// GetDefaultSegmentRegPlugin retrieves the segment registration plugin that has the
+// id DEFAULT_PLUGIN_ID.
+func GetDefaultSegmentRegPlugin() (SegmentRegistrationPlugin, bool) {
+	plugin, ok := GetSegmentRegPlugin(DEFAULT_PLUGIN_ID)
+	if !ok {
+		return nil, false
+	}
+	return plugin, true
 }

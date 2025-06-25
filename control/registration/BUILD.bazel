@@ -25,7 +25,6 @@ go_library(
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/segment:go_default_library",
-        "//pkg/snet/addrutil:go_default_library",
         "//private/segment/seghandler:go_default_library",
     ],
 )

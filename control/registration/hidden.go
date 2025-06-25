@@ -30,7 +30,15 @@ import (
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
-type HiddenSegmentRegistrationPlugin struct{}
+type HiddenSegmentRegistrationPlugin struct {
+	InternalErrors metrics.Counter
+	Registered     metrics.Counter
+
+	Pather             beaconing.Pather
+	RegistrationPolicy hiddenpath.RegistrationPolicy
+	RPC                hiddenpath.Register
+	AddressResolver    hiddenpath.AddressResolver
+}
 
 var _ SegmentRegistrationPlugin = (*HiddenSegmentRegistrationPlugin)(nil)
 
@@ -44,7 +52,6 @@ func (p *HiddenSegmentRegistrationPlugin) Validate(config map[string]any) error 
 
 func (p *HiddenSegmentRegistrationPlugin) New(
 	ctx context.Context,
-	pc PluginConstructor,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
 ) (SegmentRegistrar, error) {
@@ -52,26 +59,18 @@ func (p *HiddenSegmentRegistrationPlugin) New(
 	if segType != seg.TypeDown {
 		return nil, serrors.New("hidden path registration only supports down segments")
 	}
-	if pc.HiddenPathRPC == nil {
-		return nil, serrors.New("hidden path RPC is not configured")
-	}
 	return &HiddenSegmentRegistrar{
-		RPC:                pc.HiddenPathRPC,
-		InternalErrors:     pc.InternalErrors,
-		Registered:         pc.Registered,
-		RegistrationPolicy: pc.HiddenPathRegPolicy,
-		Pather:             pc.Pather,
-		AddressResolver:    pc.HiddenPathResolver,
+		HiddenSegmentRegistrationPlugin: *p,
+		InternalErrors: metrics.CounterWith(
+			p.InternalErrors,
+			"seg_type", segType.String(),
+		),
 	}, nil
 }
 
 type HiddenSegmentRegistrar struct {
-	InternalErrors     metrics.Counter
-	Registered         metrics.Counter
-	RegistrationPolicy hiddenpath.RegistrationPolicy
-	Pather             beaconing.Pather
-	AddressResolver    hiddenpath.AddressResolver
-	RPC                hiddenpath.Register
+	HiddenSegmentRegistrationPlugin
+	InternalErrors metrics.Counter
 }
 
 var _ SegmentRegistrar = (*HiddenSegmentRegistrar)(nil)
