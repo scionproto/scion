@@ -24,7 +24,8 @@ import (
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
-// DefaultSegmentRegistrationPlugin is the default registration plugin.
+// DefaultSegmentRegistrationPlugin is the default segment registration plugin.
+// It uses local, remote, or hidden segment registration plugins based on the segment type.
 type DefaultSegmentRegistrationPlugin struct {
 	LocalPlugin  *beaconing.LocalSegmentRegistrationPlugin
 	RemotePlugin *beaconing.RemoteSegmentRegistrationPlugin
@@ -54,10 +55,14 @@ func (p *DefaultSegmentRegistrationPlugin) New(
 	// Use either the local, hidden or remote plugin.
 	var plugin registration.SegmentRegistrationPlugin
 	switch {
+	// For up and core segments, register locally
 	case segType != seg.TypeDown:
 		plugin = p.LocalPlugin
+	// If segType == down && hiddenPlugin is not nil,
+	// then use the hidden path registration
 	case p.HiddenPlugin != nil:
 		plugin = p.HiddenPlugin
+	// If segType == down, then register with the remote
 	default:
 		plugin = p.RemotePlugin
 	}

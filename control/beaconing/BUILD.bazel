@@ -8,7 +8,6 @@ go_library(
     srcs = [
         "doc.go",
         "extender.go",
-        "group_writer.go",
         "handler.go",
         "originator.go",
         "propagator.go",

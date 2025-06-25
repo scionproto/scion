@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/periodic"
@@ -132,7 +133,7 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 		return err
 	}
 	peers := sortedIntfs(r.Intfs, topology.Peer)
-	stats, err := r.Writer.Write(ctx, segments, peers) // TODO: ensure Write returns nothing
+	stats, err := r.Writer.Write(ctx, segments, peers)
 	if err != nil {
 		return err
 	}
@@ -198,7 +199,7 @@ func (p *LocalSegmentRegistrationPlugin) New(
 type LocalWriter struct {
 	LocalSegmentRegistrationPlugin
 	// InternalErrors counts errors that happened before being able to store
-	// a segment in the local SegmentStore (with the correct label).
+	// a segment in the local SegmentStore (with the segment type label).
 	InternalErrors metrics.Counter
 	// Type is the type of segment that is handled by this writer.
 	Type seg.Type
@@ -302,7 +303,7 @@ func (p *RemoteSegmentRegistrationPlugin) New(
 type RemoteWriter struct {
 	RemoteSegmentRegistrationPlugin
 	// InternalErrors counts errors that happened before being able to send a
-	// segment to a remote (with the correct label).
+	// segment to a remote (with the segment type label).
 	InternalErrors metrics.Counter
 	// Type is the type of segment that is handled by this writer.
 	Type seg.Type
@@ -424,4 +425,76 @@ func (l writerLabels) Expand() []string {
 func (l writerLabels) WithResult(result string) writerLabels {
 	l.Result = result
 	return l
+}
+
+// GroupWriter is a beaconing.Writer that terminates and writes beacons across multiple segment
+// registrars registered in Plugins. It is parameterized by a PolicyType, which determines the
+// registrars that will be used.
+type GroupWriter struct {
+	PolicyType     beacon.RegPolicyType
+	Plugins        registration.SegmentRegistrars
+	Intfs          *ifstate.Interfaces
+	Extender       Extender
+	InternalErrors metrics.Counter
+}
+
+var _ Writer = (*GroupWriter)(nil)
+
+// processSegments processes the segments by terminating them and filtering out
+// the segments that do not have a valid interface ID.
+func (w *GroupWriter) processSegments(
+	ctx context.Context,
+	beacons beacon.GroupedBeacons,
+	peers []uint16,
+) beacon.GroupedBeacons {
+	logger := log.FromCtx(ctx)
+	processed := make(beacon.GroupedBeacons, len(beacons))
+	for group, beacons := range beacons {
+		processedGroup := make([]beacon.Beacon, 0, len(beacons))
+		for _, b := range beacons {
+			if w.Intfs.Get(b.InIfID) == nil {
+				continue
+			}
+			err := w.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
+			if err != nil {
+				logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
+				metrics.CounterInc(w.InternalErrors)
+				continue
+			}
+			processedGroup = append(processedGroup, b)
+		}
+		if len(processedGroup) > 0 {
+			processed[group] = processedGroup
+		}
+	}
+	return processed
+}
+
+// Write writes beacons to multiple segment registrars based on the PolicyType.
+//
+// For every group of beacons, the correct registrar is selected based on the PolicyType
+// and the group's name (which should correspond to the registration policy name).
+func (w *GroupWriter) Write(
+	ctx context.Context,
+	allBeacons beacon.GroupedBeacons,
+	peers []uint16,
+) (WriteStats, error) {
+	processedBeacons := w.processSegments(ctx, allBeacons, peers)
+	writeStats := WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
+	for name, beacons := range processedBeacons {
+		registrar, err := w.Plugins.GetSegmentRegistrar(w.PolicyType, name)
+		if err != nil {
+			return WriteStats{}, serrors.Wrap("getting segment registrar", err,
+				"policy", w.PolicyType, "name", name)
+		}
+		sum := registrar.RegisterSegments(ctx, beacons, peers)
+		// Extend the write stats with the plugin-specific write stats.
+		if sum != nil {
+			writeStats.Extend(WriteStats{
+				Count:    sum.GetCount(),
+				StartIAs: sum.GetSrcs(),
+			})
+		}
+	}
+	return writeStats, nil
 }

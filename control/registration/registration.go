@@ -24,8 +24,8 @@ import (
 )
 
 // DEFAULT_PLUGIN_ID is the id for the default segment registration plugin.
-// It is used for the policy types that do not have any plugins registered.
-const DEFAULT_PLUGIN_ID string = beacon.DEFAULT_GROUP
+// It is used for the policies that do not have any registration policies.
+const DEFAULT_PLUGIN_ID string = "default"
 
 type SegmentRegistrationPlugin interface {
 	// ID returns the unique identifier of the plugin.
@@ -54,7 +54,9 @@ type SegmentRegistrar interface {
 // to their corresponding segment registrars.
 type SegmentRegistrars map[beacon.RegPolicyType]map[string]SegmentRegistrar
 
-func (s SegmentRegistrars) Register(
+// RegisterSegmentRegistrar registers a segment registrar for a given policy type and
+// registration policy.
+func (s SegmentRegistrars) RegisterSegmentRegistrar(
 	policyType beacon.RegPolicyType, registrationPolicy string, registrar SegmentRegistrar,
 ) error {
 	if _, ok := s[policyType]; !ok {
@@ -68,9 +70,10 @@ func (s SegmentRegistrars) Register(
 	return nil
 }
 
-// RegisterDefault registers a default registrar for a given policy type.
-// The default registrar is associated with the name beacon.DEFAULT_GROUP.
-func (s SegmentRegistrars) RegisterDefault(
+// RegisterDefaultSegmentRegistrar registers a default registrar for a given policy type.
+// The default registrar should be registered when no specific registration policy is defined
+// for policyType. The default registrar is associated with the name beacon.DEFAULT_GROUP.
+func (s SegmentRegistrars) RegisterDefaultSegmentRegistrar(
 	policyType beacon.RegPolicyType, registrar SegmentRegistrar,
 ) error {
 	if _, ok := s[policyType]; !ok {
@@ -84,7 +87,11 @@ func (s SegmentRegistrars) RegisterDefault(
 	return nil
 }
 
-func (s SegmentRegistrars) Get(
+// GetSegmentRegistrar returns the segment registrar for the given policy type and registration
+// policy.
+// It should be registered with either RegisterSegmentRegistrar or RegisterDefaultRegistrar
+// first.
+func (s SegmentRegistrars) GetSegmentRegistrar(
 	policyType beacon.RegPolicyType, registrationPolicy string,
 ) (SegmentRegistrar, error) {
 	if _, ok := s[policyType]; !ok {
@@ -113,6 +120,7 @@ func RegisterSegmentRegPlugin(p SegmentRegistrationPlugin) {
 }
 
 // GetSegmentRegPlugin retrieves a segment registration plugin by its ID.
+// It should be registered with RegisterSegmentRegPlugin first.
 // The second return value is false if no plugin with the given ID is found in the registry.
 func GetSegmentRegPlugin(id string) (SegmentRegistrationPlugin, bool) {
 	p, ok := segmentRegistrationPlugins[id]

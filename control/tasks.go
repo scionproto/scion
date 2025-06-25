@@ -109,7 +109,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 			if err != nil {
 				return serrors.Wrap("creating segment registrar", err)
 			}
-			if err := segmentRegistrars.Register(
+			if err := segmentRegistrars.RegisterSegmentRegistrar(
 				polType, regPolicy.Name, registrar,
 			); err != nil {
 				return serrors.Wrap("registering segment registrar", err,
@@ -137,7 +137,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 				return serrors.Wrap("creating default segment registrar", err,
 					"policy_type", polType)
 			}
-			if err := segmentRegistrars.RegisterDefault(
+			if err := segmentRegistrars.RegisterDefaultSegmentRegistrar(
 				polType, defaultRegistrar,
 			); err != nil {
 				return serrors.Wrap("registering default segment registrar", err,
@@ -231,6 +231,11 @@ func (t *TasksConfig) segmentWriter(
 		},
 		Tick: beaconing.NewTick(t.RegistrationInterval),
 	}
+	// The period of the task is short because we want to retry quickly
+	// if we fail fast. So during one interval we'll make as many attempts
+	// as we can until we succeed. After succeeding, the task does nothing
+	// until the end of the interval. The interval itself is used as a
+	// timeout. If we fail slow we give up at the end of the cycle.
 	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }

@@ -877,6 +877,7 @@ func realMain(ctx context.Context) error {
 		plugins = append(plugins, hiddenPathPlugin)
 	}
 
+	// Register the plugins so that they can be used everywhere.
 	for _, plugin := range plugins {
 		registration.RegisterSegmentRegPlugin(plugin)
 	}
