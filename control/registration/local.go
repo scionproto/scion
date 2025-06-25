@@ -25,6 +25,8 @@ import (
 	"github.com/scionproto/scion/private/segment/seghandler"
 )
 
+// TODO: make the plugin also the registrar
+// TODO: move back to the writer.go
 type LocalSegmentRegistrationPlugin struct{}
 
 var _ SegmentRegistrationPlugin = (*LocalSegmentRegistrationPlugin)(nil)

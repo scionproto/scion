@@ -132,7 +132,7 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 		return err
 	}
 	peers := sortedIntfs(r.Intfs, topology.Peer)
-	stats, err := r.Writer.Write(ctx, segments, peers)
+	stats, err := r.Writer.Write(ctx, segments, peers) // TODO: ensure Write returns nothing
 	if err != nil {
 		return err
 	}

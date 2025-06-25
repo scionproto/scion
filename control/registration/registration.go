@@ -59,6 +59,7 @@ type SegmentRegistrationPlugin interface {
 type SegmentRegistrar interface {
 	// RegisterSegments registers the given segments with the given type according
 	// to the plugin's logic.
+	// TODO: should return nothing
 	RegisterSegments(
 		ctx context.Context,
 		segments []beacon.Beacon,
