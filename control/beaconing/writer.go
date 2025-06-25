@@ -23,11 +23,11 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/control/registration"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/periodic"
@@ -143,129 +143,6 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 	return err
 }
 
-// RemoteWriter writes segments via an RPC to the source AS of a segment.
-// It only writes the segments that are grouped under beacon.DEFAULT_GROUP.
-type RemoteWriter struct {
-	// InternalErrors counts errors that happened before being able to send a
-	// segment to a remote. This can be during terminating the segment, looking
-	// up the remote etc. If the counter is nil errors are not counted.
-	InternalErrors metrics.Counter
-	// Registered counts the amount of registered segments. A label is used to
-	// indicate the status of the registration.
-	Registered metrics.Counter
-	// Intfs gives access to the interfaces this CS beacons over.
-	Intfs *ifstate.Interfaces
-	// Extender is used to terminate the beacon.
-	Extender Extender
-	// Type is the type of segment that is handled by this writer.
-	Type seg.Type
-	// RPC is used to send the segment to a remote.
-	RPC RPC
-	// Pather is used to find paths to a remote.
-	Pather Pather
-}
-
-// Write writes the segment at the source AS of the segment.
-//
-// Only beacons[beacon.DEFAULT_GROUP] are considered.
-func (r *RemoteWriter) Write(
-	ctx context.Context,
-	beacons beacon.GroupedBeacons,
-	peers []uint16,
-) (WriteStats, error) {
-
-	logger := log.FromCtx(ctx)
-	s := newSummary()
-	var expected int
-	var wg sync.WaitGroup
-	for _, b := range beacons[beacon.DEFAULT_GROUP] {
-		if r.Intfs.Get(b.InIfID) == nil {
-			continue
-		}
-		err := r.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
-		if err != nil {
-			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
-			metrics.CounterInc(r.InternalErrors)
-			continue
-		}
-		expected++
-		s := remoteWriter{
-			writer:  r,
-			rpc:     r.RPC,
-			pather:  r.Pather,
-			summary: s,
-			wg:      &wg,
-		}
-
-		// Avoid head-of-line blocking when sending message to slow servers.
-		s.start(ctx, b)
-	}
-	wg.Wait()
-	if expected > 0 && s.count <= 0 {
-		return WriteStats{}, serrors.New("no beacons registered", "candidates", expected)
-	}
-	return WriteStats{Count: s.count, StartIAs: s.srcs}, nil
-}
-
-// LocalWriter can be used to write segments in the SegmentStore.
-// It only writes the segments that are grouped under beacon.DEFAULT_GROUP.
-type LocalWriter struct {
-	// InternalErrors counts errors that happened before being able to send a
-	// segment to a remote. This can for example be during the termination of
-	// the segment. If the counter is nil errors are not counted.
-	InternalErrors metrics.Counter
-	// Registered counts the amount of registered segments. A label is used to
-	// indicate the status of the registration.
-	Registered metrics.Counter
-	// Type is the type of segment that is handled by this writer.
-	Type seg.Type
-	// Store is used to store the terminated segments.
-	Store SegmentStore
-	// Extender is used to terminate the beacon.
-	Extender Extender
-	// Intfs gives access to the interfaces this CS beacons over.
-	Intfs *ifstate.Interfaces
-}
-
-// Write terminates the segments and registers them in the SegmentStore.
-//
-// Only beacons[beacon.DEFAULT_GROUP] are considered.
-func (r *LocalWriter) Write(
-	ctx context.Context,
-	beacons beacon.GroupedBeacons,
-	peers []uint16,
-) (WriteStats, error) {
-
-	logger := log.FromCtx(ctx)
-	// beacons keyed with their logging ID.
-	logBeacons := make(map[string]beacon.Beacon)
-	var toRegister []*seg.Meta
-	for _, b := range beacons[beacon.DEFAULT_GROUP] {
-		if r.Intfs.Get(b.InIfID) == nil {
-			continue
-		}
-		err := r.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
-		if err != nil {
-			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
-			metrics.CounterInc(r.InternalErrors)
-			continue
-		}
-		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: b.Segment})
-		logBeacons[b.Segment.GetLoggingID()] = b
-	}
-	if len(toRegister) == 0 {
-		return WriteStats{}, nil
-	}
-	stats, err := r.Store.StoreSegs(ctx, toRegister)
-	if err != nil {
-		metrics.CounterInc(r.InternalErrors)
-		return WriteStats{}, err
-	}
-	r.updateMetricsFromStat(stats, logBeacons)
-	sum := summarizeStats(stats, logBeacons)
-	return WriteStats{Count: sum.count, StartIAs: sum.srcs}, nil
-}
-
 func (r *WriteScheduler) logSummary(ctx context.Context, s *summary) {
 	logger := log.FromCtx(ctx)
 	if r.Tick.Passed() {
@@ -279,8 +156,88 @@ func (r *WriteScheduler) logSummary(ctx context.Context, s *summary) {
 	}
 }
 
+type LocalSegmentRegistrationPlugin struct {
+	// InternalErrors counts errors that happened before being able to store
+	// a segment in the local SegmentStore.
+	InternalErrors metrics.Counter
+	// Registered counts the amount of registered segments. A label is used to
+	// indicate the status of the registration.
+	Registered metrics.Counter
+	// Store is used to store the terminated segments.
+	Store SegmentStore
+}
+
+var _ registration.SegmentRegistrationPlugin = (*LocalSegmentRegistrationPlugin)(nil)
+
+func (p *LocalSegmentRegistrationPlugin) ID() string {
+	return "local"
+}
+
+func (p *LocalSegmentRegistrationPlugin) Validate(config map[string]any) error {
+	// Local segment registration does not require any specific configuration.
+	return nil
+}
+
+func (p *LocalSegmentRegistrationPlugin) New(
+	ctx context.Context,
+	policyType beacon.RegPolicyType,
+	config map[string]any,
+) (registration.SegmentRegistrar, error) {
+	segType := policyType.SegmentType()
+	return &LocalWriter{
+		LocalSegmentRegistrationPlugin: *p,
+		InternalErrors: metrics.CounterWith(
+			p.InternalErrors,
+			"seg_type", segType.String(),
+		),
+		Type: segType,
+	}, nil
+}
+
+// LocalWriter can be used to write segments in the local SegmentStore.
+type LocalWriter struct {
+	LocalSegmentRegistrationPlugin
+	// InternalErrors counts errors that happened before being able to store
+	// a segment in the local SegmentStore (with the correct label).
+	InternalErrors metrics.Counter
+	// Type is the type of segment that is handled by this writer.
+	Type seg.Type
+}
+
+var _ registration.SegmentRegistrar = (*LocalWriter)(nil)
+
+// RegisterSegments registers the segments in the local SegmentStore.
+func (r *LocalWriter) RegisterSegments(
+	ctx context.Context,
+	beacons []beacon.Beacon,
+	peers []uint16,
+) *registration.RegistrationSummary {
+	logger := log.FromCtx(ctx)
+	// beacons keyed with their logging ID.
+	logBeacons := make(map[string]beacon.Beacon)
+	var toRegister []*seg.Meta
+	for _, b := range beacons {
+		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: b.Segment})
+		logBeacons[b.Segment.GetLoggingID()] = b
+	}
+	if len(toRegister) == 0 {
+		// Nothing to register.
+		return nil
+	}
+	stats, err := r.Store.StoreSegs(ctx, toRegister)
+	// If an error occurred while storing, no segments were registered, since StoreSegs
+	// does a batch insert. As a result, we report every segment failing with the returned error.
+	if err != nil {
+		metrics.CounterInc(r.InternalErrors)
+		logger.Error("Unable to register segments", "err", err, "count", len(toRegister))
+		return nil
+	}
+	r.updateMetricsFromStats(stats, logBeacons)
+	return registration.SummarizeSegStats(stats, logBeacons)
+}
+
 // updateMetricsFromStat is used to update the metrics for local DB inserts.
-func (r *LocalWriter) updateMetricsFromStat(s seghandler.SegStats, b map[string]beacon.Beacon) {
+func (r *LocalWriter) updateMetricsFromStats(s seghandler.SegStats, b map[string]beacon.Beacon) {
 	for _, id := range s.InsertedSegs {
 		metrics.CounterInc(metrics.CounterWith(r.Registered, writerLabels{
 			StartIA: b[id].Segment.FirstIA(),
@@ -299,17 +256,107 @@ func (r *LocalWriter) updateMetricsFromStat(s seghandler.SegStats, b map[string]
 	}
 }
 
+type RemoteSegmentRegistrationPlugin struct {
+	// InternalErrors counts errors that happened before being able to send a
+	// segment to a remote. This can be during looking up the remote etc.
+	// If the counter is nil errors are not counted.
+	InternalErrors metrics.Counter
+	// Registered counts the amount of registered segments. A label is used to
+	// indicate the status of the registration.
+	Registered metrics.Counter
+
+	// RPC is used to send the segment to a remote.
+	RPC RPC
+	// Pather is used to construct paths to the originator of a beacon.
+	Pather Pather
+}
+
+var _ registration.SegmentRegistrationPlugin = (*RemoteSegmentRegistrationPlugin)(nil)
+
+func (p *RemoteSegmentRegistrationPlugin) ID() string {
+	return "remote"
+}
+
+func (p *RemoteSegmentRegistrationPlugin) Validate(config map[string]any) error {
+	// Local segment registration does not require any specific configuration.
+	return nil
+}
+
+func (p *RemoteSegmentRegistrationPlugin) New(
+	ctx context.Context,
+	policyType beacon.RegPolicyType,
+	config map[string]any,
+) (registration.SegmentRegistrar, error) {
+	segType := policyType.SegmentType()
+	return &RemoteWriter{
+		RemoteSegmentRegistrationPlugin: *p,
+		InternalErrors: metrics.CounterWith(
+			p.InternalErrors,
+			"seg_type", segType.String(),
+		),
+		Type: segType,
+	}, nil
+}
+
+// RemoteWriter writes segments via an RPC to the source AS of a segment.
+type RemoteWriter struct {
+	RemoteSegmentRegistrationPlugin
+	// InternalErrors counts errors that happened before being able to send a
+	// segment to a remote (with the correct label).
+	InternalErrors metrics.Counter
+	// Type is the type of segment that is handled by this writer.
+	Type seg.Type
+}
+
+var _ registration.SegmentRegistrar = (*RemoteWriter)(nil)
+
+// RegisterSegments writes the segment at the source AS of the segment.
+func (r *RemoteWriter) RegisterSegments(
+	ctx context.Context,
+	beacons []beacon.Beacon,
+	peers []uint16,
+) *registration.RegistrationSummary {
+	logger := log.FromCtx(ctx)
+
+	summary := registration.NewSummary()
+	var expected int
+	var wg sync.WaitGroup
+
+	for _, b := range beacons {
+		expected++
+		s := remoteWriter{
+			writer:  r,
+			rpc:     r.RPC,
+			summary: summary,
+			wg:      &wg,
+			pather:  r.Pather,
+		}
+
+		// Avoid head-of-line blocking when sending message to slow servers.
+		s.start(ctx, b)
+	}
+	wg.Wait()
+	if expected > 0 && summary.GetCount() <= 0 {
+		logger.Error("No beacons registered", "candidates", expected)
+		return nil
+	}
+	return summary
+}
+
 // remoteWriter registers one segment with the path server.
 type remoteWriter struct {
 	writer  *RemoteWriter
 	rpc     RPC
 	pather  Pather
-	summary *summary
+	summary *registration.RegistrationSummary
 	wg      *sync.WaitGroup
 }
 
 // start extends the beacon and starts a go routine that registers the beacon
 // with the path server.
+//
+// If an error occurs, it is logged, the internal error counter is incremented,
+// and the status map is updated.
 func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon) {
 	logger := log.FromCtx(ctx)
 	addr, err := r.pather.GetPath(addr.SvcCS, bseg.Segment)
@@ -323,8 +370,12 @@ func (r *remoteWriter) start(ctx context.Context, bseg beacon.Beacon) {
 
 // startSendSegReg adds to the wait group and starts a goroutine that sends the
 // registration message to the peer.
-func (r *remoteWriter) startSendSegReg(ctx context.Context, bseg beacon.Beacon,
-	reg seg.Meta, addr net.Addr) {
+func (r *remoteWriter) startSendSegReg(
+	ctx context.Context,
+	bseg beacon.Beacon,
+	reg seg.Meta,
+	addr net.Addr,
+) {
 
 	r.wg.Add(1)
 	go func() {
@@ -345,23 +396,13 @@ func (r *remoteWriter) startSendSegReg(ctx context.Context, bseg beacon.Beacon,
 				labels.WithResult(prom.ErrNetwork).Expand()...))
 			return
 		}
-		r.summary.AddSrc(bseg.Segment.FirstIA())
-		r.summary.Inc()
+		r.summary.RecordSegment(bseg.Segment)
 
 		metrics.CounterInc(metrics.CounterWith(r.writer.Registered,
 			labels.WithResult(prom.Success).Expand()...))
 		logger.Debug("Successfully registered segment", "seg_type", r.writer.Type,
 			"addr", addr, "seg", bseg.Segment)
 	}()
-}
-
-func summarizeStats(s seghandler.SegStats, b map[string]beacon.Beacon) *summary {
-	sum := newSummary()
-	for _, id := range append(s.InsertedSegs, s.UpdatedSegs...) {
-		sum.AddSrc(b[id].Segment.FirstIA())
-		sum.Inc()
-	}
-	return sum
 }
 
 type writerLabels struct {

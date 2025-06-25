@@ -8,6 +8,7 @@ go_library(
     srcs = [
         "doc.go",
         "extender.go",
+        "group_writer.go",
         "handler.go",
         "originator.go",
         "propagator.go",
@@ -21,6 +22,7 @@ go_library(
     deps = [
         "//control/beacon:go_default_library",
         "//control/ifstate:go_default_library",
+        "//control/registration:go_default_library",
         "//pkg/addr:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/metrics:go_default_library",
@@ -64,6 +66,7 @@ go_test(
         "//control/beacon:go_default_library",
         "//control/beaconing/mock_beaconing:go_default_library",
         "//control/ifstate:go_default_library",
+        "//control/registration:go_default_library",
         "//pkg/addr:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",

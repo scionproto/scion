@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/control/registration"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -93,8 +94,31 @@ func TestRegistrarRun(t *testing.T) {
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			segStore := mock_beaconing.NewMockSegmentStore(mctrl)
 
+			var policyType beacon.RegPolicyType
+			switch test.segType {
+			case seg.TypeDown:
+				policyType = beacon.RegPolicyTypeDown
+			case seg.TypeCore:
+				policyType = beacon.RegPolicyTypeCore
+			default:
+				policyType = beacon.RegPolicyTypeUp
+			}
+
+			rw := &beaconing.LocalWriter{
+				LocalSegmentRegistrationPlugin: beaconing.LocalSegmentRegistrationPlugin{
+					Store: segStore,
+				},
+				Type: test.segType,
+			}
 			r := beaconing.WriteScheduler{
-				Writer: &beaconing.LocalWriter{
+				Writer: &beaconing.GroupWriter{
+					PolicyType: policyType,
+					Plugins: registration.SegmentRegistrars{
+						policyType: {
+							registration.DEFAULT_PLUGIN_ID: rw,
+						},
+					},
+					Intfs: intfs,
 					Extender: &beaconing.DefaultExtender{
 						IA:  topo.IA(),
 						MTU: topo.MTU(),
@@ -106,9 +130,6 @@ func TestRegistrarRun(t *testing.T) {
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 					},
-					Intfs: intfs,
-					Store: segStore,
-					Type:  test.segType,
 				},
 				Intfs:    intfs,
 				Tick:     beaconing.NewTick(time.Hour),
@@ -182,8 +203,34 @@ func TestRegistrarRun(t *testing.T) {
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			rpc := mock_beaconing.NewMockRPC(mctrl)
 
+			var policyType beacon.RegPolicyType
+			switch test.segType {
+			case seg.TypeDown:
+				policyType = beacon.RegPolicyTypeDown
+			case seg.TypeCore:
+				policyType = beacon.RegPolicyTypeCore
+			default:
+				policyType = beacon.RegPolicyTypeUp
+			}
+
+			rw := &beaconing.RemoteWriter{
+				RemoteSegmentRegistrationPlugin: beaconing.RemoteSegmentRegistrationPlugin{
+					RPC: rpc,
+					Pather: addrutil.Pather{
+						NextHopper: topoWrap{Topo: topo},
+					},
+				},
+				Type: test.segType,
+			}
 			r := beaconing.WriteScheduler{
-				Writer: &beaconing.RemoteWriter{
+				Writer: &beaconing.GroupWriter{
+					PolicyType: policyType,
+					Plugins: registration.SegmentRegistrars{
+						policyType: {
+							registration.DEFAULT_PLUGIN_ID: rw,
+						},
+					},
+					Intfs: intfs,
 					Extender: &beaconing.DefaultExtender{
 						IA:  topo.IA(),
 						MTU: topo.MTU(),
@@ -195,12 +242,6 @@ func TestRegistrarRun(t *testing.T) {
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 					},
-					Pather: addrutil.Pather{
-						NextHopper: topoWrap{Topo: topo},
-					},
-					RPC:   rpc,
-					Type:  test.segType,
-					Intfs: intfs,
 				},
 				Intfs:    intfs,
 				Tick:     beaconing.NewTick(time.Hour),
@@ -284,8 +325,17 @@ func TestRegistrarRun(t *testing.T) {
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		rpc := mock_beaconing.NewMockRPC(mctrl)
 
+		rw := &beaconing.RemoteWriter{
+			RemoteSegmentRegistrationPlugin: beaconing.RemoteSegmentRegistrationPlugin{
+				RPC: rpc,
+				Pather: addrutil.Pather{
+					NextHopper: topoWrap{Topo: topo},
+				},
+			},
+		}
 		r := beaconing.WriteScheduler{
-			Writer: &beaconing.RemoteWriter{
+			Writer: &beaconing.GroupWriter{
+				PolicyType: beacon.RegPolicyTypeDown,
 				Extender: &beaconing.DefaultExtender{
 					IA:  topo.IA(),
 					MTU: topo.MTU(),
@@ -297,12 +347,13 @@ func TestRegistrarRun(t *testing.T) {
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				},
-				Pather: addrutil.Pather{
-					NextHopper: topoWrap{Topo: topo},
+				Plugins: registration.SegmentRegistrars{
+					beacon.RegPolicyTypeDown: {
+						registration.DEFAULT_PLUGIN_ID: rw,
+					},
 				},
-				RPC:   rpc,
-				Intfs: intfs,
-				Type:  seg.TypeDown,
+				Intfs:          intfs,
+				InternalErrors: nil,
 			},
 			Intfs:    intfs,
 			Tick:     beaconing.NewTick(time.Hour),

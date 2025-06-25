@@ -216,7 +216,7 @@ func (t *TasksConfig) segmentWriter(
 		Provider: t.BeaconStore,
 		Intfs:    t.AllInterfaces,
 		Type:     policyType.SegmentType(),
-		Writer: &registration.GroupWriter{
+		Writer: &beaconing.GroupWriter{
 			PolicyType: policyType,
 			Plugins:    t.registrars,
 			Intfs:      t.AllInterfaces,

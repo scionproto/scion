@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/control/registration"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -244,6 +245,184 @@ func (l writerLabels) Expand() []string {
 func (l writerLabels) WithResult(result string) writerLabels {
 	l.Result = result
 	return l
+}
+
+type HiddenSegmentRegistrationPlugin struct {
+	InternalErrors metrics.Counter
+	Registered     metrics.Counter
+
+	Pather             beaconing.Pather
+	RegistrationPolicy RegistrationPolicy
+	RPC                Register
+	AddressResolver    AddressResolver
+}
+
+var _ registration.SegmentRegistrationPlugin = (*HiddenSegmentRegistrationPlugin)(nil)
+
+func (p *HiddenSegmentRegistrationPlugin) ID() string {
+	return "hidden_path"
+}
+
+func (p *HiddenSegmentRegistrationPlugin) Validate(config map[string]any) error {
+	return nil
+}
+
+func (p *HiddenSegmentRegistrationPlugin) New(
+	ctx context.Context,
+	policyType beacon.RegPolicyType,
+	config map[string]any,
+) (registration.SegmentRegistrar, error) {
+	segType := policyType.SegmentType()
+	if segType != seg.TypeDown {
+		return nil, serrors.New("hidden path registration only supports down segments")
+	}
+	return &HiddenSegmentRegistrar{
+		HiddenSegmentRegistrationPlugin: *p,
+		InternalErrors: metrics.CounterWith(
+			p.InternalErrors,
+			"seg_type", segType.String(),
+		),
+	}, nil
+}
+
+type HiddenSegmentRegistrar struct {
+	HiddenSegmentRegistrationPlugin
+	InternalErrors metrics.Counter
+}
+
+var _ registration.SegmentRegistrar = (*HiddenSegmentRegistrar)(nil)
+
+// RegisterSegments iterates the segments channel and for each of the segments:
+// it extends it, it finds the remotes via the registration policy, it finds a
+// path for each remote, it sends the segment via the found path. Peers are the
+// peer interfaces in this AS.
+func (w *HiddenSegmentRegistrar) RegisterSegments(
+	ctx context.Context,
+	beacons []beacon.Beacon,
+	peers []uint16,
+) *registration.RegistrationSummary {
+
+	logger := log.FromCtx(ctx)
+	summary := registration.NewSummary()
+	var expected int
+	var wg sync.WaitGroup
+
+	// Segment-specific errors.
+	status := make(map[string]error)
+
+	for _, b := range beacons {
+		regPolicy, ok := w.RegistrationPolicy[uint64(b.InIfID)]
+		if !ok {
+			logger.Info("no HP nor public registration policy for beacon", "interface", b.InIfID)
+			continue
+		}
+		for id, addrs := range remoteRegistries(regPolicy) {
+			for _, a := range addrs {
+				expected++
+				rw := hiddenPathRemoteWriter{
+					internalErrors:  w.InternalErrors,
+					registered:      w.Registered,
+					summary:         summary,
+					hiddenPathGroup: id,
+					resolveRemote: func(ctx context.Context) (net.Addr, error) {
+						return w.AddressResolver.Resolve(ctx, a)
+					},
+					rpc: w.RPC,
+				}
+				if id.ToUint64() == 0 {
+					// public
+					seg := b.Segment
+					rw.resolveRemote = func(_ context.Context) (net.Addr, error) {
+						return w.Pather.GetPath(addr.SvcCS, seg)
+					}
+				}
+				wg.Add(1)
+				go func(bseg beacon.Beacon) {
+					defer log.HandlePanic()
+					defer wg.Done()
+					rw.run(ctx, bseg, status)
+				}(b)
+			}
+		}
+	}
+
+	wg.Wait()
+	if expected > 0 && summary.GetCount() <= 0 {
+		logger.Error("No beacons registered", "candidates", expected)
+		return nil
+	}
+	return summary
+}
+
+// hiddenPathRemoteWriter registers one segment with the path server.
+type hiddenPathRemoteWriter struct {
+	internalErrors  metrics.Counter
+	registered      metrics.Counter
+	summary         *registration.RegistrationSummary
+	hiddenPathGroup GroupID
+	resolveRemote   func(context.Context) (net.Addr, error)
+	rpc             Register
+}
+
+// run resolves, and writes the segment to the remote registry.
+//
+// If an error occurs, it logs the error, increments the internal errors counter, and updates the
+// status map.
+func (w *hiddenPathRemoteWriter) run(
+	ctx context.Context,
+	bseg beacon.Beacon,
+	status map[string]error,
+) {
+	reg := SegmentRegistration{
+		Seg:     seg.Meta{Type: seg.TypeDown, Segment: bseg.Segment},
+		GroupID: w.hiddenPathGroup,
+	}
+
+	logger := log.FromCtx(ctx)
+
+	addr, err := w.resolveRemote(ctx)
+	if err != nil {
+		logger.Error("Unable to choose server", "hp_group", w.hpGroup(), "err", err)
+		metrics.CounterInc(w.internalErrors)
+		status[string(bseg.Segment.FullID())] = err
+		return
+	}
+
+	labels := writerLabels{
+		StartIA: bseg.Segment.FirstIA(),
+		Ingress: bseg.InIfID,
+		SegType: w.segTypeString(),
+	}
+
+	if err := w.rpc.RegisterSegment(ctx, reg, addr); err != nil {
+		logger.Error("Unable to register segment",
+			"seg_type", w.segTypeString(), "addr", addr, "hp_group", w.hpGroup(), "err", err)
+		metrics.CounterInc(metrics.CounterWith(w.registered,
+			labels.WithResult(prom.ErrNetwork).Expand()...))
+		status[string(bseg.Segment.FullID())] = err
+		return
+	}
+	w.summary.RecordSegment(bseg.Segment)
+
+	metrics.CounterInc(metrics.CounterWith(w.registered,
+		labels.WithResult(prom.Success).Expand()...))
+	logger.Debug("Successfully registered segment", "seg_type", w.segTypeString(),
+		"addr", addr, "seg", bseg.Segment, "hp_group", w.hpGroup())
+}
+
+func (w *hiddenPathRemoteWriter) hpGroup() string {
+	if w.hiddenPathGroup.ToUint64() != 0 {
+		return w.hiddenPathGroup.String()
+	}
+	return "public"
+}
+
+func (w *hiddenPathRemoteWriter) segTypeString() string {
+	s := seg.TypeDown.String()
+	if w.hiddenPathGroup.ToUint64() != 0 {
+		s = "hidden_" + s
+	}
+	return s
 }
 
 func remoteRegistries(regPolicy InterfacePolicy) map[GroupID][]addr.IA {

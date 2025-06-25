@@ -12,27 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration
+package main
 
 import (
 	"context"
 
 	"github.com/scionproto/scion/control/beacon"
+	"github.com/scionproto/scion/control/beaconing"
+	"github.com/scionproto/scion/control/registration"
+	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
 // DefaultSegmentRegistrationPlugin is the default registration plugin.
 type DefaultSegmentRegistrationPlugin struct {
-	LocalPlugin  *LocalSegmentRegistrationPlugin
-	RemotePlugin *RemoteSegmentRegistrationPlugin
+	LocalPlugin  *beaconing.LocalSegmentRegistrationPlugin
+	RemotePlugin *beaconing.RemoteSegmentRegistrationPlugin
 	// optional
-	HiddenPlugin *HiddenSegmentRegistrationPlugin
+	HiddenPlugin *hiddenpath.HiddenSegmentRegistrationPlugin
 }
 
-var _ SegmentRegistrationPlugin = (*DefaultSegmentRegistrationPlugin)(nil)
+var _ registration.SegmentRegistrationPlugin = (*DefaultSegmentRegistrationPlugin)(nil)
 
 func (p *DefaultSegmentRegistrationPlugin) ID() string {
-	return DEFAULT_PLUGIN_ID
+	return registration.DEFAULT_PLUGIN_ID
 }
 
 func (p *DefaultSegmentRegistrationPlugin) Validate(
@@ -46,10 +49,10 @@ func (p *DefaultSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
-) (SegmentRegistrar, error) {
+) (registration.SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
 	// Use either the local, hidden or remote plugin.
-	var plugin SegmentRegistrationPlugin
+	var plugin registration.SegmentRegistrationPlugin
 	switch {
 	case segType != seg.TypeDown:
 		plugin = p.LocalPlugin

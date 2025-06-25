@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration
+package beaconing
 
 import (
 	"context"
 
 	"github.com/scionproto/scion/control/beacon"
-	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/control/registration"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -31,13 +31,13 @@ import (
 // registrars that will be used.
 type GroupWriter struct {
 	PolicyType     beacon.RegPolicyType
-	Plugins        SegmentRegistrars
+	Plugins        registration.SegmentRegistrars
 	Intfs          *ifstate.Interfaces
-	Extender       beaconing.Extender
+	Extender       Extender
 	InternalErrors metrics.Counter
 }
 
-var _ beaconing.Writer = (*GroupWriter)(nil)
+var _ Writer = (*GroupWriter)(nil)
 
 // processSegments processes the segments by terminating them and filtering out
 // the segments that do not have a valid interface ID.
@@ -77,19 +77,19 @@ func (w *GroupWriter) Write(
 	ctx context.Context,
 	allBeacons beacon.GroupedBeacons,
 	peers []uint16,
-) (beaconing.WriteStats, error) {
+) (WriteStats, error) {
 	processedBeacons := w.processSegments(ctx, allBeacons, peers)
-	writeStats := beaconing.WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
+	writeStats := WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
 	for name, beacons := range processedBeacons {
 		registrar, err := w.Plugins.Get(w.PolicyType, name)
 		if err != nil {
-			return beaconing.WriteStats{}, serrors.Wrap("getting segment registrar", err,
+			return WriteStats{}, serrors.Wrap("getting segment registrar", err,
 				"policy", w.PolicyType, "name", name)
 		}
 		sum := registrar.RegisterSegments(ctx, beacons, peers)
 		// Extend the write stats with the plugin-specific write stats.
 		if sum != nil {
-			writeStats.Extend(beaconing.WriteStats{
+			writeStats.Extend(WriteStats{
 				Count:    sum.GetCount(),
 				StartIAs: sum.GetSrcs(),
 			})

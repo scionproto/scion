@@ -834,21 +834,21 @@ func realMain(ctx context.Context) error {
 		NextHopper: topo,
 	}
 	// initialize the plugins
-	localPlugin := &registration.LocalSegmentRegistrationPlugin{
+	localPlugin := &beaconing.LocalSegmentRegistrationPlugin{
 		InternalErrors: internalErr,
 		Registered:     registered,
 		Store:          &seghandler.DefaultStorage{PathDB: pathDB},
 	}
-	remotePlugin := &registration.RemoteSegmentRegistrationPlugin{
+	remotePlugin := &beaconing.RemoteSegmentRegistrationPlugin{
 		InternalErrors: internalErr,
 		Registered:     registered,
 		RPC:            rpc,
 		Pather:         pather,
 	}
-	var hiddenPathPlugin *registration.HiddenSegmentRegistrationPlugin
+	var hiddenPathPlugin *hiddenpath.HiddenSegmentRegistrationPlugin
 	// Construct the hidden path plugin if the hidden path configuration exists.
 	if hpWriterCfg != nil {
-		hiddenPathPlugin = &registration.HiddenSegmentRegistrationPlugin{
+		hiddenPathPlugin = &hiddenpath.HiddenSegmentRegistrationPlugin{
 			InternalErrors:     internalErr,
 			Registered:         registered,
 			Pather:             pather,
@@ -861,7 +861,7 @@ func realMain(ctx context.Context) error {
 		}
 	}
 	ignorePlugin := &registration.IgnoreSegmentRegistrationPlugin{}
-	defaultPlugin := &registration.DefaultSegmentRegistrationPlugin{
+	defaultPlugin := &DefaultSegmentRegistrationPlugin{
 		LocalPlugin:  localPlugin,
 		RemotePlugin: remotePlugin,
 		HiddenPlugin: hiddenPathPlugin,
