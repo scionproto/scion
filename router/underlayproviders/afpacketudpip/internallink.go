@@ -64,14 +64,13 @@ func (l *internalLink) seekNeighbor(remoteIP *netip.Addr) {
 // This is called during initialization only and does not need the neighbors cache. The header
 // is incomplete and gets patched for each packet.
 func (l *internalLink) packHeader() {
-
 	sb := gopacket.NewSerializeBuffer()
 	srcIP := l.localAddr.Addr()
 
 	if l.is4 {
 		ethernet := layers.Ethernet{
 			SrcMAC:       l.localMAC,
-			DstMAC:       []byte{0, 0, 0, 0, 0, 0},
+			DstMAC:       zeroMacAddr[:],
 			EthernetType: layers.EthernetTypeIPv4,
 		}
 		udp := layers.UDP{
@@ -100,7 +99,7 @@ func (l *internalLink) packHeader() {
 	}
 	ethernet := layers.Ethernet{
 		SrcMAC:       l.localMAC,
-		DstMAC:       []byte{0, 0, 0, 0, 0, 0},
+		DstMAC:       zeroMacAddr[:],
 		EthernetType: layers.EthernetTypeIPv6,
 	}
 	udp := layers.UDP{
@@ -142,15 +141,19 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 		// ...and we don't even have a stale address to offer.
 		return false
 	}
-
 	// Prepend the canned header
 	p.RawPacket = p.WithHeader(len(l.header))
 	copy(p.RawPacket, l.header)
 
 	// Inject dest.
 	copy(p.RawPacket, dstMac[:])
-	copy(p.RawPacket[14+16:], dst.Addr().AsSlice()) // Can do cheaper?
-	binary.BigEndian.PutUint16(p.RawPacket[14+20+2:], dst.Port())
+	if l.is4 {
+		copy(p.RawPacket[14+16:], dst.Addr().AsSlice()) // Can do cheaper?
+		binary.BigEndian.PutUint16(p.RawPacket[14+20+2:], dst.Port())
+	} else {
+		copy(p.RawPacket[14+24:], dst.Addr().AsSlice()) // Can do cheaper?
+		binary.BigEndian.PutUint16(p.RawPacket[14+40+2:], dst.Port())
+	}
 	return true
 }
 
@@ -167,7 +170,7 @@ func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool 
 			}
 			break
 		}
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond) // TODO(jiceatscin): Bad. Should queue.
 	}
 	if !good {
 		log.Debug("***** Dropping due to address resolution", "from", l.localAddr,
@@ -199,6 +202,10 @@ func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool 
 	// Update UDP length
 	binary.BigEndian.PutUint16(p.RawPacket[14+40+4:], uint16(payloadLen)+8)
 
+	// Zero-out the checksum as it is part of the computation's input.
+	p.RawPacket[14+40+6] = 0
+	p.RawPacket[14+40+7] = 0
+
 	// For IPV6 we must compute the UDP checksum.
 	// In theory we could dispense with it as we're a tunneling protocol; however all the plain
 	// udp underlay implementations would drop the packets.
@@ -206,6 +213,7 @@ func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool 
 	csum := gopacket.ComputeChecksum(p.RawPacket[14+8:14+40], 0)        // src+dst
 	csum = gopacket.ComputeChecksum(p.RawPacket[14+40+4:14+40+6], csum) // UDP length
 	csum = gopacket.ComputeChecksum(zerosAndProto, csum)                // 3 0s plus UDP proto num
+	csum = gopacket.ComputeChecksum(p.RawPacket[14+40:], csum)          // UDP hdr and payload
 	binary.BigEndian.PutUint16(p.RawPacket[14+40+6:], gopacket.FoldChecksum(csum))
 	return true
 }
@@ -281,8 +289,9 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	default:
 		panic(fmt.Sprintf("unexpected address type returned from DstAddr: %s", dst.Type()))
 	}
+
 	// if port is outside the configured port range we send to the fixed port.
-	if port < l.dispatchStart && port > l.dispatchEnd {
+	if port < l.dispatchStart || port > l.dispatchEnd {
 		port = l.dispatchRedirect
 	}
 
@@ -319,7 +328,6 @@ func (l *internalLink) Send(p *router.Packet) {
 // ~correctly. Doesn't hurt.
 func (l *internalLink) SendBlocking(p *router.Packet) {
 	// Likewise: p.remoteAddress -> header.
-	// FIXME(jiceatscion): this function could not fail. Now it can.
 	if !l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
 		sc := router.ClassOfSize(len(p.RawPacket))
 		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
@@ -333,7 +341,12 @@ func (l *internalLink) SendBlocking(p *router.Packet) {
 // Because this link is not associated with a specific remote address, the src
 // address of the packet is recorded in the packet structure. This may be used
 // as the destination if SCMP responds.
-func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
+func (l *internalLink) receive(srcAddr *netip.AddrPort, dstIP netip.Addr, p *router.Packet) {
+	// If an interface is in promiscuous mode, we can receive packets not meant for us. the
+	// undelying udp connection doesn't care. The port, on the other hand is already filtered.
+	if dstIP != l.localAddr.Addr() {
+		return
+	}
 	metrics := l.metrics
 	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
@@ -391,17 +404,12 @@ func (l *internalLink) handleNeighbor(
 	l.neighbors.Lock()
 	found := l.neighbors.check(senderIP) // pending => found.
 	if (rcptIP == l.localAddr.Addr() &&
-		remoteHw != [6]byte{0, 0, 0, 0, 0, 0} && // TB checked in case of interface "lo".
+		// remoteHw != zeroMacAddr && // Could be the loopback interface (and a v6 addr).
 		senderIP != targetIP && // could be response or could be gratuitous. If !found, not wanted.
 		!senderIP.IsUnspecified()) || found {
 
 		// Good to cache or update
-		var chg bool
-		remoteHwP, chg = l.neighbors.put(senderIP, remoteHw)
-		if chg {
-			log.Debug("Learned address", "local", l.localAddr.Addr(),
-				"addr", senderIP, "isat", remoteHw)
-		}
+		remoteHwP, _ = l.neighbors.put(senderIP, remoteHw)
 	} else {
 		// Not cacheable => No response needed either.
 		isReq = false

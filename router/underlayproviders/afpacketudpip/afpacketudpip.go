@@ -140,7 +140,7 @@ type udpLink interface {
 	router.Link
 	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
-	receive(srcAddr *netip.AddrPort, p *router.Packet)
+	receive(srcAddr *netip.AddrPort, dstIP netip.Addr, p *router.Packet)
 	handleNeighbor(isReq bool, targetIP, senderIP, rcptIP netip.Addr, remoteHw [6]byte)
 }
 
@@ -318,7 +318,7 @@ func (u *provider) getUdpConnection(
 
 						c := u.allConnections[intf.Index]
 						if c == nil {
-							log.Debug("New UDP connection creeated", "addr", localAddrStr,
+							log.Debug("New UDP connection created", "addr", localAddrStr,
 								"interface", intf.Name)
 							c, err = newUdpConnection(intf, qSize, u.connOpener, metrics)
 							if err != nil {

@@ -333,7 +333,6 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 	// So many tests need the udpip underlay provider instantiated early that we do it here rather
 	// than in AddInternalInterface. Currently there can be no dataplane without the udpip provider,
 	// therefore not having a registered factory for it is a panicable offsense. We have no plan B.
-
 	return dataPlane{
 		underlays: map[string]UnderlayProvider{
 			"udpip": underlayProviders["udpip"].New(
@@ -447,6 +446,9 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 	if internalUnderlay == nil {
 		return serrors.JoinNoStack(errNoSuchUnderlay, nil, "provider", provider)
 	}
+	internalUnderlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd,
+		topology.EndhostPort)
+
 	iMetrics := newInterfaceMetrics(d.Metrics, 0, d.localIA, "", d.neighborIAs[0])
 	lk, err := internalUnderlay.NewInternalLink(localAddr, d.RunConfig.BatchSize, iMetrics)
 	if err != nil {
@@ -493,6 +495,7 @@ func (d *dataPlane) AddExternalInterface(
 			d.RunConfig.SendBufferSize,
 			d.RunConfig.ReceiveBufferSize,
 		)
+		underlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
 		d.underlays[link.Provider] = underlay
 	}
 	d.linkTypes[ifID] = link.LinkTo
@@ -639,6 +642,7 @@ func (d *dataPlane) AddNextHop(
 			d.RunConfig.SendBufferSize,
 			d.RunConfig.ReceiveBufferSize,
 		)
+		underlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
 		d.underlays[link.Provider] = underlay
 	}
 	d.linkTypes[ifID] = link.LinkTo

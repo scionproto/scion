@@ -15,7 +15,6 @@
 package afpacketudpip
 
 import (
-	"encoding/binary"
 	"math/rand"
 	"net"
 	"net/netip"
@@ -220,7 +219,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		var udpLayer layers.UDP
 		var srcIP netip.Addr
 		var dstIP netip.Addr
-		var validSrc bool
+		var validIP bool
 
 		// Since it may be recycled...
 		pool.ResetPacket(p)
@@ -237,19 +236,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		if err := ethLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 			continue
 		}
-		// FIXME(jiceatscion): Expensive and not strictly necessary, but cuts down on noise while
-		// debugging. We get *everything* going through that interface; regardless of which ethernet
-		// address we think we have. That is especially relevant when using the loopback network for
-		// tests. WE *MUST* accept some seemingly foreign destinations (e.g. the loopback interface
-		// has address 0::0, even if we like to pretend otherwise). It would be better to improve
-		// the filtering either in EPBF or in links, so we do not actually care what the Dst MAC
-		// address is.
-		if ethLayer.DstMAC[0] != 0x33 &&
-			!slices.Equal(ethLayer.DstMAC, u.localMAC) &&
-			!slices.Equal(ethLayer.DstMAC, net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}) &&
-			!slices.Equal(ethLayer.DstMAC, net.HardwareAddr{0, 0, 0, 0, 0, 0}) {
-			continue
-		}
+
 		data = ethLayer.LayerPayload() // chop off the eth header
 		switch ethLayer.EthernetType {
 		case layers.EthernetTypeIPv4:
@@ -259,9 +246,14 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 			if ipv4Layer.Protocol != layers.IPProtocolUDP {
 				continue
 			}
-			// Retrieve src from the decoded IP layers.
-			srcIP, validSrc = netip.AddrFromSlice(ipv4Layer.SrcIP)
-			if !validSrc {
+			// Retrieve src & dst from the decoded IP layers.
+			srcIP, validIP = netip.AddrFromSlice(ipv4Layer.SrcIP)
+			if !validIP {
+				// WTF?
+				continue
+			}
+			dstIP, validIP = netip.AddrFromSlice(ipv4Layer.DstIP)
+			if !validIP {
 				// WTF?
 				continue
 			}
@@ -271,13 +263,13 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 				continue
 			}
 			// Retrieve src from the decoded IP layers.
-			srcIP, validSrc = netip.AddrFromSlice(ipv6Layer.SrcIP)
-			if !validSrc {
+			srcIP, validIP = netip.AddrFromSlice(ipv6Layer.SrcIP)
+			if !validIP {
 				// WTF?
 				continue
 			}
-			dstIP, validSrc = netip.AddrFromSlice(ipv6Layer.DstIP)
-			if !validSrc {
+			dstIP, validIP = netip.AddrFromSlice(ipv6Layer.DstIP)
+			if !validIP {
 				// WTF?
 				continue
 			}
@@ -324,7 +316,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		// point directly at some space in the packet buffer (not the header itself - it
 		// gets overwritten by SCMP).
 		p.RawPacket = udpLayer.LayerPayload() // chop off the udp header. The rest is SCION.
-		l.receive(&srcAddr, p)
+		l.receive(&srcAddr, dstIP, p)
 		p = pool.Get() // we need a fresh packet buffer now.
 	}
 
@@ -447,11 +439,13 @@ func newUdpConnection(
 	// anyway. Not sure how well the non-recipient routers will handle the junk traffic because we
 	// don't filter it explicitly.
 	if len(hwAddr) == 0 || slices.Equal(hwAddr, net.HardwareAddr{0, 0, 0, 0, 0, 0}) {
-		num := rand.Uint32()
-		hwAddr = net.HardwareAddr{0, 0, 0, 0, 0, 0}
-		binary.BigEndian.PutUint32(hwAddr, num)
-		hwAddr[0] = 0x02
+		hwAddr = dummyMacAddr[:]
 	}
+	// 	num := rand.Uint32()
+	// 	hwAddr = net.HardwareAddr{0, 0, 0, 0, 0, 0}
+	// 	binary.BigEndian.PutUint32(hwAddr, num)
+	// 	hwAddr[0] = 0x02
+	// }
 	return &udpConnection{
 		localMAC:     hwAddr,
 		connFilters:  connFilters,

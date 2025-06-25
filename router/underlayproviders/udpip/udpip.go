@@ -917,7 +917,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 		panic(fmt.Sprintf("unexpected address type returned from DstAddr: %s", dst.Type()))
 	}
 	// if port is outside the configured port range we send to the fixed port.
-	if port < l.dispatchStart && port > l.dispatchEnd {
+	if port < l.dispatchStart || port > l.dispatchEnd {
 		port = l.dispatchRedirect
 	}
 

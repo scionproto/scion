@@ -35,11 +35,13 @@ import (
 const (
 	neighborTick = 500 * time.Millisecond // Cache clock period.
 	neighborTTL  = 1200                   // Time to live of resolved entry (in ticks).
-	neighborTTR  = 1                      // Remaining TTL before resolution (in ticks).
+	neighborTTR  = 2                      // TTL threshold for resolution (in ticks).
 )
 
 // FF02:0000:0000:0000:0000:0001:FF00:0000/104
 var ndpMcastPrefix = []byte{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0xff}
+var zeroMacAddr = [6]byte{0, 0, 0, 0, 0, 0}
+var dummyMacAddr = [6]byte{2, 0, 0, 0, 0, 1}
 
 type neighbor struct {
 	mac *[6]byte
@@ -67,6 +69,14 @@ type neighborCache struct {
 // triggered if the entry did not exist. This is optional, but the pending entry will exist for as
 // long as specified by the TTR.
 func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, bool) {
+
+	if ip.Is4() && ip.IsLoopback() {
+		// This cannot be reliably resolved (linux will not respond to requests), and any MAC
+		// address will do. Try and use zero; that's what Linux pretends it is when it has to
+		// pretend.
+		return &zeroMacAddr, true
+	}
+
 	entry := cache.mappings[ip]
 	if entry.timer != 0 {
 		// Already resolved or being resolved. May be we have a good address, or a stale one, or
@@ -97,6 +107,7 @@ func (cache *neighborCache) put(ip netip.Addr, mac [6]byte) (*[6]byte, bool) {
 		cache.mappings[ip] = neighbor{newMAC, neighborTTL}
 		return newMAC, true
 	}
+	cache.mappings[ip] = neighbor{oldEntry.mac, neighborTTL} // Just refresh the TTL
 	return oldEntry.mac, false
 }
 
@@ -170,7 +181,7 @@ func packNeighborReq(
 			Operation:         layers.ARPRequest,
 			SourceHwAddress:   localMAC,
 			SourceProtAddress: localIP.AsSlice(),
-			DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
+			DstHwAddress:      zeroMacAddr[:],
 			DstProtAddress:    remoteIP.AsSlice(),
 		}
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
@@ -198,7 +209,7 @@ func packNeighborReq(
 		ipv6 := layers.IPv6{
 			Version:    6,
 			NextHeader: layers.IPProtocolICMPv6,
-			HopLimit:   64,
+			HopLimit:   255,
 			SrcIP:      localIP.AsSlice(),
 			DstIP:      mcAddr,
 		}
@@ -261,7 +272,7 @@ func packNeighborResp(
 		ipv6 := layers.IPv6{
 			Version:    6,
 			NextHeader: layers.IPProtocolICMPv6,
-			HopLimit:   64,
+			HopLimit:   255,
 			SrcIP:      localIP.AsSlice(),
 			DstIP:      remoteIP.AsSlice(),
 		}

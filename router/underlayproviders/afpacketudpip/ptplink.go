@@ -120,7 +120,6 @@ func (l *ptpLink) packHeader() {
 		SrcPort: layers.UDPPort(l.localAddr.Port()),
 		DstPort: layers.UDPPort(l.remoteAddr.Port()),
 	}
-
 	ip := layers.IPv6{
 		Version:    6,
 		NextHeader: layers.IPProtocolUDP,
@@ -134,7 +133,6 @@ func (l *ptpLink) packHeader() {
 		// The only possible reason for this is in the few lines above.
 		panic("cannot serialize static header")
 	}
-
 	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
 	// ethernet minimum.
 	l.header = sb.Bytes()[:62]
@@ -204,6 +202,10 @@ func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	// Update UDP length
 	binary.BigEndian.PutUint16(p.RawPacket[14+40+4:], uint16(payloadLen)+8)
 
+	// Zero-out the checksum as it is part of the computation's input.
+	p.RawPacket[14+40+6] = 0
+	p.RawPacket[14+40+7] = 0
+
 	// For IPV6 we must compute the UDP checksum.
 	// In theory we could dispense with it as we're a tunneling protocol; however all the plain
 	// udp underlay implementations would drop the packets.
@@ -211,6 +213,7 @@ func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	csum := gopacket.ComputeChecksum(p.RawPacket[14+8:14+40], 0)        // src+dst
 	csum = gopacket.ComputeChecksum(p.RawPacket[14+40+4:14+40+6], csum) // UDP length
 	csum = gopacket.ComputeChecksum(zerosAndProto, csum)                // 3 0s plus UDP proto num
+	csum = gopacket.ComputeChecksum(p.RawPacket[14+40:], csum)          // UDP hdr and payload
 	binary.BigEndian.PutUint16(p.RawPacket[14+40+6:], gopacket.FoldChecksum(csum))
 	return true
 }
@@ -313,7 +316,13 @@ func (l *ptpLink) SendBlocking(p *router.Packet) {
 }
 
 // receive delivers an incoming packet to the appropriate processing queue.
-func (l *ptpLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
+func (l *ptpLink) receive(srcAddr *netip.AddrPort, dstIP netip.Addr, p *router.Packet) {
+	// If an interface is in promiscuous mode, we can receive packets not meant for us. the
+	// undelying udp connection doesn't care. The port, on the other hand is already filtered.
+	if dstIP != l.localAddr.Addr() {
+		return
+	}
+
 	metrics := l.metrics
 	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
@@ -349,12 +358,11 @@ func (l *ptpLink) handleNeighbor(
 	var remoteHwP *[6]byte
 	var changed bool
 
-	if senderIP == l.remoteAddr.Addr() && remoteHw != [6]byte{0, 0, 0, 0, 0, 0} {
+	if senderIP == l.remoteAddr.Addr() && remoteHw != zeroMacAddr {
 		l.neighbors.Lock()
 		// We want, regardless of cache content.
 		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
 		if changed {
-			log.Debug("Learned address", "local", l.localAddr.Addr(), "add", senderIP)
 			// Time to rebuild the packed header.
 			l.header = nil
 		}
