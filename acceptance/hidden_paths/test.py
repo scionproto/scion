@@ -5,7 +5,6 @@
 import http.server
 import threading
 import time
-import datetime
 
 from acceptance.common import base
 from acceptance.common import scion
