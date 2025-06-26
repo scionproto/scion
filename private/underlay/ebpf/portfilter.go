@@ -19,6 +19,7 @@ package ebpf
 import (
 	"encoding/binary"
 	"fmt"
+	"net/netip"
 	"unsafe"
 
 	"github.com/cilium/ebpf"
@@ -48,7 +49,7 @@ func (kf *KFilterHandle) Close() {
 
 // Adds the given port to the map of the given filter. As a result UDP/IP packets destined to that
 // port will be filtered out from the kernel networking stack.
-func (kf *KFilterHandle) AddPort(port uint16) {
+func (kf *KFilterHandle) AddAddrPort(addrPort netip.AddrPort) {
 	myMap := kf.kObjs.Maps["k_map_flt"]
 	if myMap == nil {
 		panic(fmt.Errorf("no map named k_map_flt found"))
@@ -56,10 +57,21 @@ func (kf *KFilterHandle) AddPort(port uint16) {
 
 	// map.Put plays crystal ball with key and value so it accepts either
 	// pointers or values.
-	portNbo := htons(port)
+	var key [20]byte
+	addr := addrPort.Addr()
+	if addr.Is4() || addr.Is4In6() {
+		addrBytes := addr.As4()
+		copy(key[0:4], addrBytes[0:4])
+		key[18] = byte(4)
+	} else {
+		addrBytes := addr.As16()
+		copy(key[0:16], addrBytes[0:16])
+		key[18] = byte(6)
+	}
+	binary.BigEndian.PutUint16(key[16:18], addrPort.Port())
 	b := uint8(0)
-	if err := myMap.Put(portNbo, b); err != nil {
-		panic(fmt.Sprintf("error kFilter AddPort: %v, key=%p\n", err, &portNbo))
+	if err := myMap.Put(key, b); err != nil {
+		panic(fmt.Sprintf("error kFilter AddPort: %v, key=%p\n", err, &key))
 	}
 }
 

@@ -65,21 +65,30 @@ func (l *ptpLink) seekNeighbor(remoteIP *netip.Addr) {
 // This must be called with the neighbors cache locked.
 func (l *ptpLink) packHeader() {
 	dstIP := l.remoteAddr.Addr()
-	dstMac, found := l.neighbors.get(dstIP)
-	if !found {
-		// Unknown or stale: trigger the address resolution.
-		// TODO(jiceatscion): could be done outside critical section.
-		l.seekNeighbor(&dstIP)
-	}
-	if dstMac == nil {
-		// ... not even a stale address to work with.
-		return
+
+	// Resolve the destination MAC address if we can.
+	var dstMac *[6]byte
+	if [6]byte(l.localMAC) == dummyMacAddr {
+		// Linux will not play pretend: if we're talking to a loopbak device, the kernel does not
+		// respond to neighbor resolution requests. The good news is that any address will do.
+		dstMac = &dummyMacAddr
+	} else {
+		var found bool
+		dstMac, found = l.neighbors.get(dstIP)
+		if !found {
+			// Unknown or stale: trigger the address resolution.
+			// TODO(jiceatscion): could be done outside critical section.
+			l.seekNeighbor(&dstIP)
+		}
+		if dstMac == nil {
+			// ... not even a stale address to work with.
+			return
+		}
 	}
 
-	// We have the address resolved, so build the header.
+	// Build the header.
 	sb := gopacket.NewSerializeBuffer()
 	srcIP := l.localAddr.Addr()
-
 	if l.is4 {
 		ethernet := layers.Ethernet{
 			SrcMAC:       l.localMAC,

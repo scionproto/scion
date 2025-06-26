@@ -41,7 +41,7 @@ const (
 // FF02:0000:0000:0000:0000:0001:FF00:0000/104
 var ndpMcastPrefix = []byte{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0xff}
 var zeroMacAddr = [6]byte{0, 0, 0, 0, 0, 0}
-var dummyMacAddr = [6]byte{2, 0, 0, 0, 0, 1}
+var dummyMacAddr = [6]byte{2, 0, 0, 0, 0, 2}
 
 type neighbor struct {
 	mac *[6]byte

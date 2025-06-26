@@ -129,18 +129,28 @@ func (l *internalLink) packHeader() {
 // destination is not already resolved.
 func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 	dstIP := dst.Addr()
+
 	// Resolve the destination MAC address if we can.
-	l.neighbors.Lock()
-	dstMac, found := l.neighbors.get(dstIP)
-	l.neighbors.Unlock()
-	if !found {
-		// Stale or unknown: trigger the address resolution.
-		l.seekNeighbor(&dstIP)
+	var dstMac *[6]byte
+	if [6]byte(l.localMAC) == dummyMacAddr {
+		// Linux will not play pretend: if we're talking to a loopbak device, the kernel does not
+		// respond to neighbor resolution requests. The good news is that any address will do.
+		dstMac = &dummyMacAddr
+	} else {
+		var found bool
+		l.neighbors.Lock()
+		dstMac, found = l.neighbors.get(dstIP)
+		l.neighbors.Unlock()
+		if !found {
+			// Stale or unknown: trigger the address resolution.
+			l.seekNeighbor(&dstIP)
+		}
+		if dstMac == nil {
+			// ...and we don't even have a stale address to offer.
+			return false
+		}
 	}
-	if dstMac == nil {
-		// ...and we don't even have a stale address to offer.
-		return false
-	}
+
 	// Prepend the canned header
 	p.RawPacket = p.WithHeader(len(l.header))
 	copy(p.RawPacket, l.header)

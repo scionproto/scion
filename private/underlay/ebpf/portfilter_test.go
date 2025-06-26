@@ -118,18 +118,17 @@ func TestRawSocket(t *testing.T) {
 		afpacket.OptFrameSize(4096),
 	)
 	require.NoError(t, err)
-	kFilterA, err := ebpf.BpfKFilter(intfA.Index)
-	require.NoError(t, err)
-	kFilterA.AddPort(50000)
-	sFilterA, err := ebpf.BpfSFilter(afpHandleA)
-	require.NoError(t, err)
-	sFilterA.AddPort(50000)
-	require.NoError(t, err)
 	rawAddrA, err := net.ResolveUDPAddr("udp4", "10.123.100.1:50000")
 	require.NoError(t, err)
 	// ipAddrA is not assigned to the interface but used as source address in hand-made packets.
 	ipAddrA, err := net.ResolveUDPAddr("udp4", "10.123.100.1:50001")
 	require.NoError(t, err)
+	kFilterA, err := ebpf.BpfKFilter(intfA.Index)
+	require.NoError(t, err)
+	kFilterA.AddAddrPort(rawAddrA.AddrPort())
+	sFilterA, err := ebpf.BpfSFilter(afpHandleA)
+	require.NoError(t, err)
+	sFilterA.AddPort(50000)
 
 	// Side B
 	intfB, err := net.InterfaceByName("vethB")
@@ -140,18 +139,16 @@ func TestRawSocket(t *testing.T) {
 		afpacket.OptPollTimeout(200*time.Millisecond),
 	)
 	require.NoError(t, err)
-	kFilterB, err := ebpf.BpfKFilter(intfB.Index)
-	require.NoError(t, err)
-	kFilterB.AddPort(50000)
-	sFilterB, err := ebpf.BpfSFilter(afpHandleB)
-	require.NoError(t, err)
-	sFilterB.AddPort(50000)
-	require.NoError(t, err)
-
 	rawAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50000")
 	require.NoError(t, err)
 	ipAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50001")
 	require.NoError(t, err)
+	kFilterB, err := ebpf.BpfKFilter(intfB.Index)
+	require.NoError(t, err)
+	kFilterB.AddAddrPort(rawAddrB.AddrPort()) // The destination that the kernel must *not* handle.
+	sFilterB, err := ebpf.BpfSFilter(afpHandleB)
+	require.NoError(t, err)
+	sFilterB.AddPort(50000)
 
 	// On side B we expect packets to port 50000 at the raw socket and packets to port 50001 at the
 	// regular socket. We also listen on port 50000 with a regular socket and we do not expect it

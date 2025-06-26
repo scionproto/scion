@@ -56,9 +56,9 @@ type udpConnFilters struct {
 	sFilter *ebpf.SFilterHandle
 }
 
-func (uf udpConnFilters) AddPort(port uint16) {
-	uf.kFilter.AddPort(port)
-	uf.sFilter.AddPort(port)
+func (uf udpConnFilters) AddDst(dst *netip.AddrPort) {
+	uf.kFilter.AddAddrPort(*dst)
+	uf.sFilter.AddPort(dst.Port())
 }
 
 func (uf udpConnFilters) Close() {
@@ -205,6 +205,7 @@ func (u *provider) Headroom() int {
 }
 
 func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
+	log.Debug("SetDispactherPorts", "start", start, "end", end, "redirect", redirect)
 	u.dispatchStart = start
 	u.dispatchEnd = end
 	u.dispatchRedirect = redirect
@@ -297,7 +298,6 @@ func (u *provider) getUdpConnection(
 ) (*udpConnection, error) {
 
 	localAddr := local.Addr()
-	localPort := local.Port()
 	localAddrStr := localAddr.String()
 
 	// TODO(jiceatscion): We don't really need to go through every interface every time.
@@ -326,7 +326,7 @@ func (u *provider) getUdpConnection(
 							}
 							u.allConnections[intf.Index] = c
 						}
-						c.connFilters.AddPort(localPort)
+						c.connFilters.AddDst(local)
 						if localAddr.Is6() {
 							addrBytes := localAddr.As16()
 							mcastGrp := net.HardwareAddr{

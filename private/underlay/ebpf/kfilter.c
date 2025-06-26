@@ -11,19 +11,26 @@
 #include <linux/udp.h>
 #include "bpf_helpers.h"
 
-// This tells our bpf program which port(s) goes to the AF_PACKET socket and therefore not to the
-// kernel.
+// This tells our bpf program which address/port(s) goes to the AF_PACKET socket
+// and therefore not to the kernel.
 //
-// This is a set of port numbers. Those must be in network byte order.
+// This is a set of (address/port) pairs. Ports must be in network byte order.
 //
-// This is the same data used by sockfilter to perform the opposite filtering. We may have many
-// ports to filter for a given interface. We could have several one-port filters in series, we would
-// easily exceed the number of filters that can be attached to an interface (not mentionning this
-// would be inefficient). So we need a map with multiple ports.
+// The same port numbers are used by sockfilter to perform the opposite filtering. We may have many
+// addrPorts to filter for a given interface. We could have several one-addrPort filters in series,
+// we would easily exceed the number of filters that can be attached to an interface (not
+// mentionning this would be inefficient). So we need a map with multiple ports.
+
+typedef struct {
+  __u8 ip_addr[16];
+  __u16 port; // in network byte order
+  __u8 type;
+  __u8 padding; // just to make it clear what the real size of the struct is.
+} addrPort;
 
 struct {
   __uint(type, BPF_MAP_TYPE_HASH);
-  __type(key, __u16); // A port number.
+  __type(key, addrPort); // An IP address and a port number.
   __type(value, __u8); // Nothing. The map is just a set of keys.
   __uint(max_entries, 64);
 } k_map_flt SEC(".maps");
@@ -50,28 +57,31 @@ int bpf_k_filter(struct __sk_buff *skb)
   bpf_skb_load_bytes(skb, 12, &ethtype, 2);
 
   __u8 ipproto;
-  __u16 portNbo;
+  addrPort key = {0};
 
   if (ethtype == 0x0008) {
     bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &ipproto, 1);
-
     if (ipproto != IPPROTO_UDP) {
       return -1; // TC_NEXT
     }
+    key.type = 4;
+    bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, daddr), key.ip_addr, 4);
     bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest),
-        &portNbo, 2);
+        &key.port, 2);
   } else if (ethtype == 0xDD86) {
     bpf_skb_load_bytes(skb, 14 + offsetof(struct ipv6hdr, nexthdr), &ipproto, 1);
     if (ipproto != IPPROTO_UDP) {
       return -1; // TC_NEXT
     }
+    key.type = 6;
+    bpf_skb_load_bytes(skb, 14 + offsetof(struct ipv6hdr, daddr), key.ip_addr, 16);
     bpf_skb_load_bytes(skb, 14 + sizeof(struct ipv6hdr) + offsetof(struct udphdr, dest),
-		       &portNbo, 2);
+		       &key.port, 2);
   } else {
       return -1; // TC_NEXT
   }
 
-  __u8 *forbidden = bpf_map_lookup_elem(&k_map_flt, &portNbo);
+  __u8 *forbidden = bpf_map_lookup_elem(&k_map_flt, &key);
   if (forbidden == NULL) {
     return -1; // TC_NEXT
   }
