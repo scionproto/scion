@@ -44,8 +44,8 @@ type Pather interface {
 // SegmentProvider provides segments to register for the specified type.
 type SegmentProvider interface {
 	// SegmentsToRegister returns the segments that should be registered for the
-	// given segment type. The returned slice must not be nil if the returned
-	// error is nil.
+	// given segment type as GroupedBeacons.
+	// The returned GroupedBeacons must not be nil if the returned error is nil.
 	SegmentsToRegister(ctx context.Context, segType seg.Type) (beacon.GroupedBeacons, error)
 }
 
@@ -80,10 +80,10 @@ func (s *WriteStats) Extend(other WriteStats) {
 
 // Writer writes segments.
 type Writer interface {
-	// Write writes passed slice of segments. Peers indicate the peering
-	// interface IDs of the local IA. The returned statistics should provide
-	// insights about how many segments have been successfully written. The
-	// method should return an error if the writing did fail.
+	// Write writes passed segments. Peers indicate the peering interface IDs
+	// of the local IA. The returned statistics should provide insights about
+	// how many segments have been successfully written. The method should return
+	// an error if the writing did fail.
 	Write(ctx context.Context, beacons beacon.GroupedBeacons, peers []uint16) (WriteStats, error)
 }
 
@@ -481,20 +481,40 @@ func (w *GroupWriter) Write(
 ) (WriteStats, error) {
 	processedBeacons := w.processSegments(ctx, allBeacons, peers)
 	writeStats := WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
+	// Defines a concurrent task, i.e., registration of a group of segments with a
+	// specific registrar.
+	type task struct {
+		Beacons []beacon.Beacon
+		Reg     registration.SegmentRegistrar
+	}
+	var tasks []task
+	// Collect the registrars and the beacons that should be registered with them as tasks.
 	for name, beacons := range processedBeacons {
 		registrar, err := w.Plugins.GetSegmentRegistrar(w.PolicyType, name)
 		if err != nil {
 			return WriteStats{}, serrors.Wrap("getting segment registrar", err,
 				"policy", w.PolicyType, "name", name)
 		}
-		sum := registrar.RegisterSegments(ctx, beacons, peers)
-		// Extend the write stats with the plugin-specific write stats.
-		if sum != nil {
-			writeStats.Extend(WriteStats{
+		tasks = append(tasks, task{Beacons: beacons, Reg: registrar})
+	}
+	// Run the tasks concurrently and collect the write stats.
+	allWriteStats := make([]WriteStats, len(tasks))
+	wg := sync.WaitGroup{}
+	for i, task := range tasks {
+		wg.Add(1)
+		go func(j int) {
+			defer wg.Done()
+			sum := task.Reg.RegisterSegments(ctx, task.Beacons, peers)
+			allWriteStats[j] = WriteStats{
 				Count:    sum.GetCount(),
 				StartIAs: sum.GetSrcs(),
-			})
-		}
+			}
+		}(i)
+	}
+	wg.Wait()
+	// Extend the write stats with the results from all registrars.
+	for _, stats := range allWriteStats {
+		writeStats.Extend(stats)
 	}
 	return writeStats, nil
 }

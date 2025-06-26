@@ -15,6 +15,7 @@
 package beacon
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -80,7 +81,7 @@ func (p RegPolicyType) SegmentType() segment.Type {
 	case RegPolicyTypeCore:
 		return segment.TypeCore
 	default:
-		panic("unreachable: invalid registration policy type")
+		panic(fmt.Sprintf("unreachable: invalid registration policy type: %s", p))
 	}
 }
 
@@ -94,7 +95,7 @@ func (p RegPolicyType) ToPolicyType() PolicyType {
 	case RegPolicyTypeCore:
 		return CoreRegPolicy
 	default:
-		panic("unreachable: invalid registration policy type")
+		panic(fmt.Sprintf("unreachable: invalid registration policy type: %s", p))
 	}
 }
 
@@ -301,10 +302,11 @@ type RegistrationPolicy struct {
 }
 
 // InitDefaults initializes the default values for unset fields in the registration policy.
-func (p *RegistrationPolicy) InitDefaults() {
-}
+func (p *RegistrationPolicy) InitDefaults() {}
 
 // beaconAsPath implements snet.Path with respect to a Beacon.
+// This is used to wrap a Beacon so that it can be used as a snet.Path
+// for pathpol filtering on beacons.
 type beaconAsPath struct {
 	beacon Beacon
 	snet.Path
@@ -325,8 +327,7 @@ func wrapBeacon(beacon Beacon) *beaconAsPath {
 // Metadata returns the metadata of the beacon.
 // It only sets the PathMetadata.Interfaces field.
 func (b *beaconAsPath) Metadata() *snet.PathMetadata {
-	md := snet.PathMetadata{}
-	md.Interfaces = make([]snet.PathInterface, 0)
+	md := &snet.PathMetadata{}
 	for i, entry := range b.beacon.Segment.ASEntries {
 		// For the AS entries that are not the first, add the interface with ingress interface.
 		if i > 0 {
@@ -343,7 +344,7 @@ func (b *beaconAsPath) Metadata() *snet.PathMetadata {
 			})
 		}
 	}
-	return &md
+	return md
 }
 
 // RegistrationPolicyMatcher contains the matching criteria for a registration policy.

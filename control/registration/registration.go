@@ -57,7 +57,9 @@ type SegmentRegistrars map[beacon.RegPolicyType]map[string]SegmentRegistrar
 // RegisterSegmentRegistrar registers a segment registrar for a given policy type and
 // registration policy.
 func (s SegmentRegistrars) RegisterSegmentRegistrar(
-	policyType beacon.RegPolicyType, registrationPolicy string, registrar SegmentRegistrar,
+	policyType beacon.RegPolicyType,
+	registrationPolicy string,
+	registrar SegmentRegistrar,
 ) error {
 	if _, ok := s[policyType]; !ok {
 		s[policyType] = make(map[string]SegmentRegistrar)

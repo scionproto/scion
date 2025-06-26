@@ -82,14 +82,13 @@ func groupBeacons(beacons []Beacon, policy *Policy) GroupedBeacons {
 			DEFAULT_GROUP: beacons,
 		}
 	}
-	// Go through every beacon, and group it into the first registration policy
-	// that matches it.
+	// Go through every beacon, and group it into all the registration
+	// policies that match.
 	beaconBuckets := make(GroupedBeacons)
 	for _, b := range beacons {
 		for _, regPolicy := range policy.RegistrationPolicies {
 			if regPolicy.Matcher.Match(b) {
 				beaconBuckets[regPolicy.Name] = append(beaconBuckets[regPolicy.Name], b)
-				break
 			}
 		}
 	}
@@ -133,7 +132,8 @@ func (s *Store) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 // the time of the call. The selections are based on the configured policy for
 // the requested segment type.
 func (s *Store) SegmentsToRegister(
-	ctx context.Context, segType seg.Type,
+	ctx context.Context,
+	segType seg.Type,
 ) (GroupedBeacons, error) {
 	var policy *Policy
 	switch segType {
@@ -211,7 +211,8 @@ func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 // SegmentsToRegister returns a slice of all beacons to register at the time of the call.
 // The selection is based on the configured policy for the requested segment type.
 func (s *CoreStore) SegmentsToRegister(
-	ctx context.Context, segType seg.Type,
+	ctx context.Context,
+	segType seg.Type,
 ) (GroupedBeacons, error) {
 	if segType != seg.TypeCore {
 		return nil, serrors.New("Unsupported segment type", "type", segType)
