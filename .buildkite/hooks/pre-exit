@@ -10,3 +10,5 @@ if [ -f ".buildkite/hooks/bazel-remote.yml" ]; then
 
     buildkite-agent artifact upload "bazel-remote-cache.*;go-module-proxy.*"
 fi
+
+docker builder prune --all --force --filter until=30m

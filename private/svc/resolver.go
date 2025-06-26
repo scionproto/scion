@@ -19,6 +19,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -113,12 +114,20 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*R
 			},
 		},
 	}
-	reply, err := r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.UnderlayNextHop())
-	if err != nil {
-		ext.Error.Set(span, true)
-		return nil, err
+
+	// Packets DO get lost. We need retries. (This means that RoundTrip must use a deadline for
+	// each attempt that is much shorter than our deadline for completion).
+	var reply *Reply
+	for a := range 16 {
+		reply, err = r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.UnderlayNextHop())
+		if err != nil {
+			continue
+		}
+		log.Debug("SVC resolver succeeded", "attempts", a+1)
+		return reply, nil
 	}
-	return reply, nil
+	log.Debug("SVC resolver failed")
+	return nil, err
 }
 
 func (r *Resolver) getRoundTripper() RoundTripper {
@@ -167,6 +176,9 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 
 	var replyPacket snet.Packet
 	var replyOv net.UDPAddr
+	if err := c.SetReadDeadline(time.Now().Add(300 * time.Millisecond)); err != nil {
+		return nil, err
+	}
 	if err := c.ReadFrom(&replyPacket, &replyOv); err != nil {
 		select {
 		case <-ctx.Done():

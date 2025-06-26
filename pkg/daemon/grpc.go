@@ -115,8 +115,18 @@ func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
 		Refresh:          f.Refresh,
 	})
 	if err != nil {
-		c.metrics.incPaths(err)
-		return nil, err
+		time.Sleep(500 * time.Millisecond)
+
+		response, err = client.Paths(ctx, &sdpb.PathsRequest{
+			SourceIsdAs:      uint64(src),
+			DestinationIsdAs: uint64(dst),
+			Hidden:           f.Hidden,
+			Refresh:          f.Refresh,
+		})
+		if err != nil {
+			c.metrics.incPaths(err)
+			return nil, err
+		}
 	}
 	paths, err := pathResponseToPaths(response.Paths, dst)
 	c.metrics.incPaths(err)
