@@ -208,11 +208,16 @@ func (pf PathFingerprint) String() string {
 	return fmt.Sprintf("%x", []byte(pf))
 }
 
+// Fingerprintable is a type that can be fingerprinted based on its PathMetadata.
+type Fingerprintable interface {
+	Metadata() *PathMetadata
+}
+
 // Fingerprint uniquely identifies the path based on the sequence of
 // ASes and BRs, i.e. by its PathInterfaces.
 // Other metadata, such as MTU or NextHop have no effect on the fingerprint.
 // Returns empty string for paths where the interfaces list is not available.
-func Fingerprint(path Path) PathFingerprint {
+func Fingerprint(path Fingerprintable) PathFingerprint {
 	meta := path.Metadata()
 	if meta == nil || len(meta.Interfaces) == 0 {
 		return ""
