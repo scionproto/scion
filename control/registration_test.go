@@ -62,6 +62,7 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 		testBeacon(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
 	}
 
+	wildCardSeq := MustParseSequence(t, "0*")
 	twoHopsSeq := MustParseSequence(t, "0-0#0 0-0#0")
 	threeHopsSeq := MustParseSequence(t, "0-0#0 0-0#0 0-0#0")
 
@@ -113,6 +114,35 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 			Expected: beacon.GroupedBeacons{
 				"twoHops": []beacon.Beacon{
 					beacons[0],
+				},
+				"threeHops": []beacon.Beacon{
+					beacons[1],
+					beacons[2],
+				},
+			},
+		},
+		{
+			Name:        "Overlapping policies",
+			BestSetSize: 3,
+			RegPolicies: []beacon.RegistrationPolicy{
+				{
+					Name: "all",
+					Matcher: beacon.RegistrationPolicyMatcher{
+						Sequence: wildCardSeq,
+					},
+				},
+				{
+					Name: "threeHops",
+					Matcher: beacon.RegistrationPolicyMatcher{
+						Sequence: threeHopsSeq,
+					},
+				},
+			},
+			Expected: beacon.GroupedBeacons{
+				"all": []beacon.Beacon{
+					beacons[0],
+					beacons[1],
+					beacons[2],
 				},
 				"threeHops": []beacon.Beacon{
 					beacons[1],
