@@ -356,11 +356,17 @@ type RegistrationPolicyMatcher struct {
 // Match returns true iff the given beacon matches the registration policy matcher.
 // Note that an empty matcher matches everything.
 func (m *RegistrationPolicyMatcher) Match(beacon Beacon) bool {
-	if m.Sequence != nil && len(m.Sequence.Eval([]snet.Path{wrapBeacon(beacon)})) == 0 {
-		return false
+	if m.Sequence != nil {
+		eval := m.Sequence.Eval([]snet.Path{wrapBeacon(beacon)})
+		if len(eval) == 0 {
+			return false
+		}
 	}
-	if m.ACL != nil && len(m.ACL.Eval([]snet.Path{wrapBeacon(beacon)})) == 0 {
-		return false
+	if m.ACL != nil {
+		eval := m.ACL.Eval([]snet.Path{wrapBeacon(beacon)})
+		if len(eval) == 0 {
+			return false
+		}
 	}
 	return true
 }
