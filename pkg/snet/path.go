@@ -208,8 +208,8 @@ func (pf PathFingerprint) String() string {
 	return fmt.Sprintf("%x", []byte(pf))
 }
 
-// Metadater is the interface that provides access to the path metadata.
-type Metadater interface {
+// MetadataProvider is the interface that provides access to the path metadata.
+type MetadataProvider interface {
 	Metadata() *PathMetadata
 }
 
@@ -217,7 +217,7 @@ type Metadater interface {
 // ASes and BRs, i.e. by its PathInterfaces.
 // Other metadata, such as MTU or NextHop have no effect on the fingerprint.
 // Returns empty string for paths where the interfaces list is not available.
-func Fingerprint(path Metadater) PathFingerprint {
+func Fingerprint(path MetadataProvider) PathFingerprint {
 	meta := path.Metadata()
 	if meta == nil || len(meta.Interfaces) == 0 {
 		return ""
