@@ -68,7 +68,6 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 
 	type testCase struct {
 		Name        string
-		BestSetSize int
 		RegPolicies []beacon.RegistrationPolicy
 		Expected    beacon.GroupedBeacons
 	}
@@ -76,15 +75,13 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 	testCases := []testCase{
 		{
 			Name:        "No policies",
-			BestSetSize: 3,
 			RegPolicies: []beacon.RegistrationPolicy{},
 			Expected: beacon.GroupedBeacons{
 				beacon.DEFAULT_GROUP: beacons,
 			},
 		},
 		{
-			Name:        "Empty policy",
-			BestSetSize: 3,
+			Name: "Empty policy",
 			RegPolicies: []beacon.RegistrationPolicy{
 				{
 					Name: "empty",
@@ -95,8 +92,7 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 			},
 		},
 		{
-			Name:        "Disjoint policies",
-			BestSetSize: 3,
+			Name: "Disjoint policies",
 			RegPolicies: []beacon.RegistrationPolicy{
 				{
 					Name: "twoHops",
@@ -122,8 +118,7 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 			},
 		},
 		{
-			Name:        "Overlapping policies",
-			BestSetSize: 3,
+			Name: "Overlapping policies",
 			RegPolicies: []beacon.RegistrationPolicy{
 				{
 					Name: "all",
@@ -166,7 +161,6 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 
 			policies := beacon.Policies{
 				UpReg: beacon.Policy{
-					BestSetSize:          tc.BestSetSize,
 					RegistrationPolicies: tc.RegPolicies,
 				},
 			}
@@ -179,6 +173,10 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 			require.Equal(t, tc.Expected, beacons)
 		})
 	}
+}
+
+func TestDispatchGroups(t *testing.T) {
+
 }
 
 func testBeacon(g *graph.Graph, desc ...uint16) beacon.Beacon {
