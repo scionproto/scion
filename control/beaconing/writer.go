@@ -431,10 +431,17 @@ func (l writerLabels) WithResult(result string) writerLabels {
 // registrars registered in Plugins. It is parameterized by a PolicyType, which determines the
 // registrars that will be used.
 type GroupWriter struct {
-	PolicyType     beacon.RegPolicyType
-	Plugins        registration.SegmentRegistrars
-	Intfs          *ifstate.Interfaces
-	Extender       Extender
+	PolicyType beacon.RegPolicyType
+	// Registrars is used to get the segment registrars for the PolicyType.
+	Registrars registration.SegmentRegistrars
+	// Intfs is used to filter out beacons that do not have a valid interface ID.
+	// If Intfs is nil, no filtering is done.
+	Intfs *ifstate.Interfaces
+	// Extender is used to terminate the segments of the beacons before registering them.
+	// If Extender is nil, no termination is done.
+	Extender Extender
+	// InternalErrors counts the errors during segment termination.
+	// If the counter is nil, errors are not counted.
 	InternalErrors metrics.Counter
 }
 
@@ -452,14 +459,18 @@ func (w *GroupWriter) processSegments(
 	for group, beacons := range beacons {
 		processedGroup := make([]beacon.Beacon, 0, len(beacons))
 		for _, b := range beacons {
-			if w.Intfs.Get(b.InIfID) == nil {
+			// If the beacon does not have a valid interface ID, skip it.
+			if w.Intfs != nil && w.Intfs.Get(b.InIfID) == nil {
 				continue
 			}
-			err := w.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
-			if err != nil {
-				logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
-				metrics.CounterInc(w.InternalErrors)
-				continue
+			// Try to terminate the segment if an extender is configured.
+			if w.Extender != nil {
+				err := w.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
+				if err != nil {
+					logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
+					metrics.CounterInc(w.InternalErrors)
+					continue
+				}
 			}
 			processedGroup = append(processedGroup, b)
 		}
@@ -490,7 +501,7 @@ func (w *GroupWriter) Write(
 	var tasks []task
 	// Collect the registrars and the beacons that should be registered with them as tasks.
 	for name, beacons := range processedBeacons {
-		registrar, err := w.Plugins.GetSegmentRegistrar(w.PolicyType, name)
+		registrar, err := w.Registrars.GetSegmentRegistrar(w.PolicyType, name)
 		if err != nil {
 			return WriteStats{}, serrors.Wrap("getting segment registrar", err,
 				"policy", w.PolicyType, "name", name)

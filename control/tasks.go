@@ -218,7 +218,7 @@ func (t *TasksConfig) segmentWriter(
 		Type:     policyType.SegmentType(),
 		Writer: &beaconing.GroupWriter{
 			PolicyType: policyType,
-			Plugins:    t.registrars,
+			Registrars: t.registrars,
 			Intfs:      t.AllInterfaces,
 			Extender: t.extender("segment_writer", t.IA, t.MTU, func() uint8 {
 				return t.BeaconStore.MaxExpTime(policyType.ToPolicyType())

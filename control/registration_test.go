@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beacon/mock_beacon"
+	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/registration"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
@@ -42,7 +43,11 @@ func (r *testRegistrar) RegisterSegments(
 	peers []uint16,
 ) *registration.RegistrationSummary {
 	r.Results = beacons
-	return nil
+	sum := registration.NewSummary()
+	for _, b := range beacons {
+		sum.RecordBeacon(&b)
+	}
+	return sum
 }
 
 func MustParseSequence(t *testing.T, seq string) *pathpol.Sequence {
@@ -175,7 +180,89 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 	}
 }
 
-func TestDispatchGroups(t *testing.T) {
+func TestGroupWriter(t *testing.T) {
+	mctrl := gomock.NewController(t)
+	g := graph.NewDefaultGraph(mctrl)
+
+	stub := graph.If_111_A_112_X
+	beacons := []beacon.Beacon{
+		testBeacon(g, graph.If_120_X_111_B, stub),
+		testBeacon(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
+		testBeacon(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
+	}
+
+	testReg1 := &testRegistrar{}
+	testReg2 := &testRegistrar{}
+
+	type testCase struct {
+		Name       string
+		Input      beacon.GroupedBeacons
+		Registrars map[string]*testRegistrar
+
+		Expected map[string][]beacon.Beacon
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Basic",
+			Input: beacon.GroupedBeacons{
+				"all": []beacon.Beacon{
+					beacons[0],
+					beacons[1],
+					beacons[2],
+				},
+				"some": []beacon.Beacon{
+					beacons[0],
+					beacons[2],
+				},
+			},
+			Registrars: map[string]*testRegistrar{
+				"all":  testReg1,
+				"some": testReg2,
+			},
+			Expected: map[string][]beacon.Beacon{
+				"all": {
+					beacons[0],
+					beacons[1],
+					beacons[2],
+				},
+				"some": {
+					beacons[0],
+					beacons[2],
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			ctx := t.Context()
+
+			asRegistrars := make(registration.SegmentRegistrars)
+			for name, reg := range tc.Registrars {
+				require.Nil(t, reg.Results)
+				if asRegistrars[beacon.RegPolicyTypeUp] == nil {
+					asRegistrars[beacon.RegPolicyTypeUp] = make(map[string]registration.SegmentRegistrar)
+				}
+				asRegistrars[beacon.RegPolicyTypeUp][name] = reg
+			}
+
+			gw := beaconing.GroupWriter{
+				PolicyType: beacon.RegPolicyTypeUp,
+				Registrars: asRegistrars,
+			}
+
+			_, err := gw.Write(ctx, tc.Input, nil)
+			require.NoError(t, err)
+
+			actual := make(map[string][]beacon.Beacon)
+			for name, reg := range tc.Registrars {
+				actual[name] = reg.Results
+			}
+
+			require.Equal(t, tc.Expected, actual)
+		})
+	}
 
 }
 

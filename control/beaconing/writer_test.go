@@ -113,7 +113,7 @@ func TestRegistrarRun(t *testing.T) {
 			r := beaconing.WriteScheduler{
 				Writer: &beaconing.GroupWriter{
 					PolicyType: policyType,
-					Plugins: registration.SegmentRegistrars{
+					Registrars: registration.SegmentRegistrars{
 						policyType: {
 							registration.DEFAULT_PLUGIN_ID: rw,
 						},
@@ -225,7 +225,7 @@ func TestRegistrarRun(t *testing.T) {
 			r := beaconing.WriteScheduler{
 				Writer: &beaconing.GroupWriter{
 					PolicyType: policyType,
-					Plugins: registration.SegmentRegistrars{
+					Registrars: registration.SegmentRegistrars{
 						policyType: {
 							registration.DEFAULT_PLUGIN_ID: rw,
 						},
@@ -347,7 +347,7 @@ func TestRegistrarRun(t *testing.T) {
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				},
-				Plugins: registration.SegmentRegistrars{
+				Registrars: registration.SegmentRegistrars{
 					beacon.RegPolicyTypeDown: {
 						registration.DEFAULT_PLUGIN_ID: rw,
 					},
