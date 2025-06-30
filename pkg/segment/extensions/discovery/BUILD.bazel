@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["discovery.go"],
+    importpath = "github.com/scionproto/scion/pkg/segment/extensions/discovery",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/control_plane:go_default_library",
+        "//pkg/slices:go_default_library",
+    ],
+)

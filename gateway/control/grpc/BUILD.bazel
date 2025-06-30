@@ -22,6 +22,7 @@ go_library(
         "//pkg/proto/discovery:go_default_library",
         "//pkg/proto/gateway:go_default_library",
         "//pkg/snet:go_default_library",
+        "//pkg/snet/addrutil:go_default_library",
         "@org_golang_google_grpc//codes:go_default_library",
         "@org_golang_google_grpc//peer:go_default_library",
         "@org_golang_google_grpc//status:go_default_library",

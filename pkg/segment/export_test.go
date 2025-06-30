@@ -14,14 +14,7 @@
 
 package segment
 
-import (
-	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
+var (
+	ExtensionsFromPB = extensionsFromPB
+	ExtensionsToPB   = extensionsToPB
 )
-
-func ExtensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
-	return extensionsFromPB(pb)
-}
-
-func ExtensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
-	return extensionsToPB(ext)
-}

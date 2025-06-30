@@ -16,6 +16,7 @@ package combinator
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -63,12 +64,13 @@ func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) s
 
 	path := pathInfo{interfaces, asEntries, remoteIF}
 	return snet.PathMetadata{
-		Latency:      collectLatency(path),
-		Bandwidth:    collectBandwidth(path),
-		Geo:          collectGeo(path),
-		LinkType:     collectLinkType(path),
-		InternalHops: collectInternalHops(path),
-		Notes:        collectNotes(path),
+		Latency:              collectLatency(path),
+		Bandwidth:            collectBandwidth(path),
+		Geo:                  collectGeo(path),
+		LinkType:             collectLinkType(path),
+		InternalHops:         collectInternalHops(path),
+		Notes:                collectNotes(path),
+		DiscoveryInformation: collectDiscoverInformation(asEntries),
 	}
 }
 
@@ -345,6 +347,42 @@ func deduplicateStrings(elements []string) []string {
 		}
 	}
 	return result
+}
+
+func collectDiscoverInformation(asEntries []seg.ASEntry) map[addr.IA]snet.DiscoveryInformation {
+	// Collect the discovery information for each AS.
+	discoveryInfo := make(map[addr.IA]snet.DiscoveryInformation)
+	for _, asEntry := range asEntries {
+		disco := asEntry.Extensions.Discovery
+		if disco == nil {
+			continue
+		}
+		ia := asEntry.Local
+
+		// if the entry already exists we merge the information
+		if info, exists := discoveryInfo[ia]; exists {
+			for _, cs := range disco.ControlServices {
+				if !slices.Contains(info.ControlServices, cs) {
+					info.ControlServices = append(info.ControlServices, cs)
+				}
+			}
+			for _, ds := range disco.DiscoveryServices {
+				if !slices.Contains(info.DiscoveryServices, ds) {
+					info.DiscoveryServices = append(info.DiscoveryServices, ds)
+				}
+			}
+			discoveryInfo[ia] = info
+		} else {
+			discoveryInfo[ia] = snet.DiscoveryInformation{
+				ControlServices:   disco.ControlServices,
+				DiscoveryServices: disco.DiscoveryServices,
+			}
+		}
+	}
+	if len(discoveryInfo) == 0 {
+		return nil
+	}
+	return discoveryInfo
 }
 
 // hopKey is a map key for looking up information about a hop, a pair of

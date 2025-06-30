@@ -39,7 +39,7 @@ type Pather struct {
 }
 
 // GetPath computes the remote address with a path based on the provided segment.
-func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error) {
+func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (net.Addr, error) {
 	if len(ps.ASEntries) == 0 {
 		return nil, serrors.New("empty path")
 	}
@@ -87,6 +87,26 @@ func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error
 	if nextHop == nil {
 		return nil, serrors.New("first-hop border router not found", "intf_id", ifID)
 	}
+	if disco := ps.ASEntries[0].Extensions.Discovery; disco != nil {
+		if svc == addr.SvcCS && len(disco.ControlServices) > 0 {
+			// take any (the first) control service address
+			return &snet.UDPAddr{
+				IA:      ps.FirstIA(),
+				Path:    path,
+				NextHop: nextHop,
+				Host:    net.UDPAddrFromAddrPort(disco.ControlServices[0]),
+			}, nil
+		}
+		if svc == addr.SvcDS && len(disco.DiscoveryServices) > 0 {
+			// take any (the first) discovery service address
+			return &snet.UDPAddr{
+				IA:      ps.FirstIA(),
+				Path:    path,
+				NextHop: nextHop,
+				Host:    net.UDPAddrFromAddrPort(disco.DiscoveryServices[0]),
+			}, nil
+		}
+	}
 	return &snet.SVCAddr{
 		IA:      ps.FirstIA(),
 		Path:    path,
@@ -130,4 +150,59 @@ func ResolveLocal(dst net.IP) (net.IP, error) {
 	defer udpConn.Close()
 	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
 	return srcIP, nil
+}
+
+func ExtractServiceAddress(a addr.SVC, path snet.Path) net.Addr {
+	if path == nil {
+		panic("path is nil")
+	}
+
+	destination := path.Destination()
+	if destination.IsZero() {
+		panic("path destination is invalid")
+	}
+	metadata := path.Metadata()
+	if metadata != nil {
+		discoveredInfo, hasDiscoveryInfo := metadata.DiscoveryInformation[destination]
+		switch a {
+		case addr.SvcCS:
+			if hasDiscoveryInfo && len(discoveredInfo.ControlServices) > 0 {
+				// Use the first control service if available
+				cs := discoveredInfo.ControlServices[0]
+				ret := &snet.UDPAddr{
+					IA:      destination,
+					Path:    path.Dataplane(),
+					NextHop: path.UnderlayNextHop(),
+					Host: &net.UDPAddr{
+						IP:   cs.Addr().AsSlice(),
+						Port: int(cs.Port()),
+					},
+				}
+
+				return ret
+			}
+		case addr.SvcDS:
+			if hasDiscoveryInfo && len(discoveredInfo.DiscoveryServices) > 0 {
+				// Use the first data service if available
+				ds := discoveredInfo.DiscoveryServices[0]
+				ret := &snet.UDPAddr{
+					IA:      destination,
+					Path:    path.Dataplane(),
+					NextHop: path.UnderlayNextHop(),
+					Host: &net.UDPAddr{
+						IP:   ds.Addr().AsSlice(),
+						Port: int(ds.Port()),
+					},
+				}
+
+				return ret
+			}
+		}
+	}
+	return &snet.SVCAddr{
+		IA:      destination,
+		Path:    path.Dataplane(),
+		NextHop: path.UnderlayNextHop(),
+		SVC:     a,
+	}
 }

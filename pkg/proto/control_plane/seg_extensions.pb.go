@@ -78,6 +78,7 @@ type PathSegmentExtensions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	StaticInfo    *StaticInfoExtension   `protobuf:"bytes,1,opt,name=static_info,json=staticInfo,proto3" json:"static_info,omitempty"`
 	HiddenPath    *HiddenPathExtension   `protobuf:"bytes,2,opt,name=hidden_path,json=hiddenPath,proto3" json:"hidden_path,omitempty"`
+	Discovery     *DiscoveryExtension    `protobuf:"bytes,3,opt,name=discovery,proto3" json:"discovery,omitempty"`
 	Digests       *DigestExtension       `protobuf:"bytes,1000,opt,name=digests,proto3" json:"digests,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -123,6 +124,13 @@ func (x *PathSegmentExtensions) GetStaticInfo() *StaticInfoExtension {
 func (x *PathSegmentExtensions) GetHiddenPath() *HiddenPathExtension {
 	if x != nil {
 		return x.HiddenPath
+	}
+	return nil
+}
+
+func (x *PathSegmentExtensions) GetDiscovery() *DiscoveryExtension {
+	if x != nil {
+		return x.Discovery
 	}
 	return nil
 }
@@ -262,6 +270,66 @@ func (x *StaticInfoExtension) GetNote() string {
 	return ""
 }
 
+type DiscoveryExtension struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	Version                   uint32                 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	ControlServiceAddresses   []string               `protobuf:"bytes,2,rep,name=control_service_addresses,json=controlServiceAddresses,proto3" json:"control_service_addresses,omitempty"`
+	DiscoveryServiceAddresses []string               `protobuf:"bytes,3,rep,name=discovery_service_addresses,json=discoveryServiceAddresses,proto3" json:"discovery_service_addresses,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *DiscoveryExtension) Reset() {
+	*x = DiscoveryExtension{}
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveryExtension) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveryExtension) ProtoMessage() {}
+
+func (x *DiscoveryExtension) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveryExtension.ProtoReflect.Descriptor instead.
+func (*DiscoveryExtension) Descriptor() ([]byte, []int) {
+	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DiscoveryExtension) GetVersion() uint32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *DiscoveryExtension) GetControlServiceAddresses() []string {
+	if x != nil {
+		return x.ControlServiceAddresses
+	}
+	return nil
+}
+
+func (x *DiscoveryExtension) GetDiscoveryServiceAddresses() []string {
+	if x != nil {
+		return x.DiscoveryServiceAddresses
+	}
+	return nil
+}
+
 type LatencyInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Intra         map[uint64]uint32      `protobuf:"bytes,1,rep,name=intra,proto3" json:"intra,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
@@ -272,7 +340,7 @@ type LatencyInfo struct {
 
 func (x *LatencyInfo) Reset() {
 	*x = LatencyInfo{}
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[3]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -284,7 +352,7 @@ func (x *LatencyInfo) String() string {
 func (*LatencyInfo) ProtoMessage() {}
 
 func (x *LatencyInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[3]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -297,7 +365,7 @@ func (x *LatencyInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LatencyInfo.ProtoReflect.Descriptor instead.
 func (*LatencyInfo) Descriptor() ([]byte, []int) {
-	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{3}
+	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *LatencyInfo) GetIntra() map[uint64]uint32 {
@@ -324,7 +392,7 @@ type BandwidthInfo struct {
 
 func (x *BandwidthInfo) Reset() {
 	*x = BandwidthInfo{}
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[4]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -336,7 +404,7 @@ func (x *BandwidthInfo) String() string {
 func (*BandwidthInfo) ProtoMessage() {}
 
 func (x *BandwidthInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[4]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -349,7 +417,7 @@ func (x *BandwidthInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BandwidthInfo.ProtoReflect.Descriptor instead.
 func (*BandwidthInfo) Descriptor() ([]byte, []int) {
-	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{4}
+	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *BandwidthInfo) GetIntra() map[uint64]uint64 {
@@ -377,7 +445,7 @@ type GeoCoordinates struct {
 
 func (x *GeoCoordinates) Reset() {
 	*x = GeoCoordinates{}
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[5]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -389,7 +457,7 @@ func (x *GeoCoordinates) String() string {
 func (*GeoCoordinates) ProtoMessage() {}
 
 func (x *GeoCoordinates) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[5]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -402,7 +470,7 @@ func (x *GeoCoordinates) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GeoCoordinates.ProtoReflect.Descriptor instead.
 func (*GeoCoordinates) Descriptor() ([]byte, []int) {
-	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{5}
+	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GeoCoordinates) GetLatitude() float32 {
@@ -435,7 +503,7 @@ type DigestExtension struct {
 
 func (x *DigestExtension) Reset() {
 	*x = DigestExtension{}
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[6]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -447,7 +515,7 @@ func (x *DigestExtension) String() string {
 func (*DigestExtension) ProtoMessage() {}
 
 func (x *DigestExtension) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[6]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,7 +528,7 @@ func (x *DigestExtension) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DigestExtension.ProtoReflect.Descriptor instead.
 func (*DigestExtension) Descriptor() ([]byte, []int) {
-	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{6}
+	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *DigestExtension) GetEpic() *DigestExtension_Digest {
@@ -479,7 +547,7 @@ type PathSegmentUnsignedExtensions struct {
 
 func (x *PathSegmentUnsignedExtensions) Reset() {
 	*x = PathSegmentUnsignedExtensions{}
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[7]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -491,7 +559,7 @@ func (x *PathSegmentUnsignedExtensions) String() string {
 func (*PathSegmentUnsignedExtensions) ProtoMessage() {}
 
 func (x *PathSegmentUnsignedExtensions) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[7]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -504,7 +572,7 @@ func (x *PathSegmentUnsignedExtensions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathSegmentUnsignedExtensions.ProtoReflect.Descriptor instead.
 func (*PathSegmentUnsignedExtensions) Descriptor() ([]byte, []int) {
-	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{7}
+	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PathSegmentUnsignedExtensions) GetEpic() *experimental.EPICDetachedExtension {
@@ -523,7 +591,7 @@ type DigestExtension_Digest struct {
 
 func (x *DigestExtension_Digest) Reset() {
 	*x = DigestExtension_Digest{}
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[15]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -535,7 +603,7 @@ func (x *DigestExtension_Digest) String() string {
 func (*DigestExtension_Digest) ProtoMessage() {}
 
 func (x *DigestExtension_Digest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[15]
+	mi := &file_proto_control_plane_v1_seg_extensions_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -548,7 +616,7 @@ func (x *DigestExtension_Digest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DigestExtension_Digest.ProtoReflect.Descriptor instead.
 func (*DigestExtension_Digest) Descriptor() ([]byte, []int) {
-	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{6, 0}
+	return file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP(), []int{7, 0}
 }
 
 func (x *DigestExtension_Digest) GetDigest() []byte {
@@ -562,12 +630,13 @@ var File_proto_control_plane_v1_seg_extensions_proto protoreflect.FileDescriptor
 
 const file_proto_control_plane_v1_seg_extensions_proto_rawDesc = "" +
 	"\n" +
-	"+proto/control_plane/v1/seg_extensions.proto\x12\x16proto.control_plane.v1\x1aAproto/control_plane/experimental/v1/seg_detached_extensions.proto\"\xf7\x01\n" +
+	"+proto/control_plane/v1/seg_extensions.proto\x12\x16proto.control_plane.v1\x1aAproto/control_plane/experimental/v1/seg_detached_extensions.proto\"\xc1\x02\n" +
 	"\x15PathSegmentExtensions\x12L\n" +
 	"\vstatic_info\x18\x01 \x01(\v2+.proto.control_plane.v1.StaticInfoExtensionR\n" +
 	"staticInfo\x12L\n" +
 	"\vhidden_path\x18\x02 \x01(\v2+.proto.control_plane.v1.HiddenPathExtensionR\n" +
-	"hiddenPath\x12B\n" +
+	"hiddenPath\x12H\n" +
+	"\tdiscovery\x18\x03 \x01(\v2*.proto.control_plane.v1.DiscoveryExtensionR\tdiscovery\x12B\n" +
 	"\adigests\x18\xe8\a \x01(\v2'.proto.control_plane.v1.DigestExtensionR\adigests\"2\n" +
 	"\x13HiddenPathExtension\x12\x1b\n" +
 	"\tis_hidden\x18\x01 \x01(\bR\bisHidden\"\xb1\x05\n" +
@@ -586,7 +655,11 @@ const file_proto_control_plane_v1_seg_extensions_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x0e2 .proto.control_plane.v1.LinkTypeR\x05value:\x028\x01\x1a?\n" +
 	"\x11InternalHopsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\x04R\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\x8d\x02\n" +
+	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\xaa\x01\n" +
+	"\x12DiscoveryExtension\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\rR\aversion\x12:\n" +
+	"\x19control_service_addresses\x18\x02 \x03(\tR\x17controlServiceAddresses\x12>\n" +
+	"\x1bdiscovery_service_addresses\x18\x03 \x03(\tR\x19discoveryServiceAddresses\"\x8d\x02\n" +
 	"\vLatencyInfo\x12D\n" +
 	"\x05intra\x18\x01 \x03(\v2..proto.control_plane.v1.LatencyInfo.IntraEntryR\x05intra\x12D\n" +
 	"\x05inter\x18\x02 \x03(\v2..proto.control_plane.v1.LatencyInfo.InterEntryR\x05inter\x1a8\n" +
@@ -638,49 +711,51 @@ func file_proto_control_plane_v1_seg_extensions_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_control_plane_v1_seg_extensions_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_control_plane_v1_seg_extensions_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_proto_control_plane_v1_seg_extensions_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_proto_control_plane_v1_seg_extensions_proto_goTypes = []any{
 	(LinkType)(0),                         // 0: proto.control_plane.v1.LinkType
 	(*PathSegmentExtensions)(nil),         // 1: proto.control_plane.v1.PathSegmentExtensions
 	(*HiddenPathExtension)(nil),           // 2: proto.control_plane.v1.HiddenPathExtension
 	(*StaticInfoExtension)(nil),           // 3: proto.control_plane.v1.StaticInfoExtension
-	(*LatencyInfo)(nil),                   // 4: proto.control_plane.v1.LatencyInfo
-	(*BandwidthInfo)(nil),                 // 5: proto.control_plane.v1.BandwidthInfo
-	(*GeoCoordinates)(nil),                // 6: proto.control_plane.v1.GeoCoordinates
-	(*DigestExtension)(nil),               // 7: proto.control_plane.v1.DigestExtension
-	(*PathSegmentUnsignedExtensions)(nil), // 8: proto.control_plane.v1.PathSegmentUnsignedExtensions
-	nil,                                   // 9: proto.control_plane.v1.StaticInfoExtension.GeoEntry
-	nil,                                   // 10: proto.control_plane.v1.StaticInfoExtension.LinkTypeEntry
-	nil,                                   // 11: proto.control_plane.v1.StaticInfoExtension.InternalHopsEntry
-	nil,                                   // 12: proto.control_plane.v1.LatencyInfo.IntraEntry
-	nil,                                   // 13: proto.control_plane.v1.LatencyInfo.InterEntry
-	nil,                                   // 14: proto.control_plane.v1.BandwidthInfo.IntraEntry
-	nil,                                   // 15: proto.control_plane.v1.BandwidthInfo.InterEntry
-	(*DigestExtension_Digest)(nil),        // 16: proto.control_plane.v1.DigestExtension.Digest
-	(*experimental.EPICDetachedExtension)(nil), // 17: proto.control_plane.experimental.v1.EPICDetachedExtension
+	(*DiscoveryExtension)(nil),            // 4: proto.control_plane.v1.DiscoveryExtension
+	(*LatencyInfo)(nil),                   // 5: proto.control_plane.v1.LatencyInfo
+	(*BandwidthInfo)(nil),                 // 6: proto.control_plane.v1.BandwidthInfo
+	(*GeoCoordinates)(nil),                // 7: proto.control_plane.v1.GeoCoordinates
+	(*DigestExtension)(nil),               // 8: proto.control_plane.v1.DigestExtension
+	(*PathSegmentUnsignedExtensions)(nil), // 9: proto.control_plane.v1.PathSegmentUnsignedExtensions
+	nil,                                   // 10: proto.control_plane.v1.StaticInfoExtension.GeoEntry
+	nil,                                   // 11: proto.control_plane.v1.StaticInfoExtension.LinkTypeEntry
+	nil,                                   // 12: proto.control_plane.v1.StaticInfoExtension.InternalHopsEntry
+	nil,                                   // 13: proto.control_plane.v1.LatencyInfo.IntraEntry
+	nil,                                   // 14: proto.control_plane.v1.LatencyInfo.InterEntry
+	nil,                                   // 15: proto.control_plane.v1.BandwidthInfo.IntraEntry
+	nil,                                   // 16: proto.control_plane.v1.BandwidthInfo.InterEntry
+	(*DigestExtension_Digest)(nil),        // 17: proto.control_plane.v1.DigestExtension.Digest
+	(*experimental.EPICDetachedExtension)(nil), // 18: proto.control_plane.experimental.v1.EPICDetachedExtension
 }
 var file_proto_control_plane_v1_seg_extensions_proto_depIdxs = []int32{
 	3,  // 0: proto.control_plane.v1.PathSegmentExtensions.static_info:type_name -> proto.control_plane.v1.StaticInfoExtension
 	2,  // 1: proto.control_plane.v1.PathSegmentExtensions.hidden_path:type_name -> proto.control_plane.v1.HiddenPathExtension
-	7,  // 2: proto.control_plane.v1.PathSegmentExtensions.digests:type_name -> proto.control_plane.v1.DigestExtension
-	4,  // 3: proto.control_plane.v1.StaticInfoExtension.latency:type_name -> proto.control_plane.v1.LatencyInfo
-	5,  // 4: proto.control_plane.v1.StaticInfoExtension.bandwidth:type_name -> proto.control_plane.v1.BandwidthInfo
-	9,  // 5: proto.control_plane.v1.StaticInfoExtension.geo:type_name -> proto.control_plane.v1.StaticInfoExtension.GeoEntry
-	10, // 6: proto.control_plane.v1.StaticInfoExtension.link_type:type_name -> proto.control_plane.v1.StaticInfoExtension.LinkTypeEntry
-	11, // 7: proto.control_plane.v1.StaticInfoExtension.internal_hops:type_name -> proto.control_plane.v1.StaticInfoExtension.InternalHopsEntry
-	12, // 8: proto.control_plane.v1.LatencyInfo.intra:type_name -> proto.control_plane.v1.LatencyInfo.IntraEntry
-	13, // 9: proto.control_plane.v1.LatencyInfo.inter:type_name -> proto.control_plane.v1.LatencyInfo.InterEntry
-	14, // 10: proto.control_plane.v1.BandwidthInfo.intra:type_name -> proto.control_plane.v1.BandwidthInfo.IntraEntry
-	15, // 11: proto.control_plane.v1.BandwidthInfo.inter:type_name -> proto.control_plane.v1.BandwidthInfo.InterEntry
-	16, // 12: proto.control_plane.v1.DigestExtension.epic:type_name -> proto.control_plane.v1.DigestExtension.Digest
-	17, // 13: proto.control_plane.v1.PathSegmentUnsignedExtensions.epic:type_name -> proto.control_plane.experimental.v1.EPICDetachedExtension
-	6,  // 14: proto.control_plane.v1.StaticInfoExtension.GeoEntry.value:type_name -> proto.control_plane.v1.GeoCoordinates
-	0,  // 15: proto.control_plane.v1.StaticInfoExtension.LinkTypeEntry.value:type_name -> proto.control_plane.v1.LinkType
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	4,  // 2: proto.control_plane.v1.PathSegmentExtensions.discovery:type_name -> proto.control_plane.v1.DiscoveryExtension
+	8,  // 3: proto.control_plane.v1.PathSegmentExtensions.digests:type_name -> proto.control_plane.v1.DigestExtension
+	5,  // 4: proto.control_plane.v1.StaticInfoExtension.latency:type_name -> proto.control_plane.v1.LatencyInfo
+	6,  // 5: proto.control_plane.v1.StaticInfoExtension.bandwidth:type_name -> proto.control_plane.v1.BandwidthInfo
+	10, // 6: proto.control_plane.v1.StaticInfoExtension.geo:type_name -> proto.control_plane.v1.StaticInfoExtension.GeoEntry
+	11, // 7: proto.control_plane.v1.StaticInfoExtension.link_type:type_name -> proto.control_plane.v1.StaticInfoExtension.LinkTypeEntry
+	12, // 8: proto.control_plane.v1.StaticInfoExtension.internal_hops:type_name -> proto.control_plane.v1.StaticInfoExtension.InternalHopsEntry
+	13, // 9: proto.control_plane.v1.LatencyInfo.intra:type_name -> proto.control_plane.v1.LatencyInfo.IntraEntry
+	14, // 10: proto.control_plane.v1.LatencyInfo.inter:type_name -> proto.control_plane.v1.LatencyInfo.InterEntry
+	15, // 11: proto.control_plane.v1.BandwidthInfo.intra:type_name -> proto.control_plane.v1.BandwidthInfo.IntraEntry
+	16, // 12: proto.control_plane.v1.BandwidthInfo.inter:type_name -> proto.control_plane.v1.BandwidthInfo.InterEntry
+	17, // 13: proto.control_plane.v1.DigestExtension.epic:type_name -> proto.control_plane.v1.DigestExtension.Digest
+	18, // 14: proto.control_plane.v1.PathSegmentUnsignedExtensions.epic:type_name -> proto.control_plane.experimental.v1.EPICDetachedExtension
+	7,  // 15: proto.control_plane.v1.StaticInfoExtension.GeoEntry.value:type_name -> proto.control_plane.v1.GeoCoordinates
+	0,  // 16: proto.control_plane.v1.StaticInfoExtension.LinkTypeEntry.value:type_name -> proto.control_plane.v1.LinkType
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_proto_control_plane_v1_seg_extensions_proto_init() }
@@ -694,7 +769,7 @@ func file_proto_control_plane_v1_seg_extensions_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_control_plane_v1_seg_extensions_proto_rawDesc), len(file_proto_control_plane_v1_seg_extensions_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

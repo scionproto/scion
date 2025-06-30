@@ -62,6 +62,7 @@ import (
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	discoveryext "github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app"
@@ -807,6 +808,18 @@ func realMain(ctx context.Context) error {
 		MACGen:      macGen,
 		NextHopper:  topo,
 		StaticInfo:  func() *beaconing.StaticInfoCfg { return staticInfo },
+
+		DiscoveryInfo: func() *discoveryext.Extension {
+			cses := topo.ControlServiceAddresses()
+			addrs := make([]netip.AddrPort, 0, len(cses))
+			for _, cs := range cses {
+				addrs = append(addrs, cs.AddrPort())
+			}
+			return &discoveryext.Extension{
+				ControlServices:   addrs,
+				DiscoveryServices: addrs,
+			}
+		},
 
 		OriginationInterval:       globalCfg.BS.OriginationInterval.Duration,
 		PropagationInterval:       globalCfg.BS.PropagationInterval.Duration,

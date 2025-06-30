@@ -17,30 +17,37 @@ package segment
 import (
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/segment/extensions/digest"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/segment/extensions/staticinfo"
 )
 
 type Extensions struct {
 	HiddenPath HiddenPathExtension
 	StaticInfo *staticinfo.Extension
+	Discovery  *discovery.Extension
 	Digests    *digest.Extension
 }
 
-func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
+func extensionsFromPB(pb *cppb.PathSegmentExtensions) (Extensions, error) {
 	if pb == nil {
-		return Extensions{}
+		return Extensions{}, nil
 	}
 
 	hiddenPath := HiddenPathExtension{
 		IsHidden: pb.HiddenPath != nil && pb.HiddenPath.IsHidden,
 	}
 	staticInfo := staticinfo.FromPB(pb.StaticInfo)
+	discovery, err := discovery.FromPB(pb.Discovery)
+	if err != nil {
+		return Extensions{}, err
+	}
 	digest := digest.ExtensionFromPB(pb.Digests)
 	return Extensions{
 		HiddenPath: hiddenPath,
 		StaticInfo: staticInfo,
+		Discovery:  discovery,
 		Digests:    digest,
-	}
+	}, nil
 }
 
 func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
@@ -49,12 +56,14 @@ func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
 		hiddenPath = &cppb.HiddenPathExtension{IsHidden: true}
 	}
 	staticInfo := staticinfo.ToPB(ext.StaticInfo)
+	discovery := discovery.ToPB(ext.Discovery)
 	digest := digest.ExtensionToPB(ext.Digests)
 
-	if hiddenPath != nil || staticInfo != nil || digest != nil {
+	if hiddenPath != nil || staticInfo != nil || discovery != nil || digest != nil {
 		return &cppb.PathSegmentExtensions{
 			HiddenPath: hiddenPath,
 			StaticInfo: staticInfo,
+			Discovery:  discovery,
 			Digests:    digest,
 		}
 	}

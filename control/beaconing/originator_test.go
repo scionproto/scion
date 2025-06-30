@@ -38,6 +38,7 @@ import (
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -68,13 +69,14 @@ func TestOriginatorRun(t *testing.T) {
 		senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 		o := beaconing.Originator{
 			Extender: &beaconing.DefaultExtender{
-				IA:         topo.IA(),
-				MTU:        topo.MTU(),
-				SignerGen:  testSignerGen{Signers: []trust.Signer{signer}},
-				Intfs:      intfs,
-				MAC:        macFactory,
-				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+				IA:                   topo.IA(),
+				MTU:                  topo.MTU(),
+				SignerGen:            testSignerGen{Signers: []trust.Signer{signer}},
+				Intfs:                intfs,
+				MAC:                  macFactory,
+				MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+				StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+				DiscoveryInformation: func() *discovery.Extension { return nil },
 			},
 			SenderFactory: senderFactory,
 			IA:            topo.IA(),
@@ -131,13 +133,14 @@ func TestOriginatorRun(t *testing.T) {
 		sender := mock_beaconing.NewMockSender(mctrl)
 		o := beaconing.Originator{
 			Extender: &beaconing.DefaultExtender{
-				IA:         topo.IA(),
-				MTU:        topo.MTU(),
-				SignerGen:  testSignerGen{Signers: []trust.Signer{signer}},
-				Intfs:      intfs,
-				MAC:        macFactory,
-				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+				IA:                   topo.IA(),
+				MTU:                  topo.MTU(),
+				SignerGen:            testSignerGen{Signers: []trust.Signer{signer}},
+				Intfs:                intfs,
+				MAC:                  macFactory,
+				MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+				StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+				DiscoveryInformation: func() *discovery.Extension { return nil },
 			},
 			SenderFactory: senderFactory,
 			IA:            topo.IA(),

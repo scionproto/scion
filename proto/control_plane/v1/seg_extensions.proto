@@ -25,6 +25,8 @@ message PathSegmentExtensions {
     StaticInfoExtension static_info = 1;
     // Optional hidden path extension.
     HiddenPathExtension hidden_path = 2;
+    // Optional discovery extension.
+    DiscoveryExtension discovery = 3;
 
     // Optional digests of detached extensions.
     DigestExtension digests = 1000;
@@ -56,6 +58,18 @@ message StaticInfoExtension {
     map<uint64, uint32> internal_hops = 5;
     // Generic note
     string note = 6;
+}
+
+message DiscoveryExtension {
+    // Version of the discovery extension. This is set to 1 for now.
+    uint32 version = 1;
+    // The address of the control services for this AS. Note that this
+    // information can but not necessarily does include all control services in
+    // the AS. Specifically, a control service could decide to only announce
+    // itself.
+    repeated string control_service_addresses = 2;
+    // The address of the discovery services for this AS.
+    repeated string discovery_service_addresses = 3;
 }
 
 // LatencyInfo specifies approximate lower-bound latency values.

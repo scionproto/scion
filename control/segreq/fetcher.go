@@ -182,7 +182,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		if err != nil {
 			return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, err)
 		}
-		path = up
+		return up, nil
 	case seg.TypeDown:
 		// Select a random path (just like we choose a random segment above)
 		// Avoids potentially being stuck with a broken but not revoked path;
@@ -195,6 +195,8 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 			return nil, segfetcher.ErrNotReachable
 		}
 		path = paths[rand.IntN(len(paths))]
+		addr := addrutil.ExtractServiceAddress(addr.SvcCS, path)
+		return addr, nil
 	default:
 		panic(
 			"unsupported segment type for request forwarding: " +
@@ -202,16 +204,10 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 				req.SegType.String(),
 		)
 	}
-	addr := &snet.SVCAddr{
-		IA:      path.Destination(),
-		Path:    path.Dataplane(),
-		NextHop: path.UnderlayNextHop(),
-		SVC:     addr.SvcCS,
-	}
-	return addr, nil
+
 }
 
-func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (snet.Path, error) {
+func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (net.Addr, error) {
 	return p.segSelector.SelectSeg(ctx, &query.Params{
 		StartsAt: []addr.IA{dst},
 		EndsAt:   []addr.IA{p.localIA},

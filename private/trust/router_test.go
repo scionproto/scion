@@ -70,6 +70,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				p.EXPECT().Dataplane().AnyTimes().Return(path.SCION{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
+				p.EXPECT().Metadata().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(p, nil)
 			},
 		},
@@ -94,6 +95,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				p.EXPECT().Dataplane().AnyTimes().Return(path.SCION{Raw: []byte("remote ISD path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia210)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
+				p.EXPECT().Metadata().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(2, 0)).Return(p, nil)
 			},
 		},
@@ -107,6 +109,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				p.EXPECT().Dataplane().AnyTimes().Return(path.SCION{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
+				p.EXPECT().Metadata().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(p, nil)
 			},
 		},
@@ -122,6 +125,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				p.EXPECT().Dataplane().AnyTimes().Return(path.SCION{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
+				p.EXPECT().Metadata().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(p, nil)
 			},
 		},

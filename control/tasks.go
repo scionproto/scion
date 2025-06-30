@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/metrics"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/private/pathdb"
@@ -61,8 +62,9 @@ type TasksConfig struct {
 	Metrics               *Metrics
 	DRKeyEngine           *drkey.ServiceEngine
 
-	MACGen     func() hash.Hash
-	StaticInfo func() *beaconing.StaticInfoCfg
+	MACGen        func() hash.Hash
+	StaticInfo    func() *beaconing.StaticInfoCfg
+	DiscoveryInfo func() *discovery.Extension
 
 	OriginationInterval  time.Duration
 	PropagationInterval  time.Duration
@@ -213,15 +215,16 @@ func (t *TasksConfig) extender(
 ) beaconing.Extender {
 
 	return &beaconing.DefaultExtender{
-		IA:         ia,
-		SignerGen:  t.SignerGen,
-		MAC:        t.MACGen,
-		Intfs:      t.AllInterfaces,
-		MTU:        mtu,
-		MaxExpTime: func() uint8 { return maxExp() },
-		StaticInfo: t.StaticInfo,
-		Task:       task,
-		EPIC:       t.EPIC,
+		IA:                   ia,
+		SignerGen:            t.SignerGen,
+		MAC:                  t.MACGen,
+		Intfs:                t.AllInterfaces,
+		MTU:                  mtu,
+		MaxExpTime:           func() uint8 { return maxExp() },
+		StaticInfo:           t.StaticInfo,
+		DiscoveryInformation: t.DiscoveryInfo,
+		Task:                 task,
+		EPIC:                 t.EPIC,
 		SegmentExpirationDeficient: func() metrics.Gauge {
 			if t.Metrics == nil {
 				return nil
