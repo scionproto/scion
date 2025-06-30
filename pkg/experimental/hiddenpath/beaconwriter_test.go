@@ -220,7 +220,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 			defer cancelF()
 
 			stats, err := w.Write(ctx,
-				map[string][]beacon.Beacon{beacon.DEFAULT_GROUP: beacons},
+				map[string][]beacon.Beacon{beacon.DefaultGroup: beacons},
 				sortedIntfs(intfs, topology.Peer))
 			assert.NoError(t, err)
 			assert.Equal(t, len(beacons), stats.Count)

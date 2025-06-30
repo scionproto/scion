@@ -82,7 +82,7 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 			Name:        "No policies",
 			RegPolicies: []beacon.RegistrationPolicy{},
 			Expected: beacon.GroupedBeacons{
-				beacon.DEFAULT_GROUP: beacons,
+				beacon.DefaultGroup: beacons,
 			},
 		},
 		{

@@ -73,7 +73,7 @@ type BeaconWriter struct {
 // each remote, it sends the segment via the found path. Peers are the peer
 // interfaces in this AS.
 //
-// Only beacons[beacon.DEFAULT_GROUP] are considered.
+// Only beacons[beacon.DefaultGroup] are considered.
 func (w *BeaconWriter) Write(
 	ctx context.Context,
 	beacons beacon.GroupedBeacons,
@@ -85,7 +85,7 @@ func (w *BeaconWriter) Write(
 	var expected int
 	var wg sync.WaitGroup
 
-	for _, b := range beacons[beacon.DEFAULT_GROUP] {
+	for _, b := range beacons[beacon.DefaultGroup] {
 		if w.Intfs.Get(b.InIfID) == nil {
 			logger.Error("Received beacon for non-existing interface", "interface", b.InIfID)
 			metrics.CounterInc(w.InternalErrors)

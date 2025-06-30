@@ -145,7 +145,7 @@ func TestRegistrarRun(t *testing.T) {
 						res = append(res, testBeacon(g, desc))
 					}
 					return beacon.GroupedBeacons{
-						beacon.DEFAULT_GROUP: res,
+						beacon.DefaultGroup: res,
 					}, nil
 				})
 
@@ -257,7 +257,7 @@ func TestRegistrarRun(t *testing.T) {
 						res = append(res, testBeacon(g, desc))
 					}
 					return beacon.GroupedBeacons{
-						beacon.DEFAULT_GROUP: res,
+						beacon.DefaultGroup: res,
 					}, nil
 				})
 			type regMsg struct {

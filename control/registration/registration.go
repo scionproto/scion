@@ -81,11 +81,11 @@ func (s SegmentRegistrars) RegisterDefaultSegmentRegistrar(
 	if _, ok := s[policyType]; !ok {
 		s[policyType] = make(map[string]SegmentRegistrar)
 	}
-	if _, ok := s[policyType][beacon.DEFAULT_GROUP]; ok {
+	if _, ok := s[policyType][beacon.DefaultGroup]; ok {
 		return serrors.New("default registrar already registered for policy type",
 			"policy_type", policyType)
 	}
-	s[policyType][beacon.DEFAULT_GROUP] = registrar
+	s[policyType][beacon.DefaultGroup] = registrar
 	return nil
 }
 
