@@ -56,6 +56,7 @@ Postponed
    :maxdepth: 1
 
    scmp-authentication
+   V6-address-support
 
 .. _design-docs-active:
 
