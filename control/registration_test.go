@@ -242,7 +242,9 @@ func TestGroupWriter(t *testing.T) {
 			for name, reg := range tc.Registrars {
 				require.Nil(t, reg.Results)
 				if asRegistrars[beacon.RegPolicyTypeUp] == nil {
-					asRegistrars[beacon.RegPolicyTypeUp] = make(map[string]registration.SegmentRegistrar)
+					asRegistrars[beacon.RegPolicyTypeUp] = make(
+						map[string]registration.SegmentRegistrar,
+					)
 				}
 				asRegistrars[beacon.RegPolicyTypeUp][name] = reg
 			}

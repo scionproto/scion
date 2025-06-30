@@ -70,6 +70,7 @@ go_test(
         ":go_default_library",
         "//control/beacon:go_default_library",
         "//control/beacon/mock_beacon:go_default_library",
+        "//control/beaconing:go_default_library",
         "//control/registration:go_default_library",
         "//pkg/addr:go_default_library",
         "//pkg/private/xtest/graph:go_default_library",
