@@ -516,6 +516,9 @@ func (w *GroupWriter) Write(
 		go func(j int) {
 			defer wg.Done()
 			sum := task.Reg.RegisterSegments(ctx, task.Beacons, peers)
+			if sum == nil {
+				return
+			}
 			allWriteStats[j] = WriteStats{
 				Count:    sum.GetCount(),
 				StartIAs: sum.GetSrcs(),
