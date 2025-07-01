@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration
+package segreg
 
 import (
 	"context"
@@ -23,9 +23,9 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// DEFAULT_PLUGIN_ID is the id for the default segment registration plugin.
+// DefaultPluginID is the id for the default segment registration plugin.
 // It is used for the policies that do not have any registration policies.
-const DEFAULT_PLUGIN_ID string = "default"
+const DefaultPluginID string = "default"
 
 type SegmentRegistrationPlugin interface {
 	// ID returns the unique identifier of the plugin.
@@ -130,9 +130,9 @@ func GetSegmentRegPlugin(id string) (SegmentRegistrationPlugin, bool) {
 }
 
 // GetDefaultSegmentRegPlugin retrieves the segment registration plugin that has the
-// id DEFAULT_PLUGIN_ID.
+// id DefaultPluginID.
 func GetDefaultSegmentRegPlugin() (SegmentRegistrationPlugin, bool) {
-	plugin, ok := GetSegmentRegPlugin(DEFAULT_PLUGIN_ID)
+	plugin, ok := GetSegmentRegPlugin(DefaultPluginID)
 	if !ok {
 		return nil, false
 	}

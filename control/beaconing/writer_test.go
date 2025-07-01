@@ -36,7 +36,7 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/control/ifstate"
-	"github.com/scionproto/scion/control/registration"
+	"github.com/scionproto/scion/control/segreg"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -113,9 +113,9 @@ func TestRegistrarRun(t *testing.T) {
 			r := beaconing.WriteScheduler{
 				Writer: &beaconing.GroupWriter{
 					PolicyType: policyType,
-					Registrars: registration.SegmentRegistrars{
+					Registrars: segreg.SegmentRegistrars{
 						policyType: {
-							registration.DEFAULT_PLUGIN_ID: rw,
+							segreg.DefaultPluginID: rw,
 						},
 					},
 					Intfs: intfs,
@@ -225,9 +225,9 @@ func TestRegistrarRun(t *testing.T) {
 			r := beaconing.WriteScheduler{
 				Writer: &beaconing.GroupWriter{
 					PolicyType: policyType,
-					Registrars: registration.SegmentRegistrars{
+					Registrars: segreg.SegmentRegistrars{
 						policyType: {
-							registration.DEFAULT_PLUGIN_ID: rw,
+							segreg.DefaultPluginID: rw,
 						},
 					},
 					Intfs: intfs,
@@ -347,9 +347,9 @@ func TestRegistrarRun(t *testing.T) {
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				},
-				Registrars: registration.SegmentRegistrars{
+				Registrars: segreg.SegmentRegistrars{
 					beacon.RegPolicyTypeDown: {
-						registration.DEFAULT_PLUGIN_ID: rw,
+						segreg.DefaultPluginID: rw,
 					},
 				},
 				Intfs:          intfs,

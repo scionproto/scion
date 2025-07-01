@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/ifstate"
-	"github.com/scionproto/scion/control/registration"
+	"github.com/scionproto/scion/control/segreg"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -257,7 +257,7 @@ type HiddenSegmentRegistrationPlugin struct {
 	AddressResolver    AddressResolver
 }
 
-var _ registration.SegmentRegistrationPlugin = (*HiddenSegmentRegistrationPlugin)(nil)
+var _ segreg.SegmentRegistrationPlugin = (*HiddenSegmentRegistrationPlugin)(nil)
 
 func (p *HiddenSegmentRegistrationPlugin) ID() string {
 	return "hidden_path"
@@ -271,7 +271,7 @@ func (p *HiddenSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
-) (registration.SegmentRegistrar, error) {
+) (segreg.SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
 	if segType != seg.TypeDown {
 		return nil, serrors.New("hidden path registration only supports down segments")
@@ -290,7 +290,7 @@ type HiddenSegmentRegistrar struct {
 	InternalErrors metrics.Counter
 }
 
-var _ registration.SegmentRegistrar = (*HiddenSegmentRegistrar)(nil)
+var _ segreg.SegmentRegistrar = (*HiddenSegmentRegistrar)(nil)
 
 // RegisterSegments goes through the given beacons and for each of the beacons:
 // it finds the remotes via the registration policy, it finds a path for each remote,
@@ -299,10 +299,10 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
-) *registration.RegistrationSummary {
+) *segreg.RegistrationSummary {
 
 	logger := log.FromCtx(ctx)
-	summary := registration.NewSummary()
+	summary := segreg.NewSummary()
 	var expected int
 	var wg sync.WaitGroup
 
@@ -357,7 +357,7 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 type hiddenPathRemoteWriter struct {
 	internalErrors  metrics.Counter
 	registered      metrics.Counter
-	summary         *registration.RegistrationSummary
+	summary         *segreg.RegistrationSummary
 	hiddenPathGroup GroupID
 	resolveRemote   func(context.Context) (net.Addr, error)
 	rpc             Register

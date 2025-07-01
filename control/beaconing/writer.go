@@ -23,7 +23,7 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/ifstate"
-	"github.com/scionproto/scion/control/registration"
+	"github.com/scionproto/scion/control/segreg"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -168,7 +168,7 @@ type LocalSegmentRegistrationPlugin struct {
 	Store SegmentStore
 }
 
-var _ registration.SegmentRegistrationPlugin = (*LocalSegmentRegistrationPlugin)(nil)
+var _ segreg.SegmentRegistrationPlugin = (*LocalSegmentRegistrationPlugin)(nil)
 
 func (p *LocalSegmentRegistrationPlugin) ID() string {
 	return "local"
@@ -183,7 +183,7 @@ func (p *LocalSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
-) (registration.SegmentRegistrar, error) {
+) (segreg.SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
 	return &LocalWriter{
 		LocalSegmentRegistrationPlugin: *p,
@@ -205,14 +205,14 @@ type LocalWriter struct {
 	Type seg.Type
 }
 
-var _ registration.SegmentRegistrar = (*LocalWriter)(nil)
+var _ segreg.SegmentRegistrar = (*LocalWriter)(nil)
 
 // RegisterSegments registers the segments in the local SegmentStore.
 func (r *LocalWriter) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
-) *registration.RegistrationSummary {
+) *segreg.RegistrationSummary {
 	logger := log.FromCtx(ctx)
 	// beacons keyed with their logging ID.
 	logBeacons := make(map[string]beacon.Beacon)
@@ -234,7 +234,7 @@ func (r *LocalWriter) RegisterSegments(
 		return nil
 	}
 	r.updateMetricsFromStats(stats, logBeacons)
-	return registration.SummarizeSegStats(stats, logBeacons)
+	return segreg.SummarizeSegStats(stats, logBeacons)
 }
 
 // updateMetricsFromStat is used to update the metrics for local DB inserts.
@@ -263,7 +263,7 @@ type RemoteSegmentRegistrationPlugin struct {
 	// If the counter is nil errors are not counted.
 	InternalErrors metrics.Counter
 	// Registered counts the amount of registered segments. A label is used to
-	// indicate the status of the registration.
+	// indicate the status of the segreg.
 	Registered metrics.Counter
 
 	// RPC is used to send the segment to a remote.
@@ -272,7 +272,7 @@ type RemoteSegmentRegistrationPlugin struct {
 	Pather Pather
 }
 
-var _ registration.SegmentRegistrationPlugin = (*RemoteSegmentRegistrationPlugin)(nil)
+var _ segreg.SegmentRegistrationPlugin = (*RemoteSegmentRegistrationPlugin)(nil)
 
 func (p *RemoteSegmentRegistrationPlugin) ID() string {
 	return "remote"
@@ -287,7 +287,7 @@ func (p *RemoteSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
-) (registration.SegmentRegistrar, error) {
+) (segreg.SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
 	return &RemoteWriter{
 		RemoteSegmentRegistrationPlugin: *p,
@@ -309,17 +309,17 @@ type RemoteWriter struct {
 	Type seg.Type
 }
 
-var _ registration.SegmentRegistrar = (*RemoteWriter)(nil)
+var _ segreg.SegmentRegistrar = (*RemoteWriter)(nil)
 
 // RegisterSegments writes the segment at the source AS of the segment.
 func (r *RemoteWriter) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
-) *registration.RegistrationSummary {
+) *segreg.RegistrationSummary {
 	logger := log.FromCtx(ctx)
 
-	summary := registration.NewSummary()
+	summary := segreg.NewSummary()
 	var expected int
 	var wg sync.WaitGroup
 
@@ -349,7 +349,7 @@ type remoteWriter struct {
 	writer  *RemoteWriter
 	rpc     RPC
 	pather  Pather
-	summary *registration.RegistrationSummary
+	summary *segreg.RegistrationSummary
 	wg      *sync.WaitGroup
 }
 
@@ -433,7 +433,7 @@ func (l writerLabels) WithResult(result string) writerLabels {
 type GroupWriter struct {
 	PolicyType beacon.RegPolicyType
 	// Registrars is used to get the segment registrars for the PolicyType.
-	Registrars registration.SegmentRegistrars
+	Registrars segreg.SegmentRegistrars
 	// Intfs is used to filter out beacons that do not have a valid interface ID.
 	// If Intfs is nil, no filtering is done.
 	Intfs *ifstate.Interfaces
@@ -496,7 +496,7 @@ func (w *GroupWriter) Write(
 	// specific registrar.
 	type task struct {
 		Beacons []beacon.Beacon
-		Reg     registration.SegmentRegistrar
+		Reg     segreg.SegmentRegistrar
 	}
 	var tasks []task
 	// Collect the registrars and the beacons that should be registered with them as tasks.

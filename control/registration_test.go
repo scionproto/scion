@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beacon/mock_beacon"
 	"github.com/scionproto/scion/control/beaconing"
-	"github.com/scionproto/scion/control/registration"
+	"github.com/scionproto/scion/control/segreg"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
@@ -37,15 +37,15 @@ type testRegistrar struct {
 	Results []beacon.Beacon
 }
 
-var _ registration.SegmentRegistrar = (*testRegistrar)(nil)
+var _ segreg.SegmentRegistrar = (*testRegistrar)(nil)
 
 func (r *testRegistrar) RegisterSegments(
 	ctx context.Context,
 	beacons []beacon.Beacon,
 	peers []uint16,
-) *registration.RegistrationSummary {
+) *segreg.RegistrationSummary {
 	r.Results = beacons
-	sum := registration.NewSummary()
+	sum := segreg.NewSummary()
 	for _, b := range beacons {
 		sum.RecordBeacon(&b)
 	}
@@ -240,12 +240,12 @@ func TestGroupWriter(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			ctx := t.Context()
 
-			asRegistrars := make(registration.SegmentRegistrars)
+			asRegistrars := make(segreg.SegmentRegistrars)
 			for name, reg := range tc.Registrars {
 				require.Nil(t, reg.Results)
 				if asRegistrars[beacon.RegPolicyTypeUp] == nil {
 					asRegistrars[beacon.RegPolicyTypeUp] = make(
-						map[string]registration.SegmentRegistrar,
+						map[string]segreg.SegmentRegistrar,
 					)
 				}
 				asRegistrars[beacon.RegPolicyTypeUp][name] = reg
@@ -328,8 +328,8 @@ func TestIgnorePlugin(t *testing.T) {
 		{
 			Name: "Basic single",
 			Config: map[string]any{
-				registration.LOG_LEVEL_CONFIG_KEY: "debug",
-				registration.MESSAGE_CONFIG_KEY:   "received segment",
+				segreg.LOG_LEVEL_CONFIG_KEY: "debug",
+				segreg.MESSAGE_CONFIG_KEY:   "received segment",
 			},
 			SegmentsToRegister: []beacon.Beacon{
 				beacons[0],
@@ -339,8 +339,8 @@ func TestIgnorePlugin(t *testing.T) {
 		{
 			Name: "Basic multiple",
 			Config: map[string]any{
-				registration.LOG_LEVEL_CONFIG_KEY: "debug",
-				registration.MESSAGE_CONFIG_KEY:   "received segment",
+				segreg.LOG_LEVEL_CONFIG_KEY: "debug",
+				segreg.MESSAGE_CONFIG_KEY:   "received segment",
 			},
 			SegmentsToRegister: []beacon.Beacon{
 				beacons[0],
@@ -351,8 +351,8 @@ func TestIgnorePlugin(t *testing.T) {
 		{
 			Name: "Template single",
 			Config: map[string]any{
-				registration.LOG_LEVEL_CONFIG_KEY: "info",
-				registration.MESSAGE_CONFIG_KEY:   "received segment {{ .Segment.InIfID }}",
+				segreg.LOG_LEVEL_CONFIG_KEY: "info",
+				segreg.MESSAGE_CONFIG_KEY:   "received segment {{ .Segment.InIfID }}",
 			},
 			SegmentsToRegister: []beacon.Beacon{
 				beacons[0],
@@ -362,8 +362,8 @@ func TestIgnorePlugin(t *testing.T) {
 		{
 			Name: "Template multiple",
 			Config: map[string]any{
-				registration.LOG_LEVEL_CONFIG_KEY: "info",
-				registration.MESSAGE_CONFIG_KEY:   "received segment {{ .Segment.InIfID }}",
+				segreg.LOG_LEVEL_CONFIG_KEY: "info",
+				segreg.MESSAGE_CONFIG_KEY:   "received segment {{ .Segment.InIfID }}",
 			},
 			SegmentsToRegister: []beacon.Beacon{
 				beacons[0],
@@ -377,7 +377,7 @@ func TestIgnorePlugin(t *testing.T) {
 		},
 	}
 
-	ignorePlugin := registration.IgnoreSegmentRegistrationPlugin{}
+	ignorePlugin := segreg.IgnoreSegmentRegistrationPlugin{}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {

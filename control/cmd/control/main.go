@@ -46,7 +46,7 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	api "github.com/scionproto/scion/control/mgmtapi"
 	"github.com/scionproto/scion/control/onehop"
-	"github.com/scionproto/scion/control/registration"
+	"github.com/scionproto/scion/control/segreg"
 	segreggrpc "github.com/scionproto/scion/control/segreg/grpc"
 	"github.com/scionproto/scion/control/segreq"
 	segreqgrpc "github.com/scionproto/scion/control/segreq/grpc"
@@ -860,14 +860,14 @@ func realMain(ctx context.Context) error {
 			},
 		}
 	}
-	ignorePlugin := &registration.IgnoreSegmentRegistrationPlugin{}
+	ignorePlugin := &segreg.IgnoreSegmentRegistrationPlugin{}
 	defaultPlugin := &DefaultSegmentRegistrationPlugin{
 		LocalPlugin:  localPlugin,
 		RemotePlugin: remotePlugin,
 		HiddenPlugin: hiddenPathPlugin,
 	}
 	// plugins is a list of plugins that can be used to register segments.
-	plugins := []registration.SegmentRegistrationPlugin{
+	plugins := []segreg.SegmentRegistrationPlugin{
 		localPlugin,
 		remotePlugin,
 		ignorePlugin,
@@ -879,7 +879,7 @@ func realMain(ctx context.Context) error {
 
 	// Register the plugins so that they can be used everywhere.
 	for _, plugin := range plugins {
-		registration.RegisterSegmentRegPlugin(plugin)
+		segreg.RegisterSegmentRegPlugin(plugin)
 	}
 	if err := tc.InitPlugins(errCtx, policies.RegistrationPolicies()); err != nil {
 		return serrors.Wrap("initializing tasks plugins", err)

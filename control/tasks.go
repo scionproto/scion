@@ -24,7 +24,7 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/drkey"
 	"github.com/scionproto/scion/control/ifstate"
-	"github.com/scionproto/scion/control/registration"
+	"github.com/scionproto/scion/control/segreg"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/log"
@@ -78,7 +78,7 @@ type TasksConfig struct {
 
 	EPIC bool
 
-	registrars registration.SegmentRegistrars
+	registrars segreg.SegmentRegistrars
 }
 
 // InitPlugins initializes the segment registration plugins based on the provided
@@ -89,7 +89,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 		return nil
 	}
 	// Initialize the segment registrars.
-	segmentRegistrars := make(registration.SegmentRegistrars)
+	segmentRegistrars := make(segreg.SegmentRegistrars)
 	for _, policy := range regPolicies {
 		polType, ok := policy.Type.ToRegPolicyType()
 		if !ok {
@@ -98,7 +98,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 			continue
 		}
 		for _, regPolicy := range policy.RegistrationPolicies {
-			plugin, ok := registration.GetSegmentRegPlugin(regPolicy.Plugin)
+			plugin, ok := segreg.GetSegmentRegPlugin(regPolicy.Plugin)
 			if !ok {
 				return serrors.New("unknown segment registration plugin",
 					"plugin", regPolicy.Plugin)
@@ -120,7 +120,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 	// For the policy types that do not have any plugins registered, we construct a registrar from
 	// the default plugin.
 	// This is done for the sake of backward compatibility.
-	defaultPlugin, ok := registration.GetDefaultSegmentRegPlugin()
+	defaultPlugin, ok := segreg.GetDefaultSegmentRegPlugin()
 	if !ok {
 		return serrors.New("default segment registration plugin not registered")
 	}

@@ -21,7 +21,7 @@ go_library(
         "//control/ifstate:go_default_library",
         "//control/mgmtapi:go_default_library",
         "//control/onehop:go_default_library",
-        "//control/registration:go_default_library",
+        "//control/segreg:go_default_library",
         "//control/segreg/grpc:go_default_library",
         "//control/segreq:go_default_library",
         "//control/segreq/grpc:go_default_library",

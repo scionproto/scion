@@ -19,7 +19,7 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
-	"github.com/scionproto/scion/control/registration"
+	"github.com/scionproto/scion/control/segreg"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
@@ -33,10 +33,10 @@ type DefaultSegmentRegistrationPlugin struct {
 	HiddenPlugin *hiddenpath.HiddenSegmentRegistrationPlugin
 }
 
-var _ registration.SegmentRegistrationPlugin = (*DefaultSegmentRegistrationPlugin)(nil)
+var _ segreg.SegmentRegistrationPlugin = (*DefaultSegmentRegistrationPlugin)(nil)
 
 func (p *DefaultSegmentRegistrationPlugin) ID() string {
-	return registration.DEFAULT_PLUGIN_ID
+	return segreg.DefaultPluginID
 }
 
 func (p *DefaultSegmentRegistrationPlugin) Validate(
@@ -50,10 +50,10 @@ func (p *DefaultSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
-) (registration.SegmentRegistrar, error) {
+) (segreg.SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
 	// Use either the local, hidden or remote plugin.
-	var plugin registration.SegmentRegistrationPlugin
+	var plugin segreg.SegmentRegistrationPlugin
 	switch {
 	// For up and core segments, register locally
 	case segType != seg.TypeDown:
