@@ -54,9 +54,6 @@ type pluginConfig struct {
 }
 
 func parseConfig(config map[string]any) (pluginConfig, error) {
-	if config == nil {
-		return pluginConfig{}, serrors.New("configuration is empty")
-	}
 	// Extract the log level and message from the config.
 	level := LOG_LEVEL_DEBUG // Default log level
 	var message *template.Template
