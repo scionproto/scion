@@ -133,6 +133,7 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 	segments []beacon.Beacon,
 	peers []uint16,
 ) *RegistrationSummary {
+	// Create the logger.
 	logger := log.FromCtx(ctx)
 
 	// Build up a registration status that reports success for all segments.
@@ -151,6 +152,7 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 
 	for _, b := range segments {
 		var sb strings.Builder
+
 		// Execute the message template and get the formatted message.
 		if err := r.Message.Execute(&sb, tmplData{
 			Segment: b,
@@ -161,6 +163,7 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 			continue
 		}
 		s := sb.String()
+
 		// Log the message at the configured log level.
 		switch r.Level {
 		case LOG_LEVEL_DEBUG:
@@ -172,6 +175,7 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 		default:
 			panic("unexpected log level") // This should never happen due to validation.
 		}
+
 		summary.RecordBeacon(&b)
 	}
 	return summary

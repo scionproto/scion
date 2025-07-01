@@ -16,6 +16,7 @@ package control_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -26,6 +27,7 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/registration"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/path/pathpol"
@@ -263,6 +265,139 @@ func TestGroupWriter(t *testing.T) {
 			}
 
 			require.Equal(t, tc.Expected, actual)
+		})
+	}
+
+}
+
+type testLogger struct {
+	Output string
+}
+
+var _ log.Logger = (*testLogger)(nil)
+
+func (l *testLogger) set(level string, msg string, ctx ...any) {
+	logString := fmt.Sprintf("%s: %s", level, msg)
+	if l.Output == "" {
+		l.Output = logString
+	} else {
+		l.Output = fmt.Sprintf("%s\n%s", l.Output, logString)
+	}
+}
+
+func (l *testLogger) New(ctx ...any) log.Logger {
+	return &testLogger{}
+}
+
+func (l *testLogger) Debug(msg string, ctx ...any) {
+	l.set("debug", msg, ctx...)
+}
+
+func (l *testLogger) Info(msg string, ctx ...any) {
+	l.set("info", msg, ctx...)
+}
+func (l *testLogger) Error(msg string, ctx ...any) {
+	l.set("error", msg, ctx...)
+}
+
+func (l *testLogger) Enabled(lvl log.Level) bool {
+	return true
+}
+
+func TestIgnorePlugin(t *testing.T) {
+	mctrl := gomock.NewController(t)
+	g := graph.NewDefaultGraph(mctrl)
+
+	stub := graph.If_111_A_112_X
+	beacons := []beacon.Beacon{
+		testBeacon(g, graph.If_120_X_111_B, stub),
+		testBeacon(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
+	}
+
+	firstBeaconInIfID := beacons[0].InIfID
+	secondBeaconInIfID := beacons[1].InIfID
+
+	type testCase struct {
+		Name               string
+		Config             map[string]any
+		SegmentsToRegister []beacon.Beacon
+		ExpectedOutput     string
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Basic single",
+			Config: map[string]any{
+				registration.LOG_LEVEL_CONFIG_KEY: "debug",
+				registration.MESSAGE_CONFIG_KEY:   "received segment",
+			},
+			SegmentsToRegister: []beacon.Beacon{
+				beacons[0],
+			},
+			ExpectedOutput: "debug: received segment",
+		},
+		{
+			Name: "Basic multiple",
+			Config: map[string]any{
+				registration.LOG_LEVEL_CONFIG_KEY: "debug",
+				registration.MESSAGE_CONFIG_KEY:   "received segment",
+			},
+			SegmentsToRegister: []beacon.Beacon{
+				beacons[0],
+				beacons[1],
+			},
+			ExpectedOutput: "debug: received segment\ndebug: received segment",
+		},
+		{
+			Name: "Template single",
+			Config: map[string]any{
+				registration.LOG_LEVEL_CONFIG_KEY: "info",
+				registration.MESSAGE_CONFIG_KEY:   "received segment {{ .Segment.InIfID }}",
+			},
+			SegmentsToRegister: []beacon.Beacon{
+				beacons[0],
+			},
+			ExpectedOutput: fmt.Sprintf("info: received segment %d", firstBeaconInIfID),
+		},
+		{
+			Name: "Template multiple",
+			Config: map[string]any{
+				registration.LOG_LEVEL_CONFIG_KEY: "info",
+				registration.MESSAGE_CONFIG_KEY:   "received segment {{ .Segment.InIfID }}",
+			},
+			SegmentsToRegister: []beacon.Beacon{
+				beacons[0],
+				beacons[1],
+			},
+			ExpectedOutput: fmt.Sprintf(
+				"info: received segment %d\ninfo: received segment %d",
+				firstBeaconInIfID,
+				secondBeaconInIfID,
+			),
+		},
+	}
+
+	ignorePlugin := registration.IgnoreSegmentRegistrationPlugin{}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			customLogger := &testLogger{}
+
+			// Overwrite the logger in the context to use a custom logger.
+			ctx := log.CtxWith(t.Context(), customLogger)
+
+			validateErr := ignorePlugin.Validate(tc.Config)
+			require.NoError(t, validateErr)
+
+			ignoreRegistrar, newErr := ignorePlugin.New(ctx, beacon.RegPolicyTypeUp, tc.Config)
+			require.NoError(t, newErr)
+			require.NotNil(t, ignoreRegistrar)
+
+			sum := ignoreRegistrar.RegisterSegments(ctx, tc.SegmentsToRegister, nil)
+			require.NotNil(t, sum)
+			require.Equal(t, sum.GetCount(), len(tc.SegmentsToRegister))
+
+			require.Equal(t, tc.ExpectedOutput, customLogger.Output)
 		})
 	}
 
