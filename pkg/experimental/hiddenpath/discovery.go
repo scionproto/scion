@@ -90,10 +90,6 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 	}
 
 	dsAddr := addrutil.ExtractDestinationServiceAddress(addr.SvcDS, p)
-	// TODO: Why is this necessary?
-	// if dsAddr.Path == nil {
-	// 	dsAddr.Path = path.Empty{}
-	// }
 	hps, err := discoverer.Discover(ctx, dsAddr)
 	if err != nil {
 		return nil, serrors.Wrap("discovering hidden path server", err)

@@ -32,7 +32,7 @@ func TestDecodeEncodeEpicDigest(t *testing.T) {
 	ext := Extensions{
 		Digests: dig,
 	}
-	ext2, err := ExtensionsFromPB(ExtensionsToPB(ext))
+	ext2, err := extensionsFromPB(extensionsToPB(ext))
 	assert.NoError(t, err)
 	assert.Equal(t, ext, ext2)
 }
