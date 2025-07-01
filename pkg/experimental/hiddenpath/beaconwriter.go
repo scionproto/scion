@@ -292,7 +292,7 @@ type HiddenSegmentRegistrar struct {
 
 var _ registration.SegmentRegistrar = (*HiddenSegmentRegistrar)(nil)
 
-// RegisterSegments iterates the segments channel and for each of the segments:
+// RegisterSegments goes through the given beacons and for each of the beacons:
 // it finds the remotes via the registration policy, it finds a path for each remote,
 // it sends the segment via the found path. Peers are the peer interfaces in this AS.
 func (w *HiddenSegmentRegistrar) RegisterSegments(
