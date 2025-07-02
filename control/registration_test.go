@@ -91,6 +91,9 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 			RegPolicies: []beacon.RegistrationPolicy{
 				{
 					Name: "empty",
+					Matcher: beacon.RegistrationPolicyMatcher{
+						Sequence: wildCardSeq,
+					},
 				},
 			},
 			Expected: beacon.GroupedBeacons{

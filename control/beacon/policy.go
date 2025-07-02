@@ -271,14 +271,20 @@ func (p *Policy) InitDefaults() {
 	p.Filter.InitDefaults()
 }
 
-// Validate checks that the policy does not have duplicate registration policy names.
 func (p *Policy) Validate() error {
+	// Check that the policy does not have duplicate registration policy names.
 	for i := range len(p.RegistrationPolicies) {
 		for j := i + 1; j < len(p.RegistrationPolicies); j++ {
 			if p.RegistrationPolicies[i].Name == p.RegistrationPolicies[j].Name {
 				return serrors.New("duplicate registration policy names found",
 					"name", p.RegistrationPolicies[i].Name)
 			}
+		}
+	}
+	// Validate the registration policies.
+	for _, regPolicy := range p.RegistrationPolicies {
+		if err := regPolicy.Validate(); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -303,6 +309,17 @@ type RegistrationPolicy struct {
 
 // InitDefaults initializes the default values for unset fields in the registration policy.
 func (p *RegistrationPolicy) InitDefaults() {}
+
+func (p *RegistrationPolicy) Validate() error {
+	if p.Matcher.Sequence == nil && p.Matcher.ACL == nil {
+		return serrors.New(
+			"registration policy matcher must have at least one of Sequence or ACL set",
+			"name",
+			p.Name,
+		)
+	}
+	return nil
+}
 
 // beaconAsPath implements snet.Path with respect to a Beacon.
 // This is used to wrap a Beacon so that it can be used as a snet.Path
@@ -348,14 +365,18 @@ func (b *beaconAsPath) Metadata() *snet.PathMetadata {
 }
 
 // RegistrationPolicyMatcher contains the matching criteria for a registration policy.
+// A matcher is valid only if at least one of Sequence and ACL fields are set.
 type RegistrationPolicyMatcher struct {
 	Sequence *pathpol.Sequence `yaml:"Sequence"`
 	ACL      *pathpol.ACL      `yaml:"ACL"`
 }
 
 // Match returns true iff the given beacon matches the registration policy matcher.
-// Note that an empty matcher matches everything.
+// Note that an empty matcher is invalid, and it always returns false.
 func (m *RegistrationPolicyMatcher) Match(beacon Beacon) bool {
+	if m.ACL == nil && m.Sequence == nil {
+		return false
+	}
 	if m.Sequence != nil {
 		eval := m.Sequence.Eval([]snet.Path{wrapBeacon(beacon)})
 		if len(eval) == 0 {
