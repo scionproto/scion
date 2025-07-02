@@ -81,7 +81,7 @@ func (p RegPolicyType) SegmentType() segment.Type {
 	case RegPolicyTypeCore:
 		return segment.TypeCore
 	default:
-		panic(fmt.Sprintf("unreachable: invalid registration policy type: %s", p))
+		panic(fmt.Sprintf("invalid registration policy type: %s", p))
 	}
 }
 
@@ -95,7 +95,7 @@ func (p RegPolicyType) ToPolicyType() PolicyType {
 	case RegPolicyTypeCore:
 		return CoreRegPolicy
 	default:
-		panic(fmt.Sprintf("unreachable: invalid registration policy type: %s", p))
+		panic(fmt.Sprintf("invalid registration policy type: %s", p))
 	}
 }
 
