@@ -81,8 +81,7 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			Name:        "No policies",
-			RegPolicies: []beacon.RegistrationPolicy{},
+			Name: "No policies",
 			Expected: beacon.GroupedBeacons{
 				beacon.DefaultGroup: beacons,
 			},
@@ -128,27 +127,25 @@ func TestRetrieveGroupedBeacons(t *testing.T) {
 			Name: "Overlapping policies",
 			RegPolicies: []beacon.RegistrationPolicy{
 				{
-					Name: "all",
-					Matcher: beacon.RegistrationPolicyMatcher{
-						Sequence: wildCardSeq,
-					},
-				},
-				{
 					Name: "threeHops",
 					Matcher: beacon.RegistrationPolicyMatcher{
 						Sequence: threeHopsSeq,
 					},
 				},
+				{
+					Name: "all",
+					Matcher: beacon.RegistrationPolicyMatcher{
+						Sequence: wildCardSeq,
+					},
+				},
 			},
 			Expected: beacon.GroupedBeacons{
-				"all": []beacon.Beacon{
-					beacons[0],
-					beacons[1],
-					beacons[2],
-				},
 				"threeHops": []beacon.Beacon{
 					beacons[1],
 					beacons[2],
+				},
+				"all": []beacon.Beacon{
+					beacons[0],
 				},
 			},
 		},

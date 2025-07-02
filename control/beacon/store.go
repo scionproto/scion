@@ -82,13 +82,14 @@ func groupBeacons(beacons []Beacon, policy *Policy) GroupedBeacons {
 			DefaultGroup: beacons,
 		}
 	}
-	// Go through every beacon, and group it into all the registration
-	// policies that match.
+	// Go through every beacon, and group it into the first registration
+	// policy that matches it.
 	beaconBuckets := make(GroupedBeacons)
 	for _, b := range beacons {
 		for _, regPolicy := range policy.RegistrationPolicies {
 			if regPolicy.Matcher.Match(b) {
 				beaconBuckets[regPolicy.Name] = append(beaconBuckets[regPolicy.Name], b)
+				break
 			}
 		}
 	}
