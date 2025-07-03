@@ -12,15 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package slices
+package slices_test
 
-func Transform[S ~[]I, I any, O any](s S, transform func(I) O) []O {
-	if s == nil {
-		return nil
-	}
-	out := make([]O, len(s))
-	for i, v := range s {
-		out[i] = transform(v)
-	}
-	return out
+import (
+	"strconv"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/pkg/slices"
+)
+
+func TestTransform(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil slice", func(t *testing.T) {
+		t.Parallel()
+
+		var in []int
+		assert.Nil(t, slices.Transform(in, func(i int) string { return "" }))
+	})
+
+	t.Run("int to string", func(t *testing.T) {
+		t.Parallel()
+
+		in := []int{1, 2, 3}
+		out := slices.Transform(in, strconv.Itoa)
+		assert.Equal(t, []string{"1", "2", "3"}, out)
+	})
 }

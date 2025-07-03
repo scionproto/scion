@@ -60,13 +60,15 @@ message StaticInfoExtension {
     string note = 6;
 }
 
+// DiscoveryExtension contains information about reachable endpoints in the AS.
+// It should at least contain the endpoints that are directly rechable over the
+// local interface on which the beacon is sent out on. Note that it can also,
+// but not necessarily does, contain endpoints that are reachable over other
+// interfaces in the AS.
 message DiscoveryExtension {
     // Version of the discovery extension. This is set to 1 for now.
     uint32 version = 1;
-    // The address of the control services for this AS. Note that this
-    // information can but not necessarily does include all control services in
-    // the AS. Specifically, a control service could decide to only announce
-    // itself.
+    // The address of the control services for this AS.
     repeated string control_service_addresses = 2;
     // The address of the discovery services for this AS.
     repeated string discovery_service_addresses = 3;

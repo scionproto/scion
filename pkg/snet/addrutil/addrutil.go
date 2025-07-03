@@ -17,6 +17,7 @@ package addrutil
 import (
 	"context"
 	"encoding/binary"
+	"math/rand/v2"
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -89,21 +90,21 @@ func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (net.Addr, error) {
 	}
 	if disco := ps.ASEntries[0].Extensions.Discovery; disco != nil {
 		if svc == addr.SvcCS && len(disco.ControlServices) > 0 {
-			// take any (the first) control service address
+			// take any control service address
 			return &snet.UDPAddr{
 				IA:      ps.FirstIA(),
 				Path:    path,
 				NextHop: nextHop,
-				Host:    net.UDPAddrFromAddrPort(disco.ControlServices[0]),
+				Host:    net.UDPAddrFromAddrPort(disco.ControlServices[rand.IntN(len(disco.ControlServices))]),
 			}, nil
 		}
 		if svc == addr.SvcDS && len(disco.DiscoveryServices) > 0 {
-			// take any (the first) discovery service address
+			// take any discovery service address
 			return &snet.UDPAddr{
 				IA:      ps.FirstIA(),
 				Path:    path,
 				NextHop: nextHop,
-				Host:    net.UDPAddrFromAddrPort(disco.DiscoveryServices[0]),
+				Host:    net.UDPAddrFromAddrPort(disco.DiscoveryServices[rand.IntN(len(disco.DiscoveryServices))]),
 			}, nil
 		}
 	}
@@ -167,12 +168,12 @@ func ExtractDestinationServiceAddress(a addr.SVC, path snet.Path) net.Addr {
 	destination := path.Destination()
 	metadata := path.Metadata()
 	if metadata != nil {
-		discoveredInfo, hasDiscoveryInfo := metadata.DiscoveryInformation[destination]
+		disco, hasDiscoveryInfo := metadata.DiscoveryInformation[destination]
 		switch a {
 		case addr.SvcCS:
-			if hasDiscoveryInfo && len(discoveredInfo.ControlServices) > 0 {
-				// Use the first control service if available
-				cs := discoveredInfo.ControlServices[0]
+			if hasDiscoveryInfo && len(disco.ControlServices) > 0 {
+				// Use any control service if available
+				cs := disco.ControlServices[rand.IntN(len(disco.ControlServices))]
 				ret := &snet.UDPAddr{
 					IA:      destination,
 					Path:    path.Dataplane(),
@@ -186,9 +187,9 @@ func ExtractDestinationServiceAddress(a addr.SVC, path snet.Path) net.Addr {
 				return ret
 			}
 		case addr.SvcDS:
-			if hasDiscoveryInfo && len(discoveredInfo.DiscoveryServices) > 0 {
-				// Use the first data service if available
-				ds := discoveredInfo.DiscoveryServices[0]
+			if hasDiscoveryInfo && len(disco.DiscoveryServices) > 0 {
+				// Use any discovery service if available
+				ds := disco.DiscoveryServices[rand.IntN(len(disco.DiscoveryServices))]
 				ret := &snet.UDPAddr{
 					IA:      destination,
 					Path:    path.Dataplane(),

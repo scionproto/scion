@@ -32,15 +32,29 @@ func FromPB(pb *cppb.DiscoveryExtension) (*Extension, error) {
 	if pb == nil {
 		return nil, nil
 	}
-	cses, csErr := transformSliceWithError(
-		pb.ControlServiceAddresses, netip.ParseAddrPort,
-	)
-	dses, dsErr := transformSliceWithError(
-		pb.DiscoveryServiceAddresses, netip.ParseAddrPort,
-	)
-	if err := errors.Join(csErr, dsErr); err != nil {
-		// If any of the addresses are invalid, we return nil.
-		return nil, err
+	var cses, dses []netip.AddrPort
+	var parseErrors []error
+	for _, a := range pb.ControlServiceAddresses {
+		cs, err := netip.ParseAddrPort(a)
+		if err == nil {
+			cses = append(cses, cs)
+			continue
+		}
+		parseErrors = append(parseErrors, err)
+	}
+	for _, a := range pb.DiscoveryServiceAddresses {
+		ds, err := netip.ParseAddrPort(a)
+		if err == nil {
+			dses = append(dses, ds)
+			continue
+		}
+		parseErrors = append(parseErrors, err)
+	}
+	if (len(pb.ControlServiceAddresses) > 0 && len(cses) == 0) ||
+		(len(pb.DiscoveryServiceAddresses) > 0 && len(dses) == 0) {
+		// If there are addresses in the pb, but none could be parsed
+		// successfully, we return all parsing errors.
+		return nil, errors.Join(parseErrors...)
 	}
 	return &Extension{
 		ControlServices:   cses,
@@ -56,21 +70,4 @@ func ToPB(ext *Extension) *cppb.DiscoveryExtension {
 		ControlServiceAddresses:   slices.Transform(ext.ControlServices, netip.AddrPort.String),
 		DiscoveryServiceAddresses: slices.Transform(ext.DiscoveryServices, netip.AddrPort.String),
 	}
-}
-
-func transformSliceWithError[In any, Out any](
-	in []In, transform func(In) (Out, error),
-) ([]Out, error) {
-	if in == nil {
-		return nil, nil
-	}
-	out := make([]Out, 0, len(in))
-	for _, v := range in {
-		if o, err := transform(v); err == nil {
-			out = append(out, o)
-		} else {
-			return nil, err
-		}
-	}
-	return out, nil
 }
