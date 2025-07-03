@@ -91,7 +91,7 @@ go_library(
         "@com_github_scionproto_scion//pkg/proto/control_plane/v1/control_planeconnect:go_default_library",
         "@com_github_scionproto_scion//pkg/proto/discovery/v1/discoveryconnect:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
-        "@in_gopkg_yaml_v2//:go_default_library",
+        "@in_gopkg_yaml_v3//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_x_net//http2:go_default_library",
         "@org_golang_x_net//http2/h2c:go_default_library",

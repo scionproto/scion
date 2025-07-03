@@ -20,7 +20,7 @@ import (
 	"go/format"
 	"os"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
@@ -32,7 +32,6 @@ const (
 )
 
 type topo struct {
-	ASes  yaml.MapSlice `yaml:"ASes"`
 	Links []link
 }
 
