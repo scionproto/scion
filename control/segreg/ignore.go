@@ -20,6 +20,7 @@ import (
 	"text/template"
 
 	"github.com/go-viper/mapstructure/v2"
+
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"

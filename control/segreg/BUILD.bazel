@@ -16,5 +16,6 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//pkg/segment:go_default_library",
         "//private/segment/seghandler:go_default_library",
+        "@com_github_go_viper_mapstructure_v2//:go_default_library",
     ],
 )
