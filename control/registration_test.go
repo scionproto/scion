@@ -328,8 +328,8 @@ func TestIgnorePlugin(t *testing.T) {
 		{
 			Name: "Basic single",
 			Config: map[string]any{
-				segreg.ConfigKeyLogLevel: "debug",
-				segreg.ConfigKeyMessage:  "received segment",
+				"Level":   "debug",
+				"Message": "received segment",
 			},
 			SegmentsToRegister: []beacon.Beacon{
 				beacons[0],
@@ -339,8 +339,8 @@ func TestIgnorePlugin(t *testing.T) {
 		{
 			Name: "Basic multiple",
 			Config: map[string]any{
-				segreg.ConfigKeyLogLevel: "debug",
-				segreg.ConfigKeyMessage:  "received segment",
+				"Level":   "debug",
+				"Message": "received segment",
 			},
 			SegmentsToRegister: []beacon.Beacon{
 				beacons[0],
@@ -351,8 +351,8 @@ func TestIgnorePlugin(t *testing.T) {
 		{
 			Name: "Template single",
 			Config: map[string]any{
-				segreg.ConfigKeyLogLevel: "info",
-				segreg.ConfigKeyMessage:  "received segment {{ .Segment.InIfID }}",
+				"Level":   "info",
+				"Message": "received segment {{ .Segment.InIfID }}",
 			},
 			SegmentsToRegister: []beacon.Beacon{
 				beacons[0],
@@ -362,8 +362,8 @@ func TestIgnorePlugin(t *testing.T) {
 		{
 			Name: "Template multiple",
 			Config: map[string]any{
-				segreg.ConfigKeyLogLevel: "info",
-				segreg.ConfigKeyMessage:  "received segment {{ .Segment.InIfID }}",
+				"Level":   "info",
+				"Message": "received segment {{ .Segment.InIfID }}",
 			},
 			SegmentsToRegister: []beacon.Beacon{
 				beacons[0],

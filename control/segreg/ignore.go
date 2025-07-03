@@ -19,15 +19,11 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-)
-
-const (
-	ConfigKeyLogLevel string = "Level"
-	ConfigKeyMessage  string = "Message"
 )
 
 // logLevel defines the logging level for the IgnoreSegmentRegistrationPlugin.
@@ -48,42 +44,40 @@ func parseLogLevel(s string) (logLevel, error) {
 	}
 }
 
+// pluginConfig holds the configuration for the IgnoreSegmentRegistrationPlugin.
 type pluginConfig struct {
 	Level   logLevel
 	Message *template.Template
 }
 
 func parseConfig(config map[string]any) (pluginConfig, error) {
-	// Extract the log level and message from the config.
-	level := LogLevelDebug // Default log level
-	var message *template.Template
-	if val, ok := config[ConfigKeyLogLevel]; ok {
-		strVal, ok := val.(string)
-		if !ok {
-			return pluginConfig{}, serrors.New("invalid log level value",
-				"key", ConfigKeyLogLevel)
-		}
-		logLevel, err := parseLogLevel(strVal)
-		if err != nil {
-			return pluginConfig{}, serrors.Wrap("parsing log level", err,
-				"key", ConfigKeyLogLevel,
-				"value", strVal)
-		}
-		level = logLevel
+	// Decode the map.
+	var parsedConfig struct {
+		Level   string
+		Message string
 	}
-	if val, ok := config[ConfigKeyMessage]; ok {
-		strVal, ok := val.(string)
-		if !ok {
-			return pluginConfig{}, serrors.New("invalid message value",
-				"key", ConfigKeyMessage)
-		}
-		tmpl, err := template.New("message").Parse(strVal)
+	err := mapstructure.Decode(config, &parsedConfig)
+	if err != nil {
+		return pluginConfig{}, serrors.Wrap("decoding plugin configuration", err,
+			"config", config)
+	}
+	// Default log level is debug.
+	if parsedConfig.Level == "" {
+		parsedConfig.Level = string(LogLevelDebug)
+	}
+	// Extract the log level and message from the config.
+	level, err := parseLogLevel(parsedConfig.Level)
+	if err != nil {
+		return pluginConfig{}, serrors.Wrap("parsing log level", err,
+			"value", parsedConfig.Level)
+	}
+	var message *template.Template
+	if parsedConfig.Message != "" {
+		message, err = template.New("message").Parse(parsedConfig.Message)
 		if err != nil {
 			return pluginConfig{}, serrors.Wrap("parsing message template", err,
-				"key", ConfigKeyMessage,
-				"value", strVal)
+				"value", parsedConfig.Message)
 		}
-		message = tmpl
 	}
 	return pluginConfig{Level: level, Message: message}, nil
 }
