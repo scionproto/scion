@@ -75,7 +75,7 @@ const DefaultGroup string = "default"
 // The beacons that do not match any registration policy are dropped.
 //
 // If the policy defines no registration policy, all the beacons will be put into
-// the default group, indexed by DEFAULT_GROUP.
+// the default group, indexed by DefaultGroup.
 func groupBeacons(beacons []Beacon, policy *Policy) GroupedBeacons {
 	if len(policy.RegistrationPolicies) == 0 {
 		return map[string][]Beacon{

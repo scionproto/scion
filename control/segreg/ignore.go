@@ -26,22 +26,22 @@ import (
 )
 
 const (
-	LOG_LEVEL_CONFIG_KEY string = "Level"
-	MESSAGE_CONFIG_KEY   string = "Message"
+	ConfigKeyLogLevel string = "Level"
+	ConfigKeyMessage  string = "Message"
 )
 
 // logLevel defines the logging level for the IgnoreSegmentRegistrationPlugin.
 type logLevel string
 
 const (
-	LOG_LEVEL_DEBUG logLevel = "debug"
-	LOG_LEVEL_INFO  logLevel = "info"
-	LOG_LEVEL_ERROR logLevel = "error"
+	LogLevelDebug logLevel = "debug"
+	LogLevelInfo  logLevel = "info"
+	LogLevelError logLevel = "error"
 )
 
 func parseLogLevel(s string) (logLevel, error) {
 	switch s {
-	case string(LOG_LEVEL_DEBUG), string(LOG_LEVEL_INFO), string(LOG_LEVEL_ERROR):
+	case string(LogLevelDebug), string(LogLevelInfo), string(LogLevelError):
 		return logLevel(s), nil
 	default:
 		return "", serrors.New("invalid log level", "level", s)
@@ -55,32 +55,32 @@ type pluginConfig struct {
 
 func parseConfig(config map[string]any) (pluginConfig, error) {
 	// Extract the log level and message from the config.
-	level := LOG_LEVEL_DEBUG // Default log level
+	level := LogLevelDebug // Default log level
 	var message *template.Template
-	if val, ok := config[LOG_LEVEL_CONFIG_KEY]; ok {
+	if val, ok := config[ConfigKeyLogLevel]; ok {
 		strVal, ok := val.(string)
 		if !ok {
 			return pluginConfig{}, serrors.New("invalid log level value",
-				"key", LOG_LEVEL_CONFIG_KEY)
+				"key", ConfigKeyLogLevel)
 		}
 		logLevel, err := parseLogLevel(strVal)
 		if err != nil {
 			return pluginConfig{}, serrors.Wrap("parsing log level", err,
-				"key", LOG_LEVEL_CONFIG_KEY,
+				"key", ConfigKeyLogLevel,
 				"value", strVal)
 		}
 		level = logLevel
 	}
-	if val, ok := config[MESSAGE_CONFIG_KEY]; ok {
+	if val, ok := config[ConfigKeyMessage]; ok {
 		strVal, ok := val.(string)
 		if !ok {
 			return pluginConfig{}, serrors.New("invalid message value",
-				"key", MESSAGE_CONFIG_KEY)
+				"key", ConfigKeyMessage)
 		}
 		tmpl, err := template.New("message").Parse(strVal)
 		if err != nil {
 			return pluginConfig{}, serrors.Wrap("parsing message template", err,
-				"key", MESSAGE_CONFIG_KEY,
+				"key", ConfigKeyMessage,
 				"value", strVal)
 		}
 		message = tmpl
@@ -166,11 +166,11 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 
 		// Log the message at the configured log level.
 		switch r.Level {
-		case LOG_LEVEL_DEBUG:
+		case LogLevelDebug:
 			logger.Debug(s)
-		case LOG_LEVEL_INFO:
+		case LogLevelInfo:
 			logger.Info(s)
-		case LOG_LEVEL_ERROR:
+		case LogLevelError:
 			logger.Error(s)
 		default:
 			panic("unexpected log level") // This should never happen due to validation.

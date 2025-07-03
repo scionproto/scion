@@ -56,9 +56,9 @@ const (
 	RegPolicyTypeCore RegPolicyType = RegPolicyType(CoreRegPolicy)
 )
 
-// ToRegPolicyType converts a PolicyType to a RegPolicyType if it is a registration policy type.
+// RegPolicyType converts a PolicyType to a RegPolicyType if it is a registration policy type.
 // The second return value indicates whether the conversion was successful.
-func (p PolicyType) ToRegPolicyType() (RegPolicyType, bool) {
+func (p PolicyType) RegPolicyType() (RegPolicyType, bool) {
 	switch p {
 	case UpRegPolicy:
 		return RegPolicyTypeUp, true
@@ -85,8 +85,8 @@ func (p RegPolicyType) SegmentType() segment.Type {
 	}
 }
 
-// ToPolicyType converts a RegPolicyType to a generic PolicyType.
-func (p RegPolicyType) ToPolicyType() PolicyType {
+// PolicyType converts a RegPolicyType to a generic PolicyType.
+func (p RegPolicyType) PolicyType() PolicyType {
 	switch p {
 	case RegPolicyTypeUp:
 		return UpRegPolicy

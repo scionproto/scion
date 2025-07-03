@@ -74,7 +74,7 @@ func (s SegmentRegistrars) RegisterSegmentRegistrar(
 
 // RegisterDefaultSegmentRegistrar registers a default registrar for a given policy type.
 // The default registrar should be registered when no specific registration policy is defined
-// for policyType. The default registrar is associated with the name beacon.DEFAULT_GROUP.
+// for policyType. The default registrar is associated with the name beacon.DefaultGroup.
 func (s SegmentRegistrars) RegisterDefaultSegmentRegistrar(
 	policyType beacon.RegPolicyType, registrar SegmentRegistrar,
 ) error {

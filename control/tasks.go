@@ -91,7 +91,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 	// Initialize the segment registrars.
 	segmentRegistrars := make(segreg.SegmentRegistrars)
 	for _, policy := range regPolicies {
-		polType, ok := policy.Type.ToRegPolicyType()
+		polType, ok := policy.Type.RegPolicyType()
 		if !ok {
 			logger.Error("Unsupported policy type for segment registration plugin",
 				"policy_type", policy.Type)
@@ -221,7 +221,7 @@ func (t *TasksConfig) segmentWriter(
 			Registrars: t.registrars,
 			Intfs:      t.AllInterfaces,
 			Extender: t.extender("segment_writer", t.IA, t.MTU, func() uint8 {
-				return t.BeaconStore.MaxExpTime(policyType.ToPolicyType())
+				return t.BeaconStore.MaxExpTime(policyType.PolicyType())
 			}),
 			InternalErrors: metrics.CounterWith(
 				metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal),
