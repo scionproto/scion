@@ -18,9 +18,10 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
-	"time"
+	"sync/atomic"
 
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
@@ -35,35 +36,29 @@ import (
 // point to point links are dedicated to a single src/dst pair.
 // TODO(jiceatscion): a lot of code could be deduplicated between the two link implementations.
 type ptpLink struct {
-	procQs     []chan *router.Packet
-	header     []byte
-	localMAC   net.HardwareAddr // replace w/ 6 bytes?
-	pool       router.PacketPool
-	localAddr  *netip.AddrPort
-	remoteAddr *netip.AddrPort
-	egressQ    chan<- *router.Packet
-	metrics    *router.InterfaceMetrics
-	bfdSession *bfd.Session
-	neighbors  *neighborCache
-	scope      router.LinkScope
-	seed       uint32
-	ifID       uint16 // 0 for sibling links
-	is4        bool
-}
-
-func (l *ptpLink) seekNeighbor(remoteIP *netip.Addr) {
-	p := l.pool.Get()
-	localIP := l.localAddr.Addr()
-	packNeighborReq(p, &localIP, l.localMAC, remoteIP, l.is4)
-	select {
-	case l.egressQ <- p:
-	default:
-	}
+	procQs          []chan *router.Packet
+	header          []byte
+	localMAC        net.HardwareAddr // replace w/ 6 bytes?
+	pool            router.PacketPool
+	localAddr       *netip.AddrPort
+	remoteAddr      *netip.AddrPort
+	egressQ         chan<- *router.Packet
+	metrics         *router.InterfaceMetrics
+	bfdSession      *bfd.Session
+	neighbors       *neighborCache
+	backlogCheck    chan struct{}
+	sendBacklogDone chan struct{}
+	running         atomic.Bool
+	scope           router.LinkScope
+	seed            uint32
+	ifID            uint16 // 0 for sibling links
+	is4             bool
 }
 
 // Expensive. Call only to make a few prefab headers.
 // This must be called with the neighbors cache locked.
-func (l *ptpLink) packHeader() {
+// This function either sets a header, or returns a backlog queue.
+func (l *ptpLink) packHeader() chan *router.Packet {
 	dstIP := l.remoteAddr.Addr()
 
 	// Resolve the destination MAC address if we can.
@@ -73,16 +68,11 @@ func (l *ptpLink) packHeader() {
 		// respond to neighbor resolution requests. The good news is that any address will do.
 		dstMac = &dummyMacAddr
 	} else {
-		var found bool
-		dstMac, found = l.neighbors.get(dstIP)
-		if !found {
-			// Unknown or stale: trigger the address resolution.
-			// TODO(jiceatscion): could be done outside critical section.
-			l.seekNeighbor(&dstIP)
-		}
+		var backlog chan *router.Packet
+		dstMac, backlog = l.neighbors.get(dstIP) // Sends ARP/NDP req as needed.
 		if dstMac == nil {
-			// ... not even a stale address to work with.
-			return
+			// We don't have an address to offer, but we have a backlog queue.
+			return backlog
 		}
 	}
 
@@ -118,7 +108,7 @@ func (l *ptpLink) packHeader() {
 		// We have to truncate the result; gopacket is scared of generating a packet shorter than
 		// the ethernet minimum.
 		l.header = sb.Bytes()[:42]
-		return
+		return nil
 	}
 	ethernet := layers.Ethernet{
 		SrcMAC:       l.localMAC,
@@ -145,6 +135,7 @@ func (l *ptpLink) packHeader() {
 	// We have to truncate the result; gopacket is scared of generating a packet shorter than the
 	// ethernet minimum.
 	l.header = sb.Bytes()[:62]
+	return nil
 }
 
 // addHeader fetches the then-most-current version of the canned header and pastes it on the packet.
@@ -153,11 +144,24 @@ func (l *ptpLink) packHeader() {
 // constructed immediately.
 func (l *ptpLink) addHeader(p *router.Packet) bool {
 	l.neighbors.Lock()
+	var backlog chan *router.Packet
 	if l.header == nil {
-		l.packHeader()
+		backlog = l.packHeader()
 	}
 	header := l.header
+	if header == nil {
+		if backlog != nil {
+			select {
+			case backlog <- p:
+			default:
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+				l.pool.Put(p)
+			}
+		}
+	}
 	l.neighbors.Unlock()
+
 	if header == nil {
 		return false
 	}
@@ -169,21 +173,7 @@ func (l *ptpLink) addHeader(p *router.Packet) bool {
 // TODO(jiceatscion): can do cleaner, more legible, faster?
 func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	payloadLen := len(p.RawPacket)
-	var good bool
-	for a := range 5 { // Be stubborn; some tests expect zero loss.
-		good = l.addHeader(p)
-		if good {
-			if a > 0 {
-				log.Debug("***** Address resolved with retries", "from", l.localAddr,
-					"to", l.remoteAddr, "attempts", a+1)
-			}
-			break
-		}
-		time.Sleep(30 * time.Millisecond)
-	}
-	if !good {
-		log.Debug("***** Dropping due to address resolution", "from", l.localAddr,
-			"to", l.remoteAddr)
+	if !l.addHeader(p) {
 		return false
 	}
 	if l.is4 {
@@ -232,18 +222,32 @@ func (l *ptpLink) start(
 	procQs []chan *router.Packet,
 	pool router.PacketPool,
 ) {
+	wasRunning := l.running.Swap(true)
+	if wasRunning {
+		return
+	}
 	// procQs and pool are never known before all configured links have been instantiated.  So we
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
 
+	// cache ticker is desirable.
+	l.neighbors.start(l.pool)
+
+	// Backlog sender
+	go func() {
+		defer log.HandlePanic()
+		for l.running.Load() {
+			l.sendBacklog()
+			<-l.backlogCheck
+		}
+		close(l.sendBacklogDone)
+	}()
+
 	// Since we have only one peer, try and resolve it in case it's up. That's like an
 	// announcement, but we can also get a response.
 	peerIP := l.remoteAddr.Addr()
-	l.seekNeighbor(&peerIP)
-
-	// cache ticker is desirable.
-	l.neighbors.start()
+	l.neighbors.seekNeighbor(&peerIP)
 
 	if l.bfdSession == nil {
 		return
@@ -261,6 +265,14 @@ func (l *ptpLink) stop() {
 		return
 	}
 	l.bfdSession.Close()
+	wasRunning := l.running.Swap(false)
+	if wasRunning {
+		select {
+		case l.backlogCheck <- struct{}{}:
+		default:
+		}
+		<-l.sendBacklogDone
+	}
 	l.neighbors.stop()
 }
 
@@ -290,17 +302,56 @@ func (l *ptpLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 	return errResolveOnNonInternalLink
 }
 
-func (l *ptpLink) Send(p *router.Packet) {
-	// We do not have an underlying connection. Instead we supply the entire underlay header. We
-	// have it mostly canned and paste it in front of the packet.
-	if !l.finishPacket(p) {
-		// Cannot (because remote address not resolved).
-		sc := router.ClassOfSize(len(p.RawPacket))
-		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
-		l.pool.Put(p)
+func (l *ptpLink) sendBacklog() {
+	dstAddr := l.remoteAddr.Addr()
+	l.neighbors.Lock()
+	backlog := l.neighbors.getBacklog(dstAddr)
+	l.neighbors.Unlock()
+
+	if backlog == nil {
 		return
 	}
 
+	givenup := false
+	for {
+		select {
+		case p := <-backlog:
+			if givenup {
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+				l.pool.Put(p)
+				continue
+			}
+			if !l.finishPacket(p) {
+				// Note that this packet goes back onto the backlog so we will drop it at the end of
+				// the loop. TODO(jiceatscion): need new drop reason.
+				givenup = true
+				continue
+			}
+			select {
+			case l.egressQ <- p:
+			default:
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+				l.pool.Put(p)
+			}
+		default:
+			// Backlog drained (for now).
+			return
+		}
+	}
+}
+
+func (l *ptpLink) Send(p *router.Packet) {
+
+	// TODO(jiceatscion): The packet's destination is in the packet's meta-data; it was put there by
+	// Resolve() We need to craft a header in front of the packet.  May be resolve could do that,
+	// instead of just storing the destination in the packet structure. That would save us the
+	// allocation of address but requires some more changes to the dataplane code structure.
+	if !l.finishPacket(p) {
+		// The packet got put on the backlog (or discarded if the backlog is full).
+		return
+	}
 	select {
 	case l.egressQ <- p:
 	default:
@@ -311,24 +362,20 @@ func (l *ptpLink) Send(p *router.Packet) {
 }
 
 // Only tests actually use this method, but since we have to have it, we might as well implement it
-// ~correctly. Doesn't hurt.
+// ~correctly. Doesn't hurt. TODO(jiceatscion): deal with backlog (or not).
 func (l *ptpLink) SendBlocking(p *router.Packet) {
-	// Same as Send(). We must supply the header.
-	if !l.finishPacket(p) {
-		sc := router.ClassOfSize(len(p.RawPacket))
-		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
-		l.pool.Put(p)
-		return
+	if l.finishPacket(p) {
+		l.egressQ <- p
 	}
-
-	l.egressQ <- p
+	// else, backlog'd or discarded => non-blocking after all. Sorry.
 }
 
 // receive delivers an incoming packet to the appropriate processing queue.
-func (l *ptpLink) receive(srcAddr *netip.AddrPort, dstIP netip.Addr, p *router.Packet) {
-	// If an interface is in promiscuous mode, we can receive packets not meant for us. the
-	// undelying udp connection doesn't care. The port, on the other hand is already filtered.
-	if dstIP != l.localAddr.Addr() {
+func (l *ptpLink) receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort, p *router.Packet) {
+	// Even with filters, we can receive packets not meant for us.
+	if *dstAddr != *l.localAddr {
+		log.Debug("Not for me", "addr", dstAddr, "vs local", l.localAddr)
+		l.pool.Put(p)
 		return
 	}
 
@@ -371,11 +418,15 @@ func (l *ptpLink) handleNeighbor(
 		l.neighbors.Lock()
 		// We want, regardless of cache content.
 		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
+		l.neighbors.Unlock()
 		if changed {
-			// Time to rebuild the packed header.
+			// Time to rebuild the packed header and to send the backlog if any.
+			select {
+			case l.backlogCheck <- struct{}{}:
+			default:
+			}
 			l.header = nil
 		}
-		l.neighbors.Unlock()
 	} else if targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified() {
 		// We don't want but it may deserve a response.
 		// No choice, senderMAC escapes to the heap.
@@ -420,11 +471,18 @@ func newPtpLinkExternal(
 		egressQ:    conn.queue,
 		metrics:    metrics,
 		bfdSession: bfd,
-		seed:       conn.seed,
-		ifID:       ifID,
-		neighbors:  newNeighborCache(),
-		scope:      router.External,
-		is4:        localAddr.Addr().Is4(),
+		neighbors: newNeighborCache(
+			"sibTo_"+remoteAddr.String(),
+			conn.localMAC,
+			localAddr.Addr(),
+			conn.queue,
+		),
+		backlogCheck:    make(chan struct{}, 1),
+		sendBacklogDone: make(chan struct{}),
+		scope:           router.External,
+		seed:            conn.seed,
+		ifID:            ifID,
+		is4:             localAddr.Addr().Is4(),
 	}
 	conn.links[*remoteAddr] = l
 
@@ -447,15 +505,30 @@ func newPtpLinkSibling(
 		egressQ:    conn.queue,
 		metrics:    metrics,
 		bfdSession: bfd,
-		seed:       conn.seed,
-		ifID:       0,
-		neighbors:  newNeighborCache(),
-		scope:      router.Sibling,
-		is4:        localAddr.Addr().Is4(),
+		neighbors: newNeighborCache(
+			"extTo_"+remoteAddr.String(),
+			conn.localMAC,
+			localAddr.Addr(),
+			conn.queue,
+		),
+		backlogCheck:    make(chan struct{}),
+		sendBacklogDone: make(chan struct{}),
+		scope:           router.Sibling,
+		seed:            conn.seed,
+		ifID:            0,
+		is4:             localAddr.Addr().Is4(),
 	}
 	conn.links[*remoteAddr] = l
 
 	log.Debug("***** Link", "scope", "sibling", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l
+}
+
+func (l *ptpLink) String() string {
+	scope := "External"
+	if l.scope == router.Sibling {
+		scope = "Sibling"
+	}
+	return fmt.Sprintf("%s: local: %s remote: %s", scope, l.localAddr, l.remoteAddr)
 }

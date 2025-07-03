@@ -1,6 +1,6 @@
 // Copyright 2025 SCION Association
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
+// Licensed under the Apachecke License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -29,13 +29,13 @@ import (
 )
 
 // ARP cache parameters. The longuish TTL is because I suspect that linux rate limits responses,
-// so, we have to resolve stuff other than a SCION router not too often. This is simplistic
-// compared to Linux's arp life-cycle. Like Linux, we consider entries only when they get used;
-// otherwise we just decrease their TTL.
+// so, we have to resolve stuff other than a SCION router not too often.
+// Requests for unresolved entries that have a backlog are sent once per tick.
 const (
-	neighborTick = 500 * time.Millisecond // Cache clock period.
-	neighborTTL  = 1200                   // Time to live of resolved entry (in ticks).
-	neighborTTR  = 2                      // TTL threshold for resolution (in ticks).
+	neighborTick       = 1000 * time.Millisecond // Cache clock period.
+	neighborTTL        = 600                     // Time to live of resolved entry (in ticks).
+	neighborTTR        = 3                       // TTL threshold for resolution (in ticks).
+	neighborMaxBacklog = 3                       // Number of packets pending resolution.
 )
 
 // FF02:0000:0000:0000:0000:0001:FF00:0000/104
@@ -43,51 +43,99 @@ var ndpMcastPrefix = []byte{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0xff}
 var zeroMacAddr = [6]byte{0, 0, 0, 0, 0, 0}
 var dummyMacAddr = [6]byte{2, 0, 0, 0, 0, 2}
 
+type neighborState int
+
+const (
+	None neighborState = iota
+	Incomplete
+	Reachable
+	Stale
+	Probe
+)
+
+// neighbor represents one neighbor. This is a bit simplistic compared to Linux's arp
+// life-cycle. There is a small backlog of packets waiting for resolution, (Because too much of the
+// SCION test code assumes infaillible packet delivery).
 type neighbor struct {
 	mac *[6]byte
 	// timer keeps track of the time that the entry has been resolved or pending:
 	timer int
+	// TODO(jiceatscion): the whole neighbor management is getting clumsy. Reorg.
+	backlog chan *router.Packet
+	state   neighborState
 }
 
-// neighborCache is a cache of IP address to MAC address mapping. It is not automatically
+// neighborCache is a cache of IP address to MAC address mapping.
+// It is not automatically
 // re-entrant: you must use lock() and unlock() explicitly. The reason is that we have two different
 // usage patterns; one of which needs to manipulate another object in the same critical section.
-// There is a builtin entry expiration ticker. Calling start() will activate it and stop() will
-// deactivate it. While active, the ticker deletes entries that have been in the cache for too
-// long. Resolved entries live for neighborTTL seconds. Once their time is below neighborTTR a
-// resolution is triggered in case of use. Unresolved entries live for no more than neighborTTR
-// secons.
+// There is a builtin entry ticker. Calling start() will activate it and stop() will
+// deactivate it.
 type neighborCache struct {
 	sync.Mutex
+	name       string
+	localMAC   net.HardwareAddr
+	localIP    netip.Addr
+	pool       router.PacketPool
 	mappings   map[netip.Addr]neighbor
-	running    atomic.Bool
+	egressQ    chan *router.Packet
 	tickerDone chan struct{}
+	running    atomic.Bool
+	is4        bool
 }
 
-// Lookup returns the mac address associated with the given IP, or nil if not known, and whether an
-// entry already existed. A new (pending) entry is created if none existed. A resolution should be
-// triggered if the entry did not exist. This is optional, but the pending entry will exist for as
-// long as specified by the TTR.
-func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, bool) {
+// TODO(jiceatscion): This can end-up being called from the critical section. Not ideal.
+func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
+	p := cache.pool.Get()
+	packNeighborReq(p, &cache.localIP, cache.localMAC, remoteIP, cache.is4)
+	select {
+	case cache.egressQ <- p:
+	default:
+	}
+}
+
+// Lookup returns the mac address associated with the given IP, or nil if not known. A new (pending)
+// entry is created if none existed. A resolution is triggered if the entry did not exist.
+// The pending entry will exist for as long as specified by the TTR. This function either returns
+// a non-nil address or a non-nil backlog channel. Unresolved packets can be put on that queue
+// for later sending.
+func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
 
 	if ip.Is4() && ip.IsLoopback() {
 		// This cannot be reliably resolved (linux will not respond to requests), and any MAC
 		// address will do. Try and use zero; that's what Linux pretends it is when it has to
 		// pretend.
-		return &zeroMacAddr, true
+		return &zeroMacAddr, nil
 	}
 
 	entry := cache.mappings[ip]
-	if entry.timer != 0 {
-		// Already resolved or being resolved. May be we have a good address, or a stale one, or
-		// nothing at all. Nothing else to do.
-		return entry.mac, true
+
+	switch entry.state {
+	case None:
+		// Whole new entry
+		entry.state = Incomplete
+		entry.backlog = make(chan *router.Packet, neighborMaxBacklog)
+		entry.timer = neighborTTR // We have that long to resolve it.
+		cache.mappings[ip] = entry
+		cache.seekNeighbor(&ip)
+		return nil, entry.backlog
+	case Incomplete:
+		// Already started resolving. Don't do anything more for now. You get the backlog.
+		return nil, entry.backlog
+	case Reachable, Probe:
+		// All good. If probe, the ticker works on refreshing.
+		return entry.mac, nil
+	case Stale:
+		// Since we do use it; ask the ticker to refresh.
+		entry.state = Probe
+		return entry.mac, nil
+	default:
+		panic("Illegal entry state")
 	}
-	// Unknown or just got stale. Trigger a new resolution. In the meantime, we can still use the
-	// stale address if there is one.
-	entry.timer = neighborTTR
-	cache.mappings[ip] = entry
-	return entry.mac, false
+}
+
+func (cache *neighborCache) getBacklog(ip netip.Addr) chan *router.Packet {
+	return cache.mappings[ip].backlog
 }
 
 // Check returns true if we have any kind of interrest in the address: either we already know it
@@ -101,37 +149,66 @@ func (cache *neighborCache) check(ip netip.Addr) bool {
 // pressure by not forcing a copy of the given address to escape to the heap unnecessarily.
 // The second return value is true if an entry was added or changed.
 func (cache *neighborCache) put(ip netip.Addr, mac [6]byte) (*[6]byte, bool) {
-	oldEntry := cache.mappings[ip]
-	if oldEntry.mac == nil || *oldEntry.mac != mac {
-		newMAC := &mac
-		cache.mappings[ip] = neighbor{newMAC, neighborTTL}
-		return newMAC, true
+	entry := cache.mappings[ip]
+	if entry.state == None {
+		entry.backlog = make(chan *router.Packet, neighborMaxBacklog)
 	}
-	cache.mappings[ip] = neighbor{oldEntry.mac, neighborTTL} // Just refresh the TTL
-	return oldEntry.mac, false
+	entry.timer = neighborTTL
+	entry.state = Reachable
+	isChange := false
+	if entry.mac == nil || *entry.mac != mac {
+		entry.mac = &mac
+		isChange = true
+	}
+	cache.mappings[ip] = entry
+	return entry.mac, isChange
 }
 
-// tick updates the timer of each entry.
+// tick updates the timer of each entry. Itdeletes entries that have been in the cache for too
+// long. Resolved entries live for neighborTTL seconds. Once their time is below neighborTTR a
+// resolution is attempted if there is a backlog. Unresolved entries live for no more than
+// neighborTTR seconds. When an entry is used while its time is below TTR, a single refresh
+// is attempted.
 func (cache *neighborCache) tick() {
 	cache.Lock()
-	for k, n := range cache.mappings {
-		if n.timer == 0 {
+	for k, entry := range cache.mappings {
+		if entry.timer == 0 {
 			// Completely stale. Throw away.
 			delete(cache.mappings, k)
+			close(entry.backlog)
+			for p := range entry.backlog {
+				cache.pool.Put(p)
+			}
 			continue
 		}
-		n.timer--
-		cache.mappings[k] = n
+		entry.timer--
+		switch entry.state {
+		case None:
+			// WTF? they're never inserted in the map like that.
+			continue
+		case Incomplete, Probe:
+			// We do need the address resolved.
+			cache.seekNeighbor(&k)
+		case Stale:
+			// Not in active use, so don't refresh.
+		case Reachable:
+			if entry.timer < neighborTTR {
+				entry.state = Stale
+			}
+		default:
+			panic("Illegal entry state")
+		}
+		cache.mappings[k] = entry
 	}
 	cache.Unlock()
 }
 
-func (cache *neighborCache) start() {
+func (cache *neighborCache) start(pool router.PacketPool) {
 	wasRunning := cache.running.Swap(true)
 	if wasRunning {
 		return
 	}
-
+	cache.pool = pool
 	// Ticker task
 	go func() {
 		defer log.HandlePanic()
@@ -150,8 +227,21 @@ func (cache *neighborCache) stop() {
 	}
 }
 
-func newNeighborCache() *neighborCache {
-	return &neighborCache{mappings: make(map[netip.Addr]neighbor)}
+func newNeighborCache(
+	name string,
+	localMAC net.HardwareAddr,
+	localIP netip.Addr,
+	egressQ chan *router.Packet,
+) *neighborCache {
+	return &neighborCache{
+		name:       name,
+		localMAC:   localMAC,
+		localIP:    localIP,
+		mappings:   make(map[netip.Addr]neighbor),
+		egressQ:    egressQ,
+		tickerDone: make(chan struct{}),
+		is4:        localIP.Is4(),
+	}
 }
 
 // packNeighborReq builds an ARP or NDP request into the given packet.
@@ -185,6 +275,7 @@ func packNeighborReq(
 			DstProtAddress:    remoteIP.AsSlice(),
 		}
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
+		_, _ = serBuf.AppendBytes(18) // Padding packet to length 60.
 	} else {
 		var typ uint8
 		var mcAddr []byte

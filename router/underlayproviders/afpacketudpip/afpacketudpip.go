@@ -140,7 +140,7 @@ type udpLink interface {
 	router.Link
 	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
-	receive(srcAddr *netip.AddrPort, dstIP netip.Addr, p *router.Packet)
+	receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort, p *router.Packet)
 	handleNeighbor(isReq bool, targetIP, senderIP, rcptIP netip.Addr, remoteHw [6]byte)
 }
 

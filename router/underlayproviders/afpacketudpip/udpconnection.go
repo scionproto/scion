@@ -301,6 +301,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		// shared with the internal link do not have it as they should not accept packets from
 		// unknown sources (but they might receive them: the ebpf filter only looks at port).
 		srcAddr := netip.AddrPortFrom(srcIP, uint16(udpLayer.SrcPort))
+		dstAddr := netip.AddrPortFrom(dstIP, uint16(udpLayer.DstPort))
 		l := u.link
 		if u.links != nil {
 			if ll, found := u.links[srcAddr]; found {
@@ -316,7 +317,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		// point directly at some space in the packet buffer (not the header itself - it
 		// gets overwritten by SCMP).
 		p.RawPacket = udpLayer.LayerPayload() // chop off the udp header. The rest is SCION.
-		l.receive(&srcAddr, dstIP, p)
+		l.receive(&srcAddr, &dstAddr, p)
 		p = pool.Get() // we need a fresh packet buffer now.
 	}
 

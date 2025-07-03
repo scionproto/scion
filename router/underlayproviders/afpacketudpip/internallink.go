@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"time"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/gopacket/gopacket"
@@ -44,6 +44,9 @@ type internalLink struct {
 	metrics          *router.InterfaceMetrics
 	neighbors        *neighborCache
 	svc              *router.Services[netip.AddrPort]
+	backlogCheck     chan netip.Addr
+	sendBacklogDone  chan struct{}
+	running          atomic.Bool
 	seed             uint32
 	dispatchStart    uint16
 	dispatchEnd      uint16
@@ -51,22 +54,11 @@ type internalLink struct {
 	is4              bool
 }
 
-func (l *internalLink) seekNeighbor(remoteIP *netip.Addr) {
-	p := l.pool.Get()
-	localIP := l.localAddr.Addr()
-	packNeighborReq(p, &localIP, l.localMAC, remoteIP, l.is4)
-	select {
-	case l.egressQ <- p:
-	default:
-	}
-}
-
 // This is called during initialization only and does not need the neighbors cache. The header
 // is incomplete and gets patched for each packet.
 func (l *internalLink) packHeader() {
 	sb := gopacket.NewSerializeBuffer()
 	srcIP := l.localAddr.Addr()
-
 	if l.is4 {
 		ethernet := layers.Ethernet{
 			SrcMAC:       l.localMAC,
@@ -123,7 +115,7 @@ func (l *internalLink) packHeader() {
 	l.header = sb.Bytes()[:62]
 }
 
-// addHeader fetches the canned header, which never changes, pastes it on the packet, and patches
+// addHeeader fetches the canned header, which never changes, pastes it on the packet, and patches
 // in the destination. If the destination is not resolved, this method returns false and the
 // packet is left with an incorrect header. Note that an address resolution is triggered if the
 // destination is not already resolved.
@@ -137,16 +129,19 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 		// respond to neighbor resolution requests. The good news is that any address will do.
 		dstMac = &dummyMacAddr
 	} else {
-		var found bool
+		var backlog chan *router.Packet
 		l.neighbors.Lock()
-		dstMac, found = l.neighbors.get(dstIP)
+		dstMac, backlog = l.neighbors.get(dstIP) // Send ARP/NDP req as needed.
 		l.neighbors.Unlock()
-		if !found {
-			// Stale or unknown: trigger the address resolution.
-			l.seekNeighbor(&dstIP)
-		}
 		if dstMac == nil {
-			// ...and we don't even have a stale address to offer.
+			// We don't have an address to offer, but we have a backlog queue.
+			select {
+			case backlog <- p:
+			default:
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+				l.pool.Put(p)
+			}
 			return false
 		}
 	}
@@ -170,21 +165,7 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 // TODO(jiceatscion): can do cleaner, more legible, faster?
 func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool {
 	payloadLen := len(p.RawPacket)
-	var good bool
-	for a := range 5 { // Be stubborn; some tests expect zero loss.
-		good = l.addHeader(p, dst)
-		if good {
-			if a > 0 {
-				log.Debug("***** Address resolved with retries", "from", l.localAddr,
-					"to", dst, "attempts", a+1)
-			}
-			break
-		}
-		time.Sleep(30 * time.Millisecond) // TODO(jiceatscin): Bad. Should queue.
-	}
-	if !good {
-		log.Debug("***** Dropping due to address resolution", "from", l.localAddr,
-			"to", dst)
+	if !l.addHeader(p, dst) {
 		return false
 	}
 	if l.is4 {
@@ -233,21 +214,46 @@ func (l *internalLink) start(
 	procQs []chan *router.Packet,
 	pool router.PacketPool,
 ) {
+	wasRunning := l.running.Swap(true)
+	if wasRunning {
+		return
+	}
 	// procQs and pool are never known before all configured links have been instantiated. So we
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
 
+	// cache ticker is desirable.
+	l.neighbors.start(l.pool)
+
 	// We do not have a known peer that we can resolve ahead of time, but we can at least save
 	// peers that are already up from having to resolve us and drop the first packet.
 	localIP := l.localAddr.Addr()
-	l.seekNeighbor(&localIP)
+	l.neighbors.seekNeighbor(&localIP)
 
-	// cache ticker is desirable.
-	l.neighbors.start()
+	// Backlog sender
+	go func() {
+		defer log.HandlePanic()
+		dstAddr := netip.Addr{}
+		for l.running.Load() {
+			l.sendBacklog(dstAddr)
+			dstAddr = <-l.backlogCheck
+		}
+		close(l.sendBacklogDone)
+	}()
 }
 
 func (l *internalLink) stop() {
+	wasRunning := l.running.Swap(false)
+	if wasRunning {
+		// wakeup! Time to die.
+		select {
+		case l.backlogCheck <- netip.Addr{}:
+		default:
+		}
+		<-l.sendBacklogDone
+	}
+
 	l.neighbors.stop()
 }
 
@@ -314,15 +320,56 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
+func (l *internalLink) sendBacklog(dstAddr netip.Addr) {
+	l.neighbors.Lock()
+	backlog := l.neighbors.getBacklog(dstAddr)
+	l.neighbors.Unlock()
+
+	if backlog == nil {
+		return
+	}
+	givenup := false
+	for {
+		select {
+		case p := <-backlog:
+			if givenup {
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+				l.pool.Put(p)
+				continue
+			}
+			// The neighbor cache doesn't know the dest port, but the full address is in the packet.
+			dst := (*netip.AddrPort)(p.RemoteAddr)
+			if !l.finishPacket(p, dst) {
+				// Note that this packet goes back onto the backlog so we will drop it at the end of
+				// the loop. TODO(jiceatscion): need new drop reason.
+				givenup = true
+				continue
+			}
+			select {
+			case l.egressQ <- p:
+			default:
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+				l.pool.Put(p)
+			}
+		default:
+			// Backlog drained (for now).
+			return
+		}
+	}
+}
+
 func (l *internalLink) Send(p *router.Packet) {
+
 	// TODO(jiceatscion): The packet's destination is in the packet's meta-data; it was put there by
 	// Resolve() We need to craft a header in front of the packet.  May be resolve could do that,
 	// instead of just storing the destination in the packet structure. That would save us the
 	// allocation of address but requires some more changes to the dataplane code structure.
-	if !l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
-		sc := router.ClassOfSize(len(p.RawPacket))
-		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
-		l.pool.Put(p)
+
+	dst := (*netip.AddrPort)(p.RemoteAddr)
+	if !l.finishPacket(p, dst) {
+		// The packet got put on the backlog (or discarded if the backlog is full).
 		return
 	}
 	select {
@@ -335,28 +382,29 @@ func (l *internalLink) Send(p *router.Packet) {
 }
 
 // Only tests actually use this method, but since we have to have it, we might as well implement it
-// ~correctly. Doesn't hurt.
+// ~correctly. Doesn't hurt. TODO(jiceatscion): deal with backlog (or not).
 func (l *internalLink) SendBlocking(p *router.Packet) {
 	// Likewise: p.remoteAddress -> header.
-	if !l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
-		sc := router.ClassOfSize(len(p.RawPacket))
-		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
-		l.pool.Put(p)
-		return
+	if l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
+		l.egressQ <- p
 	}
-	l.egressQ <- p
+	// else, backlog'd or discarded => non-blocking after all. Sorry.
 }
 
 // receive delivers an incoming packet to the appropriate processing queue.
 // Because this link is not associated with a specific remote address, the src
 // address of the packet is recorded in the packet structure. This may be used
 // as the destination if SCMP responds.
-func (l *internalLink) receive(srcAddr *netip.AddrPort, dstIP netip.Addr, p *router.Packet) {
+func (l *internalLink) receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort, p *router.Packet) {
 	// If an interface is in promiscuous mode, we can receive packets not meant for us. the
-	// undelying udp connection doesn't care. The port, on the other hand is already filtered.
-	if dstIP != l.localAddr.Addr() {
+	// undelying udp connection doesn't care. Even if the IP is a match the port might not be. The
+	// port filter is per-afp socket and we can share these sockets between links too.
+	if *dstAddr != *l.localAddr {
+		log.Debug("Not for me", "addr", dstAddr, "vs local", l.localAddr)
+		l.pool.Put(p)
 		return
 	}
+
 	metrics := l.metrics
 	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
@@ -410,6 +458,7 @@ func (l *internalLink) handleNeighbor(
 	// remoteHwP always points at an in-cache MAC address, which reduces GC pressure.
 	// We respond only to peers that we keep in the cache.
 	var remoteHwP *[6]byte
+	changed := false
 
 	l.neighbors.Lock()
 	found := l.neighbors.check(senderIP) // pending => found.
@@ -419,12 +468,19 @@ func (l *internalLink) handleNeighbor(
 		!senderIP.IsUnspecified()) || found {
 
 		// Good to cache or update
-		remoteHwP, _ = l.neighbors.put(senderIP, remoteHw)
+		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
 	} else {
 		// Not cacheable => No response needed either.
 		isReq = false
 	}
 	l.neighbors.Unlock()
+
+	if changed {
+		select {
+		case l.backlogCheck <- senderIP:
+		default:
+		}
+	}
 
 	// Respond?
 	// TODO(jiceatscion): since we find the interfaces by address, we assume the addresses are
@@ -454,12 +510,19 @@ func newInternalLink(
 	metrics *router.InterfaceMetrics,
 ) *internalLink {
 	il := &internalLink{
-		localMAC:         conn.localMAC,
-		localAddr:        localAddr,
-		egressQ:          conn.queue,
-		metrics:          metrics,
-		neighbors:        newNeighborCache(),
+		localMAC:  conn.localMAC,
+		localAddr: localAddr,
+		egressQ:   conn.queue,
+		metrics:   metrics,
+		neighbors: newNeighborCache(
+			"internal",
+			conn.localMAC,
+			localAddr.Addr(),
+			conn.queue,
+		),
 		svc:              svc,
+		backlogCheck:     make(chan netip.Addr, 1),
+		sendBacklogDone:  make(chan struct{}),
 		seed:             conn.seed,
 		dispatchStart:    dispatchStart,
 		dispatchEnd:      dispatchEnd,
@@ -471,4 +534,8 @@ func newInternalLink(
 
 	log.Debug("***** Link", "scope", "internal", "local", localAddr, "localMAC", conn.localMAC)
 	return il
+}
+
+func (l *internalLink) String() string {
+	return fmt.Sprintf("Internal: local: %s", l.localAddr)
 }
