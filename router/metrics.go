@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -172,7 +173,7 @@ func NewMetrics() *Metrics {
 // the type is inTransit; else it is outTransit. brTransit means that traffic is crossing only the
 // observed router. Non-scion traffic or somehow malformed traffic has type Other.
 // Do not change this type's length without checking the effect it has on router.packet
-type trafficType uint16
+type trafficType uint8
 
 const (
 	ttOther trafficType = iota
@@ -218,7 +219,7 @@ const _ = uint(1<<(maxSizeClass-1) - 1 - bufSize)
 // All smaller classes are conflated with this one.
 const minSizeClass sizeClass = 6
 
-func classOfSize(pktSize int) sizeClass {
+func ClassOfSize(pktSize int) sizeClass {
 	cs := sizeClass(bits.Len32(uint32(pktSize)))
 	if cs > maxSizeClass-1 {
 		return maxSizeClass - 1
@@ -255,7 +256,7 @@ func (sc sizeClass) String() string {
 //	dataplane.forwardingMetrics[interface][size-class].
 //
 // trafficMetrics.Output is an array of outputMetrics indexed by traffic type.
-type interfaceMetrics map[sizeClass]trafficMetrics
+type InterfaceMetrics [maxSizeClass]trafficMetrics
 
 // trafficMetrics groups all the metrics instances that all share the same interface AND
 // sizeClass label values (but have different names - i.e. they count different things).
@@ -282,15 +283,16 @@ func newInterfaceMetrics(
 	metrics *Metrics,
 	id uint16,
 	localIA addr.IA,
-	neighbors map[uint16]addr.IA) interfaceMetrics {
+	sibling string,
+	neighbor addr.IA) *InterfaceMetrics {
 
-	ifLabels := interfaceLabels(id, localIA, neighbors)
-	m := interfaceMetrics{}
+	ifLabels := interfaceLabels(id, localIA, sibling, neighbor)
+	m := InterfaceMetrics{}
 	for sc := minSizeClass; sc < maxSizeClass; sc++ {
 		scLabels := prometheus.Labels{"sizeclass": sc.String()}
 		m[sc] = newTrafficMetrics(metrics, ifLabels, scLabels)
 	}
-	return m
+	return &m
 }
 
 func newTrafficMetrics(
@@ -355,18 +357,35 @@ func newOutputMetrics(
 	return om
 }
 
-func interfaceLabels(id uint16, localIA addr.IA, neighbors map[uint16]addr.IA) prometheus.Labels {
+func interfaceLabels(
+	id uint16, localIA addr.IA, sibling string, neighbor addr.IA) prometheus.Labels {
+
+	if sibling != "" {
+		// For siblings, we label with the address of the sibling router. The ifID isn't relevant
+		// (it's just a unique key in the metrics table but the link is shared with other ifIDs).
+		// and we don't know the far AS (the neighbor's is the same as local; that's not useful
+		// so we don't make a label with it).
+		return prometheus.Labels{
+			"isd_as":          localIA.String(),
+			"interface":       "sibling->" + sibling,
+			"neighbor_isd_as": "unknown",
+		}
+	}
+
 	if id == 0 {
+		// Internal interface
 		return prometheus.Labels{
 			"isd_as":          localIA.String(),
 			"interface":       "internal",
 			"neighbor_isd_as": localIA.String(),
 		}
 	}
+
+	// External interface
 	return prometheus.Labels{
 		"isd_as":          localIA.String(),
 		"interface":       strconv.FormatUint(uint64(id), 10),
-		"neighbor_isd_as": neighbors[id].String(),
+		"neighbor_isd_as": neighbor.String(),
 	}
 }
 
@@ -374,5 +393,31 @@ func serviceLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
 	return prometheus.Labels{
 		"isd_as":  localIA.String(),
 		"service": svc.BaseString(),
+	}
+}
+
+// UpdateOutputMetrics updates the given InterfaceMetrics in bulk according
+// to the given set of just sent packets. This is much faster than looking up
+// the right set of metrics by size class and traffic type for each packet.
+func UpdateOutputMetrics(metrics *InterfaceMetrics, packets []*Packet) {
+	// We need to collect stats by traffic type and size class.
+	// Try to reduce the metrics lookup penalty by using some
+	// simpler staging data structure.
+	writtenPkts := [ttMax][maxSizeClass]int{}
+	writtenBytes := [ttMax][maxSizeClass]int{}
+	for _, p := range packets {
+		s := len(p.RawPacket)
+		sc := ClassOfSize(s)
+		tt := p.trafficType
+		writtenPkts[tt][sc]++
+		writtenBytes[tt][sc] += s
+	}
+	for t := ttOther; t < ttMax; t++ {
+		for sc := minSizeClass; sc < maxSizeClass; sc++ {
+			if writtenPkts[t][sc] > 0 {
+				metrics[sc].Output[t].OutputPacketsTotal.Add(float64(writtenPkts[t][sc]))
+				metrics[sc].Output[t].OutputBytesTotal.Add(float64(writtenBytes[t][sc]))
+			}
+		}
 	}
 }

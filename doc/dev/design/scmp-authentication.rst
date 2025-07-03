@@ -5,11 +5,10 @@ SCMP Authentication
 - Author(s): Matthias Frei
 - Last updated: 2024-05-23
 - Discussion at: :issue:`3969`
-- Status:
+- Status: **Postponed**
 
-  - On hold. No clear consensus that this is the right approach. See "Discussion" section.
-  - Experimental support in router, added in :issue:`4255`.
-
+Reason for postponement: no clear consensus that this is the right approach. See "Discussion" section.
+Experimental support in router, added in :issue:`4255`.
 
 Abstract
 ========

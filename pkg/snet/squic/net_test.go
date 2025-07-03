@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	mock_cp "github.com/scionproto/scion/pkg/proto/control_plane/mock_control_plane"
@@ -43,7 +44,6 @@ func TestAcceptLoopParallelism(t *testing.T) {
 	}
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	handler := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 	handler.EXPECT().TRC( // nolint - name from published protobuf
@@ -77,8 +77,9 @@ func TestAcceptLoopParallelism(t *testing.T) {
 				defer cancel()
 
 				dialer := connDialer(t)
+				//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 				conn, err := grpc.DialContext(ctx, "server",
-					grpc.WithInsecure(),
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
 					grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 						return dialer.Dial(ctx, srvConn.LocalAddr())
 					}),
@@ -111,7 +112,6 @@ func TestAcceptLoopParallelism(t *testing.T) {
 
 func TestGRPCQUIC(t *testing.T) {
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	handler := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 	handler.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(
@@ -130,8 +130,9 @@ func TestGRPCQUIC(t *testing.T) {
 	}()
 
 	dialer := connDialer(t)
+	//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 	conn, err := grpc.DialContext(context.Background(), "server",
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 			return dialer.Dial(ctx, srvConn.LocalAddr())
 		}),

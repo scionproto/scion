@@ -97,6 +97,7 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 	if t.Metrics != nil {
 		s.Originated = metrics.NewPromCounter(t.Metrics.BeaconingOriginatedTotal)
 	}
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(s, 500*time.Millisecond, t.OriginationInterval)
 }
 
@@ -118,6 +119,7 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		p.Propagated = metrics.NewPromCounter(t.Metrics.BeaconingPropagatedTotal)
 		p.InternalErrors = metrics.NewPromCounter(t.Metrics.BeaconingPropagatorInternalErrorsTotal)
 	}
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(p, 500*time.Millisecond, t.PropagationInterval)
 }
 
@@ -199,6 +201,7 @@ func (t *TasksConfig) segmentWriter(segType seg.Type,
 	// as we can until we succeed. After succeeding, the task does nothing
 	// until the end of the interval. The interval itself is used as a
 	// timeout. If we fail slow we give up at the end of the cycle.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }
 
@@ -236,6 +239,7 @@ func (t *TasksConfig) DRKeyCleaners() []*periodic.Runner {
 	cleaners := t.DRKeyEngine.CreateStorageCleaners()
 	cleanerTasks := make([]*periodic.Runner, len(cleaners))
 	for i, cleaner := range cleaners {
+		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 		cleanerTasks[i] = periodic.Start(cleaner, cleanerPeriod, cleanerPeriod)
 	}
 	return cleanerTasks
@@ -246,6 +250,7 @@ func (t *TasksConfig) DRKeyPrefetcher() *periodic.Runner {
 		return nil
 	}
 	prefetchPeriod := t.DRKeyEpochInterval / 2
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(
 		&drkey.Prefetcher{
 			LocalIA:     t.IA,
@@ -276,6 +281,7 @@ func StartTasks(cfg TasksConfig) (*Tasks, error) {
 		Originator: cfg.Originator(),
 		Propagator: cfg.Propagator(),
 		Registrars: cfg.SegmentWriters(),
+		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 		PathCleaner: periodic.Start(
 			periodic.Func{
 				Task: func(ctx context.Context) {

@@ -22,17 +22,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	seg "github.com/scionproto/scion/pkg/segment"
-)
-
-const (
-	// ErrReadingRows is the error message in case we fail to read more from
-	// the database.
-	ErrReadingRows common.ErrMsg = "Failed to read rows"
-	// ErrParse is the error message in case the parsing a db entry fails.
-	ErrParse common.ErrMsg = "Failed to parse entry"
 )
 
 // InsertStats provides statistics about an insertion.
@@ -53,7 +44,7 @@ type DB interface {
 	) ([]Beacon, error)
 	// BeaconSources returns all source ISD-AS of the beacons in the database.
 	BeaconSources(ctx context.Context) ([]addr.IA, error)
-	// Insert inserts a beacon with its allowed usage into the database.
+	// InsertBeacon inserts a beacon with its allowed usage into the database.
 	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (InsertStats, error)
 }
 
@@ -87,7 +78,7 @@ func UsageFromPolicyType(policyType PolicyType) Usage {
 	}
 }
 
-// None indicates whether the beacons is not allowed to be used anywhere.
+// None indicates whether the beacons are not allowed to be used anywhere.
 func (u Usage) None() bool {
 	return u&0x0F == 0
 }

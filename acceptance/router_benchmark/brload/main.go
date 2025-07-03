@@ -1,4 +1,4 @@
-// Copyright 2023 SCION Association
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+//go:build linux
 
 package main
 
@@ -25,9 +27,9 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/afpacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/afpacket"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/acceptance/router_benchmark/cases"
@@ -49,7 +51,7 @@ func (c *caseChoice) String() string {
 func (c *caseChoice) Set(v string) error {
 	_, ok := allCases[v]
 	if !ok {
-		return errors.New("No such case")
+		return errors.New("no such case")
 	}
 	*c = caseChoice(v)
 	return nil
@@ -215,12 +217,12 @@ func run(cmd *cobra.Command) int {
 	numPkt := 0
 	for time.Since(begin) < testDuration {
 		// we break every 1000 batches to check the time
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			// Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
 			// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
 			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
 			// more than 64K flows).
-			for j := 0; j < batchSize; j++ {
+			for j := range batchSize {
 				binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
 				numPkt++
 			}

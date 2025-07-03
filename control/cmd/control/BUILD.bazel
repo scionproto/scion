@@ -1,4 +1,4 @@
-load("//tools/lint:go.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
 
 go_library(
@@ -72,7 +72,7 @@ go_library(
         "@com_github_go_chi_cors//:go_default_library",
         "@com_github_grpc_ecosystem_go_grpc_prometheus//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
-        "@in_gopkg_yaml_v2//:go_default_library",
+        "@in_gopkg_yaml_v3//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//health:go_default_library",
         "@org_golang_google_grpc//health/grpc_health_v1:go_default_library",

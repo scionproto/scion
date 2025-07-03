@@ -11,7 +11,7 @@ Synopsis
 ~~~~~~~~
 
 
-outputs the certificate chain or a certificat signing
+outputs the certificate chain or a certificate signing
 request (CSR) in human readable format.
 
 ::

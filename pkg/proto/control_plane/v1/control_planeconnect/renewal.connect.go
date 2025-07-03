@@ -38,12 +38,6 @@ const (
 	ChainRenewalServiceChainRenewalProcedure = "/proto.control_plane.v1.ChainRenewalService/ChainRenewal"
 )
 
-// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
-var (
-	chainRenewalServiceServiceDescriptor            = control_plane.File_proto_control_plane_v1_renewal_proto.Services().ByName("ChainRenewalService")
-	chainRenewalServiceChainRenewalMethodDescriptor = chainRenewalServiceServiceDescriptor.Methods().ByName("ChainRenewal")
-)
-
 // ChainRenewalServiceClient is a client for the proto.control_plane.v1.ChainRenewalService service.
 type ChainRenewalServiceClient interface {
 	ChainRenewal(context.Context, *connect.Request[control_plane.ChainRenewalRequest]) (*connect.Response[control_plane.ChainRenewalResponse], error)
@@ -58,11 +52,12 @@ type ChainRenewalServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewChainRenewalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ChainRenewalServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	chainRenewalServiceMethods := control_plane.File_proto_control_plane_v1_renewal_proto.Services().ByName("ChainRenewalService").Methods()
 	return &chainRenewalServiceClient{
 		chainRenewal: connect.NewClient[control_plane.ChainRenewalRequest, control_plane.ChainRenewalResponse](
 			httpClient,
 			baseURL+ChainRenewalServiceChainRenewalProcedure,
-			connect.WithSchema(chainRenewalServiceChainRenewalMethodDescriptor),
+			connect.WithSchema(chainRenewalServiceMethods.ByName("ChainRenewal")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -90,10 +85,11 @@ type ChainRenewalServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewChainRenewalServiceHandler(svc ChainRenewalServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	chainRenewalServiceMethods := control_plane.File_proto_control_plane_v1_renewal_proto.Services().ByName("ChainRenewalService").Methods()
 	chainRenewalServiceChainRenewalHandler := connect.NewUnaryHandler(
 		ChainRenewalServiceChainRenewalProcedure,
 		svc.ChainRenewal,
-		connect.WithSchema(chainRenewalServiceChainRenewalMethodDescriptor),
+		connect.WithSchema(chainRenewalServiceMethods.ByName("ChainRenewal")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.control_plane.v1.ChainRenewalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

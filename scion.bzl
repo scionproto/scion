@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary")
 
 # Same as go_binary, but links the current version number into it.
 def scion_go_binary(name, visibility, *args, **kwargs):
@@ -11,6 +11,8 @@ def scion_go_binary(name, visibility, *args, **kwargs):
         x_defs = x_defs,
         name = name,
         visibility = visibility,
+        # disable automatically setting the build id since Go 1.24
+        gc_linkopts = ["-B", "none"],
         *args,
         **kwargs
     )

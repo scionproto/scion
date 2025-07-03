@@ -100,11 +100,13 @@ var globalCfg config.Config
 
 func main() {
 	application := launcher.Application{
-		TOMLConfig: &globalCfg,
-		ShortName:  "SCION Control Service",
-		// TODO(scrye): Deprecated additional sampler, remove once Anapaya/scion#5000 is in.
-		Samplers: []func(command.Pather) *cobra.Command{newSamplePolicy},
-		Main:     realMain,
+		ApplicationBase: launcher.ApplicationBase{
+			TOMLConfig: &globalCfg,
+			ShortName:  "SCION Control Service",
+			// TODO(scrye): Deprecated additional sampler, remove once Anapaya/scion#5000 is in.
+			Samplers: []func(command.Pather) *cobra.Command{newSamplePolicy},
+			Main:     realMain,
+		},
 	}
 	application.Run()
 }
@@ -220,9 +222,9 @@ func realMain(ctx context.Context) error {
 		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
 		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
 		MTU:                    topo.MTU(),
-		Topology:               cpInfoProvider{topo: topo},
+		Topology:               adaptTopology(topo),
 	}
-	quicStack, err := nc.QUICStack()
+	quicStack, err := nc.QUICStack(ctx)
 	if err != nil {
 		return serrors.Wrap("initializing QUIC stack", err)
 	}
@@ -391,10 +393,11 @@ func realMain(ctx context.Context) error {
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
 		})
-
 	}
 
-	signer := cs.NewSigner(topo.IA(), trustDB, globalCfg.General.ConfigDir)
+	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	signer := cs.NewSigner(ctxSigner, topo.IA(), trustDB, globalCfg.General.ConfigDir)
 
 	var chainBuilder renewal.ChainBuilder
 	var caClient *caapi.Client
@@ -485,6 +488,8 @@ func realMain(ctx context.Context) error {
 				},
 			}
 			// Periodically check the connection to the CA backend
+			// SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
+			//nolint:staticcheck
 			caHealthChecker := periodic.Start(
 				periodic.Func{
 					TaskName: "ca healthcheck",
@@ -516,6 +521,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	// Frequently regenerate signers to catch problems, and update the metrics.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	periodic.Start(
 		periodic.Func{
 			TaskName: "signer generator",
@@ -534,6 +540,7 @@ func realMain(ctx context.Context) error {
 		5*time.Second,
 	)
 
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	trcRunner := periodic.Start(
 		periodic.Func{
 			TaskName: "trc expiration updater",
@@ -835,7 +842,6 @@ func createBeaconStore(
 	policyConfig config.Policies,
 	provider beacon.ChainProvider,
 ) (cs.Store, bool, error) {
-
 	if core {
 		policies, err := cs.LoadCorePolicies(policyConfig)
 		if err != nil {
@@ -943,42 +949,34 @@ func (h *healther) GetCAHealth(ctx context.Context) (api.CAHealthStatus, bool) {
 	return api.Unavailable, false
 }
 
-type cpInfoProvider struct {
-	topo *topology.Loader
-}
-
-func (c cpInfoProvider) LocalIA(_ context.Context) (addr.IA, error) {
-	return c.topo.IA(), nil
-}
-
-func (c cpInfoProvider) PortRange(_ context.Context) (uint16, uint16, error) {
-	start, end := c.topo.PortRange()
-	return start, end, nil
-}
-
-func (c cpInfoProvider) Interfaces(_ context.Context) (map[uint16]netip.AddrPort, error) {
-	ifMap := c.topo.InterfaceInfoMap()
-	ifsToUDP := make(map[uint16]netip.AddrPort, len(ifMap))
-	for i, v := range ifMap {
-		if i > (1<<16)-1 {
-			return nil, serrors.New("invalid interface id", "id", i)
-		}
-		ifsToUDP[uint16(i)] = v.InternalAddr
+func adaptTopology(topo *topology.Loader) snet.Topology {
+	start, end := topo.PortRange()
+	return snet.Topology{
+		LocalIA: topo.IA(),
+		PortRange: snet.TopologyPortRange{
+			Start: start,
+			End:   end,
+		},
+		Interface: func(ifID uint16) (netip.AddrPort, bool) {
+			a := topo.UnderlayNextHop(ifID)
+			if a == nil {
+				return netip.AddrPort{}, false
+			}
+			return a.AddrPort(), true
+		},
 	}
-	return ifsToUDP, nil
 }
 
 func getCAHealth(
 	ctx context.Context,
 	caClient *caapi.Client,
 ) (api.CAHealthStatus, error) {
-
 	logger := log.FromCtx(ctx)
 	rep, err := caClient.GetHealthcheck(ctx)
 	if err != nil {
 		logger.Info("Request to CA service failed", "err", err)
 		return api.Unavailable, serrors.New(
-			"querrying CA service health status",
+			"querying CA service health status",
 			"err", err,
 		)
 	}

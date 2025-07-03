@@ -1,0 +1,88 @@
+# This docker compose file defines the setup described in
+# https://docs.scion.org/en/latest/tutorials/deploy.html
+name: "SCION Tutorial"
+
+services:
+  scion01:
+    image: scion01:1.0
+    container_name: scion01
+    hostname: scion01
+    networks:
+      as_net_01: {}
+      transit_net:
+        ipv4_address: 10.100.0.11
+    tmpfs:
+      - /run
+      - /run/lock
+  scion02:
+    image: scion02:1.0
+    container_name: scion02
+    hostname: scion02
+    networks:
+      as_net_02: {}
+      transit_net:
+        ipv4_address: 10.100.0.12
+    tmpfs:
+      - /run
+      - /run/lock
+  scion03:
+    image: scion03:1.0
+    container_name: scion03
+    hostname: scion03
+    networks:
+      as_net_03: {}
+      transit_net:
+        ipv4_address: 10.100.0.13
+    tmpfs:
+      - /run
+      - /run/lock
+  scion04:
+    image: scion04:1.0
+    container_name: scion04
+    hostname: scion04
+    networks:
+      as_net_04: {}
+      transit_net:
+        ipv4_address: 10.100.0.14
+    tmpfs:
+      - /run
+      - /run/lock
+  scion05:
+    image: scion05:1.0
+    container_name: scion05
+    hostname: scion05
+    networks:
+      as_net_05: {}
+      transit_net:
+        ipv4_address: 10.100.0.15
+    tmpfs:
+      - /run
+      - /run/lock
+
+networks:
+  as_net_01:
+    ipam:
+      config:
+        - subnet: 10.10.1.0/24
+  as_net_02:
+    ipam:
+      config:
+        - subnet: 10.10.2.0/24
+  as_net_03:
+    ipam:
+      config:
+        - subnet: 10.10.3.0/24
+  as_net_04:
+    ipam:
+      config:
+        - subnet: 10.10.4.0/24
+  as_net_05:
+    ipam:
+      config:
+        - subnet: 10.10.5.0/24
+  # transit_net simulates a Tier 1 network the ASes are all running within.
+  transit_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.0.0/24

@@ -275,7 +275,6 @@ func TestDelegatingHandler(t *testing.T) {
 		},
 	}
 	for name, be := range backendErrors {
-		name, be := name, be
 		testCases["backend "+name] = TestCase{
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
 				return dummyReq
@@ -295,15 +294,12 @@ func TestDelegatingHandler(t *testing.T) {
 			ErrAssertion:  assert.Error,
 			ExpectedError: be.ExpectedError,
 		}
-
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			ctr := metrics.NewTestCounter()
 			h := renewalgrpc.DelegatingHandler{

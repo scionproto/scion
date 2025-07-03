@@ -2,7 +2,7 @@
 
 - Author: Marc Wyss, Markus Legner
 - Last updated: 2020-10-14
-- Status: **implemented**
+- Status: **Completed**
 - Discussion at: [#3884](https://github.com/scionproto/scion/issues/3884)
 - Implemented in: [#3951](https://github.com/scionproto/scion/issues/3951),
                   [#3954](https://github.com/scionproto/scion/issues/3954),

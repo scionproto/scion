@@ -45,7 +45,7 @@ type TopologyInformation interface {
 // Topology implements a service discovery server based on the topology
 // information.
 type Topology struct {
-	// Information is the toplogy information.
+	// Information is the topology information.
 	Information TopologyInformation
 
 	// Requests aggregates all the incoming requests received by the handler.

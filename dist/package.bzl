@@ -1,6 +1,8 @@
-load("@rules_pkg//pkg:pkg.bzl", "pkg_deb", "pkg_tar")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
+load("@rules_pkg//pkg:pkg.bzl", "pkg_deb", "pkg_tar")
 load("@rules_pkg//pkg:providers.bzl", "PackageVariablesInfo")
+load("@rules_pkg//pkg:rpm.bzl", "pkg_rpm")
 
 SCION_PKG_HOMEPAGE = "https://github.com/scionproto/scion"
 SCION_PKG_MAINTAINER = "SCION Contributors"
@@ -29,6 +31,126 @@ name_elems = rule(
         ),
     },
 )
+
+def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], **kwargs):
+    """
+    The package content, the _data_ arg for the pkg_rpm rule, is assembled from:
+
+    - executables: Map Label (the executable) -> string, the basename of the executable in the package
+      Executables are installed to /usr/bin/
+    - systemds: List[string], the systemd unit files to be installed in /lib/systemd/system/
+    - configs:  List[string], the configuration files to be installed in /etc/scion/
+
+    The values for the following pkg_rpm args are set to a default value:
+    - url
+    - license
+    - architecture, set based on the platform.
+
+    The caller needs to set:
+    - package: the name of the package (e.g. scion-router)
+    - description: one-liner
+    - version/version_file: One can use the label ":git_version"
+    and any of the optional control directives.
+
+    The version string gets edited to meet rpm requirements: dashes are replaced with ^.
+    """
+
+    kwargs.setdefault("url", SCION_PKG_HOMEPAGE)
+    kwargs.setdefault("license", SCION_PKG_LICENSE)
+
+    if "architecture" not in kwargs:
+        kwargs["architecture"] = select({
+            "@platforms//cpu:x86_64": "x86_64",
+            "@platforms//cpu:x86_32": "i386",
+            "@platforms//cpu:aarch64": "arm64",
+            "@platforms//cpu:armv7": "armel",
+            "@platforms//cpu:s390x": "s390x",
+            # Note: some rules_go toolchains don't (currently) seem to map (cleanly) to @platforms//cpu.
+            # "@platforms//cpu:ppc": "ppc64",
+            # "@platforms//cpu:ppc64le": "ppc64le",
+        })
+
+    name_elems(
+        name = "package_file_naming_" + name,
+        file_name_version = "@@//:file_name_version",
+        architecture = kwargs["architecture"],
+        package = package,
+    )
+
+    # Note that our "executables" parameter is a dictionary label->file_name; exactly what pkg_files
+    # wants for its "renames" param.
+    pkg_files(name = "%s_configs" % name, prefix = "/etc/scion/", srcs = configs)
+    pkg_files(name = "%s_systemds" % name, prefix = "/lib/systemd/system/", srcs = systemds)
+    pkg_files(
+        name = "%s_execs" % name,
+        prefix = "/usr/bin/",
+        srcs = executables.keys(),
+        attributes = pkg_attributes(mode = "0755"),
+        renames = executables,
+    )
+
+    if kwargs.get("version_file"):
+        native.genrule(
+            name = "%s_version" % name,
+            srcs = [kwargs["version_file"]],
+            outs = ["%s_version_file" % name],
+            cmd = "sed 's/-/^/g' < $< > $@",
+        )
+        kwargs.pop("version_file")
+    elif kwargs.get("version"):
+        native.genrule(
+            name = "%s_version" % name,
+            srcs = [],
+            outs = ["%s_version_file" % name],
+            cmd = "echo \"%s\" | sed 's/-/^/g' > $@" % kwargs["version"],
+        )
+        kwargs.pop("version")
+
+    # Use the same attributes as scion_pkg_deb, in view of may-be simplifying BUILD.bazel later.
+    deps = kwargs.get("depends")
+    if deps:
+        kwargs.pop("depends")
+    else:
+        deps = []
+
+    tarch = kwargs.get("architecture")
+    if tarch:
+        kwargs.pop("architecture")
+
+    post = kwargs.get("postinst")
+    if post:
+        kwargs.pop("postinst")
+
+    # defines are work-arounds for pkg_rpm issues:
+    # _smp_build_ncpus: used to be default.
+    # buildsubdir: starting with rpmbuild 4.20, builddir is forcefully replaced with:
+    #              <chosen_builddir>/<package_name> (which is created if it doesn't exist).
+    #              pkg_rpm assumes that one can place ready-to-package files directly into
+    #              <chosen_builddir>, we need <builddir>/<buildsubdir> to evealuate as
+    #              <chosen_buidldir>. Hence the "buildsubdir=..". It's a hack. Check if later
+    #              versions of pkg_rpm fix that.
+    # debug_package: Starting with rpmbuild 4.20, debug-info packages are built by default. We
+    #                currently don't want that and our binaries do not have the required symbols.
+    # buildsubdir and debug_package don't work with older rpmbuild, so they're added in the patch
+    # (dist/rpm/patch_make_rpm.patch)
+
+    pkg_rpm(
+        name = name,
+        summary = kwargs["description"],
+        srcs = ["%s_configs" % name, "%s_systemds" % name, "%s_execs" % name],
+        target_compatible_with = ["@platforms//os:linux"],
+        target_architecture = tarch,
+        package_file_name = "{package}_{file_name_version}_{architecture}.rpm",
+        package_variables = ":package_file_naming_" + name,
+        package_name = package,
+        release = "%autorelease",
+        version_file = ":%s_version" % name,
+        defines = {"_smp_build_ncpus": "1"},
+        requires = deps,
+        post_scriptlet_file = post,
+        source_date_epoch = 0,
+        **kwargs
+    )
 
 def scion_pkg_deb(name, executables = {}, systemds = [], configs = [], **kwargs):
     """

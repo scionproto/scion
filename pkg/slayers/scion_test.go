@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -191,7 +192,6 @@ func TestSCIONLayerString(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			sc.PathType = tc.pathType
 			sc.Path = tc.path
@@ -282,7 +282,6 @@ func TestSetAndGetAddr(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			s := slayers.SCION{}
@@ -333,7 +332,6 @@ func TestPackAddr(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, len(tc.rawAddr), tc.addrType.Length()) // sanity check
@@ -379,7 +377,6 @@ func TestParseAddr(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.addrType.Length(), len(tc.rawAddr)) // sanity check
@@ -390,8 +387,7 @@ func TestParseAddr(t *testing.T) {
 	}
 }
 
-func TestUnkownAddrType(t *testing.T) {
-
+func TestUnknownAddrType(t *testing.T) {
 	testCases := []struct {
 		addrType slayers.AddrType
 		rawAddr  []byte
@@ -450,36 +446,39 @@ func TestUnkownAddrType(t *testing.T) {
 			assert.Equal(t, tc.rawAddr, got.RawDstAddr)
 		})
 	}
-
 }
 
 func BenchmarkDecodePreallocNoParse(b *testing.B) {
 	raw := prepRawPacket(b)
 	s := &slayers.SCION{}
-	for i := 0; i < b.N; i++ {
-		err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback)
-		require.NoError(b, err)
+	for b.Loop() {
+		if err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
 func BenchmarkDecodeNoPreallocNoParse(b *testing.B) {
 	raw := prepRawPacket(b)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		s := &slayers.SCION{}
-		err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback)
-		require.NoError(b, err)
+		if err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
 func BenchmarkDecodePreallocFull(b *testing.B) {
 	raw := prepRawPacket(b)
 	s := &slayers.SCION{}
-	for i := 0; i < b.N; i++ {
-		err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback)
-		require.NoError(b, err)
+	for b.Loop() {
+		if err := s.DecodeFromBytes(raw, gopacket.NilDecodeFeedback); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 		p := s.Path.(*scion.Raw)
-		_, err = p.ToDecoded()
-		require.NoError(b, err)
+		if _, err := p.ToDecoded(); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
@@ -487,21 +486,24 @@ func BenchmarkSerializeReuseBuffer(b *testing.B) {
 	s := prepPacket(b, slayers.L4UDP)
 	buffer := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths: true}
-	for i := 0; i < b.N; i++ {
-		err := s.SerializeTo(buffer, opts)
-		require.NoError(b, err)
-		err = buffer.Clear()
-		require.NoError(b, err)
+	for b.Loop() {
+		if err := s.SerializeTo(buffer, opts); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
+		if err := buffer.Clear(); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
 func BenchmarkSerializeNoReuseBuffer(b *testing.B) {
 	s := prepPacket(b, slayers.L4UDP)
 	opts := gopacket.SerializeOptions{FixLengths: true}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		buffer := gopacket.NewSerializeBuffer()
-		err := s.SerializeTo(buffer, opts)
-		require.NoError(b, err)
+		if err := s.SerializeTo(buffer, opts); err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
 	}
 }
 
@@ -607,7 +609,6 @@ func TestSCIONComputeChecksum(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			s := tc.Header(t)
 

@@ -336,7 +336,7 @@ A valid example for a JSON formatted template::
 	}
 
 	cmd.Flags().BoolVar(&flags.csr, "csr", false,
-		"Generate a certificate signign request instead of a certificate",
+		"Generate a certificate signing request instead of a certificate",
 	)
 	cmd.Flags().StringVar(&flags.profile, "profile", "cp-as",
 		"The type of certificate to generate (cp-as|cp-ca|cp-root|sensitive-voting|regular-voting)",
@@ -374,7 +374,7 @@ offset from the current time.`,
 		"Bundle the certificate with the issuer certificate as a certificate chain",
 	)
 	cmd.Flags().BoolVar(&flags.force, "force", false,
-		"Force overwritting existing files",
+		"Force overwriting existing files",
 	)
 	scionpki.BindFlagKmsCA(cmd.Flags(), &flags.caKms)
 	scionpki.BindFlagKms(cmd.Flags(), &flags.kms)
@@ -550,12 +550,12 @@ func CreateCertificate(params CertParams) ([]byte, error) {
 	tmpl.NotBefore = params.NotBefore
 	tmpl.NotAfter = params.NotAfter
 	if ca := params.CACert; ca != nil {
-		caValididty := cppki.Validity{NotBefore: ca.NotBefore, NotAfter: ca.NotAfter}
-		tmplValididty := cppki.Validity{NotBefore: tmpl.NotBefore, NotAfter: tmpl.NotAfter}
-		if !caValididty.Covers(tmplValididty) {
+		caValidity := cppki.Validity{NotBefore: ca.NotBefore, NotAfter: ca.NotAfter}
+		tmplValidity := cppki.Validity{NotBefore: tmpl.NotBefore, NotAfter: tmpl.NotAfter}
+		if !caValidity.Covers(tmplValidity) {
 			return nil, serrors.New("certificate validity not covered by CA certificate",
-				"ca_validity", caValididty,
-				"certificate_validity", tmplValididty,
+				"ca_validity", caValidity,
+				"certificate_validity", tmplValidity,
 			)
 		}
 

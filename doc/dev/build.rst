@@ -23,13 +23,13 @@ Prerequisites
       git clone https://github.com/scionproto/scion
       cd scion
 
-#. Determine the go version used in the Bazel setup; the ``WORKSPACE`` file
-   specifies this version in the ``go_register_toolchains`` clause.
+#. Determine the go version used in the Bazel setup; the ``MODULE.bazel`` file
+   specifies this version in the ``go_sdk.download`` clause.
 
-   .. literalinclude:: /../WORKSPACE
-      :start-at: go_register_toolchains(
+   .. literalinclude:: /../MODULE.bazel
+      :start-at: go_sdk.download(
       :end-at: )
-      :emphasize-lines: 3
+      :emphasize-lines: 1
 
    Building with newer go versions *usually* works.
 

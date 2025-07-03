@@ -1,4 +1,5 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -21,7 +22,10 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["toposervice_test.go"],
-    data = glob(["testdata/**"]),
+    data = glob(
+        ["testdata/**"],
+        allow_empty = True,
+    ),
     deps = [
         ":go_default_library",
         "//pkg/private/xtest:go_default_library",

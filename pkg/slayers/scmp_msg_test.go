@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -52,7 +52,6 @@ func TestSCMPExternalInterfaceDownDecodeFromBytes(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := &slayers.SCMPExternalInterfaceDown{}
@@ -92,7 +91,6 @@ func TestSCMPExternalInterfaceDownSerializeTo(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			opts := gopacket.SerializeOptions{}
@@ -139,7 +137,6 @@ func TestSCMPInternalConnectivityDownDecodeFromBytes(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := &slayers.SCMPInternalConnectivityDown{}
@@ -182,7 +179,6 @@ func TestSCMPInternalConnectivityDownSerializeTo(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			opts := gopacket.SerializeOptions{}
@@ -223,7 +219,6 @@ func TestSCMPEchoDecodeFromBytes(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := &slayers.SCMPEcho{}
@@ -257,7 +252,6 @@ func TestSCMPEchoSerializeTo(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			opts := gopacket.SerializeOptions{}
@@ -297,7 +291,6 @@ func TestSCMPParameterProblemDecodeFromBytes(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := &slayers.SCMPParameterProblem{}
@@ -330,7 +323,6 @@ func TestSCMPParameterProblemSerializeTo(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			opts := gopacket.SerializeOptions{}
@@ -377,7 +369,6 @@ func TestSCMPTracerouteDecodeFromBytes(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := &slayers.SCMPTraceroute{}
@@ -417,7 +408,6 @@ func TestSCMPTracerouteSerializeTo(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			opts := gopacket.SerializeOptions{}
@@ -457,7 +447,6 @@ func TestSCMPDestinationUnreachableDecodeFromBytes(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := &slayers.SCMPDestinationUnreachable{}
@@ -488,7 +477,6 @@ func TestSCMPDestinationUnreachableSerializeTo(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			opts := gopacket.SerializeOptions{}
@@ -528,7 +516,6 @@ func TestSCMPPacketTooBigDecodeFromBytes(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := &slayers.SCMPPacketTooBig{}
@@ -561,7 +548,6 @@ func TestSCMPPacketTooBigSerializeTo(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			opts := gopacket.SerializeOptions{}

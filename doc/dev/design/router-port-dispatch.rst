@@ -4,6 +4,7 @@ End hosts without dispatcher
 - Author: Matthias Frei.
   Originally proposed by Sergiu Costea.
 - Last updated: 2024-03-26
+- Status: **Active**
 - Discussion at: https://github.com/scionproto/scion/issues/3961
 
 Abstract
@@ -159,9 +160,7 @@ For this, we add two mechanisms:
 
     .. code-block:: yaml
 
-       "underlay": {
-         "dispatched_ports": "<min>-<max>"
-       }
+       "dispatched_ports": "<min>-<max>"
 
   The ``min``, ``max`` values define the range of ports ``[min, max]`` (inclusive).
   The value ``"-"`` explicitly represents an empty range.
@@ -180,7 +179,7 @@ With these mechanisms, the update procedure for an individual AS is:
 
    The recommended initial port range for the transition is ``31000-32767``.
    This range is just below the range of ephemeral ports that is assigned by the old dispatcher (32768-65535), ensuring that UDP traffic from legacy end hosts will be unaffected by the port dispatching in the router.
-   On legacy hosts, SCMP echo and error requests currently use random IDs, and thus have a low chance (~2.5%) to pick an ID in the range that is port dispatched by the router. As a preparatory change, the range of IDs can reduced, so that there is no intersection.
+   On legacy hosts, SCMP echo and traceroute requests currently use random ports, and thus have a low chance (~2.5%) to pick a port in the range that is dispatched by the router. As a preparatory change, the range of ephemeral ports of the operating system can be reduced, so that there is no intersection.
 
 2. Update devices, **in any order**, without requiring synchronisation:
 

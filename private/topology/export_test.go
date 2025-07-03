@@ -15,10 +15,6 @@
 
 package topology
 
-var (
-	RawBRIntfLocalAddr = rawBRIntfLocalAddr
-)
-
 // SetFile allows to change the file for testing. This is helpful because we
 // don't need to modify the base file in the testdata but can write arbitrary
 // files and load from them.

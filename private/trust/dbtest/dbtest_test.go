@@ -24,15 +24,14 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
 
 func TestUpdateCrypto(t *testing.T) {
 	if !(*updateNonDeterministic) {
 		t.Skip("Only runs if -update-non-deterministic is specified")
 	}
 
-	dir, cleanF := xtest.MustTempDir("", "trustdbtest")
-	defer cleanF()
+	dir := t.TempDir()
 
 	testdata, err := filepath.Abs("./testdata")
 	require.NoError(t, err)
@@ -40,7 +39,7 @@ func TestUpdateCrypto(t *testing.T) {
 	require.NoError(t, err)
 	playground, err := filepath.Abs(filepath.Join(root, "tools", "cryptoplayground"))
 	require.NoError(t, err)
-	cmd := exec.Command("sh", "-c", filepath.Join("testdata", "update_certs.sh"))
+	cmd := exec.Command("bash", "-c", filepath.Join("testdata", "update_certs.sh"))
 	cmd.Env = []string{
 		"SCION_ROOT=" + root,
 		"PLAYGROUND=" + playground,

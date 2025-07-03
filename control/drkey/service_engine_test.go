@@ -1,4 +1,5 @@
 // Copyright 2022 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -89,7 +90,7 @@ func TestDeriveLevel1Key(t *testing.T) {
 		Validity: time.Now(),
 	}
 
-	key, err := store.DeriveLevel1(meta)
+	key, err := store.DeriveLevel1(context.Background(), meta)
 	assert.NoError(t, err)
 	assert.Equal(t, meta.DstIA, key.DstIA)
 	assert.Equal(t, meta.ProtoId, key.ProtoId)
@@ -104,7 +105,6 @@ func TestDeriveHostAS(t *testing.T) {
 	defer lvl1db.Close()
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	fetcher := mock_drkey.NewMockFetcher(mctrl)
 	fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -136,7 +136,7 @@ func TestDeriveHostAS(t *testing.T) {
 		PrefetchKeeper: cache,
 	}
 
-	var tests = []drkey.Protocol{
+	tests := []drkey.Protocol{
 		drkey.SCMP,
 		drkey.Protocol(7),
 	}
@@ -182,7 +182,6 @@ func TestGetLevel1Key(t *testing.T) {
 	copy(secondLevel1Key.Key[:], k)
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	fetcher := mock_drkey.NewMockFetcher(mctrl)
 	gomock.InOrder(
@@ -233,7 +232,7 @@ func TestGetLevel1Key(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, secondLevel1Key, rcvKey3)
-	//Simulate a call coming from the prefetcher, it must not update cache
+	// Simulate a call coming from the prefetcher, it must not update cache
 	pref_ctx := context.WithValue(context.Background(), cs_drkey.FromPrefetcher(), true)
 	rcvKey4, err := store.GetLevel1Key(pref_ctx, drkey.Level1Meta{
 		ProtoId:  firstLevel1Key.ProtoId,
@@ -260,7 +259,6 @@ func TestGetLevel1Key(t *testing.T) {
 	}
 	_, err = store.GetLevel1Key(context.Background(), locallvl1Meta)
 	assert.NoError(t, err)
-
 }
 
 func newLevel1Database(t *testing.T) *level1_sql.Backend {

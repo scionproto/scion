@@ -34,7 +34,6 @@ func TestRemoteMonitor(t *testing.T) {
 	ia2 := addr.MustParseIA("1-ff00:0:111")
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	// runningWatcher represents a watcher that is running.
 	type runningWatcher struct {

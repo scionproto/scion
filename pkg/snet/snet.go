@@ -38,10 +38,8 @@ package snet
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/netip"
-	"syscall"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -49,11 +47,22 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// Topology provides local-IA topology information
-type Topology interface {
-	LocalIA(ctx context.Context) (addr.IA, error)
-	PortRange(ctx context.Context) (uint16, uint16, error)
-	Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error)
+// Topology provides information about the topology of the local ISD-AS.
+type Topology struct {
+	// LocalIA is local ISD-AS.
+	LocalIA addr.IA
+	// PortRange is the directly dispatched port range. Start and End are
+	// inclusive.
+	PortRange TopologyPortRange
+	// Interface provides information about a local interface. If the interface
+	// is not present, the second return value must be false.
+	Interface func(uint16) (netip.AddrPort, bool)
+}
+
+// TopologyPortRange is the range of ports that are directly dispatched to the
+// application. The range is inclusive.
+type TopologyPortRange struct {
+	Start, End uint16
 }
 
 var _ Network = (*SCIONNetwork)(nil)
@@ -68,7 +77,8 @@ type SCIONNetworkMetrics struct {
 // SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
 	// Topology provides local AS information, needed to handle sockets and
-	// traffic.
+	// traffic. Note that the Interfaces method might be called once per packet,
+	// so an efficient implementation is strongly recommended.
 	Topology Topology
 	// ReplyPather is used to create reply paths when reading packets on Conn
 	// (that implements net.Conn). If unset, the default reply pather is used,
@@ -91,20 +101,13 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 	if addr == nil || addr.IP.IsUnspecified() {
 		return nil, serrors.New("nil or unspecified address is not supported")
 	}
-	start, end, err := n.Topology.PortRange(ctx)
-	if err != nil {
-		return nil, err
-	}
-	ifAddrs, err := n.Topology.Interfaces(ctx)
-	if err != nil {
-		return nil, err
-	}
+	start, end := n.Topology.PortRange.Start, n.Topology.PortRange.End
 	if addr.Port == 0 {
 		pconn, err = listenUDPRange(addr, start, end)
 	} else {
 		if addr.Port < int(start) || addr.Port > int(end) {
 			// XXX(JordiSubira): We allow listening UDP/SCION outside the endhost range,
-			// however, in this setup the shim dispacher is needed to receive packets, i.e.,
+			// however, in this setup the shim dispatcher is needed to receive packets, i.e.,
 			// BRs send packet to fix port 30041 (where the shim should be listening on) and
 			// the shim forwards it to underlay UDP/IP port (where we bind the UDP/SCION
 			// socket).
@@ -118,10 +121,10 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 		return nil, err
 	}
 	return &SCIONPacketConn{
-		Conn:         pconn,
-		SCMPHandler:  n.SCMPHandler,
-		Metrics:      n.PacketConnMetrics,
-		interfaceMap: ifAddrs,
+		Conn:        pconn,
+		SCMPHandler: n.SCMPHandler,
+		Metrics:     n.PacketConnMetrics,
+		Topology:    n.Topology,
 	}, nil
 }
 
@@ -175,7 +178,7 @@ func (n *SCIONNetwork) Listen(
 	if err != nil {
 		return nil, err
 	}
-	log.FromCtx(ctx).Debug("UDP socket openned on", "addr", packetConn.LocalAddr())
+	log.FromCtx(ctx).Debug("UDP socket opened on", "addr", packetConn.LocalAddr())
 	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather))
 }
 
@@ -190,7 +193,7 @@ func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) 
 	// by longer-lived applications, e.g., server applications.
 	//
 	// Ideally we would only take a standard ephemeral range, e.g., 32768-65535,
-	// Unfortunately, this range was ocuppied by the old dispatcher.
+	// Unfortunately, this range was occupied by the old dispatcher.
 	// The default range for the dispatched ports is 31000-32767.
 	// By configuration other port ranges may be defined and restricting to the default
 	// range for applications may cause problems.
@@ -208,12 +211,12 @@ func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) 
 		if err == nil {
 			return pconn, nil
 		}
-		if errors.Is(err, syscall.EADDRINUSE) {
+		if errorIsAddrUnavailable(err) {
 			continue
 		}
 		return nil, err
 	}
-	return nil, serrors.Wrap("binding to port range", syscall.EADDRINUSE,
+	return nil, serrors.Wrap("binding to port range", ErrAddrInUse,
 		"start", restrictedStart, "end", end)
 
 }

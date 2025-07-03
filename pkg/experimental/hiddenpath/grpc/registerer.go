@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
-	hppb "github.com/scionproto/scion/pkg/proto/hidden_segment"
 	hspb "github.com/scionproto/scion/pkg/proto/hidden_segment"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
@@ -68,7 +67,7 @@ func (s Registerer) RegisterSegment(ctx context.Context,
 	client := hspb.NewHiddenSegmentRegistrationServiceClient(conn)
 	body := &hspb.HiddenSegmentRegistrationRequestBody{
 		GroupId: reg.GroupID.ToUint64(),
-		Segments: map[int32]*hppb.Segments{
+		Segments: map[int32]*hspb.Segments{
 			int32(reg.Seg.Type): {Segments: []*control_plane.PathSegment{
 				seg.PathSegmentToPB(reg.Seg.Segment),
 			}},

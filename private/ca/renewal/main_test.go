@@ -43,7 +43,8 @@ func genCrypto(t *testing.T) string {
 		"-t", "testdata/golden.topo",
 		"-o", dir,
 	})
-	cmd.SetOutput(&buf)
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
 	err := cmd.Execute()
 	require.NoError(t, err)
 
@@ -109,7 +110,7 @@ func genCrypto(t *testing.T) string {
 	return dir
 }
 
-func writeKey(t *testing.T, file string, key interface{}) {
+func writeKey(t *testing.T, file string, key any) {
 	t.Helper()
 	raw, err := x509.MarshalPKCS8PrivateKey(key)
 	require.NoError(t, err)

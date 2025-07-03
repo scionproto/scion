@@ -4,6 +4,7 @@ Router benchmark observations and predictive model
 
 -  Author(s): Jean-Christophe Hugly
 -  Last updated: 2024-04-22
+-  Status: **Active**
 -  Discussion at: :issue:`4408`
 
 TL;DR
@@ -45,7 +46,7 @@ produced the following data points:
    -  Coremark (per core) 29861
    -  memmove benchmark 3928 MiB/s (31 Gib/s)
    -  line rate 1.4M pkts/s (veth)
-   -  Observed throuhgput: 639764 pkts/s
+   -  Observed throughput: 639764 pkts/s
 
 -  Our CI system running the CI benchmark:
 
@@ -53,7 +54,7 @@ produced the following data points:
    -  Coremark (per core) 28659
    -  memmove benchmark 8102 MiB/s (64 Gib/s)
    -  line rate unobserved (veth, assumed similar to laptop)
-   -  Observed throuhgput: 736357 pkts/s
+   -  Observed throughput: 736357 pkts/s
 
 Important: all benchmarks have been run with only 3 cores assigned to
 the router. The cores are chosen by the benchmarking program to be of
@@ -140,7 +141,7 @@ Observed:
 
 -  :math:`t(m) = 1s/1.4M` (iperf3 on non-loopback ethernet interface)
 -  :math:`bm(b) = 1s/639764` (benchmark run)
--  :math:`R = 17Gb/s` (same iperf3 run as t(m). Assuming po is neglictible)
+-  :math:`R = 17Gb/s` (same iperf3 run as t(m). Assuming po is negligible)
 -  :math:`C = 31Gb/s` (mmbm - Go memmove small packets)
 
 Therefore:
@@ -163,7 +164,7 @@ Assumption of less-than-line-rate
 ---------------------------------
 
 The case where the line rate is low enough to be the bottleneck isn’t
-very interresting. Because it is so clearly not the case with the
+very interesting. Because it is so clearly not the case with the
 hardware available to us, we will consider only the case where the wire
 is faster than the router.
 
@@ -177,7 +178,7 @@ Variables:
 
 -  let :math:`pbm(L)` = predicted benchmark processing time for length :math:`L`
 -  let :math:`pt(L)` = predicted total transmission time for length :math:`L`
--  let :math:`pp(L)` = predicted lenght-dependent processing time for :math:`L`
+-  let :math:`pp(L)` = predicted length-dependent processing time for :math:`L`
 -  let :math:`pro` = predicted router per-packet overhead
 -  let :math:`N` = The number of cores devote to packet processing
 -  let :math:`I` = The router’s code performance index; a measure of the code’s efficiency
@@ -189,7 +190,7 @@ proportional to:
 -  :math:`N`
 -  :math:`I`
 
-In all likelyness each packet is processed by one core, but we do not
+In all likeliness each packet is processed by one core, but we do not
 known that for sure. So, for now, we’re assuming that N packets are
 going to be processed by N cores as fast as 1 packet by one core (the
 difference, if any, would be an effect of the code’s quality and so
@@ -218,7 +219,7 @@ From our assumptions, (and single I simplification) we have:
 -  :math:`I = (1 / coremark + (8 \times L / C)) / pbm(L)`
 
 Since we ran the same router on both benchmarking platform, we should be
-able to infer the same I from the benchmark result and hadrware
+able to infer the same I from the benchmark result and hardware
 characteristics. (or, at least, close).
 
 If so, that’s our platform independent performance index. That is, given
@@ -237,8 +238,8 @@ and TLBs is extremely challenging. For example:
    exceeds the cache/TLB size. Nor are those benefits fully realized
    while the working set remains within the cache size. The precise
    behavior varies by CPU model.
--  Page table walks polute the cache for some CPU models, but others
-   have a hidden cache exclusiveley for page table entries.
+-  Page table walks pollute the cache for some CPU models, but others
+   have a hidden cache exclusively for page table entries.
 -  Copying many 1 byte packets within a 128 pages arena takes
    consistently more time than within an 8192 pages arena in at least
    one CPU model. The reason for this remains a mystery.
@@ -263,7 +264,7 @@ parameters M and N such that:
 
 :math:`I = (1 / coremark + M * (8 \times L / C) + N) / pbm(L)`
 
-M represents the proportion in wich memory performance and arithmetic
+M represents the proportion in which memory performance and arithmetic
 performance contribute to throughput. Such a ratio needs to exist for a
 translatable performance index.
 
@@ -341,7 +342,7 @@ Some of the lessons learned during the benchmarking effort:
 
 -  The router performance is probably dominated by TLB misses.
 -  The router keeps 9K buffers, which makes 3/4 of all buffers
-   missaligned. That extra 1k is paid with an extra TLB miss.
+   misaligned. That extra 1k is paid with an extra TLB miss.
 -  Small packets are dispersed over large buffers. Each small packet
    requires at least one page access.
 -  At steady state, all buffers are eventually occupied, therefore we

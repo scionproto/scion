@@ -17,7 +17,7 @@ package slayers
 import (
 	"fmt"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -347,9 +347,10 @@ func decodeEndToEndExtn(data []byte, p gopacket.PacketBuilder) error {
 }
 
 func checkEndToEndExtnNextHdr(t L4ProtocolType) error {
-	if t == HopByHopClass {
+	switch t {
+	case HopByHopClass:
 		return serrors.New("e2e extension must not come before the HBH extension")
-	} else if t == End2EndClass {
+	case End2EndClass:
 		return serrors.New("e2e extension must not be repeated")
 	}
 	return nil
@@ -403,7 +404,7 @@ func (s *HopByHopExtnSkipper) DecodeFromBytes(data []byte, df gopacket.DecodeFee
 	return nil
 }
 
-func (e *HopByHopExtnSkipper) LayerType() gopacket.LayerType {
+func (s *HopByHopExtnSkipper) LayerType() gopacket.LayerType {
 	return LayerTypeHopByHopExtn
 }
 
@@ -411,8 +412,8 @@ func (s *HopByHopExtnSkipper) CanDecode() gopacket.LayerClass {
 	return LayerClassHopByHopExtn
 }
 
-func (h *HopByHopExtnSkipper) NextLayerType() gopacket.LayerType {
-	return scionNextLayerTypeAfterHBH(h.NextHdr)
+func (s *HopByHopExtnSkipper) NextLayerType() gopacket.LayerType {
+	return scionNextLayerTypeAfterHBH(s.NextHdr)
 }
 
 // EndToEndExtnSkipper is a DecodingLayer which decodes an EndToEnd extension
@@ -436,7 +437,7 @@ func (s *EndToEndExtnSkipper) DecodeFromBytes(data []byte, df gopacket.DecodeFee
 	return nil
 }
 
-func (e *EndToEndExtnSkipper) LayerType() gopacket.LayerType {
+func (s *EndToEndExtnSkipper) LayerType() gopacket.LayerType {
 	return LayerTypeEndToEndExtn
 }
 
@@ -444,6 +445,6 @@ func (s *EndToEndExtnSkipper) CanDecode() gopacket.LayerClass {
 	return LayerClassEndToEndExtn
 }
 
-func (e *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {
-	return scionNextLayerTypeAfterE2E(e.NextHdr)
+func (s *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {
+	return scionNextLayerTypeAfterE2E(s.NextHdr)
 }

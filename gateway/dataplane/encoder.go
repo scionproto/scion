@@ -102,7 +102,7 @@ func (e *encoder) Read() []byte {
 	// Increase the sequence number.
 	e.seq++
 	// First, use the data remaining from the last packet, if any.
-	var pos int = hdrLen
+	pos := hdrLen
 	if len(e.pkt) > 0 {
 		pos += e.copyToFrame()
 		if len(e.pkt) > 0 {

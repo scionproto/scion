@@ -1,10 +1,11 @@
-.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files git-version
+.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
 
 build-dev:
 	rm -f bin/*
-	bazel build //:scion //:scion-ci
+	bazel build //:scion //:scion-ci //:scion-topo
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
+	tar -kxf bazel-bin/scion-topo.tar -C bin
 
 build:
 	rm -f bin/*
@@ -31,13 +32,19 @@ dist-openwrt-testing:
 	@ mkdir -p installables
 	@ cd installables ; ln -sfv ../bazel-out/*/bin/dist/*.ipk .
 
+dist-rpm:
+	bazel build //dist:rpm_all $(BFLAGS)
+	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
+	@ mkdir -p installables
+	@ cd installables ; ln -sfv ../bazel-out/*/bin/dist/*.rpm .
+
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the
 # sources for the code generation.
 # Use NOTPARALLEL to force correct order.
 # Note: From GNU make 4.4, this still allows building any other targets (e.g. lint) in parallel.
 .NOTPARALLEL: all
-all: go_deps.bzl protobuf mocks gazelle build-dev antlr write_all_source_files licenses
+all: protobuf mocks gazelle build-dev antlr write_all_source_files licenses
 
 clean:
 	bazel clean
@@ -56,22 +63,13 @@ test-integration:
 	bazel test --config=integration_all
 
 go.mod:
-	bazel run --config=quiet @go_sdk//:bin/go -- mod tidy
-
-go_deps.bzl: go.mod
-	bazel run --verbose_failures --config=quiet //:gazelle_update_repos
-	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
-	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
+	bazel run --config=quiet @rules_go//go -- mod tidy
 
 docker-images:
 	@echo "Build images"
 	bazel build //docker:prod //docker:test
 	@echo "Load images"
 	@bazel cquery '//docker:prod union //docker:test' --output=files 2>/dev/null | xargs -I{} docker load --input {}
-
-scion-topo:
-	bazel build //:scion-topo
-	tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
 
 protobuf:
 	rm -rf bazel-bin/pkg/proto/*/go_default_library_/github.com/scionproto/scion/pkg/proto/*
@@ -82,9 +80,12 @@ protobuf:
 	chmod 0644 pkg/proto/*/*.pb.go pkg/proto/*/*/*.pb.go
 
 mocks:
-	tools/gomocks.py
+	bazel run //tools:gomocks
 
-gazelle: go_deps.bzl
+mocksdiff:
+	bazel run //tools:gomocks -- diff
+
+gazelle: go.mod
 	bazel run //:gazelle --verbose_failures --config=quiet
 	./tools/buildrill/go_integration_test_sync
 
@@ -93,6 +94,8 @@ licenses:
 
 antlr:
 	antlr/generate.sh fix
+	bazel run @rules_go//go -- fmt antlr/sequence/*.go
+	bazel run @rules_go//go -- fmt antlr/traffic_class/*.go
 
 write_all_source_files:
 	bazel run //:write_all_source_files
@@ -120,8 +123,7 @@ GO_BUILD_TAGS_ARG=$(shell bazel info --ui_event_filters=-stdout,-stderr --announ
 
 lint-go-golangci:
 	$(info ==> $@)
-	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
-		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.60.3 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
+	@tools/quiet bazel run --config=quiet @rules_go//go -- run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6 run --config="${PWD}/.golangci.yml" $(GO_BUILD_TAGS_ARG),lint ./...
 
 lint-go-semgrep:
 	$(info ==> $@)
@@ -142,7 +144,7 @@ lint-protobuf: lint-protobuf-buf
 
 lint-protobuf-buf:
 	$(info ==> $@)
-	@tools/quiet bazel run --config=quiet @buf//:buf -- lint $(PWD) --path $(PWD)/proto
+	@tools/quiet bazel run --config=quiet @rules_go//go -- run github.com/bufbuild/buf/cmd/buf@v1.53.0 lint --disable-symlinks
 
 lint-openapi: lint-openapi-spectral
 

@@ -46,24 +46,24 @@ type PeriodicView struct {
 	taskRunner *periodic.Runner
 	running    bool
 	closed     bool
-	obj        interface{}
+	obj        any
 	err        error
 }
 
 // Parser converts a slice of bytes into an object.
 type Parser interface {
-	Parse(b []byte) (interface{}, error)
+	Parse(b []byte) (any, error)
 }
 
 // ParserFunc is a convenience type for using typical Go parsers as the Parser
 // type in this package.
-type ParserFunc func(b []byte) (interface{}, error)
+type ParserFunc func(b []byte) (any, error)
 
-func (f ParserFunc) Parse(b []byte) (interface{}, error) {
+func (f ParserFunc) Parse(b []byte) (any, error) {
 	return f(b)
 }
 
-func (v *PeriodicView) Get() (interface{}, error) {
+func (v *PeriodicView) Get() (any, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -79,6 +79,7 @@ func (v *PeriodicView) Get() (interface{}, error) {
 		v.readTask.read()
 
 		// Launch goroutine for future reads.
+		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 		v.taskRunner = periodic.Start(v.readTask, v.ReadInterval, v.ReadInterval)
 		v.running = true
 	}
@@ -97,7 +98,7 @@ func (v *PeriodicView) Get() (interface{}, error) {
 	return v.obj, v.err
 }
 
-func (v *PeriodicView) invokeParserLocked(b []byte) (interface{}, error) {
+func (v *PeriodicView) invokeParserLocked(b []byte) (any, error) {
 	if v.Parser == nil {
 		return b, nil
 	}

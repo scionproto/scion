@@ -28,17 +28,16 @@ import (
 	"github.com/scionproto/scion/scion-pki/conf"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
 
 func TestUpdateCerts(t *testing.T) {
 	if !(*updateNonDeterministic) {
 		t.Skip("Specify -update-non-deterministic to update certs")
 		return
 	}
-	dir, cleanF := xtest.MustTempDir("", "safedir")
-	defer cleanF()
+	dir := t.TempDir()
 
-	cmd := exec.Command("sh", "-c", "./testdata/update_certs.sh")
+	cmd := exec.Command("bash", "-c", "./testdata/update_certs.sh")
 	cmd.Env = []string{
 		"SAFEDIR=" + dir,
 		"STARTDATE=20200624120000Z",

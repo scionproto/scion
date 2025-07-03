@@ -31,7 +31,7 @@ func LogIDClientInterceptor() grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
-		req, resp interface{},
+		req, resp any,
 		cc *grpc.ClientConn,
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
@@ -65,10 +65,10 @@ func LogIDClientStreamInterceptor() grpc.StreamClientInterceptor {
 func LogIDServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
-		req interface{},
+		req any,
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
-	) (interface{}, error) {
+	) (any, error) {
 
 		logger := loggerFromSpan(opentracing.SpanFromContext(ctx))
 		logger.Debug("Serving RPC", "method", info.FullMethod)
@@ -79,7 +79,7 @@ func LogIDServerInterceptor() grpc.UnaryServerInterceptor {
 
 func LogIDServerStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(
-		srv interface{},
+		srv any,
 		ss grpc.ServerStream,
 		info *grpc.StreamServerInfo,
 		handler grpc.StreamHandler,
@@ -116,7 +116,7 @@ func openTracingInterceptorWithTarget() grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
-		req, reply interface{},
+		req, reply any,
 		cc *grpc.ClientConn,
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
@@ -125,7 +125,7 @@ func openTracingInterceptorWithTarget() grpc.UnaryClientInterceptor {
 		spanDecorator := func(
 			span opentracing.Span,
 			method string,
-			req, resp interface{},
+			req, resp any,
 			grpcError error,
 		) {
 			if span != nil {

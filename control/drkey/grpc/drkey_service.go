@@ -1,4 +1,5 @@
 // Copyright 2022 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +42,7 @@ type Engine interface {
 	GetSecretValue(ctx context.Context, meta drkey.SecretValueMeta) (drkey.SecretValue, error)
 	GetLevel1Key(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error)
 
-	DeriveLevel1(meta drkey.Level1Meta) (drkey.Level1Key, error)
+	DeriveLevel1(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error)
 	DeriveASHost(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
 	DeriveHostAS(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error)
 	DeriveHostHost(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
@@ -66,7 +67,6 @@ func (d *Server) DRKeyLevel1(
 	ctx context.Context,
 	req *cppb.DRKeyLevel1Request,
 ) (*cppb.DRKeyLevel1Response, error) {
-
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, serrors.New("cannot retrieve peer information from ctx")
@@ -87,7 +87,7 @@ func (d *Server) DRKeyLevel1(
 			"proto_id", lvl1Meta.ProtoId)
 	}
 
-	lvl1Key, err := d.Engine.DeriveLevel1(lvl1Meta)
+	lvl1Key, err := d.Engine.DeriveLevel1(ctx, lvl1Meta)
 	if err != nil {
 		return nil, serrors.Wrap("deriving level 1 key", err)
 	}
@@ -100,7 +100,6 @@ func (d *Server) DRKeyIntraLevel1(
 	ctx context.Context,
 	req *cppb.DRKeyIntraLevel1Request,
 ) (*cppb.DRKeyIntraLevel1Response, error) {
-
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, serrors.New("cannot retrieve peer information from ctx")
@@ -132,7 +131,6 @@ func (d *Server) DRKeyASHost(
 	ctx context.Context,
 	req *cppb.DRKeyASHostRequest,
 ) (*cppb.DRKeyASHostResponse, error) {
-
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, serrors.New("cannot retrieve peer information from ctx")
@@ -160,7 +158,6 @@ func (d *Server) DRKeyHostAS(
 	ctx context.Context,
 	req *cppb.DRKeyHostASRequest,
 ) (*cppb.DRKeyHostASResponse, error) {
-
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, serrors.New("cannot retrieve peer information from ctx")
@@ -187,7 +184,6 @@ func (d *Server) DRKeyHostHost(
 	ctx context.Context,
 	req *cppb.DRKeyHostHostRequest,
 ) (*cppb.DRKeyHostHostResponse, error) {
-
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, serrors.New("cannot retrieve peer information from ctx")
@@ -215,7 +211,6 @@ func (d *Server) DRKeySecretValue(
 	ctx context.Context,
 	req *cppb.DRKeySecretValueRequest,
 ) (*cppb.DRKeySecretValueResponse, error) {
-
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, serrors.New("cannot retrieve peer information from ctx")
@@ -287,7 +282,7 @@ func (d *Server) validateAllowedHost(protoId drkey.Protocol, peerAddr net.Addr) 
 }
 
 // validateASHostReq returns and error if the requesting host is different from the
-// requested dst host. The source AS infraestructure nodes are not supposed to contact
+// requested dst host. The source AS infrastructure nodes are not supposed to contact
 // the local CS but to derive this key from the SV instead.
 func validateASHostReq(meta drkey.ASHostMeta, localIA addr.IA, peerAddr net.Addr) error {
 	hostAddr, err := hostAddrFromPeer(peerAddr)
@@ -308,7 +303,7 @@ func validateASHostReq(meta drkey.ASHostMeta, localIA addr.IA, peerAddr net.Addr
 }
 
 // validateASHostReq returns and error if the requesting host is different from the
-// requested src host. The dst AS infraestructure nodes are not supposed to contact
+// requested src host. The dst AS infrastructure nodes are not supposed to contact
 // the local CS but to derive this key from the SV instead.
 func validateHostASReq(meta drkey.HostASMeta, localIA addr.IA, peerAddr net.Addr) error {
 	hostAddr, err := hostAddrFromPeer(peerAddr)
@@ -338,8 +333,8 @@ func validateHostHostReq(meta drkey.HostHostMeta, localIA addr.IA, peerAddr net.
 	srcHost := net.ParseIP(meta.SrcHost)
 	dstHost := net.ParseIP(meta.DstHost)
 
-	if !((meta.SrcIA.Equal(localIA) && hostAddr.Equal(srcHost)) ||
-		(meta.DstIA.Equal(localIA) && hostAddr.Equal(dstHost))) {
+	if (!meta.SrcIA.Equal(localIA) || !hostAddr.Equal(srcHost)) &&
+		(!meta.DstIA.Equal(localIA) || !hostAddr.Equal(dstHost)) {
 		return serrors.New(
 			"invalid request",
 			"local_isd_as", localIA,
@@ -363,7 +358,8 @@ func hostAddrFromPeer(peerAddr net.Addr) (net.IP, error) {
 }
 
 func getMeta(protoId drkeypb.Protocol, ts *timestamppb.Timestamp, srcIA,
-	dstIA addr.IA) (drkey.Level1Meta, error) {
+	dstIA addr.IA,
+) (drkey.Level1Meta, error) {
 	err := ts.CheckValid()
 	if err != nil {
 		return drkey.Level1Meta{}, serrors.Wrap("invalid valTime from pb req", err)

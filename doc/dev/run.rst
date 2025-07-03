@@ -9,7 +9,7 @@ To simplify development, testing, and tinkering, we provide a tool that generate
 topologies and runs an entire SCION "Internet" on a single machine. Packets are
 only sent between different processes on the same host, not over the network.
 
-Running SCION in this developement setup, is also called running a **local topology**.
+Running SCION in this development setup, is also called running a **local topology**.
 
 The scripts support two different process orchestrators as "backends":
 
@@ -39,7 +39,7 @@ Quickstart
       ./scion.sh topology -c topology/tiny.topo
 
 
-   .. Attention:: The certificates created by this command expire after 3 days if the
+   .. Attention:: The certificates created by this command expire after 365 days if the
       infrastructure is not running for automatic renewal.
 
 #. To start the infrastructure we just generated, run:
@@ -124,9 +124,9 @@ docker
 The main docker compose file is ``gen/scion-dc.yml``.
 
 Each SCION service or router runs in a separate container, and the network access of the individual
-containers is configured to mimick real-world connectivity.
+containers is configured to mimic real-world connectivity.
 
-There are "tester" containers configured in each AS to mimick end hosts in a SCION AS.
+There are "tester" containers configured in each AS to mimic end hosts in a SCION AS.
 These tester containers can be used to run commands accessing the SCION network.
 As a shorthand for the somewhat unwieldy ``docker compose`` invocation, the :file-ref:`tools/dc`
 script can be used. For example::
@@ -160,7 +160,7 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 
    Generate the control-plane PKI keys and certificates, configuration files,
    and process orchestrator (supervisor or docker compose) configuration
-   for a given network topopology defined in a
+   for a given network topology defined in a
    :file-ref:`*.topo configuration file <topology/README.md>`.
 
    .. program:: scion.sh topology

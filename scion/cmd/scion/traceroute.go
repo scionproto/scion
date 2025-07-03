@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -71,7 +71,7 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 		format      string
 	}
 
-	var cmd = &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "traceroute [flags] <remote>",
 		Aliases: []string{"tr"},
 		Short:   "Trace the SCION route to a remote SCION AS using SCMP traceroute packets",
@@ -115,7 +115,7 @@ On other errors, traceroute will exit with code 2.
 
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
-			span.SetTag("dst.host", remote.Host.IP)
+			span.SetTag("dst.host", remote.Host.IP())
 			defer span.Finish()
 
 			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
@@ -125,11 +125,11 @@ On other errors, traceroute will exit with code 2.
 				return serrors.Wrap("connecting to SCION Daemon", err)
 			}
 			defer sd.Close()
-			info, err := app.QueryASInfo(traceCtx, sd)
+			topo, err := daemon.LoadTopology(ctx, sd)
 			if err != nil {
-				return err
+				return serrors.Wrap("loading topology", err)
 			}
-			span.SetTag("src.isd_as", info.IA)
+			span.SetTag("src.isd_as", topo.LocalIA)
 			path, err := path.Choose(traceCtx, sd, remote.IA,
 				path.WithInteractive(flags.interactive),
 				path.WithRefresh(flags.refresh),
@@ -177,17 +177,17 @@ On other errors, traceroute will exit with code 2.
 			span.SetTag("src.host", localIP)
 			asNetipAddr, ok := netip.AddrFromSlice(localIP)
 			if !ok {
-				panic("Invalid Local IP address")
+				panic("invalid local IP address: " + localIP.String())
 			}
 			local := addr.Addr{
-				IA:   info.IA,
+				IA:   topo.LocalIA,
 				Host: addr.HostIP(asNetipAddr),
 			}
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
 			var stats traceroute.Stats
 			var updates []traceroute.Update
 			cfg := traceroute.Config{
-				Topology:     sd,
+				Topology:     topo,
 				Remote:       remote,
 				NextHop:      nextHop,
 				MTU:          path.Metadata().MTU,

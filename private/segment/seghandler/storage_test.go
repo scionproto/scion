@@ -31,7 +31,6 @@ import (
 
 func TestDefaultStorageStoreSegs(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 
 	tg := graph.NewDefaultGraph(rootCtrl)
 	seg110To130 := tg.Beacon([]uint16{graph.If_110_X_120_A, graph.If_120_A_130_B})
@@ -130,7 +129,6 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			storage := seghandler.DefaultStorage{
 				PathDB: test.PathDB(ctrl),
 			}

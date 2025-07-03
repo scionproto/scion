@@ -62,7 +62,6 @@ var (
 
 func TestRequester(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
 	const maxRetries = 13
 
@@ -109,7 +108,7 @@ func TestRequester(t *testing.T) {
 		"Cores only": {
 			Reqs: segfetcher.Requests{req_210_110, req_210_120, req_210_130},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
-				// req1 expriences unspecific error, retries until maxTries
+				// req1 experiences unspecific error, retries until maxTries
 				req1 := req_210_110
 				expectedErr1 := serrors.New("no attempts left")
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).
@@ -192,7 +191,6 @@ func TestRequester(t *testing.T) {
 			ctx, cancelF := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancelF()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			dstProvider := mock_segfetcher.NewMockDstProvider(ctrl)
 			dstProvider.EXPECT().Dst(gomock.Any(), gomock.Any()).AnyTimes()
 			rpc := mock_segfetcher.NewMockRPC(ctrl)

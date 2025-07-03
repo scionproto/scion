@@ -19,8 +19,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
-	"github.com/google/gopacket/layers"
+	"github.com/antlr4-go/antlr/v4"
+	"github.com/gopacket/gopacket/layers"
 
 	"github.com/scionproto/scion/antlr/traffic_class"
 	"github.com/scionproto/scion/pkg/private/serrors"

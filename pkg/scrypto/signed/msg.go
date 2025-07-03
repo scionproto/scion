@@ -22,9 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
@@ -54,8 +53,8 @@ type Message struct {
 // Sign creates a signed message. The associated data is not included in the
 // header or body.
 func Sign(hdr Header, body []byte, signer crypto.Signer,
-	associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
-
+	associatedData ...[]byte,
+) (*cryptopb.SignedMessage, error) {
 	if signer == nil {
 		return nil, serrors.New("singer must not be nil")
 	}
@@ -66,13 +65,9 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 	if err := checkPubKeyAlgo(hdr.SignatureAlgorithm, signer.Public()); err != nil {
 		return nil, err
 	}
-	var ts *timestamp.Timestamp
+	var ts *timestamppb.Timestamp
 	if !hdr.Timestamp.IsZero() {
-		var err error
-		ts, err = ptypes.TimestampProto(hdr.Timestamp)
-		if err != nil {
-			return nil, serrors.Wrap("converting timestamp", err)
-		}
+		ts = timestamppb.New(hdr.Timestamp)
 	}
 
 	inputHdr := &cryptopb.Header{
@@ -107,8 +102,8 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 
 // Verify verifies the signed message.
 func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
-	associatedData ...[]byte) (*Message, error) {
-
+	associatedData ...[]byte,
+) (*Message, error) {
 	if key == nil {
 		return nil, serrors.New("public key must not be nil")
 	}
@@ -142,8 +137,8 @@ func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
 }
 
 func computeSignatureInput(algo SignatureAlgorithm, hdrAndBody []byte,
-	associatedData ...[]byte) ([]byte, crypto.Hash) {
-
+	associatedData ...[]byte,
+) ([]byte, crypto.Hash) {
 	hash := signatureAlgorithmDetails[algo].hash
 	if hash == 0 {
 		input := make([]byte, len(hdrAndBody)+associatedDataLen(associatedData...))
@@ -156,7 +151,7 @@ func computeSignatureInput(algo SignatureAlgorithm, hdrAndBody []byte,
 		return input, hash
 	}
 	if !hash.Available() {
-		panic(fmt.Sprintf("unavailable hash algorithm: %v", hash))
+		panic(fmt.Sprintf("unavailable hash algorithm: %#v", hash))
 	}
 	h := hash.New()
 	h.Write(hdrAndBody)
@@ -220,10 +215,7 @@ func extractHeaderAndBody(signed *cryptopb.SignedMessage) (*Header, []byte, erro
 	}
 	var ts time.Time
 	if hdr.Timestamp != nil {
-		var err error
-		if ts, err = ptypes.Timestamp(hdr.Timestamp); err != nil {
-			return nil, nil, err
-		}
+		ts = hdr.Timestamp.AsTime()
 	}
 	return &Header{
 		SignatureAlgorithm:   signatureAlgorithmFromPB(hdr.SignatureAlgorithm),

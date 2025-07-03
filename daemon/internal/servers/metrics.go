@@ -97,7 +97,7 @@ type metricsError struct {
 }
 
 func (e metricsError) Error() string {
-	return e.Error()
+	return e.err.Error()
 }
 
 func errToMetricResult(err error) string {

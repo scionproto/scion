@@ -16,7 +16,7 @@
 Package addr contains types for SCION addressing.
 
 A SCION address is composed of the following parts: ISD (ISolation Domain
-identifier), AS (Autonomous System idenifier), and Host (the host address).
+identifier), AS (Autonomous System identifier), and Host (the host address).
 
 The ISD-AS parts are often considered together. Conventionally, this is
 abbreviated to "IA".

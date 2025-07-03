@@ -1,6 +1,6 @@
+load("@scion_python_deps//:requirements.bzl", "requirement")
 load("//acceptance/common:raw.bzl", "raw_test")
 load("//tools/lint:py.bzl", "py_binary", "py_library")
-load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
 exports_files(
     [
@@ -53,6 +53,14 @@ py_library(
 py_binary(
     name = "benchmark",
     srcs = ["benchmark.py"],
+    args = [
+        "--brload",
+        "$(location //acceptance/router_benchmark/brload:brload)",
+    ],
+    data = [
+        "//acceptance/router_benchmark/brload",
+    ],
+    imports = ["."],
     visibility = ["//visibility:public"],
     deps = [
         "benchmarklib",

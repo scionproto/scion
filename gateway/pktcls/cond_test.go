@@ -19,8 +19,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/gateway/pktcls"
@@ -198,7 +198,6 @@ func TestPortCond(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			pkt := createUDPPacket(tc.SrcPort, tc.DstPort)

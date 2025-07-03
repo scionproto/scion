@@ -34,19 +34,18 @@ import (
 	"github.com/scionproto/scion/scion-pki/trcs"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
 
 func TestCombine(t *testing.T) {
 	if *updateNonDeterministic {
-		dir, cleanF := xtest.MustTempDir("", "safedir")
-		defer cleanF()
+		dir := t.TempDir()
 
 		root, err := filepath.Abs("../../../")
 		require.NoError(t, err)
 		playground, err := filepath.Abs(filepath.Join(root, "tools", "cryptoplayground"))
 		require.NoError(t, err)
 
-		cmd := exec.Command("sh", "-c", filepath.Join(playground, "trc_ceremony.sh"))
+		cmd := exec.Command("bash", "-c", filepath.Join(playground, "trc_ceremony.sh"))
 		cmd.Env = []string{
 			"SCION_ROOT=" + root,
 			"PLAYGROUND=" + playground,
@@ -61,8 +60,8 @@ func TestCombine(t *testing.T) {
 			out, err := cmd.CombinedOutput()
 			require.NoError(t, err, string(out))
 		}
-		runCmd("sh", "-c", "rm -rf testdata/admin")
-		runCmd("sh", "-c", fmt.Sprintf("cp -a %s testdata/", filepath.Join(dir, "admin/.")))
+		runCmd("bash", "-c", "rm -rf testdata/admin")
+		runCmd("bash", "-c", fmt.Sprintf("cp -a %s testdata/", filepath.Join(dir, "admin/.")))
 
 		// Sort signer infos for deterministic result.
 		signed, err := trcs.DecodeFromFile("./testdata/admin/ISD1-B1-S1.trc")
@@ -73,11 +72,10 @@ func TestCombine(t *testing.T) {
 		})
 		raw, err := signed.Encode()
 		require.NoError(t, err)
-		require.NoError(t, os.WriteFile("./testdata/admin/ISD1-B1-S1.trc", raw, 0644))
+		require.NoError(t, os.WriteFile("./testdata/admin/ISD1-B1-S1.trc", raw, 0o644))
 	}
 
-	dir, clean := xtest.MustTempDir("", "scion-pki-trcs-combine")
-	defer clean()
+	dir := t.TempDir()
 	out := filepath.Join(dir, "combined.der")
 
 	parts := []string{
@@ -175,7 +173,6 @@ func TestCombineSignerInfos(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			infos, err := trcs.CombineSignerInfos(tc.partialTRCs(t))
@@ -219,7 +216,6 @@ func TestCombineDigestAlgorithms(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

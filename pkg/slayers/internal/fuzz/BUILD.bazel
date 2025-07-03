@@ -1,4 +1,5 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -7,7 +8,7 @@ go_library(
     visibility = ["//pkg/slayers:__subpackages__"],
     deps = [
         "//pkg/slayers:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
     ],
 )
 

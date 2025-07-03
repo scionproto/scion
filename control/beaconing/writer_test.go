@@ -87,7 +87,6 @@ func TestRegistrarRun(t *testing.T) {
 	for _, test := range testsLocal {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			topo, err := topology.FromJSONFile(test.fn)
 			require.NoError(t, err)
 			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
@@ -119,7 +118,7 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ interface{}) ([]beacon.Beacon, error) {
+				func(_, _ any) ([]beacon.Beacon, error) {
 					res := make([]beacon.Beacon, 0, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
@@ -173,7 +172,6 @@ func TestRegistrarRun(t *testing.T) {
 	for _, test := range testsRemote {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 
 			topo, err := topology.FromJSONFile(test.fn)
 			require.NoError(t, err)
@@ -210,7 +208,7 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ interface{}) ([]beacon.Beacon, error) {
+				func(_, _ any) ([]beacon.Beacon, error) {
 					res := make([]beacon.Beacon, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
@@ -275,7 +273,6 @@ func TestRegistrarRun(t *testing.T) {
 
 	t.Run("Faulty beacons are not sent", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 
 		topo, err := topology.FromJSONFile(topoNonCore)
 		require.NoError(t, err)
@@ -313,7 +310,7 @@ func TestRegistrarRun(t *testing.T) {
 		require.NoError(t, err)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(),
 			seg.TypeDown).DoAndReturn(
-			func(_, _ interface{}) (<-chan beacon.Beacon, error) {
+			func(_, _ any) (<-chan beacon.Beacon, error) {
 				res := make(chan beacon.Beacon, 1)
 				b := testBeacon(g, []uint16{graph.If_120_X_111_B})
 				b.InIfID = 10

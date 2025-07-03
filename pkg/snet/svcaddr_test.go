@@ -24,7 +24,7 @@ import (
 )
 
 func TestSVCAddrInterface(t *testing.T) {
-	var x interface{} = &snet.SVCAddr{}
+	var x any = &snet.SVCAddr{}
 	_, ok := x.(net.Addr)
 	assert.True(t, ok, "should implement net interface")
 }

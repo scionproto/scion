@@ -7,6 +7,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	_ "crypto/sha1" // for crypto.SHA1
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -15,8 +16,6 @@ import (
 	"math/big"
 	"sort"
 	"time"
-
-	_ "crypto/sha1" // for crypto.SHA1
 
 	"github.com/scionproto/scion/pkg/scrypto/cms/oid"
 )
@@ -209,7 +208,7 @@ type Attribute struct {
 }
 
 // NewAttribute creates a single-value Attribute.
-func NewAttribute(typ asn1.ObjectIdentifier, val interface{}) (Attribute, error) {
+func NewAttribute(typ asn1.ObjectIdentifier, val any) (Attribute, error) {
 	der, err := asn1.Marshal(val)
 	if err != nil {
 		return Attribute{}, err

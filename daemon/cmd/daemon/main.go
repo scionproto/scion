@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,9 +76,11 @@ var globalCfg config.Config
 
 func main() {
 	application := launcher.Application{
-		TOMLConfig: &globalCfg,
-		ShortName:  "SCION Daemon",
-		Main:       realMain,
+		ApplicationBase: launcher.ApplicationBase{
+			TOMLConfig: &globalCfg,
+			ShortName:  "SCION Daemon",
+			Main:       realMain,
+		},
 	}
 	application.Run()
 }
@@ -114,9 +117,11 @@ func realMain(ctx context.Context) error {
 	})
 	defer pathDB.Close()
 	defer revCache.Close()
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	cleaner := periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
 		300*time.Second, 295*time.Second)
 	defer cleaner.Stop()
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	rcCleaner := periodic.Start(revcache.NewCleaner(revCache, "sd_revocation"),
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
@@ -124,7 +129,8 @@ func realMain(ctx context.Context) error {
 	dialer := &libgrpc.TCPDialer{
 		SvcResolver: func(dst addr.SVC) []resolver.Address {
 			if base := dst.Base(); base != addr.SvcCS {
-				panic("Unsupported address type, implementation error?")
+				panic("unsupported address type, possible implementation error: " +
+					base.String())
 			}
 			targets := []resolver.Address{}
 			for _, entry := range topo.ControlServiceAddresses() {
@@ -149,7 +155,9 @@ func realMain(ctx context.Context) error {
 			[]string{"driver", "operation", prom.LabelResult},
 		),
 	})
-	engine, err := daemon.TrustEngine(globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer)
+	engine, err := daemon.TrustEngine(
+		errCtx, globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer,
+	)
 	if err != nil {
 		return serrors.Wrap("creating trust engine", err)
 	}
@@ -163,6 +171,7 @@ func realMain(ctx context.Context) error {
 		Dir: filepath.Join(globalCfg.General.ConfigDir, "certs"),
 		DB:  trustDB,
 	}
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	trcLoaderTask := periodic.Start(periodic.Func{
 		Task: func(ctx context.Context) {
 			res, err := trcLoader.Load(ctx)
@@ -216,6 +225,8 @@ func realMain(ctx context.Context) error {
 		}
 		cleaners := drkeyClientEngine.CreateStorageCleaners()
 		for _, cleaner := range cleaners {
+			// SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
+			//nolint:staticcheck
 			cleaner_task := periodic.Start(cleaner,
 				5*time.Minute, 5*time.Minute)
 			defer cleaner_task.Stop()
@@ -359,8 +370,8 @@ func realMain(ctx context.Context) error {
 type acceptAllVerifier struct{}
 
 func (acceptAllVerifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
-	associatedData ...[]byte) (*signed.Message, error) {
-
+	associatedData ...[]byte,
+) (*signed.Message, error) {
 	return nil, nil
 }
 

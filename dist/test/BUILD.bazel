@@ -29,3 +29,19 @@ sh_test(
         "integration",
     ],
 )
+
+sh_test(
+    name = "rpm_test",
+    srcs = ["rpm_test.sh"],
+    data = [
+        "Dockerfile.rpm",
+        "//dist:rpm",
+    ],
+    env = {
+        "SCION_RPM_PACKAGES": "$(locations //dist:rpm)",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)

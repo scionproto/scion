@@ -23,7 +23,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/antlr4-go/antlr/v4"
 
 	"github.com/scionproto/scion/antlr/sequence"
 	"github.com/scionproto/scion/pkg/addr"
@@ -61,7 +61,7 @@ func NewSequence(s string) (*Sequence, error) {
 	parser.RemoveErrorListeners()
 	parser.AddErrorListener(errListener)
 	listener := sequenceListener{}
-	antlr.ParseTreeWalkerDefault.Walk(&listener, parser.Start())
+	antlr.ParseTreeWalkerDefault.Walk(&listener, parser.Start_())
 	if errListener.msg != "" {
 		return nil, serrors.New("Failed to parse a sequence",
 			"sequence", s, "msg", errListener.msg)
@@ -122,11 +122,11 @@ func (s *Sequence) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (s *Sequence) MarshalYAML() (interface{}, error) {
+func (s *Sequence) MarshalYAML() (any, error) {
 	return s.srcstr, nil
 }
 
-func (s *Sequence) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (s *Sequence) UnmarshalYAML(unmarshal func(any) error) error {
 	var str string
 	err := unmarshal(&str)
 	if err != nil {
@@ -145,7 +145,7 @@ type errorListener struct {
 	msg string
 }
 
-func (l *errorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line,
+func (l *errorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, line,
 	column int, msg string, e antlr.RecognitionException) {
 
 	//fmt.Printf("Error: %s\n", msg)

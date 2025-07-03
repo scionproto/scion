@@ -27,6 +27,7 @@ def rule_to_file(rule: str) -> Tuple[str, str]:
 
 def mock_rules() -> List[str]:
     bazel = plumbum.local['bazel']
+    os.chdir(os.environ.get("BUILD_WORKING_DIRECTORY","/nonexistium"))
     raw_rules = bazel("query", "filter(\"go_default_mock$\", kind(gomock, //...))")
     return raw_rules.splitlines()
 
@@ -88,7 +89,7 @@ class Add(GoMocks):
         mock_path = plumbum.local.path(package_path / "mock_%s" % name)
         delete(mock_path // "*.go")
         buildscript = """
-load("@io_bazel_rules_go//go:def.bzl", "gomock")
+load("@rules_go//go:def.bzl", "gomock")
 gomock(
     name = "go_default_mock",
     out = "mock.go",

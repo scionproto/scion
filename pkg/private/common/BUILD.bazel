@@ -1,21 +1,18 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "defs.go",
-        "errors.go",
-    ],
+    srcs = ["defs.go"],
     importpath = "github.com/scionproto/scion/pkg/private/common",
     visibility = ["//visibility:public"],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "defs_test.go",
-        "errors_test.go",
+    srcs = ["defs_test.go"],
+    deps = [
+        ":go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
     ],
-    embed = [":go_default_library"],
-    deps = ["@com_github_stretchr_testify//assert:go_default_library"],
 )

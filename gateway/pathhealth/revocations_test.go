@@ -37,7 +37,6 @@ var (
 
 func TestEmptyStore(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	s := pathhealth.MemoryRevocationStore{}
 	res := s.IsRevoked(createMockPath(ctrl, testIA, 1))
@@ -47,7 +46,6 @@ func TestEmptyStore(t *testing.T) {
 
 func TestRevocation(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	s := pathhealth.MemoryRevocationStore{}
 	s.AddRevocation(context.Background(), createRevInfo(testIA, 1, false))
@@ -60,7 +58,6 @@ func TestRevocation(t *testing.T) {
 
 func TestExpiredRevocation(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	s := pathhealth.MemoryRevocationStore{}
 	s.AddRevocation(context.Background(), createRevInfo(testIA, 1, true))

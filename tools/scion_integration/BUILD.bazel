@@ -1,4 +1,4 @@
-load("//tools/lint:go.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
 
 scion_go_binary(

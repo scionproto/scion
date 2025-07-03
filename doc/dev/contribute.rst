@@ -7,6 +7,8 @@ Contribution Guide
 Welcome to the SCION contribution guide! If you are interested in contributing to
 the project, this page will help you out on your journey to your first SCION commit.
 
+.. Attention:: In all your interactions with the SCION developer community, you agree to be bound by our `Code of Conduct <https://github.com/scionproto/scion>`__.
+
 .. _slack:
 
 
@@ -16,7 +18,7 @@ the project, this page will help you out on your journey to your first SCION com
    or on our `Github project page <https://github.com/scionproto/scion>`__.
    Do not hesitate to ask us anything, or feel free to just drop by and say "Hi".
 
-   Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-1gtgkuvk3-vQzq3gPOWOL6T58yu45vXg>`__.
+   Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-2tbqf49yo-4quzKc4N3g5h8wjZ~axNYQ>`__.
 
 
 What skills do you need to contribute?
@@ -44,6 +46,15 @@ links to resources to get you started if you've never used before), please visit
 No matter what language you want to contribute to, one of the first steps to take is to set
 up a development environment. See :ref:`setting-up-the-development-environment` for the needed steps.
 If you encounter issues, please visit our :ref:`Slack <slack>` and ask for help.
+
+.. _code-map:
+
+Source code map
+===============
+
+Because the code is mostly written in Go and hosted on a public repository, its inline documentation
+is rendered automatically at `<https://pkg.go.dev/github.com/scionproto/scion>`__ and includes a helpful
+index.
 
 .. _finding-an-issue-to-contribute-to:
 
@@ -93,12 +104,16 @@ implementation projects.
 
 The current members of the TC Implementation are:
 
-* Jean-Christophe Hugly (|span-github| `@jiceatscion <https://github.com/jiceatscion>`_, |span-slack| @Jean-Christophe Hugly)
-* Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @roosd)
+* Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @Dominik Roos)
+* Ekaterina Titkova  (|span-github| `@katyatitkova <https://github.com/katyatitkova>`_, |span-slack| Katya Titkova)
 * François Wirz (|span-github| `@FR4NK-W <https://github.com/FR4NK-W>`_, |span-slack| @frank)
+* Jean-Christophe Hugly (|span-github| `@jiceatscion <https://github.com/jiceatscion>`_, |span-slack| @jiceatscion)
+* Jordi Subirà (|span-github| `@JordiSubira <https://github.com/JordiSubira>`_, |span-slack| @Jordi Subirà-Nieto)
 * Lukas Vogel (|span-github| `@lukedirtwalker <https://github.com/lukedirtwalker>`_, |span-slack| @luke)
 * Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
-
+* Markus Legner (|span-github| `@mlegner <https://github.com/mlegner>`_, |span-slack| @Markus Legner)
+* Roman Sharkov  (|span-github| `@romshark <https://github.com/romshark>`_, |span-slack| @Roman Scharkov)
+* Tilmann Zäschke (|span-github| `@tzaeschke <https://github.com/tzaeschke>`_, |span-slack| @Tilmann Zäschke)
 
 .. rubric:: Responsibilities and Tasks
 
@@ -137,7 +152,7 @@ More **substantial changes** must be submitted as a **proposal**
 in the form of a GitHub issue, in order to create a consensus among the SCION community.
 Typical examples for substantial change proposals include:
 
-* Adding, changing, or removing compontents or functionality
+* Adding, changing, or removing components or functionality
 * Changing interfaces between components
 
 Proposals for changes to the SCION protocol (e.g., header format, processing
@@ -157,7 +172,7 @@ Formal Process
 .. image:: fig/change-proposal-process.excalidraw.png
 
 :Creation: To open a proposal, the author submits a GitHub issue following the
-  proposal template.
+  ``proposal`` template.
 :Review: The proposal may receive feedback from the community, which should be
   incorporated by the author. Moreover, the assigned technical team triages the
   proposal and assigns one of its members to manage the process. The technical
@@ -167,29 +182,46 @@ Formal Process
   The technical team decides to **accept**, **postpone**, or **reject** the
   proposal based on the outcomes of the discussion and feedback from the
   community.
-:Design:
-  If the proposal has been accepted, the authors submit a design document and
-  submit it to the repository (:file-ref:`doc/dev/design`)
-  in the form of a pull request.
-  See :doc:`design/index` for details.
+:Initial Design:
+  If the proposal has been accepted, the authors complete an initial design document
+  and submit it to the repository (:file-ref:`doc/dev/design`)
+  in the form of a pull request. The design document has the status **WIP** and
+  is linked to the WIP section of :doc:`design/index`. Once that pull request is
+  approved and merged, the proposal issue is closed. A new issue (following the ``Work Item``
+  template), owned by the design proponent, is open to track its evolution
+  towards its final form. The title of the issue may be of the form:
+  ``<topic>: finalize design``.
+:Design Improvements:
+  Multiple revisions to the WIP document may be submitted and reviewed as PRs.
+  Participants may discuss any change required via the tracking issue.
 :Final review:
-  The design document will be reviewed by the assigned technical team. Since
-  all major points should already be agreed upon in the proposal review, this
-  final review is expected to be lightweight. After this review, the technical
-  team may start the final comment period, together with a proposition to
-  **merge**, **close**, or **postpone** the proposal.
+  Once the document reaches a form that appears consensual, the technical
+  team starts the final comment period, together with a proposition to
+  **accept**, **postpone**, or **reject** the design.
 
   The **final comment period** lasts **ten calendar days** and is advertised, such that
   stakeholders have a chance to lodge any final objections before a decision is
   reached. If no major comments are raised during the final comment period, the
-  proposed action (close, merge, or postpone) is accepted; otherwise, the
+  proposed action (accept, postpone, reject) is acted; otherwise, the
   proposal goes back to the review step and is discussed further.
+
+  Following the decision, the document's status is changed to one of **Active**, **Postponed**,
+  or **Rejected**, the design document is linked to the corresponding section of the index,
+  and the tracking issue is closed. If the design's new status is **Active**, a new tracking
+  issue is open for its implementation.
 :Implementation:
-  If the final comment period ends with the decision to merge the proposal, it
-  becomes active. The proposal can now be implemented (typically, but not
-  necessarily by the authors). The implementation is submitted as a pull
-  request. The implementation will be reviewed; acceptance of the proposal does
-  not automatically imply that its implementation will be accepted.
+  The design is implemented typically, but not necessarily, by the authors.
+  The implementation is submitted as one or more pull requests. The implementation will be
+  reviewed; acceptance of the design does not automatically imply that its implementation
+  will be accepted.
+
+  Once the implementation is deemed complete, the design document's status is changed to
+  **Completed**, it is linked to the corresponding section of the index, and the
+  implementation tracking issue is closed.
+
+  Should a decision be made to abandon or postpone the implementation, the design document's
+  status is changed to **Postponed**, **Outdated**, or **Rejected**; depending on the reason
+  for the decision.
 
 Learning resources
 ==================

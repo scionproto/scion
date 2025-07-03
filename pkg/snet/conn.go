@@ -16,7 +16,7 @@
 package snet
 
 import (
-	"context"
+	"fmt"
 	"net"
 	"time"
 
@@ -36,7 +36,10 @@ func (e *OpError) RevInfo() *path_mgmt.RevInfo {
 }
 
 func (e *OpError) Error() string {
-	return e.typeCode.String()
+	if e.revInfo == nil {
+		return e.typeCode.String()
+	}
+	return fmt.Sprintf("%s (%s)", e.typeCode, e.revInfo)
 }
 
 var _ net.Conn = (*Conn)(nil)
@@ -56,7 +59,7 @@ type Conn struct {
 // send/receive SCION traffic with the usual methods.
 // It takes as arguments a non-nil PacketConn and a non-nil Topology parameter.
 // Nil or unspecified addresses for the PacketConn object are not supported.
-// This is an advanced API, that allows fine-tunning of the Conn underlay functionality.
+// This is an advanced API, that allows fine-tuning of the Conn underlay functionality.
 // The general methods for obtaining a Conn object are still SCIONNetwork.Listen and
 // SCIONNetwork.Dial.
 func NewCookedConn(
@@ -65,20 +68,12 @@ func NewCookedConn(
 	options ...ConnOption,
 ) (*Conn, error) {
 	o := apply(options)
-	localIA, err := topo.LocalIA(context.Background())
-	if err != nil {
-		return nil, err
-	}
 	local := &UDPAddr{
-		IA:   localIA,
+		IA:   topo.LocalIA,
 		Host: pconn.LocalAddr().(*net.UDPAddr),
 	}
 	if local.Host == nil || local.Host.IP.IsUnspecified() {
 		return nil, serrors.New("nil or unspecified address is not supported.")
-	}
-	start, end, err := topo.PortRange(context.Background())
-	if err != nil {
-		return nil, err
 	}
 	return &Conn{
 		conn:   pconn,
@@ -89,8 +84,8 @@ func NewCookedConn(
 			buffer:              make([]byte, common.SupportedMTU),
 			local:               local,
 			remote:              o.remote,
-			dispatchedPortStart: start,
-			dispatchedPortEnd:   end,
+			dispatchedPortStart: topo.PortRange.Start,
+			dispatchedPortEnd:   topo.PortRange.End,
 		},
 		scionConnReader: scionConnReader{
 			conn:        pconn,

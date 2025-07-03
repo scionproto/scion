@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+# Create system user/group
+groupadd --system -f scion
+useradd --system --gid scion -M -s /sbin/nologin scion >& /dev/null || true
+
+# Create configuration directory
+mkdir /etc/scion/ >& /dev/null || true
+mkdir /var/lib/scion/ >& /dev/null || true
+chown scion:scion /etc/scion/ /var/lib/scion
+
+

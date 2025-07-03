@@ -4,6 +4,7 @@ Border Router Performance Optimized Redesign
 
 - Author: Justin Rohrer
 - Last Updated: 2023-05-25
+- Status: **Completed**
 - Discussion at: `#4334 <https://github.com/scionproto/scion/issues/4334>`_
 
 Abstract
@@ -24,7 +25,7 @@ Redesigning the current router pipeline is expected to lead to significant perfo
 Proposal
 ========
 
-The pipeline gets changed to have seperate goroutines for the receiving, processing and forwarding steps.
+The pipeline gets changed to have separate goroutines for the receiving, processing and forwarding steps.
 This will lead to a much higher performance because the expensive processing logic is moved to other
 goroutines and to improve the performance we can just increase the number of processing routines.
 By introducing packet reuse we do not have to allocate memory at runtime to store the packets because we
@@ -106,7 +107,7 @@ Because of that the slow-path processing routine might have to redo some of the 
 The original processing routine can immediately continue processing its other packets once it forwarded the
 slow-path packet to the slow-path routine without the need of doing anything additional compared to the usual
 packet processing.
-Rate limiting of slow-path operations is not implemented explicitly, but only implictily through
+Rate limiting of slow-path operations is not implemented explicitly, but only implicitly through
 specifying the number of slow-path processing routines in the configuration.
 In case a packet is identified to belong to the slow path but the queue of the slow path is full, the
 packet is dropped.
@@ -247,12 +248,12 @@ Compatibility
 ===============
 
 This is not a breaking change, just a performance improvement.
-All other components will be able to interacet with the border router the same way as before.
+All other components will be able to interact with the border router the same way as before.
 
 Implementation
 ================
 
-The implementation as suggested in the design document can be implemented in seperate pullrequest to
+The implementation as suggested in the design document can be implemented in separate pull request to
 make them easier to review.
 All those changes below should lead to a border router following this design document.
 

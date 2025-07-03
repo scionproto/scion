@@ -15,11 +15,12 @@
 package dispatcher
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
@@ -32,7 +33,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
-const ErrUnsupportedL4 common.ErrMsg = "unsupported SCION L4 protocol"
+var ErrUnsupportedL4 = errors.New("unsupported SCION L4 protocol")
 
 // Server is the main object allowing to forward SCION packets coming
 // from legacy BR to the final endhost application and to handle SCMP
@@ -160,7 +161,6 @@ func (s *Server) processMsgNextHop(
 	underlay netip.Addr,
 	prevHop netip.AddrPort,
 ) ([]byte, netip.AddrPort, error) {
-
 	err := s.parser.DecodeLayers(buf, &s.decoded)
 	if err != nil {
 		log.Error("Decoding layers", "err", err)
@@ -267,7 +267,7 @@ func (s *Server) processMsgNextHop(
 		}
 		s.outBuffer.PushLayer(s.scionLayer.LayerType())
 		outBuf = s.outBuffer.Bytes()
-	} else { //forward incoming byte array
+	} else { // forward incoming byte array
 		outBuf = buf
 	}
 
@@ -478,7 +478,6 @@ func ListenAndServe(
 	svcAddrs map[addr.Addr]netip.AddrPort,
 	addr *net.UDPAddr,
 ) error {
-
 	conn, err := net.ListenUDP(addr.Network(), addr)
 	if err != nil {
 		return err
@@ -534,7 +533,7 @@ func setIPPktInfo(conn *net.UDPConn) (*net.UDPConn, controlMessageParser) {
 	if udpAddr.AddrPort().Addr().Unmap().Is4() {
 		err := ipv4.NewPacketConn(conn).SetControlMessage(ipv4.FlagDst, true)
 		if err != nil {
-			panic(fmt.Sprintf("cannot set IP_PKTINFO on socket: %s", err))
+			panic(fmt.Sprintf("cannot set IP_PKTINFO on socket: %v", err))
 		}
 		cm = ipv4ControlMessage{
 			ControlMessage: new(ipv4.ControlMessage),
@@ -543,7 +542,7 @@ func setIPPktInfo(conn *net.UDPConn) (*net.UDPConn, controlMessageParser) {
 	if udpAddr.AddrPort().Addr().Unmap().Is6() {
 		err := ipv6.NewPacketConn(conn).SetControlMessage(ipv6.FlagDst, true)
 		if err != nil {
-			panic(fmt.Sprintf("cannot set IP_PKTINFO on socket: %s", err))
+			panic(fmt.Sprintf("cannot set IP_PKTINFO on socket: %v", err))
 		}
 		cm = ipv6ControlMessage{
 			ControlMessage: new(ipv6.ControlMessage),

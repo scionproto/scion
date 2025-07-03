@@ -81,18 +81,18 @@ func (mr *MockEngineMockRecorder) DeriveHostHost(arg0, arg1 interface{}) *gomock
 }
 
 // DeriveLevel1 mocks base method.
-func (m *MockEngine) DeriveLevel1(arg0 drkey.Level1Meta) (drkey.Level1Key, error) {
+func (m *MockEngine) DeriveLevel1(arg0 context.Context, arg1 drkey.Level1Meta) (drkey.Level1Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeriveLevel1", arg0)
+	ret := m.ctrl.Call(m, "DeriveLevel1", arg0, arg1)
 	ret0, _ := ret[0].(drkey.Level1Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DeriveLevel1 indicates an expected call of DeriveLevel1.
-func (mr *MockEngineMockRecorder) DeriveLevel1(arg0 interface{}) *gomock.Call {
+func (mr *MockEngineMockRecorder) DeriveLevel1(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeriveLevel1", reflect.TypeOf((*MockEngine)(nil).DeriveLevel1), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeriveLevel1", reflect.TypeOf((*MockEngine)(nil).DeriveLevel1), arg0, arg1)
 }
 
 // GetLevel1Key mocks base method.

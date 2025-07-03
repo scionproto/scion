@@ -1,10 +1,16 @@
-load("//tools/lint:go.bzl", "go_library")
+load("@aspect_bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools/lint:write_source_files.bzl", "write_source_files")
 
+# gazelle:exclude *.gen.go
 go_library(
     name = "go_default_library",
     srcs = [
+        "big_gen.go",
         "default_gen.go",
         "graph.go",
+        "ifaceids.go",
+        "links_gen.go",
     ],
     importpath = "github.com/scionproto/scion/pkg/private/xtest/graph",
     visibility = ["//visibility:public"],
@@ -22,4 +28,49 @@ go_library(
         "@com_github_golang_mock//gomock:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
     ],
+)
+
+genrule(
+    name = "generate_links",
+    srcs = [],
+    outs = ["links.gen.go"],
+    cmd = "$(location //pkg/private/xtest/graphupdater:graphupdater) -linksFile=$@",
+    tools = ["//pkg/private/xtest/graphupdater"],
+)
+
+genrule(
+    name = "generate_default",
+    srcs = ["//topology:default"],
+    outs = ["default_gen.gen.go"],
+    cmd = """
+        $(location //pkg/private/xtest/graphupdater:graphupdater) \
+        -topoFile=$(location //topology:default) -graphFile=$@ -descName=DefaultGraphDescription
+    """,
+    tools = ["//pkg/private/xtest/graphupdater"],
+)
+
+genrule(
+    name = "generate_big",
+    srcs = ["//topology:big"],
+    outs = ["big_gen.gen.go"],
+    cmd = """
+        $(location //pkg/private/xtest/graphupdater:graphupdater) \
+        -topoFile=$(location //topology:big) -graphFile=$@ -descName=BigGraphDescription
+    """,
+    tools = ["//pkg/private/xtest/graphupdater"],
+)
+
+write_source_files(
+    name = "write_files",
+    files = {
+        "links_gen.go": ":generate_links",
+        "default_gen.go": ":generate_default",
+        "big_gen.go": ":generate_big",
+    },
+)
+
+sh_binary(
+    name = "topogen_with_graph",
+    srcs = ["topogen_with_graph.sh"],
+    visibility = ["//visibility:public"],
 )

@@ -109,7 +109,6 @@ func TestLegacySessionPolicyAdapterParse(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			parser := control.LegacySessionPolicyAdapter{}
 			p, err := parser.Parse(context.Background(), tc.Input)
@@ -164,10 +163,8 @@ func TestLoadSessionPolicies(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			p, err := control.LoadSessionPolicies(context.Background(), tc.File, tc.Parser(ctrl))
 			assert.Equal(t, tc.Expected, p)
 			tc.AssertErr(t, err)
@@ -206,7 +203,6 @@ func TestSessionPoliciesRemoteIAs(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			assert.ElementsMatch(t, tc.Expected, tc.Policies.RemoteIAs())

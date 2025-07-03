@@ -61,8 +61,8 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 	pub := priv.Public()
 
 	validatePublicSeg := func(t *testing.T, pseg *seg.PathSegment,
-		a *snet.SVCAddr, topo topology.Topology) {
-
+		a *snet.SVCAddr, topo topology.Topology,
+	) {
 		assert.NoError(t, pseg.Validate(seg.ValidateSegment))
 		assert.NoError(t, pseg.VerifyASEntry(context.Background(),
 			segVerifier{pubKey: pub}, pseg.MaxIdx()))
@@ -106,13 +106,14 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
 			createRPC: func(t *testing.T,
-				ctrl *gomock.Controller) hiddenpath.Register {
-
+				ctrl *gomock.Controller,
+			) hiddenpath.Register {
 				rpc := mock_hiddenpath.NewMockRegister(ctrl)
 				rpc.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(),
 					matchSVCCS("1-ff00:0:120")).DoAndReturn(
 					func(_ context.Context, reg hiddenpath.SegmentRegistration,
-						remote net.Addr) error {
+						remote net.Addr,
+					) error {
 						validatePublicSeg(t, reg.Seg.Segment, remote.(*snet.SVCAddr), topo)
 						return nil
 					},
@@ -120,7 +121,8 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				rpc.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(),
 					matchSVCCS("1-ff00:0:130")).DoAndReturn(
 					func(_ context.Context, reg hiddenpath.SegmentRegistration,
-						remote net.Addr) error {
+						remote net.Addr,
+					) error {
 						validatePublicSeg(t, reg.Seg.Segment, remote.(*snet.SVCAddr), topo)
 						return nil
 					},
@@ -143,7 +145,8 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
 			createRPC: func(t *testing.T,
-				ctrl *gomock.Controller) hiddenpath.Register {
+				ctrl *gomock.Controller,
+			) hiddenpath.Register {
 				rpc := mock_hiddenpath.NewMockRegister(ctrl)
 				rpc.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(),
 					addrMatcher{udp: &snet.UDPAddr{
@@ -183,12 +186,10 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 
 			w := &hiddenpath.BeaconWriter{
@@ -265,8 +266,8 @@ type segVerifier struct {
 }
 
 func (v segVerifier) Verify(_ context.Context, signedMsg *cryptopb.SignedMessage,
-	associatedData ...[]byte) (*signed.Message, error) {
-
+	associatedData ...[]byte,
+) (*signed.Message, error) {
 	return signed.Verify(signedMsg, v.pubKey, associatedData...)
 }
 
@@ -299,7 +300,7 @@ type addrMatcher struct {
 	udp *snet.UDPAddr
 }
 
-func (m addrMatcher) Matches(other interface{}) bool {
+func (m addrMatcher) Matches(other any) bool {
 	if m.svc != nil {
 		svc, ok := other.(*snet.SVCAddr)
 		if !ok {

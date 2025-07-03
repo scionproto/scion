@@ -33,7 +33,6 @@ var _ periodic.Task = (*cs_drkey.Prefetcher)(nil)
 
 func TestPrefetcherRun(t *testing.T) {
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	mock_engine := mock_drkey.NewMockLevel1Engine(mctrl)
 

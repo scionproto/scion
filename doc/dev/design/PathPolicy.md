@@ -2,7 +2,7 @@
 
 - Authors: Lukas Bischofberger, Lukas Vogel, Martin Sustrik
 - Last updated: 2019-08-30
-- Status: partially **implemented** / partially outdated
+- Status: partially **Completed** / partially **Outdated**
 - Discussion at: [#1909](https://github.com/scionproto/scion/pull/1909),
                  [#1976](https://github.com/scionproto/scion/pull/1976),
                  [#2324](https://github.com/scionproto/scion/pull/2324),

@@ -24,7 +24,7 @@ import (
 
 func TestTypeOf(t *testing.T) {
 	type A struct{}
-	tests := map[string]interface{}{
+	tests := map[string]any{
 		"nil":       nil,
 		"typed nil": (*A)(nil),
 		"ptr":       &A{},

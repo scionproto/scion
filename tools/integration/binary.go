@@ -83,7 +83,7 @@ type binaryIntegration struct {
 }
 
 // NewBinaryIntegration returns an implementation of the Integration interface.
-// Start* will run the binary programm with name and use the given arguments for the client/server.
+// Start* will run the binary program with name and use the given arguments for the client/server.
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
@@ -220,7 +220,7 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 	argsCopy := append([]string(nil), args...)
 	for i, arg := range argsCopy {
 		if strings.Contains(arg, pattern) {
-			argsCopy[i] = strings.Replace(arg, pattern, replacement, -1)
+			argsCopy[i] = strings.ReplaceAll(arg, pattern, replacement)
 		}
 	}
 	return argsCopy
@@ -283,7 +283,7 @@ func (bw *BinaryWaiter) Wait() error {
 	return err
 }
 
-// Output is the output of the process, only available after Wait is returnred.
+// Output is the output of the process, only available after Wait is returned.
 func (bw *BinaryWaiter) Output() []byte {
 	return bw.output.Bytes()
 }

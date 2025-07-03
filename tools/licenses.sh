@@ -17,7 +17,17 @@ rm -rf $DSTDIR
     if [[ "$path" =~ "node_modules" || "$path" =~ "nodejs" || "$path" =~ "rules_license" ]]; then
         continue
     fi
-    dst=$DSTDIR/$(dirname $path)
+    if [[ "$path" == *++* ]]; then
+        # paths like ./gazelle++go_deps+com_github_antlr4_go_antlr_v4/LICENSE
+        clean_path=$(echo "$path" | sed 's/.*+//')
+    else
+        # paths like ./zlib+/contrib/dotzlib/LICENSE_1_0.txt
+        clean_path=$(echo "$path" | sed 's|^\./||' | sed 's/+//')
+    fi
+    if [[ "$clean_path" =~ "scion__download_0" ]]; then
+        clean_path=$(echo "$clean_path" | sed 's/scion__download_0/go_sdk/')
+    fi
+    dst=$DSTDIR/$(dirname $clean_path)
     mkdir -p $dst
     cp $EXECROOT/external/$path $dst
 done
@@ -35,9 +45,9 @@ rm -rf $DSTDIR/org_uber_go_zap/checklicense.sh
 rm -rf $DSTDIR/org_golang_x_tools/gopls/
 rm -rf $DSTDIR/org_golang_x_tools/internal/lsp/cmd/usage/licenses.hlp
 rm -rf $DSTDIR/com_github_google_certificate_transparency_go/scripts
-rm -rf $DSTDIR/python3_10_x86_64-unknown-linux-gnu/
-rm -rf $DSTDIR/aspect_bazel_lib/
-rm -rf $DSTDIR/aspect_rules_js/
+rm -rf $DSTDIR/python_3_12_x86_64-unknown-linux-gnu/
+rm -rf $DSTDIR/org_modernc_memory/LICENSE-LOGO
 rm -rf $DSTDIR/npm__*/
 find $DSTDIR/ -name "*.go" -type f -delete
+find $DSTDIR/ -name "*.sh" -type f -delete
 find $DSTDIR/ -path "*/testdata/*" -type f -delete

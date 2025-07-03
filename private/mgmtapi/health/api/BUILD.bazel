@@ -1,4 +1,4 @@
-load("//tools/lint:go.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library")
 load("//private/mgmtapi:api.bzl", "openapi_generate_go")
 
 openapi_generate_go(

@@ -43,7 +43,7 @@ func NewSplitter(ia addr.IA, core bool, inspector trust.Inspector,
 }
 
 // splitter is a segfetcher.Splitter for a segfetcher.Pather used in the path service.
-// The default splittler returns a list of (up to three) wildcard segment requests.
+// The default splitter returns a list of (up to three) wildcard segment requests.
 // These wildcards are normally resolved by segreq.forwarder, the AS-local
 // segment request handler.
 // However, segment requests _by_ the control server itself don't pass through

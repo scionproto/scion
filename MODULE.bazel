@@ -1,0 +1,237 @@
+module(
+    name = "scion",
+    repo_name = "com_github_scionproto_scion",
+)
+
+# Linter rules
+bazel_dep(name = "apple_rules_lint", version = "0.4.0")
+
+linter = use_extension("@apple_rules_lint//lint:extensions.bzl", "linter")
+linter.register(name = "go")
+linter.configure(
+    name = "go",
+    config = "//:go_lint_config",
+)
+linter.register(name = "flake8")
+linter.configure(
+    name = "flake8",
+    config = "//:flake8_lint_config",
+)
+use_repo(linter, "apple_linters")
+
+# Bazel rules for Golang
+bazel_dep(name = "rules_go", version = "0.53.0")
+single_version_override(
+    module_name = "rules_go",
+    patches = ["//patches:rules_go/import.patch"],
+)
+
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(version = "1.24.2")
+use_repo(go_sdk, "go_toolchains")
+
+register_toolchains("@go_toolchains//:all")
+
+go_sdk.nogo(nogo = "@//:nogo")
+
+# Gazelle
+bazel_dep(name = "gazelle", version = "0.43.0")
+
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//:go.mod")
+
+# go_deps.module() is needed for tools dependencies (previously tool_deps.bzl) that can't be added to go.mod
+go_deps.module(
+    path = "github.com/cilium/ebpf",
+    sum = "h1:OsSwqS4y+gQHxaKgg2U/+Fev834kdnsQbtzRnbVC6Gs=",
+    version = "v0.18.0",
+)
+use_repo(
+    go_deps,
+    "at_zgo_zcache_v2",
+    "com_connectrpc_connect",
+    "com_github_antlr4_go_antlr_v4",
+    "com_github_buildkite_go_buildkite_v4",
+    "com_github_cilium_ebpf",
+    "com_github_dchest_cmac",
+    "com_github_fatih_color",
+    "com_github_getkin_kin_openapi",
+    "com_github_go_chi_chi_v5",
+    "com_github_go_chi_cors",
+    "com_github_golang_mock",
+    "com_github_google_go_cmp",
+    "com_github_gopacket_gopacket",
+    "com_github_grpc_ecosystem_go_grpc_middleware",
+    "com_github_grpc_ecosystem_go_grpc_prometheus",
+    "com_github_grpc_ecosystem_grpc_opentracing",
+    "com_github_hashicorp_golang_lru_arc_v2",
+    "com_github_iancoleman_strcase",
+    "com_github_lestrrat_go_jwx_v3",
+    "com_github_mattn_go_isatty",
+    "com_github_mattn_go_sqlite3",
+    "com_github_mdlayher_arp",
+    "com_github_mdlayher_ethernet",
+    "com_github_oapi_codegen_oapi_codegen_v2",
+    "com_github_oapi_codegen_runtime",
+    "com_github_olekukonko_tablewriter",
+    "com_github_opentracing_opentracing_go",
+    "com_github_patrickmn_go_cache",
+    "com_github_pelletier_go_toml_v2",
+    "com_github_pkg_errors",
+    "com_github_prometheus_client_golang",
+    "com_github_prometheus_procfs",
+    "com_github_quic_go_quic_go",
+    "com_github_sergi_go_diff",
+    "com_github_songgao_water",
+    "com_github_spf13_cobra",
+    "com_github_spf13_pflag",
+    "com_github_spf13_viper",
+    "com_github_stretchr_testify",
+    "com_github_uber_jaeger_client_go",
+    "com_github_vishvananda_netlink",
+    "in_gopkg_yaml_v3",
+    "org_go4_netipx",
+    "org_golang_google_grpc",
+    "org_golang_google_grpc_examples",
+    "org_golang_google_protobuf",
+    "org_golang_x_crypto",
+    "org_golang_x_net",
+    "org_golang_x_sync",
+    "org_golang_x_sys",
+    "org_golang_x_tools",
+    "org_modernc_sqlite",
+    "org_uber_go_goleak",
+    "org_uber_go_zap",
+)
+
+# npm
+bazel_dep(name = "rules_nodejs", version = "6.3.4")
+bazel_dep(name = "aspect_rules_js", version = "2.2.0")
+
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
+node.toolchain(node_version = "22.14.0")
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
+npm.npm_translate_lock(
+    name = "npm",
+    pnpm_lock = "@com_github_scionproto_scion//private/mgmtapi/tools:pnpm-lock.yaml",
+    verify_node_modules_ignored = "@com_github_scionproto_scion//:.bazelignore",
+)
+use_repo(npm, "npm")
+
+pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
+use_repo(pnpm, "pnpm")
+
+# Python rules
+bazel_dep(name = "rules_python", version = "1.2.0")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(python_version = "3.12")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "scion_python_deps",
+    python_version = "3.12",
+    requirements_lock = "//tools/env/pip3:requirements.txt",
+)
+pip.parse(
+    hub_name = "scion_python_lint_deps",
+    python_version = "3.12",
+    requirements_lock = "//tools/lint/python:requirements.txt",
+)
+pip.parse(
+    hub_name = "scion_python_doc_deps",
+    python_version = "3.12",
+    requirements_lock = "//doc:requirements.txt",
+)
+use_repo(
+    pip,
+    "scion_python_deps",
+    "scion_python_doc_deps",
+    "scion_python_lint_deps",
+)
+
+# Rules for container image building
+bazel_dep(name = "rules_oci", version = "2.2.3")
+
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci.pull(
+    name = "distroless_base_debian10",
+    digest = "sha256:72d496b69d121960b98ac7078cbacd7678f1941844b90b5e1cac337b91309d9d",
+    image = "gcr.io/distroless/base-debian10",
+)
+oci.pull(
+    name = "debian10",
+    digest = "sha256:60cb30babcd1740309903c37d3d408407d190cf73015aeddec9086ef3f393a5d",
+    image = "index.docker.io/library/debian",
+)
+use_repo(
+    oci,
+    "debian10",
+    "distroless_base_debian10",
+)
+
+# RPM packaging
+bazel_dep(name = "rules_pkg", version = "1.1.0")
+single_version_override(
+    module_name = "rules_pkg",
+    patches = [
+        "//dist:rpm/patch_make_rpm.patch",
+        "//dist:rpm/patch_rpm_pfg.patch",
+    ],
+)
+
+find_rpm = use_extension("@rules_pkg//toolchains/rpm:rpmbuild_configure.bzl", "find_system_rpmbuild_bzlmod")
+use_repo(find_rpm, "rules_pkg_rpmbuild")
+
+register_toolchains("@rules_pkg_rpmbuild//:all")
+
+# Debian rules
+bazel_dep(name = "rules_distroless", version = "0.5.1")
+
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    name = "tester_deb",
+    lock = "//docker:tester_deb.lock.json",
+    manifest = "//docker:tester_deb.yaml",
+)
+use_repo(apt, "tester_deb")
+
+# Dependencies that are not available in Bazel registry yet
+non_module_deps = use_extension(":non_module_deps.bzl", "non_module_deps")
+use_repo(
+    non_module_deps,
+    "openwrt_x86_64_SDK",
+    "rules_antlr",
+)
+
+register_toolchains(
+    "//dist/openwrt:x86_64_openwrt_toolchain",
+)
+
+# Support cross building and packaging for openwrt_amd64 via the openwrt SDK
+bazel_dep(name = "platforms", version = "0.0.11")
+bazel_dep(name = "rules_cc", version = "0.1.1")
+
+# Antlr
+bazel_dep(name = "rules_java", version = "8.11.0")
+
+antlr = use_extension("//:antlr.bzl", "antlr")
+antlr.download(version = "4.13.1")
+use_repo(
+    antlr,
+    "antlr3_runtime",
+    "antlr4_runtime",
+    "antlr4_tool",
+    "javax_json",
+    "stringtemplate4",
+)
+
+# Other dependencies
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "aspect_bazel_lib", version = "2.14.0")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "rules_proto_grpc", version = "5.0.1")
+bazel_dep(name = "protobuf", version = "30.1")
+bazel_dep(name = "rules_shell", version = "0.4.0")
+bazel_dep(name = "buildifier_prebuilt", version = "8.0.1")

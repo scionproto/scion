@@ -241,7 +241,7 @@ components:
           type: integer
           example: 3
         internal_interface:
-          description: Internal address of the local router.
+          description: Internal address of the sibling router.
           type: string
           example: 192.168.2.2:31000
         neighbor:

@@ -105,7 +105,7 @@ func TestVerify(t *testing.T) {
 			assertFunc: assert.Error,
 		},
 
-		"invalid boundIA missmatch": {
+		"invalid boundIA mismatch": {
 			provider:   func(mctrl *gomock.Controller) trust.Provider { return nil },
 			sign:       sign,
 			boundIA:    addr.MustParseIA("1-ff00:0:210"),
@@ -179,11 +179,9 @@ func TestVerify(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 
 			v := &trust.Verifier{
 				BoundIA:     tc.boundIA,
@@ -201,8 +199,8 @@ func TestVerify(t *testing.T) {
 }
 
 func validSignS(t *testing.T, msg []byte, rawIA string,
-	key *ecdsa.PrivateKey) *cryptopb.SignedMessage {
-
+	key *ecdsa.PrivateKey,
+) *cryptopb.SignedMessage {
 	ia, _ := addr.ParseIA(rawIA)
 	signer := trust.Signer{
 		PrivateKey: key,

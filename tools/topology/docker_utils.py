@@ -61,13 +61,12 @@ class DockerUtilsGenerator(object):
         entry = {
             'image': docker_image(self.args, 'tester'),
             'privileged': True,
-            'entrypoint': 'sh tester.sh',
+            'entrypoint': 'bash tester.sh',
             'environment': {},
             # 'user': self.user,
             'volumes': [
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
-                self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
         }
         net = self.args.networks[name][0]

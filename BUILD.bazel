@@ -1,31 +1,30 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
-load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@buildifier_prebuilt//:rules.bzl", "buildifier")
+load("@gazelle//:def.bzl", "gazelle")
+load("@npm//private/mgmtapi/tools:@stoplight/spectral-cli/package_json.bzl", spectral_bin = "bin")
+load("@rules_go//go:def.bzl", "nogo")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("@io_bazel_rules_go//go:def.bzl", "nogo")
+load("//:nogo.bzl", "nogo_deps")
 load("//tools/lint:go_config.bzl", "go_lint_config")
 load("//tools/lint:write_source_files.bzl", "write_source_files")
 load("//tools/lint/python:flake8_config.bzl", "flake8_lint_config")
-load("//:nogo.bzl", "nogo_deps")
-load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
-load("@npm//private/mgmtapi/tools:@stoplight/spectral-cli/package_json.bzl", spectral_bin = "bin")
 
 # gazelle:prefix github.com/scionproto/scion
-# gazelle:map_kind go_library go_library //tools/lint:go.bzl
-# gazelle:map_kind go_test go_test //tools/lint:go.bzl
+# gazelle:map_kind go_test go_test //tools:go.bzl
 # gazelle:exclude docker/_build/**
 # gazelle:exclude proto/**
 # gazelle:exclude doc/**
 # gazelle:exclude rules_openapi/tools/node_modules/**
 # gazelle:exclude tools/lint/**/testdata/src/**
 
-# We suport two sqlite implementations: modernc and mattn. Each implementation
+# We support two sqlite implementations: modernc and mattn. Each implementation
 # has a corresponding sqlite_<impl>.go "driver" in private/storage/db. Which
-# driver gets compiled and linked is controled by a go build tag: sqlite_mattn
+# driver gets compiled and linked is controlled by a go build tag: sqlite_mattn
 # or sqlite_modernc. Those are specified on the command line
 # with "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
 # (see the build options in .bazelrc).
 #
-# Unfortunately Gazelle needs to be given these tags explicitly via the builtags
+# Unfortunately Gazelle needs to be given these tags explicitly via the build_tags
 # attribute. So, to ensure consistency we have to translate our two gotags into
 # build_tags. To that end, we create two config_setting flags that are
 # set in response to matching the gotags value and use them to select the relevant
@@ -116,16 +115,6 @@ gazelle(
     ],
 )
 
-gazelle(
-    name = "gazelle_update_repos",
-    command = "update-repos",
-    extra_args = [
-        "-prune",
-        "-from_file=go.mod",
-        "-to_macro=go_deps.bzl%go_deps",
-    ],
-)
-
 go_lint_config(
     name = "go_lint_config",
     exclude_filter = [
@@ -209,14 +198,18 @@ pkg_tar(
     package_dir = "",
 )
 
-# This contains all of the binaries needed to run the topology generator.
+# This contains all of the binaries needed to run the topology generator
+# and start a local stack.
 pkg_tar(
     name = "scion-topo",
     srcs = [
-        "//scion-pki/cmd/scion-pki",
+        "//tools:set_ipv6_addr",
+        "//tools:supervisorctl",
+        "//tools:supervisord",
+        "//tools:topodot",
+        "//tools:topogen",
     ],
     mode = "0755",
-    package_dir = "",
 )
 
 # Nogo - Go code analysis tool
@@ -241,15 +234,17 @@ spectral_bin.spectral_binary(
 )
 
 # Runs all write_source_files targets in this Workspace. To update the list run
-# bazel run @com_github_bazelbuild_buildtools//buildozer -- --root_dir $PWD  "add additional_update_targets $( bazel query 'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files
+# bazel run @buildifier_prebuilt//:buildozer -- --root_dir $PWD  "add additional_update_targets $( bazel query 'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files
 write_source_files(
     name = "write_all_source_files",
     additional_update_targets = [
+        "//control/beaconing:write_files",
         "//control/mgmtapi:write_files",
         "//daemon/mgmtapi:write_files",
         "//dispatcher/mgmtapi:write_files",
         "//doc/command:write_files",
         "//gateway/mgmtapi:write_files",
+        "//pkg/private/xtest/graph:write_files",
         "//pkg/proto/control_plane/v1/control_planeconnect:write_files",
         "//pkg/proto/daemon/v1/daemonconnect:write_files",
         "//pkg/proto/discovery/v1/discoveryconnect:write_files",
