@@ -58,6 +58,7 @@ use_repo(
     "com_github_getkin_kin_openapi",
     "com_github_go_chi_chi_v5",
     "com_github_go_chi_cors",
+    "com_github_go_viper_mapstructure_v2",
     "com_github_golang_mock",
     "com_github_google_go_cmp",
     "com_github_gopacket_gopacket",
