@@ -39,7 +39,12 @@ type Pather struct {
 	}
 }
 
-// GetPath computes the remote address with a path based on the provided segment.
+// GetPath computes the remote address with a path based on the provided
+// segment. If the provided path segment contains discovery information, it will
+// use a random available control or discovery service address based on the
+// provided service type (addr.SvcCS or addr.SvcDS). If no discovery information
+// is available, it will return a SVC address with the destination IA and the
+// path's underlay next hop.
 func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (net.Addr, error) {
 	if len(ps.ASEntries) == 0 {
 		return nil, serrors.New("empty path")
@@ -88,33 +93,35 @@ func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (net.Addr, error) {
 	if nextHop == nil {
 		return nil, serrors.New("first-hop border router not found", "intf_id", ifID)
 	}
-	if disco := ps.ASEntries[0].Extensions.Discovery; disco != nil {
-		if svc == addr.SvcCS && len(disco.ControlServices) > 0 {
-			// take any control service address
-			return &snet.UDPAddr{
-				IA:      ps.FirstIA(),
-				Path:    path,
-				NextHop: nextHop,
-				Host:    net.UDPAddrFromAddrPort(disco.ControlServices[rand.IntN(len(disco.ControlServices))]),
-			}, nil
-		}
-		if svc == addr.SvcDS && len(disco.DiscoveryServices) > 0 {
-			// take any discovery service address
-			return &snet.UDPAddr{
-				IA:      ps.FirstIA(),
-				Path:    path,
-				NextHop: nextHop,
-				Host:    net.UDPAddrFromAddrPort(disco.DiscoveryServices[rand.IntN(len(disco.DiscoveryServices))]),
-			}, nil
-		}
+	switch disco := ps.ASEntries[0].Extensions.Discovery; {
+	case disco != nil && svc == addr.SvcCS && len(disco.ControlServices) > 0:
+		// take any control service address
+		return &snet.UDPAddr{
+			IA:      ps.FirstIA(),
+			Path:    path,
+			NextHop: nextHop,
+			Host: net.UDPAddrFromAddrPort(
+				disco.ControlServices[rand.IntN(len(disco.ControlServices))],
+			),
+		}, nil
+	case disco != nil && svc == addr.SvcDS && len(disco.DiscoveryServices) > 0:
+		// take any discovery service address
+		return &snet.UDPAddr{
+			IA:      ps.FirstIA(),
+			Path:    path,
+			NextHop: nextHop,
+			Host: net.UDPAddrFromAddrPort(
+				disco.DiscoveryServices[rand.IntN(len(disco.DiscoveryServices))],
+			),
+		}, nil
+	default:
+		return &snet.SVCAddr{
+			IA:      ps.FirstIA(),
+			Path:    path,
+			NextHop: nextHop,
+			SVC:     svc,
+		}, nil
 	}
-	return &snet.SVCAddr{
-		IA:      ps.FirstIA(),
-		Path:    path,
-		NextHop: nextHop,
-		SVC:     svc,
-	}, nil
-
 }
 
 // TopoQuerier can be used to get topology information from the SCION Daemon.
@@ -155,7 +162,7 @@ func ResolveLocal(dst net.IP) (net.IP, error) {
 
 // ExtractDestinationServiceAddress extracts the destination service address
 // from the provided path. If the path contains discovery information, it will
-// use the first available control or discovery service address based on the
+// use a random available control or discovery service address based on the
 // provided service type (addr.SvcCS or addr.SvcDS). If no discovery information
 // is available, it will return a SVC address with the destination IA and the
 // path's underlay next hop.
@@ -166,42 +173,35 @@ func ExtractDestinationServiceAddress(a addr.SVC, path snet.Path) net.Addr {
 	}
 
 	destination := path.Destination()
-	metadata := path.Metadata()
-	if metadata != nil {
+	if metadata := path.Metadata(); metadata != nil {
 		disco, hasDiscoveryInfo := metadata.DiscoveryInformation[destination]
-		switch a {
-		case addr.SvcCS:
-			if hasDiscoveryInfo && len(disco.ControlServices) > 0 {
-				// Use any control service if available
-				cs := disco.ControlServices[rand.IntN(len(disco.ControlServices))]
-				ret := &snet.UDPAddr{
-					IA:      destination,
-					Path:    path.Dataplane(),
-					NextHop: path.UnderlayNextHop(),
-					Host: &net.UDPAddr{
-						IP:   cs.Addr().AsSlice(),
-						Port: int(cs.Port()),
-					},
-				}
-
-				return ret
+		switch {
+		case a == addr.SvcCS && hasDiscoveryInfo && len(disco.ControlServices) > 0:
+			// Use any control service if available
+			cs := disco.ControlServices[rand.IntN(len(disco.ControlServices))]
+			ret := &snet.UDPAddr{
+				IA:      destination,
+				Path:    path.Dataplane(),
+				NextHop: path.UnderlayNextHop(),
+				Host: &net.UDPAddr{
+					IP:   cs.Addr().AsSlice(),
+					Port: int(cs.Port()),
+				},
 			}
-		case addr.SvcDS:
-			if hasDiscoveryInfo && len(disco.DiscoveryServices) > 0 {
-				// Use any discovery service if available
-				ds := disco.DiscoveryServices[rand.IntN(len(disco.DiscoveryServices))]
-				ret := &snet.UDPAddr{
-					IA:      destination,
-					Path:    path.Dataplane(),
-					NextHop: path.UnderlayNextHop(),
-					Host: &net.UDPAddr{
-						IP:   ds.Addr().AsSlice(),
-						Port: int(ds.Port()),
-					},
-				}
-
-				return ret
+			return ret
+		case a == addr.SvcDS && hasDiscoveryInfo && len(disco.DiscoveryServices) > 0:
+			// Use any discovery service if available
+			ds := disco.DiscoveryServices[rand.IntN(len(disco.DiscoveryServices))]
+			ret := &snet.UDPAddr{
+				IA:      destination,
+				Path:    path.Dataplane(),
+				NextHop: path.UnderlayNextHop(),
+				Host: &net.UDPAddr{
+					IP:   ds.Addr().AsSlice(),
+					Port: int(ds.Port()),
+				},
 			}
+			return ret
 		}
 	}
 	return &snet.SVCAddr{
