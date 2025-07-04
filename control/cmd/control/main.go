@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -27,33 +28,44 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	cs "github.com/scionproto/scion/control"
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
+	beaconingconnect "github.com/scionproto/scion/control/beaconing/connect"
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
+	"github.com/scionproto/scion/control/beaconing/happy"
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
+	drkeyconnect "github.com/scionproto/scion/control/drkey/connect"
 	drkeygrpc "github.com/scionproto/scion/control/drkey/grpc"
+	drkeyhappy "github.com/scionproto/scion/control/drkey/happy"
 	"github.com/scionproto/scion/control/ifstate"
 	api "github.com/scionproto/scion/control/mgmtapi"
 	"github.com/scionproto/scion/control/onehop"
 	"github.com/scionproto/scion/control/segreg"
+	segregconnect "github.com/scionproto/scion/control/segreg/connect"
 	segreggrpc "github.com/scionproto/scion/control/segreg/grpc"
 	"github.com/scionproto/scion/control/segreq"
+	segreqconnect "github.com/scionproto/scion/control/segreq/connect"
 	segreqgrpc "github.com/scionproto/scion/control/segreq/grpc"
 	cstrust "github.com/scionproto/scion/control/trust"
+	cstrustconnect "github.com/scionproto/scion/control/trust/connect"
 	cstrustgrpc "github.com/scionproto/scion/control/trust/grpc"
 	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
+	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
@@ -61,12 +73,15 @@ import (
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
+	cpconnect "github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
+	dconnect "github.com/scionproto/scion/pkg/proto/discovery/v1/discoveryconnect"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
+	"github.com/scionproto/scion/pkg/snet/squic"
 	"github.com/scionproto/scion/private/app"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/app/command"
@@ -74,15 +89,19 @@ import (
 	caapi "github.com/scionproto/scion/private/ca/api"
 	caconfig "github.com/scionproto/scion/private/ca/config"
 	"github.com/scionproto/scion/private/ca/renewal"
+	renewalconnect "github.com/scionproto/scion/private/ca/renewal/connect"
 	renewalgrpc "github.com/scionproto/scion/private/ca/renewal/grpc"
 	"github.com/scionproto/scion/private/discovery"
+	discoveryconnect "github.com/scionproto/scion/private/discovery/connect"
 	"github.com/scionproto/scion/private/drkey/drkeyutil"
 	"github.com/scionproto/scion/private/keyconf"
 	cppkiapi "github.com/scionproto/scion/private/mgmtapi/cppki/api"
 	"github.com/scionproto/scion/private/mgmtapi/jwtauth"
 	segapi "github.com/scionproto/scion/private/mgmtapi/segments/api"
 	"github.com/scionproto/scion/private/periodic"
+	segfetcherconnect "github.com/scionproto/scion/private/segment/segfetcher/connect"
 	segfetchergrpc "github.com/scionproto/scion/private/segment/segfetcher/grpc"
+	segfetcherhappy "github.com/scionproto/scion/private/segment/segfetcher/happy"
 	"github.com/scionproto/scion/private/segment/seghandler"
 	"github.com/scionproto/scion/private/service"
 	"github.com/scionproto/scion/private/storage"
@@ -95,7 +114,9 @@ import (
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
 	"github.com/scionproto/scion/private/trust/compat"
+	trustconnect "github.com/scionproto/scion/private/trust/connect"
 	trustgrpc "github.com/scionproto/scion/private/trust/grpc"
+	trusthappy "github.com/scionproto/scion/private/trust/happy"
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
@@ -231,10 +252,6 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.Wrap("initializing QUIC stack", err)
 	}
-	tcpStack, err := nc.TCPStack()
-	if err != nil {
-		return serrors.Wrap("initializing TCP stack", err)
-	}
 	dialer := &libgrpc.QUICDialer{
 		Rewriter: &onehop.AddressRewriter{
 			Rewriter: nc.AddressRewriter(),
@@ -284,10 +301,20 @@ func realMain(ctx context.Context) error {
 	}
 	provider := trust.FetchingProvider{
 		DB: trustDB,
-		Fetcher: trustgrpc.Fetcher{
-			IA:       topo.IA(),
-			Dialer:   dialer,
-			Requests: libmetrics.NewPromCounter(trustmetrics.RPC.Fetches),
+		Fetcher: trusthappy.Fetcher{
+			Connect: trustconnect.Fetcher{
+				IA: topo.IA(),
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.InsecureDialer.Transport,
+					TLSConfig: libconnect.AdaptClientTLS(quicStack.InsecureDialer.TLSConfig),
+					Rewriter:  dialer.Rewriter,
+				}).NewDialer,
+			},
+			Grpc: trustgrpc.Fetcher{
+				IA:       topo.IA(),
+				Dialer:   dialer,
+				Requests: libmetrics.NewPromCounter(trustmetrics.RPC.Fetches),
+			},
 		},
 		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
 		// XXX(roosd): cyclic dependency on router. It is set below.
@@ -308,8 +335,17 @@ func realMain(ctx context.Context) error {
 		PathDB:        pathDB,
 		RevCache:      revCache,
 		QueryInterval: globalCfg.PS.QueryInterval.Duration,
-		RPC: &segfetchergrpc.Requester{
-			Dialer: dialer,
+		RPC: &segfetcherhappy.Requester{
+			Connect: &segfetcherconnect.Requester{
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.InsecureDialer.Transport,
+					TLSConfig: libconnect.AdaptClientTLS(quicStack.InsecureDialer.TLSConfig),
+					Rewriter:  dialer.Rewriter,
+				}).NewDialer,
+			},
+			Grpc: &segfetchergrpc.Requester{
+				Dialer: dialer,
+			},
 		},
 		Inspector: inspector,
 		Verifier:  verifier,
@@ -325,10 +361,8 @@ func realMain(ctx context.Context) error {
 		libgrpc.UnaryServerInterceptor(),
 		libgrpc.DefaultMaxConcurrentStreams(),
 	)
-	tcpServer := grpc.NewServer(
-		libgrpc.UnaryServerInterceptor(),
-		libgrpc.DefaultMaxConcurrentStreams(),
-	)
+	connectInter := http.NewServeMux()
+	connectIntra := http.NewServeMux()
 
 	// Register trust material related handlers.
 	trustServer := &cstrustgrpc.MaterialServer{
@@ -337,10 +371,15 @@ func realMain(ctx context.Context) error {
 		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 	}
 	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
-	cppb.RegisterTrustMaterialServiceServer(tcpServer, trustServer)
+	connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
+		MaterialServer: trustServer,
+	}))
+	connectIntra.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
+		MaterialServer: trustServer,
+	}))
 
 	// Handle beaconing.
-	cppb.RegisterSegmentCreationServiceServer(quicServer, &beaconinggrpc.SegmentCreationServer{
+	segmentCreationServer := &beaconinggrpc.SegmentCreationServer{
 		Handler: &beaconing.Handler{
 			LocalIA:        topo.IA(),
 			Inserter:       beaconStore,
@@ -348,7 +387,13 @@ func realMain(ctx context.Context) error {
 			Verifier:       verifier,
 			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
 		},
-	})
+	}
+	cppb.RegisterSegmentCreationServiceServer(quicServer, segmentCreationServer)
+	connectInter.Handle(
+		cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{
+			SegmentCreationServer: segmentCreationServer,
+		}),
+	)
 
 	// Handle segment lookup
 	authLookupServer := &segreqgrpc.LookupServer{
@@ -379,14 +424,19 @@ func realMain(ctx context.Context) error {
 	}
 
 	// Always register a forwarding lookup for AS internal requests.
-	cppb.RegisterSegmentLookupServiceServer(tcpServer, forwardingLookupServer)
+	connectIntra.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{
+		LookupServer: forwardingLookupServer,
+	}))
 	if topo.Core() {
 		cppb.RegisterSegmentLookupServiceServer(quicServer, authLookupServer)
+		connectInter.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{
+			LookupServer: authLookupServer,
+		}))
 	}
 
 	// Handle segment registration.
 	if topo.Core() {
-		cppb.RegisterSegmentRegistrationServiceServer(quicServer, &segreggrpc.RegistrationServer{
+		registrationServer := &segreggrpc.RegistrationServer{
 			LocalIA: topo.IA(),
 			SegHandler: seghandler.Handler{
 				Verifier: &seghandler.DefaultVerifier{
@@ -398,7 +448,11 @@ func realMain(ctx context.Context) error {
 				},
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
-		})
+		}
+		cppb.RegisterSegmentRegistrationServiceServer(quicServer, registrationServer)
+		connectInter.Handle(cpconnect.NewSegmentRegistrationServiceHandler(
+			segregconnect.RegistrationServer{RegistrationServer: registrationServer},
+		))
 	}
 
 	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
@@ -523,7 +577,12 @@ func realMain(ctx context.Context) error {
 		}
 
 		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
-		cppb.RegisterChainRenewalServiceServer(tcpServer, renewalServer)
+		connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
+			RenewalServer: renewalServer,
+		}))
+		connectIntra.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
+			RenewalServer: renewalServer,
+		}))
 	}
 
 	// Frequently regenerate signers to catch problems, and update the metrics.
@@ -579,10 +638,9 @@ func realMain(ctx context.Context) error {
 		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
 	}
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
-
-	dsHealth := health.NewServer()
-	dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)
-	healthpb.RegisterHealthServer(tcpServer, dsHealth)
+	connectInter.Handle(
+		dconnect.NewDiscoveryServiceHandler(discoveryconnect.Topology{Topology: ds}),
+	)
 
 	hpCfg := cs.HiddenPathConfigurator{
 		LocalIA:           topo.IA(),
@@ -591,7 +649,7 @@ func realMain(ctx context.Context) error {
 		PathDB:            pathDB,
 		Dialer:            dialer,
 		FetcherConfig:     fetcherCfg,
-		IntraASTCPServer:  tcpServer,
+		IntraASTCPServer:  connectIntra,
 		InterASQUICServer: quicServer,
 	}
 	hpWriterCfg, err := hpCfg.Setup(globalCfg.PS.HiddenPathsCfg)
@@ -644,13 +702,24 @@ func realMain(ctx context.Context) error {
 		}
 		defer level1DB.Close()
 
-		drkeyFetcher := drkeygrpc.Fetcher{
-			Dialer: &libgrpc.QUICDialer{
-				Rewriter: nc.AddressRewriter(),
-				Dialer:   quicStack.Dialer,
+		drkeyFetcher := drkeyhappy.Fetcher{
+			Connect: &drkeyconnect.Fetcher{
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.Dialer.Transport,
+					TLSConfig: libconnect.AdaptClientTLS(quicStack.Dialer.TLSConfig),
+					Rewriter:  dialer.Rewriter,
+				}).NewDialer,
+				Router:     segreq.NewRouter(fetcherCfg),
+				MaxRetries: 20,
 			},
-			Router:     segreq.NewRouter(fetcherCfg),
-			MaxRetries: 20,
+			Grpc: &drkeygrpc.Fetcher{
+				Dialer: &libgrpc.QUICDialer{
+					Rewriter: nc.AddressRewriter(),
+					Dialer:   quicStack.Dialer,
+				},
+				Router:     segreq.NewRouter(fetcherCfg),
+				MaxRetries: 20,
+			},
 		}
 		prefetchKeeper, err := drkey.NewLevel1ARC(globalCfg.DRKey.PrefetchEntries)
 		if err != nil {
@@ -670,32 +739,84 @@ func realMain(ctx context.Context) error {
 			AllowedSVHostProto:        globalCfg.DRKey.Delegation.ToAllowedSet(),
 		}
 		cppb.RegisterDRKeyInterServiceServer(quicServer, drkeyService)
-		cppb.RegisterDRKeyIntraServiceServer(tcpServer, drkeyService)
+		connectInter.Handle(cpconnect.NewDRKeyInterServiceHandler(drkeyconnect.Server{
+			Server: drkeyService,
+		}))
+		connectIntra.Handle(cpconnect.NewDRKeyIntraServiceHandler(drkeyconnect.Server{
+			Server: drkeyService,
+		}))
 		log.Info("DRKey is enabled")
 	} else {
 		log.Info("DRKey is DISABLED by configuration")
 	}
 
 	promgrpc.Register(quicServer)
-	promgrpc.Register(tcpServer)
 
 	var cleanup app.Cleanup
+	connectServer := http3.Server{
+		Handler: libconnect.AttachPeer(connectInter),
+	}
+
+	grpcConns := make(chan quic.Connection)
+	//nolint:contextcheck // false positive.
 	g.Go(func() error {
 		defer log.HandlePanic()
-		if err := quicServer.Serve(quicStack.Listener); err != nil {
-			return serrors.Wrap("serving gRPC/QUIC API", err)
+		listener := quicStack.Listener
+		for {
+			conn, err := listener.Accept(context.Background())
+			if err == quic.ErrServerClosed {
+				return http.ErrServerClosed
+			}
+			if err != nil {
+				return err
+			}
+			go func() {
+				defer log.HandlePanic()
+				if conn.ConnectionState().TLS.NegotiatedProtocol != "h3" {
+					grpcConns <- conn
+					return
+				}
+
+				if err := connectServer.ServeQUICConn(conn); err != nil {
+					log.Debug("Error handling connectrpc connection", "err", err)
+				}
+			}()
+		}
+	})
+
+	g.Go(func() error {
+		defer log.HandlePanic()
+		grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
+		if err := quicServer.Serve(grpcListener); err != nil {
+			return serrors.Wrap("serving gRPC/SCION API", err)
 		}
 		return nil
 	})
 	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+
+	intraServer := http.Server{
+		Handler: h2c.NewHandler(libconnect.AttachPeer(connectIntra), &http2.Server{}),
+	}
 	g.Go(func() error {
 		defer log.HandlePanic()
-		if err := tcpServer.Serve(tcpStack); err != nil {
-			return serrors.Wrap("serving gRPC/TCP API", err)
+		tcpListener, err := nc.TCPStack()
+		if err != nil {
+			return serrors.Wrap("initializing TCP stack", err)
+		}
+		if err := intraServer.Serve(tcpListener); err != nil {
+			return serrors.Wrap("serving connect/TCP API", err)
 		}
 		return nil
 	})
-	cleanup.Add(func() error { tcpServer.GracefulStop(); return nil })
+	//nolint:contextcheck // false positive.
+	cleanup.Add(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		if err := intraServer.Shutdown(ctx); err != nil && ctx.Err() == nil {
+			return err
+		}
+		return nil
+	})
 
 	if globalCfg.API.Addr != "" {
 		r := chi.NewRouter()
@@ -773,7 +894,20 @@ func realMain(ctx context.Context) error {
 		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
-	rpc := beaconinggrpc.Registrar{Dialer: dialer}
+	rpc := &happy.Registrar{
+		Connect: beaconingconnect.Registrar{
+			Dialer: (&squic.EarlyDialerFactory{
+				Transport: quicStack.InsecureDialer.Transport,
+				TLSConfig: func() *tls.Config {
+					cfg := quicStack.InsecureDialer.TLSConfig.Clone()
+					cfg.NextProtos = []string{"h3", "SCION"}
+					return cfg
+				}(),
+				Rewriter: dialer.Rewriter,
+			}).NewDialer,
+		},
+		Grpc: beaconinggrpc.Registrar{Dialer: dialer},
+	}
 	tc := cs.TasksConfig{
 		IA:            topo.IA(),
 		Core:          topo.Core(),
@@ -789,8 +923,21 @@ func realMain(ctx context.Context) error {
 		TrustDB:  trustDB,
 		PathDB:   pathDB,
 		RevCache: revCache,
-		BeaconSenderFactory: &beaconinggrpc.BeaconSenderFactory{
-			Dialer: dialer,
+		BeaconSenderFactory: &happy.BeaconSenderFactory{
+			Connect: &beaconingconnect.BeaconSenderFactory{
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.InsecureDialer.Transport,
+					TLSConfig: func() *tls.Config {
+						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
+						cfg.NextProtos = []string{"h3", "SCION"}
+						return cfg
+					}(),
+					Rewriter: dialer.Rewriter,
+				}).NewDialer,
+			},
+			Grpc: &beaconinggrpc.BeaconSenderFactory{
+				Dialer: dialer,
+			},
 		},
 		SegmentRegister: rpc,
 		BeaconStore:     beaconStore,
