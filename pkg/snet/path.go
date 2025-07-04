@@ -217,11 +217,6 @@ func (pf PathFingerprint) String() string {
 	return fmt.Sprintf("%x", []byte(pf))
 }
 
-// MetadataProvider is the interface that provides access to the path metadata.
-type MetadataProvider interface {
-	Metadata() *PathMetadata
-}
-
 // Fingerprint uniquely identifies the path based on the sequence of
 // ASes and BRs, i.e. by its PathInterfaces.
 // Other metadata, such as MTU or NextHop have no effect on the fingerprint.
