@@ -145,10 +145,11 @@ func (f *Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error)
 		return nil, errNotReachable
 	}
 	for _, p := range paths {
-		if _, ok := f.errorPaths[snet.Fingerprint(p)]; ok {
+		fp := p.Metadata().Fingerprint()
+		if _, ok := f.errorPaths[fp]; ok {
 			continue
 		}
-		f.errorPaths[snet.Fingerprint(p)] = struct{}{}
+		f.errorPaths[fp] = struct{}{}
 		return p, nil
 	}
 	// we've tried out all the paths; we reset the map to retry them.
