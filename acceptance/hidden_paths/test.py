@@ -4,7 +4,6 @@
 
 import http.server
 import threading
-import time
 
 from acceptance.common import base
 from acceptance.common import scion
