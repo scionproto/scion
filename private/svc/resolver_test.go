@@ -127,7 +127,6 @@ func TestRoundTripper(t *testing.T) {
 			ErrorAssertion: require.Error,
 			ConnSetup: func(c *mock_snet.MockPacketConn) {
 				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
-				c.EXPECT().SetReadDeadline(gomock.Any())
 				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).Return(errors.New("read err"))
 			},
 		},
@@ -138,7 +137,6 @@ func TestRoundTripper(t *testing.T) {
 			ErrorAssertion: require.Error,
 			ConnSetup: func(c *mock_snet.MockPacketConn) {
 				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
-				c.EXPECT().SetReadDeadline(gomock.Any())
 				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, _ *net.UDPAddr) error {
 						pkt.Payload = snet.UDPPayload{Payload: []byte{42}}
@@ -154,7 +152,6 @@ func TestRoundTripper(t *testing.T) {
 			ErrorAssertion: require.NoError,
 			ConnSetup: func(c *mock_snet.MockPacketConn) {
 				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
-				c.EXPECT().SetReadDeadline(gomock.Any())
 				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, _ *net.UDPAddr) error {
 						raw, err := testReply.Marshal()
