@@ -1,3 +1,0 @@
-scion-cs1-ff00_0_110-1-1  scion-cs1-ff00_0_120-1-1  scion-cs1-ff00_0_130-1-1  scion-cs1-ff00_0_133-1-1  scion-cs2-ff00_0_212-1-1  scion-cs2-ff00_0_222-1-1  
-scion-cs1-ff00_0_111-1-1  scion-cs1-ff00_0_121-1-1  scion-cs1-ff00_0_131-1-1  scion-cs2-ff00_0_210-1-1  scion-cs2-ff00_0_220-1-1  
-scion-cs1-ff00_0_112-1-1  scion-cs1-ff00_0_122-1-1  scion-cs1-ff00_0_132-1-1  scion-cs2-ff00_0_211-1-1  scion-cs2-ff00_0_221-1-1  

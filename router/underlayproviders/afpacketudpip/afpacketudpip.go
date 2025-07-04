@@ -91,7 +91,7 @@ func (uo udpOpener) Open(index int) (*afpacket.TPacket, udpConnFilters, error) {
 	handle, err := afpacket.NewTPacket(
 		afpacket.OptInterface(intf.Name),
 		afpacket.OptPollTimeout(200*time.Millisecond),
-		afpacket.OptBlockTimeout(5*time.Millisecond), // TPv3 waits for and aggregates packets!
+		afpacket.OptBlockTimeout(2*time.Millisecond), // TPv3 waits for and aggregates packets!
 		// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
 	)
 	if err != nil {

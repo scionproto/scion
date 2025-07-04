@@ -453,6 +453,11 @@ func (l *internalLink) handleNeighbor(
 	targetIP, senderIP, rcptIP netip.Addr,
 	remoteHw [6]byte,
 ) {
+	// ignore (hem...) dup addr detection.
+	if remoteHw == zeroMacAddr {
+		return
+	}
+
 	// Don't pollute our table with stuff that we can't have asked. However, per RFC826, update
 	// what we already have when given a chance.
 	// remoteHwP always points at an in-cache MAC address, which reduces GC pressure.
@@ -463,7 +468,6 @@ func (l *internalLink) handleNeighbor(
 	l.neighbors.Lock()
 	found := l.neighbors.check(senderIP) // pending => found.
 	if (rcptIP == l.localAddr.Addr() &&
-		// remoteHw != zeroMacAddr && // Could be the loopback interface (and a v6 addr).
 		senderIP != targetIP && // could be response or could be gratuitous. If !found, not wanted.
 		!senderIP.IsUnspecified()) || found {
 
