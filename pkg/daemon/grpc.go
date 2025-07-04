@@ -300,6 +300,35 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 		},
 	}
 
+	if p.DiscoveryInformation != nil {
+		res.Meta.DiscoveryInformation = make(map[addr.IA]snet.DiscoveryInformation)
+		for ia, di := range p.DiscoveryInformation {
+			cses := make([]netip.AddrPort, 0, len(di.ControlServiceAddresses))
+			dses := make([]netip.AddrPort, 0, len(di.DiscoveryServiceAddresses))
+			for _, cs := range di.ControlServiceAddresses {
+				ap, err := netip.ParseAddrPort(cs)
+				if err != nil {
+					return path.Path{}, serrors.Wrap("parsing control service address", err,
+						"address", cs, "ia", ia)
+				}
+				cses = append(cses, ap)
+			}
+			for _, ds := range di.DiscoveryServiceAddresses {
+				ap, err := netip.ParseAddrPort(ds)
+				if err != nil {
+					return path.Path{}, serrors.Wrap("parsing discovery service address", err,
+						"address", ds, "ia", ia)
+				}
+				dses = append(dses, ap)
+
+			}
+			res.Meta.DiscoveryInformation[addr.IA(ia)] = snet.DiscoveryInformation{
+				ControlServices:   cses,
+				DiscoveryServices: dses,
+			}
+		}
+	}
+
 	if p.EpicAuths == nil {
 		return res, nil
 	}

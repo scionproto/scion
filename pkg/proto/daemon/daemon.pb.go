@@ -194,21 +194,22 @@ func (x *PathsResponse) GetPaths() []*Path {
 }
 
 type Path struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Raw           []byte                 `protobuf:"bytes,1,opt,name=raw,proto3" json:"raw,omitempty"`
-	Interface     *Interface             `protobuf:"bytes,2,opt,name=interface,proto3" json:"interface,omitempty"`
-	Interfaces    []*PathInterface       `protobuf:"bytes,3,rep,name=interfaces,proto3" json:"interfaces,omitempty"`
-	Mtu           uint32                 `protobuf:"varint,4,opt,name=mtu,proto3" json:"mtu,omitempty"`
-	Expiration    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expiration,proto3" json:"expiration,omitempty"`
-	Latency       []*durationpb.Duration `protobuf:"bytes,6,rep,name=latency,proto3" json:"latency,omitempty"`
-	Bandwidth     []uint64               `protobuf:"varint,7,rep,packed,name=bandwidth,proto3" json:"bandwidth,omitempty"`
-	Geo           []*GeoCoordinates      `protobuf:"bytes,8,rep,name=geo,proto3" json:"geo,omitempty"`
-	LinkType      []LinkType             `protobuf:"varint,9,rep,packed,name=link_type,json=linkType,proto3,enum=proto.daemon.v1.LinkType" json:"link_type,omitempty"`
-	InternalHops  []uint32               `protobuf:"varint,10,rep,packed,name=internal_hops,json=internalHops,proto3" json:"internal_hops,omitempty"`
-	Notes         []string               `protobuf:"bytes,11,rep,name=notes,proto3" json:"notes,omitempty"`
-	EpicAuths     *EpicAuths             `protobuf:"bytes,12,opt,name=epic_auths,json=epicAuths,proto3" json:"epic_auths,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState           `protogen:"open.v1"`
+	Raw                  []byte                           `protobuf:"bytes,1,opt,name=raw,proto3" json:"raw,omitempty"`
+	Interface            *Interface                       `protobuf:"bytes,2,opt,name=interface,proto3" json:"interface,omitempty"`
+	Interfaces           []*PathInterface                 `protobuf:"bytes,3,rep,name=interfaces,proto3" json:"interfaces,omitempty"`
+	Mtu                  uint32                           `protobuf:"varint,4,opt,name=mtu,proto3" json:"mtu,omitempty"`
+	Expiration           *timestamppb.Timestamp           `protobuf:"bytes,5,opt,name=expiration,proto3" json:"expiration,omitempty"`
+	Latency              []*durationpb.Duration           `protobuf:"bytes,6,rep,name=latency,proto3" json:"latency,omitempty"`
+	Bandwidth            []uint64                         `protobuf:"varint,7,rep,packed,name=bandwidth,proto3" json:"bandwidth,omitempty"`
+	Geo                  []*GeoCoordinates                `protobuf:"bytes,8,rep,name=geo,proto3" json:"geo,omitempty"`
+	LinkType             []LinkType                       `protobuf:"varint,9,rep,packed,name=link_type,json=linkType,proto3,enum=proto.daemon.v1.LinkType" json:"link_type,omitempty"`
+	InternalHops         []uint32                         `protobuf:"varint,10,rep,packed,name=internal_hops,json=internalHops,proto3" json:"internal_hops,omitempty"`
+	Notes                []string                         `protobuf:"bytes,11,rep,name=notes,proto3" json:"notes,omitempty"`
+	EpicAuths            *EpicAuths                       `protobuf:"bytes,12,opt,name=epic_auths,json=epicAuths,proto3" json:"epic_auths,omitempty"`
+	DiscoveryInformation map[uint64]*DiscoveryInformation `protobuf:"bytes,13,rep,name=discovery_information,json=discoveryInformation,proto3" json:"discovery_information,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Path) Reset() {
@@ -325,6 +326,65 @@ func (x *Path) GetEpicAuths() *EpicAuths {
 	return nil
 }
 
+func (x *Path) GetDiscoveryInformation() map[uint64]*DiscoveryInformation {
+	if x != nil {
+		return x.DiscoveryInformation
+	}
+	return nil
+}
+
+type DiscoveryInformation struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	ControlServiceAddresses   []string               `protobuf:"bytes,1,rep,name=control_service_addresses,json=controlServiceAddresses,proto3" json:"control_service_addresses,omitempty"`
+	DiscoveryServiceAddresses []string               `protobuf:"bytes,2,rep,name=discovery_service_addresses,json=discoveryServiceAddresses,proto3" json:"discovery_service_addresses,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *DiscoveryInformation) Reset() {
+	*x = DiscoveryInformation{}
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveryInformation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveryInformation) ProtoMessage() {}
+
+func (x *DiscoveryInformation) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveryInformation.ProtoReflect.Descriptor instead.
+func (*DiscoveryInformation) Descriptor() ([]byte, []int) {
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DiscoveryInformation) GetControlServiceAddresses() []string {
+	if x != nil {
+		return x.ControlServiceAddresses
+	}
+	return nil
+}
+
+func (x *DiscoveryInformation) GetDiscoveryServiceAddresses() []string {
+	if x != nil {
+		return x.DiscoveryServiceAddresses
+	}
+	return nil
+}
+
 type EpicAuths struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AuthPhvf      []byte                 `protobuf:"bytes,1,opt,name=auth_phvf,json=authPhvf,proto3" json:"auth_phvf,omitempty"`
@@ -335,7 +395,7 @@ type EpicAuths struct {
 
 func (x *EpicAuths) Reset() {
 	*x = EpicAuths{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[3]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -347,7 +407,7 @@ func (x *EpicAuths) String() string {
 func (*EpicAuths) ProtoMessage() {}
 
 func (x *EpicAuths) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[3]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -360,7 +420,7 @@ func (x *EpicAuths) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpicAuths.ProtoReflect.Descriptor instead.
 func (*EpicAuths) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{3}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EpicAuths) GetAuthPhvf() []byte {
@@ -387,7 +447,7 @@ type PathInterface struct {
 
 func (x *PathInterface) Reset() {
 	*x = PathInterface{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[4]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -399,7 +459,7 @@ func (x *PathInterface) String() string {
 func (*PathInterface) ProtoMessage() {}
 
 func (x *PathInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[4]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,7 +472,7 @@ func (x *PathInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathInterface.ProtoReflect.Descriptor instead.
 func (*PathInterface) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{4}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PathInterface) GetIsdAs() uint64 {
@@ -440,7 +500,7 @@ type GeoCoordinates struct {
 
 func (x *GeoCoordinates) Reset() {
 	*x = GeoCoordinates{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[5]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -452,7 +512,7 @@ func (x *GeoCoordinates) String() string {
 func (*GeoCoordinates) ProtoMessage() {}
 
 func (x *GeoCoordinates) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[5]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -465,7 +525,7 @@ func (x *GeoCoordinates) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GeoCoordinates.ProtoReflect.Descriptor instead.
 func (*GeoCoordinates) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{5}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GeoCoordinates) GetLatitude() float32 {
@@ -498,7 +558,7 @@ type ASRequest struct {
 
 func (x *ASRequest) Reset() {
 	*x = ASRequest{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[6]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +570,7 @@ func (x *ASRequest) String() string {
 func (*ASRequest) ProtoMessage() {}
 
 func (x *ASRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[6]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -523,7 +583,7 @@ func (x *ASRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ASRequest.ProtoReflect.Descriptor instead.
 func (*ASRequest) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{6}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ASRequest) GetIsdAs() uint64 {
@@ -544,7 +604,7 @@ type ASResponse struct {
 
 func (x *ASResponse) Reset() {
 	*x = ASResponse{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[7]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -556,7 +616,7 @@ func (x *ASResponse) String() string {
 func (*ASResponse) ProtoMessage() {}
 
 func (x *ASResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[7]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -569,7 +629,7 @@ func (x *ASResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ASResponse.ProtoReflect.Descriptor instead.
 func (*ASResponse) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{7}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ASResponse) GetIsdAs() uint64 {
@@ -601,7 +661,7 @@ type InterfacesRequest struct {
 
 func (x *InterfacesRequest) Reset() {
 	*x = InterfacesRequest{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[8]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -613,7 +673,7 @@ func (x *InterfacesRequest) String() string {
 func (*InterfacesRequest) ProtoMessage() {}
 
 func (x *InterfacesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[8]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -626,7 +686,7 @@ func (x *InterfacesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InterfacesRequest.ProtoReflect.Descriptor instead.
 func (*InterfacesRequest) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{8}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{9}
 }
 
 type InterfacesResponse struct {
@@ -638,7 +698,7 @@ type InterfacesResponse struct {
 
 func (x *InterfacesResponse) Reset() {
 	*x = InterfacesResponse{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[9]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -650,7 +710,7 @@ func (x *InterfacesResponse) String() string {
 func (*InterfacesResponse) ProtoMessage() {}
 
 func (x *InterfacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[9]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -663,7 +723,7 @@ func (x *InterfacesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InterfacesResponse.ProtoReflect.Descriptor instead.
 func (*InterfacesResponse) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{9}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *InterfacesResponse) GetInterfaces() map[uint64]*Interface {
@@ -682,7 +742,7 @@ type Interface struct {
 
 func (x *Interface) Reset() {
 	*x = Interface{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[10]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -694,7 +754,7 @@ func (x *Interface) String() string {
 func (*Interface) ProtoMessage() {}
 
 func (x *Interface) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[10]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -707,7 +767,7 @@ func (x *Interface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Interface.ProtoReflect.Descriptor instead.
 func (*Interface) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{10}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Interface) GetAddress() *Underlay {
@@ -725,7 +785,7 @@ type ServicesRequest struct {
 
 func (x *ServicesRequest) Reset() {
 	*x = ServicesRequest{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[11]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -737,7 +797,7 @@ func (x *ServicesRequest) String() string {
 func (*ServicesRequest) ProtoMessage() {}
 
 func (x *ServicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[11]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -750,7 +810,7 @@ func (x *ServicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServicesRequest.ProtoReflect.Descriptor instead.
 func (*ServicesRequest) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{11}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{12}
 }
 
 type ServicesResponse struct {
@@ -762,7 +822,7 @@ type ServicesResponse struct {
 
 func (x *ServicesResponse) Reset() {
 	*x = ServicesResponse{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[12]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +834,7 @@ func (x *ServicesResponse) String() string {
 func (*ServicesResponse) ProtoMessage() {}
 
 func (x *ServicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[12]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -787,7 +847,7 @@ func (x *ServicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServicesResponse.ProtoReflect.Descriptor instead.
 func (*ServicesResponse) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{12}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ServicesResponse) GetServices() map[string]*ListService {
@@ -806,7 +866,7 @@ type ListService struct {
 
 func (x *ListService) Reset() {
 	*x = ListService{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[13]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -818,7 +878,7 @@ func (x *ListService) String() string {
 func (*ListService) ProtoMessage() {}
 
 func (x *ListService) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[13]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -831,7 +891,7 @@ func (x *ListService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListService.ProtoReflect.Descriptor instead.
 func (*ListService) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{13}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListService) GetServices() []*Service {
@@ -850,7 +910,7 @@ type Service struct {
 
 func (x *Service) Reset() {
 	*x = Service{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[14]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -862,7 +922,7 @@ func (x *Service) String() string {
 func (*Service) ProtoMessage() {}
 
 func (x *Service) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[14]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -875,7 +935,7 @@ func (x *Service) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Service.ProtoReflect.Descriptor instead.
 func (*Service) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{14}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Service) GetUri() string {
@@ -894,7 +954,7 @@ type Underlay struct {
 
 func (x *Underlay) Reset() {
 	*x = Underlay{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[15]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -906,7 +966,7 @@ func (x *Underlay) String() string {
 func (*Underlay) ProtoMessage() {}
 
 func (x *Underlay) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[15]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -919,7 +979,7 @@ func (x *Underlay) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Underlay.ProtoReflect.Descriptor instead.
 func (*Underlay) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{15}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Underlay) GetAddress() string {
@@ -939,7 +999,7 @@ type NotifyInterfaceDownRequest struct {
 
 func (x *NotifyInterfaceDownRequest) Reset() {
 	*x = NotifyInterfaceDownRequest{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[16]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -951,7 +1011,7 @@ func (x *NotifyInterfaceDownRequest) String() string {
 func (*NotifyInterfaceDownRequest) ProtoMessage() {}
 
 func (x *NotifyInterfaceDownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[16]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -964,7 +1024,7 @@ func (x *NotifyInterfaceDownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotifyInterfaceDownRequest.ProtoReflect.Descriptor instead.
 func (*NotifyInterfaceDownRequest) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{16}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *NotifyInterfaceDownRequest) GetIsdAs() uint64 {
@@ -989,7 +1049,7 @@ type NotifyInterfaceDownResponse struct {
 
 func (x *NotifyInterfaceDownResponse) Reset() {
 	*x = NotifyInterfaceDownResponse{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[17]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1001,7 +1061,7 @@ func (x *NotifyInterfaceDownResponse) String() string {
 func (*NotifyInterfaceDownResponse) ProtoMessage() {}
 
 func (x *NotifyInterfaceDownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[17]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1014,7 +1074,7 @@ func (x *NotifyInterfaceDownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotifyInterfaceDownResponse.ProtoReflect.Descriptor instead.
 func (*NotifyInterfaceDownResponse) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{17}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{18}
 }
 
 type PortRangeResponse struct {
@@ -1027,7 +1087,7 @@ type PortRangeResponse struct {
 
 func (x *PortRangeResponse) Reset() {
 	*x = PortRangeResponse{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[18]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1039,7 +1099,7 @@ func (x *PortRangeResponse) String() string {
 func (*PortRangeResponse) ProtoMessage() {}
 
 func (x *PortRangeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[18]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1052,7 +1112,7 @@ func (x *PortRangeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PortRangeResponse.ProtoReflect.Descriptor instead.
 func (*PortRangeResponse) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{18}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *PortRangeResponse) GetDispatchedPortStart() uint32 {
@@ -1082,7 +1142,7 @@ type DRKeyHostASRequest struct {
 
 func (x *DRKeyHostASRequest) Reset() {
 	*x = DRKeyHostASRequest{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[19]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1094,7 +1154,7 @@ func (x *DRKeyHostASRequest) String() string {
 func (*DRKeyHostASRequest) ProtoMessage() {}
 
 func (x *DRKeyHostASRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[19]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1107,7 +1167,7 @@ func (x *DRKeyHostASRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DRKeyHostASRequest.ProtoReflect.Descriptor instead.
 func (*DRKeyHostASRequest) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{19}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DRKeyHostASRequest) GetValTime() *timestamppb.Timestamp {
@@ -1156,7 +1216,7 @@ type DRKeyHostASResponse struct {
 
 func (x *DRKeyHostASResponse) Reset() {
 	*x = DRKeyHostASResponse{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[20]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1168,7 +1228,7 @@ func (x *DRKeyHostASResponse) String() string {
 func (*DRKeyHostASResponse) ProtoMessage() {}
 
 func (x *DRKeyHostASResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[20]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1181,7 +1241,7 @@ func (x *DRKeyHostASResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DRKeyHostASResponse.ProtoReflect.Descriptor instead.
 func (*DRKeyHostASResponse) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{20}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DRKeyHostASResponse) GetEpochBegin() *timestamppb.Timestamp {
@@ -1218,7 +1278,7 @@ type DRKeyASHostRequest struct {
 
 func (x *DRKeyASHostRequest) Reset() {
 	*x = DRKeyASHostRequest{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[21]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1230,7 +1290,7 @@ func (x *DRKeyASHostRequest) String() string {
 func (*DRKeyASHostRequest) ProtoMessage() {}
 
 func (x *DRKeyASHostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[21]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1243,7 +1303,7 @@ func (x *DRKeyASHostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DRKeyASHostRequest.ProtoReflect.Descriptor instead.
 func (*DRKeyASHostRequest) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{21}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DRKeyASHostRequest) GetValTime() *timestamppb.Timestamp {
@@ -1292,7 +1352,7 @@ type DRKeyASHostResponse struct {
 
 func (x *DRKeyASHostResponse) Reset() {
 	*x = DRKeyASHostResponse{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[22]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1304,7 +1364,7 @@ func (x *DRKeyASHostResponse) String() string {
 func (*DRKeyASHostResponse) ProtoMessage() {}
 
 func (x *DRKeyASHostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[22]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1317,7 +1377,7 @@ func (x *DRKeyASHostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DRKeyASHostResponse.ProtoReflect.Descriptor instead.
 func (*DRKeyASHostResponse) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{22}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *DRKeyASHostResponse) GetEpochBegin() *timestamppb.Timestamp {
@@ -1355,7 +1415,7 @@ type DRKeyHostHostRequest struct {
 
 func (x *DRKeyHostHostRequest) Reset() {
 	*x = DRKeyHostHostRequest{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[23]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1367,7 +1427,7 @@ func (x *DRKeyHostHostRequest) String() string {
 func (*DRKeyHostHostRequest) ProtoMessage() {}
 
 func (x *DRKeyHostHostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[23]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1380,7 +1440,7 @@ func (x *DRKeyHostHostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DRKeyHostHostRequest.ProtoReflect.Descriptor instead.
 func (*DRKeyHostHostRequest) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{23}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DRKeyHostHostRequest) GetValTime() *timestamppb.Timestamp {
@@ -1436,7 +1496,7 @@ type DRKeyHostHostResponse struct {
 
 func (x *DRKeyHostHostResponse) Reset() {
 	*x = DRKeyHostHostResponse{}
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[24]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1448,7 +1508,7 @@ func (x *DRKeyHostHostResponse) String() string {
 func (*DRKeyHostHostResponse) ProtoMessage() {}
 
 func (x *DRKeyHostHostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[24]
+	mi := &file_proto_daemon_v1_daemon_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1461,7 +1521,7 @@ func (x *DRKeyHostHostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DRKeyHostHostResponse.ProtoReflect.Descriptor instead.
 func (*DRKeyHostHostResponse) Descriptor() ([]byte, []int) {
-	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{24}
+	return file_proto_daemon_v1_daemon_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DRKeyHostHostResponse) GetEpochBegin() *timestamppb.Timestamp {
@@ -1496,7 +1556,7 @@ const file_proto_daemon_v1_daemon_proto_rawDesc = "" +
 	"\arefresh\x18\x03 \x01(\bR\arefresh\x12\x16\n" +
 	"\x06hidden\x18\x04 \x01(\bR\x06hidden\"<\n" +
 	"\rPathsResponse\x12+\n" +
-	"\x05paths\x18\x01 \x03(\v2\x15.proto.daemon.v1.PathR\x05paths\"\x94\x04\n" +
+	"\x05paths\x18\x01 \x03(\v2\x15.proto.daemon.v1.PathR\x05paths\"\xea\x05\n" +
 	"\x04Path\x12\x10\n" +
 	"\x03raw\x18\x01 \x01(\fR\x03raw\x128\n" +
 	"\tinterface\x18\x02 \x01(\v2\x1a.proto.daemon.v1.InterfaceR\tinterface\x12>\n" +
@@ -1515,7 +1575,14 @@ const file_proto_daemon_v1_daemon_proto_rawDesc = "" +
 	" \x03(\rR\finternalHops\x12\x14\n" +
 	"\x05notes\x18\v \x03(\tR\x05notes\x129\n" +
 	"\n" +
-	"epic_auths\x18\f \x01(\v2\x1a.proto.daemon.v1.EpicAuthsR\tepicAuths\"E\n" +
+	"epic_auths\x18\f \x01(\v2\x1a.proto.daemon.v1.EpicAuthsR\tepicAuths\x12d\n" +
+	"\x15discovery_information\x18\r \x03(\v2/.proto.daemon.v1.Path.DiscoveryInformationEntryR\x14discoveryInformation\x1an\n" +
+	"\x19DiscoveryInformationEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\x04R\x03key\x12;\n" +
+	"\x05value\x18\x02 \x01(\v2%.proto.daemon.v1.DiscoveryInformationR\x05value:\x028\x01\"\x92\x01\n" +
+	"\x14DiscoveryInformation\x12:\n" +
+	"\x19control_service_addresses\x18\x01 \x03(\tR\x17controlServiceAddresses\x12>\n" +
+	"\x1bdiscovery_service_addresses\x18\x02 \x03(\tR\x19discoveryServiceAddresses\"E\n" +
 	"\tEpicAuths\x12\x1b\n" +
 	"\tauth_phvf\x18\x01 \x01(\fR\bauthPhvf\x12\x1b\n" +
 	"\tauth_lhvf\x18\x02 \x01(\fR\bauthLhvf\"6\n" +
@@ -1629,91 +1696,95 @@ func file_proto_daemon_v1_daemon_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_daemon_v1_daemon_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_daemon_v1_daemon_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_proto_daemon_v1_daemon_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_proto_daemon_v1_daemon_proto_goTypes = []any{
 	(LinkType)(0),                       // 0: proto.daemon.v1.LinkType
 	(*PathsRequest)(nil),                // 1: proto.daemon.v1.PathsRequest
 	(*PathsResponse)(nil),               // 2: proto.daemon.v1.PathsResponse
 	(*Path)(nil),                        // 3: proto.daemon.v1.Path
-	(*EpicAuths)(nil),                   // 4: proto.daemon.v1.EpicAuths
-	(*PathInterface)(nil),               // 5: proto.daemon.v1.PathInterface
-	(*GeoCoordinates)(nil),              // 6: proto.daemon.v1.GeoCoordinates
-	(*ASRequest)(nil),                   // 7: proto.daemon.v1.ASRequest
-	(*ASResponse)(nil),                  // 8: proto.daemon.v1.ASResponse
-	(*InterfacesRequest)(nil),           // 9: proto.daemon.v1.InterfacesRequest
-	(*InterfacesResponse)(nil),          // 10: proto.daemon.v1.InterfacesResponse
-	(*Interface)(nil),                   // 11: proto.daemon.v1.Interface
-	(*ServicesRequest)(nil),             // 12: proto.daemon.v1.ServicesRequest
-	(*ServicesResponse)(nil),            // 13: proto.daemon.v1.ServicesResponse
-	(*ListService)(nil),                 // 14: proto.daemon.v1.ListService
-	(*Service)(nil),                     // 15: proto.daemon.v1.Service
-	(*Underlay)(nil),                    // 16: proto.daemon.v1.Underlay
-	(*NotifyInterfaceDownRequest)(nil),  // 17: proto.daemon.v1.NotifyInterfaceDownRequest
-	(*NotifyInterfaceDownResponse)(nil), // 18: proto.daemon.v1.NotifyInterfaceDownResponse
-	(*PortRangeResponse)(nil),           // 19: proto.daemon.v1.PortRangeResponse
-	(*DRKeyHostASRequest)(nil),          // 20: proto.daemon.v1.DRKeyHostASRequest
-	(*DRKeyHostASResponse)(nil),         // 21: proto.daemon.v1.DRKeyHostASResponse
-	(*DRKeyASHostRequest)(nil),          // 22: proto.daemon.v1.DRKeyASHostRequest
-	(*DRKeyASHostResponse)(nil),         // 23: proto.daemon.v1.DRKeyASHostResponse
-	(*DRKeyHostHostRequest)(nil),        // 24: proto.daemon.v1.DRKeyHostHostRequest
-	(*DRKeyHostHostResponse)(nil),       // 25: proto.daemon.v1.DRKeyHostHostResponse
-	nil,                                 // 26: proto.daemon.v1.InterfacesResponse.InterfacesEntry
-	nil,                                 // 27: proto.daemon.v1.ServicesResponse.ServicesEntry
-	(*timestamppb.Timestamp)(nil),       // 28: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),         // 29: google.protobuf.Duration
-	(drkey.Protocol)(0),                 // 30: proto.drkey.v1.Protocol
-	(*emptypb.Empty)(nil),               // 31: google.protobuf.Empty
+	(*DiscoveryInformation)(nil),        // 4: proto.daemon.v1.DiscoveryInformation
+	(*EpicAuths)(nil),                   // 5: proto.daemon.v1.EpicAuths
+	(*PathInterface)(nil),               // 6: proto.daemon.v1.PathInterface
+	(*GeoCoordinates)(nil),              // 7: proto.daemon.v1.GeoCoordinates
+	(*ASRequest)(nil),                   // 8: proto.daemon.v1.ASRequest
+	(*ASResponse)(nil),                  // 9: proto.daemon.v1.ASResponse
+	(*InterfacesRequest)(nil),           // 10: proto.daemon.v1.InterfacesRequest
+	(*InterfacesResponse)(nil),          // 11: proto.daemon.v1.InterfacesResponse
+	(*Interface)(nil),                   // 12: proto.daemon.v1.Interface
+	(*ServicesRequest)(nil),             // 13: proto.daemon.v1.ServicesRequest
+	(*ServicesResponse)(nil),            // 14: proto.daemon.v1.ServicesResponse
+	(*ListService)(nil),                 // 15: proto.daemon.v1.ListService
+	(*Service)(nil),                     // 16: proto.daemon.v1.Service
+	(*Underlay)(nil),                    // 17: proto.daemon.v1.Underlay
+	(*NotifyInterfaceDownRequest)(nil),  // 18: proto.daemon.v1.NotifyInterfaceDownRequest
+	(*NotifyInterfaceDownResponse)(nil), // 19: proto.daemon.v1.NotifyInterfaceDownResponse
+	(*PortRangeResponse)(nil),           // 20: proto.daemon.v1.PortRangeResponse
+	(*DRKeyHostASRequest)(nil),          // 21: proto.daemon.v1.DRKeyHostASRequest
+	(*DRKeyHostASResponse)(nil),         // 22: proto.daemon.v1.DRKeyHostASResponse
+	(*DRKeyASHostRequest)(nil),          // 23: proto.daemon.v1.DRKeyASHostRequest
+	(*DRKeyASHostResponse)(nil),         // 24: proto.daemon.v1.DRKeyASHostResponse
+	(*DRKeyHostHostRequest)(nil),        // 25: proto.daemon.v1.DRKeyHostHostRequest
+	(*DRKeyHostHostResponse)(nil),       // 26: proto.daemon.v1.DRKeyHostHostResponse
+	nil,                                 // 27: proto.daemon.v1.Path.DiscoveryInformationEntry
+	nil,                                 // 28: proto.daemon.v1.InterfacesResponse.InterfacesEntry
+	nil,                                 // 29: proto.daemon.v1.ServicesResponse.ServicesEntry
+	(*timestamppb.Timestamp)(nil),       // 30: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),         // 31: google.protobuf.Duration
+	(drkey.Protocol)(0),                 // 32: proto.drkey.v1.Protocol
+	(*emptypb.Empty)(nil),               // 33: google.protobuf.Empty
 }
 var file_proto_daemon_v1_daemon_proto_depIdxs = []int32{
 	3,  // 0: proto.daemon.v1.PathsResponse.paths:type_name -> proto.daemon.v1.Path
-	11, // 1: proto.daemon.v1.Path.interface:type_name -> proto.daemon.v1.Interface
-	5,  // 2: proto.daemon.v1.Path.interfaces:type_name -> proto.daemon.v1.PathInterface
-	28, // 3: proto.daemon.v1.Path.expiration:type_name -> google.protobuf.Timestamp
-	29, // 4: proto.daemon.v1.Path.latency:type_name -> google.protobuf.Duration
-	6,  // 5: proto.daemon.v1.Path.geo:type_name -> proto.daemon.v1.GeoCoordinates
+	12, // 1: proto.daemon.v1.Path.interface:type_name -> proto.daemon.v1.Interface
+	6,  // 2: proto.daemon.v1.Path.interfaces:type_name -> proto.daemon.v1.PathInterface
+	30, // 3: proto.daemon.v1.Path.expiration:type_name -> google.protobuf.Timestamp
+	31, // 4: proto.daemon.v1.Path.latency:type_name -> google.protobuf.Duration
+	7,  // 5: proto.daemon.v1.Path.geo:type_name -> proto.daemon.v1.GeoCoordinates
 	0,  // 6: proto.daemon.v1.Path.link_type:type_name -> proto.daemon.v1.LinkType
-	4,  // 7: proto.daemon.v1.Path.epic_auths:type_name -> proto.daemon.v1.EpicAuths
-	26, // 8: proto.daemon.v1.InterfacesResponse.interfaces:type_name -> proto.daemon.v1.InterfacesResponse.InterfacesEntry
-	16, // 9: proto.daemon.v1.Interface.address:type_name -> proto.daemon.v1.Underlay
-	27, // 10: proto.daemon.v1.ServicesResponse.services:type_name -> proto.daemon.v1.ServicesResponse.ServicesEntry
-	15, // 11: proto.daemon.v1.ListService.services:type_name -> proto.daemon.v1.Service
-	28, // 12: proto.daemon.v1.DRKeyHostASRequest.val_time:type_name -> google.protobuf.Timestamp
-	30, // 13: proto.daemon.v1.DRKeyHostASRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
-	28, // 14: proto.daemon.v1.DRKeyHostASResponse.epoch_begin:type_name -> google.protobuf.Timestamp
-	28, // 15: proto.daemon.v1.DRKeyHostASResponse.epoch_end:type_name -> google.protobuf.Timestamp
-	28, // 16: proto.daemon.v1.DRKeyASHostRequest.val_time:type_name -> google.protobuf.Timestamp
-	30, // 17: proto.daemon.v1.DRKeyASHostRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
-	28, // 18: proto.daemon.v1.DRKeyASHostResponse.epoch_begin:type_name -> google.protobuf.Timestamp
-	28, // 19: proto.daemon.v1.DRKeyASHostResponse.epoch_end:type_name -> google.protobuf.Timestamp
-	28, // 20: proto.daemon.v1.DRKeyHostHostRequest.val_time:type_name -> google.protobuf.Timestamp
-	30, // 21: proto.daemon.v1.DRKeyHostHostRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
-	28, // 22: proto.daemon.v1.DRKeyHostHostResponse.epoch_begin:type_name -> google.protobuf.Timestamp
-	28, // 23: proto.daemon.v1.DRKeyHostHostResponse.epoch_end:type_name -> google.protobuf.Timestamp
-	11, // 24: proto.daemon.v1.InterfacesResponse.InterfacesEntry.value:type_name -> proto.daemon.v1.Interface
-	14, // 25: proto.daemon.v1.ServicesResponse.ServicesEntry.value:type_name -> proto.daemon.v1.ListService
-	1,  // 26: proto.daemon.v1.DaemonService.Paths:input_type -> proto.daemon.v1.PathsRequest
-	7,  // 27: proto.daemon.v1.DaemonService.AS:input_type -> proto.daemon.v1.ASRequest
-	9,  // 28: proto.daemon.v1.DaemonService.Interfaces:input_type -> proto.daemon.v1.InterfacesRequest
-	12, // 29: proto.daemon.v1.DaemonService.Services:input_type -> proto.daemon.v1.ServicesRequest
-	17, // 30: proto.daemon.v1.DaemonService.NotifyInterfaceDown:input_type -> proto.daemon.v1.NotifyInterfaceDownRequest
-	31, // 31: proto.daemon.v1.DaemonService.PortRange:input_type -> google.protobuf.Empty
-	22, // 32: proto.daemon.v1.DaemonService.DRKeyASHost:input_type -> proto.daemon.v1.DRKeyASHostRequest
-	20, // 33: proto.daemon.v1.DaemonService.DRKeyHostAS:input_type -> proto.daemon.v1.DRKeyHostASRequest
-	24, // 34: proto.daemon.v1.DaemonService.DRKeyHostHost:input_type -> proto.daemon.v1.DRKeyHostHostRequest
-	2,  // 35: proto.daemon.v1.DaemonService.Paths:output_type -> proto.daemon.v1.PathsResponse
-	8,  // 36: proto.daemon.v1.DaemonService.AS:output_type -> proto.daemon.v1.ASResponse
-	10, // 37: proto.daemon.v1.DaemonService.Interfaces:output_type -> proto.daemon.v1.InterfacesResponse
-	13, // 38: proto.daemon.v1.DaemonService.Services:output_type -> proto.daemon.v1.ServicesResponse
-	18, // 39: proto.daemon.v1.DaemonService.NotifyInterfaceDown:output_type -> proto.daemon.v1.NotifyInterfaceDownResponse
-	19, // 40: proto.daemon.v1.DaemonService.PortRange:output_type -> proto.daemon.v1.PortRangeResponse
-	23, // 41: proto.daemon.v1.DaemonService.DRKeyASHost:output_type -> proto.daemon.v1.DRKeyASHostResponse
-	21, // 42: proto.daemon.v1.DaemonService.DRKeyHostAS:output_type -> proto.daemon.v1.DRKeyHostASResponse
-	25, // 43: proto.daemon.v1.DaemonService.DRKeyHostHost:output_type -> proto.daemon.v1.DRKeyHostHostResponse
-	35, // [35:44] is the sub-list for method output_type
-	26, // [26:35] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	5,  // 7: proto.daemon.v1.Path.epic_auths:type_name -> proto.daemon.v1.EpicAuths
+	27, // 8: proto.daemon.v1.Path.discovery_information:type_name -> proto.daemon.v1.Path.DiscoveryInformationEntry
+	28, // 9: proto.daemon.v1.InterfacesResponse.interfaces:type_name -> proto.daemon.v1.InterfacesResponse.InterfacesEntry
+	17, // 10: proto.daemon.v1.Interface.address:type_name -> proto.daemon.v1.Underlay
+	29, // 11: proto.daemon.v1.ServicesResponse.services:type_name -> proto.daemon.v1.ServicesResponse.ServicesEntry
+	16, // 12: proto.daemon.v1.ListService.services:type_name -> proto.daemon.v1.Service
+	30, // 13: proto.daemon.v1.DRKeyHostASRequest.val_time:type_name -> google.protobuf.Timestamp
+	32, // 14: proto.daemon.v1.DRKeyHostASRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
+	30, // 15: proto.daemon.v1.DRKeyHostASResponse.epoch_begin:type_name -> google.protobuf.Timestamp
+	30, // 16: proto.daemon.v1.DRKeyHostASResponse.epoch_end:type_name -> google.protobuf.Timestamp
+	30, // 17: proto.daemon.v1.DRKeyASHostRequest.val_time:type_name -> google.protobuf.Timestamp
+	32, // 18: proto.daemon.v1.DRKeyASHostRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
+	30, // 19: proto.daemon.v1.DRKeyASHostResponse.epoch_begin:type_name -> google.protobuf.Timestamp
+	30, // 20: proto.daemon.v1.DRKeyASHostResponse.epoch_end:type_name -> google.protobuf.Timestamp
+	30, // 21: proto.daemon.v1.DRKeyHostHostRequest.val_time:type_name -> google.protobuf.Timestamp
+	32, // 22: proto.daemon.v1.DRKeyHostHostRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
+	30, // 23: proto.daemon.v1.DRKeyHostHostResponse.epoch_begin:type_name -> google.protobuf.Timestamp
+	30, // 24: proto.daemon.v1.DRKeyHostHostResponse.epoch_end:type_name -> google.protobuf.Timestamp
+	4,  // 25: proto.daemon.v1.Path.DiscoveryInformationEntry.value:type_name -> proto.daemon.v1.DiscoveryInformation
+	12, // 26: proto.daemon.v1.InterfacesResponse.InterfacesEntry.value:type_name -> proto.daemon.v1.Interface
+	15, // 27: proto.daemon.v1.ServicesResponse.ServicesEntry.value:type_name -> proto.daemon.v1.ListService
+	1,  // 28: proto.daemon.v1.DaemonService.Paths:input_type -> proto.daemon.v1.PathsRequest
+	8,  // 29: proto.daemon.v1.DaemonService.AS:input_type -> proto.daemon.v1.ASRequest
+	10, // 30: proto.daemon.v1.DaemonService.Interfaces:input_type -> proto.daemon.v1.InterfacesRequest
+	13, // 31: proto.daemon.v1.DaemonService.Services:input_type -> proto.daemon.v1.ServicesRequest
+	18, // 32: proto.daemon.v1.DaemonService.NotifyInterfaceDown:input_type -> proto.daemon.v1.NotifyInterfaceDownRequest
+	33, // 33: proto.daemon.v1.DaemonService.PortRange:input_type -> google.protobuf.Empty
+	23, // 34: proto.daemon.v1.DaemonService.DRKeyASHost:input_type -> proto.daemon.v1.DRKeyASHostRequest
+	21, // 35: proto.daemon.v1.DaemonService.DRKeyHostAS:input_type -> proto.daemon.v1.DRKeyHostASRequest
+	25, // 36: proto.daemon.v1.DaemonService.DRKeyHostHost:input_type -> proto.daemon.v1.DRKeyHostHostRequest
+	2,  // 37: proto.daemon.v1.DaemonService.Paths:output_type -> proto.daemon.v1.PathsResponse
+	9,  // 38: proto.daemon.v1.DaemonService.AS:output_type -> proto.daemon.v1.ASResponse
+	11, // 39: proto.daemon.v1.DaemonService.Interfaces:output_type -> proto.daemon.v1.InterfacesResponse
+	14, // 40: proto.daemon.v1.DaemonService.Services:output_type -> proto.daemon.v1.ServicesResponse
+	19, // 41: proto.daemon.v1.DaemonService.NotifyInterfaceDown:output_type -> proto.daemon.v1.NotifyInterfaceDownResponse
+	20, // 42: proto.daemon.v1.DaemonService.PortRange:output_type -> proto.daemon.v1.PortRangeResponse
+	24, // 43: proto.daemon.v1.DaemonService.DRKeyASHost:output_type -> proto.daemon.v1.DRKeyASHostResponse
+	22, // 44: proto.daemon.v1.DaemonService.DRKeyHostAS:output_type -> proto.daemon.v1.DRKeyHostASResponse
+	26, // 45: proto.daemon.v1.DaemonService.DRKeyHostHost:output_type -> proto.daemon.v1.DRKeyHostHostResponse
+	37, // [37:46] is the sub-list for method output_type
+	28, // [28:37] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_proto_daemon_v1_daemon_proto_init() }
@@ -1727,7 +1798,7 @@ func file_proto_daemon_v1_daemon_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_daemon_v1_daemon_proto_rawDesc), len(file_proto_daemon_v1_daemon_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   27,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

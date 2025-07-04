@@ -16,6 +16,7 @@ package beaconing
 
 import (
 	"context"
+	"net"
 	"strconv"
 
 	"github.com/opentracing/opentracing-go"
@@ -127,13 +128,24 @@ func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 	if err != nil {
 		return err
 	}
-	svcToQuery := &snet.SVCAddr{
+	var remoteAddr net.Addr = &snet.SVCAddr{
 		IA:      peer.IA,
 		Path:    peerPath.Dataplane(),
 		NextHop: peerPath.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}
-	return segverifier.VerifySegment(ctx, h.Verifier, svcToQuery, segment)
+
+	if disco := segment.ASEntries[segment.MaxIdx()].Extensions.Discovery; disco != nil &&
+		len(disco.ControlServices) > 0 {
+		remoteAddr = &snet.UDPAddr{
+			IA:      peer.IA,
+			Path:    peerPath.Dataplane(),
+			NextHop: peerPath.UnderlayNextHop(),
+			Host:    net.UDPAddrFromAddrPort(disco.ControlServices[0]),
+		}
+	}
+
+	return segverifier.VerifySegment(ctx, h.Verifier, remoteAddr, segment)
 }
 
 func (h Handler) updateMetric(span opentracing.Span, l handlerLabels, err error) {

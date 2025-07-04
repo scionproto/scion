@@ -35,6 +35,7 @@ import (
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
@@ -104,10 +105,11 @@ func TestDefaultExtenderExtend(t *testing.T) {
 					require.NoError(t, err)
 					return mac
 				},
-				Intfs:      intfs,
-				MTU:        1337,
-				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+				Intfs:                intfs,
+				MTU:                  1337,
+				MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+				StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+				DiscoveryInformation: func() *discovery.Extension { return nil },
 			}
 			pseg, err := seg.CreateSegment(time.Time{}, 0)
 			require.NoError(t, err)
@@ -175,10 +177,11 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				require.NoError(t, err)
 				return mac
 			},
-			Intfs:      intfs,
-			MTU:        1337,
-			MaxExpTime: func() uint8 { return 1 },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+			Intfs:                intfs,
+			MTU:                  1337,
+			MaxExpTime:           func() uint8 { return 1 },
+			StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+			DiscoveryInformation: func() *discovery.Extension { return nil },
 		}
 		require.NoError(t, err)
 		pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
@@ -267,10 +270,11 @@ func TestDefaultExtenderExtend(t *testing.T) {
 						require.NoError(t, err)
 						return mac
 					},
-					Intfs:      intfs,
-					MTU:        1337,
-					MaxExpTime: tc.MaxExpTime,
-					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+					Intfs:                intfs,
+					MTU:                  1337,
+					MaxExpTime:           tc.MaxExpTime,
+					StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+					DiscoveryInformation: func() *discovery.Extension { return nil },
 				}
 				pseg, err := seg.CreateSegment(ts, uint16(mrand.Int()))
 				require.NoError(t, err)
@@ -337,10 +341,11 @@ func TestDefaultExtenderExtend(t *testing.T) {
 						require.NoError(t, err)
 						return mac
 					},
-					Intfs:      intfs,
-					MTU:        1337,
-					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+					Intfs:                intfs,
+					MTU:                  1337,
+					MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+					StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+					DiscoveryInformation: func() *discovery.Extension { return nil },
 				}
 				pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 				require.NoError(t, err)

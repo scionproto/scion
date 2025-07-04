@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
@@ -195,13 +196,14 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 			w := &hiddenpath.BeaconWriter{
 				Intfs: intfs,
 				Extender: &beaconing.DefaultExtender{
-					IA:         topo.IA(),
-					MTU:        topo.MTU(),
-					SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
-					Intfs:      intfs,
-					MAC:        macFactory,
-					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+					IA:                   topo.IA(),
+					MTU:                  topo.MTU(),
+					SignerGen:            testSignerGen{Signer: testSigner(t, priv, topo.IA())},
+					Intfs:                intfs,
+					MAC:                  macFactory,
+					MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+					StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+					DiscoveryInformation: func() *discovery.Extension { return nil },
 				},
 				RPC: tc.createRPC(t, ctrl),
 				Pather: addrutil.Pather{
