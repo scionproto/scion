@@ -62,18 +62,10 @@ func (l *ptpLink) packHeader() chan *router.Packet {
 	dstIP := l.remoteAddr.Addr()
 
 	// Resolve the destination MAC address if we can.
-	var dstMac *[6]byte
-	if [6]byte(l.localMAC) == dummyMacAddr {
-		// Linux will not play pretend: if we're talking to a loopbak device, the kernel does not
-		// respond to neighbor resolution requests. The good news is that any address will do.
-		dstMac = &dummyMacAddr
-	} else {
-		var backlog chan *router.Packet
-		dstMac, backlog = l.neighbors.get(dstIP) // Sends ARP/NDP req as needed.
-		if dstMac == nil {
-			// We don't have an address to offer, but we have a backlog queue.
-			return backlog
-		}
+	dstMac, backlog := l.neighbors.get(dstIP) // Sends ARP/NDP req as needed.
+	if dstMac == nil {
+		// We don't have an address to offer, but we have a backlog queue.
+		return backlog
 	}
 
 	// Build the header.
@@ -374,7 +366,6 @@ func (l *ptpLink) SendBlocking(p *router.Packet) {
 func (l *ptpLink) receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort, p *router.Packet) {
 	// Even with filters, we can receive packets not meant for us.
 	if *dstAddr != *l.localAddr {
-		log.Debug("Not for me", "addr", dstAddr, "vs local", l.localAddr)
 		l.pool.Put(p)
 		return
 	}
@@ -412,20 +403,23 @@ func (l *ptpLink) handleNeighbor(
 	// This is needed to minimize GC pressure. It gets assigned to a dynamically allocated
 	// copy only when there is no better choice.
 	var remoteHwP *[6]byte
-	var changed bool
+	changed := false
 
-	if senderIP == l.remoteAddr.Addr() && remoteHw != zeroMacAddr {
+	if senderIP == l.remoteAddr.Addr() {
 		l.neighbors.Lock()
 		// We want, regardless of cache content.
 		remoteHwP, changed = l.neighbors.put(senderIP, remoteHw)
-		l.neighbors.Unlock()
 		if changed {
-			// Time to rebuild the packed header and to send the backlog if any.
+			// Time to rebuild the packed header.
+			l.header = nil
+		}
+		l.neighbors.Unlock()
+		// backlog is an unbuffered channel. Cannot post to it while holding the mutex.
+		if changed {
 			select {
 			case l.backlogCheck <- struct{}{}:
 			default:
 			}
-			l.header = nil
 		}
 	} else if targetIP == l.localAddr.Addr() && !senderIP.IsUnspecified() {
 		// We don't want but it may deserve a response.
@@ -436,10 +430,7 @@ func (l *ptpLink) handleNeighbor(
 		isReq = false
 	}
 
-	// Respond?
-	// TODO(jiceatscion): since we find the interfaces by address, we assume the addresses are
-	// assigned in the regular ip stack. So the kernel should be doing the responding just fine.
-	// Therefore, may be responding isn't required; at least as long as we use assigned addresses.
+	// We do respond. The kernel might or might not, depending on how we setup interfaces.
 	if !isReq {
 		return
 	}
@@ -449,6 +440,7 @@ func (l *ptpLink) handleNeighbor(
 	}
 	p := l.pool.Get()
 	localIP := l.localAddr.Addr()
+	// TODO(jiceatscion): should suppress response here too for loopback devices.
 	packNeighborResp(p, &localIP, l.localMAC[:], &senderIP, remoteHwP[:], l.is4)
 	select {
 	case l.egressQ <- p:
@@ -470,13 +462,13 @@ func newPtpLinkExternal(
 		remoteAddr: remoteAddr,
 		egressQ:    conn.queue,
 		metrics:    metrics,
-		bfdSession: bfd,
 		neighbors: newNeighborCache(
 			"sibTo_"+remoteAddr.String(),
 			conn.localMAC,
 			localAddr.Addr(),
 			conn.queue,
 		),
+		bfdSession:      bfd,
 		backlogCheck:    make(chan struct{}, 1),
 		sendBacklogDone: make(chan struct{}),
 		scope:           router.External,
@@ -485,7 +477,6 @@ func newPtpLinkExternal(
 		is4:             localAddr.Addr().Is4(),
 	}
 	conn.links[*remoteAddr] = l
-
 	log.Debug("***** Link", "scope", "external", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l
@@ -504,13 +495,13 @@ func newPtpLinkSibling(
 		remoteAddr: remoteAddr,
 		egressQ:    conn.queue,
 		metrics:    metrics,
-		bfdSession: bfd,
 		neighbors: newNeighborCache(
 			"extTo_"+remoteAddr.String(),
 			conn.localMAC,
 			localAddr.Addr(),
 			conn.queue,
 		),
+		bfdSession:      bfd,
 		backlogCheck:    make(chan struct{}),
 		sendBacklogDone: make(chan struct{}),
 		scope:           router.Sibling,
@@ -519,7 +510,6 @@ func newPtpLinkSibling(
 		is4:             localAddr.Addr().Is4(),
 	}
 	conn.links[*remoteAddr] = l
-
 	log.Debug("***** Link", "scope", "sibling", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l

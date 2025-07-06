@@ -41,7 +41,6 @@ const (
 // FF02:0000:0000:0000:0000:0001:FF00:0000/104
 var ndpMcastPrefix = []byte{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0xff}
 var zeroMacAddr = [6]byte{0, 0, 0, 0, 0, 0}
-var dummyMacAddr = [6]byte{2, 0, 0, 0, 0, 2}
 
 type neighborState int
 
@@ -82,10 +81,14 @@ type neighborCache struct {
 	tickerDone chan struct{}
 	running    atomic.Bool
 	is4        bool
+	isLoop     bool // If true, the cache is just a stub. All MAC addresses are zero.
 }
 
 // TODO(jiceatscion): This can end-up being called from the critical section. Not ideal.
 func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
+	if cache.isLoop {
+		return
+	}
 	p := cache.pool.Get()
 	packNeighborReq(p, &cache.localIP, cache.localMAC, remoteIP, cache.is4)
 	select {
@@ -100,16 +103,11 @@ func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
 // a non-nil address or a non-nil backlog channel. Unresolved packets can be put on that queue
 // for later sending.
 func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
-
-	if ip.Is4() && ip.IsLoopback() {
-		// This cannot be reliably resolved (linux will not respond to requests), and any MAC
-		// address will do. Try and use zero; that's what Linux pretends it is when it has to
-		// pretend.
+	if cache.isLoop {
 		return &zeroMacAddr, nil
 	}
 
 	entry := cache.mappings[ip]
-
 	switch entry.state {
 	case None:
 		// Whole new entry
@@ -135,12 +133,18 @@ func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
 }
 
 func (cache *neighborCache) getBacklog(ip netip.Addr) chan *router.Packet {
+	if cache.isLoop {
+		return nil
+	}
 	return cache.mappings[ip].backlog
 }
 
 // Check returns true if we have any kind of interrest in the address: either we already know it
 // (and so an update would be good), or we're trying to resolve it.
 func (cache *neighborCache) check(ip netip.Addr) bool {
+	if cache.isLoop {
+		return false
+	}
 	return cache.mappings[ip].timer != 0
 }
 
@@ -149,6 +153,9 @@ func (cache *neighborCache) check(ip netip.Addr) bool {
 // pressure by not forcing a copy of the given address to escape to the heap unnecessarily.
 // The second return value is true if an entry was added or changed.
 func (cache *neighborCache) put(ip netip.Addr, mac [6]byte) (*[6]byte, bool) {
+	if cache.isLoop {
+		return &zeroMacAddr, false
+	}
 	entry := cache.mappings[ip]
 	if entry.state == None {
 		entry.backlog = make(chan *router.Packet, neighborMaxBacklog)
@@ -209,6 +216,9 @@ func (cache *neighborCache) start(pool router.PacketPool) {
 		return
 	}
 	cache.pool = pool
+	if cache.isLoop {
+		return
+	}
 	// Ticker task
 	go func() {
 		defer log.HandlePanic()
@@ -222,6 +232,9 @@ func (cache *neighborCache) start(pool router.PacketPool) {
 
 func (cache *neighborCache) stop() {
 	wasRunning := cache.running.Swap(false)
+	if cache.isLoop {
+		return
+	}
 	if wasRunning {
 		<-cache.tickerDone
 	}
@@ -241,6 +254,7 @@ func newNeighborCache(
 		egressQ:    egressQ,
 		tickerDone: make(chan struct{}),
 		is4:        localIP.Is4(),
+		isLoop:     ([6]byte(localMAC) == zeroMacAddr),
 	}
 }
 
@@ -275,7 +289,6 @@ func packNeighborReq(
 			DstProtAddress:    remoteIP.AsSlice(),
 		}
 		err = gopacket.SerializeLayers(&serBuf, seropts, &ethernet, &arp)
-		_, _ = serBuf.AppendBytes(18) // Padding packet to length 60.
 	} else {
 		var typ uint8
 		var mcAddr []byte

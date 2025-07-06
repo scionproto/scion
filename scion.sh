@@ -86,11 +86,29 @@ cmd_mstart() {
 }
 
 run_setup() {
+    # The raw-socket implementation of the SCION router cannot work on the loopback device if the
+    # kernel isn't willing to ingest packets sent to that device.
+    if ! [ -r "gen/default_lo_sysctl" ]; then
+	sudo sysctl "net.ipv4.conf.lo.accept_local" > gen/default_lo_sysctl
+	sudo sysctl "net.ipv4.conf.lo.route_localnet" >> gen/default_lo_sysctl
+    fi
+    sudo sysctl -w "net.ipv4.conf.lo.accept_local = 1"
+    sudo sysctl -w "net.ipv4.conf.lo.route_localnet = 1"
     tools/set_ipv6_addr.py -a
 }
 
 run_teardown() {
     tools/set_ipv6_addr.py -d
+    # Restore the lo setting to what we think the default is
+    if [ -r "gen/default_lo_sysctl" ]; then
+	cat gen/default_lo_sysctl | while read l; do
+	    sudo sysctl -w "$l"
+	done
+    else
+	# If in doubt, set things to what the default is in 99.99% of the cases.
+	sudo sysctl -w "net.ipv4.conf.lo.route_localnet = 0"
+	sudo sysctl -w "net.ipv4.conf.lo.accept_local = 0"
+    fi
 }
 
 stop_scion() {

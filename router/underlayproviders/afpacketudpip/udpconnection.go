@@ -104,6 +104,10 @@ func (u *udpConnection) handleArp(arp *layers.ARP) {
 	}
 	senderMAC := [6]byte(arp.SourceHwAddress)
 
+	// We don't care about duplicate address probes nor about loopback devices.
+	if senderMAC == zeroMacAddr {
+		return
+	}
 	// TODO(jiceatscion): ignore gratuitous reqs
 	isReq := (arp.Operation == layers.ARPRequest)
 
@@ -186,7 +190,10 @@ func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP, dstIP netip.Add
 	default:
 		return
 	}
-
+	// We don't care about duplicate address probes nor about loopback devices.
+	if remoteMAC == zeroMacAddr {
+		return
+	}
 	// We have to pass all requests to all links. Sometimes the sender uses an IP address
 	// that we don't know about (e.g. the traffic generator uses interfaces with a different
 	// IP assigned - which the arp lib then uses to make requests).
@@ -387,7 +394,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 		}
 		router.UpdateOutputMetrics(metrics, pkts[:written])
 		for _, p := range pkts[:written] {
-			// DissectAndShow(p.RawPacket, "Successfully Output")  // Enabled only if debug logging.
+			// DissectAndShow(p.RawPacket, "Successfully Output") // Enabled only if debug logging.
 			pool.Put(p)
 		}
 		if written != toWrite {
@@ -436,13 +443,13 @@ func newUdpConnection(
 	hwAddr := intf.HardwareAddr
 
 	// Catering to tests that use a local address (on the loopback interface) which has no mac
-	// address assigned. We make one up and rely on the fact the everything bounces to everyone
-	// anyway.
+	// address assigned. In that case neighbor address resolution isn't needed and doesn't work.
+	// The neighbors cache dumbs itself down accordingly.
 	if len(hwAddr) == 0 || slices.Equal(hwAddr, net.HardwareAddr{0, 0, 0, 0, 0, 0}) {
 		// num := rand.Uint32()
 		// hwAddr = net.HardwareAddr{2, 0, 0, 0, 0, 0}
 		// binary.BigEndian.PutUint32(hwAddr[2:], num)
-		hwAddr = dummyMacAddr[:]
+		hwAddr = zeroMacAddr[:]
 	}
 	return &udpConnection{
 		localMAC:     hwAddr,

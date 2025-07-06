@@ -123,27 +123,19 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 	dstIP := dst.Addr()
 
 	// Resolve the destination MAC address if we can.
-	var dstMac *[6]byte
-	if [6]byte(l.localMAC) == dummyMacAddr {
-		// Linux will not play pretend: if we're talking to a loopbak device, the kernel does not
-		// respond to neighbor resolution requests. The good news is that any address will do.
-		dstMac = &dummyMacAddr
-	} else {
-		var backlog chan *router.Packet
-		l.neighbors.Lock()
-		dstMac, backlog = l.neighbors.get(dstIP) // Send ARP/NDP req as needed.
-		l.neighbors.Unlock()
-		if dstMac == nil {
-			// We don't have an address to offer, but we have a backlog queue.
-			select {
-			case backlog <- p:
-			default:
-				sc := router.ClassOfSize(len(p.RawPacket))
-				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-				l.pool.Put(p)
-			}
-			return false
+	l.neighbors.Lock()
+	dstMac, backlog := l.neighbors.get(dstIP) // Send ARP/NDP req as needed.
+	l.neighbors.Unlock()
+	if dstMac == nil {
+		// We don't have an address to offer, but we have a backlog queue.
+		select {
+		case backlog <- p:
+		default:
+			sc := router.ClassOfSize(len(p.RawPacket))
+			l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+			l.pool.Put(p)
 		}
+		return false
 	}
 
 	// Prepend the canned header
@@ -227,7 +219,7 @@ func (l *internalLink) start(
 	l.neighbors.start(l.pool)
 
 	// We do not have a known peer that we can resolve ahead of time, but we can at least save
-	// peers that are already up from having to resolve us and drop the first packet.
+	// peers that are already up from having to resolve us and may be drop the first packet.
 	localIP := l.localAddr.Addr()
 	l.neighbors.seekNeighbor(&localIP)
 
@@ -400,7 +392,6 @@ func (l *internalLink) receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort,
 	// undelying udp connection doesn't care. Even if the IP is a match the port might not be. The
 	// port filter is per-afp socket and we can share these sockets between links too.
 	if *dstAddr != *l.localAddr {
-		log.Debug("Not for me", "addr", dstAddr, "vs local", l.localAddr)
 		l.pool.Put(p)
 		return
 	}
@@ -438,7 +429,7 @@ func (l *internalLink) receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort,
 // and the address being resolved is always TargetAddress. In ARP requests the address of the sender
 // is srcProtAddress while the address being resolved dstProtAddress. In NDP requests the address
 // of the sender is in the IP header, while the address being resolved is TargetAddress.
-// Since this method is alled for both requests and responses and for both ARP and NDP, we have
+// Since this method is called for both requests and responses and for both ARP and NDP, we have
 // to make our own convention:
 // target is always the address being resolved.
 // sender is always the sender of the packet.
@@ -453,11 +444,6 @@ func (l *internalLink) handleNeighbor(
 	targetIP, senderIP, rcptIP netip.Addr,
 	remoteHw [6]byte,
 ) {
-	// ignore (hem...) dup addr detection.
-	if remoteHw == zeroMacAddr {
-		return
-	}
-
 	// Don't pollute our table with stuff that we can't have asked. However, per RFC826, update
 	// what we already have when given a chance.
 	// remoteHwP always points at an in-cache MAC address, which reduces GC pressure.
@@ -486,10 +472,7 @@ func (l *internalLink) handleNeighbor(
 		}
 	}
 
-	// Respond?
-	// TODO(jiceatscion): since we find the interfaces by address, we assume the addresses are
-	// assigned in the regular ip stack. So the kernel should be doing the responding just fine.
-	// Therefore, may be responding isn't required; at least as long as we use assigned addresses.
+	// We do respond. The kernel might or might not, depending on how we setup interfaces.
 	if !isReq {
 		return
 	}
@@ -499,6 +482,7 @@ func (l *internalLink) handleNeighbor(
 	}
 	p := l.pool.Get()
 	localIP := l.localAddr.Addr()
+	// TODO(jiceatscion): should suppress response here too for loopback devices.
 	packNeighborResp(p, &localIP, l.localMAC[:], &senderIP, remoteHwP[:], l.is4)
 	select {
 	case l.egressQ <- p:
