@@ -20,9 +20,16 @@
 // ports to filter for a given raw socket. We can have several sockets, each with a one-port
 // filter, but we do not want to be bound by that constraint (and it may be less efficient).
 // So we need a map with multiple ports.
+typedef struct {
+  __u8 ip_addr[16];
+  __u16 port; // in network byte order
+  __u8 type;
+  __u8 padding; // just to make it clear what the real size of the struct is.
+} addrPort;
+
 struct {
   __uint(type, BPF_MAP_TYPE_HASH);
-  __type(key, __u16); // A port number.
+  __type(key, addrPort); // An IP address and a port number.
   __type(value, __u8); // Nothing. The map is just a set of keys.
   __uint(max_entries, 64);
 } sock_map_flt SEC(".maps");
@@ -40,11 +47,6 @@ struct {
 // and it might even not be cloned until the AF_PACKET tap has made a
 // drop/keep decision. The traffic that we keep is definitely cloned; so...
 // dear cow, a third swiss industry is now counting on you.
-//
-// This is a very simple socket filter: it looks at the packet's protocol and
-// dest port. If it is UDP and if the port is found in sock_map_filt, then the
-// packet is accepted. Else, dropped. The userland code just adds allowed ports
-// to the map. We also let ARP through (both here and in kfilter).
 SEC("socket")
 int bpf_sock_filter(struct __sk_buff *skb)
 {
@@ -55,14 +57,17 @@ int bpf_sock_filter(struct __sk_buff *skb)
   }
 
   __u8 ipproto;
-  __u16 portNbo;
+  addrPort key = {0};
 
   if (ethtype == 0x0008) {
     bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &ipproto, 1);
     if (ipproto != IPPROTO_UDP) {
       return 0;
     }
-    bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest), &portNbo, 2);
+    key.type = 4;
+    bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, daddr), key.ip_addr, 4);
+    bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest),
+        &key.port, 2);
   } else if (ethtype == 0xDD86) {
     bpf_skb_load_bytes(skb, 14 + offsetof(struct ipv6hdr, nexthdr), &ipproto, 1);
     if (ipproto == IPPROTO_ICMPV6) {
@@ -71,13 +76,15 @@ int bpf_sock_filter(struct __sk_buff *skb)
     if (ipproto != IPPROTO_UDP) {
       return 0;
     }
+    key.type = 6;
+    bpf_skb_load_bytes(skb, 14 + offsetof(struct ipv6hdr, daddr), key.ip_addr, 16);
     bpf_skb_load_bytes(skb, 14 + sizeof(struct ipv6hdr) + offsetof(struct udphdr, dest),
-		       &portNbo, 2);
+		       &key.port, 2);
   } else {
     return 0;
   }
 
-  __u8 *allowed = bpf_map_lookup_elem(&sock_map_flt, &portNbo);
+  __u8 *allowed = bpf_map_lookup_elem(&sock_map_flt, &key);
   if (allowed == NULL) {
       return 0;
   }

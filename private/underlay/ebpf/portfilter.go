@@ -2,17 +2,6 @@
 //
 // Copyright 2025 SCION Association
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 package ebpf
 
@@ -118,7 +107,6 @@ func BpfKFilter(ifIndex int) (*KFilterHandle, error) {
 		return nil, err
 	}
 
-	// Bw compat for now.
 	kf := &KFilterHandle{kLink: l, kObjs: coll}
 	return kf, nil
 }
@@ -137,7 +125,7 @@ func (fh *SFilterHandle) Close() {
 
 // Adds the given port to the map of the given filter. As a result UDP/IP packets destined to that
 // port will be delivered to the associated socket.
-func (sf *SFilterHandle) AddPort(port uint16) {
+func (sf *SFilterHandle) AddAddrPort(addrPort netip.AddrPort) {
 	// Now load the map and populate it with our port mapping.
 	myMap := sf.sObjs.Maps["sock_map_flt"]
 	if myMap == nil {
@@ -146,10 +134,21 @@ func (sf *SFilterHandle) AddPort(port uint16) {
 
 	// map.Put plays crystal ball with key and value so it accepts either
 	// pointers or values.
-	portNbo := htons(port)
+	var key [20]byte
+	addr := addrPort.Addr()
+	if addr.Is4() || addr.Is4In6() {
+		addrBytes := addr.As4()
+		copy(key[0:4], addrBytes[0:4])
+		key[18] = byte(4)
+	} else {
+		addrBytes := addr.As16()
+		copy(key[0:16], addrBytes[0:16])
+		key[18] = byte(6)
+	}
+	binary.BigEndian.PutUint16(key[16:18], addrPort.Port())
 	b := uint8(0)
-	if err := myMap.Put(portNbo, b); err != nil {
-		panic(fmt.Sprintf("error sFilter AddPort: %v, key=%p\n", err, &portNbo))
+	if err := myMap.Put(key, b); err != nil {
+		panic(fmt.Sprintf("error sFilter AddPort: %v, key=%p\n", err, &key))
 	}
 }
 
@@ -189,7 +188,6 @@ func BpfSFilter(afp *afpacket.TPacket) (*SFilterHandle, error) {
 		return nil, err
 	}
 
-	// bw compat for now.
 	sf := &SFilterHandle{sObjs: coll}
 	return sf, nil
 }

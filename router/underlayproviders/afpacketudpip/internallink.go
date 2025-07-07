@@ -387,15 +387,7 @@ func (l *internalLink) SendBlocking(p *router.Packet) {
 // Because this link is not associated with a specific remote address, the src
 // address of the packet is recorded in the packet structure. This may be used
 // as the destination if SCMP responds.
-func (l *internalLink) receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort, p *router.Packet) {
-	// If an interface is in promiscuous mode, we can receive packets not meant for us. the
-	// undelying udp connection doesn't care. Even if the IP is a match the port might not be. The
-	// port filter is per-afp socket and we can share these sockets between links too.
-	if *dstAddr != *l.localAddr {
-		l.pool.Put(p)
-		return
-	}
-
+func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
@@ -409,6 +401,7 @@ func (l *internalLink) receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort,
 	}
 
 	p.Link = l
+
 	// This is an unconnected link. We must record the src address in case the packet is turned
 	// around by SCMP.
 
@@ -518,7 +511,7 @@ func newInternalLink(
 		is4:              localAddr.Addr().Is4(),
 	}
 	il.packHeader()
-	conn.link = il
+	conn.links[linkKey{dst: *localAddr}] = il
 
 	log.Debug("***** Link", "scope", "internal", "local", localAddr, "localMAC", conn.localMAC)
 	return il

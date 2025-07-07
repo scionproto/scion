@@ -58,7 +58,7 @@ type udpConnFilters struct {
 
 func (uf udpConnFilters) AddDst(dst *netip.AddrPort) {
 	uf.kFilter.AddAddrPort(*dst)
-	uf.sFilter.AddPort(dst.Port())
+	uf.sFilter.AddAddrPort(*dst)
 }
 
 func (uf udpConnFilters) Close() {
@@ -141,7 +141,7 @@ type udpLink interface {
 	router.Link
 	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
-	receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort, p *router.Packet)
+	receive(srcAddr *netip.AddrPort, p *router.Packet)
 	handleNeighbor(isReq bool, targetIP, senderIP, rcptIP netip.Addr, remoteHw [6]byte)
 }
 

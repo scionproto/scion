@@ -29,15 +29,19 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
+type linkKey struct {
+	src netip.AddrPort
+	dst netip.AddrPort
+}
+
 // udpConnection is a TPacket connection with a sending queue and a demultiplexer. The rest is
 // about logs and metrics. This allows UDP connections to be shared between links, which is the
 // norm in this case; since a raw socket receives traffic for all ports.
 type udpConnection struct {
 	localMAC     net.HardwareAddr
 	connFilters  udpConnFilters
-	name         string                     // For logs. It's more informative than ifID.
-	link         udpLink                    // Default Link for ingest.
-	links        map[netip.AddrPort]udpLink // Link map for ingest from specific remote addresses.
+	name         string              // For logs. It's more informative than ifID.
+	links        map[linkKey]udpLink // Link map for ingest from specific remote addresses.
 	afp          *afpacket.TPacket
 	queue        chan *router.Packet
 	metrics      *router.InterfaceMetrics
@@ -127,9 +131,6 @@ func (u *udpConnection) handleArp(arp *layers.ARP) {
 	for _, l := range u.links {
 		l.handleNeighbor(isReq, targetIP, senderIP, rcptIP, senderMAC)
 	}
-	if u.link != nil {
-		u.link.handleNeighbor(isReq, targetIP, senderIP, rcptIP, senderMAC)
-	}
 }
 
 // Handle NDP minimally.
@@ -199,9 +200,6 @@ func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP, dstIP netip.Add
 	// IP assigned - which the arp lib then uses to make requests).
 	for _, l := range u.links {
 		l.handleNeighbor(isReq, targetIP, srcIP, rcptIP, remoteMAC)
-	}
-	if u.link != nil {
-		u.link.handleNeighbor(isReq, targetIP, srcIP, rcptIP, remoteMAC)
 	}
 }
 
@@ -304,19 +302,15 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 
 		// Demultiplex to a link. There is one connection per interface, so they are mostly shared
 		// between links; including the internal link. The internal link catches all remote
-		// addresses that no other link claims. That is what u.link is. Connections that are not
-		// shared with the internal link do not have it as they should not accept packets from
-		// unknown sources (but they might receive them: the ebpf filter only looks at port).
+		// addresses that no other link claims.
 		srcAddr := netip.AddrPortFrom(srcIP, uint16(udpLayer.SrcPort))
 		dstAddr := netip.AddrPortFrom(dstIP, uint16(udpLayer.DstPort))
-		l := u.link
-		if u.links != nil {
-			if ll, found := u.links[srcAddr]; found {
-				l = ll
-			}
+		l, found := u.links[linkKey{src: srcAddr, dst: dstAddr}]
+		if !found {
+			l, found = u.links[linkKey{dst: dstAddr}] // internal link
 		}
-		if l == nil {
-			continue
+		if !found {
+			continue // Packet not for us (under-filtered).
 		}
 
 		// FIXME: it is very unfortunate that we end-up allocating the src addr
@@ -324,12 +318,12 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		// point directly at some space in the packet buffer (not the header itself - it
 		// gets overwritten by SCMP).
 		p.RawPacket = udpLayer.LayerPayload() // chop off the udp header. The rest is SCION.
-		l.receive(&srcAddr, &dstAddr, p)
+		l.receive(&srcAddr, p)
 		p = pool.Get() // we need a fresh packet buffer now.
 	}
 
 	// We have to stop receiving. Return the unused packet to the pool to avoid creating
-	// a memory leak (the process is not required to exit - e.g. in tests).
+	// a leak (the process is not required to exit - e.g. in tests).
 	pool.Put(p)
 }
 
@@ -457,7 +451,7 @@ func newUdpConnection(
 		name:         intf.Name,
 		afp:          afp,
 		queue:        queue,
-		links:        make(map[netip.AddrPort]udpLink),
+		links:        make(map[linkKey]udpLink),
 		metrics:      metrics,
 		seed:         makeHashSeed(),
 		receiverDone: make(chan struct{}),

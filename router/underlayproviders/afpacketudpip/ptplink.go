@@ -363,13 +363,7 @@ func (l *ptpLink) SendBlocking(p *router.Packet) {
 }
 
 // receive delivers an incoming packet to the appropriate processing queue.
-func (l *ptpLink) receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort, p *router.Packet) {
-	// Even with filters, we can receive packets not meant for us.
-	if *dstAddr != *l.localAddr {
-		l.pool.Put(p)
-		return
-	}
-
+func (l *ptpLink) receive(_ *netip.AddrPort, p *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
@@ -383,6 +377,7 @@ func (l *ptpLink) receive(srcAddr *netip.AddrPort, dstAddr *netip.AddrPort, p *r
 	}
 
 	p.Link = l
+
 	// The src address does not need to be recorded in the packet. The link has all the relevant
 	// information.
 	select {
@@ -476,7 +471,7 @@ func newPtpLinkExternal(
 		ifID:            ifID,
 		is4:             localAddr.Addr().Is4(),
 	}
-	conn.links[*remoteAddr] = l
+	conn.links[linkKey{src: *remoteAddr, dst: *localAddr}] = l
 	log.Debug("***** Link", "scope", "external", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l
@@ -509,7 +504,7 @@ func newPtpLinkSibling(
 		ifID:            0,
 		is4:             localAddr.Addr().Is4(),
 	}
-	conn.links[*remoteAddr] = l
+	conn.links[linkKey{src: *remoteAddr, dst: *localAddr}] = l
 	log.Debug("***** Link", "scope", "sibling", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l

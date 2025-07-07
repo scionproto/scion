@@ -128,7 +128,7 @@ func TestRawSocket(t *testing.T) {
 	kFilterA.AddAddrPort(rawAddrA.AddrPort())
 	sFilterA, err := ebpf.BpfSFilter(afpHandleA)
 	require.NoError(t, err)
-	sFilterA.AddPort(50000)
+	sFilterA.AddAddrPort(rawAddrA.AddrPort())
 
 	// Side B
 	intfB, err := net.InterfaceByName("vethB")
@@ -148,7 +148,7 @@ func TestRawSocket(t *testing.T) {
 	kFilterB.AddAddrPort(rawAddrB.AddrPort()) // The destination that the kernel must *not* handle.
 	sFilterB, err := ebpf.BpfSFilter(afpHandleB)
 	require.NoError(t, err)
-	sFilterB.AddPort(50000)
+	sFilterB.AddAddrPort(rawAddrB.AddrPort())
 
 	// On side B we expect packets to port 50000 at the raw socket and packets to port 50001 at the
 	// regular socket. We also listen on port 50000 with a regular socket and we do not expect it
