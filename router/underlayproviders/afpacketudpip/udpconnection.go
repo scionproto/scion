@@ -303,25 +303,24 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		// Demultiplex to a link. There is one connection per interface, so they are mostly shared
 		// between links; including the internal link. The internal link catches all remote
 		// addresses that no other link claims.
-		srcAddr := netip.AddrPortFrom(srcIP, uint16(udpLayer.SrcPort))
-		dstAddr := netip.AddrPortFrom(dstIP, uint16(udpLayer.DstPort))
-		l, found := u.links[linkKey{src: srcAddr, dst: dstAddr}]
-		if !found {
-			l, found = u.links[linkKey{dst: dstAddr}] // internal link
+		var key linkKey
+		key.src = netip.AddrPortFrom(srcIP, uint16(udpLayer.SrcPort))
+		key.dst = netip.AddrPortFrom(dstIP, uint16(udpLayer.DstPort))
+		if l, found := u.links[key]; found {
+			p.RawPacket = udpLayer.LayerPayload() // chop off the udp header. The rest is SCION.
+			l.receive(nil, p)
+			p = pool.Get() // we need a fresh packet buffer now.
+		} else {
+			// may be the internal link
+			key.dst = netip.AddrPort{}
+			l, found := u.links[key]
+			if found {
+				srcAddr := key.src // This one escapes :-(
+				l.receive(&srcAddr, p)
+				p = pool.Get() // we need a fresh packet buffer now.
+			}
 		}
-		if !found {
-			continue // Packet not for us (under-filtered).
-		}
-
-		// FIXME: it is very unfortunate that we end-up allocating the src addr
-		// even in this implementation. Instead of using a netip.AddrPort, we could
-		// point directly at some space in the packet buffer (not the header itself - it
-		// gets overwritten by SCMP).
-		p.RawPacket = udpLayer.LayerPayload() // chop off the udp header. The rest is SCION.
-		l.receive(&srcAddr, p)
-		p = pool.Get() // we need a fresh packet buffer now.
 	}
-
 	// We have to stop receiving. Return the unused packet to the pool to avoid creating
 	// a leak (the process is not required to exit - e.g. in tests).
 	pool.Put(p)
