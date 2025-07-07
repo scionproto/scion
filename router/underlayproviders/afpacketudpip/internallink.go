@@ -404,8 +404,6 @@ func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 
 	// This is an unconnected link. We must record the src address in case the packet is turned
 	// around by SCMP.
-
-	// One of p.RemoteAddr or srcAddr becomes garbage. Keeping srcAddr doesn't require copying.
 	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
 	select {
@@ -511,7 +509,7 @@ func newInternalLink(
 		is4:              localAddr.Addr().Is4(),
 	}
 	il.packHeader()
-	conn.links[linkKey{dst: *localAddr}] = il
+	conn.intLinks[addrKey{ip: localAddr.Addr(), port: localAddr.Port()}] = il
 
 	log.Debug("***** Link", "scope", "internal", "local", localAddr, "localMAC", conn.localMAC)
 	return il
