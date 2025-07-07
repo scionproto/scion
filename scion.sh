@@ -88,15 +88,19 @@ cmd_mstart() {
 run_setup() {
     # The raw-socket implementation of the SCION router cannot work on the loopback device if the
     # kernel isn't willing to ingest packets sent to that device.
-    echo "net.ipv4.conf.lo.accept_local = 1" > gen/scion_lo.conf
-    echo "net.ipv4.conf.lo.route_localnet = 1" >> gen/scion_lo.conf
-    sudo sysctl -pgen/scion_lo.conf
+    loopdev=$(ip addr show to 127.0.0.1 | cut -d' ' -f 2 -s | cut -d':' -f 1 -s)
+    sysctl net.ipv4.conf.${loopdev}.accept_local net.ipv4.conf.${loopdev}.route_localnet \
+	   > gen/lo.conf
+    (echo "net.ipv4.conf.${loopdev}.accept_local = 1";\
+     echo "net.ipv4.conf.${loopdev}.route_localnet = 1") | sudo sysctl -p-
     tools/set_ipv6_addr.py -a
 }
 
 run_teardown() {
     tools/set_ipv6_addr.py -d
-    sudo sysctl -p
+    if [ -f gen/lo.conf ]; then
+	cat gen/lo.conf | sudo sysctl -p-
+    fi
 }
 
 stop_scion() {
