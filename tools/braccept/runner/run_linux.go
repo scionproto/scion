@@ -299,38 +299,27 @@ func (t *Case) Run(cfg *RunConfig) error {
 		defer storer.storePkt("want", wantPkt)
 	}
 
-	// Retry once after a short delay: the router may need to arp resolve the destination. When that
-	// happens, the router drops the trigger packet. It's a router not a transactional DB.
-	var err error
-	for attempts := range 2 {
-		if err = cfg.WritePacket(t.WriteTo, t.Input); err != nil {
-			return serrors.Wrap("writing input packet", err)
-		}
-		ePkt := ExpectedPacket{
-			Storer:            storer,
-			DevName:           t.ReadFrom,
-			Timeout:           350 * time.Millisecond,
-			IgnoreNonMatching: t.IgnoreNonMatching,
-			Pkt:               wantPkt,
-		}
-		normalizePacket := t.NormalizePacket
-		if normalizePacket == nil {
-			normalizePacket = DefaultNormalizePacket
-		}
+	if err := cfg.WritePacket(t.WriteTo, t.Input); err != nil {
+		return serrors.Wrap("writing input packet", err)
+	}
+	ePkt := ExpectedPacket{
+		Storer:            storer,
+		DevName:           t.ReadFrom,
+		Timeout:           350 * time.Millisecond,
+		IgnoreNonMatching: t.IgnoreNonMatching,
+		Pkt:               wantPkt,
+	}
+	normalizePacket := t.NormalizePacket
+	if normalizePacket == nil {
+		normalizePacket = DefaultNormalizePacket
+	}
 
-		err = cfg.ExpectPacket(ePkt, normalizePacket, t.LocalIP, t.LocalMAC, cfg.handles)
-		if err == nil {
-			return nil
-		}
-		if errors.Is(err, errTimeout) {
-			if attempts > 0 {
-				log.Debug(t.Name, "msg", "timeout occurred")
-			} else {
-				time.Sleep(100 * time.Millisecond)
-			}
-		} else {
-			break
-		}
+	err := cfg.ExpectPacket(ePkt, normalizePacket, t.LocalIP, t.LocalMAC, cfg.handles)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, errTimeout) {
+		log.Debug(t.Name, "msg", "timeout occurred")
 	}
 	return serrors.Wrap("Errors were found", err,
 		"Packets are stored in", t.StoreDir)
