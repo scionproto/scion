@@ -63,7 +63,10 @@ func NewRunConfig() (*RunConfig, error) {
 		if !strings.HasPrefix(dev.Name, "veth_") || !strings.HasSuffix(dev.Name, "_host") {
 			continue
 		}
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(dev.Name))
+		handle, err := afpacket.NewTPacket(
+			afpacket.OptInterface(dev.Name),
+			afpacket.OptBlockTimeout(time.Millisecond), // TPv3 waits for and aggregates packets!
+		)
 		if err != nil {
 			return nil, serrors.Wrap("creating TPacket", err)
 		}
@@ -305,7 +308,7 @@ func (t *Case) Run(cfg *RunConfig) error {
 	ePkt := ExpectedPacket{
 		Storer:            storer,
 		DevName:           t.ReadFrom,
-		Timeout:           350 * time.Millisecond,
+		Timeout:           450 * time.Millisecond,
 		IgnoreNonMatching: t.IgnoreNonMatching,
 		Pkt:               wantPkt,
 	}
