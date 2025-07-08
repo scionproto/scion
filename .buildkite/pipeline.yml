@@ -120,13 +120,13 @@ steps:
     - label: "E2E: default :man_in_business_suit_levitating: (scion, ping)"
       command:
         - echo "--- build"
-        - make build-dev docker-images
+        - make
         - echo "--- start topology"
-        - ./scion.sh topology -d -c topology/default.topo
+        - ./scion.sh topology -c topology/default.topo
         - ./scion.sh run
         - tools/await-connectivity
-        - ./bin/scion_integration -d || ( echo "^^^ +++" && false )
-        - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
+        - ./bin/scion_integration || ( echo "^^^ +++" && false )
+        - ./bin/end2end_integration || ( echo "^^^ +++" && false )
       plugins: &scion-run-hooks
         - scionproto/metahook#v0.3.0:
             pre-command: .buildkite/cleanup-leftovers.sh
