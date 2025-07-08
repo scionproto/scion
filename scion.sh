@@ -90,11 +90,9 @@ run_setup() {
     # kernel isn't willing to ingest packets sent to that device.
     loopdev=$(ip addr show to 127.0.0.1 | cut -d' ' -f 2 -s | cut -d':' -f 1 -s)
     sysctl net.ipv4.conf.${loopdev}.accept_local net.ipv4.conf.${loopdev}.route_localnet \
-	   net.core.busy_read net.core.busy_poll > gen/lo.conf
+    > gen/lo.conf
     (echo "net.ipv4.conf.${loopdev}.accept_local = 1";\
-     echo "net.ipv4.conf.${loopdev}.route_localnet = 1";\
-     echo "net.core.busy_read = 50";\
-     echo "net.core.busy_poll = 50") | sudo sysctl -p-
+     echo "net.ipv4.conf.${loopdev}.route_localnet = 1") | sudo sysctl -p-
     tools/set_ipv6_addr.py -a
 }
 
