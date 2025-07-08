@@ -61,12 +61,12 @@ func AttachPeer(next http.Handler) http.Handler {
 }
 
 type QUICConnServer interface {
-	ServeQUICConn(conn quic.Connection) error
+	ServeQUICConn(conn *quic.Conn) error
 }
 
-type QUICConnServerFunc func(conn quic.Connection) error
+type QUICConnServerFunc func(conn *quic.Conn) error
 
-func (f QUICConnServerFunc) ServeQUICConn(conn quic.Connection) error {
+func (f QUICConnServerFunc) ServeQUICConn(conn *quic.Conn) error {
 	return f(conn)
 }
 

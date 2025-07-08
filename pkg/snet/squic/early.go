@@ -91,7 +91,7 @@ func (d *EarlyDialer) DialEarly(
 	_ string,
 	_ *tls.Config,
 	_ *quic.Config,
-) (quic.EarlyConnection, error) {
+) (*quic.Conn, error) {
 	if d.DialTimeout != 0 {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, d.DialTimeout)
@@ -115,7 +115,7 @@ func (d *EarlyDialer) DialEarly(
 		serverName = computeServerName(addr)
 	}
 
-	var session quic.EarlyConnection
+	var session *quic.Conn
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
 		// Clone TLS config to avoid data races.
 		tlsConfig := d.TLSConfig.Clone()

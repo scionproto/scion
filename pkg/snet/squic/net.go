@@ -49,7 +49,7 @@ const streamAcceptTimeout = 5 * time.Second
 // ConnListener consumes a channel of QUIC connections and implements the
 // net.Listener interface.
 type ConnListener struct {
-	Conns <-chan quic.Connection
+	Conns <-chan *quic.Conn
 
 	ctx    context.Context
 	cancel func()
@@ -58,7 +58,7 @@ type ConnListener struct {
 }
 
 // NewConnListener constructs a new listener with the appropriate buffers set.
-func NewConnListener(conns <-chan quic.Connection, addr net.Addr) *ConnListener {
+func NewConnListener(conns <-chan *quic.Conn, addr net.Addr) *ConnListener {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &ConnListener{
 		Conns:  conns,
