@@ -167,7 +167,7 @@ On other errors, traceroute will exit with code 2.
 			}
 			var res ResultTraceroute
 			res.Path = Path{
-				Fingerprint: snet.Fingerprint(path).String(),
+				Fingerprint: path.Metadata().Fingerprint().String(),
 				Hops:        getHops(path),
 				Sequence:    seq,
 				LocalIP:     localIP,

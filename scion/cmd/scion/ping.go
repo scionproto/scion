@@ -256,7 +256,7 @@ On other errors, ping will exit with code 2.
 			res := Result{
 				ScionPacketSize: pktSize,
 				Path: Path{
-					Fingerprint: snet.Fingerprint(path).String(),
+					Fingerprint: path.Metadata().Fingerprint().String(),
 					Hops:        getHops(path),
 					Sequence:    seq,
 					LocalIP:     localIP,

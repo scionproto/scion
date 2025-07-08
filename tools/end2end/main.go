@@ -300,7 +300,7 @@ func (c *client) attemptRequest(n int) bool {
 	if err := c.pong(ctx); err != nil {
 		logger.Error("Error receiving pong", "err", withTag(err))
 		if path != nil {
-			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
+			c.errorPaths[path.Metadata().Fingerprint()] = struct{}{}
 		}
 		return false
 	}
@@ -360,7 +360,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	// Select first path that didn't error before.
 	var path snet.Path
 	for _, p := range paths {
-		if _, ok := c.errorPaths[snet.Fingerprint(p)]; ok {
+		if _, ok := c.errorPaths[p.Metadata().Fingerprint()]; ok {
 			continue
 		}
 		path = p

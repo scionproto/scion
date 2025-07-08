@@ -201,7 +201,7 @@ func (w *remoteWatcher) updatePaths(ctx context.Context) {
 	// Key the paths by their fingerprints.
 	pathmap := make(map[snet.PathFingerprint]snet.Path)
 	for _, path := range paths {
-		pathmap[snet.Fingerprint(path)] = path
+		pathmap[path.Metadata().Fingerprint()] = path
 	}
 
 	w.pathWatcherMtx.Lock()
