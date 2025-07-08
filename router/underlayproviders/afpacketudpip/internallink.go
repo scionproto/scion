@@ -509,7 +509,7 @@ func newInternalLink(
 		is4:              localAddr.Addr().Is4(),
 	}
 	il.packHeader()
-	conn.intLinks[addrKey{ip: localAddr.Addr(), port: localAddr.Port()}] = il
+	conn.intLinks[addrPort{ip: localAddr.Addr(), port: localAddr.Port()}] = il
 
 	log.Debug("***** Link", "scope", "internal", "local", localAddr, "localMAC", conn.localMAC)
 	return il

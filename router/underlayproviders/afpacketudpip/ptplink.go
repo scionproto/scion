@@ -471,13 +471,11 @@ func newPtpLinkExternal(
 		ifID:            ifID,
 		is4:             localAddr.Addr().Is4(),
 	}
-	locMap := conn.ptpLinks[addrKey{ip: remoteAddr.Addr(), port: remoteAddr.Port()}]
-	if locMap == nil {
-		locMap = make(map[addrKey]udpLink)
-		conn.ptpLinks[addrKey{ip: remoteAddr.Addr(), port: remoteAddr.Port()}] = locMap
-	}
+	conn.ptpLinks[fourTuple{
+		src: addrPort{ip: remoteAddr.Addr(), port: remoteAddr.Port()},
+		dst: addrPort{ip: localAddr.Addr(), port: localAddr.Port()},
+	}] = l
 
-	locMap[addrKey{ip: localAddr.Addr(), port: localAddr.Port()}] = l
 	log.Debug("***** Link", "scope", "external", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l
@@ -510,13 +508,10 @@ func newPtpLinkSibling(
 		ifID:            0,
 		is4:             localAddr.Addr().Is4(),
 	}
-	locMap := conn.ptpLinks[addrKey{ip: remoteAddr.Addr(), port: remoteAddr.Port()}]
-	if locMap == nil {
-		locMap = make(map[addrKey]udpLink)
-		conn.ptpLinks[addrKey{ip: remoteAddr.Addr(), port: remoteAddr.Port()}] = locMap
-	}
-
-	locMap[addrKey{ip: localAddr.Addr(), port: localAddr.Port()}] = l
+	conn.ptpLinks[fourTuple{
+		src: addrPort{ip: remoteAddr.Addr(), port: remoteAddr.Port()},
+		dst: addrPort{ip: localAddr.Addr(), port: localAddr.Port()},
+	}] = l
 	log.Debug("***** Link", "scope", "sibling", "local", localAddr, "localMAC", conn.localMAC,
 		"remote", remoteAddr)
 	return l

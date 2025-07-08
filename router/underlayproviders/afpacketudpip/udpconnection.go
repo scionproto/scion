@@ -29,10 +29,16 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
-// A netip.AddrPort that keeps the address and port separately writable
-type addrKey struct {
+// addrPort is like netip.AddrPort but with mutable (for us) fields. This saves an address copy.
+type addrPort struct {
 	ip   netip.Addr
 	port uint16
+}
+
+// fourTuple aggregates src and dst addrPorts.
+type fourTuple struct {
+	src addrPort
+	dst addrPort
 }
 
 // udpConnection is a TPacket connection with a sending queue and a demultiplexer. The rest is
@@ -41,9 +47,9 @@ type addrKey struct {
 type udpConnection struct {
 	localMAC     net.HardwareAddr
 	connFilters  udpConnFilters
-	name         string                          // For logs. It's more informative than ifID.
-	ptpLinks     map[addrKey]map[addrKey]udpLink // Link map for specific remote addresses.
-	intLinks     map[addrKey]udpLink             // Link map for unknown remote addresses.
+	name         string                // For logs. It's more informative than ifID.
+	ptpLinks     map[fourTuple]udpLink // Link map for specific remote addresses.
+	intLinks     map[addrPort]udpLink  // Link map for unknown remote addresses.
 	afp          *afpacket.TPacket
 	queue        chan *router.Packet
 	metrics      *router.InterfaceMetrics
@@ -130,10 +136,8 @@ func (u *udpConnection) handleArp(arp *layers.ARP) {
 	// We have to pass all requests to all links. Sometimes the sender uses an IP address
 	// that we don't know about (e.g. the traffic generator uses interfaces with a different
 	// IP assigned - which the arp lib then uses to make requests).
-	for _, m := range u.ptpLinks {
-		for _, l := range m {
-			l.handleNeighbor(isReq, targetIP, senderIP, rcptIP, senderMAC)
-		}
+	for _, l := range u.ptpLinks {
+		l.handleNeighbor(isReq, targetIP, senderIP, rcptIP, senderMAC)
 	}
 	for _, l := range u.intLinks {
 		l.handleNeighbor(isReq, targetIP, senderIP, rcptIP, senderMAC)
@@ -205,10 +209,8 @@ func (u *udpConnection) handleV6NDP(icmp6 *layers.ICMPv6, srcIP, dstIP netip.Add
 	// We have to pass all requests to all links. Sometimes the sender uses an IP address
 	// that we don't know about (e.g. the traffic generator uses interfaces with a different
 	// IP assigned - which the arp lib then uses to make requests).
-	for _, m := range u.ptpLinks {
-		for _, l := range m {
-			l.handleNeighbor(isReq, targetIP, srcIP, rcptIP, remoteMAC)
-		}
+	for _, l := range u.ptpLinks {
+		l.handleNeighbor(isReq, targetIP, srcIP, rcptIP, remoteMAC)
 	}
 	for _, l := range u.intLinks {
 		l.handleNeighbor(isReq, targetIP, srcIP, rcptIP, remoteMAC)
@@ -234,8 +236,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		var ipv4Layer layers.IPv4
 		var ipv6Layer layers.IPv6
 		var udpLayer layers.UDP
-		var src addrKey
-		var dst addrKey
+		var srcDst fourTuple
 		var validIP bool
 
 		// Since it may be recycled...
@@ -264,12 +265,12 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 				continue
 			}
 			// Retrieve src & dst from the decoded IP layers.
-			src.ip, validIP = netip.AddrFromSlice(ipv4Layer.SrcIP)
+			srcDst.src.ip, validIP = netip.AddrFromSlice(ipv4Layer.SrcIP)
 			if !validIP {
 				// WTF?
 				continue
 			}
-			dst.ip, validIP = netip.AddrFromSlice(ipv4Layer.DstIP)
+			srcDst.dst.ip, validIP = netip.AddrFromSlice(ipv4Layer.DstIP)
 			if !validIP {
 				// WTF?
 				continue
@@ -280,12 +281,12 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 				continue
 			}
 			// Retrieve src from the decoded IP layers.
-			src.ip, validIP = netip.AddrFromSlice(ipv6Layer.SrcIP)
+			srcDst.src.ip, validIP = netip.AddrFromSlice(ipv6Layer.SrcIP)
 			if !validIP {
 				// WTF?
 				continue
 			}
-			dst.ip, validIP = netip.AddrFromSlice(ipv6Layer.DstIP)
+			srcDst.dst.ip, validIP = netip.AddrFromSlice(ipv6Layer.DstIP)
 			if !validIP {
 				// WTF?
 				continue
@@ -293,7 +294,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 			data = ipv6Layer.LayerPayload() // chop off the ip header
 			if ipv6Layer.NextHeader == layers.IPProtocolICMPv6 {
 				if err := icmp6Layer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err == nil {
-					u.handleV6NDP(&icmp6Layer, src.ip, dst.ip) // The packet stays with us.
+					u.handleV6NDP(&icmp6Layer, srcDst.src.ip, srcDst.dst.ip) // We own the packet.
 				}
 				continue
 			} else if ipv6Layer.NextHeader != layers.IPProtocolUDP {
@@ -302,7 +303,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 			}
 		case layers.EthernetTypeARP:
 			if err := arpLayer.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err == nil {
-				u.handleArp(&arpLayer) // The packet stays with us.
+				u.handleArp(&arpLayer) // We own the packet.
 			}
 			continue
 		default:
@@ -316,20 +317,18 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		// Demultiplex to a link. There is one connection per interface, so they are mostly shared
 		// between links; including the internal link. The internal link catches all remote
 		// addresses that no other link claims.
-		src.port = uint16(udpLayer.SrcPort)
-		dst.port = uint16(udpLayer.DstPort)
-		if m, found := u.ptpLinks[src]; found {
-			if l, found := m[dst]; found {
-				l.receive(nil, p)
-				p = pool.Get() // we need a fresh packet buffer now.
-				continue
-			}
+		srcDst.src.port = uint16(udpLayer.SrcPort)
+		srcDst.dst.port = uint16(udpLayer.DstPort)
+		if l, found := u.ptpLinks[srcDst]; found {
+			l.receive(nil, p)
+			p = pool.Get() // we need a fresh packet buffer now.
+			continue
 		}
-		if l, found := u.intLinks[dst]; found {
+		if l, found := u.intLinks[srcDst.dst]; found {
 			// TODO(jiceatscion): it is very unfortunate that we end-up allocating a copy of the src
 			// addr even in this implementation. Instead of using a netip.AddrPort, we could point
-			// directly at some space in the packet buffer.  gets overwritten by SCMP).
-			srcAddr := netip.AddrPortFrom(src.ip, src.port) // Escapes.
+			// directly at some space in the packet buffer.
+			srcAddr := netip.AddrPortFrom(srcDst.src.ip, srcDst.src.port) // Escapes.
 			l.receive(&srcAddr, p)
 			p = pool.Get() // we need a fresh packet buffer now.
 			continue
@@ -464,8 +463,8 @@ func newUdpConnection(
 		name:         intf.Name,
 		afp:          afp,
 		queue:        queue,
-		ptpLinks:     make(map[addrKey]map[addrKey]udpLink),
-		intLinks:     make(map[addrKey]udpLink),
+		ptpLinks:     make(map[fourTuple]udpLink),
+		intLinks:     make(map[addrPort]udpLink),
 		metrics:      metrics,
 		seed:         makeHashSeed(),
 		receiverDone: make(chan struct{}),
