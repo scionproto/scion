@@ -91,7 +91,7 @@ func (uo udpOpener) Open(index int) (*afpacket.TPacket, udpConnFilters, error) {
 	handle, err := afpacket.NewTPacket(
 		afpacket.OptInterface(intf.Name),
 		afpacket.OptPollTimeout(200*time.Millisecond),
-		afpacket.OptBlockTimeout(2*time.Millisecond), // TPv3 waits for and aggregates packets!
+		afpacket.OptBlockTimeout(time.Millisecond), // TPv3 waits for and aggregates packets!
 		// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
 	)
 	if err != nil {
@@ -178,7 +178,7 @@ func (providerFactory) New(
 }
 
 func (providerFactory) Priority() int {
-	return 2 // Until we know this works, make ourselves scarce
+	return 2
 }
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
