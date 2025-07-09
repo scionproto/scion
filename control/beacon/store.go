@@ -129,9 +129,9 @@ func (s *Store) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
-// SegmentsToRegister returns a channel that provides all beacons to register at
-// the time of the call. The selections are based on the configured policy for
-// the requested segment type.
+// SegmentsToRegister returns a GroupedBeacons that provides all beacons to register
+// at the time of the call. The selections are based on the configured policy for the
+// requested segment type.
 func (s *Store) SegmentsToRegister(
 	ctx context.Context,
 	segType seg.Type,
@@ -209,7 +209,7 @@ func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
-// SegmentsToRegister returns a slice of all beacons to register at the time of the call.
+// SegmentsToRegister returns a GroupedBeacons to register at the time of the call.
 // The selection is based on the configured policy for the requested segment type.
 func (s *CoreStore) SegmentsToRegister(
 	ctx context.Context,
