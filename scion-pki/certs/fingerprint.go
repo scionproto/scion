@@ -16,15 +16,28 @@ package certs
 
 import (
 	"crypto/sha256"
+	"crypto/x509"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/scion-pki/encoding"
 )
+
+func ReadPEMCerts(file string) ([]*x509.Certificate, error) {
+	raw, err := app.ReadFileOrStdin(file)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("file %q is empty", file)
+	}
+	return cppki.ParsePEMCerts(raw)
+}
 
 func newFingerprintCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
@@ -53,7 +66,7 @@ If the flag \--format is set to "emoji", the format of the output is a string of
 			}
 			cmd.SilenceUsage = true
 
-			chain, err := cppki.ReadPEMCerts(args[0])
+			chain, err := ReadPEMCerts(args[0])
 			if err != nil {
 				return serrors.Wrap("loading certificate chain", err)
 			}

@@ -49,7 +49,7 @@ func TestVerify(t *testing.T) {
 			ISD:    0,
 			Prepare: func(*testing.T) {
 				out := filepath.Join(dir, "base.pem")
-				require.NoError(t, runExtractCertificates("./testdata/admin/ISD1-B1-S1.trc", out))
+				require.NoError(t, runExtractCertificates("./testdata/admin/ISD1-B1-S1.trc", out, nil, nil))
 			},
 			ErrAssertion: require.NoError,
 		},
