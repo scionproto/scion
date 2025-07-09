@@ -209,7 +209,7 @@ func TestEstablishConnection(t *testing.T) {
 
 type DelegatingListener struct {
 	quic  *quic.Listener
-	conns chan<- quic.Connection
+	conns chan<- *quic.Conn
 	squic *squic.ConnListener
 }
 
@@ -235,7 +235,7 @@ func netListener(t *testing.T) (net.Listener, *net.UDPConn) {
 	listener, err := quic.Listen(srvConn, tlsConfig(t), nil)
 	require.NoError(t, err)
 
-	c := make(chan quic.Connection, 1)
+	c := make(chan *quic.Conn, 1)
 	return &DelegatingListener{
 		quic:  listener,
 		conns: c,

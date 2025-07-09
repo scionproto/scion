@@ -583,11 +583,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 		prefixServer,
 	)
 
-	grpcConns := make(chan quic.Connection)
+	grpcConns := make(chan *quic.Conn)
 	prefixConnectionDispatcher := connect.ConnectionDispatcher{
 		Listener: internalQUICServerListener,
 		Connect:  &http3.Server{Handler: connect.AttachPeer(prefixConnect)},
-		Grpc: connect.QUICConnServerFunc(func(conn quic.Connection) error {
+		Grpc: connect.QUICConnServerFunc(func(conn *quic.Conn) error {
 			grpcConns <- conn
 			return nil
 		}),
