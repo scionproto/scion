@@ -26,7 +26,6 @@ import (
 	"google.golang.org/grpc/resolver/manual"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 )
@@ -151,10 +150,6 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 	addr, err := d.Rewriter.RedirectToQUIC(ctx, addr)
 	if err != nil {
 		return nil, serrors.Wrap("resolving SVC address", err)
-	}
-	if _, ok := addr.(*snet.UDPAddr); !ok {
-		return nil, serrors.New("wrong address type after svc resolution",
-			"type", common.TypeOf(addr))
 	}
 	dialer := func(context.Context, string) (net.Conn, error) {
 		return d.Dialer.Dial(ctx, addr)
