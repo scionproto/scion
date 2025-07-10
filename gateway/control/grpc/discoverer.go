@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
-	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 )
 
 // Discoverer discovers the gateways for a specific remote AS.
@@ -38,12 +38,7 @@ func (d Discoverer) Gateways(ctx context.Context) ([]control.Gateway, error) {
 	if len(paths) == 0 {
 		return nil, serrors.New("no path available")
 	}
-	ds := &snet.SVCAddr{
-		IA:      d.Remote,
-		Path:    paths[0].Dataplane(),
-		NextHop: paths[0].UnderlayNextHop(),
-		SVC:     addr.SvcDS,
-	}
+	ds := addrutil.ExtractDestinationServiceAddress(addr.SvcDS, paths[0])
 	conn, err := d.Dialer.Dial(ctx, ds)
 	if err != nil {
 		return nil, err

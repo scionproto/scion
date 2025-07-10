@@ -43,6 +43,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
@@ -125,10 +126,11 @@ func TestRegistrarRun(t *testing.T) {
 						SignerGen: testSignerGen{
 							Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
 						},
-						Intfs:      intfs,
-						MAC:        macFactory,
-						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+						Intfs:                intfs,
+						MAC:                  macFactory,
+						MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+						StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+						DiscoveryInformation: func() *discovery.Extension { return nil },
 					},
 				},
 				Intfs:    intfs,
@@ -237,10 +239,11 @@ func TestRegistrarRun(t *testing.T) {
 						SignerGen: testSignerGen{
 							Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
 						},
-						Intfs:      intfs,
-						MAC:        macFactory,
-						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+						Intfs:                intfs,
+						MAC:                  macFactory,
+						MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+						StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+						DiscoveryInformation: func() *discovery.Extension { return nil },
 					},
 				},
 				Intfs:    intfs,
@@ -342,10 +345,11 @@ func TestRegistrarRun(t *testing.T) {
 					SignerGen: testSignerGen{
 						Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
 					},
-					Intfs:      intfs,
-					MAC:        macFactory,
-					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+					Intfs:                intfs,
+					MAC:                  macFactory,
+					MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+					StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+					DiscoveryInformation: func() *discovery.Extension { return nil },
 				},
 				Registrars: segreg.SegmentRegistrars{
 					beacon.RegPolicyTypeDown: {

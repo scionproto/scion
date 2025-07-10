@@ -107,6 +107,19 @@ message Path {
     repeated string notes = 11;
     // EpicAuths contains the EPIC authenticators used to calculate the PHVF and LHVF.
     EpicAuths epic_auths = 12;
+    // DiscoveryInformation contains the discovery information of each ISD-AS on
+    // the path. Note that depending on the path, the information for a given
+    // ISD-AS might be differnt.
+    map<uint64, DiscoveryInformation> discovery_information =13;
+}
+
+message DiscoveryInformation {
+    // The control service addresses of an AS. Note that this might not be a
+    // complete view of all control services in the AS.
+    repeated string control_service_addresses = 1;
+    // The discovery sevice addresses of an AS. Note that this might not be a
+    // complete view of all discovery services in the AS.
+    repeated string discovery_service_addresses = 2;
 }
 
 message EpicAuths {

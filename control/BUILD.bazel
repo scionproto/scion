@@ -39,6 +39,7 @@ go_library(
         "//pkg/scrypto:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
         "//pkg/segment:go_default_library",
+        "//pkg/segment/extensions/discovery:go_default_library",
         "//pkg/snet:go_default_library",
         "//pkg/snet/metrics:go_default_library",
         "//private/ca/renewal:go_default_library",

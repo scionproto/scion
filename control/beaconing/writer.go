@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
-	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/segment/seghandler"
 	"github.com/scionproto/scion/private/topology"
@@ -38,7 +37,7 @@ import (
 
 // Pather computes the remote address with a path based on the provided segment.
 type Pather interface {
-	GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error)
+	GetPath(svc addr.SVC, ps *seg.PathSegment) (net.Addr, error)
 }
 
 // SegmentProvider provides segments to register for the specified type.
