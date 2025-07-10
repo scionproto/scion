@@ -122,7 +122,7 @@ func (ca CAPolicy) Equal(o CAPolicy) bool {
 	}
 	return certEqual &&
 		ca.Validity == o.Validity &&
-		ca.CurrentTime == o.CurrentTime
+		ca.CurrentTime.Equal(o.CurrentTime)
 }
 
 // SubjectKeyID computes a subject key identifier for a given public key.
@@ -131,6 +131,8 @@ func (ca CAPolicy) Equal(o CAPolicy) bool {
 func SubjectKeyID(pub crypto.PublicKey) ([]byte, error) {
 	switch k := pub.(type) {
 	case *ecdsa.PublicKey:
+		// SA1019: fix later (https://github.com/scionproto/scion/issues/4777).
+		//nolint:staticcheck
 		skid := sha1.Sum(elliptic.Marshal(k.Curve, k.X, k.Y))
 		return skid[:], nil
 	default:

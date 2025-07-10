@@ -25,7 +25,7 @@ import (
 // uses the same old metrics as prior to the introduction of the
 // StartWithMetrics function.
 func newLegacyMetrics(prefix string) Metrics {
-	namespace := strcase.ToSnake(strings.Replace(prefix, ".", "_", -1))
+	namespace := strcase.ToSnake(strings.ReplaceAll(prefix, ".", "_"))
 	subsystem := "periodic"
 
 	events := prometheus.NewCounterVec(prometheus.CounterOpts{

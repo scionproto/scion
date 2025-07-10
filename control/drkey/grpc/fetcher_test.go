@@ -52,6 +52,7 @@ func TestLevel1KeyFetching(t *testing.T) {
 	// This test uses grpc's TLS stack, unlike the  real system, where the TLS of
 	// the QUIC session is used.
 	dir := genCrypto(t)
+	dstIA := addr.MustParseIA("1-ff00:0:111")
 
 	trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
 	tlsCert, err := tls.LoadX509KeyPair(
@@ -76,6 +77,7 @@ func TestLevel1KeyFetching(t *testing.T) {
 		Interfaces: []snet.PathInterface{},
 	})
 	path.EXPECT().Dataplane().AnyTimes().Return(nil)
+	path.EXPECT().Destination().AnyTimes().Return(dstIA)
 	path.EXPECT().UnderlayNextHop().AnyTimes().Return(&net.UDPAddr{})
 
 	router := mock_snet.NewMockRouter(ctrl)
@@ -138,7 +140,7 @@ func TestLevel1KeyFetching(t *testing.T) {
 			meta := drkey.Level1Meta{
 				ProtoId:  drkey.Generic,
 				Validity: time.Now(),
-				SrcIA:    addr.MustParseIA("1-ff00:0:111"),
+				SrcIA:    dstIA,
 			}
 			_, err = fetcher.Level1(context.Background(), meta)
 			tc.assertErr(t, err)
@@ -157,7 +159,8 @@ func genCrypto(t testing.TB) string {
 		"--isd-dir",
 		"--as-validity", "1y",
 	})
-	cmd.SetOutput(&buf)
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
 	err := cmd.Execute()
 	require.NoError(t, err, buf.String())
 

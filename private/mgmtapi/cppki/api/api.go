@@ -235,7 +235,7 @@ func (s *Server) GetTrcs(
 ) {
 
 	db := s.TrustDB
-	q := truststorage.TRCsQuery{Latest: !(params.All != nil && *params.All)}
+	q := truststorage.TRCsQuery{Latest: params.All == nil || !*params.All}
 	if params.Isd != nil {
 		q.ISD = make([]addr.ISD, 0, len(*params.Isd))
 		for _, isd := range *params.Isd {

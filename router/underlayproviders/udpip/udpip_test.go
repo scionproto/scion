@@ -185,7 +185,7 @@ func TestComputeProcId(t *testing.T) {
 				spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
 			assert.NoError(t, spkt.SetSrcAddr(addr.HostIP(netip.MustParseAddr("2001:db8::68"))))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
-			assert.Equal(t, slayers.T16Ip, int(spkt.SrcAddrType))
+			assert.Equal(t, slayers.T16Ip, spkt.SrcAddrType)
 			return []ret{
 				{
 					payload: payload,
@@ -201,7 +201,7 @@ func TestComputeProcId(t *testing.T) {
 				spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
 			assert.NoError(t, spkt.SetSrcAddr(addr.HostSVC(addr.SvcWildcard)))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
-			assert.Equal(t, slayers.T4Svc, int(spkt.SrcAddrType))
+			assert.Equal(t, slayers.T4Svc, spkt.SrcAddrType)
 			return []ret{
 				{
 					payload: payload,

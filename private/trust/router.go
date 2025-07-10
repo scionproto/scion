@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 )
 
 // Router builds the CS address for crypto material with the subject in a given ISD.
@@ -72,12 +73,7 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 	if err != nil || path == nil {
 		return nil, serrors.Wrap("unable to find path to any core AS", err, "isd", dstISD)
 	}
-	ret := &snet.SVCAddr{
-		IA:      path.Destination(),
-		Path:    path.Dataplane(),
-		NextHop: path.UnderlayNextHop(),
-		SVC:     addr.SvcCS,
-	}
+	ret := addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
 	return ret, nil
 }
 

@@ -72,7 +72,7 @@ func newSender(sessID uint8, conn net.PacketConn, path snet.Path,
 		},
 		pathStatsPublisher: pathStatsPublisher,
 		path:               path,
-		pathFingerprint:    snet.Fingerprint(path),
+		pathFingerprint:    path.Metadata().Fingerprint(),
 		metrics:            metrics,
 	}
 	go func() {

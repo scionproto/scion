@@ -57,8 +57,8 @@ type AddrType uint8
 // AddrType constants
 const (
 	T4Ip  AddrType = 0b0000 // T=0, L=0
-	T4Svc          = 0b0100 // T=1, L=0
-	T16Ip          = 0b0011 // T=0, L=3
+	T4Svc AddrType = 0b0100 // T=1, L=0
+	T16Ip AddrType = 0b0011 // T=0, L=3
 )
 
 // Length returns the length of this AddrType value.
