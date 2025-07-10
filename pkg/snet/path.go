@@ -164,6 +164,15 @@ func (pm *PathMetadata) Copy() *PathMetadata {
 	}
 }
 
+// Fingerprint is a convenience method that returns the path fingerprint. If the
+// receiver is nil, it returns the path fingerprint of the empty interface list.
+func (pm *PathMetadata) Fingerprint() PathFingerprint {
+	if pm == nil {
+		return Fingerprint(nil)
+	}
+	return Fingerprint(pm.Interfaces)
+}
+
 // LinkType describes the underlying network for inter-domain links.
 type LinkType uint8
 
@@ -212,13 +221,12 @@ func (pf PathFingerprint) String() string {
 // ASes and BRs, i.e. by its PathInterfaces.
 // Other metadata, such as MTU or NextHop have no effect on the fingerprint.
 // Returns empty string for paths where the interfaces list is not available.
-func Fingerprint(path Path) PathFingerprint {
-	meta := path.Metadata()
-	if meta == nil || len(meta.Interfaces) == 0 {
+func Fingerprint(path []PathInterface) PathFingerprint {
+	if len(path) == 0 {
 		return ""
 	}
 	h := sha256.New()
-	for _, intf := range meta.Interfaces {
+	for _, intf := range path {
 		if err := binary.Write(h, binary.BigEndian, intf.IA); err != nil {
 			// hash.Hash.Write may never error.
 			// The type check in binary.Write should also pass for addr.IA.

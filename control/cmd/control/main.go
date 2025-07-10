@@ -757,7 +757,7 @@ func realMain(ctx context.Context) error {
 		Handler: libconnect.AttachPeer(connectInter),
 	}
 
-	grpcConns := make(chan quic.Connection)
+	grpcConns := make(chan *quic.Conn)
 	//nolint:contextcheck // false positive.
 	g.Go(func() error {
 		defer log.HandlePanic()

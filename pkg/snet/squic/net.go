@@ -49,7 +49,7 @@ const streamAcceptTimeout = 5 * time.Second
 // ConnListener consumes a channel of QUIC connections and implements the
 // net.Listener interface.
 type ConnListener struct {
-	Conns <-chan quic.Connection
+	Conns <-chan *quic.Conn
 
 	ctx    context.Context
 	cancel func()
@@ -58,7 +58,7 @@ type ConnListener struct {
 }
 
 // NewConnListener constructs a new listener with the appropriate buffers set.
-func NewConnListener(conns <-chan quic.Connection, addr net.Addr) *ConnListener {
+func NewConnListener(conns <-chan *quic.Conn, addr net.Addr) *ConnListener {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &ConnListener{
 		Conns:  conns,
@@ -104,7 +104,7 @@ func (l *ConnListener) Close() error {
 // be accepted. The connection is accepted with the first call to Read or
 // Write.
 type acceptingConn struct {
-	session quic.Connection
+	session *quic.Conn
 
 	// once ensures that the stream is accepted at most once.
 	once sync.Once
@@ -117,7 +117,7 @@ type acceptingConn struct {
 	// on accept and through the setter methods.
 	deadlineStreamMtx sync.Mutex
 	// stream contains the accepted stream.
-	stream quic.Stream
+	stream *quic.Stream
 	// err contains the potential error during accepting the stream.
 	err error
 	// readDeadline keeps track of the deadline that is set on the conn
@@ -135,7 +135,7 @@ type acceptingConn struct {
 
 // newAcceptingConn constructs a new acceptingConn. The context restricts the
 // time spent on accepting the stream.
-func newAcceptingConn(ctx context.Context, session quic.Connection) net.Conn {
+func newAcceptingConn(ctx context.Context, session *quic.Conn) net.Conn {
 	var cancel context.CancelFunc
 
 	// Use deadline from parent if it exists. Otherwise, use default.
@@ -174,7 +174,7 @@ func (c *acceptingConn) Read(b []byte) (n int, err error) {
 	c.acceptStream()
 	stream, err := c.waitForStream()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("waiting for stream: %w", err)
 	}
 	return stream.Read(b)
 }
@@ -183,13 +183,13 @@ func (c *acceptingConn) Write(b []byte) (n int, err error) {
 	c.acceptStream()
 	stream, err := c.waitForStream()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("waiting for stream: %w", err)
 	}
 	return stream.Write(b)
 }
 
 // waitForStream blocks until a stream has been accepted, or failed to accept.
-func (c *acceptingConn) waitForStream() (quic.Stream, error) {
+func (c *acceptingConn) waitForStream() (*quic.Stream, error) {
 	<-c.acceptedStream
 	return c.stream, c.err
 }
@@ -290,7 +290,7 @@ func (c *acceptingConn) SetWriteDeadline(t time.Time) error {
 
 // getStreamLocked returns the stream and error. It assumes that the
 // deadlineStreamMtx lock is held.
-func (c *acceptingConn) getStreamLocked() (quic.Stream, error) {
+func (c *acceptingConn) getStreamLocked() (*quic.Stream, error) {
 	return c.stream, c.err
 }
 
@@ -349,8 +349,8 @@ func (c *acceptingConn) Close() error {
 	if err := c.session.CloseWithError(errNoError, ""); err != nil {
 		errs = append(errs, err)
 	}
-	if len(errs) != 0 {
-		return fmt.Errorf("closing connection: %v", errs)
+	if errs != nil {
+		return fmt.Errorf("closing connection: %w", errors.Join(errs...))
 	}
 	return nil
 }
@@ -387,7 +387,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		serverName = computeServerName(dst)
 	}
 
-	var session quic.Connection
+	var session *quic.Conn
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
 		// Clone TLS config to avoid data races.
 		tlsConfig := d.TLSConfig.Clone()
@@ -450,8 +450,8 @@ func computeServerName(address net.Addr) string {
 
 // acceptedConn is a net.Conn wrapper for a QUIC stream.
 type acceptedConn struct {
-	stream  quic.Stream
-	session quic.Connection
+	stream  *quic.Stream
+	session *quic.Conn
 }
 
 func (c *acceptedConn) Read(b []byte) (int, error) {
@@ -494,8 +494,8 @@ func (c *acceptedConn) Close() error {
 	if err := c.session.CloseWithError(errNoError, ""); err != nil {
 		errs = append(errs, err)
 	}
-	if len(errs) != 0 {
-		return fmt.Errorf("closing connection: %v", errs)
+	if errs != nil {
+		return fmt.Errorf("closing connection: %w", errors.Join(errs...))
 	}
 	return nil
 }
