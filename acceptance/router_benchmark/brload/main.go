@@ -133,6 +133,35 @@ func showInterfaces(cmd *cobra.Command) int {
 	return 0
 }
 
+func rttCheck(writePktTo *afpacket.TPacket, packetChan chan gopacket.Packet, rawPkt []byte, payload []byte) (time.Duration, error) {
+
+	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
+	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
+	// we don't need to update it.
+	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
+
+	// Prepare a batch of 1 packet.
+	allPkts := make([][]byte, 1)
+	allPkts[0] = make([]byte, len(rawPkt))
+	copy(allPkts[0], rawPkt)
+
+	// Share it with a multi-packets sender.
+	sender := newMpktSender(writePktTo)
+	sender.setPkts(allPkts)
+
+	// Send and receive just one packet. Measure the interval.
+	begin := time.Now()
+	if _, err := sender.sendAll(); err != nil {
+		return time.Duration(0), err
+	}
+	n := receivePackets(packetChan, payload)
+	if n == 0 {
+		return time.Duration(0), errors.New("Listener never saw a valid packet being forwarded")
+
+	}
+	return time.Since(begin), nil
+}
+
 func run(cmd *cobra.Command) int {
 	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
 	if err := log.Setup(logCfg); err != nil {
@@ -187,6 +216,14 @@ func run(cmd *cobra.Command) int {
 	packetSource := gopacket.NewPacketSource(readPktFrom, layers.LinkTypeEthernet)
 	packetChan := packetSource.Packets()
 	listenerChan := make(chan int)
+
+	// Measure the rtt with one packet.
+	rtt, err := rttCheck(writePktTo, packetChan, rawPkt, payload)
+	if err == nil {
+		fmt.Printf("rtt: %s\n", rtt.String())
+	} else {
+		fmt.Printf("rtt error: %s\n", err)
+	}
 
 	go func() {
 		defer log.HandlePanic()
@@ -313,7 +350,11 @@ func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) 
 	handles := make(map[string]*afpacket.TPacket)
 
 	for _, intf := range interfaceNames {
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf), afpacket.OptFrameSize(4096))
+		handle, err := afpacket.NewTPacket(
+			afpacket.OptInterface(intf),
+			afpacket.OptBlockTimeout(time.Millisecond), // TPv3 waits for and aggregates packets!
+			// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
+		)
 		if err != nil {
 			return nil, serrors.Wrap("creating TPacket", err)
 		}
