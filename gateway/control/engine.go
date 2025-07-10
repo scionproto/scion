@@ -28,6 +28,8 @@ import (
 
 	"github.com/gopacket/gopacket"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 
 	"github.com/scionproto/scion/gateway/pathhealth"
 	"github.com/scionproto/scion/gateway/pathhealth/policies"
@@ -227,7 +229,7 @@ func (e *Engine) Status(w io.Writer) {
 			fmt.Fprintf(w, "  SESSION %d, POLICY_ID %d, REMOTE: %s, HEALTHY %t\n",
 				s.ID, s.PolicyID, s.ProbeAddr, s.Healthy)
 			fmt.Fprint(w, "    PATHS:\n")
-			renderPathInfo(s.PathInfo, w, 2)
+			mustRenderPathInfo(s.PathInfo, w, 2)
 			fmt.Fprint(w, "\n")
 		}
 	}
@@ -243,8 +245,8 @@ func (e *Engine) Status(w io.Writer) {
 	}
 }
 
-func renderPathInfo(p pathhealth.PathInfo, w io.Writer, indent int) {
-	var paths [][]string
+func mustRenderPathInfo(p pathhealth.PathInfo, w io.Writer, indent int) {
+	paths := make([][]string, 0, len(p))
 	for _, path := range p {
 		state := ""
 		if path.Current {
@@ -266,19 +268,38 @@ func renderPathInfo(p pathhealth.PathInfo, w io.Writer, indent int) {
 			})
 		}
 	}
-	table := tablewriter.NewWriter(w)
-	table.SetAutoWrapText(false)
-	table.SetBorder(false)
-	table.SetHeaderLine(false)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetHeader([]string{"", "STATE", "REVOKED", "PATH"})
-	table.AppendBulk(paths)
-	table.Render()
 
+	table := tablewriter.NewTable(
+		w,
+		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
+			Settings: tw.Settings{
+				Lines: tw.Lines{
+					ShowHeaderLine: tw.Off,
+				},
+				Separators: tw.Separators{
+					BetweenRows:    tw.Off,
+					BetweenColumns: tw.Off,
+				},
+			},
+		})),
+		tablewriter.WithRendition(tw.Rendition{
+			Borders: tw.BorderNone,
+		}),
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{Alignment: tw.CellAlignment{Global: tw.AlignLeft}},
+			Row: tw.CellConfig{
+				Formatting: tw.CellFormatting{MergeMode: tw.MergeHierarchical},
+				Alignment:  tw.CellAlignment{Global: tw.AlignLeft},
+			},
+		}),
+	)
+	table.Header("", "STATE", "REVOKED", "PATH")
+	if err := table.Bulk(paths); err != nil {
+		panic(err)
+	}
+	if err := table.Render(); err != nil {
+		panic(err)
+	}
 }
 
 func (e *Engine) setup(ctx context.Context) error {

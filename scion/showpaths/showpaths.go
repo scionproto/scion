@@ -397,7 +397,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	for _, path := range paths {
 		fingerprint := "local"
 		if len(path.Metadata().Interfaces) > 0 {
-			fp := snet.Fingerprint(path).String()
+			fp := path.Metadata().Fingerprint().String()
 			fingerprint = fp[:16]
 		}
 		var nextHop string

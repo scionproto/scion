@@ -32,11 +32,11 @@ The sample SCION demo setup consists of one ISD with three core and two non-core
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
 Hostname ISD  AS        Purpose  Notes           IP Address    OS                     Disk  RAM
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
-scion01  15   ffaa:1:1  Core     Voting, CA      10.100.0.11  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion02  15   ffaa:1:2  Core     Non-Voting, CA  10.100.0.12  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion03  15   ffaa:1:3  Core     Voting          10.100.0.13  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion04  15   ffaa:1:4  Non-Core                 10.100.0.14  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
-scion05  15   ffaa:1:5  Non-Core                 10.100.0.15  **Ubuntu** 22.04.3 LTS  4 GB  1 GB
+scion01  15   ffaa:1:1  Core     Voting, CA      10.100.0.11  **Ubuntu** 24.04 LTS    4 GB  1 GB
+scion02  15   ffaa:1:2  Core     Non-Voting, CA  10.100.0.12  **Ubuntu** 24.04 LTS    4 GB  1 GB
+scion03  15   ffaa:1:3  Core     Voting          10.100.0.13  **Ubuntu** 24.04 LTS    4 GB  1 GB
+scion04  15   ffaa:1:4  Non-Core                 10.100.0.14  **Ubuntu** 24.04 LTS    4 GB  1 GB
+scion05  15   ffaa:1:5  Non-Core                 10.100.0.15  **Ubuntu** 24.04 LTS    4 GB  1 GB
 ======== ==== ========= ======== =============== ============ ======================= ===== ====
 
 *Table 1: Required Infrastructure*
@@ -53,7 +53,17 @@ The topology of the ISD includes the inter-AS connections to neighboring ASes, a
 
    *Figure 1 - Topology of the sample SCION demo environment. It consists of 1 ISD, 3 core ASes and 2 non-core ASes.*
 
+The difference between the core and non-core ASes is that core ASes are transit nodes for the entire ISD while non-core are transit nodes only for their own child ASes.
+When going from ``ffaa:1:3`` to ``ffaa:1:2`` you will see a direct path and one going via the other core AS ``ffaa:1:1``, but you will NOT see a path going via ``ffaa:1:5`` or ``ffaa:1:4`` because they are non-core.
 
+.. code-block:: sh
+
+   ubuntu@scion03:~$ scion showpaths 15-ffaa:1:2
+   Available paths to 15-ffaa:1:2
+   2 Hops:
+   [0] Hops: [15-ffaa:1:3 2>2 15-ffaa:1:2] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+   3 Hops:
+   [1] Hops: [15-ffaa:1:3 1>3 15-ffaa:1:1 2>1 15-ffaa:1:2] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
 
 .. _prerequisites:
 
@@ -62,13 +72,14 @@ Infrastructure Prerequisites
 
 This deployment requires five virtual machines (VMs) - one for each AS. We recommend using Ubuntu VMs for this.
 
-- 5 VMs - **Ubuntu** 22.04.5 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_.
+- 5 VMs - **Ubuntu** 24.04.x LTS (Noble Numbat). For more information, see `Ubuntu Noble Numbat <https://releases.ubuntu.com/noble/>`_.
 - Each VM should have at least one IP address reachable by the other VMs. (If on AWS, be sure to set up the appropriate security groups.)
 - Each VM will need internet access to download the required files (or you will need an alternate way to download the SCION binaries).
 - One VM (scion01) should have SSH access (password or SSH keys) to the other hosts scion{02-05} to copy generated configuration files and keys.
 - Using the naming convention for each VM of scion01, scion02, scion03, scion04, and scion05 will help follow along with this tutorial.
 - The VM names scion01-scion05 can be configured in /etc/hosts.
 
+**Note**: You can automatically prepare the VMs using Vagrant by running ``make vm-up``.
 
 Tasks to Perform
 ----------------
@@ -90,9 +101,9 @@ OS Setup
 
 - Set up the host file
 
-  The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 VMs. This will need to be updated on scion01-scion05. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
+  The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 VMs. Set this up on one of the machines, so that you can then use it as a jump box. This tutorial uses scion01. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
 
-  Set this up on scion01-scion05.
+  Set this up on scion01:
 
   .. code-block:: sh
 
@@ -153,14 +164,13 @@ On scion01, download the topology1.json file. On scion02, download topology2.jso
 
    wget LINK_TO_TOPOLOGY.JSON_FILE -O /etc/scion/topology.json
 
-The AS topology files reference the hosts scion01-05 by host name.
-Ensure that you have set up the ``/etc/hosts`` file (:ref:`see above <step0>`) or replace the hostnames with IP addresses.
 
 Step 2 - Generate the Required Certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The various cryptographic certificates need to be generated for each of the ASes.
-This requires first setting up the :term:`TRC` for this ISD, and then issuing AS-certificates from the :term:`CAs <CA>`.
+SCION's control plane messages and path information are all authenticated through the SCION PKI (Public Key Infrastructure).
+Setting up the PKI in a freshly created :term:`Isolation Domain <ISD>`, like in this tutorial, requires an initial trust bootstrapping process to create the initial :term:`TRC` for this ISD.
+Then, various certificates need to be generated for the intermediate :term:`CAs <CA>` and for each AS.
 
 For the sake of simplicity in this tutorial, we create all the keys and certificates centrally, and distribute the crypto material to the individual ASes.
 In practice, the private keys of ASes are of course never revealed to other entities; the TRC would be created in a :ref:`trc-ceremony` involving representatives of all core ASes. The creation of the AS-certificates would involve a certificate-signing request to the CA.
@@ -172,7 +182,7 @@ In practice, the private keys of ASes are of course never revealed to other enti
 
 
 
-#. To generate all required certificates, execute the following script on any machine where ``scion-pki`` is installed (e.g. scion01).
+#. To generate all required certificates, execute the following script on scion01:
 
    .. literalinclude:: ./deploy/base/pki-generation.bash
       :language: bash
@@ -186,13 +196,19 @@ In practice, the private keys of ASes are of course never revealed to other enti
 
   .. code-block:: bash
 
-     cd /tmp/tutorial-scion-certs
-     for i in {1..5}
-     do
-        ssh scion0$i 'mkdir -p /etc/scion/{crypto/as,certs}'
-        scp AS$i/cp-as.{key,pem} scion0$i:/etc/scion/crypto/as/
-        scp ISD15-B1-S1.trc scion0$i:/etc/scion/certs/
-     done
+      cd /tmp/tutorial-scion-certs
+
+      for i in {1..5}; do
+         ssh scion0$i 'sudo mkdir -p /etc/scion/crypto/as /etc/scion/certs'
+
+         scp AS$i/cp-as.pem   scion0$i:/tmp/cp-as.pem
+         scp AS$i/cp-as.key   scion0$i:/tmp/cp-as.key
+         scp ISD15-B1-S1.trc  scion0$i:/tmp/ISD15-B1-S1.trc
+
+         ssh scion0$i 'sudo mv /tmp/cp-as.pem /etc/scion/crypto/as/'
+         ssh scion0$i 'sudo mv /tmp/cp-as.key /etc/scion/crypto/as/'
+         ssh scion0$i 'sudo mv /tmp/ISD15-B1-S1.trc /etc/scion/certs/'
+      done
 
 
 Step 3 - Generate Forwarding Secret Keys
@@ -202,8 +218,9 @@ Two symmetric keys *master0.key* and *master1.key* are required per AS as the fo
 
 .. code-block:: bash
 
-   head -c 16 /dev/urandom | base64 - > /etc/scion/keys/master0.key
-   head -c 16 /dev/urandom | base64 - > /etc/scion/keys/master1.key
+   sudo mkdir -p /etc/scion/keys
+   sudo sh -c 'head -c 16 /dev/urandom | base64 > /etc/scion/keys/master0.key'
+   sudo sh -c 'head -c 16 /dev/urandom | base64 > /etc/scion/keys/master1.key'
 
 Repeat the above on each host scion01 - scion05.
 
@@ -212,13 +229,17 @@ Step 4 - Service Configuration Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Next, you have to download the service configuration file for the router and control service into the ``/etc/scion/`` directory of each AS host scion01-scion05.
-Refer to the :ref:`router-conf-toml` and :ref:`control-conf-toml` manuals for details.
-We use default settings for most of the available options, so that the same configuration file can be used in all of the VMs.
-
-Download the files, then copy it into the ``/etc/scion/`` directory of each host scion01 - scion05.
 
 - **Border router**: :download:`br.toml <deploy/base/br.toml>`
 - **Control service**: :download:`cs.toml <deploy/base/cs.toml>`
+
+.. code-block:: sh
+
+   sudo wget LINK_TO_BR.TOML_FILE -O /etc/scion/br.toml
+   sudo wget LINK_TO_CS.TOML_FILE -O /etc/scion/cs.toml
+
+Refer to the :ref:`router-conf-toml` and :ref:`control-conf-toml` manuals for details.
+We use default settings for most of the available options, so that the same configuration file can be used in all of the VMs.
 
 Step 5 - Start the Services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -232,6 +253,11 @@ Execute the following commands on every AS:
 
 .. code-block:: sh
 
+   # Make scion user own the config dir
+   sudo chown -R scion:scion /etc/scion
+
+.. code-block:: sh
+
    sudo systemctl start scion-router@br.service
    sudo systemctl start scion-control@cs.service
    sudo systemctl start scion-daemon.service
@@ -240,6 +266,17 @@ Execute the following commands on every AS:
 
 These steps need to be repeated on each host scion01 - scion05.
 
+Make sure your services are running and didn't fail to start:
+
+.. code-block:: sh
+
+   sudo systemctl status scion-*
+
+If any service failed, you can view the logs using journalctl, for example:
+
+.. code-block:: sh
+
+   sudo journalctl -u scion-router@br.service
 
 .. _step3:
 

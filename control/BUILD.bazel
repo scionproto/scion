@@ -25,6 +25,7 @@ go_library(
         "//control/trust:go_default_library",
         "//pkg/addr:go_default_library",
         "//pkg/experimental/hiddenpath:go_default_library",
+        "//pkg/experimental/hiddenpath/connect:go_default_library",
         "//pkg/experimental/hiddenpath/grpc:go_default_library",
         "//pkg/grpc:go_default_library",
         "//pkg/log:go_default_library",
@@ -57,6 +58,7 @@ go_library(
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",
+        "@com_github_scionproto_scion//pkg/proto/hidden_segment/v1/hidden_segmentconnect:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
     ],
 )

@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -102,7 +102,9 @@ return an error if parts of a TRC fail to decode, enable the strict mode.
 func getEncoder(w io.Writer, format string) (interface{ Encode(v any) error }, error) {
 	switch format {
 	case "yaml", "yml":
-		return yaml.NewEncoder(w), nil
+		e := yaml.NewEncoder(w)
+		e.SetIndent(2)
+		return e, nil
 	case "json":
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "    ")

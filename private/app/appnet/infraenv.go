@@ -80,7 +80,7 @@ type NetworkConfig struct {
 
 // QUICStack contains everything to run a QUIC based RPC stack.
 type QUICStack struct {
-	Listener       *squic.ConnListener
+	Listener       *quic.Listener
 	InsecureDialer *squic.ConnDialer
 	Dialer         *squic.ConnDialer
 }
@@ -105,7 +105,7 @@ func (nc *NetworkConfig) QUICStack(ctx context.Context) (*QUICStack, error) {
 		InsecureSkipVerify: true,
 		GetCertificate:     nc.QUIC.GetCertificate,
 		ClientAuth:         tls.RequestClientCert,
-		NextProtos:         []string{"SCION"},
+		NextProtos:         []string{"h3", "SCION"},
 	}
 
 	listener, err := quic.Listen(server, serverTLSConfig, nil)
@@ -129,7 +129,7 @@ func (nc *NetworkConfig) QUICStack(ctx context.Context) (*QUICStack, error) {
 	}
 
 	return &QUICStack{
-		Listener: squic.NewConnListener(listener),
+		Listener: listener,
 		InsecureDialer: &squic.ConnDialer{
 			Transport: clientTransport,
 			TLSConfig: insecureClientTLSConfig,
