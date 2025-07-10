@@ -39,6 +39,8 @@ import (
 	"github.com/scionproto/scion/private/trust"
 )
 
+var ErrDefaultSegmentRegPlugin = serrors.New("default segment registration plugin not registered")
+
 // TasksConfig holds the necessary configuration to start the periodic tasks a
 // CS is expected to run.
 type TasksConfig struct {
@@ -124,7 +126,7 @@ func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Poli
 	// This is done for the sake of backward compatibility.
 	defaultPlugin, ok := segreg.GetDefaultSegmentRegPlugin()
 	if !ok {
-		return serrors.New("default segment registration plugin not registered")
+		return ErrDefaultSegmentRegPlugin
 	}
 	for _, polType := range []beacon.RegPolicyType{
 		beacon.RegPolicyTypeUp,

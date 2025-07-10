@@ -247,6 +247,8 @@ func (l writerLabels) WithResult(result string) writerLabels {
 	return l
 }
 
+var ErrOnlyDownSegments = serrors.New("hidden path registration only supports down segments")
+
 type HiddenSegmentRegistrationPlugin struct {
 	InternalErrors metrics.Counter
 	Registered     metrics.Counter
@@ -274,7 +276,7 @@ func (p *HiddenSegmentRegistrationPlugin) New(
 ) (segreg.SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
 	if segType != seg.TypeDown {
-		return nil, serrors.New("hidden path registration only supports down segments")
+		return nil, ErrOnlyDownSegments
 	}
 	return &HiddenSegmentRegistrar{
 		HiddenSegmentRegistrationPlugin: *p,
