@@ -68,9 +68,11 @@ message StaticInfoExtension {
 message DiscoveryExtension {
     // Version of the discovery extension. This is set to 1 for now.
     uint32 version = 1;
-    // The address of the control services for this AS.
+    // The address of the control services for this AS. The format is ip:port
+    // or [ip]:port for IPv6 addresses.
     repeated string control_service_addresses = 2;
-    // The address of the discovery services for this AS.
+    // The address of the control services for this AS. The format is ip:port
+    // or [ip]:port for IPv6 addresses.
     repeated string discovery_service_addresses = 3;
 }
 
