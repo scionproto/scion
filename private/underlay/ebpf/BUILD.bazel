@@ -106,7 +106,7 @@ go_test(
 )
 
 # This is the rule that actually runs the portfilter test.
-native_test(
+sh_test(
     name = "portfilter_test",
     testonly = True,
     srcs = ["port_filter_test_cap.sh"],
