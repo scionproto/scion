@@ -1,2 +1,0 @@
-echo "~~~ environment hook"
-export PATH="~/.local/bin:${PATH}"
