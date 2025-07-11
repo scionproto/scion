@@ -115,7 +115,6 @@ steps:
       key: check_generated
       retry: *automatic-retry
   - group: "End to End"
-    key: e2e
     steps:
     - label: "E2E: default :man_in_business_suit_levitating: (scion, ping)"
       command:
