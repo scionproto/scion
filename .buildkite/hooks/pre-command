@@ -9,6 +9,7 @@ pathadd ~/.local/bin
 pathadd /usr/sbin
 pathadd /usr/local/sbin
 printenv PATH
+export PATH
 
 # Install build tools on first job for this runner.
 .buildkite/provision-agent.sh
