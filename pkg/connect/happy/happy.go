@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-const DefaultDelay = 100 * time.Millisecond
+const DefaultDelay = 500 * time.Millisecond
 
 type Caller[R any] interface {
 	Invoke(context.Context) (R, error)
@@ -98,6 +98,7 @@ type Config struct {
 func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config) (R, error) {
 	logger := log.FromCtx(ctx)
 
+	cfg.NoPreferred = true
 	if cfg.NoPreferred && cfg.NoFallback {
 		return *new(R), serrors.New("both preferred and fallback callers are disabled")
 	}
