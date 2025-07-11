@@ -113,7 +113,6 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*R
 			},
 		},
 	}
-
 	reply, err := r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.UnderlayNextHop())
 	if err != nil {
 		ext.Error.Set(span, true)
@@ -180,6 +179,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	if !ok {
 		return nil, serrors.JoinNoStack(errUnsupportedPld, nil,
 			"type", common.TypeOf(replyPacket.Payload))
+
 	}
 	var reply Reply
 	if err := reply.Unmarshal(udp.Payload); err != nil {
