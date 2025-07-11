@@ -12,7 +12,7 @@ fi
 echo "~~~ Install build tools"
 tools/install_bazel
 
-which bazel
+bazel version
 
 tools/install_deps
 
