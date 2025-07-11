@@ -133,8 +133,12 @@ func showInterfaces(cmd *cobra.Command) int {
 	return 0
 }
 
-func rttCheck(writePktTo *afpacket.TPacket, packetChan chan gopacket.Packet, rawPkt []byte, payload []byte) (time.Duration, error) {
-
+func rttCheck(
+	writePktTo *afpacket.TPacket,
+	packetChan chan gopacket.Packet,
+	rawPkt []byte,
+	payload []byte,
+) (time.Duration, error) {
 	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
 	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
 	// we don't need to update it.
