@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-const DefaultDelay = 500 * time.Millisecond
+const DefaultDelay = 100 * time.Millisecond
 
 type Caller[R any] interface {
 	Invoke(context.Context) (R, error)
