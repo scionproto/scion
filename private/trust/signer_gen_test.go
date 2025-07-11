@@ -61,7 +61,8 @@ func TestSignerGenGenerate(t *testing.T) {
 		filepath.Join(dir, "certs/ISD1-ASff00_0_110-2.pem"),
 		filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as-2.key"),
 	})
-	cmd.SetOutput(&buf)
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
 	err := cmd.Execute()
 	require.NoError(t, err, buf.String())
 

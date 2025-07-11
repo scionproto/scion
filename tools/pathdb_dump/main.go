@@ -184,7 +184,7 @@ func defaultDBfilename() (string, error) {
 	glob := filepath.Join(searchPath, "ps*path.db")
 	filenames, err := filepath.Glob(glob)
 	if err != nil {
-		return "", fmt.Errorf("Error while listing files: %v", err)
+		return "", fmt.Errorf("error while listing files: %v", err)
 	}
 	if len(filenames) == 1 {
 		return filenames[0], nil
@@ -193,6 +193,6 @@ func defaultDBfilename() (string, error) {
 	if len(filenames) > 1 {
 		reason = "more than one"
 	}
-	return "", fmt.Errorf("Found %s files matching '%s'. "+
-		"Please specify the path to a DB file using the -db flag.", reason, glob)
+	return "", fmt.Errorf("found %s files matching '%s'. "+
+		"Please specify the path to a DB file using the -db flag", reason, glob)
 }

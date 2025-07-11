@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -256,7 +256,7 @@ On other errors, ping will exit with code 2.
 			res := Result{
 				ScionPacketSize: pktSize,
 				Path: Path{
-					Fingerprint: snet.Fingerprint(path).String(),
+					Fingerprint: path.Metadata().Fingerprint().String(),
 					Hops:        getHops(path),
 					Sequence:    seq,
 					LocalIP:     localIP,

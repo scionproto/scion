@@ -125,7 +125,7 @@ GO_BUILD_TAGS_ARG=$(shell bazel info --ui_event_filters=-stdout,-stderr --announ
 
 lint-go-golangci:
 	$(info ==> $@)
-	@tools/quiet bazel run --config=quiet @rules_go//go -- run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8 run --config="${PWD}/.golangcilint.yml" --timeout=3m $(GO_BUILD_TAGS_ARG),lint --exclude-dirs doc ./...
+	@tools/quiet bazel run --config=quiet @rules_go//go -- run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6 run --config="${PWD}/.golangci.yml" $(GO_BUILD_TAGS_ARG),lint ./...
 
 lint-go-semgrep:
 	$(info ==> $@)

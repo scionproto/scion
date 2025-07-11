@@ -105,24 +105,13 @@ go_test(
     ],
 )
 
-# Adds required capabilities to the portfilter test. Otherwise it cannot be executed.
-genrule(
-    name = "gen_portfilter_test_cap",
-    testonly = True,
-    srcs = [
-        "go_default_test",
-    ],
-    outs = [
-        "portfilter_test_cap",
-    ],
-    cmd_bash = "cp -f $< $@ ; /usr/bin/sudo setcap \"cap_bpf=ep cap_net_admin=ep cap_net_raw=ep\" $@ || echo Failed",
-)
-
 # This is the rule that actually runs the portfilter test.
 native_test(
     name = "portfilter_test",
     testonly = True,
-    src = "portfilter_test_cap",
+    srcs = ["port_filter_test_cap.sh"],
+    args = ["$(location go_default_test)"],
+    data = [":go_default_test"],
     tags = [
         "supports-graceful-termination",
         "unit",

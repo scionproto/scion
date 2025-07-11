@@ -26,9 +26,11 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	quic "github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	"google.golang.org/grpc"
 
 	"github.com/scionproto/scion/gateway/control"
+	controlconnect "github.com/scionproto/scion/gateway/control/connect"
 	controlgrpc "github.com/scionproto/scion/gateway/control/grpc"
 	"github.com/scionproto/scion/gateway/dataplane"
 	"github.com/scionproto/scion/gateway/pathhealth"
@@ -37,6 +39,7 @@ import (
 	"github.com/scionproto/scion/gateway/routing"
 	"github.com/scionproto/scion/gateway/xnet"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/daemon"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
@@ -44,6 +47,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	gatewaypb "github.com/scionproto/scion/pkg/proto/gateway"
+	"github.com/scionproto/scion/pkg/proto/gateway/v1/gatewayconnect"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/squic"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
@@ -282,6 +286,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	revStore := &pathhealth.MemoryRevocationStore{}
 
 	// periodically clean up the revocation store.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	revCleaner := periodic.Start(periodic.Func{
 		Task:     revStore.Cleanup,
 		TaskName: "revocation_store_cleaner",
@@ -484,6 +489,22 @@ func (g *Gateway) Run(ctx context.Context) error {
 		PacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
 		Metrics:           g.Metrics.SCIONNetworkMetrics,
 	}
+
+	grpcDialer := &libgrpc.QUICDialer{
+		Dialer: quicClientDialer,
+		Rewriter: &infraenv.AddressRewriter{
+			// Use the local Daemon to construct paths to the target AS.
+			Router: pathRouter,
+			// We never resolve addresses in the local AS, so pass a nil here.
+			SVCRouter: nil,
+			Resolver: &svc.Resolver{
+				LocalIA: localIA,
+				// Reuse the network with SCMP error support.
+				Network: scionNetwork,
+				LocalIP: g.ServiceDiscoveryClientIP,
+			},
+		},
+	}
 	remoteMonitor := &control.RemoteMonitor{
 		IAs:                   remoteIAsChannel,
 		RemotesMonitored:      rmMetric,
@@ -496,21 +517,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Policies: &policies.Policies{
 				PathPolicy: control.DefaultPathPolicy,
 			},
-			Dialer: &libgrpc.QUICDialer{
-				Dialer: quicClientDialer,
-				Rewriter: &infraenv.AddressRewriter{
-					// Use the local Daemon to construct paths to the target AS.
-					Router: pathRouter,
-					// We never resolve addresses in the local AS, so pass a nil here.
-					SVCRouter: nil,
-					Resolver: &svc.Resolver{
-						LocalIA: localIA,
-						// Reuse the network with SCMP error support.
-						Network: scionNetwork,
-						LocalIP: g.ServiceDiscoveryClientIP,
-					},
-				},
-			},
+			Dialer: grpcDialer,
+			ConnectDialer: (&squic.EarlyDialerFactory{
+				Transport: quicClientDialer.Transport,
+				TLSConfig: connect.AdaptClientTLS(quicClientDialer.TLSConfig),
+				Rewriter:  grpcDialer.Rewriter,
+			}).NewDialer,
 		},
 	}
 
@@ -534,35 +546,66 @@ func (g *Gateway) Run(ctx context.Context) error {
 	logger.Info("QUIC server connection initialized",
 		"local_addr", serverConn.LocalAddr())
 
-	internalQUICServerListener, err := quic.Listen(serverConn, ephemeralTLSConfig, nil)
+	internalQUICServerListener, err := quic.Listen(
+		serverConn,
+		connect.AdaptTLS(ephemeralTLSConfig),
+		nil,
+	)
 	if err != nil {
 		return serrors.Wrap("unable to initializer server QUIC listener", err)
 	}
-	// Wrap in net.Listener for use with gRPC
-	quicServerListener := squic.NewConnListener(internalQUICServerListener)
 
 	var paMetric metrics.Gauge
 	if g.Metrics != nil {
 		paMetric = metrics.NewPromGauge(g.Metrics.PrefixesAdvertised)
 	}
-	discoveryServer := grpc.NewServer(
+
+	prefixConnect := http.NewServeMux()
+	prefixGrpc := grpc.NewServer(
 		libgrpc.UnaryServerInterceptor(),
 		libgrpc.DefaultMaxConcurrentStreams(),
 	)
-	gatewaypb.RegisterIPPrefixesServiceServer(
-		discoveryServer,
-		controlgrpc.IPPrefixServer{
-			LocalIA: localIA,
-			Advertiser: &SelectAdvertisedRoutes{
-				ConfigPublisher: configPublisher,
-			},
-			PrefixesAdvertised: paMetric,
+
+	prefixServer := controlgrpc.IPPrefixServer{
+		LocalIA: localIA,
+		Advertiser: &SelectAdvertisedRoutes{
+			ConfigPublisher: configPublisher,
 		},
+		PrefixesAdvertised: paMetric,
+	}
+	prefixConnect.Handle(
+		gatewayconnect.NewIPPrefixesServiceHandler(controlconnect.IPPrefixServer{
+			IPPrefixServer: &prefixServer,
+		}),
 	)
+	gatewaypb.RegisterIPPrefixesServiceServer(
+		prefixGrpc,
+		prefixServer,
+	)
+
+	grpcConns := make(chan *quic.Conn)
+	prefixConnectionDispatcher := connect.ConnectionDispatcher{
+		Listener: internalQUICServerListener,
+		Connect:  &http3.Server{Handler: connect.AttachPeer(prefixConnect)},
+		Grpc: connect.QUICConnServerFunc(func(conn *quic.Conn) error {
+			grpcConns <- conn
+			return nil
+		}),
+		Error: func(err error) {
+			logger.Debug("Failed to handle connection", "err", err)
+		},
+	}
 
 	go func() {
 		defer log.HandlePanic()
-		if err := discoveryServer.Serve(quicServerListener); err != nil {
+		if err := prefixConnectionDispatcher.Run(ctx); err != nil {
+			panic(err)
+		}
+	}()
+	go func() {
+		defer log.HandlePanic()
+		grpcListener := squic.NewConnListener(grpcConns, internalQUICServerListener.Addr())
+		if err := prefixGrpc.Serve(grpcListener); err != nil {
 			panic(err)
 		}
 	}()

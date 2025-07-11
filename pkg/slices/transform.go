@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich
+// Copyright 2025 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segment
+package slices
 
-import (
-	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
-)
-
-func ExtensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
-	return extensionsFromPB(pb)
-}
-
-func ExtensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
-	return extensionsToPB(ext)
+func Transform[S ~[]I, I any, O any](s S, transform func(I) O) []O {
+	if s == nil {
+		return nil
+	}
+	out := make([]O, len(s))
+	for i, v := range s {
+		out[i] = transform(v)
+	}
+	return out
 }

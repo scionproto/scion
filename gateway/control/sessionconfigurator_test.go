@@ -652,7 +652,7 @@ func TestConjuctionPolicy(t *testing.T) {
 			for _, p := range tc.InputPaths {
 				accepted := false
 				for _, op := range acceptedPaths {
-					accepted = accepted || snet.Fingerprint(p) == snet.Fingerprint(op)
+					accepted = accepted || p.Metadata().Fingerprint() == op.Metadata().Fingerprint()
 				}
 				if !accepted {
 					rejectedPaths = append(rejectedPaths, p)

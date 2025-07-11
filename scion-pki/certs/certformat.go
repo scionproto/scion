@@ -45,7 +45,7 @@ type formatBuffer struct {
 
 // Writef writes a formatted string to b.
 func (b *formatBuffer) Writef(format string, args ...any) (int, error) {
-	return fmt.Fprintf(b, format, args...)
+	return fmt.Fprintf(&b.Buffer, format, args...)
 }
 
 type certificateShort struct {

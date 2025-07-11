@@ -182,7 +182,7 @@ func pathsEqual(x, y snet.Path) bool {
 	if x == nil || y == nil {
 		return false
 	}
-	return snet.Fingerprint(x) == snet.Fingerprint(y) &&
+	return x.Metadata().Fingerprint() == y.Metadata().Fingerprint() &&
 		x.Metadata() != nil && y.Metadata() != nil &&
 		x.Metadata().MTU == y.Metadata().MTU &&
 		x.Metadata().Expiry.Equal(y.Metadata().Expiry)
