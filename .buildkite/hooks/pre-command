@@ -35,6 +35,9 @@ if [ -z ${SCION_VERSION+x} ]; then
     echo SCION_VERSION=${SCION_VERSION}
 fi
 
+echo "~~~ Starting go module proxy"
+docker compose -f .buildkite/hooks/go-module-proxy.yml up -d
+
 echo "~~~ Setting up bazel environment"
 if [ -z ${BAZEL_REMOTE_S3_ACCESS_KEY_ID+x} ]; then
     echo "S3 env not set, not starting bazel remote proxy"
@@ -60,5 +63,3 @@ echo "~~~ Starting bazel remote cache proxy"
 # https://buildkite.com/docs/pipelines/secrets#storing-secrets-with-the-elastic-ci-stack-for-aws
 docker compose -f .buildkite/hooks/bazel-remote.yml up -d
 
-echo "~~~ Starting go module proxy"
-docker compose -f .buildkite/hooks/go-module-proxy.yml up -d
