@@ -361,7 +361,6 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 			asEntry := asEntries[asEntryIdx]
 
 			var hopField path.HopField
-			var forwardingLinkMtu int
 			var epicAuth []byte
 			if !isPeer {
 				// Regular hop field.
@@ -372,7 +371,11 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 					ConsEgress:  entry.HopField.ConsEgress,
 					Mac:         entry.HopField.MAC,
 				}
-				forwardingLinkMtu = entry.IngressMTU
+				// The Hop Entry's ingress MTU needs to be used to calculate the MTU for the
+				// segment. Except for the ingress MTU of segment's first HE that is used.
+				if entry.IngressMTU != 0 && !isShortcut {
+					mtu = min(mtu, uint16(entry.IngressMTU))
+				}
 				epicAuth = getAuth(&asEntry)
 			} else {
 				// We've reached the ASEntry where we want to switch
@@ -384,7 +387,7 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 					ConsEgress:  peer.HopField.ConsEgress,
 					Mac:         peer.HopField.MAC,
 				}
-				forwardingLinkMtu = peer.PeerMTU
+				mtu = min(mtu, uint16(peer.PeerMTU))
 				epicAuth = getAuthPeer(&asEntry, solEdge.edge.Peer-1)
 			}
 
@@ -406,12 +409,7 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 			hops = append(hops, hopField)
 			pathASEntries = append(pathASEntries, asEntry)
 			epicSegAuths = append(epicSegAuths, epicAuth)
-
-			mtu = minUint16(mtu, uint16(asEntry.MTU))
-			if forwardingLinkMtu != 0 {
-				// The first HE in a segment has MTU 0, so we ignore those
-				mtu = minUint16(mtu, uint16(forwardingLinkMtu))
-			}
+			mtu = min(mtu, uint16(asEntry.MTU))
 		}
 
 		// Put the hops in forwarding order. Needed for down segments
@@ -568,13 +566,6 @@ type solutionEdge struct {
 	dst  vertex
 	// The segment associated with this edge, used during forwarding path construction
 	segment *inputSegment
-}
-
-func minUint16(x, y uint16) uint16 {
-	if x < y {
-		return x
-	}
-	return y
 }
 
 // validNextSeg returns whether nextSeg is a valid next segment in a path from the given currSeg.
