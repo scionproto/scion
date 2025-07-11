@@ -343,7 +343,7 @@ func (u *provider) getUdpConnection(
 		}
 	}
 
-	return nil, errors.New("No interface with the requested address")
+	return nil, errors.New("no interface with the requested address")
 }
 
 // NewExternalLink returns an external link over the UDP/IP underlay. It is implemented with a

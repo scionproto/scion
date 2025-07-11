@@ -129,8 +129,8 @@ type SFilterHandle struct {
 }
 
 // Close causes the filter to go away.
-func (fh *SFilterHandle) Close() {
-	fh.sObjs.Close()
+func (sf *SFilterHandle) Close() {
+	sf.sObjs.Close()
 }
 
 // Adds the given port to the map of the given filter. As a result UDP/IP packets destined to that

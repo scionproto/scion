@@ -160,7 +160,7 @@ func rttCheck(
 	}
 	n := receivePackets(packetChan, payload)
 	if n == 0 {
-		return time.Duration(0), errors.New("Listener never saw a valid packet being forwarded")
+		return time.Duration(0), errors.New("listener never saw a valid packet being forwarded")
 
 	}
 	return time.Since(begin), nil
@@ -296,7 +296,7 @@ out:
 		select {
 		case outcome = <-listenerChan:
 			if outcome == 0 {
-				log.Error("Listener never saw a valid packet being forwarded")
+				log.Error("listener never saw a valid packet being forwarded")
 				return 1
 			}
 		case <-timeout:

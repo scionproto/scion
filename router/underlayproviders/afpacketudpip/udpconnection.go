@@ -15,7 +15,7 @@
 package afpacketudpip
 
 import (
-	"math/rand"
+	"crypto/rand"
 	"net"
 	"net/netip"
 	"slices"
