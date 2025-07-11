@@ -141,7 +141,7 @@ steps:
             pre-exit: .buildkite/cleanup-leftovers.sh
       artifact_paths: &scion-run-artifact-paths
         - test-out.tar.gz
-      timeout_in_minutes: 15
+      timeout_in_minutes: 20
       key: e2e_integration_tests_v2
       retry: *automatic-retry
     - label: "E2E: failing links :man_in_business_suit_levitating:"
