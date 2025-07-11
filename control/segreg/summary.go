@@ -15,7 +15,8 @@
 package segreg
 
 import (
-	"sort"
+	"maps"
+	"slices"
 	"sync"
 
 	"github.com/scionproto/scion/control/beacon"
@@ -68,11 +69,7 @@ func (s *RegistrationSummary) GetSrcs() map[addr.IA]struct{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	srcs := make(map[addr.IA]struct{})
-	for src := range s.srcs {
-		srcs[src] = struct{}{}
-	}
-	return srcs
+	return maps.Clone(s.srcs)
 }
 
 func (s *RegistrationSummary) GetIfIDs() []uint16 {
@@ -83,7 +80,7 @@ func (s *RegistrationSummary) GetIfIDs() []uint16 {
 	for ifID := range s.ifIDs {
 		list = append(list, ifID)
 	}
-	sort.Slice(list, func(i, j int) bool { return list[i] < list[j] })
+	slices.Sort(list)
 	return list
 }
 

@@ -22,7 +22,6 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/scionproto/scion/control/beacon"
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -87,11 +86,11 @@ type IgnoreSegmentRegistrationPlugin struct{}
 
 var _ SegmentRegistrationPlugin = (*IgnoreSegmentRegistrationPlugin)(nil)
 
-func (p *IgnoreSegmentRegistrationPlugin) ID() string {
+func (p IgnoreSegmentRegistrationPlugin) ID() string {
 	return "ignore"
 }
 
-func (p *IgnoreSegmentRegistrationPlugin) Validate(
+func (p IgnoreSegmentRegistrationPlugin) Validate(
 	config map[string]any,
 ) error {
 	_, err := parseConfig(config)
@@ -101,7 +100,7 @@ func (p *IgnoreSegmentRegistrationPlugin) Validate(
 	return nil
 }
 
-func (p *IgnoreSegmentRegistrationPlugin) New(
+func (p IgnoreSegmentRegistrationPlugin) New(
 	ctx context.Context,
 	policyType beacon.RegPolicyType,
 	config map[string]any,
@@ -128,25 +127,19 @@ func (r *IgnoreSegmentRegistrar) RegisterSegments(
 	segments []beacon.Beacon,
 	peers []uint16,
 ) *RegistrationSummary {
-	// Create the logger.
-	logger := log.FromCtx(ctx)
-
-	// Build up a registration status that reports success for all segments.
-	startIAs := make(map[addr.IA]struct{})
-	for _, b := range segments {
-		startIA := b.Segment.FirstIA()
-		startIAs[startIA] = struct{}{}
-	}
-
 	// If no message is configured, we do not log anything.
 	if r.Message == nil {
 		return nil
 	}
 
+	// Create the logger.
+	logger := log.FromCtx(ctx)
+
 	summary := NewSummary()
 
+	var sb strings.Builder
 	for _, b := range segments {
-		var sb strings.Builder
+		sb.Reset()
 
 		// Execute the message template and get the formatted message.
 		if err := r.Message.Execute(&sb, tmplData{

@@ -53,6 +53,7 @@ func (r *testRegistrar) RegisterSegments(
 }
 
 func MustParseSequence(t *testing.T, seq string) *pathpol.Sequence {
+	t.Helper()
 	sequence, err := pathpol.NewSequence(seq)
 	require.NoError(t, err)
 	return sequence
@@ -276,7 +277,7 @@ type testLogger struct {
 
 var _ log.Logger = (*testLogger)(nil)
 
-func (l *testLogger) set(level string, msg string, ctx ...any) {
+func (l *testLogger) set(level string, msg string, _ ...any) {
 	logString := fmt.Sprintf("%s: %s", level, msg)
 	if l.Output == "" {
 		l.Output = logString

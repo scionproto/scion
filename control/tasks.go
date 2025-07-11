@@ -386,10 +386,9 @@ type Store interface {
 	// potentially could be empty when no beacon is found) and no error.
 	// The selection is based on the configured propagation policy.
 	BeaconsToPropagate(ctx context.Context) ([]beacon.Beacon, error)
-	// SegmentsToRegister returns an error and an empty slice if an error (e.g., connection or
-	// parsing error) occurs; otherwise, it returns a slice containing the beacons (which
-	// potentially could be empty when no beacon is found) and no error.
-	// The selections is based on the configured propagation policy for the requested segment type.
+	// SegmentsToRegister returns an error if for example connection or parsing error occurs;
+	// otherwise it returns grouped beacons (which is empty when no beacon is found). The
+	// selection is based on the configured propagation policy for the requested segment type.
 	SegmentsToRegister(ctx context.Context, segType seg.Type) (beacon.GroupedBeacons, error)
 	// InsertBeacon adds a verified beacon to the store, ignoring revocations.
 	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)

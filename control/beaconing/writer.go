@@ -212,17 +212,19 @@ func (r *LocalWriter) RegisterSegments(
 	beacons []beacon.Beacon,
 	peers []uint16,
 ) *segreg.RegistrationSummary {
+	if len(beacons) < 1 {
+		// Nothing to register.
+		return nil
+	}
+
 	logger := log.FromCtx(ctx)
+
 	// beacons keyed with their logging ID.
 	logBeacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
 	for _, b := range beacons {
 		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: b.Segment})
 		logBeacons[b.Segment.GetLoggingID()] = b
-	}
-	if len(toRegister) == 0 {
-		// Nothing to register.
-		return nil
 	}
 	stats, err := r.Store.StoreSegs(ctx, toRegister)
 	// If an error occurred while storing, no segments were registered, since StoreSegs
@@ -319,11 +321,9 @@ func (r *RemoteWriter) RegisterSegments(
 	logger := log.FromCtx(ctx)
 
 	summary := segreg.NewSummary()
-	var expected int
 	var wg sync.WaitGroup
 
 	for _, b := range beacons {
-		expected++
 		s := remoteWriter{
 			writer:  r,
 			rpc:     r.RPC,
@@ -336,8 +336,8 @@ func (r *RemoteWriter) RegisterSegments(
 		s.start(ctx, b)
 	}
 	wg.Wait()
-	if expected > 0 && summary.GetCount() <= 0 {
-		logger.Error("No beacons registered", "candidates", expected)
+	if len(beacons) > 0 && summary.GetCount() <= 0 {
+		logger.Error("No beacons registered", "candidates", len(beacons))
 		return nil
 	}
 	return summary
@@ -497,7 +497,7 @@ func (w *GroupWriter) Write(
 		Beacons []beacon.Beacon
 		Reg     segreg.SegmentRegistrar
 	}
-	var tasks []task
+	tasks := make([]task, 0, len(processedBeacons))
 	// Collect the registrars and the beacons that should be registered with them as tasks.
 	for name, beacons := range processedBeacons {
 		registrar, err := w.Registrars.GetSegmentRegistrar(w.PolicyType, name)
@@ -510,8 +510,8 @@ func (w *GroupWriter) Write(
 	// Run the tasks concurrently and collect the write stats.
 	allWriteStats := make([]WriteStats, len(tasks))
 	wg := sync.WaitGroup{}
+	wg.Add(len(tasks))
 	for i, task := range tasks {
-		wg.Add(1)
 		go func(j int) {
 			defer wg.Done()
 			sum := task.Reg.RegisterSegments(ctx, task.Beacons, peers)
