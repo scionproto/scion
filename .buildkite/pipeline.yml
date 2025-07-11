@@ -125,7 +125,7 @@ steps:
         - ./scion.sh topology -c topology/default.topo
         - ./scion.sh run
         - tools/await-connectivity
-	- sleep 5
+        - sleep 5
         - ./bin/scion_integration || ( echo "^^^ +++" && false )
         - ./bin/end2end_integration || ( echo "^^^ +++" && false )
       plugins: &scion-run-hooks
@@ -153,7 +153,7 @@ steps:
         - ./scion.sh topology -c topology/default-no-peers.topo
         - ./scion.sh run
         - tools/await-connectivity
-	- sleep 5
+        - sleep 5
         - ./bin/end2end_integration || ( echo "^^^ +++" && false )
         - ./tools/integration/revocation_test.sh
       plugins: *scion-run-hooks
@@ -169,7 +169,7 @@ steps:
         - ./scion.sh topology -d
         - ./scion.sh run
         - tools/await-connectivity
-	- sleep 5
+        - sleep 5
         - echo "--- run tests"
         - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
       plugins: *scion-run-hooks
