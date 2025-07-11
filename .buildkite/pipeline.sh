@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -eou pipefail
-set -x
 
 if [ -n "${BUILDKITE_PULL_REQUEST_BASE_BRANCH:-}" ]; then
   if git diff --quiet "${BUILDKITE_PULL_REQUEST_BASE_BRANCH:-}" ':!doc/' ':!**.md'; then
