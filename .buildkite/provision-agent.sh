@@ -11,9 +11,6 @@ fi
 
 echo "~~~ Install build tools"
 tools/install_bazel
-
-bazel version
-
 tools/install_deps
 
 sha1sum tools/install_bazel tools/install_deps tools/env/pip3/deps tools/env/pip3/requirements.txt tools/env/rhel/deps tools/env/rhel/pkgs.txt tools/env/debian/deps tools/env/debian/pkgs.txt > /tmp/buildkite-scionproto-runner-provision.sum

@@ -62,4 +62,3 @@ docker compose -f .buildkite/hooks/bazel-remote.yml up -d
 
 echo "~~~ Starting go module proxy"
 docker compose -f .buildkite/hooks/go-module-proxy.yml up -d
-

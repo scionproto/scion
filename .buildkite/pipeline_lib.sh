@@ -7,7 +7,7 @@ gen_bazel_test_steps() {
     echo "    key: integration-tests"
     echo "    steps:"
 
-    targets="$(bazel query "attr(tags, integration, tests(//...)) except attr(tags, \"lint|manual\", tests(//...))") 2>/dev/null"
+    targets="$(bazel query "attr(tags, integration, tests(//...)) except attr(tags, \"lint|manual\", tests(//...))" 2>/dev/null)"
 
     for test in $targets; do
         name=${test#//}
