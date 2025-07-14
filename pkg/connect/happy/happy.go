@@ -165,11 +165,11 @@ func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config
 			} else {
 				logger.Debug("Failed to receive on grpc", "type", fallback.Type(), "err", err)
 			}
-			errs[idxPreferred] = err
+			errs[idxFallback] = err
 		}()
 	} else {
 		logger.Debug("Skipping fallback caller", "type", fallback.Type())
-		errs[idxPreferred] = serrors.New("fallback caller is disabled")
+		errs[idxFallback] = serrors.New("fallback caller is disabled")
 	}
 
 	wg.Wait()
