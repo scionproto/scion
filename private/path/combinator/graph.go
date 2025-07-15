@@ -418,10 +418,10 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 		// since we collected hops from the end, just like for up
 		// segments.
 		if solEdge.segment.Type == proto.PathSegType_down {
-			reverseHops(hops)
-			reverseIntfs(intfs)
-			reverseASEntries(pathASEntries)
-			reverseEpicAuths(epicSegAuths)
+			slices.Reverse(hops)
+			slices.Reverse(intfs)
+			slices.Reverse(pathASEntries)
+			slices.Reverse(epicSegAuths)
 		}
 
 		segments = append(segments, segment{
@@ -501,30 +501,6 @@ func isEpicAvailable(epicPathAuths [][]byte) ([]byte, []byte, bool) {
 		return nil, nil, false
 	}
 	return epicPathAuths[l-2], epicPathAuths[l-1], true
-}
-
-func reverseHops(s []path.HopField) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
-}
-
-func reverseIntfs(s []snet.PathInterface) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
-}
-
-func reverseASEntries(s []seg.ASEntry) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
-}
-
-func reverseEpicAuths(s [][]byte) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
 }
 
 func calculateBeta(se *solutionEdge) uint16 {
