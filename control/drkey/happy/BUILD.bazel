@@ -6,7 +6,6 @@ go_library(
     importpath = "github.com/scionproto/scion/control/drkey/happy",
     visibility = ["//visibility:public"],
     deps = [
-        "//control/config:go_default_library",
         "//control/drkey:go_default_library",
         "//pkg/connect/happy:go_default_library",
         "//pkg/drkey:go_default_library",

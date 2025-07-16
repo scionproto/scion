@@ -35,6 +35,7 @@ go_library(
         "//control/trust/metrics:go_default_library",
         "//pkg/addr:go_default_library",
         "//pkg/connect:go_default_library",
+        "//pkg/connect/happy:go_default_library",
         "//pkg/grpc:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/metrics:go_default_library",

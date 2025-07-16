@@ -45,7 +45,7 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	beaconingconnect "github.com/scionproto/scion/control/beaconing/connect"
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
-	"github.com/scionproto/scion/control/beaconing/happy"
+	beaconinghappy "github.com/scionproto/scion/control/beaconing/happy"
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
 	drkeyconnect "github.com/scionproto/scion/control/drkey/connect"
@@ -65,6 +65,7 @@ import (
 	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
+	"github.com/scionproto/scion/pkg/connect/happy"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
@@ -119,9 +120,7 @@ import (
 )
 
 var (
-	globalCfg             config.Config
-	grpcServerDisabled    bool
-	connectServerDisabled bool
+	globalCfg config.Config
 )
 
 func main() {
@@ -138,13 +137,17 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
+	grpcServerDisabled := false
+	connectServerDisabled := false
+	rpcClientConfig := happy.Config{}
+
 	metrics := cs.NewMetrics()
 	switch globalCfg.API.RpcClientProtocol {
 	case "all":
 	case "grpc":
-		config.RpcClientConfig.NoPreferred = true // Disable our preferred option, connect.
+		rpcClientConfig.NoPreferred = true // Disable our preferred option, connect.
 	case "connect":
-		config.RpcClientConfig.NoFallback = true // Disable our fallback option, grpc.
+		rpcClientConfig.NoFallback = true // Disable our fallback option, grpc.
 	}
 	switch globalCfg.API.RpcServerProtocol {
 	case "all":
@@ -327,6 +330,7 @@ func realMain(ctx context.Context) error {
 				Dialer:   dialer,
 				Requests: libmetrics.NewPromCounter(trustmetrics.RPC.Fetches),
 			},
+			RpcConfig: rpcClientConfig,
 		},
 		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
 		// XXX(roosd): cyclic dependency on router. It is set below.
@@ -358,7 +362,7 @@ func realMain(ctx context.Context) error {
 			Grpc: &segfetchergrpc.Requester{
 				Dialer: dialer,
 			},
-			RpcConfig: config.RpcClientConfig,
+			RpcConfig: rpcClientConfig,
 		},
 		Inspector: inspector,
 		Verifier:  verifier,
@@ -755,6 +759,7 @@ func realMain(ctx context.Context) error {
 				Router:     segreq.NewRouter(fetcherCfg),
 				MaxRetries: 20,
 			},
+			RpcConfig: rpcClientConfig,
 		}
 		prefetchKeeper, err := drkey.NewLevel1ARC(globalCfg.DRKey.PrefetchEntries)
 		if err != nil {
@@ -948,7 +953,7 @@ func realMain(ctx context.Context) error {
 		TrustDB:  trustDB,
 		PathDB:   pathDB,
 		RevCache: revCache,
-		BeaconSenderFactory: &happy.BeaconSenderFactory{
+		BeaconSenderFactory: &beaconinghappy.BeaconSenderFactory{
 			Connect: &beaconingconnect.BeaconSenderFactory{
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
@@ -963,8 +968,9 @@ func realMain(ctx context.Context) error {
 			Grpc: &beaconinggrpc.BeaconSenderFactory{
 				Dialer: dialer,
 			},
+			RpcConfig: rpcClientConfig,
 		},
-		SegmentRegister: &happy.Registrar{
+		SegmentRegister: &beaconinghappy.Registrar{
 			Connect: beaconingconnect.Registrar{
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
@@ -976,7 +982,8 @@ func realMain(ctx context.Context) error {
 					Rewriter: dialer.Rewriter,
 				}).NewDialer,
 			},
-			Grpc: beaconinggrpc.Registrar{Dialer: dialer},
+			Grpc:      beaconinggrpc.Registrar{Dialer: dialer},
+			RpcConfig: rpcClientConfig,
 		},
 		BeaconStore: beaconStore,
 		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) ([]beaconing.Signer, error) {

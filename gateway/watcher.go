@@ -26,13 +26,15 @@ import (
 	"github.com/scionproto/scion/gateway/pathhealth/policies"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/connect"
+	connecthappy "github.com/scionproto/scion/pkg/connect/happy"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
 type fetcherFactory struct {
-	remote addr.IA
-	wf     *WatcherFactory
+	remote    addr.IA
+	wf        *WatcherFactory
+	RpcConfig connecthappy.Config
 }
 
 func (f fetcherFactory) NewPrefixFetcher(ctx context.Context,
@@ -68,6 +70,7 @@ func (f fetcherFactory) NewPrefixFetcher(ctx context.Context,
 				Dialer: f.wf.Dialer,
 				Pather: pather,
 			},
+			RpcConfig: f.RpcConfig,
 		},
 		pather: pather,
 	}
@@ -98,6 +101,7 @@ type WatcherFactory struct {
 	PathMonitor   control.PathMonitor
 	Aggregator    control.PrefixConsumer
 	Policies      *policies.Policies
+	RpcConfig     connecthappy.Config
 }
 
 func (wf *WatcherFactory) New(
@@ -121,13 +125,15 @@ func (wf *WatcherFactory) New(
 					Dialer: wf.Dialer,
 					Paths:  pather,
 				},
+				RpcConfig: wf.RpcConfig,
 			},
 
 			Template: control.PrefixWatcherConfig{
 				Consumer: wf.Aggregator,
 				FetcherFactory: fetcherFactory{
-					remote: remote,
-					wf:     wf,
+					remote:    remote,
+					wf:        wf,
+					RpcConfig: wf.RpcConfig,
 				},
 			},
 			Metrics: metrics,

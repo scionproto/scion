@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	connecthappy "github.com/scionproto/scion/pkg/connect/happy"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
@@ -343,6 +342,3 @@ func (cfg *CAService) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
 func (cfg *CAService) ConfigName() string {
 	return "service"
 }
-
-// RpcClientConfig informs all CS sub-components that use happy.
-var RpcClientConfig connecthappy.Config

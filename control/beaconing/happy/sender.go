@@ -20,7 +20,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/control/beaconing"
-	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/connect/happy"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -29,8 +28,9 @@ import (
 
 // BeaconSenderFactory can be used to create beacon senders.
 type BeaconSenderFactory struct {
-	Connect beaconing.SenderFactory
-	Grpc    beaconing.SenderFactory
+	Connect   beaconing.SenderFactory
+	Grpc      beaconing.SenderFactory
+	RpcConfig happy.Config
 }
 
 // NewSender returns a beacon sender that can be used to send beacons to a remote CS.
@@ -49,14 +49,16 @@ func (f *BeaconSenderFactory) NewSender(
 		return nil, serrors.Wrap("creating grpc sender", err)
 	}
 	return BeaconSender{
-		Connect: connectSender,
-		Grpc:    grpcSender,
+		Connect:   connectSender,
+		Grpc:      grpcSender,
+		RpcConfig: f.RpcConfig,
 	}, nil
 }
 
 type BeaconSender struct {
-	Connect beaconing.Sender
-	Grpc    beaconing.Sender
+	Connect   beaconing.Sender
+	Grpc      beaconing.Sender
+	RpcConfig happy.Config
 }
 
 func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
@@ -72,7 +74,7 @@ func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
 			Input1: b,
 			Typ:    "control_plane.v1.SegmentCreationService.Beacon",
 		},
-		config.RpcClientConfig,
+		s.RpcConfig,
 	)
 	return err
 }
@@ -82,8 +84,9 @@ func (s BeaconSender) Close() error {
 }
 
 type Registrar struct {
-	Connect beaconing.RPC
-	Grpc    beaconing.RPC
+	Connect   beaconing.RPC
+	Grpc      beaconing.RPC
+	RpcConfig happy.Config
 }
 
 func (r *Registrar) RegisterSegment(ctx context.Context, meta seg.Meta, remote net.Addr) error {
@@ -101,7 +104,7 @@ func (r *Registrar) RegisterSegment(ctx context.Context, meta seg.Meta, remote n
 			Input2: remote,
 			Typ:    "control_plane.v1.SegmentRegistrationService.SegmentsRegistration",
 		},
-		config.RpcClientConfig,
+		r.RpcConfig,
 	)
 	return err
 }
