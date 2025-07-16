@@ -68,6 +68,19 @@ def update_json(change_dict: Dict[str, Any], files: LocalPath):
         with open(file, "w") as f:
             json.dump(t, f, indent=2)
 
+def write_file(contents: str, files: LocalPath):
+    """ Writes text into file(s).
+
+    Args:
+        contents: text to write into the file(s).
+        files: names of file or files to update.
+
+    Raises:
+        IOError / FileNotFoundError: File path is not valid
+    """
+    for file in files:
+        with open(file, "w") as f:
+            f.write(contents)
 
 def load_from_json(key: str, files: LocalPath) -> Any:
     """ Reads the value associated with the given key from the given json files.
