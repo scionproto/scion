@@ -20,6 +20,7 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/control/beaconing"
+	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/connect/happy"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -71,7 +72,7 @@ func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
 			Input1: b,
 			Typ:    "control_plane.v1.SegmentCreationService.Beacon",
 		},
-		happy.Config{},
+		config.RpcClientConfig,
 	)
 	return err
 }
@@ -100,7 +101,7 @@ func (r *Registrar) RegisterSegment(ctx context.Context, meta seg.Meta, remote n
 			Input2: remote,
 			Typ:    "control_plane.v1.SegmentRegistrationService.SegmentsRegistration",
 		},
-		happy.Config{},
+		config.RpcClientConfig,
 	)
 	return err
 }

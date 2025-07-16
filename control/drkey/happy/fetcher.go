@@ -17,6 +17,7 @@ package happy
 import (
 	"context"
 
+	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
 	"github.com/scionproto/scion/pkg/connect/happy"
 	libdrkey "github.com/scionproto/scion/pkg/drkey"
@@ -40,6 +41,6 @@ func (f Fetcher) Level1(ctx context.Context, meta libdrkey.Level1Meta) (libdrkey
 			Input1: meta,
 			Typ:    "control_plane.v1.DRKeyInterService.DRKeyLevel1",
 		},
-		happy.Config{},
+		config.RpcClientConfig,
 	)
 }

@@ -15,21 +15,46 @@
 package mgmtapi
 
 import (
+	"fmt"
 	"io"
+	"slices"
 
 	"github.com/scionproto/scion/private/config"
 )
 
 const apiSample = `
 # The address to expose the API on (host:port or ip:port).
-# If not set, the API is not exposed.
+# If not set, the API is not exposed. rpc_client_protocol specifies
+# which rpc protocols should be attempted by clients (grpc or connect or all).
 addr = ""
+rpc_client_protocol = "all"
+rpc_server_protocol = "all"
 `
 
 type Config struct {
-	config.NoDefaulter
 	config.NoValidator
-	Addr string `toml:"addr,omitempty"`
+	Addr              string `toml:"addr,omitempty"`
+	RpcClientProtocol string `toml:"rpc_client_protocol,omitempty"`
+	RpcServerProtocol string `toml:"rpc_server_protocol,omitempty"`
+}
+
+func (cfg *Config) InitDefaults() {
+	if cfg.RpcClientProtocol == "" {
+		cfg.RpcClientProtocol = "all"
+	}
+	if cfg.RpcServerProtocol == "" {
+		cfg.RpcServerProtocol = "all"
+	}
+}
+
+func (cfg *Config) Validate() error {
+	if !slices.Contains([]string{"all", "grpc", "connectrpc"}, cfg.RpcClientProtocol) {
+		return fmt.Errorf("invalid value: %s", cfg.RpcClientProtocol)
+	}
+	if !slices.Contains([]string{"all", "grpc", "connectrpc"}, cfg.RpcServerProtocol) {
+		return fmt.Errorf("invalid value: %s", cfg.RpcServerProtocol)
+	}
+	return nil
 }
 
 func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
