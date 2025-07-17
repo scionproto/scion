@@ -47,6 +47,7 @@ WIP
    :maxdepth: 1
 
    NAT-address-discovery
+   metadata-discovery
 
 .. _design-docs-postponed:
 
