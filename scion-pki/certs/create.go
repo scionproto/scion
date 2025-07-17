@@ -430,11 +430,9 @@ func loadSubject(tmpl string) (pkix.Name, error) {
 	if err != nil {
 		return pkix.Name{}, err
 	}
-	// Check if template is a x509 certificate.
-	cert, err := parseCertificate(raw)
-	if err == nil {
-		s := cert.Subject
-		for _, name := range cert.Subject.Names {
+	if subject, err := loadPkixNameFromRaw(raw); err == nil {
+		s := subject
+		for _, name := range subject.Names {
 			// Ignore common name.
 			if name.Type.Equal(asn1.ObjectIdentifier{2, 5, 4, 3}) {
 				continue
