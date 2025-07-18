@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/gateway/config"
 	"github.com/scionproto/scion/gateway/dataplane"
 	api "github.com/scionproto/scion/gateway/mgmtapi"
+	"github.com/scionproto/scion/pkg/connect/happy"
 	dpkg "github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -150,6 +151,16 @@ func realMain(ctx context.Context) error {
 		"log/level": service.NewLogLevelStatusPage(),
 	}
 	routingTable := &dataplane.AtomicRoutingTable{}
+	rpcClientConfig := happy.Config{}
+
+	switch globalCfg.API.RpcClientProtocol {
+	case "all":
+	case "grpc":
+		rpcClientConfig.NoPreferred = true // Disable our preferred option, connect.
+	case "connect":
+		rpcClientConfig.NoFallback = true // Disable our fallback option, grpc.
+	}
+
 	gw := &gateway.Gateway{
 		ID:                       globalCfg.Gateway.ID,
 		TrafficPolicyFile:        globalCfg.Gateway.TrafficPolicy,
@@ -172,6 +183,7 @@ func realMain(ctx context.Context) error {
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
 		Metrics:                  gateway.NewMetrics(localIA),
+		RpcConfig:                rpcClientConfig,
 	}
 
 	g.Go(func() error {

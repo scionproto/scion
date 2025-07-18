@@ -167,7 +167,9 @@ class SIGGenerator(object):
                 'prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
             },
             'api': {
-                'addr': '0.0.0.0:%s' % (SIG_PROM_PORT+700)
+                'addr': '0.0.0.0:%s' % (SIG_PROM_PORT+700),
+                'rpc_client_protocol': self.args.rpc_client_protocol,
+                'rpc_server_protocol': self.args.rpc_server_protocol,
             },
             'features': translate_features(self.args.features),
         }

@@ -45,7 +45,7 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	beaconingconnect "github.com/scionproto/scion/control/beaconing/connect"
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
-	"github.com/scionproto/scion/control/beaconing/happy"
+	beaconinghappy "github.com/scionproto/scion/control/beaconing/happy"
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
 	drkeyconnect "github.com/scionproto/scion/control/drkey/connect"
@@ -66,6 +66,7 @@ import (
 	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
+	"github.com/scionproto/scion/pkg/connect/happy"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
@@ -121,7 +122,9 @@ import (
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
-var globalCfg config.Config
+var (
+	globalCfg config.Config
+)
 
 func main() {
 	application := launcher.Application{
@@ -137,8 +140,25 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	metrics := cs.NewMetrics()
+	grpcServerDisabled := false
+	connectServerDisabled := false
+	rpcClientConfig := happy.Config{}
 
+	metrics := cs.NewMetrics()
+	switch globalCfg.API.RpcClientProtocol {
+	case "all":
+	case "grpc":
+		rpcClientConfig.NoPreferred = true // Disable our preferred option, connect.
+	case "connect":
+		rpcClientConfig.NoFallback = true // Disable our fallback option, grpc.
+	}
+	switch globalCfg.API.RpcServerProtocol {
+	case "all":
+	case "grpc":
+		connectServerDisabled = true
+	case "connect":
+		grpcServerDisabled = true
+	}
 	topo, err := topology.NewLoader(topology.LoaderCfg{
 		File:      globalCfg.General.Topology(),
 		Reload:    app.SIGHUPChannel(ctx),
@@ -316,6 +336,7 @@ func realMain(ctx context.Context) error {
 				Dialer:   dialer,
 				Requests: libmetrics.NewPromCounter(trustmetrics.RPC.Fetches),
 			},
+			RpcConfig: rpcClientConfig,
 		},
 		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
 		// XXX(roosd): cyclic dependency on router. It is set below.
@@ -347,6 +368,7 @@ func realMain(ctx context.Context) error {
 			Grpc: &segfetchergrpc.Requester{
 				Dialer: dialer,
 			},
+			RpcConfig: rpcClientConfig,
 		},
 		Inspector: inspector,
 		Verifier:  verifier,
@@ -371,10 +393,15 @@ func realMain(ctx context.Context) error {
 		IA:       topo.IA(),
 		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 	}
-	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
-	connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
-		MaterialServer: trustServer,
-	}))
+
+	if !grpcServerDisabled {
+		cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
+	}
+	if !connectServerDisabled {
+		connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
+			MaterialServer: trustServer,
+		}))
+	}
 	connectIntra.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
 		MaterialServer: trustServer,
 	}))
@@ -389,12 +416,16 @@ func realMain(ctx context.Context) error {
 			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
 		},
 	}
-	cppb.RegisterSegmentCreationServiceServer(quicServer, segmentCreationServer)
-	connectInter.Handle(
-		cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{
-			SegmentCreationServer: segmentCreationServer,
-		}),
-	)
+	if !grpcServerDisabled {
+		cppb.RegisterSegmentCreationServiceServer(quicServer, segmentCreationServer)
+	}
+	if !connectServerDisabled {
+		connectInter.Handle(
+			cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{
+				SegmentCreationServer: segmentCreationServer,
+			}),
+		)
+	}
 
 	// Handle segment lookup
 	authLookupServer := &segreqgrpc.LookupServer{
@@ -425,6 +456,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	// Always register a forwarding lookup for AS internal requests.
+
 	connectIntra.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{
 		LookupServer: forwardingLookupServer,
 	}))
@@ -450,10 +482,14 @@ func realMain(ctx context.Context) error {
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
 		}
-		cppb.RegisterSegmentRegistrationServiceServer(quicServer, registrationServer)
-		connectInter.Handle(cpconnect.NewSegmentRegistrationServiceHandler(
-			segregconnect.RegistrationServer{RegistrationServer: registrationServer},
-		))
+		if !grpcServerDisabled {
+			cppb.RegisterSegmentRegistrationServiceServer(quicServer, registrationServer)
+		}
+		if !connectServerDisabled {
+			connectInter.Handle(cpconnect.NewSegmentRegistrationServiceHandler(
+				segregconnect.RegistrationServer{RegistrationServer: registrationServer},
+			))
+		}
 	}
 
 	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
@@ -577,10 +613,14 @@ func realMain(ctx context.Context) error {
 			return serrors.New("unsupported CA handler", "mode", globalCfg.CA.Mode)
 		}
 
-		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
-		connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
-			RenewalServer: renewalServer,
-		}))
+		if !grpcServerDisabled {
+			cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
+		}
+		if !connectServerDisabled {
+			connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(
+				renewalconnect.RenewalServer{RenewalServer: renewalServer},
+			))
+		}
 		connectIntra.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
 			RenewalServer: renewalServer,
 		}))
@@ -638,10 +678,14 @@ func realMain(ctx context.Context) error {
 		Information: topo,
 		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
 	}
-	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
-	connectInter.Handle(
-		dconnect.NewDiscoveryServiceHandler(discoveryconnect.Topology{Topology: ds}),
-	)
+	if !grpcServerDisabled {
+		dpb.RegisterDiscoveryServiceServer(quicServer, ds)
+	}
+	if !connectServerDisabled {
+		connectInter.Handle(
+			dconnect.NewDiscoveryServiceHandler(discoveryconnect.Topology{Topology: ds}),
+		)
+	}
 
 	hpCfg := cs.HiddenPathConfigurator{
 		LocalIA:           topo.IA(),
@@ -721,6 +765,7 @@ func realMain(ctx context.Context) error {
 				Router:     segreq.NewRouter(fetcherCfg),
 				MaxRetries: 20,
 			},
+			RpcConfig: rpcClientConfig,
 		}
 		prefetchKeeper, err := drkey.NewLevel1ARC(globalCfg.DRKey.PrefetchEntries)
 		if err != nil {
@@ -739,10 +784,14 @@ func realMain(ctx context.Context) error {
 			Engine:                    drkeyEngine,
 			AllowedSVHostProto:        globalCfg.DRKey.Delegation.ToAllowedSet(),
 		}
-		cppb.RegisterDRKeyInterServiceServer(quicServer, drkeyService)
-		connectInter.Handle(cpconnect.NewDRKeyInterServiceHandler(drkeyconnect.Server{
-			Server: drkeyService,
-		}))
+		if !grpcServerDisabled {
+			cppb.RegisterDRKeyInterServiceServer(quicServer, drkeyService)
+		}
+		if !connectServerDisabled {
+			connectInter.Handle(cpconnect.NewDRKeyInterServiceHandler(drkeyconnect.Server{
+				Server: drkeyService,
+			}))
+		}
 		connectIntra.Handle(cpconnect.NewDRKeyIntraServiceHandler(drkeyconnect.Server{
 			Server: drkeyService,
 		}))
@@ -754,11 +803,8 @@ func realMain(ctx context.Context) error {
 	promgrpc.Register(quicServer)
 
 	var cleanup app.Cleanup
-	connectServer := http3.Server{
-		Handler: libconnect.AttachPeer(connectInter),
-	}
-
 	grpcConns := make(chan *quic.Conn)
+
 	//nolint:contextcheck // false positive.
 	g.Go(func() error {
 		defer log.HandlePanic()
@@ -778,6 +824,9 @@ func realMain(ctx context.Context) error {
 					return
 				}
 
+				connectServer := http3.Server{
+					Handler: libconnect.AttachPeer(connectInter),
+				}
 				if err := connectServer.ServeQUICConn(conn); err != nil {
 					log.Debug("Error handling connectrpc connection", "err", err)
 				}
@@ -895,7 +944,7 @@ func realMain(ctx context.Context) error {
 		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
-	rpc := &happy.Registrar{
+	rpc := &beaconinghappy.Registrar{
 		Connect: beaconingconnect.Registrar{
 			Dialer: (&squic.EarlyDialerFactory{
 				Transport: quicStack.InsecureDialer.Transport,
@@ -924,7 +973,7 @@ func realMain(ctx context.Context) error {
 		TrustDB:  trustDB,
 		PathDB:   pathDB,
 		RevCache: revCache,
-		BeaconSenderFactory: &happy.BeaconSenderFactory{
+		BeaconSenderFactory: &beaconinghappy.BeaconSenderFactory{
 			Connect: &beaconingconnect.BeaconSenderFactory{
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
@@ -939,9 +988,24 @@ func realMain(ctx context.Context) error {
 			Grpc: &beaconinggrpc.BeaconSenderFactory{
 				Dialer: dialer,
 			},
+			RpcConfig: rpcClientConfig,
 		},
-		SegmentRegister: rpc,
-		BeaconStore:     beaconStore,
+		SegmentRegister: &beaconinghappy.Registrar{
+			Connect: beaconingconnect.Registrar{
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.InsecureDialer.Transport,
+					TLSConfig: func() *tls.Config {
+						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
+						cfg.NextProtos = []string{"h3", "SCION"}
+						return cfg
+					}(),
+					Rewriter: dialer.Rewriter,
+				}).NewDialer,
+			},
+			Grpc:      beaconinggrpc.Registrar{Dialer: dialer},
+			RpcConfig: rpcClientConfig,
+		},
+		BeaconStore: beaconStore,
 		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) ([]beaconing.Signer, error) {
 			signers, err := signer.SignerGen.Generate(ctx)
 			if err != nil {

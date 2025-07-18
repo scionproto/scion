@@ -25,8 +25,9 @@ import (
 )
 
 type Fetcher struct {
-	Connect trust.Fetcher
-	Grpc    trust.Fetcher
+	Connect   trust.Fetcher
+	Grpc      trust.Fetcher
+	RpcConfig happy.Config
 }
 
 func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
@@ -46,7 +47,7 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 			Input2: server,
 			Typ:    "control_plane.v1.TrustMaterialService.Chains",
 		},
-		happy.Config{},
+		f.RpcConfig,
 	)
 }
 
@@ -67,6 +68,6 @@ func (f Fetcher) TRC(ctx context.Context, id cppki.TRCID,
 			Input2: server,
 			Typ:    "control_plane.v1.TrustMaterialService.TRC",
 		},
-		happy.Config{},
+		f.RpcConfig,
 	)
 }
