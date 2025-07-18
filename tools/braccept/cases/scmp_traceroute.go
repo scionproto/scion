@@ -168,6 +168,8 @@ func SCMPTracerouteIngress(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:     "SCMPTracerouteIngress",
 		WriteTo:  "veth_141_host",
 		ReadFrom: "veth_141_host",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "SCMPTracerouteIngress"),
@@ -385,6 +387,8 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 		Name:            "SCMPTracerouteIngressWithSPAO",
 		WriteTo:         "veth_141_host",
 		ReadFrom:        "veth_141_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPTracerouteIngressWithSPAO"),
@@ -530,6 +534,8 @@ func SCMPTracerouteIngressConsDir(artifactsDir string, mac hash.Hash) runner.Cas
 		Name:     "SCMPTracerouteIngressConsDir",
 		WriteTo:  "veth_131_host",
 		ReadFrom: "veth_131_host",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "SCMPTracerouteIngressConsDir"),
@@ -670,6 +676,8 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:     "SCMPTracerouteEgress",
 		WriteTo:  "veth_141_host",
 		ReadFrom: "veth_141_host",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "SCMPTracerouteEgress"),
@@ -814,6 +822,8 @@ func SCMPTracerouteEgressConsDir(artifactsDir string, mac hash.Hash) runner.Case
 		Name:     "SCMPTracerouteEgressConsDir",
 		WriteTo:  "veth_131_host",
 		ReadFrom: "veth_131_host",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "SCMPTracerouteEgressConsDir"),
@@ -972,6 +982,8 @@ func SCMPTracerouteEgressAfterXover(artifactsDir string, mac hash.Hash) runner.C
 		Name:     "SCMPTracerouteEgressAfterXover",
 		WriteTo:  "veth_int_host",
 		ReadFrom: "veth_int_host",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "SCMPTracerouteEgressAfterXover"),
@@ -1106,6 +1118,8 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:     "SCMPTracerouteInternal",
 		WriteTo:  "veth_int_host",
 		ReadFrom: "veth_int_host",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "SCMPTracerouteInternal"),

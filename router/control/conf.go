@@ -139,8 +139,11 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 		}
 	}
 
-	// Add internal interfaces
+	// Set Endhost port range. This is needed while adding interfaces.
+	dp.SetPortRange(cfg.Topo.PortRange())
+
 	if cfg.BR != nil {
+		// Add internal interfaces
 		if cfg.BR.InternalAddr != (netip.AddrPort{}) {
 			// The assumption that BR.InternalAddr is a netip address is endemic. Eradicating it
 			// will take a long time. Play along for now. The router is no-longer contagious.
@@ -157,12 +160,14 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 			return err
 		}
 	}
-	// Set SVC services, a.k.a. SVC resolution
+
+	// Set SVC services, a.k.a. SVC resolution. This must be done last; once all the underlay
+	// providers have been instantiated; which happens when first adding a link that needs a
+	// provider.
 	if err := confServices(dp, cfg); err != nil {
 		return err
 	}
-	// Set Endhost port range
-	dp.SetPortRange(cfg.Topo.PortRange())
+
 	return nil
 }
 

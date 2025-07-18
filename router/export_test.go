@@ -57,7 +57,7 @@ func (l *MockLink) Metrics() *InterfaceMetrics                           { retur
 func (l *MockLink) Scope() LinkScope                                     { return Internal }
 func (l *MockLink) BFDSession() *bfd.Session                             { return nil }
 func (l *MockLink) Resolve(p *Packet, host addr.Host, port uint16) error { return nil }
-func (l *MockLink) Send(p *Packet) bool                                  { return true }
+func (l *MockLink) Send(p *Packet)                                       {}
 func (l *MockLink) SendBlocking(p *Packet)                               {}
 
 var _ Link = new(MockLink)
@@ -270,7 +270,7 @@ func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
 	p := newPacketProcessor(&d.dataPlane)
 	disp := p.processPkt(pkt)
 	// Erase trafficType; we don't set it in the expected results.
-	pkt.trafficType = ttOther
+	pkt.TrafficType = ttOther
 	return Disposition(disp)
 }
 

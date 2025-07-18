@@ -76,6 +76,7 @@ var (
 	logConsole   string
 	dir          string
 	testDuration time.Duration
+	numPackets   int
 	packetSize   int
 	numStreams   uint16
 	caseToRun    caseChoice
@@ -102,6 +103,7 @@ func main() {
 		},
 	}
 	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15, "Test duration")
+	runCmd.Flags().IntVar(&numPackets, "num-packets", -1, "Maximum number of packets")
 	runCmd.Flags().IntVar(&packetSize, "packet-size", 172, "Total size of each packet sent")
 	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
@@ -129,6 +131,39 @@ func main() {
 func showInterfaces(cmd *cobra.Command) int {
 	fmt.Println(cases.ListInterfaces())
 	return 0
+}
+
+func rttCheck(
+	writePktTo *afpacket.TPacket,
+	packetChan chan gopacket.Packet,
+	rawPkt []byte,
+	payload []byte,
+) (time.Duration, error) {
+	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
+	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
+	// we don't need to update it.
+	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
+
+	// Prepare a batch of 1 packet.
+	allPkts := make([][]byte, 1)
+	allPkts[0] = make([]byte, len(rawPkt))
+	copy(allPkts[0], rawPkt)
+
+	// Share it with a multi-packets sender.
+	sender := newMpktSender(writePktTo)
+	sender.setPkts(allPkts)
+
+	// Send and receive just one packet. Measure the interval.
+	begin := time.Now()
+	if _, err := sender.sendAll(); err != nil {
+		return time.Duration(0), err
+	}
+	n := receivePackets(packetChan, payload)
+	if n == 0 {
+		return time.Duration(0), errors.New("listener never saw a valid packet being forwarded")
+
+	}
+	return time.Since(begin), nil
 }
 
 func run(cmd *cobra.Command) int {
@@ -186,6 +221,14 @@ func run(cmd *cobra.Command) int {
 	packetChan := packetSource.Packets()
 	listenerChan := make(chan int)
 
+	// Measure the rtt with one packet.
+	rtt, err := rttCheck(writePktTo, packetChan, rawPkt, payload)
+	if err == nil {
+		fmt.Printf("rtt: %s\n", rtt.String())
+	} else {
+		fmt.Printf("rtt error: %s\n", err)
+	}
+
 	go func() {
 		defer log.HandlePanic()
 		defer close(listenerChan)
@@ -198,7 +241,7 @@ func run(cmd *cobra.Command) int {
 	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
 
 	// Prepare a batch worth of packets.
-	batchSize := int(8)
+	batchSize := int(256)
 	allPkts := make([][]byte, batchSize)
 	for i := 0; i < batchSize; i++ {
 		allPkts[i] = make([]byte, len(rawPkt))
@@ -215,6 +258,7 @@ func run(cmd *cobra.Command) int {
 	metricsBegin := begin.Unix()
 
 	numPkt := 0
+out:
 	for time.Since(begin) < testDuration {
 		// we break every 1000 batches to check the time
 		for range 1000 {
@@ -230,6 +274,10 @@ func run(cmd *cobra.Command) int {
 			if _, err := sender.sendAll(); err != nil {
 				log.Error("writing input packet", "case", string(caseToRun), "error", err)
 				return 1
+			}
+			// We check packet count in one batch increment.
+			if numPackets > 0 && numPackets <= numPkt {
+				break out
 			}
 		}
 	}
@@ -248,7 +296,7 @@ func run(cmd *cobra.Command) int {
 		select {
 		case outcome = <-listenerChan:
 			if outcome == 0 {
-				log.Error("Listener never saw a valid packet being forwarded")
+				log.Error("listener never saw a valid packet being forwarded")
 				return 1
 			}
 		case <-timeout:
@@ -306,7 +354,11 @@ func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) 
 	handles := make(map[string]*afpacket.TPacket)
 
 	for _, intf := range interfaceNames {
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf), afpacket.OptFrameSize(4096))
+		handle, err := afpacket.NewTPacket(
+			afpacket.OptInterface(intf),
+			afpacket.OptBlockTimeout(time.Millisecond), // TPv3 waits for and aggregates packets!
+			// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
+		)
 		if err != nil {
 			return nil, serrors.Wrap("creating TPacket", err)
 		}

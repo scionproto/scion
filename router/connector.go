@@ -151,7 +151,7 @@ func (c *Connector) AddExternalInterface(
 func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, p uint16) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a)
+	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a, "port", p)
 	if !c.ia.Equal(ia) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", a)
 	}

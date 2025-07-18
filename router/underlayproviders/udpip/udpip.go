@@ -96,15 +96,21 @@ type udpLink interface {
 }
 
 func init() {
-	// Register ourselves as an underlay provider. The registration consists of a constructor, not
+	// Register ourselves as an underlay provider. The registration consists of a factory, not
 	// a provider object, because multiple router instances each must have their own underlay
 	// provider. The provider is not re-entrant.
-	router.AddUnderlay("udpip", newProvider)
+	router.AddUnderlay("udpip", providerFactory{})
 }
+
+type providerFactory struct{}
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
 // TODO(multi_underlay): batchSize should be an underlay-specific config.
-func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
+func (providerFactory) New(
+	batchSize int,
+	receiveBufferSize int,
+	sendBufferSize int,
+) router.UnderlayProvider {
 	return &provider{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
@@ -113,6 +119,10 @@ func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) route
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
 	}
+}
+
+func (providerFactory) Priority() int {
+	return 1
 }
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
@@ -554,15 +564,18 @@ func (l *connectedLink) Resolve(p *router.Packet, host addr.Host, port uint16) e
 	return errResolveOnExternalLink
 }
 
-func (l *connectedLink) Send(p *router.Packet) bool {
+func (l *connectedLink) Send(p *router.Packet) {
 	select {
 	case l.egressQ <- p:
 	default:
-		return false
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 	}
-	return true
 }
 
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *connectedLink) SendBlocking(p *router.Packet) {
 	// We use a bound and connected socket so we don't need to specify the destination.
 	l.egressQ <- p
@@ -723,7 +736,7 @@ func (l *detachedLink) Resolve(p *router.Packet, host addr.Host, port uint16) er
 	return errResolveOnSiblingLink
 }
 
-func (l *detachedLink) Send(p *router.Packet) bool {
+func (l *detachedLink) Send(p *router.Packet) {
 	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address. Trying to reuse the packet's RemoteAddress storage
 	// is pointless: if we loan l.remote we avoid a copy and still discard at most one address. This
@@ -732,11 +745,14 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 	select {
 	case l.egressQ <- p:
 	default:
-		return false
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 	}
-	return true
 }
 
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *detachedLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the destination address.
 	p.RemoteAddr = unsafe.Pointer(l.remote)
@@ -901,7 +917,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 		panic(fmt.Sprintf("unexpected address type returned from DstAddr: %s", dst.Type()))
 	}
 	// if port is outside the configured port range we send to the fixed port.
-	if port < l.dispatchStart && port > l.dispatchEnd {
+	if port < l.dispatchStart || port > l.dispatchEnd {
 		port = l.dispatchRedirect
 	}
 
@@ -917,18 +933,21 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
-// The packet's destination is already in the packet's meta-data.
-func (l *internalLink) Send(p *router.Packet) bool {
+func (l *internalLink) Send(p *router.Packet) {
+	// The packet's destination is in the packet's meta-data.
 	select {
 	case l.egressQ <- p:
 	default:
-		return false
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 	}
-	return true
 }
 
-// The packet's destination is already in the packet's meta-data.
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *internalLink) SendBlocking(p *router.Packet) {
+	// The packet's destination is in the packet's meta-data.
 	l.egressQ <- p
 }
 
