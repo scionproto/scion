@@ -944,7 +944,7 @@ func realMain(ctx context.Context) error {
 		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
-	rpc := &happy.Registrar{
+	rpc := &beaconinghappy.Registrar{
 		Connect: beaconingconnect.Registrar{
 			Dialer: (&squic.EarlyDialerFactory{
 				Transport: quicStack.InsecureDialer.Transport,
