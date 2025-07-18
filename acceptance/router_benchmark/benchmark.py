@@ -105,6 +105,7 @@ class RouterBMTool(cli.Application, RouterBM):
     brload_cpus: list[int] = []
     artifacts = f"{os.getcwd()}/acceptance/router_benchmark"
     prom_address: str = "localhost:9090"
+    debug_run = False
 
     def host_interface(self, excl: bool):
         """Returns the next host interface that we should use for a brload links.
@@ -201,6 +202,7 @@ class RouterBMTool(cli.Application, RouterBM):
         # Check that the given interfaces are safe to use. We will wreck their config.
         for intf in avail_interfaces:
             output = sudo("ip", "addr", "show", "dev", intf)
+            # The check below is too sloppy. Some systems yield false positives.
             if len(output.splitlines()) > 2:
                 logger.error(f"""\
                 Interface {intf} appears to be in some kind of use. Cowardly refusing to modify it.
