@@ -170,6 +170,7 @@ class RouterBM():
             "--duration", f"{duration}s",
             "--num-streams", "840",
             "--packet-size", f"{self.packet_size}",
+            "--log.console", "warn" if self.log_level == "warning" else f"{self.log_level}",
         ]
         if self.debug_run:
             brload_args.extend(["--num-packets", 1000])

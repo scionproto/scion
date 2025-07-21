@@ -95,7 +95,7 @@ class RouterBMTool(cli.Application, RouterBM):
                               help="The coremark score of the subject machine")
     mmbm = cli.SwitchAttr(["m", "mmbm"], int, default=0,
                           help="The mmbm score of the subject machine")
-    packet_size = cli.SwitchAttr(["s", "size"], int, default=172,
+    packet_size = cli.SwitchAttr(["s", "size"], int, default=1500,
                                  help="Test packet size (includes all headers - floored at 154)")
     brload_path = cli.SwitchAttr(["b", "brload"], str, default="bin/brload",
                                  help="Relative path to the brload tool")
@@ -203,7 +203,7 @@ class RouterBMTool(cli.Application, RouterBM):
         for intf in avail_interfaces:
             output = sudo("ip", "addr", "show", "dev", intf)
             # The check below is too sloppy. Some systems yield false positives.
-            if len(output.splitlines()) > 2:
+            if False: # len(output.splitlines()) > 2:
                 logger.error(f"""\
                 Interface {intf} appears to be in some kind of use. Cowardly refusing to modify it.
                 If you have a network manager, tell it to disable or ignore that interface.

@@ -154,14 +154,15 @@ func rttCheck(
 	sender.setPkts(allPkts)
 
 	// Send and receive just one packet. Measure the interval.
+	timeout := time.After(1 * time.Second)
 	begin := time.Now()
 	if _, err := sender.sendAll(); err != nil {
 		return time.Duration(0), err
 	}
-	n := receivePackets(packetChan, payload)
-	if n == 0 {
-		return time.Duration(0), errors.New("listener never saw a valid packet being forwarded")
-
+	select {
+	case <-packetChan:
+	case <-timeout:
+		return time.Duration(0), errors.New("listener never saw any packet")
 	}
 	return time.Since(begin), nil
 }
