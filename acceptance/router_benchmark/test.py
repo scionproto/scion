@@ -198,13 +198,14 @@ class RouterBMTest(base.TestBase, RouterBM):
     # During run and teardown, we reconstruct the map without actually setup the
     # interfaces. This assumes that brload isn't being changed in-between, since the map is
     # based on the requirements that it outputs.
-    debug_run = DEBUG_RUN
+    debug_run: bool = DEBUG_RUN
 
     router_cpus: list[int] = [0]
 
     # Used by the RouterBM mixin:
     coremark: int = 0
     mmbm: int = 0
+    log_level: str = "error"
     packet_size: int = BM_PACKET_SIZE
     intf_map: dict[str, Intf] = {}
     brload: LocalCommand = None

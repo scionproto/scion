@@ -82,8 +82,7 @@ class RouterBMTool(cli.Application, RouterBM):
     mx_interface: str = None
     to_flush: list[str] = []
     scrape_addr: str = None
-
-    log_level = cli.SwitchAttr(["l", "loglevel"], str, default='warning', help="Logging level")
+    log_level: str = cli.SwitchAttr(["l", "loglevel"], str, default='warning', help="Logging level")
 
     doit = cli.Flag(["r", "run"],
                     help="Run the benchmark, as opposed to seeing the instructions")
@@ -105,7 +104,7 @@ class RouterBMTool(cli.Application, RouterBM):
     brload_cpus: list[int] = []
     artifacts = f"{os.getcwd()}/acceptance/router_benchmark"
     prom_address: str = "localhost:9090"
-    debug_run = False
+    debug_run: bool = False
 
     def host_interface(self, excl: bool):
         """Returns the next host interface that we should use for a brload links.
