@@ -35,6 +35,9 @@ from urllib.request import urlopen
 
 logger = logging.getLogger(__name__)
 
+# Router profiling ON or OFF?
+PROFILING = False
+
 TEST_CASES = [
     "in",
     "out",
@@ -154,6 +157,7 @@ class RouterBMTool(cli.Application, RouterBM):
             sudo("ip", "addr", "add", f"{hostAddr}/{req.prefix_len}",
                  "broadcast", str(net.broadcast_address), "dev", host_intf)
             self.to_flush.append(host_intf)
+            self.profiling_addr = req.ip
 
         logger.debug(f"=> Configuring interface {host_intf} for: {req}...")
 
@@ -243,6 +247,11 @@ class RouterBMTool(cli.Application, RouterBM):
         # Collect the horsepower microbenchmark numbers if we can.
         # They'll be used to produce a performance index.
         self.fetch_horsepower()
+
+        # Optionally profile the router
+        if PROFILING:
+            cmd.curl(f"{self.profiling_addr}:30442/debug/pprof/profile?seconds=70",
+                     "-o", "router_cpu.pprof")
 
         logger.info("Prepared")
 
