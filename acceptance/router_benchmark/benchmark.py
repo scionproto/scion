@@ -25,11 +25,13 @@ import traceback
 
 from benchmarklib import Intf, RouterBM
 from collections import namedtuple
+from plumbum import BG
 from plumbum import cli
 from plumbum import cmd
 from plumbum import local
 from plumbum.cmd import docker
 from plumbum.machines import LocalCommand
+
 from random import randint
 from urllib.request import urlopen
 
@@ -250,8 +252,8 @@ class RouterBMTool(cli.Application, RouterBM):
 
         # Optionally profile the router
         if PROFILING:
-            cmd.curl(f"{self.profiling_addr}:30442/debug/pprof/profile?seconds=70",
-                     "-o", "router_cpu.pprof")
+            cmd.curl[f"{self.profiling_addr}:30442/debug/pprof/profile?seconds=70",
+                     "-o", "router_cpu.pprof"] & BG
 
         logger.info("Prepared")
 
