@@ -394,14 +394,11 @@ func realMain(ctx context.Context) error {
 		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 	}
 
-	if !grpcServerDisabled {
-		cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
-	}
-	if !connectServerDisabled {
-		connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
-			MaterialServer: trustServer,
-		}))
-	}
+	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
+	connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
+		MaterialServer: trustServer,
+	}))
+
 	connectIntra.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
 		MaterialServer: trustServer,
 	}))
@@ -416,16 +413,12 @@ func realMain(ctx context.Context) error {
 			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
 		},
 	}
-	if !grpcServerDisabled {
-		cppb.RegisterSegmentCreationServiceServer(quicServer, segmentCreationServer)
-	}
-	if !connectServerDisabled {
-		connectInter.Handle(
-			cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{
-				SegmentCreationServer: segmentCreationServer,
-			}),
-		)
-	}
+	cppb.RegisterSegmentCreationServiceServer(quicServer, segmentCreationServer)
+	connectInter.Handle(
+		cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{
+			SegmentCreationServer: segmentCreationServer,
+		}),
+	)
 
 	// Handle segment lookup
 	authLookupServer := &segreqgrpc.LookupServer{
@@ -482,14 +475,10 @@ func realMain(ctx context.Context) error {
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
 		}
-		if !grpcServerDisabled {
-			cppb.RegisterSegmentRegistrationServiceServer(quicServer, registrationServer)
-		}
-		if !connectServerDisabled {
-			connectInter.Handle(cpconnect.NewSegmentRegistrationServiceHandler(
-				segregconnect.RegistrationServer{RegistrationServer: registrationServer},
-			))
-		}
+		cppb.RegisterSegmentRegistrationServiceServer(quicServer, registrationServer)
+		connectInter.Handle(cpconnect.NewSegmentRegistrationServiceHandler(
+			segregconnect.RegistrationServer{RegistrationServer: registrationServer},
+		))
 	}
 
 	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
@@ -613,14 +602,10 @@ func realMain(ctx context.Context) error {
 			return serrors.New("unsupported CA handler", "mode", globalCfg.CA.Mode)
 		}
 
-		if !grpcServerDisabled {
-			cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
-		}
-		if !connectServerDisabled {
-			connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(
-				renewalconnect.RenewalServer{RenewalServer: renewalServer},
-			))
-		}
+		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
+		connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(
+			renewalconnect.RenewalServer{RenewalServer: renewalServer},
+		))
 		connectIntra.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
 			RenewalServer: renewalServer,
 		}))
@@ -678,14 +663,10 @@ func realMain(ctx context.Context) error {
 		Information: topo,
 		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
 	}
-	if !grpcServerDisabled {
-		dpb.RegisterDiscoveryServiceServer(quicServer, ds)
-	}
-	if !connectServerDisabled {
-		connectInter.Handle(
-			dconnect.NewDiscoveryServiceHandler(discoveryconnect.Topology{Topology: ds}),
-		)
-	}
+	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
+	connectInter.Handle(
+		dconnect.NewDiscoveryServiceHandler(discoveryconnect.Topology{Topology: ds}),
+	)
 
 	hpCfg := cs.HiddenPathConfigurator{
 		LocalIA:           topo.IA(),
@@ -784,14 +765,10 @@ func realMain(ctx context.Context) error {
 			Engine:                    drkeyEngine,
 			AllowedSVHostProto:        globalCfg.DRKey.Delegation.ToAllowedSet(),
 		}
-		if !grpcServerDisabled {
-			cppb.RegisterDRKeyInterServiceServer(quicServer, drkeyService)
-		}
-		if !connectServerDisabled {
-			connectInter.Handle(cpconnect.NewDRKeyInterServiceHandler(drkeyconnect.Server{
-				Server: drkeyService,
-			}))
-		}
+		cppb.RegisterDRKeyInterServiceServer(quicServer, drkeyService)
+		connectInter.Handle(cpconnect.NewDRKeyInterServiceHandler(drkeyconnect.Server{
+			Server: drkeyService,
+		}))
 		connectIntra.Handle(cpconnect.NewDRKeyIntraServiceHandler(drkeyconnect.Server{
 			Server: drkeyService,
 		}))
@@ -823,26 +800,29 @@ func realMain(ctx context.Context) error {
 					grpcConns <- conn
 					return
 				}
-
-				connectServer := http3.Server{
-					Handler: libconnect.AttachPeer(connectInter),
-				}
-				if err := connectServer.ServeQUICConn(conn); err != nil {
-					log.Debug("Error handling connectrpc connection", "err", err)
+				if !connectServerDisabled {
+					connectServer := http3.Server{
+						Handler: libconnect.AttachPeer(connectInter),
+					}
+					if err := connectServer.ServeQUICConn(conn); err != nil {
+						log.Debug("Error handling connectrpc connection", "err", err)
+					}
 				}
 			}()
 		}
 	})
 
-	g.Go(func() error {
-		defer log.HandlePanic()
-		grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
-		if err := quicServer.Serve(grpcListener); err != nil {
-			return serrors.Wrap("serving gRPC/SCION API", err)
-		}
-		return nil
-	})
-	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+	if !grpcServerDisabled {
+		g.Go(func() error {
+			defer log.HandlePanic()
+			grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
+			if err := quicServer.Serve(grpcListener); err != nil {
+				return serrors.Wrap("serving gRPC/SCION API", err)
+			}
+			return nil
+		})
+		cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+	}
 
 	intraServer := http.Server{
 		Handler: h2c.NewHandler(libconnect.AttachPeer(connectIntra), &http2.Server{}),
