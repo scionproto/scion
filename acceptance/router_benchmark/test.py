@@ -42,7 +42,7 @@ PROFILING = False
 # DEBUG run: set this to True to reduce number of packets and skip microbenchmarks and warmup.
 DEBUG_RUN = False
 
-# MAX_CPUS: the totla number of cpus that the test will try to harness. The standard for this
+# MAX_CPUS: the total number of cpus that the test will try to harness. The standard for this
 # test is 5: 2 for brload and 3 for the router. Any different number invalidates the performance
 # index (which will be reported as 0).
 MAX_CPUS = 5
@@ -226,7 +226,7 @@ class RouterBMTest(base.TestBase, RouterBM):
         self.choose_cpus()
 
     def choose_cpus(self):
-        """Chooses MAC_CPUS cpus and assigns 1 to the blaster and the rest to the router.
+        """Chooses MAX_CPUS cpus and assigns 1 to the blaster and the rest to the router.
 
         Try various policies in decreasing order of preference. We use fewer than MAX_CPUS cores
         only as a last resort
@@ -267,7 +267,7 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         # Make the best of what we got. All but the last cpu go to the router. Those are the
         # best choice.
-        if len(chosen) == 1:
+        if len(chosen) < 3:
             # When you have lemons...
             self.router_cpus = chosen
             self.brload_cpus = chosen

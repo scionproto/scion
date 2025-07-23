@@ -170,7 +170,10 @@ class RouterBMTool(cli.Application, RouterBM):
             if i.name == host_intf:
                 break
         else:
+            # We allow for mackets as large as they get, but we do not need a very deep queue.
             sudo("ip", "link", "set", host_intf, "mtu", "9000")
+            sudo("tc", "qdisc", "add", "dev", host_intf, "root", "handle", "1:", "pfifo_fast")
+            sudo("ip", "link", "set", host_intf, "txqueuelen", 256)
 
             # Do not assign the host addresses but create one link-local addr.
             # Brload needs some src IP to send arp requests. (This requires rp_filter
@@ -306,7 +309,7 @@ class RouterBMTool(cli.Application, RouterBM):
         print(f"""
 INSTRUCTIONS:
 
-1 - Configure your subject router according to accept/router_benchmark/conf/router.toml")
+1 - Configure your subject router according to "acceptance/router_benchmark/conf/*.yml".
     If using openwrt, an easy way to do that is to install the bmtools.ipk package. In addition,
     bmtools includes two microbenchmarks: scion-coremark and scion-mmbm. Those will run
     automatically and the results will be used to improve the benchmark report.
@@ -315,7 +318,8 @@ INSTRUCTIONS:
     note of the results: (scion-coremark; scion-mmbm).
 
 2 - Configure the following interfaces on your router (The procedure depends on your router
-    UI) - All interfaces should have the mtu set to 9000:
+    UI) - All interfaces should have the mtu set to 9000, a queing discipline like pfifo_fast
+    is highly recommended. Its queue length should be >= 256:
     - One physical interface with addresses: {", ".join(multiplexed)}
 {nl.join(['    - One physical interface with address: ' + s for s in exclusives])}
 
