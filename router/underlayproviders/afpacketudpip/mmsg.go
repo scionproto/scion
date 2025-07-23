@@ -18,6 +18,7 @@ package afpacketudpip
 
 import (
 	"reflect"
+	"time"
 	"unsafe"
 
 	"github.com/gopacket/gopacket/afpacket"
@@ -25,7 +26,8 @@ import (
 )
 
 // TODO(jiceatscion): there is another copy of this code in router_benchmark. Move this to a common
-// package (in underlay for example).
+// package (in underlay for example) or, probably better, specialize this one to make it more
+// efficient for the router's use.
 
 type mmsgHdr struct {
 	hdr unix.Msghdr
@@ -79,15 +81,27 @@ func (sender *mpktSender) setPkts(ps [][]byte) {
 
 func (sender *mpktSender) sendAll() (int, error) {
 	// This will hog a core (as far as the Go scheduler is concerned) for the duration of the call
-	// as the Go run-time has no idea that this is a blocking write. This is perfectly fine for our
-	// use case.
-	n, _, err := unix.Syscall6(unix.SYS_SENDMMSG,
-		uintptr(sender.fd),
-		uintptr(unsafe.Pointer(&sender.msgs[0])),
-		uintptr(len(sender.msgs)),
-		0, 0, 0)
-	if err == 0 {
-		return int(n), nil
+	// as the Go run-time has no idea that this may be a ~blocking write. This is perfectly fine for
+	// our use case.
+	for {
+		n, _, err := unix.Syscall6(unix.SYS_SENDMMSG,
+			uintptr(sender.fd),
+			uintptr(unsafe.Pointer(&sender.msgs[0])),
+			uintptr(len(sender.msgs)),
+			uintptr(unix.MSG_DONTWAIT), // return when the interface queue is full.
+			0, 0)
+		if err == 0 {
+			// we sent some packets.
+			return int(n), nil
+		}
+		if err == unix.EWOULDBLOCK {
+			// We sent nothing at all. The queue is completely full. Take a breather (cheaper than
+			// using poll or select). Assuming we can do 1M packet per second and the queue can
+			// accommodate at least 50 packets...
+			time.Sleep(50 * time.Microsecond)
+			continue
+		}
+		// Some error other than EWOULDBLOCK. Nothing was sent either
+		return 0, err
 	}
-	return int(n), err
 }

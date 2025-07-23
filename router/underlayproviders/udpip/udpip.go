@@ -399,10 +399,11 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			sc := router.ClassOfSize(len(pkts[written].RawPacket))
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			pool.Put(pkts[written])
-			toWrite -= (written + 1)
+			written++ // Not to-be-written any more
+			toWrite -= written
 			// Shift the leftovers to the head of the buffers.
 			for i := 0; i < toWrite; i++ {
-				pkts[i] = pkts[i+written+1]
+				pkts[i] = pkts[i+written]
 			}
 		} else {
 			toWrite = 0

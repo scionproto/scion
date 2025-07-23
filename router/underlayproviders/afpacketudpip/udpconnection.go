@@ -393,25 +393,24 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 		}
 		sender.setPkts(msgs[:toWrite])
 		written, _ := sender.sendAll()
-		if written < 0 {
-			// WriteBatch returns -1 on error, we just consider this as
-			// 0 packets written
-			written = 0
-		}
 		router.UpdateOutputMetrics(metrics, pkts[:written])
 		for _, p := range pkts[:written] {
 			// DissectAndShow(p.RawPacket, "Successfully Output") // Enabled only if debug logging.
 			pool.Put(p)
 		}
-		if written != toWrite {
-			// Only one is dropped at this time. We'll retry the rest.
-			sc := router.ClassOfSize(len(pkts[written].RawPacket))
+		if written == 0 {
+			// This happens IFF there is an error and zero packets were sent.
+			// The first packet may have caused it, so, drop it. We'll retry the rest.
+			sc := router.ClassOfSize(len(pkts[0].RawPacket))
 			metrics[sc].DroppedPacketsInvalid.Inc() // Need other drop reason counter
-			pool.Put(pkts[written])
-			toWrite -= (written + 1)
+			pool.Put(pkts[0])
+			written = 1 // At least, not to-be-written any more.
+		}
+		if written != toWrite {
 			// Shift the leftovers to the head of the buffers.
+			toWrite -= written
 			for i := 0; i < toWrite; i++ {
-				pkts[i] = pkts[i+written+1]
+				pkts[i] = pkts[i+written]
 			}
 		} else {
 			toWrite = 0
