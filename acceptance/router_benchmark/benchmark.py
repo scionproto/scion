@@ -38,7 +38,8 @@ from urllib.request import urlopen
 logger = logging.getLogger(__name__)
 
 # Router profiling ON or OFF?
-PROFILING = False
+PROFILING_TRACE = False
+PROFILING_CPU = False
 
 TEST_CASES = [
     "in",
@@ -251,10 +252,13 @@ class RouterBMTool(cli.Application, RouterBM):
         self.fetch_horsepower()
 
         # Optionally profile the router
-        if PROFILING:
-            cmd.curl[f"{self.profiling_addr}:30442/debug/pprof/profile?seconds=70",
+        if PROFILING_CPU:
+            cmd.curl[f"{self.profiling_addr}:30442/debug/pprof/cpu?seconds=70",
                      "-o", "router_cpu.pprof"] & BG
 
+        if PROFILING_TRACE:
+            cmd.curl[f"{self.profiling_addr}:30442/debug/pprof/trace?seconds=70",
+                     "-o", "router_trace.pprof"] & BG
         logger.info("Prepared")
 
     def cleanup(self, retcode: int):
