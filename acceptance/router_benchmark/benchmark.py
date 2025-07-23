@@ -209,7 +209,7 @@ class RouterBMTool(cli.Application, RouterBM):
         for intf in avail_interfaces:
             output = sudo("ip", "addr", "show", "dev", intf)
             # The check below is too sloppy. Some systems yield false positives.
-            if False: # len(output.splitlines()) > 2:
+            if False:  # len(output.splitlines()) > 2:
                 logger.error(f"""\
                 Interface {intf} appears to be in some kind of use. Cowardly refusing to modify it.
                 If you have a network manager, tell it to disable or ignore that interface.
