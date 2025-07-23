@@ -18,6 +18,7 @@ package main
 
 import (
 	"reflect"
+	"time"
 	"unsafe"
 
 	"github.com/gopacket/gopacket/afpacket"
@@ -83,9 +84,15 @@ func (sender *mpktSender) sendAll() (int, error) {
 		uintptr(sender.fd),
 		uintptr(unsafe.Pointer(&sender.msgs[0])),
 		uintptr(len(sender.msgs)),
-		0, 0, 0)
+		uintptr(unix.MSG_DONTWAIT),
+		0, 0)
 	if err == 0 {
 		return int(n), nil
+	}
+	if err == unix.EWOULDBLOCK || err == unix.EAGAIN {
+		// queue is completely full. Take a breather (cheaper than using poll or select). Assuming
+		// we can do 1M packet per second and the queue can accommodate at least 50 packets...
+		time.Sleep(50 * time.Microsecond)
 	}
 	return int(n), err
 }
