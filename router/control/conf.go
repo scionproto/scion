@@ -33,7 +33,7 @@ import (
 // Dataplane.
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
-	AddInternalInterface(ia addr.IA, localHost addr.Host, provider, local string) error
+	AddInternalInterface(ia addr.IA, localHost addr.Host, protocol, local string) error
 	AddExternalInterface(
 		localIfID iface.ID, info LinkInfo, localHost, remoteHost addr.Host, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, port uint16) error
@@ -48,7 +48,7 @@ type BFD topology.BFD
 // LinkInfo contains the information about a link between an internal and
 // external router.
 type LinkInfo struct {
-	Provider string
+	Protocol string
 	Local    LinkEnd
 	Remote   LinkEnd
 	Instance string
@@ -73,8 +73,8 @@ type ObservableDataplane interface {
 // InternalInterface represents the internal underlay interface of a router.
 type InternalInterface struct {
 	IA       addr.IA
-	Provider string // Name of the underlay provider.
-	Addr     string // Configuration: interpreted by underlay.
+	Protocol string // Name of the underlay protocol for which the address is meaningful
+	Addr     string // Configuration: interpreted by the underlay provider.
 }
 
 // ExternalInterface represents an external underlay interface of a router.
@@ -148,9 +148,9 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 			// The assumption that BR.InternalAddr is a netip address is endemic. Eradicating it
 			// will take a long time. Play along for now. The router is no-longer contagious.
 			host := addr.HostIP(cfg.BR.InternalAddr.Addr())
-			provider := "udpip" // Since BR.InternalInterface is always a netip.AddrPort
+			protocol := "udpip" // Since BR.InternalInterface is always a netip.AddrPort
 			addr := cfg.BR.InternalAddr.String()
-			if err := dp.AddInternalInterface(cfg.IA, host, provider, addr); err != nil {
+			if err := dp.AddInternalInterface(cfg.IA, host, protocol, addr); err != nil {
 				return err
 			}
 		} // else TODO: what legitimate reason would there be to not have an internal addr?
@@ -199,7 +199,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 	for _, ifID := range ifIDs {
 		iface := infoMap[ifID]
 		linkInfo := LinkInfo{
-			Provider: iface.Provider,
+			Protocol: iface.Protocol,
 			Local: LinkEnd{
 				IA:   cfg.IA,
 				Addr: iface.Local,
@@ -243,7 +243,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			// point-of-view of the local router, the traffic must go through an intermediate
 			// link that connects the local router to its sibling. Until the config schema catches
 			// up, we use internal interfaces for sibling links.
-			linkInfo.Provider = "udpip" // For now, all internal interfaces use udp/ip.
+			linkInfo.Protocol = "udpip" // For now, all internal interfaces use udp/ip.
 			linkInfo.Local.Addr = cfg.BR.InternalAddr.String()
 			linkInfo.Remote.Addr = iface.InternalAddr.String() // i.e. via sibling router.
 			localHost = addr.HostIP(cfg.BR.InternalAddr.Addr())

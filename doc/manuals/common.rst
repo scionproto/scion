@@ -255,6 +255,17 @@ of the individual fields below.
          In the configuration for the corresponding interface in the neighbor AS, these
          addresses are exactly swapped (unless one or both routers are behind NAT).
 
+         .. option:: protocol = <string>, default = "udpip"
+
+            The underlay protocol to be used. The selected underlay protocol must be supported
+            by a specific border router underlay component that declares to implement it.
+
+            The addresses provided via the ``remote`` and ``local`` options must be valid string
+            representations of addresses for the specified protocol.
+
+            As of theis writting the only available underlay protocol is "udpip",
+            which is the default. As a result addresses are always <ip>:<port> pairs.
+
          .. option:: remote = <ip|hostname>:<port>, required
 
             The IP/UDP address of the corresponding router interface in the neighbor AS. If that router

@@ -165,7 +165,7 @@ func mustMakeDP(
 		}
 		rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 		link := control.LinkInfo{
-			Provider: "udpip",
+			Protocol: "udpip",
 			Local:    l,
 			Remote:   r,
 			BFD:      nobfd,
@@ -188,7 +188,7 @@ func mustMakeDP(
 		}
 		rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 		link := control.LinkInfo{
-			Provider: "udpip",
+			Protocol: "udpip",
 			Local:    l,
 			Remote:   r,
 			BFD:      nobfd,

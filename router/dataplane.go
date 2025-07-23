@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"hash"
 	"math"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -89,23 +90,45 @@ type BatchConn interface {
 }
 
 // underlayProviders is a map of our underlay providers. Each entry associates a name with a
-// descriptor. A new instance of that provider is created by every invocation so multiple
+// descriptor. A new instance of that provider is created by every invocation of New, so multiple
 // dataplane instances can co-exist (as is routinely done by tests).
-var underlayProviders map[string]ProviderFactory
+var underlayImpls map[string]ProviderFactory
 
-// AddUnderlay registers the named factory function with the given priority.
-// If a provider by the same name is already registered, we keep the one with highest priority.
-func AddUnderlay(name string, newProv ProviderFactory) {
-	if underlayProviders == nil {
-		underlayProviders = make(map[string]ProviderFactory)
+// AddUnderlayImpl registers a underlay implementation.
+// If a provider by the same name is already registered, we keep the new one.
+func AddUnderlayImpl(name string, newProv ProviderFactory) {
+	if underlayImpls == nil {
+		underlayImpls = make(map[string]ProviderFactory)
 	}
-	oldProv := underlayProviders[name]
-	if oldProv != nil {
-		if oldProv.Priority() > newProv.Priority() {
-			return
+	underlayImpls[name] = newProv
+}
+
+func getUnderlayImpl(protocol string, preferrence map[string]string) (ProviderFactory, bool) {
+	// The preference map gives us an implementation name for a protocol name.
+	// Undelay implementations register with a name of the form "protocol[:implementation]".
+	//
+	wanted := protocol + ":" + preferrence[protocol]
+	u, found := underlayImpls[wanted]
+	if found {
+		return u, true
+	}
+
+	// The preference is not available or there is no preference (and no "<protocol>:" registered).
+	// See if there's an underlay with no specified implementation that matches the protocol.
+	u, found = underlayImpls[protocol]
+	if found {
+		return u, true
+	}
+
+	// Ok, got to do it the hard way
+	wanted = protocol + ":"
+	for k, v := range underlayImpls {
+		if strings.HasPrefix(k, wanted) {
+			return v, true
 		}
 	}
-	underlayProviders[name] = newProv
+
+	return nil, false
 }
 
 type disposition int
@@ -331,11 +354,15 @@ func newDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
 // copy.
 func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 	// So many tests need the udpip underlay provider instantiated early that we do it here rather
-	// than in AddInternalInterface. Currently there can be no dataplane without the udpip provider,
+	// than in AddInternalInterface. Currently there can be no dataplane without a udpip provider,
 	// therefore not having a registered factory for it is a panicable offsense. We have no plan B.
+	udpip, exists := getUnderlayImpl("udpip", runConfig.PreferredUnderlays)
+	if !exists {
+		panic("No udpip underlay implementation available")
+	}
 	return dataPlane{
 		underlays: map[string]UnderlayProvider{
-			"udpip": underlayProviders["udpip"].New(
+			"udpip": udpip.New(
 				runConfig.BatchSize,
 				runConfig.SendBufferSize,
 				runConfig.ReceiveBufferSize,
@@ -430,7 +457,7 @@ func (d *dataPlane) SetPortRange(start, end uint16) {
 // called on a not yet running dataplane. Note that localHost is a SCION host address. It currently
 // mirrors localAddr, which is the address on the local underlay network, but that could change
 // in the future. This is not the router's decision.
-func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAddr string) error {
+func (d *dataPlane) AddInternalInterface(localHost addr.Host, protocol, localAddr string) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
@@ -442,9 +469,9 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 
 	// The internal network underlay is instantiated at construction to simplify some tests. Things
 	// would become a lot more complicated if we ever supported multiple internal underlays.
-	internalUnderlay := d.underlays[provider]
+	internalUnderlay := d.underlays[protocol]
 	if internalUnderlay == nil {
-		return serrors.JoinNoStack(errNoSuchUnderlay, nil, "provider", provider)
+		return serrors.JoinNoStack(errNoSuchUnderlay, nil, "protocol", protocol)
 	}
 	internalUnderlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd,
 		topology.EndhostPort)
@@ -484,11 +511,11 @@ func (d *dataPlane) AddExternalInterface(
 		return errEmptyValue
 	}
 
-	underlay, instantiated := d.underlays[link.Provider]
+	underlay, instantiated := d.underlays[link.Protocol]
 	if !instantiated {
-		underlayProvider, exists := underlayProviders[link.Provider]
+		underlayProvider, exists := getUnderlayImpl(link.Protocol, d.RunConfig.PreferredUnderlays)
 		if !exists {
-			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
+			panic(fmt.Sprintf("no provider for underlay protocol: %q", link.Protocol))
 		}
 		underlay = underlayProvider.New(
 			d.RunConfig.BatchSize,
@@ -496,7 +523,7 @@ func (d *dataPlane) AddExternalInterface(
 			d.RunConfig.ReceiveBufferSize,
 		)
 		underlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
-		d.underlays[link.Provider] = underlay
+		d.underlays[link.Protocol] = underlay
 	}
 	d.linkTypes[ifID] = link.LinkTo
 
@@ -631,11 +658,11 @@ func (d *dataPlane) AddNextHop(
 	if link.Remote.Addr == "" {
 		return errEmptyValue
 	}
-	underlay, instantiated := d.underlays[link.Provider]
+	underlay, instantiated := d.underlays[link.Protocol]
 	if !instantiated {
-		underlayProvider, exists := underlayProviders[link.Provider]
+		underlayProvider, exists := getUnderlayImpl(link.Protocol, d.RunConfig.PreferredUnderlays)
 		if !exists {
-			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
+			panic(fmt.Sprintf("no provider for underlay protocol: %q", link.Protocol))
 		}
 		underlay = underlayProvider.New(
 			d.RunConfig.BatchSize,
@@ -643,7 +670,7 @@ func (d *dataPlane) AddNextHop(
 			d.RunConfig.ReceiveBufferSize,
 		)
 		underlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
-		d.underlays[link.Provider] = underlay
+		d.underlays[link.Protocol] = underlay
 	}
 	d.linkTypes[ifID] = link.LinkTo
 
@@ -702,6 +729,7 @@ type RunConfig struct {
 	BatchSize             int
 	ReceiveBufferSize     int
 	SendBufferSize        int
+	PreferredUnderlays    map[string]string
 }
 
 func (d *dataPlane) Run(ctx context.Context) error {

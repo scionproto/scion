@@ -224,6 +224,29 @@ considers the following options.
          Can be overridden for specific inter-AS BFD sessions with
          :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
 
+   .. object:: preferred_underlays
+
+      .. option:: udpip = <string>, default = "afpacket"
+
+         Selects an implementation for the "udpip" underlay protocol. If the preferred
+         implementation is not available then any other available implementation is selected.
+         As of this writting, two implementations exist for the "udpip" underlay protocol:
+
+         * "inet": An implementation based on AF_INET sockets and portable to many Unix-like
+           platform.
+         * "afpacket": An implementation based on AF_PACKET sockets and EBPF filtering, which
+           is less portable.
+
+         In the absence of ``preferred_underlays``, "afpacket" is preferred; falling back to
+         "inet".
+
+      .. option:: <underlay_protocol> = <string>
+
+         Sets the given string as the preferred implementation for the given underlay protocol.
+         The ``preferred_underlays`` section is handled as a map, so any key may be used (to
+         designate future underlay protocols). Entries for nonexistent underlay protocols are
+         silently ignored.
+
 .. _router-conf-topo:
 
 topology.json

@@ -99,7 +99,7 @@ func init() {
 	// Register ourselves as an underlay provider. The registration consists of a factory, not
 	// a provider object, because multiple router instances each must have their own underlay
 	// provider. The provider is not re-entrant.
-	router.AddUnderlay("udpip", providerFactory{})
+	router.AddUnderlayImpl("udpip:inet", providerFactory{})
 }
 
 type providerFactory struct{}
@@ -119,10 +119,6 @@ func (providerFactory) New(
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
 	}
-}
-
-func (providerFactory) Priority() int {
-	return 1
 }
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or

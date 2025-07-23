@@ -118,7 +118,7 @@ type BRInterface struct {
 
 // Underlay is the underlay information for a BR interface.
 type Underlay struct {
-	Provider string `json:"provider,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
 	Local    string `json:"local,omitempty"`
 	Remote   string `json:"remote,omitempty"`
 }

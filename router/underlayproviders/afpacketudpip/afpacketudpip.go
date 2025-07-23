@@ -153,7 +153,7 @@ func init() {
 	// We add ourselves as an implementation of the "udpip" underlay. The two udpip underlays
 	// are interchangeable. Only this one should perform better but exists only for Linux.
 	// The priorities cause the router to chose this one over the other when both are available.
-	router.AddUnderlay("udpip", providerFactory{})
+	router.AddUnderlayImpl("udpip:afpacket", providerFactory{})
 }
 
 // Implement router.ProviderFactory
@@ -175,10 +175,6 @@ func (providerFactory) New(
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
 	}
-}
-
-func (providerFactory) Priority() int {
-	return 2
 }
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
