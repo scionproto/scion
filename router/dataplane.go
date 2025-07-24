@@ -92,37 +92,37 @@ type BatchConn interface {
 // underlayProviders is a map of our underlay providers. Each entry associates a name with a
 // descriptor. A new instance of that provider is created by every invocation of New, so multiple
 // dataplane instances can co-exist (as is routinely done by tests).
-var underlayImpls map[string]ProviderFactory
+var underlayProviders map[string]UnderlayProvider
 
 // AddUnderlayImpl registers a underlay implementation.
 // If a provider by the same name is already registered, we keep the new one.
-func AddUnderlayImpl(name string, newProv ProviderFactory) {
-	if underlayImpls == nil {
-		underlayImpls = make(map[string]ProviderFactory)
+func AddUnderlayProvider(name string, newProv UnderlayProvider) {
+	if underlayProviders == nil {
+		underlayProviders = make(map[string]UnderlayProvider)
 	}
-	underlayImpls[name] = newProv
+	underlayProviders[name] = newProv
 }
 
-func getUnderlayImpl(protocol string, preferrence map[string]string) (ProviderFactory, bool) {
+func underlayProvider(protocol string, preferrence map[string]string) (UnderlayProvider, bool) {
 	// The preference map gives us an implementation name for a protocol name.
 	// Undelay implementations register with a name of the form "protocol[:implementation]".
 	//
 	wanted := protocol + ":" + preferrence[protocol]
-	u, found := underlayImpls[wanted]
+	u, found := underlayProviders[wanted]
 	if found {
 		return u, true
 	}
 
 	// The preference is not available or there is no preference (and no "<protocol>:" registered).
 	// See if there's an underlay with no specified implementation that matches the protocol.
-	u, found = underlayImpls[protocol]
+	u, found = underlayProviders[protocol]
 	if found {
 		return u, true
 	}
 
 	// Ok, got to do it the hard way
 	wanted = protocol + ":"
-	for k, v := range underlayImpls {
+	for k, v := range underlayProviders {
 		if strings.HasPrefix(k, wanted) {
 			return v, true
 		}
@@ -258,7 +258,7 @@ func makePacketPool(poolSize, headroom int) PacketPool {
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
 type dataPlane struct {
-	underlays           map[string]UnderlayProvider
+	underlays           map[string]Underlay
 	interfaces          [math.MaxUint16 + 1]Link
 	numInterfaces       int
 	linkTypes           [math.MaxUint16 + 1]topology.LinkType
@@ -356,12 +356,12 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 	// So many tests need the udpip underlay provider instantiated early that we do it here rather
 	// than in AddInternalInterface. Currently there can be no dataplane without a udpip provider,
 	// therefore not having a registered factory for it is a panicable offsense. We have no plan B.
-	udpip, exists := getUnderlayImpl("udpip", runConfig.PreferredUnderlays)
+	udpip, exists := underlayProvider("udpip", runConfig.PreferredUnderlays)
 	if !exists {
 		panic("No udpip underlay implementation available")
 	}
 	return dataPlane{
-		underlays: map[string]UnderlayProvider{
+		underlays: map[string]Underlay{
 			"udpip": udpip.New(
 				runConfig.BatchSize,
 				runConfig.SendBufferSize,
@@ -513,7 +513,7 @@ func (d *dataPlane) AddExternalInterface(
 
 	underlay, instantiated := d.underlays[link.Protocol]
 	if !instantiated {
-		underlayProvider, exists := getUnderlayImpl(link.Protocol, d.RunConfig.PreferredUnderlays)
+		underlayProvider, exists := underlayProvider(link.Protocol, d.RunConfig.PreferredUnderlays)
 		if !exists {
 			panic(fmt.Sprintf("no provider for underlay protocol: %q", link.Protocol))
 		}
@@ -660,7 +660,7 @@ func (d *dataPlane) AddNextHop(
 	}
 	underlay, instantiated := d.underlays[link.Protocol]
 	if !instantiated {
-		underlayProvider, exists := getUnderlayImpl(link.Protocol, d.RunConfig.PreferredUnderlays)
+		underlayProvider, exists := underlayProvider(link.Protocol, d.RunConfig.PreferredUnderlays)
 		if !exists {
 			panic(fmt.Sprintf("no provider for underlay protocol: %q", link.Protocol))
 		}

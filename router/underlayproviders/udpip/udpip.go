@@ -68,11 +68,11 @@ func (uo) UDPCanReuseLocal() bool {
 	return conn.UDPCanReuseLocal()
 }
 
-// provider implements UnderlayProvider by making and returning Udp/Ip links.
+// underlay implements Underlay by making and returning Udp/Ip links.
 //
 // This is currently the only implementation. The goal of splitting out this code from the router
 // is to enable other implementations.
-type provider struct {
+type underlay struct {
 	mu                 sync.Mutex // Prevents race between adding connections and Start/Stop.
 	batchSize          int
 	allLinks           map[netip.AddrPort]udpLink
@@ -99,19 +99,19 @@ func init() {
 	// Register ourselves as an underlay provider. The registration consists of a factory, not
 	// a provider object, because multiple router instances each must have their own underlay
 	// provider. The provider is not re-entrant.
-	router.AddUnderlayImpl("udpip:inet", providerFactory{})
+	router.AddUnderlayProvider("udpip:inet", underlayProvider{})
 }
 
-type providerFactory struct{}
+type underlayProvider struct{}
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
 // TODO(multi_underlay): batchSize should be an underlay-specific config.
-func (providerFactory) New(
+func (underlayProvider) New(
 	batchSize int,
 	receiveBufferSize int,
 	sendBufferSize int,
-) router.UnderlayProvider {
-	return &provider{
+) router.Underlay {
+	return &underlay{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
 		connOpener:        uo{},
@@ -123,30 +123,30 @@ func (providerFactory) New(
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
 // panic will ensue. Only for use in unit tests.
-func (u *provider) SetConnOpener(opener any) {
+func (u *underlay) SetConnOpener(opener any) {
 	u.connOpener = opener.(ConnOpener)
 }
 
-func (u *provider) NumConnections() int {
+func (u *underlay) NumConnections() int {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	return len(u.allLinks)
 }
 
-func (u *provider) Headroom() int {
+func (u *underlay) Headroom() int {
 	// This underlay does not add any header of its own: the UDP socket API manages the header
 	// independently.
 	return 0
 }
 
-func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
+func (u *underlay) SetDispatchPorts(start, end, redirect uint16) {
 	u.dispatchStart = start
 	u.dispatchEnd = end
 	u.dispatchRedirect = redirect
 }
 
 // AddSvc adds the address for the given service.
-func (u *provider) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
+func (u *underlay) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	// We pre-resolve the addresses, which is trivial for this underlay.
 	addr := netip.AddrPortFrom(host.IP(), port)
 	if !addr.IsValid() {
@@ -157,7 +157,7 @@ func (u *provider) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (u *provider) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
+func (u *underlay) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	addr := netip.AddrPortFrom(host.IP(), port)
 	if !addr.IsValid() {
 		return errInvalidServiceAddress
@@ -168,7 +168,7 @@ func (u *provider) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 
 // The queues to be used by the receiver task are supplied at this point because they must be
 // sized according to the number of connections that will be started.
-func (u *provider) Start(
+func (u *underlay) Start(
 	ctx context.Context, pool router.PacketPool, procQs []chan *router.Packet,
 ) {
 	u.mu.Lock()
@@ -190,7 +190,7 @@ func (u *provider) Start(
 	}
 }
 
-func (u *provider) Stop() {
+func (u *underlay) Stop() {
 	u.mu.Lock()
 	connSnapshot := slices.Clone(u.allConnections)
 	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
@@ -440,7 +440,7 @@ type connectedLink struct {
 
 // NewExternalLink returns an external link over the UDP/IP underlay. It is always implemented with
 // a connectedLink.
-func (u *provider) NewExternalLink(
+func (u *underlay) NewExternalLink(
 	qSize int,
 	bfd *bfd.Session,
 	local string,
@@ -468,7 +468,7 @@ func (u *provider) NewExternalLink(
 	return u.newConnectedLink(qSize, bfd, localAddr, remoteAddr, ifID, metrics, router.External)
 }
 
-func (u *provider) newConnectedLink(
+func (u *underlay) newConnectedLink(
 	qSize int,
 	bfd *bfd.Session,
 	localAddr netip.AddrPort,
@@ -622,7 +622,7 @@ type detachedLink struct {
 // We de-duplicate sibling links. The router gives us a BFDSession in all cases and we might throw
 // it away (there are no persistent resources attached to it). This could be fixed by moving some
 // BFD related code in-here.
-func (u *provider) NewSiblingLink(
+func (u *underlay) NewSiblingLink(
 	qSize int,
 	bfd *bfd.Session,
 	local string,
@@ -655,7 +655,7 @@ func (u *provider) NewSiblingLink(
 	return u.newDetachedLink(bfd, remoteAddr, metrics)
 }
 
-func (u *provider) newDetachedLink(
+func (u *underlay) newDetachedLink(
 	bfd *bfd.Session,
 	remoteAddr netip.AddrPort,
 	metrics *router.InterfaceMetrics,
@@ -796,7 +796,7 @@ type internalLink struct {
 //
 // TODO(multi_underlay): We still go with the assumption that internal links are always
 // udpip, so we don't expect a string here. That should change.
-func (u *provider) NewInternalLink(
+func (u *underlay) NewInternalLink(
 	local string, qSize int, metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 	u.mu.Lock()

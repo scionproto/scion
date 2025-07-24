@@ -69,11 +69,7 @@ type Link interface {
 //
 // For any given underlay, there are three kinds of Link implementations to choose from. The
 // difference between them is the intent regarding addressing.
-//
-// TODO(multi_underlay): The local internal address is explicitly a udpip underlay address as the
-// main router code as well as the entire end-host stack still assume that the internal network
-// underlay is always "udp/ip".
-type UnderlayProvider interface {
+type Underlay interface {
 
 	// SetConnOpener is a unit testing device: it allows the replacement of the function
 	// that opens new underlay connections. Underlay implementations can, at their
@@ -150,6 +146,6 @@ type UnderlayProvider interface {
 }
 
 // ProviderFactory allows the instatiation of a provider.
-type ProviderFactory interface {
-	New(batchSize, receiveBufferSize, sendBufferSize int) UnderlayProvider
+type UnderlayProvider interface {
+	New(batchSize, receiveBufferSize, sendBufferSize int) Underlay
 }
