@@ -55,7 +55,7 @@ func newMpktSender(tp *afpacket.TPacket) *mpktSender {
 	// Try and bypass queing discipline. If that doesn't work, we'll survive.
 	err := unix.SetsockoptInt(sender.fd, unix.SOL_PACKET, unix.PACKET_QDISC_BYPASS, 1)
 	if err != nil {
-		log.Warn("Could not bypass queing discipline", "err", err)
+		log.Info("Could not bypass queing discipline", "err", err)
 	}
 
 	// If we're going to send, we need to make sure we're not receiving our own stuff. The default
