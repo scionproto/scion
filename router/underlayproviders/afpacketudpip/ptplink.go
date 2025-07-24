@@ -170,42 +170,43 @@ func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	}
 	if l.is4 {
 		// Fix the IP total length field
-		binary.BigEndian.PutUint16(p.RawPacket[14+2:], uint16(payloadLen)+20+8)
+		binary.BigEndian.PutUint16(p.RawPacket[ipv4LenOffset:], uint16(payloadLen)+ipv4Len+udpLen)
 
 		// Update UDP length
-		binary.BigEndian.PutUint16(p.RawPacket[14+20+4:], uint16(payloadLen)+8)
+		binary.BigEndian.PutUint16(p.RawPacket[udpv4LenOffset:], uint16(payloadLen)+udpLen)
 
 		// For IPv4 fix the IP checksum
-		p.RawPacket[14+10] = 0
-		p.RawPacket[14+11] = 0
-		csum := gopacket.ComputeChecksum(p.RawPacket[14:14+20], 0)
-		binary.BigEndian.PutUint16(p.RawPacket[14+10:], gopacket.FoldChecksum(csum))
+		p.RawPacket[ipv4SumOffset] = 0
+		p.RawPacket[ipv4SumOffset+1] = 0
+		csum := gopacket.ComputeChecksum(p.RawPacket[ipOffset:udpv4Offset], 0)
+		binary.BigEndian.PutUint16(p.RawPacket[ipv4SumOffset:], gopacket.FoldChecksum(csum))
 
 		// For IPV4 we can screw the UDP checksum
-		p.RawPacket[14+20+6] = 0
-		p.RawPacket[14+20+7] = 0
+		p.RawPacket[udpv4SumOffset] = 0
+		p.RawPacket[udpv4SumOffset+1] = 0
 		return true
 	}
 
 	// Fix the IPv6 payload length field (udp plus the scion stuff)
-	binary.BigEndian.PutUint16(p.RawPacket[14+4:], uint16(payloadLen)+8)
+	binary.BigEndian.PutUint16(p.RawPacket[ipv6LenOffset:], uint16(payloadLen)+udpLen)
 
 	// Update UDP length
-	binary.BigEndian.PutUint16(p.RawPacket[14+40+4:], uint16(payloadLen)+8)
+	binary.BigEndian.PutUint16(p.RawPacket[udpv6LenOffset:], uint16(payloadLen)+udpLen)
 
 	// Zero-out the checksum as it is part of the computation's input.
-	p.RawPacket[14+40+6] = 0
-	p.RawPacket[14+40+7] = 0
+	p.RawPacket[udpv6SumOffset] = 0
+	p.RawPacket[udpv6SumOffset+1] = 0
 
 	// For IPV6 we must compute the UDP checksum.
 	// In theory we could dispense with it as we're a tunneling protocol; however all the plain
-	// udp underlay implementations would drop the packets.
+	// udp underlay implementations would drop the packets. TODO(jiceatscion): save a few cycles
+	// by using UDPlite?
 	zerosAndProto := []byte{0, 0, 0, 17}
-	csum := gopacket.ComputeChecksum(p.RawPacket[14+8:14+40], 0)        // src+dst
-	csum = gopacket.ComputeChecksum(p.RawPacket[14+40+4:14+40+6], csum) // UDP length
-	csum = gopacket.ComputeChecksum(zerosAndProto, csum)                // 3 0s plus UDP proto num
-	csum = gopacket.ComputeChecksum(p.RawPacket[14+40:], csum)          // UDP hdr and payload
-	binary.BigEndian.PutUint16(p.RawPacket[14+40+6:], gopacket.FoldChecksum(csum))
+	csum := gopacket.ComputeChecksum(p.RawPacket[ipv6SrcOffset:udpv6Offset], 0)         // src+dst
+	csum = gopacket.ComputeChecksum(p.RawPacket[udpv6LenOffset:udpv6LenOffset+2], csum) // length
+	csum = gopacket.ComputeChecksum(zerosAndProto, csum)                                // proto num
+	csum = gopacket.ComputeChecksum(p.RawPacket[udpv6Offset:], csum)                    // all
+	binary.BigEndian.PutUint16(p.RawPacket[udpv6SumOffset:], gopacket.FoldChecksum(csum))
 	return true
 }
 

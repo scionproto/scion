@@ -221,9 +221,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 	// Since we do not know the real size of the IP header, we have to plan on it being short; so
 	// our payload doesn't encroach on the headroom space. If the header is longer, then we will
 	// leave more headroom than needed. We don't even know if we're getting v4 or v6. Assume v4.
-	// As of this writing we do not expect extensions, so the actual headers should
-	// never be greater than the biggest v4 header (14+60+8). Else, the packet hits the can.
-	minHeadRoom := 14 + 20 + 8
+	minHeadRoom := ethLen + ipv4Len + udpLen
 
 	// We'll reuse this one until we can deliver it. At which point, we fetch a fresh one.
 	// pool.Reset is much cheaper than pool.Put/Get
@@ -423,13 +421,13 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 // the proc queue where a packet should be delivered. All links that share
 // an underlying connection (therefore a receive loop) use the same hash seed.
 func makeHashSeed() uint32 {
-	hashSeed := fnv1aOffset32
+	hashSeed := router.Fnv1aOffset32
 	randomBytes := make([]byte, 4)
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("Error while generating random value")
 	}
 	for _, c := range randomBytes {
-		hashSeed = hashFNV1a(hashSeed, c)
+		hashSeed = router.HashFNV1a(hashSeed, c)
 	}
 	return hashSeed
 }

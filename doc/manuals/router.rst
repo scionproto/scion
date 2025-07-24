@@ -233,7 +233,7 @@ considers the following options.
          As of this writting, two implementations exist for the "udpip" underlay protocol:
 
          * "inet": An implementation based on AF_INET sockets and portable to many Unix-like
-           platform.
+           platforms.
          * "afpacket": An implementation based on AF_PACKET sockets and EBPF filtering, which
            is less portable.
 

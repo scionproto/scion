@@ -99,7 +99,7 @@ run_setup() {
 run_teardown() {
     tools/set_ipv6_addr.py -d
     if [ -f gen/lo.conf ]; then
-	cat gen/lo.conf | sudo sysctl -p-
+	sudo sysctl -p gen/lo.conf
     fi
 }
 

@@ -412,13 +412,13 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 // the proc queue where a packet should be delivered. All links that share
 // an underlying connection (therefore a receive loop) use the same hash seed.
 func makeHashSeed() uint32 {
-	hashSeed := fnv1aOffset32
+	hashSeed := router.Fnv1aOffset32
 	randomBytes := make([]byte, 4)
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("Error while generating random value")
 	}
 	for _, c := range randomBytes {
-		hashSeed = hashFNV1a(hashSeed, c)
+		hashSeed = router.HashFNV1a(hashSeed, c)
 	}
 	return hashSeed
 }
@@ -992,14 +992,14 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	s := hashSeed
 
 	// inject the flowID
-	s = hashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
+	s = router.HashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
 	for _, c := range data[2:4] {
-		s = hashFNV1a(s, c)
+		s = router.HashFNV1a(s, c)
 	}
 
 	// Inject the src/dst addresses
 	for _, c := range data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen] {
-		s = hashFNV1a(s, c)
+		s = router.HashFNV1a(s, c)
 	}
 
 	return s % uint32(numProcRoutines), nil

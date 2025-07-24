@@ -263,7 +263,7 @@ of the individual fields below.
             The addresses provided via the ``remote`` and ``local`` options must be valid string
             representations of addresses for the specified protocol.
 
-            As of theis writting the only available underlay protocol is "udpip",
+            As of this writing, the only available underlay protocol is "udpip",
             which is the default. As a result addresses are always <ip>:<port> pairs.
 
          .. option:: remote = <ip|hostname>:<port>, required

@@ -39,6 +39,33 @@ import (
 	"github.com/scionproto/scion/router/bfd"
 )
 
+const (
+	ethLen = 14
+
+	ipOffset      = ethLen
+	ipv4Len       = 20
+	ipv4LenOffset = ipOffset + 2
+	ipv4SumOffset = ipOffset + 10
+	ipv4DstOffset = ipOffset + 16
+
+	ipv6Len       = 40
+	ipv6LenOffset = ipOffset + 4
+	ipv6SrcOffset = ipOffset + 8
+	ipv6DstOffset = ipOffset + 24
+
+	udpv4Offset = ipOffset + ipv4Len
+	udpv6Offset = ipOffset + ipv6Len
+	udpLen      = 8
+
+	udpv4LenOffset     = udpv4Offset + 4
+	udpv4SumOffset     = udpv4Offset + 6
+	udpv4DstPortOffset = udpv4Offset + 2
+
+	udpv6LenOffset     = udpv6Offset + 4
+	udpv6SumOffset     = udpv6Offset + 6
+	udpv6DstPortOffset = udpv6Offset + 2
+)
+
 var (
 	errResolveOnNonInternalLink = errors.New("unsupported address resolution on link not internal")
 	errInvalidServiceAddress    = errors.New("invalid service address")
@@ -198,7 +225,7 @@ func (u *provider) Headroom() int {
 	// needed to ensure that the headroom we leave is never less than the worst case requirement
 	// across all underlays.
 
-	return 14 + 40 + 8 // ethernet + basic ipv6 + udp
+	return ethLen + ipv6Len + udpLen
 }
 
 func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
@@ -457,14 +484,14 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	s := hashSeed
 
 	// inject the flowID
-	s = hashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
+	s = router.HashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
 	for _, c := range data[2:4] {
-		s = hashFNV1a(s, c)
+		s = router.HashFNV1a(s, c)
 	}
 
 	// Inject the src/dst addresses
 	for _, c := range data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen] {
-		s = hashFNV1a(s, c)
+		s = router.HashFNV1a(s, c)
 	}
 
 	return s % uint32(numProcRoutines), nil

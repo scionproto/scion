@@ -3,10 +3,7 @@ load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "fnv1acheap.go",
-        "udpip.go",
-    ],
+    srcs = ["udpip.go"],
     importpath = "github.com/scionproto/scion/router/underlayproviders/udpip",
     visibility = ["//visibility:public"],
     deps = [

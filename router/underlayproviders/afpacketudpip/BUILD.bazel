@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "afpacketudpip.go",
         "dbg.go",
-        "fnv1acheap.go",
         "internallink.go",
         "mmsg.go",
         "neighbors.go",

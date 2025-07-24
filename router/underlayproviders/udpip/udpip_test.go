@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/router"
 )
 
 var (
@@ -90,9 +91,9 @@ func TestComputeProcId(t *testing.T) {
 
 	// ComputeProcID expects the per-receiver random number to be pre-hashed into the seed that we
 	// pass.
-	hashSeed := fnv1aOffset32
+	hashSeed := router.Fnv1aOffset32
 	for _, c := range randomValueBytes {
-		hashSeed = hashFNV1a(hashSeed, c)
+		hashSeed = router.HashFNV1a(hashSeed, c)
 	}
 
 	// this function returns the procID as we expect it by using the  slayers.SCION serialization
