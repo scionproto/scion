@@ -105,7 +105,7 @@ func AddUnderlayProvider(name string, newProv UnderlayProvider) {
 
 func underlayProvider(protocol string, preferrence map[string]string) (UnderlayProvider, bool) {
 	// The preference map gives us an implementation name for a protocol name.
-	// Undelay implementations register with a name of the form "protocol[:implementation]".
+	// Underlay implementations register with a name of the form "protocol[:implementation]".
 	//
 	wanted := protocol + ":" + preferrence[protocol]
 	u, found := underlayProviders[wanted]
