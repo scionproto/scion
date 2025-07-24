@@ -237,7 +237,7 @@ func (c *RunConfig) ExpectPacket(
 			continue
 		}
 		udpHdr := got.TransportLayer().(*layers.UDP)
-		// It isn't easy to tell a packet with the wrong dest port appart from a noise packet. We
+		// It isn't easy to tell a packet with the wrong dest port apart from a noise packet. We
 		// treat everything outside the normal SCION range as noise. this is a closed veth, so there
 		// can't be completely arbitrary noise either.
 		if udpHdr.DstPort < 20000 || udpHdr.DstPort >= 60000 {
