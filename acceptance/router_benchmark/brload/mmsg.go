@@ -23,6 +23,8 @@ import (
 
 	"github.com/gopacket/gopacket/afpacket"
 	"golang.org/x/sys/unix"
+
+	"github.com/scionproto/scion/pkg/log"
 )
 
 type mmsgHdr struct {
@@ -50,10 +52,16 @@ func newMpktSender(tp *afpacket.TPacket) *mpktSender {
 	// This is to make sure that tp cannot be finalized before we're done abusing its file desc.
 	sender.tp = tp
 
+	// Try and bypass queing discipline. If that doesn't work, we'll survive.
+	err := unix.SetsockoptInt(sender.fd, unix.SOL_PACKET, unix.PACKET_QDISC_BYPASS, 1)
+	if err != nil {
+		log.Warn("Could not bypass queing discipline", "err", err)
+	}
+
 	// If we're going to send, we need to make sure we're not receiving our own stuff. The default
 	// behaviour is less than clear. The loopback doesn't work with veth, but likely does with
 	// else.
-	err := unix.SetsockoptInt(sender.fd, unix.SOL_PACKET, unix.PACKET_IGNORE_OUTGOING, 1)
+	err = unix.SetsockoptInt(sender.fd, unix.SOL_PACKET, unix.PACKET_IGNORE_OUTGOING, 1)
 	if err != nil {
 		panic(err)
 	}
