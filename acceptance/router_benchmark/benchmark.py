@@ -172,8 +172,6 @@ class RouterBMTool(cli.Application, RouterBM):
         else:
             # We allow for mackets as large as they get, but we do not need a very deep queue.
             sudo("ip", "link", "set", host_intf, "mtu", "9000")
-            sudo("tc", "qdisc", "add", "dev", host_intf, "root", "handle", "1:", "pfifo_fast")
-            sudo("ip", "link", "set", host_intf, "txqueuelen", 256)
 
             # Do not assign the host addresses but create one link-local addr.
             # Brload needs some src IP to send arp requests. (This requires rp_filter

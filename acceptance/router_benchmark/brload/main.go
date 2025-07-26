@@ -268,11 +268,13 @@ out:
 			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
 			// more than 64K flows).
 			for j := range batchSize {
-				binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
-				numPkt++
+				binary.BigEndian.PutUint16(allPkts[j][44:46], uint16((numPkt+j)%int(numStreams)))
 			}
 
-			if _, err := sender.sendAll(); err != nil {
+			if n, err := sender.sendAll(); err == nil {
+				// n can be less than a batch if sendAll is made non-blocking.
+				numPkt += n
+			} else {
 				log.Error("writing input packet", "case", string(caseToRun), "error", err)
 				return 1
 			}

@@ -18,13 +18,12 @@ package main
 
 import (
 	"reflect"
-	"time"
+	"runtime"
 	"unsafe"
 
 	"github.com/gopacket/gopacket/afpacket"
-	"golang.org/x/sys/unix"
-
 	"github.com/scionproto/scion/pkg/log"
+	"golang.org/x/sys/unix"
 )
 
 type mmsgHdr struct {
@@ -85,22 +84,27 @@ func (sender *mpktSender) setPkts(ps [][]byte) {
 }
 
 func (sender *mpktSender) sendAll() (int, error) {
-	// This will hog a core (as far as the Go scheduler is concerned) for the duration of the call
-	// as the Go run-time has no idea that this is a blocking write. This is perfectly fine for our
-	// use case.
-	n, _, err := unix.Syscall6(unix.SYS_SENDMMSG,
-		uintptr(sender.fd),
-		uintptr(unsafe.Pointer(&sender.msgs[0])),
-		uintptr(len(sender.msgs)),
-		uintptr(unix.MSG_DONTWAIT),
-		0, 0)
-	if err == 0 {
-		return int(n), nil
+	for {
+		// This will hog a core (as far as the Go scheduler is concerned) for the duration of the call
+		// as the Go run-time has no idea that this is a blocking write. This is perfectly fine for our
+		// use case. This can be made non-blocking if that helps sending faster.
+		n, _, err := unix.Syscall6(unix.SYS_SENDMMSG,
+			uintptr(sender.fd),
+			uintptr(unsafe.Pointer(&sender.msgs[0])),
+			uintptr(len(sender.msgs)),
+			0, // uintptr(unix.MSG_DONTWAIT),
+			0, 0)
+		if err == 0 {
+			// we sent some packets.
+			return int(n), nil
+		}
+		if err == unix.EWOULDBLOCK || err == unix.EAGAIN {
+			// We sent nothing at all. The queue is completely full. Take a breather (cheaper than
+			// using poll or select). That happens only in non-blocking mode.
+			runtime.Gosched()
+			continue
+		}
+		// Some error other than EWOULDBLOCK. Nothing was sent either
+		return 0, err
 	}
-	if err == unix.EWOULDBLOCK || err == unix.EAGAIN {
-		// queue is completely full. Take a breather (cheaper than using poll or select). Assuming
-		// we can do 1M packet per second and the queue can accommodate at least 50 packets...
-		time.Sleep(50 * time.Microsecond)
-	}
-	return int(n), err
 }

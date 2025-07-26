@@ -48,8 +48,6 @@ py_library(
     srcs = ["benchmarklib.py"],
 )
 
-# To ensure that the linter runs over this. Cannot actually be run with
-# bazel run; it is meant to be executed from the command line.
 py_binary(
     name = "benchmark",
     srcs = ["benchmark.py"],
