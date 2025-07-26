@@ -22,8 +22,9 @@ import (
 	"unsafe"
 
 	"github.com/gopacket/gopacket/afpacket"
-	"github.com/scionproto/scion/pkg/log"
 	"golang.org/x/sys/unix"
+
+	"github.com/scionproto/scion/pkg/log"
 )
 
 type mmsgHdr struct {
@@ -85,9 +86,9 @@ func (sender *mpktSender) setPkts(ps [][]byte) {
 
 func (sender *mpktSender) sendAll() (int, error) {
 	for {
-		// This will hog a core (as far as the Go scheduler is concerned) for the duration of the call
-		// as the Go run-time has no idea that this is a blocking write. This is perfectly fine for our
-		// use case. This can be made non-blocking if that helps sending faster.
+		// This will hog a core (as far as the Go scheduler is concerned) for the duration of the
+		// call as the Go run-time has no idea that this is a blocking write. This is perfectly fine
+		// for our use case. This can be made non-blocking if that helps sending faster.
 		n, _, err := unix.Syscall6(unix.SYS_SENDMMSG,
 			uintptr(sender.fd),
 			uintptr(unsafe.Pointer(&sender.msgs[0])),
