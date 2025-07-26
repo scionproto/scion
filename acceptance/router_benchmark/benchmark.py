@@ -316,8 +316,7 @@ INSTRUCTIONS:
     note of the results: (scion-coremark; scion-mmbm).
 
 2 - Configure the following interfaces on your router (The procedure depends on your router
-    UI) - All interfaces should have the mtu set to 9000, a queing discipline like pfifo_fast
-    is highly recommended. Its queue length should be >= 256:
+    UI):
     - One physical interface with addresses: {", ".join(multiplexed)}
 {nl.join(['    - One physical interface with address: ' + s for s in exclusives])}
 

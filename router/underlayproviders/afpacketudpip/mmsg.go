@@ -18,7 +18,7 @@ package afpacketudpip
 
 import (
 	"reflect"
-	"time"
+	"runtime"
 	"unsafe"
 
 	"github.com/gopacket/gopacket/afpacket"
@@ -104,9 +104,8 @@ func (sender *mpktSender) sendAll() (int, error) {
 		}
 		if err == unix.EWOULDBLOCK {
 			// We sent nothing at all. The queue is completely full. Take a breather (cheaper than
-			// using poll or select). Assuming we can do 1M packet per second and the queue can
-			// accommodate at least 50 packets...
-			time.Sleep(50 * time.Microsecond)
+			// using poll or select).
+			runtime.Gosched()
 			continue
 		}
 		// Some error other than EWOULDBLOCK. Nothing was sent either
