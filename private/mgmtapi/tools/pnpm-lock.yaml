@@ -9,7 +9,7 @@ onlyBuiltDependencies: []
 overrides:
   '@types/jsonpath-plus': '>=10.3.0'
 
-packageExtensionsChecksum: c2f2cbfde286cf10b1c79dd618c9f094
+packageExtensionsChecksum: 9ef5c789149b02302c0a1c8e2b3b7a89
 
 dependencies:
   '@redocly/cli':
