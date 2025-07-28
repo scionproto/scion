@@ -140,25 +140,7 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	grpcServerDisabled := false
-	connectServerDisabled := false
-	rpcClientConfig := happy.Config{}
-
 	metrics := cs.NewMetrics()
-	switch globalCfg.API.RpcClientProtocol {
-	case "all":
-	case "grpc":
-		rpcClientConfig.NoPreferred = true // Disable our preferred option, connect.
-	case "connect":
-		rpcClientConfig.NoFallback = true // Disable our fallback option, grpc.
-	}
-	switch globalCfg.API.RpcServerProtocol {
-	case "all":
-	case "grpc":
-		connectServerDisabled = true
-	case "connect":
-		grpcServerDisabled = true
-	}
 	topo, err := topology.NewLoader(topology.LoaderCfg{
 		File:      globalCfg.General.Topology(),
 		Reload:    app.SIGHUPChannel(ctx),
@@ -167,6 +149,10 @@ func realMain(ctx context.Context) error {
 	})
 	if err != nil {
 		return serrors.Wrap("creating topology loader", err)
+	}
+	rpcClientConfig := happy.Config{
+		NoPreferred: globalCfg.RPC.ConnectrpcClientDisabled,
+		NoFallback:  globalCfg.RPC.GrpcClientDisabled,
 	}
 	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -800,7 +786,7 @@ func realMain(ctx context.Context) error {
 					grpcConns <- conn
 					return
 				}
-				if !connectServerDisabled {
+				if !globalCfg.RPC.ConnectrpcServerDisabled {
 					connectServer := http3.Server{
 						Handler: libconnect.AttachPeer(connectInter),
 					}
@@ -812,7 +798,7 @@ func realMain(ctx context.Context) error {
 		}
 	})
 
-	if !grpcServerDisabled {
+	if !globalCfg.RPC.GrpcServerDisabled {
 		g.Go(func() error {
 			defer log.HandlePanic()
 			grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())

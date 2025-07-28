@@ -151,14 +151,9 @@ func realMain(ctx context.Context) error {
 		"log/level": service.NewLogLevelStatusPage(),
 	}
 	routingTable := &dataplane.AtomicRoutingTable{}
-	rpcClientConfig := happy.Config{}
-
-	switch globalCfg.API.RpcClientProtocol {
-	case "all":
-	case "grpc":
-		rpcClientConfig.NoPreferred = true // Disable our preferred option, connect.
-	case "connect":
-		rpcClientConfig.NoFallback = true // Disable our fallback option, grpc.
+	rpcClientConfig := happy.Config{
+		NoPreferred: globalCfg.RPC.ConnectrpcServerDisabled,
+		NoFallback:  globalCfg.RPC.GrpcServerDisabled,
 	}
 
 	gw := &gateway.Gateway{

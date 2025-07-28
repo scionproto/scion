@@ -154,6 +154,16 @@ considers the following options.
       Address at which to expose the :ref:`control-rest-api`,
       in the form ``host:port``, ``ip:port`` or ``:port``.
 
+.. object:: rpc
+
+   .. option:: rpc.client_protocol = "grpc"|"connectrpc"|"all" (Default = "all")
+
+      The rpc protocols that should be attempted when invoking another :program:`control` service.
+
+   .. option:: rpc.server_protocol = "grpc"|"connectrpc"|"all" (Default = "all")
+
+      The rpc protocols that should be supported by the :program:`control` service.
+
 .. object:: tracing
 
    Tracing with `OpenTracing <https://opentracing.io/>`_ / `Jaeger <https://www.jaegertracing.io/>`_.

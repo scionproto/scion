@@ -168,8 +168,9 @@ class SIGGenerator(object):
             },
             'api': {
                 'addr': '0.0.0.0:%s' % (SIG_PROM_PORT+700),
-                'rpc_client_protocol': self.args.rpc_client_protocol,
-                'rpc_server_protocol': self.args.rpc_server_protocol,
+            },
+            'rpc': {
+                'client_protocol': self.args.rpc_client_protocol,
             },
             'features': translate_features(self.args.features),
         }
