@@ -117,7 +117,7 @@ The current members of the TC Implementation are:
 .. rubric:: Responsibilities and Tasks
 
 The TC Implementation has the following main responsibilities, as defined in its
-`charter <https://www.scion.org/assets/docs/SCION-Association-Charter-TC-Implementation.pdf>`_:
+`charter <https://www.scion.org/wp-content/uploads/2024/07/SCION-Association-Charter-TC-Implementation.pdf>`_:
 
 * Coordination with the Association Board and other bodies of the SCION
   Association. In particular, coordinate with the TC Standardisation to
