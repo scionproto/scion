@@ -24,9 +24,9 @@
             },
             "redoc@~2.5.0": {
                 "dependencies": {
-                    "call-me-maybe": ">=1.0.2",
+                    "call-me-maybe": "1.0.2",
                     "yaml": ">=2.2.2",
-                    "fast-safe-stringify": ">=2.1.1"
+                    "fast-safe-stringify": "2.1.1"
                 }
             }
         }
