@@ -1306,7 +1306,7 @@
         "bzlTransitiveDigest": "ynEctVXvD5j3EVd/ITbHx2D6CkTijK64au5zmriT7cg=",
         "usagesDigest": "xr+U7navw2+SHogogmHRboKLbXAnkZfsctPQuyjmArw=",
         "recordedFileInputs": {
-          "@@//doc/requirements.txt": "76028466c185c5f8bd40c59bcb03d97d9586456ba2aabee82bbebc2c459c7143",
+          "@@//doc/requirements.txt": "65bf926eb88a381b9a2f1007f44d2e32dddcc978dc0d4d33b41db6cd277a3435",
           "@@//tools/env/pip3/requirements.txt": "92aa5b99f8051e7e2528f5ff44bb2cb263e3da1682de73908e07e173c2a417ac",
           "@@//tools/lint/python/requirements.txt": "c6eb43e931b4200ae71e62fc65bc78d72224495a1648dbc0a565f09571724bd8",
           "@@rules_fuzzing+//fuzzing/requirements.txt": "ab04664be026b632a0d2a2446c4f65982b7654f5b6851d2f9d399a19b7242a5b",
@@ -4030,7 +4030,7 @@
               "dep_template": "@scion_python_doc_deps//{name}:{target}",
               "python_interpreter_target": "@@rules_python++python+python_3_12_host//:python",
               "repo": "scion_python_doc_deps_312",
-              "requirement": "requests==2.32.3 --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760 --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"
+              "requirement": "requests==2.32.4 --hash=sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c --hash=sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422"
             }
           },
           "scion_python_doc_deps_312_rpds_py": {
@@ -4228,7 +4228,16 @@
               "dep_template": "@scion_python_doc_deps//{name}:{target}",
               "python_interpreter_target": "@@rules_python++python+python_3_12_host//:python",
               "repo": "scion_python_doc_deps_312",
-              "requirement": "starlette==0.40.0 --hash=sha256:1a3139688fb298ce5e2d661d37046a66ad996ce94be4d4983be019a23a04ea35 --hash=sha256:c494a22fae73805376ea6bf88439783ecfba9aac88a43911b48c653437e784c4"
+              "requirement": "starlette==0.47.2 --hash=sha256:6ae9aa5db235e4846decc1e7b79c4f346adf41e9777aebeb49dfd09bbd7023d8 --hash=sha256:c5847e96134e5c5371ee9fac6fdf1a67336d5815e09eb2a01fdb57a351ef915b"
+            }
+          },
+          "scion_python_doc_deps_312_typing_extensions": {
+            "repoRuleId": "@@rules_python+//python/private/pypi:whl_library.bzl%whl_library",
+            "attributes": {
+              "dep_template": "@scion_python_doc_deps//{name}:{target}",
+              "python_interpreter_target": "@@rules_python++python+python_3_12_host//:python",
+              "repo": "scion_python_doc_deps_312",
+              "requirement": "typing-extensions==4.14.1 --hash=sha256:38b39f4aeeab64884ce9f74c94263ef78f3c22467c8724005483154c26648d36 --hash=sha256:d1e1e3b58374dc93031d6eda2420a48ea44a36c2b4766a4fdeb3710755731d76"
             }
           },
           "scion_python_doc_deps_312_urllib3": {
@@ -4237,7 +4246,7 @@
               "dep_template": "@scion_python_doc_deps//{name}:{target}",
               "python_interpreter_target": "@@rules_python++python+python_3_12_host//:python",
               "repo": "scion_python_doc_deps_312",
-              "requirement": "urllib3==2.4.0 --hash=sha256:414bc6535b787febd7567804cc015fee39daab8ad86268f1310a9250697de466 --hash=sha256:4e16665048960a0900c702d4a66415956a584919c03361cac9f1df5c5dd7e813"
+              "requirement": "urllib3==2.5.0 --hash=sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760 --hash=sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc"
             }
           },
           "scion_python_doc_deps_312_uvicorn": {
@@ -4467,6 +4476,7 @@
                 "sphinxcontrib_qthelp": "{\"scion_python_doc_deps_312_sphinxcontrib_qthelp\":[{\"version\":\"3.12\"}]}",
                 "sphinxcontrib_serializinghtml": "{\"scion_python_doc_deps_312_sphinxcontrib_serializinghtml\":[{\"version\":\"3.12\"}]}",
                 "starlette": "{\"scion_python_doc_deps_312_starlette\":[{\"version\":\"3.12\"}]}",
+                "typing_extensions": "{\"scion_python_doc_deps_312_typing_extensions\":[{\"version\":\"3.12\"}]}",
                 "urllib3": "{\"scion_python_doc_deps_312_urllib3\":[{\"version\":\"3.12\"}]}",
                 "uvicorn": "{\"scion_python_doc_deps_312_uvicorn\":[{\"version\":\"3.12\"}]}",
                 "watchfiles": "{\"scion_python_doc_deps_312_watchfiles\":[{\"version\":\"3.12\"}]}",
@@ -4523,6 +4533,7 @@
                 "sphinxcontrib_qthelp",
                 "sphinxcontrib_serializinghtml",
                 "starlette",
+                "typing_extensions",
                 "urllib3",
                 "uvicorn",
                 "watchfiles",
