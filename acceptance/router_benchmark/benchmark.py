@@ -32,7 +32,6 @@ from plumbum import local
 from plumbum.cmd import docker
 from plumbum.machines import LocalCommand
 
-from random import randint
 from urllib.request import urlopen
 
 logger = logging.getLogger(__name__)
