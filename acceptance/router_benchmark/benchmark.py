@@ -170,15 +170,16 @@ class RouterBMTool(cli.Application, RouterBM):
             if i.name == host_intf:
                 break
         else:
-            # We allow for mackets as large as they get, but we do not need a very deep queue.
+            # We allow for packets as large as they get.
             sudo("ip", "link", "set", host_intf, "mtu", "9000")
 
-            # Do not assign the host addresses but create one link-local addr.
-            # Brload needs some src IP to send arp requests. (This requires rp_filter
-            # to be off on the router side, else, brload's arp requests are discarded).
-            sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
-                 "broadcast", "169.254.255.255",
-                 "dev", host_intf, "scope", "link")
+            # Do not assign the host addresses but some other addr in the same subnet.
+            # This is because brload needs some src IP to send arp requests but we do not want the
+            # linux kernel to handle our incoming packets and respond with icmp errors.
+            net = ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False)
+            hostAddr = next(net.hosts()) + 125
+            sudo("ip", "addr", "add", f"{hostAddr}/{req.prefix_len}",
+                 "broadcast", str(net.broadcast_address), "dev", host_intf)
             sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
             self.to_flush.append(host_intf)
 
@@ -307,10 +308,11 @@ class RouterBMTool(cli.Application, RouterBM):
         print(f"""
 INSTRUCTIONS:
 
-1 - Configure your subject router according to "acceptance/router_benchmark/conf/*.yml".
-    If using openwrt, an easy way to do that is to install the bmtools.ipk package. In addition,
-    bmtools includes two microbenchmarks: scion-coremark and scion-mmbm. Those will run
-    automatically and the results will be used to improve the benchmark report.
+1 - Configure your subject router according to "acceptance/router_benchmark/conf/*" (copy everything
+    to /etc/scion of the router). If using openwrt, an easy way to do that is to install
+    the bmtools.ipk package. In addition, bmtools includes two microbenchmarks: scion-coremark and
+    scion-mmbm. Those will run automatically and the results will be used to improve the benchmark
+    report.
 
     Optional: If you did not install bmtools.ipk, install and run those microbenchmarks and make a
     note of the results: (scion-coremark; scion-mmbm).
