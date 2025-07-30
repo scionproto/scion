@@ -73,14 +73,16 @@ var (
 		"out_transit": cases.OutTransit,
 		"br_transit":  cases.BrTransit,
 	}
-	logConsole   string
-	dir          string
-	testDuration time.Duration
-	numPackets   int
-	packetSize   int
-	numStreams   uint16
-	caseToRun    caseChoice
-	interfaces   []string
+	logConsole          string
+	dir                 string
+	testDuration        time.Duration
+	numPackets          int
+	packetSize          int
+	numStreams          uint16
+	caseToRun           caseChoice
+	interfaces          []string
+	internAddrOverrides []string
+	publicAddrOverrides []string
 )
 
 func main() {
@@ -115,6 +117,13 @@ func main() {
 		`label=<host_interface>[,<MACaddr>] where <host_interface> is the host device that matches
  the <label> requirement from --show-interfaces and <MACaddr> is the local address to assume for it.
  <MACaddr> defaults to the real address assigned to the device`)
+	runCmd.Flags().StringArrayVar(&internAddrOverrides, "internAddrOverride", []string{},
+		`<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of one router
+of that AS, and <IP addr> is the IP address assigned to the internal interface of that
+router`)
+	runCmd.Flags().StringArrayVar(&publicAddrOverrides, "publicAddrOverride", []string{},
+		`<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers,
+and <IP addr> is the IP address assigned on the side of localAS`)
 	runCmd.MarkFlagRequired("case")
 	runCmd.MarkFlagRequired("interface")
 
@@ -190,6 +199,9 @@ func run(cmd *cobra.Command) int {
 		log.Error("Loading keys failed", "err", err)
 		return 1
 	}
+
+	cases.InitIntIPoverrides(internAddrOverrides)
+	cases.InitPubIPoverrides(publicAddrOverrides)
 
 	interfaceNames := cases.InitInterfaces(interfaces)
 	handles, err := openDevices(interfaceNames)
