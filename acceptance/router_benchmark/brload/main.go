@@ -117,15 +117,23 @@ func main() {
 		`label=<host_interface>[,<MACaddr>] where <host_interface> is the host device that matches
  the <label> requirement from --show-interfaces and <MACaddr> is the local address to assume for it.
  <MACaddr> defaults to the real address assigned to the device`)
-	runCmd.Flags().StringArrayVar(&internAddrOverrides, "internAddrOverride", []string{},
+	runCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override", []string{},
 		`<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of one router
 of that AS, and <IP addr> is the IP address assigned to the internal interface of that
 router`)
-	runCmd.Flags().StringArrayVar(&publicAddrOverrides, "publicAddrOverride", []string{},
+	runCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override", []string{},
 		`<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers,
 and <IP addr> is the IP address assigned on the side of localAS`)
 	runCmd.MarkFlagRequired("case")
 	runCmd.MarkFlagRequired("interface")
+
+	intfCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override", []string{},
+		`<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of one router
+of that AS, and <IP addr> is the IP address assigned to the internal interface of that
+router`)
+	intfCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override", []string{},
+		`<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers,
+and <IP addr> is the IP address assigned on the side of localAS`)
 
 	rootCmd.AddCommand(intfCmd)
 	rootCmd.AddCommand(runCmd)
@@ -138,6 +146,11 @@ and <IP addr> is the IP address assigned on the side of localAS`)
 }
 
 func showInterfaces(cmd *cobra.Command) int {
+	// Process overrides if any, and create the interfaces map
+	cases.InitIntIPoverrides(internAddrOverrides)
+	cases.InitPubIPoverrides(publicAddrOverrides)
+	cases.InitIntfMap()
+
 	fmt.Println(cases.ListInterfaces())
 	return 0
 }
@@ -200,8 +213,10 @@ func run(cmd *cobra.Command) int {
 		return 1
 	}
 
+	// Process overrides if any, and create the interfaces map
 	cases.InitIntIPoverrides(internAddrOverrides)
 	cases.InitPubIPoverrides(publicAddrOverrides)
+	cases.InitIntfMap()
 
 	interfaceNames := cases.InitInterfaces(interfaces)
 	handles, err := openDevices(interfaceNames)

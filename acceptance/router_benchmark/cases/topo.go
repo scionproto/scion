@@ -162,11 +162,7 @@ func interfaceLabel(AS int, intf int) string {
 
 var (
 	// intfMap lists the required interfaces. That's what we use to respond to showInterfaces
-	intfMap map[string]intfDesc = map[string]intfDesc{
-		interfaceLabel(1, 0): {InternalIP(1, 1), InternalIP(1, 2), true},
-		interfaceLabel(1, 2): {PublicIP(1, 2), PublicIP(2, 1), false},
-		interfaceLabel(1, 3): {PublicIP(1, 3), PublicIP(3, 1), false},
-	}
+	intfMap map[string]intfDesc = map[string]intfDesc{}
 
 	// deviceNames holds the real (os-given) names of our required network interfaces. It is
 	// created and populated from the values of the --interface options by InitInterfaces.
@@ -205,7 +201,14 @@ func InitPubIPoverrides(pairs []string) {
 			panic(err)
 		}
 		remoteAS, err := strconv.Atoi(ASes[1])
+		if err != nil {
+			panic(err)
+		}
+		if pubIPoverrides[localAS] == nil {
+			pubIPoverrides[localAS] = make(map[int]netip.Addr)
+		}
 		pubIPoverrides[localAS][remoteAS] = IP
+		fmt.Printf("pubIpOverride: localAS %d remoteAS %d IP %s\n", localAS, remoteAS, IP.String())
 		if err != nil {
 			panic(err)
 		}
@@ -229,10 +232,25 @@ func InitIntIPoverrides(pairs []string) {
 			panic(err)
 		}
 		routerNb, err := strconv.Atoi(ASrouter[1])
+		if err != nil {
+			panic(err)
+		}
+		if intIPoverrides[AS] == nil {
+			intIPoverrides[AS] = make(map[int]netip.Addr)
+		}
+		fmt.Printf("intIpOverride: AS %d router %d IP %s\n", AS, routerNb, IP.String())
 		intIPoverrides[AS][routerNb] = IP
 		if err != nil {
 			panic(err)
 		}
+	}
+}
+
+func InitIntfMap() {
+	intfMap = map[string]intfDesc{
+		interfaceLabel(1, 0): {InternalIP(1, 1), InternalIP(1, 2), true},
+		interfaceLabel(1, 2): {PublicIP(1, 2), PublicIP(2, 1), false},
+		interfaceLabel(1, 3): {PublicIP(1, 3), PublicIP(3, 1), false},
 	}
 }
 
