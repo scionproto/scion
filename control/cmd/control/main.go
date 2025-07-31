@@ -957,22 +957,8 @@ func realMain(ctx context.Context) error {
 			},
 			RpcConfig: rpcClientConfig,
 		},
-		SegmentRegister: &beaconinghappy.Registrar{
-			Connect: beaconingconnect.Registrar{
-				Dialer: (&squic.EarlyDialerFactory{
-					Transport: quicStack.InsecureDialer.Transport,
-					TLSConfig: func() *tls.Config {
-						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
-						cfg.NextProtos = []string{"h3", "SCION"}
-						return cfg
-					}(),
-					Rewriter: dialer.Rewriter,
-				}).NewDialer,
-			},
-			Grpc:      beaconinggrpc.Registrar{Dialer: dialer},
-			RpcConfig: rpcClientConfig,
-		},
-		BeaconStore: beaconStore,
+		SegmentRegister: rpc,
+		BeaconStore:     beaconStore,
 		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) ([]beaconing.Signer, error) {
 			signers, err := signer.SignerGen.Generate(ctx)
 			if err != nil {
