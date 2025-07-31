@@ -120,7 +120,7 @@ type (
 		ID           iface.ID       // ID of this interface in the local AS.
 		BRName       string         // of the owning router
 		InternalAddr netip.AddrPort // of the owning router. It must be a udpip address.
-		Provider     string         // Underlay provider name
+		Protocol     string         // Underlay protocol name
 		Local        string         // Underlay addr on owning router side
 		Remote       string         // Underlay addr on far router side
 		RemoteIfID   iface.ID       // ID of this interface for the far router
@@ -319,9 +319,9 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				t.IFInfoMap[ifID] = ifinfo
 				continue
 			}
-			ifinfo.Provider = rawIntf.Underlay.Provider
-			if ifinfo.Provider == "" { // Backward compatible with older configs
-				ifinfo.Provider = "udpip"
+			ifinfo.Protocol = rawIntf.Underlay.Protocol
+			if ifinfo.Protocol == "" { // Backward compatible with older configs
+				ifinfo.Protocol = "udpip"
 			}
 			ifinfo.Local = rawIntf.Underlay.Local
 			ifinfo.Remote = rawIntf.Underlay.Remote
