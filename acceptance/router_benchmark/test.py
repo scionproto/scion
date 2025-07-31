@@ -211,6 +211,8 @@ class RouterBMTest(base.TestBase, RouterBM):
     brload: LocalCommand = None
     brload_cpus: list[int] = [0]
     prom_address: str = "localhost:9999"
+    intern_over_args = []
+    public_over_args = []
 
     ci = cli.Flag(
         "ci",
