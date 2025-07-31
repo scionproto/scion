@@ -21,7 +21,6 @@ import (
 	"net"
 	"net/netip"
 	"sync/atomic"
-	"unsafe"
 
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
@@ -52,6 +51,36 @@ type internalLink struct {
 	dispatchEnd      uint16
 	dispatchRedirect uint16
 	is4              bool
+}
+
+// getRemote returns the ip address and port of the far end of the packet's trip.
+//
+// It is used as follows:
+// * We set it from src address when we ingest a packet: it will be used for any SCMP response.
+// * We set it when the main router code has us resolve the destination (for non-responses).
+// * We use it as destination when finally sending the packet.
+//
+// That address and port are stored at the beginning of the packet buffer so we do not need to
+// allocate. getRemoteAddr returns a slice pointing directly at that storage. It is meant to
+// copied into the outgoing packet header.
+func getRemoteAddr(p *router.Packet, is4 bool) ([]byte, uint16) {
+	if is4 {
+		bh := p.BuffHead(6)
+		return bh[:4], binary.BigEndian.Uint16(bh[4:6])
+	}
+	bh := p.BuffHead(18)
+	return bh[:16], binary.BigEndian.Uint16(bh[16:18])
+}
+
+// setRemote stores the ip address and port of the far end of the packet's trip.
+//
+// That address and port are stored at the beginning of the packet buffer.
+func setRemoteAddr(p *router.Packet, ip []byte, port uint16) {
+	// FWIW: The storage format is identical to that produced by AddrPort.marshalBinary
+	// as long as there's no zone. Just without all the hullabaloo because we never need a netip.
+	bh := p.BuffHead(len(ip) + 2)
+	copy(bh, ip)
+	binary.BigEndian.PutUint16(bh[len(ip):], port)
 }
 
 // This is called during initialization only and does not need the neighbors cache. The header
@@ -119,9 +148,13 @@ func (l *internalLink) packHeader() {
 // in the destination. If the destination is not resolved, this method returns false and the
 // packet is left with an incorrect header. Note that an address resolution is triggered if the
 // destination is not already resolved.
-func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
-	dstIP := dst.Addr()
-
+func (l *internalLink) addHeader(p *router.Packet) bool {
+	dstIPBytes, dstPort := getRemoteAddr(p, l.is4)
+	dstIP, ok := netip.AddrFromSlice(dstIPBytes)
+	if !ok {
+		// This is an internal error: these bytes were stored and validated by us.
+		panic("Broken remote address")
+	}
 	// Resolve the destination MAC address if we can.
 	l.neighbors.Lock()
 	dstMac, backlog := l.neighbors.get(dstIP) // Send ARP/NDP req as needed.
@@ -145,19 +178,19 @@ func (l *internalLink) addHeader(p *router.Packet, dst *netip.AddrPort) bool {
 	// Inject dest.
 	copy(p.RawPacket, dstMac[:])
 	if l.is4 {
-		copy(p.RawPacket[ipv4DstOffset:], dst.Addr().AsSlice()) // Can do cheaper?
-		binary.BigEndian.PutUint16(p.RawPacket[udpv4DstPortOffset:], dst.Port())
+		copy(p.RawPacket[ipv4DstOffset:], dstIPBytes) // Can do cheaper?
+		binary.BigEndian.PutUint16(p.RawPacket[udpv4DstPortOffset:], dstPort)
 	} else {
-		copy(p.RawPacket[ipv6DstOffset:], dst.Addr().AsSlice()) // Can do cheaper?
-		binary.BigEndian.PutUint16(p.RawPacket[udpv6DstPortOffset:], dst.Port())
+		copy(p.RawPacket[ipv6DstOffset:], dstIPBytes) // Can do cheaper?
+		binary.BigEndian.PutUint16(p.RawPacket[udpv6DstPortOffset:], dstPort)
 	}
 	return true
 }
 
 // TODO(jiceatscion): can do cleaner, more legible, faster?
-func (l *internalLink) finishPacket(p *router.Packet, dst *netip.AddrPort) bool {
+func (l *internalLink) finishPacket(p *router.Packet) bool {
 	payloadLen := len(p.RawPacket)
-	if !l.addHeader(p, dst) {
+	if !l.addHeader(p) {
 		return false
 	}
 	if l.is4 {
@@ -304,12 +337,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 		port = l.dispatchRedirect
 	}
 
-	// Packets that get here must have come from an external or a sibling link; neither of which
-	// attach a RemoteAddr to the packet (besides; it could be a different type). So, RemoteAddr is
-	// not generally usable. We must allocate a new object. The precautions needed to pool them cost
-	// more than the pool saves (verified experimentally).
-	addrPort := netip.AddrPortFrom(dstAddr, port)
-	p.RemoteAddr = unsafe.Pointer(&addrPort)
+	setRemoteAddr(p, dstAddr.AsSlice(), port)
 	return nil
 }
 
@@ -332,8 +360,7 @@ func (l *internalLink) sendBacklog(dstAddr netip.Addr) {
 				continue
 			}
 			// The neighbor cache doesn't know the dest port, but the full address is in the packet.
-			dst := (*netip.AddrPort)(p.RemoteAddr)
-			if !l.finishPacket(p, dst) {
+			if !l.finishPacket(p) {
 				// Note that this packet goes back onto the backlog so we will drop it at the end of
 				// the loop. TODO(jiceatscion): need new drop reason.
 				givenup = true
@@ -360,8 +387,7 @@ func (l *internalLink) Send(p *router.Packet) {
 	// instead of just storing the destination in the packet structure. That would save us the
 	// allocation of address but requires some more changes to the dataplane code structure.
 
-	dst := (*netip.AddrPort)(p.RemoteAddr)
-	if !l.finishPacket(p, dst) {
+	if !l.finishPacket(p) {
 		// The packet got put on the backlog (or discarded if the backlog is full).
 		return
 	}
@@ -377,8 +403,7 @@ func (l *internalLink) Send(p *router.Packet) {
 // Only tests actually use this method, but since we have to have it, we might as well implement it
 // ~correctly. Doesn't hurt. TODO(jiceatscion): deal with backlog (or not).
 func (l *internalLink) SendBlocking(p *router.Packet) {
-	// Likewise: p.remoteAddress -> header.
-	if l.finishPacket(p, (*netip.AddrPort)(p.RemoteAddr)) {
+	if l.finishPacket(p) {
 		l.egressQ <- p
 	}
 	// else, backlog'd or discarded => non-blocking after all. Sorry.
@@ -388,7 +413,7 @@ func (l *internalLink) SendBlocking(p *router.Packet) {
 // Because this link is not associated with a specific remote address, the src
 // address of the packet is recorded in the packet structure. This may be used
 // as the destination if SCMP responds.
-func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
+func (l *internalLink) receive(p *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
@@ -402,10 +427,6 @@ func (l *internalLink) receive(srcAddr *netip.AddrPort, p *router.Packet) {
 	}
 
 	p.Link = l
-
-	// This is an unconnected link. We must record the src address in case the packet is turned
-	// around by SCMP.
-	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
 	select {
 	case l.procQs[procID] <- p:

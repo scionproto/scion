@@ -364,7 +364,7 @@ func (l *ptpLink) SendBlocking(p *router.Packet) {
 }
 
 // receive delivers an incoming packet to the appropriate processing queue.
-func (l *ptpLink) receive(_ *netip.AddrPort, p *router.Packet) {
+func (l *ptpLink) receive(p *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()

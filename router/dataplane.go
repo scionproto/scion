@@ -204,7 +204,7 @@ func (p *Packet) reset(headroom int) {
 	// Everything else is reset to zero value.
 }
 
-// WithHeader returns the a slice of the underlying packet buffer that represents the same bytes as
+// WithHeader returns a slice of the underlying packet buffer that represents the same bytes as
 // p.rawPacket[:] plus the n prededing bytes. This slice is meant to be used when receiving a raw
 // packet with an n bytes header, such that the payload is exactly at p.rawPacket[0:]. p.RawPacket
 // is *not* modified. This method panics if n is greater than the available headroom in the packet
@@ -215,6 +215,14 @@ func (p *Packet) WithHeader(n int) []byte {
 
 	// n>start is a panicable offense.
 	return p.buffer[start-n : end]
+}
+
+// BufHead returns a slice of bytes of the requested size borrowed from the head of the packet.
+// buffer. This space can be used safely by an underlay to store data on ingest and retrieve on
+// egress; should the same underlay perform both operations. The data is protected against
+// overwrites provided that n is included in the underlay's headroom requirements.
+func (p *Packet) BuffHead(n int) []byte {
+	return p.buffer[0:n]
 }
 
 // PacketPool allocates and resets packets. There is one packet pool per instance of the dataplane,
@@ -2376,7 +2384,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			}
 		} else {
 			// Serialize in front of the quoted packet. The quoted packet must be included in the
-			// serialize buffer before we pack the SCMP header in from of it. AppendBytes will do
+			// serialize buffer before we pack the SCMP header in front of it. AppendBytes will do
 			// that; it exposes the underlying buffer but doesn't modify it.
 			p.pkt.RawPacket = p.pkt.buffer[0:(quoteLen + headroom)]
 			serBuf = NewSerializeProxyStart(p.pkt.RawPacket, headroom)

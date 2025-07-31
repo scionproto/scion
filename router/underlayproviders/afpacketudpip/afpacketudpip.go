@@ -64,6 +64,10 @@ const (
 	udpv6LenOffset     = udpv6Offset + 4
 	udpv6SumOffset     = udpv6Offset + 6
 	udpv6DstPortOffset = udpv6Offset + 2
+
+	ipv4AddrLen = 4
+	ipv6AddrLen = 16
+	portLen     = 2
 )
 
 var (
@@ -168,7 +172,7 @@ type udpLink interface {
 	router.Link
 	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
-	receive(srcAddr *netip.AddrPort, p *router.Packet)
+	receive(p *router.Packet)
 	handleNeighbor(isReq bool, targetIP, senderIP, rcptIP netip.Addr, remoteHw [6]byte)
 }
 
@@ -223,9 +227,9 @@ func (u *underlay) Headroom() int {
 	// header is v4 or v6 or has options or extensions. We align the packet with the assumtion that
 	// it is v4 with no options. As a result, the payload never starts earlier than planned. This is
 	// needed to ensure that the headroom we leave is never less than the worst case requirement
-	// across all underlays.
-
-	return ethLen + ipv6Len + udpLen
+	// across all underlays. We add the binary representation of src address and src port to our
+	// headroom requirements, so internal links can safely use packet.BuffHead() to store those.
+	return ethLen + ipv6Len + udpLen + ipv6AddrLen + portLen
 }
 
 func (u *underlay) SetDispatchPorts(start, end, redirect uint16) {

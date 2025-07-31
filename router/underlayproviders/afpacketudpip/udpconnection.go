@@ -235,6 +235,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		var ipv6Layer layers.IPv6
 		var udpLayer layers.UDP
 		var srcDst fourTuple
+		var srcIPBytes []byte
 		var validIP bool
 
 		// Since it may be recycled...
@@ -268,6 +269,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 				// WTF?
 				continue
 			}
+			srcIPBytes = ipv4Layer.SrcIP
 			srcDst.dst.ip, validIP = netip.AddrFromSlice(ipv4Layer.DstIP)
 			if !validIP {
 				// WTF?
@@ -284,6 +286,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 				// WTF?
 				continue
 			}
+			srcIPBytes = ipv6Layer.DstIP
 			srcDst.dst.ip, validIP = netip.AddrFromSlice(ipv6Layer.DstIP)
 			if !validIP {
 				// WTF?
@@ -318,16 +321,13 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 		srcDst.src.port = uint16(udpLayer.SrcPort)
 		srcDst.dst.port = uint16(udpLayer.DstPort)
 		if l, found := u.ptpLinks[srcDst]; found {
-			l.receive(nil, p)
+			l.receive(p)
 			p = pool.Get() // we need a fresh packet buffer now.
 			continue
 		}
 		if l, found := u.intLinks[srcDst.dst]; found {
-			// TODO(jiceatscion): it is very unfortunate that we end-up allocating a copy of the src
-			// addr even in this implementation. Instead of using a netip.AddrPort, we could point
-			// directly at some space in the packet buffer.
-			srcAddr := netip.AddrPortFrom(srcDst.src.ip, srcDst.src.port) // Escapes.
-			l.receive(&srcAddr, p)
+			setRemoteAddr(p, srcIPBytes, srcDst.src.port)
+			l.receive(p)
 			p = pool.Get() // we need a fresh packet buffer now.
 			continue
 		}
