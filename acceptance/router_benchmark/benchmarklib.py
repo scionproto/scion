@@ -166,6 +166,8 @@ class RouterBM():
             "run",
             "--artifacts", self.artifacts,
             *map_args,
+            *self.intern_over_args,
+            *self.public_over_args,
             "--case", case,
             "--duration", f"{duration}s",
             "--num-streams", "840",

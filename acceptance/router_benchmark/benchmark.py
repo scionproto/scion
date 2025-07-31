@@ -123,7 +123,13 @@ class RouterBMTool(cli.Application, RouterBM):
 
         If excl is true, we pick one and never pick that one again.
         Else, we pick one the first time it's needed and keep it for reuse.
+
+        If skip_ifconfig is true, we forego multiplexing as it is likely not how things
+        have been configured. We assume one interface per address.
         """
+        if self.skip_ifconfig:
+            return self.avail_interfaces.pop()
+
         if excl:
             return self.avail_interfaces.pop()
 
@@ -177,13 +183,13 @@ class RouterBMTool(cli.Application, RouterBM):
             if i.name == host_intf:
                 break
         else:
-            # We allow for packets as large as they get.
-            sudo("ip", "link", "set", host_intf, "mtu", "9000")
-
             # Do not assign the host addresses but some other addr in the same subnet.
             # This is because brload needs some src IP to send arp requests but we do not want the
             # linux kernel to handle our incoming packets and respond with icmp errors.
             if not self.skip_ifconfig:
+                # We allow for packets as large as they get.
+                sudo("ip", "link", "set", host_intf, "mtu", "9000")
+
                 net = ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False)
                 hostAddr = next(net.hosts()) + 125
                 sudo("ip", "addr", "add", f"{hostAddr}/{req.prefix_len}",
