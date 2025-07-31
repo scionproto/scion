@@ -922,7 +922,8 @@ func realMain(ctx context.Context) error {
 				Rewriter: dialer.Rewriter,
 			}).NewDialer,
 		},
-		Grpc: beaconinggrpc.Registrar{Dialer: dialer},
+		Grpc:      beaconinggrpc.Registrar{Dialer: dialer},
+		RpcConfig: rpcClientConfig,
 	}
 	tc := cs.TasksConfig{
 		IA:            topo.IA(),
