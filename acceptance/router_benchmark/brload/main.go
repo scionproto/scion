@@ -249,6 +249,11 @@ func run(cmd *cobra.Command) int {
 	packetChan := packetSource.Packets()
 	listenerChan := make(chan int)
 
+	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
+	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
+	// we don't need to update it.
+	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
+
 	// Measure the rtt with one packet.
 	rtt, err := rttCheck(writePktTo, packetChan, rawPkt, payload)
 	if err == nil {
@@ -262,11 +267,6 @@ func run(cmd *cobra.Command) int {
 		defer close(listenerChan)
 		listenerChan <- receivePackets(packetChan, payload)
 	}()
-
-	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
-	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
-	// we don't need to update it.
-	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
 
 	// Prepare a batch worth of packets.
 	batchSize := int(64)
