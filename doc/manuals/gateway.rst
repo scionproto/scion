@@ -7,7 +7,6 @@ Nomenclature
 
 .. include:: ./gateway/nomenclature.rst
 
-
 Port table
 ==========
 
@@ -32,3 +31,15 @@ Network prefix pinning
 ======================
 
 .. include:: ./gateway/prefix-pinning.rst
+
+Configuration
+=============
+
+In addition to the :ref:`common .toml configuration options <common-conf-toml>`, the gateway service
+considers the following options.
+
+.. object:: rpc
+
+   .. option:: rpc.client_protocol = "grpc"|"connectrpc"|"all" (Default = "all")
+
+      The rpc protocols that should be attempted when invoking the :program:`control` service.

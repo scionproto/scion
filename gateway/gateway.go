@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/gateway/xnet"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/connect"
+	"github.com/scionproto/scion/pkg/connect/happy"
 	"github.com/scionproto/scion/pkg/daemon"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
@@ -196,6 +197,9 @@ type Gateway struct {
 
 	// Metrics are the metrics exported by the gateway.
 	Metrics *Metrics
+
+	// happy eyeballs config
+	RpcConfig happy.Config
 }
 
 func (g *Gateway) Run(ctx context.Context) error {
@@ -523,6 +527,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 				TLSConfig: connect.AdaptClientTLS(quicClientDialer.TLSConfig),
 				Rewriter:  grpcDialer.Rewriter,
 			}).NewDialer,
+			RpcConfig: g.RpcConfig,
 		},
 	}
 
