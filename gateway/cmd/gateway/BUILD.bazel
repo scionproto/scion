@@ -11,7 +11,6 @@ go_library(
         "//gateway/config:go_default_library",
         "//gateway/dataplane:go_default_library",
         "//gateway/mgmtapi:go_default_library",
-        "//pkg/connect/happy:go_default_library",
         "//pkg/daemon:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
