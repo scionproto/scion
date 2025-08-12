@@ -38,6 +38,7 @@ go_library(
         "//pkg/snet/metrics:go_default_library",
         "//pkg/snet/squic:go_default_library",
         "//private/app/appnet:go_default_library",
+        "//private/env:go_default_library",
         "//private/periodic:go_default_library",
         "//private/service:go_default_library",
         "//private/svc:go_default_library",

@@ -43,3 +43,7 @@ considers the following options.
    .. option:: rpc.client_protocol = "grpc"|"connectrpc"|"all" (Default = "all")
 
       The rpc protocols that should be attempted when invoking the :program:`control` service.
+
+   .. option:: rpc.server_protocol = "grpc"|"connectrpc"|"all" (Default = "all")
+
+      The rpc protocols that should be supported by the :program:`gateway` service.

@@ -126,8 +126,8 @@ class GoGenerator(object):
             },
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),
-            'features': translate_features(self.args.features),
             'api': self._api_entry(infra_elem, CS_PROM_PORT+700),
+            'features': translate_features(self.args.features),
             'rpc': {
                 'client_protocol': self.args.rpc_client_protocol,
                 'server_protocol': self.args.rpc_server_protocol,

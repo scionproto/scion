@@ -171,6 +171,7 @@ class SIGGenerator(object):
             },
             'rpc': {
                 'client_protocol': self.args.rpc_client_protocol,
+                'server_protocol': self.args.rpc_server_protocol,
             },
             'features': translate_features(self.args.features),
         }
