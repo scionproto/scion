@@ -383,7 +383,6 @@ func realMain(ctx context.Context) error {
 	connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
 		MaterialServer: trustServer,
 	}))
-
 	connectIntra.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
 		MaterialServer: trustServer,
 	}))
@@ -434,7 +433,6 @@ func realMain(ctx context.Context) error {
 	}
 
 	// Always register a forwarding lookup for AS internal requests.
-
 	connectIntra.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{
 		LookupServer: forwardingLookupServer,
 	}))
@@ -766,7 +764,6 @@ func realMain(ctx context.Context) error {
 
 	var cleanup app.Cleanup
 	grpcConns := make(chan *quic.Conn)
-
 	//nolint:contextcheck // false positive.
 	g.Go(func() error {
 		defer log.HandlePanic()
