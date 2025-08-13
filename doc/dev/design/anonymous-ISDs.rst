@@ -55,8 +55,11 @@ Terminology
   beaconing but (usually) do not participate in the normal ISDs' core routing
 - BR - Border router
 - CS - Control service
-- S-AS - A secret AS. S-ASes are part of an P-ISD but not visible from
-  outside their P-ISD. S-ASes cannot have a parent AS outside the P-ISD.
+- Private AS - A Private AS is part of an P-ISD but not visible from
+  outside their P-ISD. Private-ASes cannot have a parent AS outside the P-ISD.
+  Every P-ISD must have at least one non-private (public) AS in order to
+  have a connection to the outside.
+- Private Links - A Private Link is a link that is only visible inside a P-ISD.
 
 
 Proposal
@@ -90,8 +93,8 @@ However, there are some differences:
   an external ISD number.
 
 Note: An P-ISD can contain ASes (including P-COREs) and links that are not
-visible outside of the P-ISD. These are called "secret", see discussion below.
-
+visible outside of the P-ISD. These are called "private",
+see also `Private Links and Private ASes`_.
 
 Example: Simple P-ISD
 ^^^^^^^^^^^^^^^^^^^^^
@@ -152,7 +155,6 @@ See also `Nested P-ISDs and Hierarchies`_.
 
 Enddost: Sending Traffic
 ------------------------
-
 Endhosts need to be able to know all P-ISDs that the local AS AS is part of,
 at least if it wants to use a "private" connection (i.e. inside a given P-ISD).
 
@@ -181,10 +183,9 @@ To verify incoming paths, similar to border routers, endhosts can get the
 
 Nested P-ISDs and Hierarchies
 -----------------------------
-
 P-ISDs can be nested. The current proposal is that P-ISDs must form a
 "strict" hierarchy: Every P-ISD must be fully enclosed in its parent P-ISD.
-However, private ASes (P-ASes) and private links which do not need to be visible to
+However, private ASes and private links which do not need to be visible to
 the parent P-ISD. In other words, any non-private AS that is part of an P-ISD must
 also be part of its parent P-ISDs and any parents thereof.
 
@@ -220,26 +221,26 @@ then it must restrict returned segments to those of the "lowest/innermost A-ISD"
 This is to ensure that traffic doesn't unnecessarily leave an A-ISD.
 
 
-Secret Links and Secret ASes
+Private Links and Private ASes
 ------------------------------
 P-ISD allow to hide links and ASes from the rest of the ISD.
-These are called secret links (S-Links) and secret ASes (S-AS).
+These are called "private links" and "private ASes".
 
 Hiding these is achieved by simply excluding them from any PCBs that come from
 outside the P-ISD.
-Every S-AS needs an AS number. Unfortunately, this needs to be globally unique,
+Every private AS needs an AS number. Unfortunately, this needs to be globally unique,
 so the parent ISD can see that the AS exists. However, to hide its identity,
 the AS can use the ISD code of a different ISD. There could even be a dedicated
-ISD code for private ASed.
+ISD code for private ASes.
+**TODO** What??? Why globally unique? Why should the parent ISD see that he AS exists?
 
-.. image:: fig/anonymous_isd/5-hidden-AS-and-links.png
+.. image:: fig/anonymous_isd/5-private-AS-and-links.png
 
-**TODO open question: Can we have hidden A-COREs? Why would we need that?**
 Hidden A-COREs require ASes to have multiple parents.
 Specifically, any non-hidden AS needs a non-hidden CORE that is visible from
 the outside.
 
-Is it possible yto have multiple parents?
+Is it possible to have multiple parents?
 This relates to the question if an P-ISD must have at least one P-CORE in every
 ISD. To avoid this we could simply require an ASes' CS to forward segment
 queries selectively: destination outside P-ISD -> ask parent; otherwise
@@ -270,7 +271,7 @@ Advantages
   They can probably replace current peering links.
 
 - Privacy: An A-ISD can contain any number of ASes and link that are not visible
-  outside the A-ISD (private ASes -> P-ASes).
+  outside the A-ISD (private ASes).
 - A-ISDs can be nested.
 
 - An AS can join an A-ISD without having to worry about a 2nd AS identifier.
