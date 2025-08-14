@@ -42,8 +42,7 @@ class Test(base.TestTopogen):
         super().setup_prepare()
 
         no_transit_isd_number = "3"
-#         no_transit_as_numbers = ["310", "311"]
-        no_transit_as_numbers = ["310"]
+        no_transit_as_numbers = ["310", "311"]
 
         for as_number in no_transit_as_numbers:
             as_number_string = "ff00_0_%s" % as_number
@@ -55,8 +54,9 @@ class Test(base.TestTopogen):
                 / ("cs%s-%s-1.toml" % (no_transit_isd_number, as_number_string))
             )
             policy_path = as_absolute_dir_path / "policy.yaml"
+
             scion.update_toml(
-                {"beaconing.policies.propagation": "gen/%s/policy.yaml" % as_relative_dir_path},
+                {"beaconing.policies.propagation": "/etc/scion/policy.yaml"},
                 [cs_toml_path])
 
             scion.write_file("""Filter:
@@ -70,16 +70,15 @@ class Test(base.TestTopogen):
         # TODO: re-check await_connectivity
         time.sleep(15)
 
-        # TODO: re-check
         # Traffic originating or ending in ISD 3 is allowed.
-#         self._assert_bidirectional_path("310", "410")
-#         self._assert_bidirectional_path("311", "410")
-#         self._assert_bidirectional_path("310", "411")
-#         self._assert_bidirectional_path("311", "411")
-#         self._assert_bidirectional_path("310", "210")
-#         self._assert_bidirectional_path("311", "123")
-#         self._assert_bidirectional_path("310", "510")
-#         self._assert_bidirectional_path("311", "111")
+        self._assert_bidirectional_path("310", "410")
+        self._assert_bidirectional_path("311", "410")
+        self._assert_bidirectional_path("310", "411")
+        self._assert_bidirectional_path("311", "411")
+        self._assert_bidirectional_path("310", "210")
+        self._assert_bidirectional_path("311", "123")
+        self._assert_bidirectional_path("310", "510")
+        self._assert_bidirectional_path("311", "111")
 
         # Transit traffic via ISD 3 is not allowed.
         self._assert_no_path_in_both_directions("410", "210")
