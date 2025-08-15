@@ -46,7 +46,6 @@ without requiring an features 1. or 2. (ISD number or a CORE AS).
 
 Background
 ==========
-[Introduction of the topic, description of the problem being solved.]
 
 Terminology
 -----------
@@ -64,7 +63,6 @@ Terminology
 
 Proposal
 ========
-[A precise statement of the proposed change.]
 
 Building an A-ISD
 -----------------
@@ -155,10 +153,11 @@ ASes to make that decision.
 
 In addition it would be useful to have an request argument where the endhost can
 specify their preference regarding from which (P-ISD) the returned segments should be:
+
 - No preference specified (default): CS delivers segments from best fitting
   (P-)ISD (there could be several).
-- Preference list of (P-)ISDs: CS delivers segments form all listed (P-)ISDs
-- Preference "ALL": CS delivers segements from all known (P-)ISDs
+- Preference list of (P-)ISDs: CS delivers segments form all listed (P-)ISDs.
+- Preference "ALL": CS delivers segements from all known (P-)ISDs.
 
 See also `Nested P-ISDs and Hierarchies`_.
 
@@ -235,7 +234,6 @@ different ISD. There could even be a dedicated ISD code for private ASes.
 
 Rationale
 =========
-[A discussion of alternate approaches and the trade-offs, advantages, and disadvantages of the specified approach.]
 
 Advantages and Disadvantages
 ----------------------------
@@ -374,7 +372,6 @@ However, this does not emphasize the privacy aspect.
 
 Implementation
 ==============
-[A description of the steps in the implementation, which components need to be changed and in which order.]
 
 1. Control service administration:
 
