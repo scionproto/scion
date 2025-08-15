@@ -25,6 +25,8 @@ This protocol is designed to:
 - provide fast detection of packet loss and subsequent recovery of decapsulation for packets that weren't lost.
 - support for multiple streams within a framing session such that independent packet sequences be tunneled in parallel.
 
+SIGs map IP prefixes to SCION ASes using SGRP.
+
 
 SIG Framing Protocol
 ====================
@@ -122,7 +124,7 @@ Following example shows three IP packets packed into three SIG frames::
 SCION Gateway Routing Protocol (SGRP)
 =====================================
 
-The SCION Gateway Routing Protocol (SGRP) is enables IP-in-SCION tunneling endpoints to map IP prefixes to SCION ASes.
+The SCION Gateway Routing Protocol (SGRP) enables IP-in-SCION tunneling endpoints (should this be SIGs?) to map IP prefixes to SCION ASes.
 
 A tunneling endpoint participating in SGRP between two SCION ASes does the following:
 
@@ -133,3 +135,11 @@ A tunneling endpoint participating in SGRP between two SCION ASes does the follo
 3. When queried by a remote tunneling endpoint, the local tunneling endpoint replies with the set of IP prefixes it wants to announce. 
 
 The set of announced IP prefixes can either be statically configured or can be dynamically learned via BGP.
+
+SGRP Messages
+-------------
+
+https://github.com/scionproto/scion/blob/master/proto/gateway/v1/prefix.proto
+
+Server - https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_server.go
+Client - https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_fetcher.go
