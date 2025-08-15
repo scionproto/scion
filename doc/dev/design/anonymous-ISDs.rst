@@ -110,9 +110,11 @@ provide a TRC and perform beaconing for inside the P-ISD.
 Example: An P-ISD spread over two ISDs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The following diagram shows an P-ISD that has ASes in multiple ISDs.
 
-.. image:: fig/private_isd/2-2-ISD-1-P-CORE.png
+.. figure:: fig/private_isd/2-2-ISD-1-P-CORE.png
+
+   Figure 2: A P-ISD that has ASes in multiple ISDs.
+
 
 Something to consider: If an AS in an P-ISD requests a segment that cannot be resolved locally,
 it will forward the request to a CORE AS, but which CORE AS?
