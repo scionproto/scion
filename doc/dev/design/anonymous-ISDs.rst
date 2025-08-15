@@ -16,7 +16,7 @@ Other references:
 Abstract
 ========
 *TL;DR This proposal aims to resolve scaling issues with large numbers
-of ISD and core ASes. As a side effect it introducees new privacy
+of ISD and core ASes. As a side effect it introduces new privacy
 features, censorship protection, and (maybe) removes the need for
 inter-ISD peering links.*
 
@@ -33,9 +33,9 @@ Features (1.) and (2.) cause several issues:
   modification of the dataplane, i.e. the SCION header.
 * Every ISD has at least one CORE AS. A global network with 65000 core ASes
   would break down. We should aim to have at most a few 1000 CORE ASes.
-* Having a CORE ASes in the global core routing network is undesirable for
-  many non-backbone ISDs because they are not interested in transit traffic
-  and need ways to avoid it.
+* Many entities may want to control their own ISD but do not want to participate
+  in the global core routing network because they are not interested in transit
+  traffic and need ways to avoid it.
 
 However, it seems like that many entities that are interested in setting up an ISD
 are only interested in the features (3.) and (4.).
@@ -161,7 +161,7 @@ specify their preference regarding from which (P-ISD) the returned segments shou
 
 See also `Nested P-ISDs and Hierarchies`_.
 
-Enddost: Sending Traffic
+Endhost: Sending Traffic
 ------------------------
 Endhosts need to be able to know all P-ISDs that the local AS AS is part of,
 at least if it wants to use a "private" connection (i.e. inside a given P-ISD).
@@ -285,7 +285,7 @@ inner P-ISD is fully eclosed in exactly one parent P-ISD.
 In such a hierarchy, for any given two ASes (source + destination), we can
 find exactly one P-ISD that is the "innermost" (smallest) P-ISD that
 contains both ASes.
-By default, path servives always return segments that lie in this innermost
+By default, path services always return segments that lie in this innermost
 P-ISD.
 
 This way, the two source and destination ASes determine P-ISD whose TRC was
@@ -342,7 +342,7 @@ structural change. This change is fully backwards compatible.
 
 All other changes are additions to current features and APIs.
 
-The only constraint is that in any AS, CS nd BR must be updated before
+The only constraint is that in any AS, CS and BR must be updated before
 endhosts are updated, otherwise the segment request API does not work.
 
 It may be a useful extension (separate from this proposal) to add an
