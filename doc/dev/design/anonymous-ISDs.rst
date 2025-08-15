@@ -367,15 +367,6 @@ Implementation
 
    - API for enhosts to learn about all (P-)ISDs that the local AS is part of.
 
-   - Optional: Add capability for an AS to have multiple parents, one per ISD.
-     If a CS receives a segment request for outside the local P-ISD, it can decide
-     for forward the request to multiple A-COREs, at most one per ISD that the P-ISD
-     participates in. P-COREs can be each other's parent (parent must be in different ISD).
-     This allows any AS in the P-ISD to transparently use any ISD that participates
-     in the P-ISD.
-
-     **TODO how does path stitching(beaconing) work? -> Same as peering ...?!
-
 2. Control service API
 
    - Provide API to allow end-to-end segment requests. The request contains
