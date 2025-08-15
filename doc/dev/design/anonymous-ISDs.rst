@@ -81,8 +81,8 @@ Building an A-ISD
 
 3. Pick an (P-)ISD number. For now, we can use an ISD number from the `private range (16-63)
    <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
-  In case of nested P-ISDs, we need to ensure that no AS participates in P-ISDs
-  that use the same ISD number.
+   In case of nested P-ISDs, we need to ensure that no AS participates in P-ISDs
+   that use the same ISD number.
 
 The resulting P-ISD is built mostly like a normal ISD: It has a TRC, performs
 beaconing, has at least one CORE AS, ASes have child/parent/peer relationships.
@@ -101,33 +101,37 @@ see also `Private Links and Private ASes`_.
 Example: Simple P-ISD
 ^^^^^^^^^^^^^^^^^^^^^
 
-The following diagram shows a simple P-ISD that consists of 4 ASes (1-20, 1-21, 1-30, 1-31).
-Two of these, 1-20 and 1-30, act as cores (P-COREs) for the P-ISD, which means they
-provide a TRC and perform beaconing for inside the P-ISD.
+.. figure:: fig/private_isd/1-single-P-ISD.png
+   :align: center
 
-.. image:: fig/private_isd/1-single-P-ISD.png
+   Figure 1: The diagram shows a simple P-ISD that consists of 4 ASes (1-20, 1-21, 1-30, 1-31).
+   Two of these, 1-20 and 1-30, act as cores (P-COREs) for the P-ISD, which means they
+   provide a TRC and perform beaconing for inside the P-ISD.
+
 
 Example: An P-ISD spread over two ISDs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
 .. figure:: fig/private_isd/2-2-ISD-1-P-CORE.png
+   :align: center
 
    Figure 2: A P-ISD that has ASes in multiple ISDs.
 
 
-Something to consider: If an AS in an P-ISD requests a segment that cannot be resolved locally,
+If an AS in an P-ISD requests a segment that cannot be resolved locally,
 it will forward the request to a CORE AS, but which CORE AS?
-For building a path to another P-ISD-AS, we should only ask the local P-CORE. For paths to outside
-the P-ISD we should only ask the surrounding ISD's core.
+For building a path to another P-ISD-AS, we should only ask the local P-CORE.
+For paths to outside the P-ISD we should only ask the surrounding ISD's core.
+
 
 Example: An P-ISD spread over two ISDs with two P-COREs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The following diagram shows an P-ISD that has ASes in multiple ISDs, with one
-multiple P-COREs spread over different ISDs.
+.. figure:::: fig/private_isd/3-2-ISD-2-P-CORE.png
+   :align: center
 
-.. image:: fig/private_isd/3-2-ISD-2-P-CORE.png
+   Figure 3: The diagram shows an P-ISD that has ASes in multiple ISDs, with one
+   multiple P-COREs spread over different ISDs.
 
 
 Beaconing
@@ -195,11 +199,12 @@ Also, every AS must specify a preference list for routing, if the source and
 destination AS have multiple P-ISDs in common, it must be clear from which
 P-ISD (or ISD) the segments should used.
 
-.. image:: fig/private_isd/4-nested-P-ISD.png
+.. figure:: fig/private_isd/4-nested-P-ISD.png
+   :align: center
 
-The diagram above shows one large P-ISD with two smaller P-ISDs nested inside it.
-In this example the smaller ones participate only in the large one. This need not
-be the case, the P-ISDs can overlap arbitrarily and partially as desired.
+   Figure 4: The diagram shows one large P-ISD with two smaller P-ISDs nested inside it.
+   In this example the smaller ones participate only in the large one. This need not
+   be the case, the P-ISDs can overlap arbitrarily and partially as desired.
 
 **TODO open question: Disallow one AS being CORE for multiple (P-)ISDs?***
 This should be possible, but it is not clear how useful that is and it
@@ -221,10 +226,11 @@ the ASes can join a common P-ISD in future without problems.
 To hide its existence from the local ISD, a private AS can use the ISD code of a
 different ISD. There could even be a dedicated ISD code for private ASes.
 
-.. image:: fig/private_isd/5-private-AS-and-links.png
+.. figure:: fig/private_isd/5-private-AS-and-links.png
+   :align: center
 
-In the example in the diagram, only the ASes 1-120, 1-130 and 1-131 and the link
-between 1-130 and 1-131 are visible from the outside.
+   Figbure 5: In this example, only the ASes 1-120, 1-130 and 1-131 and the link
+   between 1-130 and 1-131 are visible from the outside.
 
 
 Rationale
