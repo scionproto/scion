@@ -2,8 +2,8 @@
 Private ISDs
 ************
 
-- Author(s): Tilmann Zäschke (+ ideas from Jonghoon Kwon)
-- Last updated: 2025-08-13
+- Author(s): Tilmann Zäschke (+ ideas from others)
+- Last updated: 2025-08-15
 - Discussion at: :issue:`NNNN`
 - Status: **WIP**
 
@@ -52,9 +52,9 @@ Terminology
 -----------
 - P-ISD - Private ISD
 - P-CORE - The core router(s) of a P-ISD. P-ISDs provide TRCs and local
-  beaconing but (usually) do not participate in the normal ISDs' core routing
+  beaconing but (usually) do not participate in the normal ISDs' core routing.
 - BR - Border router
-- CS - Control service
+- CS - Control service / path service
 - Private AS - A Private AS is part of an P-ISD but not visible from
   outside their P-ISD. Private-ASes cannot have a parent AS outside the P-ISD.
   Every P-ISD must have at least one non-private (public) AS in order to
@@ -81,6 +81,8 @@ Building an A-ISD
 
 3. Pick an (P-)ISD number. For now, we can use an ISD number from the `private range (16-63)
    <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
+  In case of nested P-ISDs, we need to ensure that no AS participates in P-ISDs
+  that use the same ISD number.
 
 The resulting P-ISD is built mostly like a normal ISD: It has a TRC, performs
 beaconing, has at least one CORE AS, ASes have child/parent/peer relationships.
@@ -103,14 +105,14 @@ The following diagram shows a simple P-ISD that consists of 4 ASes (1-20, 1-21, 
 Two of these, 1-20 and 1-30, act as cores (P-COREs) for the P-ISD, which means they
 provide a TRC and perform beaconing for inside the P-ISD.
 
-.. image:: fig/anonymous_isd/1-single-P-ISD.png
+.. image:: fig/private_isd/1-single-P-ISD.png
 
 Example: An P-ISD spread over two ISDs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following diagram shows an P-ISD that has ASes in multiple ISDs.
 
-.. image:: fig/anonymous_isd/2-2-ISD-1-P-CORE.png
+.. image:: fig/private_isd/2-2-ISD-1-P-CORE.png
 
 Something to consider: If an AS in an P-ISD requests a segment that cannot be resolved locally,
 it will forward the request to a CORE AS, but which CORE AS?
@@ -123,7 +125,7 @@ Example: An P-ISD spread over two ISDs with two P-COREs
 The following diagram shows an P-ISD that has ASes in multiple ISDs, with one
 multiple P-COREs spread over different ISDs.
 
-.. image:: fig/anonymous_isd/3-2-ISD-2-P-CORE.png
+.. image:: fig/private_isd/3-2-ISD-2-P-CORE.png
 
 
 Beaconing
@@ -134,12 +136,13 @@ of the originating P-CORE instead of the normal ISD core.
 
 Path Service
 ------------
-When a path service receives a segment request, it should try to determine
-whether the destination is inside a known P-ISD. If it is, the path service
-should contact the P-CORE of the respective P-ISD, otherwise it should contact
-the ISD's core ASes.
-This behavior may be configurable, but a preference for intra-P-ISD routing
-seems like a sensible default.
+When a CS receives a segment request, it should try to determine whether the
+destination is inside a known P-ISD. If it is, the CS should contact the
+P-CORE of the respective P-ISD, otherwise it should contact the ISD's core ASes.
+By default, the CS should return segments for only one (P-)ISD.
+In the case of nested P-ISDs, it should return segments for the "innermost" P-ISD.
+"Innermost" may be ambiguous in case of overlapping P-ISDs, so a preference
+hierarchy must be configured in the CS.
 
 This requires an API change in the CS because we need the source and destination
 ASes to make that decision.
@@ -161,12 +164,13 @@ at least if it wants to use a "private" connection (i.e. inside a given P-ISD).
 When constructing a path, an endhost must take care to use segments
 that are all either from the same P-ISD or all from public ISDs.
 This rule ensures that P-ISDs traffic remains private.
-However, this rule may reconsidered in future, mixing P-ISD with ISD segements
-may be useful.
 
 When constructing a packet, the endhost needs to put the correct (P-)ISD
-number into the SCIOn address header, otherwise routing will fail because
+number into the SCION address header, otherwise routing will fail because
 the BRs will attempt hop field verification with the wrong certificate.
+
+This constitues a semantic change to the SCION address header, but not a
+structural change. This change is fully backwards compatible.
 
 
 Border Routers
@@ -178,77 +182,40 @@ identify which TRC should be used for authenticating the segments.
 Endhost: Path Verification
 --------------------------
 To verify incoming paths, similar to border routers, endhosts can get the
- P-ISD identifier from the SCION dataplane header.
+P-ISD identifier from the SCION address header.
 
 
 Nested P-ISDs and Hierarchies
 -----------------------------
-P-ISDs can be nested. The current proposal is that P-ISDs must form a
-"strict" hierarchy: Every P-ISD must be fully enclosed in its parent P-ISD.
-However, private ASes and private links which do not need to be visible to
-the parent P-ISD. In other words, any non-private AS that is part of an P-ISD must
-also be part of its parent P-ISDs and any parents thereof.
+P-ISDs can be nested or overlap arbitrarily. However, if an AS whishes to
+participate in multiple ASes, all ASes must have different identifiers.
+Also, every AS must specify a preference list for routing, if the source and
+destination AS have multiple P-ISDs in common, it must be clear from which
+P-ISD (or ISD) the segments should used.
 
-.. image:: fig/anonymous_isd/4-nested-P-ISD.png
+.. image:: fig/private_isd/4-nested-P-ISD.png
 
-This "strict" hierarchy enables path service to easily decide which segments
-should be returned to a segment request: it should always return only those
-segments that are part of the smallest P-ISD that contains both the source and
-destination AS of a request (this presumes a modified API that allows specifying
-the source and destination AS for a path).
-
-Alternatively, we could allow arbitrary overlapping of P-ISDs. Path services
-would then simply serve segment from all (P-)ISDs.
-This would require all endhosts to have full knowledge of all P-ISDs and their
-ASes in order to be able to select sensible segments. This would also require
-more complex policies (e.g. with preferred P-ISD).
-
-
-The dilemma appears to be:
-
-1. Either we enforce strict hierarchies and disallow arbitrarily overlapping A-ISDs.
-   This gives an unambiguous definition of "innermost" A-ISD  and a good way of
-   automatic A-ISD selection.
-2. Or, we allow arbitrarily overlapping, and lose the automatic ISD routing policy.
-   instead we require the enhosts to decide in which A-ISD they want to select a
-   path.
-
-**TODO open question: "strict" hierarchy vs overlapping A-ISDs?***
-
-**TODO open question: Disallow one AS being CORE for multiple (A-)ISDs?***
-If an A-CORE serves as A-CORE for multiple A-ISDs or as core AS of the ISD,
-then it must restrict returned segments to those of the "lowest/innermost A-ISD".
-This is to ensure that traffic doesn't unnecessarily leave an A-ISD.
+**TODO open question: Disallow one AS being CORE for multiple (P-)ISDs?***
+This should be possible, but it is not clear how useful that is and it
+may add quite a bit of complexity to CS implementations.
 
 
 Private Links and Private ASes
 ------------------------------
-P-ISD allow to hide links and ASes from the rest of the ISD.
+P-ISDs allow to hide links and ASes from the rest of the ISD.
 These are called "private links" and "private ASes".
 
 Hiding these is achieved by simply excluding them from any PCBs that come from
 outside the P-ISD.
-Every private AS needs an AS number. Unfortunately, this needs to be globally unique,
-so the parent ISD can see that the AS exists. However, to hide its identity,
-the AS can use the ISD code of a different ISD. There could even be a dedicated
-ISD code for private ASes.
-**TODO** What??? Why globally unique? Why should the parent ISD see that he AS exists?
+Every private AS needs an AS number. It is recommended, but not neccesary,
+that these numbers are globally unique. Global uniquenes ensure that
+the ASes can join a common P-ISD in future without problems.
 
-.. image:: fig/anonymous_isd/5-private-AS-and-links.png
+To hide its identity, a private AS can use the ISD code of a different ISD.
+There could even be a dedicated ISD code for private ASes.
 
-Hidden A-COREs require ASes to have multiple parents.
-Specifically, any non-hidden AS needs a non-hidden CORE that is visible from
-the outside.
+.. image:: fig/private_isd/5-private-AS-and-links.png
 
-Is it possible to have multiple parents?
-This relates to the question if an P-ISD must have at least one P-CORE in every
-ISD. To avoid this we could simply require an ASes' CS to forward segment
-queries selectively: destination outside P-ISD -> ask parent; otherwise
-ask local P-CORE.
-Again, this requires more complex segment queries where we provide
-only the start AS and end AS and get as result UP+CORE+DOWN or even
-actual paths. -> Only segments is probably better because
-there are many more paths than segments -> I/O problem.
 
 Rationale
 =========
@@ -260,138 +227,91 @@ Advantages and Disadvantages
 Advantages
 ^^^^^^^^^^
 
-- A-ISDs do not need an identifier (saves space in the 16bit ISD number space)
-- A-ISDs do not (usually) have a CORE-AS.
+- P-ISDs do not need a globally unique identifier (saves space in the 16bit ISD number space)
+- P-ISDs do not (usually) participate in the global network of CORE-AS.
 
-  - That improves scalability: people can have an (A)ISD without impacting scalability
-  - A-ISDs do not need to worry about transit traffic.
+  - That improves scalability: people can have a (P-)ISD without impacting scalability
+  - P-ISDs do not need to worry about transit traffic.
 
-- A-ISDs provide isolation + independency of TRC and routing
-- A-ISDs can cross ISD boundaries as long as there is a physical link.
-  They can probably replace current peering links.
+- P-ISDs provide isolation + independency of TRC and routing
+- P-ISDs can cross ISD boundaries as long as there are links.
+  They can probably replace current inter-ISD peering links.
 
-- Privacy: An A-ISD can contain any number of ASes and link that are not visible
-  outside the A-ISD (private ASes).
-- A-ISDs can be nested.
+- Privacy: An P-ISD can contain any number of ASes and links that are not visible
+  outside the P-ISD (private ASes).
+  A P-ISD itself is not detectable from the outside.
+- P-ISDs can be nested and overlapping.
 
-- An AS can join an A-ISD without having to worry about a 2nd AS identifier.
+- An AS can join an P-ISD without having to worry about a 2nd AS identifier.
   The normal AS number of an AS remains valid and the only way to address the AS.
 
 - P-ISDs can even be hidden from individual endhosts in ASes that participate
   in the P-ISD.
   Either the path server can choose not to give P-ISD segments to the endhost,
-  or the anonymous path server itself could be hidden from some endhosts such
+  or the path server itself could be hidden from some endhosts such
   that the endhost would contact a different path server that serves only
   non-P-ISD segments.
 - Similar to hiding P-ISDs from specific endhosts in ASes of the P-ISD,
   we can also hide the P-ISDs from child ASes of P-ISD-ASes.
 
-- No change to endhost libraries required.
 
 Disadvantages
 ^^^^^^^^^^^^^
-- P-ISDs have no ISD number. Any AS inside an P-ISD must have a globally unique
-  AS number from some ISD.
-  However, if it is okay for the AS to not be globally addressable, it does
-  not need to be connected to that ISD or even be visible to that ISD.
 - Border routers need more state and compute. They need to know all ASes in
-  all P-AISDs in which the local AS participates.
-  They also need a more complex algorithm to determine which certificate/TRC
-  to use.
+  all P-ISDs in which the local AS participates.
 
 
-Limitations
------------
-
-A-ISDs cannot arbitrarily overlap. Any given AS can participate only in
-one A-ISD hierarchy.
-The problem is that BRs need to be able to authenticate hop fields.
-To do so, they need to determine which certificate to use.
-They can determine the correct certificate by looking at the first + last
-AS in a given path. The correct TRC is then the "innermost" A-ISD that
-contains both ASes. If the ASes could both be in multiple A-ISD, then
-the BR cannot uniquely determine the correct TRC.
-
-Possible "solutions":
-
-* Add a unique certificate ID to the SCION packet header. This would
-  immediately solve the problem and also avoid the need for the BR to
-  store AS->TRC mappings for all local A-ISDs.
-* BRs should also check all A-COREs in the paths. If A-COREs are
-  restricted to belong to only one A-ISD-hierarchy, then this would
-  allow determining the correct certificate even if other ASes
-  belong to multiple A-ISD hierarchies. Unfortunately this breaks
-  if we allow segments without A-COREs, for example when optimizing
-  path with shortcuts or on-path.
-* Is it possible to have two or more TRCs in a certificate? I.e. can we
-  create a certificate that can be verified with the normal A-ISD, or,
-  if that is not available, with one or more A-ISDs?
-  We could use this certificate to sign all segments, whether they are
-  created in the ISD or in a local A-ISD.
-* Ask BR to brute try out multiple certificates. This is expensive,
-  but the number of possible certificate per AS should be small (every
-  AS is likely to be in only a small number of ISD + A-ISDs).
-* Allow BRs to forward unchecked traffic indide A-ISDs.
-
-
-Alternative: Allow mixing P-ISD segments with ISD segments
-----------------------------------------------------------
-
-Currently the rule is theat, when constructing a path, the segmenats are either all
-from the same P-ISD or all from public ISDs.
-The idea is to ensures that P-ISDs traffic remains private.
-
-However, this rule may reconsidered, mixing P-ISD with ISD segements may be useful.
-
-It is also unclear whether mixing segments like this is technically feasible.
-
-
-Alternative: Avoid using ISD number altogether
-----------------------------------------------
-Instead of using A-ISD-IDs from the private range (16-64), we could avoid
+Alternative: Avoid using ISD numbers altogether
+-----------------------------------------------
+Instead of using P-ISD-IDs from the private range (16-64), we could avoid
 using any IDs altogether.
 
-If we don't have A-ISD-IDs, border routers need to have some additional state in order
-to compute the
-correct TRC for a given path. For every AS, they need a list that represents the AS's A-ISD
-hierarchy, the first entry is the outermost A-ISD and the last entry is the innermost A-ISD.
-At each level, we store a reference to the AS's TRC certificate for that A-ISD.
+P-ISD need to form a strict hierarchy, that means for nested P-ISDs, any
+inner P-ISD is fully eclosed in exactly one parent P-ISD.
+In such a hierarchy, for any given two ASes (source + destination), we can
+find exactly one P-ISD that is the "innermost" (smallest) P-ISD that
+contains both ASes.
+By default, path servives always return segments that lie in this innermost
+P-ISD.
 
+This way, the two source and destination ASes determine P-ISD whose TRC was
+used to create the segments and that can be used to authenticate them.
+This means border routers can determine the correct certificate from the AS
+numbers alone, clients do nod need to put P-ISD numbers into the address header.
+In effect, we do not need P-ISD number at all.
+
+Border routers may use an algorithm as follows:
+For every AS, they have a list that represents the AS's P-ISD hierarchy,
+the first entry is the outermost P-ISD and the last entry is the innermost P-ISD.
+At each level, we store a reference to the AS's TRC certificate for that P-ISD.
 When a border router receives a packet, it looks at the first and last AS in the
 path header. For both ASes it looks up the hierarchy list.
 
-- If at least one of the does not have a list (meaning it is not in any A-ISD known to the BR)
-  the we use the normal (rooted in the ISD's TRC) AS certificate for both.
+- If at least one of the ASes does not have a list (meaning it is not in any
+  P-ISD known to the BR) then we use the normal ISD's certificate.
 - If they both have a list, then we walk through both lists until they differ.
-  THis gives us the deepest common A-ISD and the associate certificate.
-- The lists cannot differ in the first entry, that would violate the
-  A-ISD-hierarchy principle.
+  This gives us the deepest common P-ISD and the associated certificate.
 
-A similar logic would be used on endhosts that want to authenticate paths.
+Advantages of avoiding P-ISD-IDs:
 
-For example, for any route to an AS that is in the same A-ISD as the
-source AS, the path service will return segments that go through the
-local A-CORE as well as segments that go through the ISD's core.
-The endhost **must** then use the segments that go through the A-CORE.
-More specifically, if both ASes are in a hierarchy of nested A-ISDs,
-the endhost must use the A-CORE of the innermost A-ISD that it has in
-common with the destination AS.
+- (Almost) no need to modify endhost libraries.
 
-Advantages of avoiding A-ISD-IDs:
+  - The SCION address header simply contains the public ISD number for SCR/DST
+  - Libraries and daemons can request segments withoiut knowning the P-ISD-ID.
+  - Endhosts do not need to deal with local AS's ISD number being different
+    from the ISD number use in an UP/DOWN path (path stitching).
+  - (Almost): We still need to change the segment request API suchg that
+    it returns UP and CORE and DOWN segments in one query. Endhosts
+    need to be adapted to that
 
-- One advantage would be that we do not need to modify the dataplane,
-  i.e. the SCION packet header would contain
-  the original ISD for source/destination instead of the private ISDs.
-- Another advantage is that any AS has exactly one ISD number
-  (and no A-ISD number). This may avoid some complexity in control services
-  and in managing ASes.
-- Endhosts do not need to deal with local AS's ISD number being different
-  from the ISD number use in an UP/DOWN path (path stitching).
-- No need to ensure that the A-ISD numbers differ in an A-ISD hierarchy.
+- Any AS has exactly one ISD number (and no P-ISD number).
+  This may avoid some complexity in control services and in managing ASes.
+- No need to ensure that the P-ISD numbers differ in an P-ISD hierarchy.
 
 Disadvantages:
 
-- One disadvantage is clearly the added complexity in border routers and endhosts
+- P-ISDs must form a strict hierarchy.
+- Added complexity in BRs and endhosts for determining the correct certificate
   for authenticating path segments.
 
 
@@ -400,6 +320,21 @@ Compatibility
 [A discussion of breaking changes and how this change can be deployed.]
 
 There are no conflicts with existing stuff.
+
+The SCION address header needs a semantic change: the SRC/DST ISD number
+may now be a P-ISD number.
+This constitues a semantic change to the SCION address header, but not a
+structural change. This change is fully backwards compatible.
+
+All other changes are additions to current features and APIs.
+
+The only constraint is that in any AS, CS nd BR must be updated before
+endhosts are updated, otherwise the segment request API does not work.
+
+It may be a useful extension (separate from this proposal) to add an
+API version identifier to the CS API so that a client knows which requests
+are available an which requests will fail.
+
 
 Naming
 ======
@@ -427,8 +362,8 @@ Implementation
 
 1. Control service administration:
 
-   - Facility to register ASes and their links and to communicate
-     this to other ASes in the local P-ISD
+   - Mechanism to register ASes and their links and to communicate
+     this to other ASes in the local P-ISD.
 
    - API for enhosts to learn about all (P-)ISDs that the local AS is part of.
 
@@ -443,15 +378,28 @@ Implementation
 
 2. Control service API
 
-   - Provide API to allow end-to-end segment requests. Stitching is not necessary,
-     but the request should return UP+CORE+DOWN segments in one request.
-     Requests should also allow to specify preferred (P-)ISDs, including a
-     wildcard to request segments from all (P-)ISDs.
-     There should probably two wildcards: a) "I want segments for ALL (P-)ISDs",
-     and b) "I want segments for whatever (P-)ISD you think is best".
-     Option b) should be the default.
-     In any case, the CS is free to ignore the preferred ISD and deliver segments
-     only for some (P-)ISDs (configurable on the CS).
+   - Provide API to allow end-to-end segment requests. The request contains
+     the start AS, the destination AS and an (P-)ISD preference argument.
+     The request returns UP+CORE+DOWN segments in one request.
+     Stitching (creating) is not necessary, that may still be done on the endhost.
+     The (P-)ISD preference argument has three options:
+
+     - "Not set" (or "default"). The CS should return segments from
+       whatever (P-)ISD it hinks is best (configurable by the CS admin)
+     - "All" (or "*"). This should return segments from all (P-)ISDs that
+       the CS is willing to share.
+     - A list of (P-)ISDs. The CS should return segments only for (P-)ISDs
+       in the list.
+
+     In any case, the CS is free to ignore the preferred (P-)ISD and deliver
+     segments only for some (P-)ISDs (configuration option on the CS).
+
+   - (Optional): Add an request to the API that return the API version.
+     E.g., version "1" would be the version as of Summer 2025,
+     version "2" adds a request API for segment requests as described above.
+     This would simplify migration, endhost libraries can find out whether
+     the local AS supports the new segment request API without resorting to
+     trial and error.
 
 3. Border routers
 
@@ -463,7 +411,6 @@ Implementation
      requesting segments.
    - Libraries need to ensure that they put the respective P-ISDs into
      the SCION header of each packet.
-   - Libraries and deamons need to be able to handle (P-)ISDs.
    - Path policies may need to be extended to allow specifying (P-)ISD preference.
 
 
