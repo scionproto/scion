@@ -120,4 +120,16 @@ Following example shows three IP packets packed into three SIG frames::
 
 
 SCION Gateway Routing Protocol (SGRP)
-====================================
+=====================================
+
+The SCION Gateway Routing Protocol (SGRP) is enables IP-in-SCION tunneling endpoints to map IP prefixes to SCION ASes.
+
+A tunneling endpoint participating in SGRP between two SCION ASes does the following:
+
+1. It discovers the tunneling endpoints in the remote SCION AS by periodically sending a discovery message to the Control Plane of the remote AS which replies with a list of local tunneling endpoints.
+
+2. It periodically queries each discovered tunneling endpoint in the remote AS to learn the IP prefixes that it announces. From that, the local tunneling endpoint builds a mapping of IP prefix to remote tunneling endpoints.
+
+3. When queried by a remote tunneling endpoint, the local tunneling endpoint replies with the set of IP prefixes it wants to announce. 
+
+The set of announced IP prefixes can either be statically configured or can be dynamically learned via BGP.
