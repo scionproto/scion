@@ -125,7 +125,7 @@ For paths to outside the P-ISD we should only ask the surrounding ISD's core.
 Example: An P-ISD spread over two ISDs with two P-COREs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. figure:::: fig/private_isd/3-2-ISD-2-P-CORE.png
+.. figure:: fig/private_isd/3-2-ISD-2-P-CORE.png
    :align: center
 
    Figure 3: The diagram shows an P-ISD that has ASes in multiple ISDs, with one
