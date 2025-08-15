@@ -195,6 +195,10 @@ P-ISD (or ISD) the segments should used.
 
 .. image:: fig/private_isd/4-nested-P-ISD.png
 
+The diagram above shows one large P-ISD with two smaller P-ISDs nested inside it.
+In this example the smaller ones participate only in the large one. This need not
+be the case, the P-ISDs can overlap arbitrarily and partially as desired.
+
 **TODO open question: Disallow one AS being CORE for multiple (P-)ISDs?***
 This should be possible, but it is not clear how useful that is and it
 may add quite a bit of complexity to CS implementations.
@@ -203,7 +207,8 @@ may add quite a bit of complexity to CS implementations.
 Private Links and Private ASes
 ------------------------------
 P-ISDs allow to hide links and ASes from the rest of the ISD.
-These are called "private links" and "private ASes".
+These are called "private links" and "private ASes". They are visible only
+to other ASes that participate in the local P-ISD.
 
 Hiding these is achieved by simply excluding them from any PCBs that come from
 outside the P-ISD.
@@ -211,10 +216,13 @@ Every private AS needs an AS number. It is recommended, but not neccesary,
 that these numbers are globally unique. Global uniquenes ensure that
 the ASes can join a common P-ISD in future without problems.
 
-To hide its identity, a private AS can use the ISD code of a different ISD.
-There could even be a dedicated ISD code for private ASes.
+To hide its existence from the local ISD, a private AS can use the ISD code of a
+different ISD. There could even be a dedicated ISD code for private ASes.
 
 .. image:: fig/private_isd/5-private-AS-and-links.png
+
+In the example in the diagram, only the ASes 1-120, 1-130 and 1-131 and the link
+between 1-130 and 1-131 are visible from the outside.
 
 
 Rationale
