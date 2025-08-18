@@ -4,7 +4,7 @@ Private ISDs
 
 - Author(s): Tilmann Zäschke (+ ideas from others)
 - Last updated: 2025-08-15
-- Discussion at: :issue:`NNNN`
+- Discussion at: :issue:`4827`
 - Status: **WIP**
 
 Other references:
