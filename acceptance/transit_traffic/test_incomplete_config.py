@@ -6,7 +6,9 @@ from acceptance.transit_traffic import transit_traffic_base
 
 class Test(transit_traffic_base.Test):
     """
-    This test disallows traffic in all ASes in one ISD and checks the resulting paths.
+    This test disallows traffic in only one AS in one ISD and checks the resulting paths.
+    This config doesn't make much sense in a real-life scenario,
+    but shows what happens in case of misconfiguration of one AS in the ISD.
 
     The graph without peering links looks as follows:
     411 123
@@ -17,31 +19,25 @@ class Test(transit_traffic_base.Test):
       /      |
     311     510
 
-    Transit traffic via ISD 3 (ASes 310, 311) is not allowed.
+    Transit traffic via is not allowed only via AS 310: 311 doesn't have this configured.
     """
 
     def setup_prepare(self):
-        super().setup_prepare("3", ["310", "311"])
+        super().setup_prepare("3", ["310"])
 
     def _run(self):
-        # Traffic originating or ending in ISD 3 is allowed.
+        # Traffic originating or ending in AS 310 is allowed.
         self._assert_bidirectional_path("310", "410")
-        self._assert_bidirectional_path("311", "410")
-        self._assert_bidirectional_path("310", "411")
-        self._assert_bidirectional_path("311", "411")
-        self._assert_bidirectional_path("310", "210")
-        self._assert_bidirectional_path("311", "123")
+        self._assert_bidirectional_path("310", "110")
         self._assert_bidirectional_path("310", "510")
-        self._assert_bidirectional_path("311", "111")
 
-        # Transit traffic via ISD 3 is not allowed.
+        self._assert_bidirectional_path("311", "122")
+
+        # Transit traffic via AS 310 is not allowed.
         self._assert_no_path_in_both_directions("410", "210")
         self._assert_no_path_in_both_directions("411", "211")
         self._assert_no_path_in_both_directions("411", "510")
-        # TODO should work via peering link
         self._assert_no_path_in_both_directions("410", "123")
-        # TODO should work via peering link
-        self._assert_no_path_in_both_directions("411", "123")
         self._assert_no_path_in_both_directions("410", "111")
 
         # Traffic outside of ISD 3 is not affected.

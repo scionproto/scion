@@ -1,7 +1,24 @@
 load("//acceptance/common:topogen.bzl", "topogen_test")
 
+py_library(
+    name = "transit_traffic_base",
+    srcs = ["transit_traffic_base.py"],
+)
+
 topogen_test(
     name = "test",
     src = "test.py",
     topo = "//topology:testdata/big.topo",
+    deps = [
+        ":transit_traffic_base",
+    ],
+)
+
+topogen_test(
+    name = "test_incomplete_config",
+    src = "test_incomplete_config.py",
+    topo = "//topology:testdata/big.topo",
+    deps = [
+        ":transit_traffic_base",
+    ],
 )
