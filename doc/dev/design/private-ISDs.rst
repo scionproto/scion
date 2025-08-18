@@ -192,7 +192,7 @@ P-ISD identifier from the SCION address header.
 
 Nested P-ISDs and Hierarchies
 -----------------------------
-P-ISDs can be nested or overlap arbitrarily. However, if an AS whishes to
+P-ISDs can be nested or overlap arbitrarily. However, if an AS wishes to
 participate in multiple ASes, all ASes must have different identifiers.
 Also, every AS must specify a preference list for routing, if the source and
 destination AS have multiple P-ISDs in common, it must be clear from which
@@ -218,8 +218,8 @@ to other ASes that participate in the local P-ISD.
 
 Hiding these is achieved by simply excluding them from any PCBs that come from
 outside the P-ISD.
-Every private AS needs an AS number. It is recommended, but not neccesary,
-that these numbers are globally unique. Global uniquenes ensure that
+Every private AS needs an AS number. It is recommended, but not necessary,
+that these numbers are globally unique. Global uniqueness ensures that
 the ASes can join a common P-ISD in future without problems.
 
 To hide its existence from the local ISD, a private AS can use the ISD code of a
@@ -247,7 +247,7 @@ Advantages
   - That improves scalability: people can have a (P-)ISD without impacting scalability
   - P-ISDs do not need to worry about transit traffic.
 
-- P-ISDs provide isolation + independency of TRC and routing
+- P-ISDs provide isolation + independence of TRC and routing
 - P-ISDs can cross ISD boundaries as long as there are links.
   They can probably replace current inter-ISD peering links.
 
@@ -281,7 +281,7 @@ Instead of using P-ISD-IDs from the private range (16-64), we could avoid
 using any IDs altogether.
 
 P-ISD need to form a strict hierarchy, that means for nested P-ISDs, any
-inner P-ISD is fully eclosed in exactly one parent P-ISD.
+inner P-ISD is fully enclosed in exactly one parent P-ISD.
 In such a hierarchy, for any given two ASes (source + destination), we can
 find exactly one P-ISD that is the "innermost" (smallest) P-ISD that
 contains both ASes.
@@ -311,10 +311,10 @@ Advantages of avoiding P-ISD-IDs:
 - (Almost) no need to modify endhost libraries.
 
   - The SCION address header simply contains the public ISD number for SCR/DST
-  - Libraries and daemons can request segments withoiut knowning the P-ISD-ID.
+  - Libraries and daemons can request segments without knowing the P-ISD-ID.
   - Endhosts do not need to deal with local AS's ISD number being different
     from the ISD number use in an UP/DOWN path (path stitching).
-  - (Almost): We still need to change the segment request API suchg that
+  - (Almost): We still need to change the segment request API such that
     it returns UP and CORE and DOWN segments in one query. Endhosts
     need to be adapted to that
 
@@ -376,7 +376,7 @@ Implementation
    - Mechanism to register ASes and their links and to communicate
      this to other ASes in the local P-ISD.
 
-   - API for enhosts to learn about all (P-)ISDs that the local AS is part of.
+   - API for endhosts to learn about all (P-)ISDs that the local AS is part of.
 
 2. Control service API
 
@@ -387,7 +387,7 @@ Implementation
      The (P-)ISD preference argument has three options:
 
      - "Not set" (or "default"). The CS should return segments from
-       whatever (P-)ISD it hinks is best (configurable by the CS admin)
+       whatever (P-)ISD it thinks is best (configurable by the CS admin)
      - "All" (or "*"). This should return segments from all (P-)ISDs that
        the CS is willing to share.
      - A list of (P-)ISDs. The CS should return segments only for (P-)ISDs
