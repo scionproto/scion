@@ -132,7 +132,7 @@ A tunneling endpoint participating in SGRP between two SCION ASes does the follo
 
 2. It periodically queries each discovered tunneling endpoint in the remote AS to learn the IP prefixes that it announces. From that, the local tunneling endpoint builds a mapping of IP prefix to remote tunneling endpoints.
 
-3. When queried by a remote tunneling endpoint, the local tunneling endpoint replies with the set of IP prefixes it wants to announce. 
+3. When queried by a remote tunneling endpoint, the local tunneling endpoint replies with the set of IP prefixes it wants to announce.
 
 The set of announced IP prefixes can either be statically configured or can be dynamically learned via BGP.
 
