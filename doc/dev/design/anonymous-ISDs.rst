@@ -64,8 +64,8 @@ Terminology
 Proposal
 ========
 
-Building an A-ISD
------------------
+Building a P-ISD
+----------------
 
 1. We select a group of ASes to form an P-ISD.
    These ASes can be from different ISDs, but they must be
