@@ -157,7 +157,7 @@ specify their preference regarding from which (P-ISD) the returned segments shou
 - No preference specified (default): CS delivers segments from best fitting
   (P-)ISD (there could be several).
 - Preference list of (P-)ISDs: CS delivers segments form all listed (P-)ISDs.
-- Preference "ALL": CS delivers segements from all known (P-)ISDs.
+- Preference "ALL": CS delivers segments from all known (P-)ISDs.
 
 See also `Nested P-ISDs and Hierarchies`_.
 
@@ -174,7 +174,7 @@ When constructing a packet, the endhost needs to put the correct (P-)ISD
 number into the SCION address header, otherwise routing will fail because
 the BRs will attempt hop field verification with the wrong certificate.
 
-This constitues a semantic change to the SCION address header, but not a
+This constitutes a semantic change to the SCION address header, but not a
 structural change. This change is fully backwards compatible.
 
 
@@ -228,7 +228,7 @@ different ISD. There could even be a dedicated ISD code for private ASes.
 .. figure:: fig/private_isd/5-private-AS-and-links.png
    :align: center
 
-   Figbure 5: In this example, only the ASes 1-120, 1-130 and 1-131 and the link
+   Figure 5: In this example, only the ASes 1-120, 1-130 and 1-131 and the link
    between 1-130 and 1-131 are visible from the outside.
 
 
@@ -331,13 +331,11 @@ Disadvantages:
 
 Compatibility
 =============
-[A discussion of breaking changes and how this change can be deployed.]
-
 There are no conflicts with existing stuff.
 
 The SCION address header needs a semantic change: the SRC/DST ISD number
 may now be a P-ISD number.
-This constitues a semantic change to the SCION address header, but not a
+This constitutes a semantic change to the SCION address header, but not a
 structural change. This change is fully backwards compatible.
 
 All other changes are additions to current features and APIs.
