@@ -29,7 +29,7 @@ provide a Version Service and Version Information.
 Version Service and Version Information
 ---------------------------------------
 
-The control service offer a dedicated Version Service. In short:
+The control service offer a dedicated Version Service:
 
 .. code-block:: ruby
 
@@ -45,6 +45,13 @@ The control service offer a dedicated Version Service. In short:
     required uint32 api_version = 1;
     // Map of individual components and their versions,
     map<string, uint32> component_versions = 2;
+    map<string, VersionRange> component_versions = 2;
+  }
+
+  message VersionRange {
+    // The minimum and maximum version of a service that is supported by the server.
+    required int32 min = 1;
+    required int32 max = 2;
   }
 
 The 'api_version' is an integer that is incremented whenever any of the
@@ -55,6 +62,11 @@ The component API version is incrmented whenever the component's API changes
 in a way that is **not** backwards compatible.
 Examples of component names are: "segments", "drkey", "cppki", "renewal"
 
+The component versions are only provided for convenience. They indicate to
+a client which version of a component needs to be instantiated.
+If this information would not be provided, it would have to be hardcoded
+in the client.
+
 Examples:
 
 - Changes that are backwards compatible, such as adding a request or service
@@ -63,19 +75,17 @@ Examples:
   the 'component_version'. To maintain backward compatibility, this would
   probably also result in a new 'proto' file.
 
-**TODO This is a bit unclear.**
+TBD:
 
-- Why multiple version identifiers? Are these the min/max versions?
-- Why is the max version a number and the min version a map?
-- Why do we have component version, why not just min/max?
-- We should probably have proper min/max version!
+- Do we need the component versions?
+- Should we provide a list VersionResponses, representing all versions that
+  a server supports?
+- We could simply replace all component version numbers with list of supported
+  version numbers.
+  The client can then just use the latest version of a ProtoService that is
+  available both locally and on the server.
+  A version range is not really required for the API version.
 
-
-
-The idea is that new proto files are introduced only when backward compatibility
-is broken. This should reduce the amount of generated code.
-
-Another way to think about this is that the -------------------------------
 
 Three different ways to approach this
 -------------------------------------
@@ -136,10 +146,24 @@ Rationale
 =========
 [A discussion of alternate approaches and the trade-offs, advantages, and disadvantages of the specified approach.]
 
+
 Compatibility
 =============
-[A discussion of breaking changes and how this change can be deployed.]
+
+There are no breaking changes.
+
+If the client does not support API versions, then the feature will not
+be used.
+
+If the server does not support API versions, then the version request will
+fail and the client should assume version "1".
+
 
 Implementation
 ==============
-[A description of the steps in the implementation, which components need to be changed and in which order.]
+
+- Add version information to control server implementations
+- Add version information to client libraries
+
+- Document clearly (in each proto file?) that any change should result
+  in incrmeneting the API version.
