@@ -31,7 +31,7 @@ Version Service and Version Information
 
 The control service offer a dedicated Version Service:
 
-.. code-block:: ruby
+.. code-block:: protobuf
 
   service VersionService {
     // Return version information about the service API.
@@ -54,13 +54,13 @@ The control service offer a dedicated Version Service:
     required int32 max = 2;
   }
 
-The 'api_version' is an integer that is incremented whenever any of the
+The `api_version` is an integer that is incremented whenever any of the
 APIs of any component changes.
 
-The 'component_version' is a map <component name> -> <component API version>.
+The `component_version` is a map `<component name> -> <component API version>`.
 The component API version is incrmented whenever the component's API changes
 in a way that is **not** backwards compatible.
-Examples of component names are: "segments", "drkey", "cppki", "renewal"
+Examples of component names are: `segments`, `drkey`, `cppki`, `renewal`
 
 The component versions are only provided for convenience. They indicate to
 a client which version of a component needs to be instantiated.
@@ -70,10 +70,10 @@ in the client.
 Examples:
 
 - Changes that are backwards compatible, such as adding a request or service
-  to an api requires only an increment of the 'api_version'.
-- Removing a request or service requires incrementing the 'api_version' and
-  the 'component_version'. To maintain backward compatibility, this would
-  probably also result in a new 'proto' file.
+  to an api requires only an increment of the `api_version`.
+- Removing a request or service requires incrementing the `api_version` and
+  the `component_version`. To maintain backward compatibility, this would
+  probably also result in a new `.proto` file.
 
 TBD:
 
@@ -156,7 +156,7 @@ If the client does not support API versions, then the feature will not
 be used.
 
 If the server does not support API versions, then the version request will
-fail and the client should assume version "1".
+fail and the client should assume version `1`.
 
 
 Implementation
