@@ -40,7 +40,7 @@ Features (1.) and (2.) cause several issues:
 However, it seems like that many entities that are interested in setting up an ISD
 are only interested in the features (3.) and (4.).
 
-This proposal introduces Private ISDs (or User-/Anonymous ISDs, TBD).
+This proposal introduces Private ISDs (or User-/Nested/Anonymous ISDs, TBD).
 Private ISDs (P-ISDs) provide the features 3. and 4. (independent TRC and routing)
 without requiring an features 1. or 2. (ISD number or a CORE AS).
 
@@ -366,6 +366,11 @@ However:
 
 One alternative considered was User-ISD (indicating that it is user defined).
 However, this does not emphasize the privacy aspect.
+
+Another alternative is "Nested ISDs". This is accurate and has the advantage
+that the naming doesn't conflict with other terminology. Unfortunately,
+it doesn't really convey the privacy/isolation aspect.
+Maybe it is still a better choice than "Private ISD"?
 
 
 Implementation
