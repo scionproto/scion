@@ -92,21 +92,14 @@ A SIG MAY drop frames. In the current implementation, the egress SIG does not bu
 SIG frame payload
 -----------------
 
-The SIG frame payload may contain multiple IPv4 or IPv6 packets, or parts
-thereof. No other types of packets can be encapsulated. The packets are
-placed one directly after another, with no padding.
-Multicast traffic is not supported yet.
+The SIG frame payload may contain multiple IPv4 or IPv6 packets, or parts thereof. No other types of packets can be encapsulated. The packets are placed one directly after another, with no padding. Multicast traffic is not yet supported.
 
-SIG uses IPv4/6 "payload length" field to determine the size of the packet.
-To make the processing easier, it is required that the fixed part of the IP header
-is in the frame where the IP packet begins. In other words, the initial fragment
-of an IPv4 packet must be at least 20 bytes long. The initial fragment of an IPv6
-packet must be at least 40 bytes long.
+The SIG uses IPv4/6 "payload length" field to determine the size of the packet. To make the processing easier, the fixed part of the IP header MUST be in the frame where the IP packet begins. In other words, the initial fragment of an IPv4 packet must be at least 20 bytes long, and the initial fragment of an IPv6 packet must be at least 40 bytes long.
 
 Example
 -------
 
-Following example shows three IP packets packed into three SIG frames::
+Following example shows three IP packets packed into three SIG frames:
 
   +----------------------------+---------+---------+---------+----------------+
   | SIG HDR Index=0 Seq=0      | IP4 HDR | payload | IP6 HDR | payload...     |
@@ -124,15 +117,15 @@ Following example shows three IP packets packed into three SIG frames::
 SCION Gateway Routing Protocol (SGRP)
 =====================================
 
-The SCION Gateway Routing Protocol (SGRP) enables IP-in-SCION tunneling endpoints (should this be SIGs?) to map IP prefixes to SCION ASes.
+The SCION Gateway Routing Protocol (SGRP) enables SIGs to map IP prefixes to SCION ASes.
 
-A tunneling endpoint participating in SGRP between two SCION ASes does the following:
+A SIG participating in SGRP between two SCION ASes does the following:
 
-1. It discovers the tunneling endpoints in the remote SCION AS by periodically sending a discovery message to the Control Plane of the remote AS which replies with a list of local tunneling endpoints.
+1. It discovers the SIGs in the remote SCION AS by periodically sending a discovery message to the Control Plane of the remote AS which replies with a list of local tunneling endpoints.
 
-2. It periodically queries each discovered tunneling endpoint in the remote AS to learn the IP prefixes that it announces. From that, the local tunneling endpoint builds a mapping of IP prefix to remote tunneling endpoints.
+2. It periodically queries each discovered SIG in the remote AS to learn the IP prefixes that it announces. From that, the local SIG builds a mapping of IP prefix to remote SIGs.
 
-3. When queried by a remote tunneling endpoint, the local tunneling endpoint replies with the set of IP prefixes it wants to announce.
+3. When queried by a remote SIG, the local SIG replies with the set of IP prefixes it wants to announce.
 
 The set of announced IP prefixes can either be statically configured or can be dynamically learned via BGP.
 
