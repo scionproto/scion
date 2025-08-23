@@ -148,8 +148,10 @@ of the individual fields below.
       "link_to": <"parent"|"child"|"peer"|"core">,
       "mtu": <int>,
       "underlay": {
+         "protocol": "<udpip|other_underlay_protocol>"
          "local": "<ip|hostname>:<port>", # or just ":<port>"
-         "remote": "<ip|hostname:port>",
+         "remote": "<ip|hostname>:<port>",
+         "options": "<options>", # optional, defined by protocol
       },
       "bfd": {              # optional
          "disable": <bool>,
@@ -278,6 +280,9 @@ of the individual fields below.
             address. If the router is behind NAT, this field must be set to the non-public address;
             that is, the address that the router should bind to.
 
+      .. option:: options
+         Arbitrary string. Format and semantics are defined by each underlay
+         protocol.
       .. option:: bfd, optional
 
          :term:`Bidirectional Forwarding Detection (BFD) <BFD>` is used to determine

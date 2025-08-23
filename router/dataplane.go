@@ -541,6 +541,7 @@ func (d *dataPlane) AddExternalInterface(
 		bfd,
 		link.Local.Addr,
 		link.Remote.Addr,
+		link.Options,
 		ifID,
 		iMetrics)
 	if err != nil {
@@ -688,7 +689,7 @@ func (d *dataPlane) AddNextHop(
 	iMetrics := newInterfaceMetrics(
 		d.Metrics, ifID, d.localIA, link.Remote.Addr, d.neighborIAs[ifID])
 	lk, err := underlay.NewSiblingLink(
-		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, iMetrics)
+		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, link.Options, iMetrics)
 	if err != nil {
 		return err
 	}

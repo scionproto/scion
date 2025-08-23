@@ -123,6 +123,7 @@ type Underlay interface {
 		bfd *bfd.Session,
 		local string,
 		remote string,
+		options string,
 		ifID uint16,
 		metrics *InterfaceMetrics,
 	) (Link, error)
@@ -136,6 +137,7 @@ type Underlay interface {
 		bfd *bfd.Session,
 		local string,
 		remote string,
+		options string,
 		metrics *InterfaceMetrics,
 	) (Link, error)
 

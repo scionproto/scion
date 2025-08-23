@@ -109,6 +109,7 @@ func (c *Connector) AddExternalInterface(
 	log.Debug("Adding external interface", "interface", localIfID,
 		"local_isd_as", link.Local.IA, "local_addr", link.Local.Addr,
 		"remote_isd_as", link.Remote.IA, "remote_addr", link.Remote.Addr,
+		"link_options", link.Options,
 		"owned", owned,
 		"link_bfd_configured", link.BFD.Disable != nil,
 		"link_bfd_enabled", link.BFD.Disable == nil || !*link.BFD.Disable,

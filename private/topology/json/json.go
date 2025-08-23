@@ -121,6 +121,7 @@ type Underlay struct {
 	Protocol string `json:"protocol,omitempty"`
 	Local    string `json:"local,omitempty"`
 	Remote   string `json:"remote,omitempty"`
+	Options  string `json:"options,omitempty"`
 }
 
 // BFD configuration.

@@ -51,6 +51,7 @@ type LinkInfo struct {
 	Protocol string
 	Local    LinkEnd
 	Remote   LinkEnd
+	Options  string // Optional, underlay protocol specific link configuration
 	Instance string
 	LinkTo   topology.LinkType
 	BFD      BFD
@@ -210,6 +211,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 				Addr: iface.Remote,
 				IfID: iface.RemoteIfID,
 			},
+			Options:  iface.Options,
 			Instance: iface.BRName,
 			BFD:      BFD(iface.BFD),
 			LinkTo:   iface.LinkType,

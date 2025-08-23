@@ -445,6 +445,7 @@ func (u *underlay) NewExternalLink(
 	bfd *bfd.Session,
 	local string,
 	remote string,
+	_ string, // this underlay provider doesn't have link options
 	ifID uint16,
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
@@ -627,6 +628,7 @@ func (u *underlay) NewSiblingLink(
 	bfd *bfd.Session,
 	local string,
 	remote string,
+	_ string, // this underlay provider doesn't have link options
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 	localAddr, err := conn.ResolveAddrPortOrPort(local)

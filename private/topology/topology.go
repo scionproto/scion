@@ -123,6 +123,7 @@ type (
 		Protocol     string         // Underlay protocol name
 		Local        string         // Underlay addr on owning router side
 		Remote       string         // Underlay addr on far router side
+		Options      string         // Underlay link options, if any.
 		RemoteIfID   iface.ID       // ID of this interface for the far router
 		IA           addr.IA        // IA number of the remote AS
 		LinkType     LinkType       // (Child, Parent, Core or Peering)
@@ -325,6 +326,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			}
 			ifinfo.Local = rawIntf.Underlay.Local
 			ifinfo.Remote = rawIntf.Underlay.Remote
+			ifinfo.Options = rawIntf.Underlay.Options
 			brInfo.IFs[ifID] = &ifinfo
 			t.IFInfoMap[ifID] = ifinfo
 		}
@@ -617,8 +619,8 @@ func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] Local:%+v "+
-		"Remote:%+v IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr,
-		i.Local, i.Remote, i.IA, i.LinkType, i.MTU)
+		"Remote:%+v Options:%+v IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr,
+		i.Local, i.Remote, i.Options, i.IA, i.LinkType, i.MTU)
 }
 
 func (i *IFInfo) copy() *IFInfo {
