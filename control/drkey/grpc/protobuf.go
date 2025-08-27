@@ -43,14 +43,14 @@ func secretToProtoResp(drkey drkey.SecretValue) *cppb.DRKeySecretValueResponse {
 	}
 }
 
-func level1MetaToProtoRequest(meta drkey.Level1Meta) *cppb.DRKeyLevel1Request {
+func Level1MetaToProtoRequest(meta drkey.Level1Meta) *cppb.DRKeyLevel1Request {
 	return &cppb.DRKeyLevel1Request{
 		ValTime:    timestamppb.New(meta.Validity),
 		ProtocolId: dkpb.Protocol(meta.ProtoId),
 	}
 }
 
-func getLevel1KeyFromReply(
+func GetLevel1KeyFromReply(
 	meta drkey.Level1Meta,
 	rep *cppb.DRKeyLevel1Response,
 ) (drkey.Level1Key, error) {

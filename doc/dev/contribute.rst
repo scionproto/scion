@@ -7,6 +7,8 @@ Contribution Guide
 Welcome to the SCION contribution guide! If you are interested in contributing to
 the project, this page will help you out on your journey to your first SCION commit.
 
+.. Attention:: In all your interactions with the SCION developer community, you agree to be bound by our `Code of Conduct <https://github.com/scionproto/scion>`__.
+
 .. _slack:
 
 
@@ -105,18 +107,17 @@ The current members of the TC Implementation are:
 * Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @Dominik Roos)
 * Ekaterina Titkova  (|span-github| `@katyatitkova <https://github.com/katyatitkova>`_, |span-slack| Katya Titkova)
 * François Wirz (|span-github| `@FR4NK-W <https://github.com/FR4NK-W>`_, |span-slack| @frank)
-* Jean-Christophe Hugly (|span-github| `@jiceatscion <https://github.com/jiceatscion>`_, |span-slack| @jiceatscion)
 * Jordi Subirà (|span-github| `@JordiSubira <https://github.com/JordiSubira>`_, |span-slack| @Jordi Subirà-Nieto)
 * Lukas Vogel (|span-github| `@lukedirtwalker <https://github.com/lukedirtwalker>`_, |span-slack| @luke)
 * Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
 * Markus Legner (|span-github| `@mlegner <https://github.com/mlegner>`_, |span-slack| @Markus Legner)
 * Roman Sharkov  (|span-github| `@romshark <https://github.com/romshark>`_, |span-slack| @Roman Scharkov)
-* Tilmann Zächke (|span-github| `@tzaeschke <https://github.com/tzaeschke>`_, |span-slack| @Tilmann Zäschke)
+* Tilmann Zäschke (|span-github| `@tzaeschke <https://github.com/tzaeschke>`_, |span-slack| @Tilmann Zäschke)
 
 .. rubric:: Responsibilities and Tasks
 
 The TC Implementation has the following main responsibilities, as defined in its
-`charter <https://www.scion.org/assets/docs/SCION-Association-Charter-TC-Implementation.pdf>`_:
+`charter <https://www.scion.org/wp-content/uploads/2024/07/SCION-Association-Charter-TC-Implementation.pdf>`_:
 
 * Coordination with the Association Board and other bodies of the SCION
   Association. In particular, coordinate with the TC Standardisation to

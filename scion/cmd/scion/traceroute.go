@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -71,7 +71,7 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 		format      string
 	}
 
-	var cmd = &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "traceroute [flags] <remote>",
 		Aliases: []string{"tr"},
 		Short:   "Trace the SCION route to a remote SCION AS using SCMP traceroute packets",
@@ -115,7 +115,7 @@ On other errors, traceroute will exit with code 2.
 
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
-			span.SetTag("dst.host", remote.Host.IP)
+			span.SetTag("dst.host", remote.Host.IP())
 			defer span.Finish()
 
 			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
@@ -167,7 +167,7 @@ On other errors, traceroute will exit with code 2.
 			}
 			var res ResultTraceroute
 			res.Path = Path{
-				Fingerprint: snet.Fingerprint(path).String(),
+				Fingerprint: path.Metadata().Fingerprint().String(),
 				Hops:        getHops(path),
 				Sequence:    seq,
 				LocalIP:     localIP,
@@ -177,7 +177,7 @@ On other errors, traceroute will exit with code 2.
 			span.SetTag("src.host", localIP)
 			asNetipAddr, ok := netip.AddrFromSlice(localIP)
 			if !ok {
-				panic("Invalid Local IP address")
+				panic("invalid local IP address: " + localIP.String())
 			}
 			local := addr.Addr{
 				IA:   topo.LocalIA,

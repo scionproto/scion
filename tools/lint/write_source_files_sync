@@ -16,14 +16,14 @@
 root_dir="$(bazel info workspace 2> /dev/null)"
 
 ret=0
-diff -Nu3 $root_dir/BUILD.bazel <(bazel run  @com_github_bazelbuild_buildtools//buildozer -- --root_dir $root_dir --stdout "add additional_update_targets $(bazel query  'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files) || ret=$?
+diff -Nu3 $root_dir/BUILD.bazel <(bazel run  @buildifier_prebuilt//:buildozer -- --root_dir $root_dir --stdout "add additional_update_targets $(bazel query  'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files) || ret=$?
 if [[ $ret -ne 0 ]] && [ "${CI+x}" == x ]; then
     annotate=$(cat <<EOF
 Update the //:write_all_source_files target:
 
 bash:
 \`\`\`
-bazel run @com_github_bazelbuild_buildtools//buildozer -- --root_dir \$PWD "add additional_update_targets \$(bazel query  'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files
+bazel run @buildifier_prebuilt//:buildozer -- --root_dir \$PWD "add additional_update_targets \$(bazel query  'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files
 \`\`\`
 EOF
 )

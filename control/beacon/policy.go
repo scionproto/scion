@@ -15,13 +15,19 @@
 package beacon
 
 import (
+	"fmt"
+	"io"
 	"os"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
+	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/private/path/pathpol"
 )
 
 // PolicyType is the policy type.
@@ -37,6 +43,61 @@ const (
 	// CoreRegPolicy is the registration policy for core segments.
 	CoreRegPolicy PolicyType = "CoreSegmentRegistration"
 )
+
+// RegPolicyType is the registration policy type, which is a subset of PolicyType.
+type RegPolicyType string
+
+const (
+	// RegPolicyTypeUp is the registration policy type for up segments.
+	RegPolicyTypeUp RegPolicyType = RegPolicyType(UpRegPolicy)
+	// RegPolicyTypeDown is the registration policy type for down segments.
+	RegPolicyTypeDown RegPolicyType = RegPolicyType(DownRegPolicy)
+	// RegPolicyTypeCore is the registration policy type for core segments.
+	RegPolicyTypeCore RegPolicyType = RegPolicyType(CoreRegPolicy)
+)
+
+// RegPolicyType converts a PolicyType to a RegPolicyType if it is a registration policy type.
+// The second return value indicates whether the conversion was successful.
+func (p PolicyType) RegPolicyType() (RegPolicyType, bool) {
+	switch p {
+	case UpRegPolicy:
+		return RegPolicyTypeUp, true
+	case DownRegPolicy:
+		return RegPolicyTypeDown, true
+	case CoreRegPolicy:
+		return RegPolicyTypeCore, true
+	default:
+		return "", false
+	}
+}
+
+// SegmentType returns the segment type associated with this registration policy.
+func (p RegPolicyType) SegmentType() segment.Type {
+	switch p {
+	case RegPolicyTypeUp:
+		return segment.TypeUp
+	case RegPolicyTypeDown:
+		return segment.TypeDown
+	case RegPolicyTypeCore:
+		return segment.TypeCore
+	default:
+		panic(fmt.Sprintf("invalid registration policy type: %s", p))
+	}
+}
+
+// PolicyType converts a RegPolicyType to a generic PolicyType.
+func (p RegPolicyType) PolicyType() PolicyType {
+	switch p {
+	case RegPolicyTypeUp:
+		return UpRegPolicy
+	case RegPolicyTypeDown:
+		return DownRegPolicy
+	case RegPolicyTypeCore:
+		return CoreRegPolicy
+	default:
+		panic(fmt.Sprintf("invalid registration policy type: %s", p))
+	}
+}
 
 const (
 	// DefaultBestSetSize is the default BestSetSize value.
@@ -188,6 +249,8 @@ type Policy struct {
 	Filter Filter `yaml:"Filter"`
 	// Type is the policy type.
 	Type PolicyType `yaml:"Type"`
+	// RegistrationPolicies contains the registration policies for this policy.
+	RegistrationPolicies []RegistrationPolicy `yaml:"RegistrationPolicies"`
 }
 
 // InitDefaults initializes the default values for unset fields.
@@ -202,7 +265,29 @@ func (p *Policy) InitDefaults() {
 		m := DefaultMaxExpTime
 		p.MaxExpTime = &m
 	}
+	for _, regPolicy := range p.RegistrationPolicies {
+		regPolicy.InitDefaults()
+	}
 	p.Filter.InitDefaults()
+}
+
+func (p *Policy) Validate() error {
+	// Check that the policy does not have duplicate registration policy names.
+	for i := range len(p.RegistrationPolicies) {
+		for j := i + 1; j < len(p.RegistrationPolicies); j++ {
+			if p.RegistrationPolicies[i].Name == p.RegistrationPolicies[j].Name {
+				return serrors.New("duplicate registration policy names found",
+					"name", p.RegistrationPolicies[i].Name)
+			}
+		}
+	}
+	// Validate the registration policies.
+	for _, regPolicy := range p.RegistrationPolicies {
+		if err := regPolicy.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *Policy) initDefaults(t PolicyType) {
@@ -212,10 +297,107 @@ func (p *Policy) initDefaults(t PolicyType) {
 	}
 }
 
+// RegistrationPolicy contains the parameters for a registration policy.
+// A registration policy is used to register segments with a registrar.
+type RegistrationPolicy struct {
+	Name         string                    `yaml:"Name"`
+	Description  string                    `yaml:"Description"`
+	Matcher      RegistrationPolicyMatcher `yaml:"Matcher"`
+	Plugin       string                    `yaml:"Plugin"`
+	PluginConfig map[string]any            `yaml:"PluginConfig"`
+}
+
+// InitDefaults initializes the default values for unset fields in the registration policy.
+func (p *RegistrationPolicy) InitDefaults() {}
+
+func (p *RegistrationPolicy) Validate() error {
+	if p.Matcher.Sequence == nil && p.Matcher.ACL == nil {
+		return serrors.New(
+			"registration policy matcher must have at least one of Sequence or ACL set",
+			"name",
+			p.Name,
+		)
+	}
+	return nil
+}
+
+// beaconAsPath implements snet.Path with respect to a Beacon.
+// This is used to wrap a Beacon so that it can be used as a snet.Path
+// for pathpol filtering on beacons.
+type beaconAsPath struct {
+	beacon Beacon
+	snet.Path
+}
+
+var _ snet.Path = (*beaconAsPath)(nil)
+
+// wrapBeacon wraps a Beacon into a beaconAsPath which "trivially" implements snet.Path.
+// Since snet.Path is set to nil, calling the methods that are not explicitly overwritten
+// will panic!
+func wrapBeacon(beacon Beacon) *beaconAsPath {
+	return &beaconAsPath{
+		beacon: beacon,
+		Path:   nil,
+	}
+}
+
+// Metadata returns the metadata of the beacon.
+// It only sets the PathMetadata.Interfaces field.
+func (b *beaconAsPath) Metadata() *snet.PathMetadata {
+	md := &snet.PathMetadata{}
+	for i, entry := range b.beacon.Segment.ASEntries {
+		// For the AS entries that are not the first, add the interface with ingress interface.
+		if i > 0 {
+			md.Interfaces = append(md.Interfaces, snet.PathInterface{
+				IA: entry.Local,
+				ID: iface.ID(entry.HopEntry.HopField.ConsIngress),
+			})
+		}
+		// For the AS entries that are not the last, add the interface with egress interface.
+		if i < len(b.beacon.Segment.ASEntries)-1 {
+			md.Interfaces = append(md.Interfaces, snet.PathInterface{
+				IA: entry.Next,
+				ID: iface.ID(entry.HopEntry.HopField.ConsEgress),
+			})
+		}
+	}
+	return md
+}
+
+// RegistrationPolicyMatcher contains the matching criteria for a registration policy.
+// A matcher is valid only if at least one of Sequence and ACL fields are set.
+type RegistrationPolicyMatcher struct {
+	Sequence *pathpol.Sequence `yaml:"Sequence"`
+	ACL      *pathpol.ACL      `yaml:"ACL"`
+}
+
+// Match returns true iff the given beacon matches the registration policy matcher.
+// Note that an empty matcher is invalid, and it always returns false.
+func (m *RegistrationPolicyMatcher) Match(beacon Beacon) bool {
+	if m.ACL == nil && m.Sequence == nil {
+		return false
+	}
+	if m.Sequence != nil {
+		eval := m.Sequence.Eval([]snet.Path{wrapBeacon(beacon)})
+		if len(eval) == 0 {
+			return false
+		}
+	}
+	if m.ACL != nil {
+		eval := m.ACL.Eval([]snet.Path{wrapBeacon(beacon)})
+		if len(eval) == 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // ParsePolicyYaml parses the policy in yaml format and initializes the default values.
-func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
+func ParsePolicyYaml(r io.Reader, t PolicyType) (*Policy, error) {
+	d := yaml.NewDecoder(r)
+	d.KnownFields(true)
 	p := &Policy{}
-	if err := yaml.UnmarshalStrict(b, p); err != nil {
+	if err := d.Decode(p); err != nil {
 		return nil, serrors.Wrap("Unable to parse policy", err)
 	}
 	if p.Type != "" && p.Type != t {
@@ -229,11 +411,12 @@ func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
 // LoadPolicyFromYaml loads the policy from a yaml file and initializes the
 // default values.
 func LoadPolicyFromYaml(path string, t PolicyType) (*Policy, error) {
-	b, err := os.ReadFile(path)
+	f, err := os.OpenFile(path, os.O_RDONLY, 0o644)
 	if err != nil {
-		return nil, serrors.Wrap("Unable to read policy file", err, "path", path)
+		return nil, serrors.Wrap("Unable to open policy file", err, "path", path)
 	}
-	return ParsePolicyYaml(b, t)
+	defer func() { _ = f.Close() }()
+	return ParsePolicyYaml(f, t)
 }
 
 // Filter filters beacons.

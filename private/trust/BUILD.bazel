@@ -1,4 +1,5 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -34,6 +35,7 @@ go_library(
         "//pkg/scrypto/cppki:go_default_library",
         "//pkg/scrypto/signed:go_default_library",
         "//pkg/snet:go_default_library",
+        "//pkg/snet/addrutil:go_default_library",
         "//private/tracing:go_default_library",
         "//private/trust/internal/metrics:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",

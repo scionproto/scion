@@ -11,7 +11,7 @@ explicit trust information for end-to-end communication.
 SCION's main goal is to offer highly available and efficient inter-domain packet delivery, even in
 the presence of actively malicious entities.
 
-SCION's aspiration is to improve *inter*-AS routing and to focuses on providing end-to-end
+SCION's aspiration is to improve *inter*-AS routing and to focus on providing end-to-end
 connectivity. However, SCION does not solve *intra*-AS routing issues, nor does it provide
 end-to-end payload encryption, and identity authentication. These topics, which are equally
 important for the Internet to perform well, lie outside the scope of SCION.
@@ -116,9 +116,9 @@ This diagram attempts to illustrate the variety of valid configurations. For exa
 - There may be connections between a non-core AS and multiple core-ASes.
 - There may be multiple connections between any two ASes.
 - There may be multiple border routers per AS.
-- There may be any number of end-hosts (includng none) in an AS.
+- There may be any number of end-hosts (including none) in an AS.
 - Border routers need not be dedicated to one particular kind of links.
-- Excludig core links, the ASes within an ISD form a directed acyclic graph (no other constraint).
+- Excluding core links, the ASes within an ISD form a directed acyclic graph (no other constraint).
 - The core ASes themselves form an arbitrary graph.
 
 The dark red dashed arrows show examples of possible paths through the network.

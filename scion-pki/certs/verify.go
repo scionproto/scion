@@ -120,7 +120,9 @@ the expected ISD-AS value.
 	cmd.Flags().StringVar(&flags.subjectIA, "subject-isd-as", "",
 		"ISD-AS property of the subject of the certificate",
 	)
-	cmd.MarkFlagRequired("trc")
+	if err := cmd.MarkFlagRequired("trc"); err != nil {
+		panic(err)
+	}
 
 	joined := command.Join(pather, cmd)
 	cmd.AddCommand(newVerifyCACmd(joined))
@@ -190,7 +192,9 @@ The CA certificate must be a PEM encoded.
 	cmd.Flags().StringVar(&flags.trcFile, "trc", "", "trusted TRC (required)")
 	cmd.Flags().Int64Var(&flags.unixTime, "currenttime", 0,
 		"Optional unix timestamp that sets the current time")
-	cmd.MarkFlagRequired("trc")
+	if err := cmd.MarkFlagRequired("trc"); err != nil {
+		panic(err)
+	}
 
 	return cmd
 }

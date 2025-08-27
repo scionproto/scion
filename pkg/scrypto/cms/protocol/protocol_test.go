@@ -9,7 +9,6 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/crypto/pkcs12"
 
@@ -361,10 +360,9 @@ func testParseContentInfo(t *testing.T, der []byte) {
 			t.Fatalf("unknown signature algorithm")
 		}
 
-		var nilTime time.Time
 		if st, errr := si.GetSigningTimeAttribute(); errr != nil {
 			t.Fatal(errr)
-		} else if st == nilTime {
+		} else if st.IsZero() {
 			t.Fatal("0 value signing time")
 		}
 	}

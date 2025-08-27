@@ -51,7 +51,7 @@ func TestConfigPublisherPublish(t *testing.T) {
 		},
 	}
 	testCases := map[string]func(*testing.T){
-		"publish session pol no subsribers": func(t *testing.T) {
+		"publish session pol no subscribers": func(t *testing.T) {
 			n := control.ConfigPublisher{}
 			doneCh := make(chan struct{})
 			go func() {

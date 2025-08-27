@@ -165,8 +165,10 @@ func TestComputeProcId(t *testing.T) {
 		"ipv4 to ipv4": func(t *testing.T) []ret {
 			payload := make([]byte, 100)
 			spkt := prepBaseMsg(t, 1)
-			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
-			_ = spkt.SetSrcAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
+			assert.NoError(t,
+				spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
+			assert.NoError(t,
+				spkt.SetSrcAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
 			assert.Equal(t, slayers.T4Ip, spkt.SrcAddrType)
 			return []ret{
@@ -179,10 +181,11 @@ func TestComputeProcId(t *testing.T) {
 		"ipv6 to ipv4": func(t *testing.T) []ret {
 			payload := make([]byte, 100)
 			spkt := prepBaseMsg(t, 1)
-			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
-			_ = spkt.SetSrcAddr(addr.HostIP(netip.MustParseAddr("2001:db8::68")))
+			assert.NoError(t,
+				spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
+			assert.NoError(t, spkt.SetSrcAddr(addr.HostIP(netip.MustParseAddr("2001:db8::68"))))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
-			assert.Equal(t, slayers.T16Ip, int(spkt.SrcAddrType))
+			assert.Equal(t, slayers.T16Ip, spkt.SrcAddrType)
 			return []ret{
 				{
 					payload: payload,
@@ -194,10 +197,11 @@ func TestComputeProcId(t *testing.T) {
 			payload := make([]byte, 100)
 			spkt := prepBaseMsg(t, 1)
 			spkt.DstAddrType = slayers.T4Ip
-			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
-			_ = spkt.SetSrcAddr(addr.HostSVC(addr.SvcWildcard))
+			assert.NoError(t,
+				spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
+			assert.NoError(t, spkt.SetSrcAddr(addr.HostSVC(addr.SvcWildcard)))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
-			assert.Equal(t, slayers.T4Svc, int(spkt.SrcAddrType))
+			assert.Equal(t, slayers.T4Svc, spkt.SrcAddrType)
 			return []ret{
 				{
 					payload: payload,
@@ -231,7 +235,7 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 	testCases := map[string]test{
 		"packet shorter than common header len": {
 			data:          make([]byte, 10),
-			expectedError: serrors.New("Packet is too short"),
+			expectedError: serrors.New("packet is too short"),
 		},
 		"packet len = CmnHdrLen + addrHdrLen": {
 			data: []byte{
@@ -251,7 +255,7 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0,
 			},
-			expectedError: serrors.New("Packet is too short"),
+			expectedError: serrors.New("packet is too short"),
 		},
 		"packet len = CmnHdrLen + addrHdrLen (16IP)": {
 			data: []byte{
@@ -277,7 +281,7 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0,
 			},
-			expectedError: serrors.New("Packet is too short"),
+			expectedError: serrors.New("packet is too short"),
 		},
 	}
 	for name, tc := range testCases {

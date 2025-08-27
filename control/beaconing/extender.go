@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/extensions/digest"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/segment/extensions/epic"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/private/trust"
@@ -79,6 +80,9 @@ type DefaultExtender struct {
 	Task string
 	// StaticInfo contains the configuration used for the StaticInfo Extension.
 	StaticInfo func() *StaticInfoCfg
+	// DiscoveryInformation contains the discovery information to be added to
+	// the segment.
+	DiscoveryInformation func() *discovery.Extension
 	// EPIC defines whether the EPIC authenticators should be added when the segment is extended.
 	EPIC bool
 
@@ -147,10 +151,10 @@ func (s *DefaultExtender) Extend(
 
 	// The peer hop fields chain to the main hop field, just like any child hop field.
 	// The effect of this is that when a peer hop field is used in a path, both the
-	// peer hop field and its child are validated using the same SegID accumlator value:
+	// peer hop field and its child are validated using the same SegID accumulator value:
 	// that originally intended for the child.
 	//
-	// The corrolary is that one cannot validate a hop field's MAC by looking at the
+	// The corollary is that one cannot validate a hop field's MAC by looking at the
 	// parent hop field MAC when the parent is a peering hop field. This is ok: that
 	// is never done that way, it is always done by validating against the SegID
 	// accumulator supplied by the previous router on the forwarding path. The
@@ -175,6 +179,9 @@ func (s *DefaultExtender) Extend(
 	}
 	if static := s.StaticInfo(); static != nil {
 		asEntry.Extensions.StaticInfo = static.Generate(s.Intfs, ingress, egress)
+	}
+	if discovery := s.DiscoveryInformation(); discovery != nil {
+		asEntry.Extensions.Discovery = discovery
 	}
 
 	// Add the detachable Epic extension

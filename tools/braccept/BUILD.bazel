@@ -1,4 +1,4 @@
-load("//tools/lint:go.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
 
 go_library(
@@ -7,7 +7,7 @@ go_library(
     importpath = "github.com/scionproto/scion/tools/braccept",
     visibility = ["//visibility:private"],
     deps = select({
-        "@io_bazel_rules_go//go/platform:android": [
+        "@rules_go//go/platform:android": [
             "//pkg/log:go_default_library",
             "//pkg/scrypto:go_default_library",
             "//pkg/slayers:go_default_library",
@@ -16,7 +16,7 @@ go_library(
             "//tools/braccept/runner:go_default_library",
             "@com_github_gopacket_gopacket//layers:go_default_library",
         ],
-        "@io_bazel_rules_go//go/platform:linux": [
+        "@rules_go//go/platform:linux": [
             "//pkg/log:go_default_library",
             "//pkg/scrypto:go_default_library",
             "//pkg/slayers:go_default_library",

@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/segment/iface"
+	"github.com/scionproto/scion/pkg/slices"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app/path"
 	"github.com/scionproto/scion/private/app/path/pathprobe"
@@ -43,23 +44,29 @@ type Result struct {
 
 // Path holds information about the discovered path.
 type Path struct {
-	FullPath    snet.Path       `json:"-" yaml:"-"`
-	Fingerprint string          `json:"fingerprint" yaml:"fingerprint"`
-	Hops        []Hop           `json:"hops" yaml:"hops"`
-	Sequence    string          `json:"sequence" yaml:"sequence"`
-	NextHop     string          `json:"next_hop" yaml:"next_hop"`
-	Expiry      time.Time       `json:"expiry" yaml:"expiry"`
-	MTU         uint16          `json:"mtu" yaml:"mtu"`
-	Latency     []time.Duration `json:"latency" yaml:"latency"`
-	Status      string          `json:"status,omitempty" yaml:"status,omitempty"`
-	StatusInfo  string          `json:"status_info,omitempty" yaml:"status_info,omitempty"`
-	Local       netip.Addr      `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
+	FullPath    snet.Path                        `json:"-" yaml:"-"`
+	Fingerprint string                           `json:"fingerprint" yaml:"fingerprint"`
+	Hops        []Hop                            `json:"hops" yaml:"hops"`
+	Sequence    string                           `json:"sequence" yaml:"sequence"`
+	NextHop     string                           `json:"next_hop" yaml:"next_hop"`
+	Expiry      time.Time                        `json:"expiry" yaml:"expiry"`
+	MTU         uint16                           `json:"mtu" yaml:"mtu"`
+	Latency     []time.Duration                  `json:"latency" yaml:"latency"`
+	Status      string                           `json:"status,omitempty" yaml:"status,omitempty"`
+	StatusInfo  string                           `json:"status_info,omitempty" yaml:"status_info,omitempty"`
+	Local       netip.Addr                       `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
+	Discovery   map[addr.IA]DiscoveryInformation `json:"discovery,omitempty" yaml:"discovery,omitempty"`
 }
 
 // Hop represents an hop on the path.
 type Hop struct {
 	IfID iface.ID `json:"interface"`
 	IA   addr.IA  `json:"isd_as"`
+}
+
+type DiscoveryInformation struct {
+	ControlServices   []netip.AddrPort `json:"control_services,omitempty" yaml:"control_services,omitempty"`
+	DiscoveryServices []netip.AddrPort `json:"discovery_services,omitempty" yaml:"discovery_services,omitempty"`
 }
 
 // Human writes human readable output to the writer.
@@ -108,6 +115,7 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 				"InternalHops", humanInternalHops(meta),
 				"Notes", humanNotes(meta),
 				"SupportsEPIC", strconv.FormatBool(meta.EpicAuths.SupportsEpic()),
+				"Discovery", humanDiscovery(meta.DiscoveryInformation),
 			)...)
 		}
 		if path.Status != "" {
@@ -273,6 +281,24 @@ func humanNotes(p *snet.PathMetadata) string {
 	return fmt.Sprintf("[%s]", strings.Join(notes, ", "))
 }
 
+func humanDiscovery(di map[addr.IA]snet.DiscoveryInformation) string {
+	if len(di) == 0 {
+		return ""
+	}
+	discovery := make([]string, 0, len(di))
+	for ia, info := range di {
+		if len(info.ControlServices) == 0 && len(info.DiscoveryServices) == 0 {
+			continue
+		}
+		discovery = append(discovery, fmt.Sprintf("%s: {Control: %s, Discovery: %s}",
+			ia,
+			strings.Join(slices.Transform(info.ControlServices, netip.AddrPort.String), ", "),
+			strings.Join(slices.Transform(info.DiscoveryServices, netip.AddrPort.String), ", "),
+		))
+	}
+	return fmt.Sprintf("{%s}", strings.Join(discovery, ", "))
+}
+
 // sanitizeString returns a trimmed single line representation of the string,
 // with any control characters or quotation marks removed.
 func sanitizeString(str string) string {
@@ -371,7 +397,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	for _, path := range paths {
 		fingerprint := "local"
 		if len(path.Metadata().Interfaces) > 0 {
-			fp := snet.Fingerprint(path).String()
+			fp := path.Metadata().Fingerprint().String()
 			fingerprint = fp[:16]
 		}
 		var nextHop string
@@ -390,6 +416,18 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		}
 		for _, hop := range path.Metadata().Interfaces {
 			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA, IfID: hop.ID})
+		}
+		for ia, info := range pathMeta.DiscoveryInformation {
+			if len(info.ControlServices) == 0 && len(info.DiscoveryServices) == 0 {
+				continue
+			}
+			if rpath.Discovery == nil {
+				rpath.Discovery = make(map[addr.IA]DiscoveryInformation)
+			}
+			rpath.Discovery[ia] = DiscoveryInformation{
+				ControlServices:   info.ControlServices,
+				DiscoveryServices: info.DiscoveryServices,
+			}
 		}
 		if status, ok := statuses[pathprobe.PathKey(path)]; ok {
 			rpath.Status = strings.ToLower(string(status.Status))

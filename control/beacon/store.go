@@ -58,8 +58,46 @@ func applyStoreOptions(opts []StoreOption) storeOptions {
 	return o
 }
 
+// GroupedBeacons is a map where the key is the registration policy name and the value is a
+// slice of beacons that should be handled by that registration policy.
+type GroupedBeacons map[string][]Beacon
+
+// DefaultGroup defines the default beacon group.
+// This means that if a policy does not define any registration policies,
+// all the beacons should be put into this group.
+//
+// This should also correspond to the ID of the default plugin.
+const DefaultGroup string = "default"
+
+// groupBeacons takes a slice of beacons and groups them according to the registration policies
+// defined in the provided policy.
+//
+// The beacons that do not match any registration policy are dropped.
+//
+// If the policy defines no registration policy, all the beacons will be put into
+// the default group, indexed by DefaultGroup.
+func groupBeacons(beacons []Beacon, policy *Policy) GroupedBeacons {
+	if len(policy.RegistrationPolicies) == 0 {
+		return map[string][]Beacon{
+			DefaultGroup: beacons,
+		}
+	}
+	// Go through every beacon, and group it into the first registration
+	// policy that matches it.
+	beaconBuckets := make(GroupedBeacons)
+	for _, b := range beacons {
+		for _, regPolicy := range policy.RegistrationPolicies {
+			if regPolicy.Matcher.Match(b) {
+				beaconBuckets[regPolicy.Name] = append(beaconBuckets[regPolicy.Name], b)
+				break
+			}
+		}
+	}
+	return beaconBuckets
+}
+
 // Store provides abstracted access to the beacon database in a non-core AS.
-// The store helps inserting beacons and revocations, and selects the best beacons
+// The store helps to insert beacons and revocations, and selects the best beacons
 // for given purposes based on the configured policies. It should not be used in a
 // core AS.
 type Store struct {
@@ -85,24 +123,33 @@ func NewBeaconStore(policies Policies, db DB, opts ...StoreOption) (*Store, erro
 	return s, nil
 }
 
-// BeaconsToPropagate returns a slice  all beacons to propagate at the time of the call.
+// BeaconsToPropagate returns a slice of all beacons to propagate at the time of the call.
 // The selection is based on the configured propagation policy.
 func (s *Store) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
-// SegmentsToRegister returns a channel that provides all beacons to register at
-// the time of the call. The selections is based on the configured policy for
-// the requested segment type.
-func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
+// SegmentsToRegister returns a GroupedBeacons that provides all beacons to register
+// at the time of the call. The selections are based on the configured policy for the
+// requested segment type.
+func (s *Store) SegmentsToRegister(
+	ctx context.Context,
+	segType seg.Type,
+) (GroupedBeacons, error) {
+	var policy *Policy
 	switch segType {
 	case seg.TypeDown:
-		return s.getBeacons(ctx, &s.policies.DownReg)
+		policy = &s.policies.DownReg
 	case seg.TypeUp:
-		return s.getBeacons(ctx, &s.policies.UpReg)
+		policy = &s.policies.UpReg
 	default:
 		return nil, serrors.New("Unsupported segment type", "type", segType)
 	}
+	beacons, err := s.getBeacons(ctx, policy)
+	if err != nil {
+		return nil, err
+	}
+	return groupBeacons(beacons, policy), nil
 }
 
 // getBeacons fetches the candidate beacons from the database and serves the
@@ -130,7 +177,7 @@ func (s *Store) MaxExpTime(policyType PolicyType) uint8 {
 }
 
 // CoreStore provides abstracted access to the beacon database in a core AS. The
-// store helps inserting beacons and revocations, and selects the best beacons
+// store helps to insert beacons and revocations, and selects the best beacons
 // for given purposes based on the configured policies. It should not be used in
 // a non-core AS.
 type CoreStore struct {
@@ -138,7 +185,7 @@ type CoreStore struct {
 	policies CorePolicies
 }
 
-// NewCoreBeaconStore creates a new beacon store for a non-core AS.
+// NewCoreBeaconStore creates a new beacon store for a core AS.
 func NewCoreBeaconStore(policies CorePolicies, db DB, opts ...StoreOption) (*CoreStore, error) {
 	policies.InitDefaults()
 	if err := policies.Validate(); err != nil {
@@ -162,14 +209,20 @@ func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
-// SegmentsToRegister returns a slice of all beacons to register at the time of the call.
-// The selections is based on the configured policy for the requested segment type.
-func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
-
+// SegmentsToRegister returns a GroupedBeacons to register at the time of the call.
+// The selection is based on the configured policy for the requested segment type.
+func (s *CoreStore) SegmentsToRegister(
+	ctx context.Context,
+	segType seg.Type,
+) (GroupedBeacons, error) {
 	if segType != seg.TypeCore {
 		return nil, serrors.New("Unsupported segment type", "type", segType)
 	}
-	return s.getBeacons(ctx, &s.policies.CoreReg)
+	beacons, err := s.getBeacons(ctx, &s.policies.CoreReg)
+	if err != nil {
+		return nil, err
+	}
+	return groupBeacons(beacons, &s.policies.CoreReg), nil
 }
 
 // getBeacons fetches the candidate beacons from the database and serves the

@@ -5,7 +5,7 @@
 # * a cross-compilation toolchain that targets openwrt_<arch> (i.e. links with musl-libc).
 # * openwrt (ipk) packaging of scion binaries built with the above.
 #
-# Turning these assets into bazel reeferencable dependencies happens in the context of the external
+# Turning these assets into bazel referencable dependencies happens in the context of the external
 # src tree openwrt_<target>_SDK, which receives its own buildfile (BUILD.external.bazel, installed there by
 # the http_archive target "openwrt_<target>_SDK" in //WORKSPACE).
 

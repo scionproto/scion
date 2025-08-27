@@ -77,7 +77,6 @@ func Choose(
 	remote addr.IA,
 	opts ...Option,
 ) (snet.Path, error) {
-
 	o := applyOption(opts)
 	paths, err := fetchPaths(ctx, conn, remote, o.refresh, o.seq)
 	if err != nil {
@@ -129,7 +128,6 @@ func filterUnhealthy(
 	cfg *ProbeConfig,
 	epic bool,
 ) ([]snet.Path, error) {
-
 	// Filter and save empty paths. They are considered healthy by definition, but must not be used
 	// for path probing.
 	var nonEmptyPaths []snet.Path
@@ -175,7 +173,6 @@ func fetchPaths(
 	refresh bool,
 	seq string,
 ) ([]snet.Path, error) {
-
 	allPaths, err := conn.Paths(ctx, remote, 0, daemon.PathReqFlags{Refresh: refresh})
 	if err != nil {
 		return nil, serrors.Wrap("retrieving paths", err)
@@ -267,7 +264,7 @@ func (cs ColorScheme) KeyValue(k, v string) string {
 
 func (cs ColorScheme) KeyValues(kv ...string) []string {
 	if len(kv)%2 != 0 {
-		panic("KeyValues expects even number of parameters")
+		panic(fmt.Errorf("KeyValues expects even number of parameters: %d", len(kv)))
 	}
 	entries := make([]string, 0, len(kv)/2)
 	for i := 0; i < len(kv); i += 2 {

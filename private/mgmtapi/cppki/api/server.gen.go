@@ -84,7 +84,6 @@ type MiddlewareFunc func(http.Handler) http.Handler
 
 // GetCertificates operation middleware
 func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 
 	var err error
 
@@ -123,12 +122,11 @@ func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *htt
 		handler = middleware(handler)
 	}
 
-	handler.ServeHTTP(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r)
 }
 
 // GetCertificate operation middleware
 func (siw *ServerInterfaceWrapper) GetCertificate(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 
 	var err error
 
@@ -149,12 +147,11 @@ func (siw *ServerInterfaceWrapper) GetCertificate(w http.ResponseWriter, r *http
 		handler = middleware(handler)
 	}
 
-	handler.ServeHTTP(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r)
 }
 
 // GetCertificateBlob operation middleware
 func (siw *ServerInterfaceWrapper) GetCertificateBlob(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 
 	var err error
 
@@ -175,12 +172,11 @@ func (siw *ServerInterfaceWrapper) GetCertificateBlob(w http.ResponseWriter, r *
 		handler = middleware(handler)
 	}
 
-	handler.ServeHTTP(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r)
 }
 
 // GetTrcs operation middleware
 func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 
 	var err error
 
@@ -211,12 +207,11 @@ func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Reques
 		handler = middleware(handler)
 	}
 
-	handler.ServeHTTP(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r)
 }
 
 // GetTrc operation middleware
 func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 
 	var err error
 
@@ -255,12 +250,11 @@ func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request
 		handler = middleware(handler)
 	}
 
-	handler.ServeHTTP(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r)
 }
 
 // GetTrcBlob operation middleware
 func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 
 	var err error
 
@@ -299,7 +293,7 @@ func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Req
 		handler = middleware(handler)
 	}
 
-	handler.ServeHTTP(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r)
 }
 
 type UnescapedCookieParamError struct {

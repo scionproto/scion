@@ -79,6 +79,7 @@ func (v *PeriodicView) Get() (any, error) {
 		v.readTask.read()
 
 		// Launch goroutine for future reads.
+		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 		v.taskRunner = periodic.Start(v.readTask, v.ReadInterval, v.ReadInterval)
 		v.running = true
 	}

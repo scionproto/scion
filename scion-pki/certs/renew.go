@@ -104,8 +104,7 @@ type SubjectVars struct {
 	StreetAddress      string  `json:"street_address,omitempty"`
 }
 
-type Features struct {
-}
+type Features struct{}
 
 func newRenewCmd(pather command.Pather) *cobra.Command {
 	var envFlags flag.SCIONEnvironment
@@ -204,10 +203,10 @@ The template is expressed in JSON. A valid example::
 			certFile := args[0]
 			keyFile := args[1]
 			printErr := func(f string, ctx ...any) {
-				fmt.Fprintf(cmd.ErrOrStderr(), f, ctx...)
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), f, ctx...)
 			}
 			printf := func(f string, ctx ...any) {
-				fmt.Fprintf(cmd.OutOrStdout(), f, ctx...)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), f, ctx...)
 			}
 
 			expiryChecker, err := parseExpiresIn(flags.expiresIn)
@@ -276,7 +275,7 @@ The template is expressed in JSON. A valid example::
 			if err != nil {
 				return serrors.Wrap("connecting to SCION Daemon", err)
 			}
-			defer sd.Close()
+			defer func() { _ = sd.Close() }()
 
 			info, err := app.QueryASInfo(daemonCtx, sd)
 			if err != nil {
@@ -373,7 +372,7 @@ The template is expressed in JSON. A valid example::
 					Type:  "CERTIFICATE REQUEST",
 					Bytes: csr,
 				})
-				err = file.WriteFile(flags.outCSR, pemCSR, 0666, opts...)
+				err = file.WriteFile(flags.outCSR, pemCSR, 0o666, opts...)
 				if err != nil {
 					// The CSR is not important, carry on with execution.
 					printErr("Failed to write CSR: %s\n", err.Error())
@@ -413,7 +412,7 @@ The template is expressed in JSON. A valid example::
 					Type:  "CMS",
 					Bytes: req.CmsSignedRequest,
 				})
-				err = file.WriteFile(flags.outCMS, pemReq, 0666, opts...)
+				err = file.WriteFile(flags.outCMS, pemReq, 0o666, opts...)
 				if err != nil {
 					// The CMS request is not important, carry on with execution.
 					printErr("Failed to write CMS request: %s\n", err.Error())
@@ -474,7 +473,7 @@ The template is expressed in JSON. A valid example::
 					certFile := outCertFile + suffix
 					printErr("Writing unverified chain: %q\n", certFile)
 					pem := encodeChain(chain)
-					if err := file.WriteFile(certFile, pem, 0644, opts...); err != nil {
+					if err := file.WriteFile(certFile, pem, 0o644, opts...); err != nil {
 						fmt.Println("Failed to write unverified chain: ", err)
 					}
 
@@ -482,7 +481,7 @@ The template is expressed in JSON. A valid example::
 					if pemPrivNext != nil {
 						keyFile := outKeyFile + suffix
 						printErr("Writing private key for unverified chain: %q\n", keyFile)
-						if err := file.WriteFile(keyFile, pemPrivNext, 0600, opts...); err != nil {
+						if err := file.WriteFile(keyFile, pemPrivNext, 0o600, opts...); err != nil {
 							fmt.Println("Failed to write private key for unverified chain: ", err)
 						}
 					}
@@ -529,12 +528,12 @@ The template is expressed in JSON. A valid example::
 			pemRenewed := encodeChain(renewed)
 
 			if pemPrivNext != nil {
-				if err := file.WriteFile(outKeyFile, pemPrivNext, 0600, opts...); err != nil {
+				if err := file.WriteFile(outKeyFile, pemPrivNext, 0o600, opts...); err != nil {
 					return serrors.Wrap("writing fresh private key", err)
 				}
 				printf("Private key successfully written to %q\n", outKeyFile)
 			}
-			if err := file.WriteFile(outCertFile, pemRenewed, 0644, opts...); err != nil {
+			if err := file.WriteFile(outCertFile, pemRenewed, 0o644, opts...); err != nil {
 				return serrors.Wrap("writing renewed certificate chain", err)
 			}
 			printf("Certificate chain successfully written to %q\n", outCertFile)
@@ -609,7 +608,9 @@ The template is expressed in JSON. A valid example::
 	cmd.Flags().BoolVar(&flags.noProbe, "no-probe", false, "do not probe paths for health")
 	cmd.Flags().BoolVar(&flags.refresh, "refresh", false, "set refresh flag for path request")
 
-	cmd.MarkFlagRequired("trc")
+	if err := cmd.MarkFlagRequired("trc"); err != nil {
+		panic(err)
+	}
 
 	return cmd
 }
@@ -630,7 +631,6 @@ func (r *renewer) Request(
 	remote net.Addr,
 	ca addr.IA,
 ) ([]*x509.Certificate, error) {
-
 	ctx, cancel := context.WithTimeout(ctx, r.Timeout)
 	defer cancel()
 
@@ -645,18 +645,17 @@ func (r *renewer) requestLocal(
 	req *cppb.ChainRenewalRequest,
 	remote net.Addr,
 ) ([]*x509.Certificate, error) {
-
 	dialer := &grpc.TCPDialer{
 		SvcResolver: func(hs addr.SVC) []resolver.Address {
 			// Do the SVC resolution
 			entries, err := r.Daemon.SVCInfo(ctx, []addr.SVC{hs})
 			if err != nil {
-				fmt.Fprintf(r.StdErr, "Failed to resolve SVC address: %s\n", err)
+				_, _ = fmt.Fprintf(r.StdErr, "Failed to resolve SVC address: %s\n", err)
 				return nil
 			}
 			resolved, ok := entries[hs]
 			if !ok {
-				fmt.Fprintf(r.StdErr, "No SVC address found. [svc=%s]", hs)
+				_, _ = fmt.Fprintf(r.StdErr, "No SVC address found. [svc=%s]", hs)
 				return nil
 			}
 			// Filter the returned addresses.
@@ -664,7 +663,7 @@ func (r *renewer) requestLocal(
 			for _, addr := range resolved {
 				_, _, err := net.SplitHostPort(addr)
 				if err != nil {
-					fmt.Fprintf(r.StdErr, "Failed to parse addr %s: %s", addr, err)
+					_, _ = fmt.Fprintf(r.StdErr, "Failed to parse addr %s: %s", addr, err)
 					continue
 				}
 				addrs = append(addrs, resolver.Address{Addr: addr})
@@ -695,7 +694,6 @@ func (r *renewer) requestRemote(
 	remote net.Addr,
 	ca addr.IA,
 ) ([]*x509.Certificate, error) {
-
 	path, err := path.Choose(ctx, r.Daemon, ca, r.PathOptions()...)
 	if err != nil {
 		return nil, err
@@ -710,14 +708,9 @@ func (r *renewer) requestRemote(
 			NextHop: path.UnderlayNextHop(),
 		}
 	case *snet.SVCAddr:
-		dst = &snet.SVCAddr{
-			IA:      ca,
-			SVC:     r.SVC,
-			Path:    path.Dataplane(),
-			NextHop: path.UnderlayNextHop(),
-		}
+		dst = addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
 	default:
-		panic(fmt.Sprintf("unsupported remote address: %s", remote))
+		panic(fmt.Sprintf("unsupported remote address: %#v", remote))
 	}
 
 	localIP := r.LocalIP
@@ -761,7 +754,7 @@ func (r *renewer) requestRemote(
 	if err != nil {
 		return nil, serrors.Wrap("dialing", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	dialer := &grpc.QUICDialer{
 		Rewriter: &infraenv.AddressRewriter{
@@ -793,12 +786,11 @@ func (r *renewer) doRequest(
 	remote net.Addr,
 	req *cppb.ChainRenewalRequest,
 ) ([]*x509.Certificate, error) {
-
 	c, err := dialer.Dial(ctx, remote)
 	if err != nil {
 		return nil, serrors.Wrap("dialing gRPC connection", err, "remote", remote)
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 	client := cppb.NewChainRenewalServiceClient(c)
 	reply, err := client.ChainRenewal(ctx, req, grpc.RetryProfile...)
 	if err != nil {
@@ -815,7 +807,7 @@ func encodeChain(chain []*x509.Certificate) []byte {
 	var buffer bytes.Buffer
 	for _, c := range chain {
 		if err := pem.Encode(&buffer, &pem.Block{Type: "CERTIFICATE", Bytes: c.Raw}); err != nil {
-			panic(err.Error())
+			panic(err)
 		}
 	}
 	return buffer.Bytes()

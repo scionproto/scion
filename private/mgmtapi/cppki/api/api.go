@@ -187,7 +187,8 @@ func (s *Server) GetCertificate(w http.ResponseWriter, r *http.Request, chainID 
 	}
 }
 
-// GetCertificateBlob gnerates a certificate chain blob response encoded as PEM for a given chainId.
+// GetCertificateBlob generates a certificate chain blob response encoded as PEM
+// for a given chainId.
 func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chainID ChainID) {
 	w.Header().Set("Content-Type", "application/x-pem-file")
 
@@ -234,7 +235,7 @@ func (s *Server) GetTrcs(
 ) {
 
 	db := s.TrustDB
-	q := truststorage.TRCsQuery{Latest: !(params.All != nil && *params.All)}
+	q := truststorage.TRCsQuery{Latest: params.All == nil || !*params.All}
 	if params.Isd != nil {
 		q.ISD = make([]addr.ISD, 0, len(*params.Isd))
 		for _, isd := range *params.Isd {

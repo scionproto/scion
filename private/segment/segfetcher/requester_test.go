@@ -108,7 +108,7 @@ func TestRequester(t *testing.T) {
 		"Cores only": {
 			Reqs: segfetcher.Requests{req_210_110, req_210_120, req_210_130},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
-				// req1 expriences unspecific error, retries until maxTries
+				// req1 experiences unspecific error, retries until maxTries
 				req1 := req_210_110
 				expectedErr1 := serrors.New("no attempts left")
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).

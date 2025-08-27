@@ -69,7 +69,7 @@ func (f *FilteringPathSelector) Select(selectables []Selectable, current Fingerp
 			dead = append(dead, path)
 			continue
 		}
-		fingerprint := snet.Fingerprint(path)
+		fingerprint := path.Metadata().Fingerprint()
 		_, isCurrent := current[fingerprint]
 		allowed = append(allowed, Allowed{
 			Path:        path,

@@ -44,7 +44,7 @@ dist-rpm:
 # Use NOTPARALLEL to force correct order.
 # Note: From GNU make 4.4, this still allows building any other targets (e.g. lint) in parallel.
 .NOTPARALLEL: all
-all: go_deps.bzl protobuf mocks gazelle build-dev antlr write_all_source_files licenses
+all: protobuf mocks gazelle build-dev antlr write_all_source_files licenses
 
 clean:
 	bazel clean
@@ -63,12 +63,7 @@ test-integration:
 	bazel test --config=integration_all
 
 go.mod:
-	bazel run --config=quiet @go_sdk//:bin/go -- mod tidy
-
-go_deps.bzl: go.mod
-	bazel run --verbose_failures --config=quiet //:gazelle_update_repos
-	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
-	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
+	bazel run --config=quiet @rules_go//go -- mod tidy
 
 docker-images:
 	@echo "Build images"
@@ -90,7 +85,7 @@ mocks:
 mocksdiff:
 	bazel run //tools:gomocks -- diff
 
-gazelle: go_deps.bzl
+gazelle: go.mod
 	bazel run //:gazelle --verbose_failures --config=quiet
 	./tools/buildrill/go_integration_test_sync
 
@@ -99,6 +94,8 @@ licenses:
 
 antlr:
 	antlr/generate.sh fix
+	bazel run @rules_go//go -- fmt antlr/sequence/*.go
+	bazel run @rules_go//go -- fmt antlr/traffic_class/*.go
 
 write_all_source_files:
 	bazel run //:write_all_source_files
@@ -126,8 +123,7 @@ GO_BUILD_TAGS_ARG=$(shell bazel info --ui_event_filters=-stdout,-stderr --announ
 
 lint-go-golangci:
 	$(info ==> $@)
-	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
-		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.64.5 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
+	@tools/quiet bazel run --config=quiet @rules_go//go -- run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6 run --config="${PWD}/.golangci.yml" $(GO_BUILD_TAGS_ARG),lint ./...
 
 lint-go-semgrep:
 	$(info ==> $@)
@@ -148,7 +144,7 @@ lint-protobuf: lint-protobuf-buf
 
 lint-protobuf-buf:
 	$(info ==> $@)
-	@tools/quiet bazel run --config=quiet @buf//:buf -- lint $(PWD) --path $(PWD)/proto
+	@tools/quiet bazel run --config=quiet @rules_go//go -- run github.com/bufbuild/buf/cmd/buf@v1.53.0 lint --disable-symlinks
 
 lint-openapi: lint-openapi-spectral
 

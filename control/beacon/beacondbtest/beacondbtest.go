@@ -237,13 +237,13 @@ func testUpdateOlderIgnored(t *testing.T, db beacon.DB) {
 }
 
 func testCandidateBeacons(t *testing.T, db Testable) {
-	// Insert beacons from longest to shortest path such that the insertion
+	// Insert beacons from the longest to the shortest path such that the insertion
 	// order is not sorted the same as the expected outcome.
 	var beacons []beacon.Beacon
 	insertBeacons := func(t *testing.T, db beacon.DB) {
 		for i, info := range [][]IfInfo{Info3, Info2, Info1} {
 			b := InsertBeacon(t, db, info, 12, uint32(i), beacon.UsageProp)
-			// Prepend to get beacons sorted from shortest to longest path.
+			// Prepend to get beacons sorted from the shortest to the longest path.
 			beacons = append([]beacon.Beacon{b}, beacons...)
 		}
 	}

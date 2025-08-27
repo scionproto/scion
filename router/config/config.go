@@ -57,7 +57,7 @@ type RouterConfig struct {
 }
 
 // BFD configuration. Unfortunately cannot be shared with topology.BFD
-// as one is toml and the other json. Eventhough the semantics are identical.
+// as one is toml and the other json. Even though the semantics are identical.
 type BFD struct {
 	Disable               bool         `toml:"disable,omitempty"`
 	DetectMult            uint8        `toml:"detect_mult,omitempty"`

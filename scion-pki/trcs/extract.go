@@ -94,7 +94,7 @@ func newExtractCertificates(pather command.Pather) *cobra.Command {
 		Aliases: []string{"certs"},
 		Short:   "Extract the bundled certificates",
 		Example: fmt.Sprintf(`  %[1]s certificates -o bundle.pem input.trc`, pather.CommandPath()),
-		Long:    `'certificates' extracts the certificates into a bundeld PEM file.`,
+		Long:    `'certificates' extracts the certificates into a bundled PEM file.`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := runExtractCertificates(args[0], flags.out); err != nil {

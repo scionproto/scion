@@ -1,6 +1,6 @@
-load("//tools/lint:go.bzl", "go_library")
-load("//:scion.bzl", "scion_go_binary")
 load("@aspect_bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
 
 go_library(
     name = "go_default_library",
@@ -39,7 +39,7 @@ go_library(
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@com_github_spf13_cobra//doc:go_default_library",
-        "@in_gopkg_yaml_v2//:go_default_library",
+        "@in_gopkg_yaml_v3//:go_default_library",
     ],
 )
 
