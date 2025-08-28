@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/stun"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
@@ -939,6 +940,26 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	metrics[sc].InputBytesTotal.Add(float64(size))
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
+		if stun.Is(p.RawPacket) {
+			// Process STUN packet
+			txid, err := stun.ParseBindingRequest(p.RawPacket)
+			if err != nil {
+				l.pool.Put(p)
+				metrics[sc].DroppedPacketsInvalid.Inc()
+				return
+			}
+			resp := stun.Response(txid, srcAddr.AddrPort())
+			p.RawPacket = p.RawPacket[:len(resp)]
+			copy(p.RawPacket, resp)
+			p.RemoteAddr = unsafe.Pointer(srcAddr)
+			p.Link = l
+			if !p.Link.Send(p) {
+				l.pool.Put(p)
+				metrics[sc].DroppedPacketsBusyForwarder.Inc()
+				return
+			}
+			return
+		}
 		log.Debug("Error while computing procID", "err", err)
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
