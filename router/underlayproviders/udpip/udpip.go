@@ -41,7 +41,6 @@ var (
 	errResolveOnSiblingLink  = errors.New("unsupported address resolution on sibling link")
 	errResolveOnExternalLink = errors.New("unsupported address resolution on external link")
 	errInvalidServiceAddress = errors.New("invalid service address")
-	errShortPacket           = errors.New("packet is too short")
 	errDuplicateRemote       = errors.New("duplicate remote address")
 )
 
@@ -574,13 +573,7 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-	if err != nil {
-		log.Debug("Error while computing procID", "err", err)
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsInvalid.Inc()
-		return
-	}
+	procID := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if procID < 0 {
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
@@ -754,13 +747,7 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-	if err != nil {
-		log.Debug("Error while computing procID", "err", err)
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsInvalid.Inc()
-		return
-	}
+	procID := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if procID < 0 {
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
@@ -1003,13 +990,7 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-	if err != nil {
-		log.Debug("Error while computing procID", "err", err)
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsInvalid.Inc()
-		return
-	}
+	procID := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 
 	p.Link = l
 	// This is a connected link. We must record the src address in case the packet is turned around
@@ -1034,19 +1015,25 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	}
 }
 
-func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (int, error) {
-	if stun.Is(data) {
-		return -1, nil
+func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) int {
+	if len(data) < slayers.CmnHdrLen {
+		return -1
 	}
 
-	if len(data) < slayers.CmnHdrLen {
-		return 0, errShortPacket
+	switch slayers.L4ProtocolType(data[4]) {
+	case slayers.L4TCP, slayers.L4UDP, slayers.L4SCMP, slayers.L4BFD,
+		slayers.HopByHopClass, slayers.End2EndClass,
+		253, 254 /* experimentation and testing */:
+		break
+	default:
+		return -1
 	}
+
 	dstHostAddrLen := slayers.AddrType(data[9] >> 4 & 0xf).Length()
 	srcHostAddrLen := slayers.AddrType(data[9] & 0xf).Length()
 	addrHdrLen := 2*addr.IABytes + srcHostAddrLen + dstHostAddrLen
 	if len(data) < slayers.CmnHdrLen+addrHdrLen {
-		return 0, errShortPacket
+		return -1
 	}
 
 	s := hashSeed
@@ -1062,5 +1049,5 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (int, erro
 		s = hashFNV1a(s, c)
 	}
 
-	return int(s % uint32(numProcRoutines)), nil
+	return int(s % uint32(numProcRoutines))
 }
