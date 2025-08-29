@@ -581,6 +581,11 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
+	if procID < 0 {
+		l.pool.Put(p)
+		metrics[sc].DroppedPacketsInvalid.Inc()
+		return
+	}
 
 	p.Link = l
 	// The src address does not need to be recorded in the packet. The link has all the relevant
@@ -752,6 +757,11 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
 		log.Debug("Error while computing procID", "err", err)
+		l.pool.Put(p)
+		metrics[sc].DroppedPacketsInvalid.Inc()
+		return
+	}
+	if procID < 0 {
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
@@ -995,17 +1005,6 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	metrics[sc].InputBytesTotal.Add(float64(size))
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
-		if stun.Is(p.RawPacket) {
-			p.Link = l
-			p.RemoteAddr = unsafe.Pointer(srcAddr)
-			select {
-			case l.procQ <- p:
-			default:
-				l.pool.Put(p)
-				metrics[sc].DroppedPacketsBusyProcessor.Inc()
-			}
-			return
-		}
 		log.Debug("Error while computing procID", "err", err)
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
@@ -1021,15 +1020,25 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	// left via this link and required resolve(). That case doesn't occur.
 	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
+	var q chan *router.Packet
+	if procID < 0 {
+		q = l.procQ
+	} else {
+		q = l.procQs[procID]
+	}
 	select {
-	case l.procQs[procID] <- p:
+	case q <- p:
 	default:
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
 }
 
-func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, error) {
+func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (int, error) {
+	if stun.Is(data) {
+		return -1, nil
+	}
+
 	if len(data) < slayers.CmnHdrLen {
 		return 0, errShortPacket
 	}
@@ -1053,5 +1062,5 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 		s = hashFNV1a(s, c)
 	}
 
-	return s % uint32(numProcRoutines), nil
+	return int(s % uint32(numProcRoutines)), nil
 }
