@@ -769,6 +769,7 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 }
 
 type internalLink struct {
+	procQ            chan *router.Packet
 	procQs           []chan *router.Packet
 	egressQ          chan *router.Packet
 	metrics          *router.InterfaceMetrics
@@ -844,10 +845,64 @@ func (l *internalLink) start(
 	procQs []chan *router.Packet,
 	pool router.PacketPool,
 ) {
+	l.procQ = make(chan *router.Packet, len(procQs[0]))
+
 	// procQs and pool are never known before all configured links have been instantiated. So we
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
+
+	go func() {
+		defer log.HandlePanic()
+		l.runProcessor()
+	}()
+}
+
+func (l *internalLink) runProcessor() {
+	for {
+		p, ok := <-l.procQ
+		if !ok {
+			continue
+		}
+		err := l.processPacket(p)
+		if err != nil {
+			log.Debug("Error processing packet", "err", err)
+			sc := router.ClassOfSize(len(p.RawPacket))
+			l.metrics[sc].DroppedPacketsInvalid.Inc()
+			l.pool.Put(p)
+			continue
+		}
+		egressLink := p.Link
+		if egressLink == nil {
+			sc := router.ClassOfSize(len(p.RawPacket))
+			l.metrics[sc].DroppedPacketsInvalid.Inc()
+			l.pool.Put(p)
+			continue
+		}
+		if !egressLink.Send(p) {
+			sc := router.ClassOfSize(len(p.RawPacket))
+			l.metrics[sc].DroppedPacketsBusyForwarder.Inc()
+			l.pool.Put(p)
+			continue
+		}
+	}
+}
+
+func (l *internalLink) processPacket(pkt *router.Packet) error {
+	if stun.Is(pkt.RawPacket) {
+		// Process STUN packet
+		txid, err := stun.ParseBindingRequest(pkt.RawPacket)
+		if err != nil {
+			return serrors.Wrap("processing STUN packet", err)
+		}
+		resp := stun.Response(txid, (*net.UDPAddr)(pkt.RemoteAddr).AddrPort())
+		pkt.RawPacket = pkt.RawPacket[:len(resp)]
+		copy(pkt.RawPacket, resp)
+		return nil
+	}
+	// Drop packet
+	pkt.Link = nil
+	return nil
 }
 
 func (l *internalLink) stop() {
@@ -941,22 +996,13 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if err != nil {
 		if stun.Is(p.RawPacket) {
-			// Process STUN packet
-			txid, err := stun.ParseBindingRequest(p.RawPacket)
-			if err != nil {
-				l.pool.Put(p)
-				metrics[sc].DroppedPacketsInvalid.Inc()
-				return
-			}
-			resp := stun.Response(txid, srcAddr.AddrPort())
-			p.RawPacket = p.RawPacket[:len(resp)]
-			copy(p.RawPacket, resp)
-			p.RemoteAddr = unsafe.Pointer(srcAddr)
 			p.Link = l
-			if !p.Link.Send(p) {
+			p.RemoteAddr = unsafe.Pointer(srcAddr)
+			select {
+			case l.procQ <- p:
+			default:
 				l.pool.Put(p)
-				metrics[sc].DroppedPacketsBusyForwarder.Inc()
-				return
+				metrics[sc].DroppedPacketsBusyProcessor.Inc()
 			}
 			return
 		}
