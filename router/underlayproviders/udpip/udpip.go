@@ -573,16 +573,17 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-	if procID < 0 {
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsInvalid.Inc()
-		return
-	}
 
 	p.Link = l
 	// The src address does not need to be recorded in the packet. The link has all the relevant
 	// information.
+
+	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
+	if !ok {
+		l.pool.Put(p)
+		metrics[sc].DroppedPacketsInvalid.Inc()
+		return
+	}
 	select {
 	case l.procQs[procID] <- p:
 	default:
@@ -747,16 +748,17 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-	if procID < 0 {
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsInvalid.Inc()
-		return
-	}
 
 	p.Link = l
 	// The src address does not need to be recorded in the packet. The link has all the relevant
 	// information.
+
+	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
+	if !ok {
+		l.pool.Put(p)
+		metrics[sc].DroppedPacketsInvalid.Inc()
+		return
+	}
 	select {
 	case l.procQs[procID] <- p:
 	default:
@@ -990,19 +992,15 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 
 	p.Link = l
-	// This is a connected link. We must record the src address in case the packet is turned around
-	// by SCMP.
-
-	// One of RemoteAddr or srcAddr becomes garbage. Keeping srcAddr doesn't require copying.
-	// Keeping RemoteAddr does and has no advantage: it could only be further reused if this packet
-	// left via this link and required resolve(). That case doesn't occur.
+	// This is a unconnected link. We must record the src address in case the packet is turned around,
+	// e.g., by SCMP.
 	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
 	var q chan *router.Packet
-	if procID < 0 {
+	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
+	if ok {
 		q = l.procQ
 	} else {
 		q = l.procQs[procID]
@@ -1015,9 +1013,13 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	}
 }
 
-func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) int {
+func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, bool) {
+	if numProcRoutines < 0 || numProcRoutines > 1<<32 - 1 {
+		panic("unexpected number of processors")
+	}
+
 	if len(data) < slayers.CmnHdrLen {
-		return -1
+		return uint32(numProcRoutines), false
 	}
 
 	switch slayers.L4ProtocolType(data[4]) {
@@ -1026,14 +1028,14 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) int {
 		253, 254 /* experimentation and testing */:
 		break
 	default:
-		return -1
+		return uint32(numProcRoutines), false
 	}
 
 	dstHostAddrLen := slayers.AddrType(data[9] >> 4 & 0xf).Length()
 	srcHostAddrLen := slayers.AddrType(data[9] & 0xf).Length()
 	addrHdrLen := 2*addr.IABytes + srcHostAddrLen + dstHostAddrLen
 	if len(data) < slayers.CmnHdrLen+addrHdrLen {
-		return -1
+		return uint32(numProcRoutines), false
 	}
 
 	s := hashSeed
@@ -1049,5 +1051,5 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) int {
 		s = hashFNV1a(s, c)
 	}
 
-	return int(s % uint32(numProcRoutines))
+	return s % uint32(numProcRoutines), true
 }
