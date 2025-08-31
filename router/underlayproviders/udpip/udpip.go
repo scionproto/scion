@@ -771,6 +771,8 @@ type internalLink struct {
 	procQ            chan *router.Packet
 	procQs           []chan *router.Packet
 	egressQ          chan *router.Packet
+	procStop         chan struct{}
+	procDone         chan struct{}
 	metrics          *router.InterfaceMetrics
 	pool             router.PacketPool
 	svc              *router.Services[netip.AddrPort]
@@ -845,6 +847,8 @@ func (l *internalLink) start(
 	pool router.PacketPool,
 ) {
 	l.procQ = make(chan *router.Packet, len(procQs[0]))
+	l.procStop = make(chan struct{})
+	l.procDone = make(chan struct{})
 
 	// procQs and pool are never known before all configured links have been instantiated. So we
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
@@ -859,30 +863,41 @@ func (l *internalLink) start(
 
 func (l *internalLink) runProcessor() {
 	for {
-		p, ok := <-l.procQ
-		if !ok {
-			continue
-		}
-		err := l.processPacket(p)
-		if err != nil {
-			log.Debug("Error processing packet", "err", err)
-			sc := router.ClassOfSize(len(p.RawPacket))
-			l.metrics[sc].DroppedPacketsInvalid.Inc()
-			l.pool.Put(p)
-			continue
-		}
-		egressLink := p.Link
-		if egressLink == nil {
-			sc := router.ClassOfSize(len(p.RawPacket))
-			l.metrics[sc].DroppedPacketsInvalid.Inc()
-			l.pool.Put(p)
-			continue
-		}
-		if !egressLink.Send(p) {
-			sc := router.ClassOfSize(len(p.RawPacket))
-			l.metrics[sc].DroppedPacketsBusyForwarder.Inc()
-			l.pool.Put(p)
-			continue
+		select {
+		case p := <-l.procQ:
+			err := l.processPacket(p)
+			if err != nil {
+				log.Debug("Error processing packet", "err", err)
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsInvalid.Inc()
+				l.pool.Put(p)
+				continue
+			}
+			egressLink := p.Link
+			if egressLink == nil {
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsInvalid.Inc()
+				l.pool.Put(p)
+				continue
+			}
+			if !egressLink.Send(p) {
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder.Inc()
+				l.pool.Put(p)
+				continue
+			}
+		case <-l.procStop:
+			for {
+				select {
+				case p := <-l.procQ:
+					sc := router.ClassOfSize(len(p.RawPacket))
+					l.metrics[sc].DroppedPacketsBusyProcessor.Inc()
+					l.pool.Put(p)
+				default:
+					close(l.procDone)
+					return
+				}
+			}
 		}
 	}
 }
@@ -905,6 +920,8 @@ func (l *internalLink) processPacket(pkt *router.Packet) error {
 }
 
 func (l *internalLink) stop() {
+	close(l.procStop)
+	<-l.procDone
 }
 
 func (l *internalLink) IfID() uint16 {
