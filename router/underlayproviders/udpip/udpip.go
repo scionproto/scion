@@ -1024,9 +1024,9 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	var q chan *router.Packet
 	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if ok {
-		q = l.procQ
-	} else {
 		q = l.procQs[procID]
+	} else {
+		q = l.procQ
 	}
 	select {
 	case q <- p:
