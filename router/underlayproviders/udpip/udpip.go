@@ -846,7 +846,7 @@ func (l *internalLink) start(
 	procQs []chan *router.Packet,
 	pool router.PacketPool,
 ) {
-	l.procQ = make(chan *router.Packet, len(procQs[0]))
+	l.procQ = make(chan *router.Packet, cap(procQs[0]))
 	l.procStop = make(chan struct{})
 	l.procDone = make(chan struct{})
 
