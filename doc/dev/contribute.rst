@@ -14,11 +14,13 @@ the project, this page will help you out on your journey to your first SCION com
 
 .. Hint::
    If you have any questions, you can always find us
-   on our `Slack workspace <https://scionproto.slack.com>`__
+   on our `Slack workspace <https://scionproto.slack.com>`__,
+   in our `Matrix #dev room <https://matrix.to/#/#dev:matrix.scion.org>`__,
    or on our `Github project page <https://github.com/scionproto/scion>`__.
    Do not hesitate to ask us anything, or feel free to just drop by and say "Hi".
 
    Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-2tbqf49yo-4quzKc4N3g5h8wjZ~axNYQ>`__.
+   For Matrix, create a user account with your preferred Matrix homeserver identity provider.
 
 
 What skills do you need to contribute?
@@ -45,7 +47,7 @@ links to resources to get you started if you've never used before), please visit
 
 No matter what language you want to contribute to, one of the first steps to take is to set
 up a development environment. See :ref:`setting-up-the-development-environment` for the needed steps.
-If you encounter issues, please visit our :ref:`Slack <slack>` and ask for help.
+If you encounter issues, please visit our :ref:`Slack or Matrix room <slack>` and ask for help.
 
 .. _code-map:
 
@@ -77,7 +79,7 @@ the first step in gathering more information about the issue from the SCION team
 
 From this point on, somebody from the SCION maintainers team will reach out to
 you and guide you for the rest of the process. If you have any questions, please
-remember to shoot us a question on our :ref:`Slack <slack>`.
+remember to shoot us a question on our :ref:`Slack or Matrix room <slack>`.
 
 Finally, make sure that the code you write adheres to the SCION project
 :doc:`style/index`.

@@ -58,6 +58,9 @@ for more information about how you can do so.
 Join us on our [slack workspace](https://scionproto.slack.com) with this invite link:
 [join scionproto.slack.com](https://join.slack.com/t/scionproto/shared_invite/zt-2mhzmqe84-cWs~UuTYT7kwtlU7_2X3lg)
 
+Join us in our #dev room on our federated [matrix instance](https://matrix.scion.org) with this link:
+[#dev:matrix.scion.org](https://matrix.to/#/#dev:matrix.scion.org)
+
 ## License
 
 [![License](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
