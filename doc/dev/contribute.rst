@@ -19,7 +19,7 @@ the project, this page will help you out on your journey to your first SCION com
    or on our `Github project page <https://github.com/scionproto/scion>`__.
    Do not hesitate to ask us anything, or feel free to just drop by and say "Hi".
 
-   Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-2tbqf49yo-4quzKc4N3g5h8wjZ~axNYQ>`__.
+   Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-3ccepqf5z-~piJ5HBOV2dnjIBNGfeJmw>`__.
    For Matrix, create a user account with your preferred Matrix homeserver identity provider.
 
 
