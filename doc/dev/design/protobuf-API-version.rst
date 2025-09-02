@@ -14,78 +14,36 @@ find out which API version a server supports.
 
 Background
 ==========
-The Protobuf API (segment requests, etc.) may change over time. Transitioning
-between version would be easier, and error messages can be better, if a client
-could find out what version a server supports.
+The Protobuf API (segment requests, etc.) may change over time.
+There are three types of changes:
+
+1. Additional fields in messages. This is handled by protobufs backward
+   compatibility. If a client tries to read a non-existing field, it will get `null`.
+   If a server sends a field that the client doesn't know about, the client will ignore it.
+2. Additional services. For a client to find out whether a `service` exists,
+   they have to try it out and handle the error.
+3. Removed or changed `messages` or `services`. It is recommended to use
+   `v1`, `v2`, ... in the proto package name. However, this again requires
+   trial and error handling.
+
+The trial and error handling is especially problematic if we get multiple versions
+and a client has to try out a whole range of versions before finding one (or not)
+that works. This may require multiple network roundtrips, and error handling
+as part of the default code path.
+
+Examples of potential upcoming changes:
+
+- A new `service` that returns path segments, but also accepts a filter/policy for segments
+- A new `service` that allows streamong/paging of segments
+- A new `service` that returns topology information (border routers etc)
+
+If a client could find out what version a server supports, transitioning between
+version would be easier, and error messages could be better.
 Currently, the client can only try to use a given service and somehow handle
 the error when the request fails.
 
 Proposal
 ========
-
-There are multiple ways to approach this. Some ways require the control service to
-provide a Version Service and Version Information.
-
-Version Service and Version Information
----------------------------------------
-
-The control service offer a dedicated Version Service:
-
-.. code-block:: protobuf
-
-  service VersionService {
-    // Return version information about the service API.
-    rpc Version(VersionRequest) returns (VersionResponse) {}
-  }
-
-  message VersionRequest {}
-
-  message VersionResponse {
-    // API version
-    required uint32 api_version = 1;
-    // Map of individual components and their versions,
-    map<string, uint32> component_versions = 2;
-    map<string, VersionRange> component_versions = 2;
-  }
-
-  message VersionRange {
-    // The minimum and maximum version of a service that is supported by the server.
-    required int32 min = 1;
-    required int32 max = 2;
-  }
-
-The `api_version` is an integer that is incremented whenever any of the
-APIs of any component changes.
-
-The `component_version` is a map `<component name> -> <component API version>`.
-The component API version is incrmented whenever the component's API changes
-in a way that is **not** backwards compatible.
-Examples of component names are: `segments`, `drkey`, `cppki`, `renewal`
-
-The component versions are only provided for convenience. They indicate to
-a client which version of a component needs to be instantiated.
-If this information would not be provided, it would have to be hardcoded
-in the client.
-
-Examples:
-
-- Changes that are backwards compatible, such as adding a request or service
-  to an api requires only an increment of the `api_version`.
-- Removing a request or service requires incrementing the `api_version` and
-  the `component_version`. To maintain backward compatibility, this would
-  probably also result in a new `.proto` file.
-
-TBD:
-
-- Do we need the component versions?
-- Should we provide a list VersionResponses, representing all versions that
-  a server supports?
-- We could simply replace all component version numbers with list of supported
-  version numbers.
-  The client can then just use the latest version of a ProtoService that is
-  available both locally and on the server.
-  A version range is not really required for the API version.
-
 
 Three different ways to approach this
 -------------------------------------
@@ -93,12 +51,10 @@ Three different ways to approach this
 1) Separate Version Service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The control service should offer a service API to request version information.
-The API should provide an integer version identifier and, **possibly**,
+The control service offers a service API to request version information.
+The service returns an integer version identifier and, **possibly**,
 individual version identifiers for each service.
 The request should **probably** be available through its own service.
-
-For example:
 
 Advantages:
 
@@ -138,14 +94,82 @@ Advantages:
 
 Disadvantages:
 
-- Theoretically many roundtrips required until a compatible version is found
+- Theoretically many roundtrips required until a compatible version is found.
+  A client could use some kind of binary search to optimize this.
 - Uses error handling in normal code path
+
+
+Version Service and Version Information
+---------------------------------------
+
+Option 1) and 2) require the control service to offer a dedicated Version Service:
+
+.. code-block:: protobuf
+
+  service VersionService {
+    // Return version information about the service API.
+    rpc Version(VersionRequest) returns (VersionResponse) {}
+  }
+
+  message VersionRequest {}
+
+  message VersionResponse {
+    // API version
+    uint32 api_version = 1;
+    // Oldest API version supported by the server
+    uint32 api_version_minimum = 2;
+    // Map of individual components and their versions,
+    map<string, VersionRange> component_versions = 3;
+  }
+
+  message VersionRange {
+    // The minimum and maximum version of a service that is supported by the server.
+    required int32 max = 1;
+    required int32 min = 2;
+  }
+
+The `api_version` is an integer that is incremented whenever any of the
+APIs of any component changes.
+The `api_version_minimum` is an integer that is incremented whenever any
+old API is removed.
+
+The `component_version` is a map `<component name> -> <component API version>`.
+The component API version is incremented whenever the component's API changes
+in a way that is **not** backwards compatible.
+Examples of component names are: `version`, `segments`, `drkey`, `cppki`, `renewal`
+
+The component versions are only provided for convenience. They indicate to
+a client which version of a component needs to be instantiated.
+If this information would not be provided, it would have to be hardcoded
+in the client.
+
+Examples:
+
+- Changes that are backwards compatible, such as adding a request or service
+  to an api requires only an increment of the `api_version`.
+- Removing a request or service requires incrementing the `api_version` and
+  the `component_version`. To maintain backward compatibility, this would
+  probably also result in a new `.proto` file.
 
 
 Rationale
 =========
 [A discussion of alternate approaches and the trade-offs, advantages, and disadvantages of the specified approach.]
 
+Drop Compponent Versioning
+--------------------------
+Removing the component versioning is definitely possible. However, the component
+versioning may help to implement versioning in clients. It may also
+serve as a component registry, e.g., indicating to the client whether `drkey`
+is supported or not.
+
+Semantic Versioning
+-------------------
+We could use semantic versioning for the API, e.g., major for breaking changes
+and minor for changes that are backwards compatible. However, while this
+complicates the API, it is not obvious how that would simplify implementations.
+Even for backward compatible changes, the field/service is either avilable or
+not.
 
 Compatibility
 =============
