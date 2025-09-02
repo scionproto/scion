@@ -3,7 +3,7 @@ Protobuf API Version
 ********************
 
 - Author(s): T. Zäschke
-- Last updated: 2025-08-18
+- Last updated: 2025-09-02
 - Discussion at: :issue:`NNNN`
 - Status: **WIP**
 
@@ -118,6 +118,46 @@ Option 1) and 2) require the control service to offer a dedicated Version Servic
     uint32 api_version = 1;
     // Oldest API version supported by the server
     uint32 api_version_minimum = 2;
+  }
+
+The `api_version` is an integer that is incremented whenever any of the
+APIs of any component changes.
+The `api_version_minimum` is an integer that is incremented whenever any
+old API is removed.
+
+Examples:
+
+- Changes that are backwards compatible, such as adding a request or service
+  to an api requires only an increment of the `api_version`.
+- Removing a request or service requires incrementing the `api_version_minimum`.
+  To maintain backward compatibility, this would probably also result in a
+  new `.proto` file.
+
+
+Rationale
+=========
+
+Drop Compponent Versioning
+--------------------------
+Removing the component versioning is definitely possible. However, the component
+versioning may help to implement versioning in clients. It may also
+serve as a component registry, e.g., indicating to the client whether `drkey`
+is supported or not.
+
+.. code-block:: protobuf
+
+  service VersionService {
+    // Return version information about the service API.
+    rpc Version(VersionRequest) returns (VersionResponse) {}
+  }
+
+  message VersionRequest {}
+
+  message VersionResponse {
+    // API version
+    uint32 api_version = 1;
+    // Oldest API version supported by the server
+    uint32 api_version_minimum = 2;
     // Map of individual components and their versions,
     map<string, VersionRange> component_versions = 3;
   }
@@ -127,11 +167,6 @@ Option 1) and 2) require the control service to offer a dedicated Version Servic
     required int32 max = 1;
     required int32 min = 2;
   }
-
-The `api_version` is an integer that is incremented whenever any of the
-APIs of any component changes.
-The `api_version_minimum` is an integer that is incremented whenever any
-old API is removed.
 
 The `component_version` is a map `<component name> -> <component API version>`.
 The component API version is incremented whenever the component's API changes
@@ -143,25 +178,6 @@ a client which version of a component needs to be instantiated.
 If this information would not be provided, it would have to be hardcoded
 in the client.
 
-Examples:
-
-- Changes that are backwards compatible, such as adding a request or service
-  to an api requires only an increment of the `api_version`.
-- Removing a request or service requires incrementing the `api_version` and
-  the `component_version`. To maintain backward compatibility, this would
-  probably also result in a new `.proto` file.
-
-
-Rationale
-=========
-[A discussion of alternate approaches and the trade-offs, advantages, and disadvantages of the specified approach.]
-
-Drop Compponent Versioning
---------------------------
-Removing the component versioning is definitely possible. However, the component
-versioning may help to implement versioning in clients. It may also
-serve as a component registry, e.g., indicating to the client whether `drkey`
-is supported or not.
 
 Semantic Versioning
 -------------------
@@ -180,14 +196,14 @@ If the client does not support API versions, then the feature will not
 be used.
 
 If the server does not support API versions, then the version request will
-fail and the client should assume version `1`.
+fail and the client should assume version `0`.
 
 
 Implementation
 ==============
 
-- Add version information to control server implementations
-- Add version information to client libraries
+- Add version information to control server implementations.
+- Add version information to client libraries..
 
 - Document clearly (in each proto file?) that any change should result
   in incrmeneting the API version.
