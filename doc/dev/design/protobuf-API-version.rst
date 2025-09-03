@@ -49,6 +49,8 @@ Proposal
 Three different ways to approach this
 -------------------------------------
 
+The current preference is to go with option 2).
+
 1) Separate Version Service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -107,7 +109,9 @@ Option 1) and 2) require the control service to offer a dedicated Version Servic
 
 .. code-block:: protobuf
 
-  service VersionService {
+package proto.version;
+
+service VersionService {
     // Return version information about the service API.
     rpc Version(VersionRequest) returns (VersionResponse) {}
   }
@@ -129,6 +133,8 @@ The `api_version_minimum` is an integer that is incremented whenever any
 old API is removed.
 The `software_version` is a character string that describes the software
 version, e.g., "scionproto 0.16".
+
+The `VersionService` would be located in a separate package `proto.version`.
 
 Examples:
 
