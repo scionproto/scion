@@ -171,6 +171,8 @@ func SCMPInvalidSrcIAInternalHostToChild(artifactsDir string, mac hash.Hash) run
 		Name:            "SCMPInvalidSrcIAInternalHostToChild",
 		WriteTo:         "veth_int_host",
 		ReadFrom:        "veth_int_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPInvalidSrcIAInternalHostToChild"),
@@ -318,6 +320,8 @@ func SCMPInvalidDstIAInternalHostToChild(artifactsDir string, mac hash.Hash) run
 		Name:            "SCMPInvalidDstIAInternalHostToChild",
 		WriteTo:         "veth_int_host",
 		ReadFrom:        "veth_int_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPInvalidDstIAInternalHostToChild"),
@@ -474,6 +478,8 @@ func SCMPInvalidSrcIAChildToParent(artifactsDir string, mac hash.Hash) runner.Ca
 		Name:            "SCMPInvalidSrcIAChildToParent",
 		WriteTo:         "veth_141_host",
 		ReadFrom:        "veth_141_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPInvalidSrcIAChildToParent"),
@@ -630,6 +636,8 @@ func SCMPInvalidDstIAChildToParent(artifactsDir string, mac hash.Hash) runner.Ca
 		Name:            "SCMPInvalidDstIAChildToParent",
 		WriteTo:         "veth_141_host",
 		ReadFrom:        "veth_141_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPInvalidDstIAChildToParent"),
