@@ -36,6 +36,7 @@ Examples of potential upcoming changes:
 - A new `service` that returns path segments, but also accepts a filter/policy for segments
 - A new `service` that allows streaming/paging of segments
 - A new `service` that returns topology information (border routers etc)
+- A new `service` for the private/anonymous ISD proposal
 
 If a client could find out what version a server supports, transitioning between
 version would be easier, and error messages could be better.
