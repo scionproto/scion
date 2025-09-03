@@ -44,6 +44,7 @@ import (
 
 const (
 	CheckInterfacesPeriod = time.Second
+	MaxAllowedCacheSize   = 65536 // Maximum number of entries present in `remoteToEgress`.
 )
 
 var (

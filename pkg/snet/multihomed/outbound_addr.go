@@ -41,13 +41,18 @@ func OutboundIP(raddr *net.UDPAddr) (net.IP, error) {
 	}
 	egress, _ = netip.AddrFromSlice(eg)
 
-	// Beware of the RWMutex, it's read-locked already.
-	muRemoteToEgress.RUnlock()
-	muRemoteToEgress.Lock()
-	remoteToEgress[remote] = egress
-	muRemoteToEgress.Unlock()
-
-	muRemoteToEgress.RLock() // because we always read-unlock
+	// Check if our cache is not too big already.
+	if len(remoteToEgress) < MaxAllowedCacheSize {
+		// Beware of the RWMutex, it's read-locked already.
+		muRemoteToEgress.RUnlock()
+		muRemoteToEgress.Lock()
+		// Check again to avoid race conditions. Could skipped it if exact size is not important.
+		if len(remoteToEgress) < MaxAllowedCacheSize {
+			remoteToEgress[remote] = egress
+		}
+		muRemoteToEgress.Unlock()
+		muRemoteToEgress.RLock() // because we always read-unlock in this function.
+	}
 	return eg, nil
 }
 
