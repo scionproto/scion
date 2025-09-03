@@ -233,7 +233,7 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 	testCases := map[string]test{
 		"packet shorter than common header len": {
 			data: []byte{
-				0, 0, 0, 0, 0xfe, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0,
 			},
