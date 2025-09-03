@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -42,11 +43,12 @@ import (
 // go test ./pkg/snet/multihomed -count=1 -v -run TestUDP
 // go test ./pkg/snet/multihomed -count=1 -v -run TestBasic
 // go test ./pkg/snet/multihomed -count=1 -v -run TestMultihomed
+
+const serverPortInitial = 12345
+
 var (
 	serverIA        = "1-ff00:0:111"
 	serverIPAddress = "127.0.0.1"
-	serverPort      = "12345"
-	serverAddress   = serverIPAddress + ":" + serverPort
 	clientAddress   = "127.0.0.1:0"
 	serverDaemon    = "127.0.0.19:30255" // 111
 	clientDaemon    = "127.0.0.27:30255" // 112
@@ -54,23 +56,26 @@ var (
 
 func (s *MultihomedTestSuite) TestUDP() {
 	t := s.T()
-	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancelF()
+	t.Parallel()
 
 	// Bind server to any interface.
-	serverAddr := xtest.MustParseUDPAddr(t, "0.0.0.0:"+serverPort)
+	serverAddress := fmt.Sprintf("0.0.0.0:%d", s.getServerPort())
+	serverAddr := xtest.MustParseUDPAddr(t, serverAddress)
 
-	runUDPServerAt(ctx, t, serverAddr)
-	runUDPClientWith(ctx, t, serverAddr, nil)
+	runUDPServerAt(t, serverAddr)
+	runUDPClientWith(t, serverAddr, nil)
 }
 
 // TestNoRegressionCheck checks that using bound sockets (like before "multihomed" changes)
 // works as expected.
 func (s *MultihomedTestSuite) TestNoRegressionCheck() {
 	t := s.T()
+	t.Parallel()
+
 	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancelF()
 
+	serverAddress := fmt.Sprintf("%s:%d", serverIPAddress, s.getServerPort())
 	serverAddr := xtest.MustParseUDPAddr(t, serverAddress)
 	clientAddr := xtest.MustParseUDPAddr(t, clientAddress)
 
@@ -90,9 +95,12 @@ func (s *MultihomedTestSuite) TestNoRegressionCheck() {
 //     relies on a multihomed socket
 func (s *MultihomedTestSuite) TestMultihomedServer() {
 	t := s.T()
+	t.Parallel()
+
 	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancelF()
 
+	serverAddress := fmt.Sprintf("%s:%d", serverIPAddress, s.getServerPort())
 	serverAddr := xtest.MustParseUDPAddr(t, serverAddress)
 
 	runMultihomedServer(ctx, t, serverAddr.Port)
@@ -100,7 +108,6 @@ func (s *MultihomedTestSuite) TestMultihomedServer() {
 }
 
 func runUDPServerAt(
-	ctx context.Context,
 	t *testing.T,
 	serverAddr *net.UDPAddr,
 ) {
@@ -177,7 +184,6 @@ func runMultihomedServer(
 }
 
 func runUDPClientWith(
-	_ context.Context,
 	t *testing.T,
 	serverAddr *net.UDPAddr,
 	clientAddr *net.UDPAddr,
@@ -315,4 +321,12 @@ func getRemote(
 	paths, err := sd.Paths(ctx, remote, local, daemon.PathReqFlags{})
 	require.NoError(t, err)
 	return paths
+}
+
+var lastPortUsed atomic.Int32
+
+func (s *MultihomedTestSuite) getServerPort() int {
+	// Initialize to 12344 if it's uninitialized.
+	lastPortUsed.CompareAndSwap(0, serverPortInitial-1)
+	return int(lastPortUsed.Add(1))
 }

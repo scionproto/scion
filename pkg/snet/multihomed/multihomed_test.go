@@ -36,29 +36,27 @@ func TestMultihomed(t *testing.T) {
 // critical data structures. This is done by protecting the execution of each test function
 // with a RWMutex, allowing "regular" tests to obtain a read lock, and "special" tests
 // to get a write lock, forcing them run in isolation.
+// It allows to call t.Parallel() in any and all test functions.
 type MultihomedTestSuite struct {
 	suite.Suite
 	muInternalsIsolated sync.RWMutex
 }
 
 func NewMultihomedTestSuite() *MultihomedTestSuite {
-	return &MultihomedTestSuite{
-		muInternalsIsolated: sync.RWMutex{},
-	}
+	return &MultihomedTestSuite{}
 }
 
 func (s *MultihomedTestSuite) SetupTest() {
-	s.T().Log("--> setting up test")
 	s.muInternalsIsolated.RLock()
 }
 
 func (s *MultihomedTestSuite) TearDownTest() {
-	s.T().Log("<-- tearing down test")
 	s.muInternalsIsolated.RUnlock()
 }
 
 func (s *MultihomedTestSuite) TestListInterfaces() {
 	t := s.T()
+	t.Parallel()
 	addrs := multihomed.MustGetEgressIpAddresses(t)
 	require.NotEmpty(t, addrs)
 }
