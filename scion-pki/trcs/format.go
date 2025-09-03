@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/scion-pki/file"
 )
@@ -64,7 +65,7 @@ redirected to a file because the raw characters might mess up the terminal.
 			cmd.SilenceUsage = true
 
 			filename := args[0]
-			raw, err := os.ReadFile(filename)
+			raw, err := app.ReadFileOrStdin(filename)
 			if err != nil {
 				return serrors.Wrap("reading file", err)
 			}
