@@ -9,7 +9,7 @@ Protobuf API Version
 
 Abstract
 ========
-The Protobuf API has currently no version aidentifier that allows a client to
+The Protobuf API has currently no version identifier that allows a client to
 find out which API version a server supports.
 
 Background
@@ -34,7 +34,7 @@ as part of the default code path.
 Examples of potential upcoming changes:
 
 - A new `service` that returns path segments, but also accepts a filter/policy for segments
-- A new `service` that allows streamong/paging of segments
+- A new `service` that allows streaming/paging of segments
 - A new `service` that returns topology information (border routers etc)
 
 If a client could find out what version a server supports, transitioning between
@@ -118,27 +118,32 @@ Option 1) and 2) require the control service to offer a dedicated Version Servic
     uint32 api_version = 1;
     // Oldest API version supported by the server
     uint32 api_version_minimum = 2;
+    // Software version
+    string software_version = 3;
   }
 
 The `api_version` is an integer that is incremented whenever any of the
 APIs of any component changes.
 The `api_version_minimum` is an integer that is incremented whenever any
 old API is removed.
+The `software_version` is a character string that describes the software
+version, e.g., "scionproto 0.16".
 
 Examples:
 
 - Changes that are backwards compatible, such as adding a request or service
-  to an api requires only an increment of the `api_version`.
+  to an API requires only an increment of the `api_version`.
 - Removing a request or service requires incrementing the `api_version_minimum`.
   To maintain backward compatibility, this would probably also result in a
   new `.proto` file.
+- The version could also be used to indicate non-grpc features, such as NAT support.
 
 
 Rationale
 =========
 
-Drop Compponent Versioning
---------------------------
+Component Versioning
+--------------------
 Removing the component versioning is definitely possible. However, the component
 versioning may help to implement versioning in clients. It may also
 serve as a component registry, e.g., indicating to the client whether `drkey`
@@ -178,13 +183,16 @@ a client which version of a component needs to be instantiated.
 If this information would not be provided, it would have to be hardcoded
 in the client.
 
+Component versioning could also be used to advertise features such as
+hidden segments or even NAT (not a protobuf API).
+
 
 Semantic Versioning
 -------------------
 We could use semantic versioning for the API, e.g., major for breaking changes
 and minor for changes that are backwards compatible. However, while this
 complicates the API, it is not obvious how that would simplify implementations.
-Even for backward compatible changes, the field/service is either avilable or
+Even for backward compatible changes, the field/service is either available or
 not.
 
 Compatibility
@@ -206,4 +214,4 @@ Implementation
 - Add version information to client libraries..
 
 - Document clearly (in each proto file?) that any change should result
-  in incrmeneting the API version.
+  in incrementing the API version.
