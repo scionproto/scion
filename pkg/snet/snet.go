@@ -101,12 +101,8 @@ type SCIONNetwork struct {
 func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketConn, error) {
 	var pconn *net.UDPConn
 	var err error
-	// deleteme
-	// if addr == nil || addr.IP.IsUnspecified() {
-	// 	return nil, serrors.New("nil or unspecified address is not supported")
-	// }
 	start, end := n.Topology.PortRange.Start, n.Topology.PortRange.End
-	if addr.Port == 0 {
+	if addr == nil || addr.Port == 0 {
 		pconn, err = listenUDPRange(addr, start, end)
 	} else {
 		if addr.Port < int(start) || addr.Port > int(end) {
@@ -200,7 +196,9 @@ func (n *SCIONNetwork) Listen(
 	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather))
 }
 
-func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {
+// listenUDPRange creates a new net.UDPConn using a suitable port between the specified range.
+// If laddr is not nil, the returned connection is bound to its IP address.
+func listenUDPRange(laddr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {
 	// XXX(JordiSubira): For now, we iterate on the complete SCION/UDP
 	// range, in decreasing order, taking the first unused port.
 	//
@@ -221,11 +219,18 @@ func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) 
 	if start < 1024 {
 		restrictedStart = 1024
 	}
+
+	// Local address used later in a loop to check if the different ports are available.
+	tryLocalAddr := &net.UDPAddr{}
+	if laddr != nil {
+		tryLocalAddr.IP = laddr.IP
+		tryLocalAddr.Zone = laddr.Zone
+	}
+
 	for port := end; port >= restrictedStart; port-- {
-		pconn, err := net.ListenUDP(addr.Network(), &net.UDPAddr{
-			IP:   addr.IP,
-			Port: int(port),
-		})
+		tryLocalAddr.Port = int(port)
+		pconn, err := net.ListenUDP("udp", tryLocalAddr)
+
 		if err == nil {
 			return pconn, nil
 		}

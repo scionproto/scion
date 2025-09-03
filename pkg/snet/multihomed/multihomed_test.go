@@ -1,201 +1,109 @@
-package multihomed
+// Copyright 2025 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package multihomed_test
 
 import (
-	"context"
-	"fmt"
-	"net"
+	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/private/xtest"
-	"github.com/scionproto/scion/pkg/snet"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/snet/multihomed"
 )
-
-var (
-	serverIA      = "1-ff00:0:111"
-	serverAddress = "127.0.0.1:12345"
-	clientAddress = "127.0.0.1:0"
-	serverDaemon  = "127.0.0.19:30255" // 111
-	clientDaemon  = "127.0.0.27:30255" // 112
-)
-
-func TestBasic(t *testing.T) {
-	serverAddr := xtest.MustParseUDPAddr(t, serverAddress)
-	clientAddr := xtest.MustParseUDPAddr(t, clientAddress)
-
-	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancelF()
-
-	runServerAt(ctx, t, serverAddr)
-	runClientWith(ctx, t, serverAddr, clientAddr)
-}
 
 func TestMultihomed(t *testing.T) {
-	serverAddr := xtest.MustParseUDPAddr(t, serverAddress)
-	clientAddr := xtest.MustParseUDPAddr(t, clientAddress)
-
-	// ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
-	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Hour) // deleteme
-	defer cancelF()
-
-	runMultihomedServer(ctx, t, serverAddr.Port)
-	runClientWith(ctx, t, serverAddr, clientAddr)
+	suite.Run(t, NewMultihomedTestSuite())
 }
 
-func runServerAt(
-	ctx context.Context,
-	t *testing.T,
-	serverAddr *net.UDPAddr,
-) {
-	sd, err := daemon.NewService(serverDaemon).Connect(ctx)
-	require.NoError(t, err)
-	defer sd.Close()
+// MultihomedTestSuite ensures that each test in this package is run correctly, even
+// in the presence of test functions that alter the internal behaviour of mutexes or
+// critical data structures. This is done by protecting the execution of each test function
+// with a RWMutex, allowing "regular" tests to obtain a read lock, and "special" tests
+// to get a write lock, forcing them run in isolation.
+type MultihomedTestSuite struct {
+	suite.Suite
+	muInternalsIsolated sync.RWMutex
+}
 
-	topo, err := daemon.LoadTopology(ctx, sd)
-	require.NoError(t, err)
-
-	sn := &snet.SCIONNetwork{
-		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: daemon.RevHandler{Connector: sd},
-		},
-		Topology: topo,
+func NewMultihomedTestSuite() *MultihomedTestSuite {
+	return &MultihomedTestSuite{
+		muInternalsIsolated: sync.RWMutex{},
 	}
+}
 
-	conn, err := sn.Listen(ctx, "udp", serverAddr)
-	require.NoError(t, err)
-	require.NotNil(t, conn)
+func (s *MultihomedTestSuite) SetupTest() {
+	s.T().Log("--> setting up test")
+	s.muInternalsIsolated.RLock()
+}
 
-	go func() {
-		handlePing(t, conn)
+func (s *MultihomedTestSuite) TearDownTest() {
+	s.T().Log("<-- tearing down test")
+	s.muInternalsIsolated.RUnlock()
+}
+
+func (s *MultihomedTestSuite) TestListInterfaces() {
+	t := s.T()
+	addrs := multihomed.MustGetEgressIpAddresses(t)
+	require.NotEmpty(t, addrs)
+}
+
+func (s *MultihomedTestSuite) TestInternalEgressCache() {
+	t := s.T()
+	// We require this function to run in isolation: lock every other test.
+	s.muInternalsIsolated.RUnlock()
+	s.muInternalsIsolated.Lock()
+	defer func() {
+		// Because we hold the write lock, unlock it.
+		s.muInternalsIsolated.Unlock()
+		// Because the test suite will expect a read lock, get it.
+		s.muInternalsIsolated.RLock()
 	}()
-	t.Log("runServerAt: done")
-}
 
-func runMultihomedServer(
-	ctx context.Context,
-	t *testing.T,
-	port int,
-) {
-	sd, err := daemon.NewService(serverDaemon).Connect(ctx)
+	// Wait for 100ms allow the ticker to run first.
+	time.Sleep(100 * time.Millisecond)
+
+	// Synchronize with the internal ticker routine to ensure it finished the update.
+	multihomed.GetInternalMutex().RLock()
+	// Check that the egress table is not empty.
+	require.NotEmpty(t, *multihomed.GetEgressesLastState())
+	multihomed.GetInternalMutex().RUnlock()
+
+	// Stop internal refresh method.
+	multihomed.StopTicker()
+
+	// Clear map.
+	multihomed.ReplaceRemoteToEgressMap(make(map[netip.Addr]netip.Addr))
+	require.Empty(t, multihomed.GetRemoteToEgressMap())
+
+	// Create a pretend remote endpoint.
+	const mockRemoteAddress = "127.1.2.3"
+	const mockEgressAddress = "127.1.2.100"
+	mockRemote := xtest.MustParseUDPAddr(t, mockRemoteAddress+":22")
+
+	// Add mock remote entry to map.
+	multihomed.ReplaceRemoteToEgressMap(map[netip.Addr]netip.Addr{
+		netip.MustParseAddr(mockRemoteAddress): netip.MustParseAddr(mockEgressAddress),
+	})
+
+	// Actual test, get the egress address for the remote.
+	expected := xtest.MustParseIP(t, mockEgressAddress).To4()
+	got, err := multihomed.OutboundIP(mockRemote)
 	require.NoError(t, err)
-	defer sd.Close()
-
-	// interfaces, err := sd.Interfaces(ctx)
-	// require.NoError(t, err)
-	// for k, v := range interfaces {
-	// 	t.Logf("iface %3d: %s", k, v.String())
-	// }
-
-	topo, err := daemon.LoadTopology(ctx, sd)
-	require.NoError(t, err)
-
-	sn := &snet.SCIONNetwork{
-		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: daemon.RevHandler{Connector: sd},
-		},
-		Topology: topo,
-	}
-
-	serverAddr := xtest.MustParseUDPAddr(t, fmt.Sprintf("0.0.0.0:%d", port))
-	conn, err := sn.Listen(ctx, "udp", serverAddr)
-	require.NoError(t, err)
-	require.NotNil(t, conn)
-
-	go func() {
-		handlePing(t, conn)
-	}()
-	t.Log("runServerAt: done")
-}
-
-func runClientWith(
-	ctx context.Context,
-	t *testing.T,
-	serverAddr *net.UDPAddr,
-	clientAddr *net.UDPAddr,
-) {
-	sd, err := daemon.NewService(clientDaemon).Connect(ctx)
-	require.NoError(t, err)
-	defer sd.Close()
-
-	info, err := sd.ASInfo(ctx, 0)
-	require.NoError(t, err)
-	t.Logf("client local IA: %s", info.IA.String())
-
-	interfaces, err := sd.Interfaces(ctx)
-	require.NoError(t, err)
-	for k, v := range interfaces {
-		t.Logf("iface %3d: %s", k, v.String())
-	}
-
-	topo, err := daemon.LoadTopology(ctx, sd)
-	require.NoError(t, err)
-
-	sn := &snet.SCIONNetwork{
-		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: daemon.RevHandler{Connector: sd},
-		},
-		Topology: topo,
-	}
-
-	completeServerAddrStr := fmt.Sprintf("%s,[%s]:%d",
-		serverIA,
-		serverAddr.IP.String(),
-		serverAddr.Port)
-	completeServerAddr, err := snet.ParseUDPAddr(completeServerAddrStr)
-	require.NoError(t, err)
-
-	paths := getRemote(ctx, t, sd, completeServerAddr.IA, info.IA)
-	require.Greater(t, len(paths), 0)
-	completeServerAddr.Path = paths[0].Dataplane()
-	completeServerAddr.NextHop = paths[0].UnderlayNextHop()
-
-	conn, err := sn.Dial(ctx, "udp", clientAddr, completeServerAddr)
-	require.NoError(t, err)
-	_, err = conn.Write([]byte("ping"))
-	require.NoError(t, err)
-	t.Log("runClientWith: ping sent")
-
-	// Read answer.
-	buff := make([]byte, 2048)
-	n, remoteAddr, err := conn.ReadFrom(buff)
-	require.NoError(t, err)
-	require.Equal(t, completeServerAddr.String(), remoteAddr.String())
-	buff = buff[:n]
-	require.Equal(t, "pong", string(buff))
-
-	err = conn.Close()
-	require.NoError(t, err)
-}
-
-func handlePing(t *testing.T, conn *snet.Conn) {
-	t.Logf("handlePing conn = %p", conn)
-	buff := make([]byte, 2048)
-	n, remoteAddr, err := conn.ReadFrom(buff)
-	t.Logf("handlePing, remote: %s, read %d bytes", remoteAddr, n)
-	require.NoError(t, err)
-	buff = buff[:n]
-	t.Logf("read from %s", remoteAddr)
-	// Check ping.
-	require.Equal(t, "ping", string(buff))
-
-	// Pong.
-	_, err = conn.WriteTo([]byte("pong"), remoteAddr)
-	require.NoError(t, err)
-
-	err = conn.Close()
-	require.NoError(t, err)
-}
-
-func getRemote(
-	ctx context.Context,
-	t *testing.T,
-	sd daemon.Connector,
-	remote, local addr.IA,
-) []snet.Path {
-	paths, err := sd.Paths(ctx, remote, local, daemon.PathReqFlags{})
-	require.NoError(t, err)
-	return paths
+	require.Equal(t, expected, got)
 }

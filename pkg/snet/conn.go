@@ -22,7 +22,9 @@ import (
 
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/snet/multihomed"
 )
 
 type OpError struct {
@@ -71,11 +73,21 @@ func NewCookedConn(
 		IA:   topo.LocalIA,
 		Host: pconn.LocalAddr().(*net.UDPAddr),
 	}
-	// deleteme
-	// if local.Host == nil || local.Host.IP.IsUnspecified() {
-	// 	return nil, serrors.New("nil or unspecified address is not supported.")
-	// }
 	hasSTUN := hasSTUNConn(pconn)
+
+	// If acting as a client, find the local address of the interface used to reach
+	// the NextHop toward the remote.
+	if local.Host.IP.IsUnspecified() && o.remote != nil {
+		localIP, err := multihomed.OutboundIP(o.remote.NextHop)
+		if err != nil {
+			return nil, serrors.Wrap(
+				"Cannot find the local address", err,
+				"local", local,
+				"remote", o.remote)
+		}
+		local.Host.IP = localIP
+	}
+
 	return &Conn{
 		conn:   pconn,
 		local:  local,
