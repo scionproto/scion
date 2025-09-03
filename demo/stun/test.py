@@ -53,7 +53,7 @@ class Test(base.TestTopogen):
             # Move tester container to new network
             scion_dc["services"]["tester_1-ff00_0_110"]["environment"]["SCION_DAEMON_ADDRESS"] = "172.20.0.21:30255"
             scion_dc["services"]["tester_1-ff00_0_111"].pop("entrypoint")
-            scion_dc["services"]["tester_1-ff00_0_111"]["command"] = 'sh -c "ip route del default && ip route add default via 192.168.123.2 && tail -f /dev/null"'
+            scion_dc["services"]["tester_1-ff00_0_111"]["command"] = 'bash -c "ip route del default && ip route add default via 192.168.123.2 && tail -f /dev/null"'
             scion_dc["services"]["tester_1-ff00_0_111"]["environment"] = {
                 "SCION_DAEMON": "192.168.123.3:30255",
                 "SCION_DAEMON_ADDRESS": "192.168.123.3:30255",
@@ -73,7 +73,7 @@ class Test(base.TestTopogen):
             # --to-ports 31000-32767 specifies to use only ports from the dispatched port range
             # see https://www.man7.org/linux/man-pages/man8/iptables-extensions.8.html for more information
             scion_dc["services"]["nat_1-ff00_0_111"] = {
-                "command": 'sh -c "apt update && apt install -y iptables && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p tcp -o eth1 -j MASQUERADE && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p udp -o eth1 -j MASQUERADE --random --to-ports 31000-32767 && tail -f /dev/null"',
+                "command": 'bash -c "apt update && apt install -y iptables && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p tcp -o eth1 -j MASQUERADE && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p udp -o eth1 -j MASQUERADE --random --to-ports 31000-32767 && tail -f /dev/null"',
                 "image": "scion/tester:latest",
                 "networks": {
                     "scn_002": {"ipv4_address": "172.20.0.28"},
@@ -120,9 +120,9 @@ class Test(base.TestTopogen):
         self.dc("cp", stun_client, "tester_1-ff00_0_111" + ":/bin/")
 
         # run tests (located in test-client/main.go and test-server/main.go)
-        self.dc.execute_detached("tester_1-ff00_0_110", "sh", "-c", "test-server -local 1-ff00:0:110,172.20.0.22:31000")
+        self.dc.execute_detached("tester_1-ff00_0_110", "bash", "-c", "test-server -local 1-ff00:0:110,172.20.0.22:31000")
         time.sleep(3)
-        result = self.dc.execute("tester_1-ff00_0_111", "sh", "-c", 'test-client -daemon 192.168.123.3:30255 -local 1-ff00:0:111,192.168.123.4:31000 -remote 1-ff00:0:110,172.20.0.22:31000 -data "abc"')
+        result = self.dc.execute("tester_1-ff00_0_111", "bash", "-c", 'test-client -daemon 192.168.123.3:30255 -local 1-ff00:0:111,192.168.123.4:31000 -remote 1-ff00:0:110,172.20.0.22:31000 -data "abc"')
         print(result)
 
 if __name__ == "__main__":
