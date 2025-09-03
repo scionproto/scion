@@ -1036,11 +1036,11 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	}
 }
 
+// computeProcID computes the processor ID for a given packet provided by the slice data. It assumes
+// that numProcRoutines is non-negative and not larger than 4294967295. hashSeed is used for hash
+// computation. If data is clearly not a valid SCION packet, it returns ok=false. Otherwise, it
+// returns a processor ID smaller than numProcRoutines and ok=true.
 func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, bool) {
-	if numProcRoutines < 0 || numProcRoutines > 1<<32 - 1 {
-		panic("unexpected number of processors")
-	}
-
 	if len(data) < slayers.CmnHdrLen {
 		return uint32(numProcRoutines), false
 	}
