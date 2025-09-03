@@ -314,7 +314,7 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			randomValue := uint32(1234) // not a proper hash seed, but hash result is irrelevant.
 			_, ok := computeProcID(tc.data, 10000, randomValue)
-			assert.Equal(t, tc.expectedSuccess, ok)			
+			assert.Equal(t, tc.expectedSuccess, ok)
 		})
 	}
 }

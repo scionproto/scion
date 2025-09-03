@@ -1048,7 +1048,7 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, b
 	switch slayers.L4ProtocolType(data[4]) {
 	case slayers.L4TCP, slayers.L4UDP, slayers.L4SCMP, slayers.L4BFD,
 		slayers.HopByHopClass, slayers.End2EndClass,
-		253, 254 /* experimentation and testing */:
+		253, 254 /* experimentation and testing */ :
 		break
 	default:
 		return uint32(numProcRoutines), false
