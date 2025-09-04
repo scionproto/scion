@@ -73,8 +73,8 @@ class Test(base.TestTopogen):
             # --to-ports 31000-32767 specifies to use only ports from the dispatched port range
             # see https://www.man7.org/linux/man-pages/man8/iptables-extensions.8.html for more information
             scion_dc["services"]["nat_1-ff00_0_111"] = {
-                "command": 'bash -c "apt update && apt install -y iptables && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p tcp -o eth1 -j MASQUERADE && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p udp -o eth1 -j MASQUERADE --random --to-ports 31000-32767 && tail -f /dev/null"',
-                "image": "scion/tester:latest",
+                "command": 'sh -c "sleep 5 && apk update && apk add --no-cache iptables && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p tcp -o eth1 -j MASQUERADE && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p udp -o eth1 -j MASQUERADE --random --to-ports 31000-32767 && tail -f /dev/null"',
+                "image": "alpine:latest",
                 "networks": {
                     "scn_002": {"ipv4_address": "172.20.0.28"},
                     "local_001": {"ipv4_address": "192.168.123.2"},
@@ -114,10 +114,10 @@ class Test(base.TestTopogen):
         time.sleep(10) # wait for everything to start up
 
         # copy test executables to test container
-        stun_client = local["realpath"](self.get_executable("test-client").executable).strip()
-        stun_server = local["realpath"](self.get_executable("test-server").executable).strip()
-        self.dc("cp", stun_server, "tester_1-ff00_0_110" + ":/bin/")
-        self.dc("cp", stun_client, "tester_1-ff00_0_111" + ":/bin/")
+        test_client = local["realpath"](self.get_executable("test-client").executable).strip()
+        test_server = local["realpath"](self.get_executable("test-server").executable).strip()
+        self.dc("cp", test_server, "tester_1-ff00_0_110" + ":/bin/")
+        self.dc("cp", test_client, "tester_1-ff00_0_111" + ":/bin/")
 
         # run tests (located in test-client/main.go and test-server/main.go)
         self.dc.execute_detached("tester_1-ff00_0_110", "bash", "-c", "test-server -local 1-ff00:0:110,172.20.0.22:31000")
