@@ -90,6 +90,7 @@ use_repo(
     "com_github_stretchr_testify",
     "com_github_uber_jaeger_client_go",
     "com_github_vishvananda_netlink",
+    "com_tailscale",
     "in_gopkg_yaml_v3",
     "org_go4_netipx",
     "org_golang_google_grpc",
