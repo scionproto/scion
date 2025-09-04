@@ -37,8 +37,11 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"sync/atomic"
+	"testing"
 	"time"
 
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -48,23 +51,48 @@ const (
 )
 
 var (
-	remoteToEgress         map[netip.Addr]netip.Addr = make(map[netip.Addr]netip.Addr)
-	muRemoteToEgress       sync.RWMutex              = sync.RWMutex{}
-	ticker                                           = time.NewTicker(CheckInterfacesPeriod)
-	egressesLocalAddresses                           = make([]netip.Addr, 0)
+	remoteToEgress   map[netip.Addr]netip.Addr = make(map[netip.Addr]netip.Addr)
+	muRemoteToEgress sync.RWMutex              = sync.RWMutex{}
+
+	// The local addresses are stored in an atomic pointer to allow tests to inspect the
+	// internal value of it without data races.
+	localAddresses = atomic.Pointer[[]netip.Addr]{}
+	ticker         = time.NewTicker(CheckInterfacesPeriod)
+	stopTicker     = make(chan struct{})
 )
 
 func init() {
-	go continuousCheckInterfaces()
+	localAddrs := make([]netip.Addr, 0)
+	localAddresses.Store(&localAddrs)
+	go func() {
+		defer log.HandlePanic()
+		continuousCheckInterfaces()
+	}()
 }
 
-func continuousCheckInterfaces() {
-	for ; ; <-ticker.C {
-		clearCacheIfLocalChanges(&egressesLocalAddresses)
+// StopContinuousCheckInterfaces is used in tests where they need to stop the running
+// goroutine that checks the state of the local interfaces.
+func StopContinuousCheckInterfaces(*testing.T) {
+	if testing.Testing() {
+		stopContinuousCheckInterfaces()
 	}
 }
 
-func clearCacheIfLocalChanges(lastState *[]netip.Addr) {
+func continuousCheckInterfaces() {
+	clearCacheIfLocalChanges()
+loop:
+	for {
+		select {
+		case <-ticker.C:
+			clearCacheIfLocalChanges()
+		case <-stopTicker:
+			ticker.Stop()
+			break loop
+		}
+	}
+}
+
+func clearCacheIfLocalChanges() {
 	addrs := getInterfacesLocalAddresses()
 	if addrs == nil {
 		// Internal error, bail.
@@ -72,7 +100,7 @@ func clearCacheIfLocalChanges(lastState *[]netip.Addr) {
 	}
 
 	// Compare with previous result.
-	if equalAddressList(addrs, *lastState) {
+	if equalAddressList(addrs, *localAddresses.Load()) {
 		// They are the same, bail.
 		return
 	}
@@ -80,7 +108,7 @@ func clearCacheIfLocalChanges(lastState *[]netip.Addr) {
 	// Not equal, invalidate every entry.
 	invalidateAll()
 	// And store previous state.
-	*lastState = addrs
+	localAddresses.Store(&addrs)
 }
 
 func getInterfacesLocalAddresses() []netip.Addr {
@@ -115,8 +143,8 @@ func equalAddressList(a, b []netip.Addr) bool {
 
 func invalidateAll() {
 	muRemoteToEgress.Lock()
-	defer muRemoteToEgress.Unlock()
 	remoteToEgress = make(map[netip.Addr]netip.Addr)
+	muRemoteToEgress.Unlock()
 }
 
 func egressIpAddresses() ([]netip.Addr, error) {
@@ -141,4 +169,8 @@ func egressIpAddresses() ([]netip.Addr, error) {
 	}
 
 	return ipAddrs, nil
+}
+
+func stopContinuousCheckInterfaces() {
+	stopTicker <- struct{}{}
 }

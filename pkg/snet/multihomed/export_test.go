@@ -33,7 +33,7 @@ func GetInternalMutex() *sync.RWMutex {
 }
 
 func StopTicker() {
-	ticker.Stop()
+	stopContinuousCheckInterfaces()
 }
 
 func GetRemoteToEgressMap() map[netip.Addr]netip.Addr {
@@ -45,5 +45,5 @@ func ReplaceRemoteToEgressMap(newMap map[netip.Addr]netip.Addr) {
 }
 
 func GetEgressesLastState() *[]netip.Addr {
-	return &egressesLocalAddresses
+	return localAddresses.Load()
 }

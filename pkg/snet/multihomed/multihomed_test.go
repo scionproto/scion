@@ -73,14 +73,19 @@ func (s *MultihomedTestSuite) TestInternalEgressCache() {
 		s.muInternalsIsolated.RLock()
 	}()
 
-	// Wait for 100ms allow the ticker to run first.
-	time.Sleep(100 * time.Millisecond)
-
 	// Synchronize with the internal ticker routine to ensure it finished the update.
-	multihomed.GetInternalMutex().RLock()
-	// Check that the egress table is not empty.
+	checkTicker := time.NewTicker(10 * time.Millisecond)
+	for i, _ := 0, <-checkTicker.C; i < 10; i, _ = i+1, <-checkTicker.C {
+		multihomed.GetInternalMutex().RLock()
+		state := *multihomed.GetEgressesLastState()
+		multihomed.GetInternalMutex().RUnlock()
+		// Check that the egress table is not empty.
+		if len(state) > 0 {
+			break
+		}
+	}
+	checkTicker.Stop()
 	require.NotEmpty(t, *multihomed.GetEgressesLastState())
-	multihomed.GetInternalMutex().RUnlock()
 
 	// Stop internal refresh method.
 	multihomed.StopTicker()
