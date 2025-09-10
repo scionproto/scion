@@ -17,25 +17,30 @@ package multihomed
 import (
 	"net"
 	"net/netip"
+
+	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
 // OutboundIP returns the IP address used by this host to dial to the specified remote host.
 // The port value in the remote udp address is irrelevant.
 // It relies on a previously populated table that maps remote addresses to egress addresses.
 // If the remote is not present, it is added.
-func OutboundIP(raddr *net.UDPAddr) (net.IP, error) {
+func OutboundIP(nextHop *net.UDPAddr) (net.IP, error) {
+	remote, ok := netip.AddrFromSlice(nextHop.IP)
+	if !ok {
+		return nil, serrors.New("invalid IP address", "address", nextHop.IP)
+	}
+
 	// Check if the table contains an entry.
 	muRemoteToEgress.RLock()
-	defer muRemoteToEgress.RLocker().Unlock()
-
-	remote, _ := netip.AddrFromSlice(raddr.IP)
 	egress, ok := remoteToEgress[remote]
+	muRemoteToEgress.RLocker().Unlock()
 	if ok {
 		return net.IP(egress.AsSlice()), nil
 	}
 
 	// Not found, find it and add it. The dialing involves a syscall, but no network traffic.
-	eg, err := dialRemote(raddr)
+	eg, err := dialRemote(nextHop)
 	if err != nil {
 		return nil, err
 	}
@@ -44,14 +49,12 @@ func OutboundIP(raddr *net.UDPAddr) (net.IP, error) {
 	// Check if our cache is not too big already.
 	if len(remoteToEgress) < MaxAllowedCacheSize {
 		// Beware of the RWMutex, it's read-locked already.
-		muRemoteToEgress.RUnlock()
 		muRemoteToEgress.Lock()
 		// Check again to avoid race conditions. Could skipped it if exact size is not important.
 		if len(remoteToEgress) < MaxAllowedCacheSize {
 			remoteToEgress[remote] = egress
 		}
 		muRemoteToEgress.Unlock()
-		muRemoteToEgress.RLock() // because we always read-unlock in this function.
 	}
 	return eg, nil
 }
