@@ -95,7 +95,6 @@ type SCIONNetwork struct {
 }
 
 // OpenRaw returns a PacketConn which listens on the specified address.
-// Nil or unspecified addresses are not supported.
 // If the address port is 0 a valid and free SCION/UDP port is automatically chosen.
 // Otherwise, the specified port must be a valid SCION/UDP port.
 func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketConn, error) {
