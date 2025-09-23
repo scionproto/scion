@@ -3,8 +3,8 @@ Protobuf API Version
 ********************
 
 - Author(s): T. Zäschke
-- Last updated: 2025-09-02
-- Discussion at: :issue:`NNNN`
+- Last updated: 2025-09-23
+- Discussion at: :issue:`4832`
 - Status: **WIP**
 
 Abstract
@@ -146,15 +146,14 @@ Examples:
 - The version could also be used to indicate non-grpc features, such as NAT support.
 
 
-Rationale
-=========
+Discussion
+==========
 
 Component Versioning
 --------------------
-Removing the component versioning is definitely possible. However, the component
-versioning may help to implement versioning in clients. It may also
-serve as a component registry, e.g., indicating to the client whether `drkey`
-is supported or not.
+In addition to versioning of the API we could add component versioning.
+This also serves as a component registry, e.g., indicating to the client whether
+`drkey` or `fabrid` is supported or not.
 
 .. code-block:: protobuf
 
@@ -170,8 +169,10 @@ is supported or not.
     uint32 api_version = 1;
     // Oldest API version supported by the server
     uint32 api_version_minimum = 2;
+    // Software version
+    string software_version = 3;
     // Map of individual components and their versions,
-    map<string, VersionRange> component_versions = 3;
+    map<string, VersionRange> component_versions = 4;
   }
 
   message VersionRange {
@@ -218,7 +219,9 @@ Implementation
 ==============
 
 - Add version information to control server implementations.
-- Add version information to client libraries..
+- Add version information to client libraries.
+
+- Optional (recommended): Add component versioning
 
 - Document clearly (in each proto file?) that any change should result
   in incrementing the API version.

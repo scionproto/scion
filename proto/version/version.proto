@@ -30,6 +30,14 @@ message VersionResponse {
     uint32 api_version = 1;
     // Oldest API version supported by the server
     uint32 api_version_minimum = 2;
-    // Software version
+    // Software version string
     string software_version = 3;
+    // Map of individual components and their versions,
+    map<string, VersionRange> component_versions = 4;
+}
+
+message VersionRange {
+    // The minimum and maximum version of a service that is supported by the server.
+    int32 max = 1;
+    int32 min = 2;
 }
