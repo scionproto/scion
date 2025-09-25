@@ -34,7 +34,7 @@ func OutboundIP(nextHop *net.UDPAddr) (net.IP, error) {
 	// Check if the table contains an entry.
 	muRemoteToEgress.RLock()
 	egress, ok := remoteToEgress[remote]
-	muRemoteToEgress.RLocker().Unlock()
+	muRemoteToEgress.RUnlock()
 	if ok {
 		return net.IP(egress.AsSlice()), nil
 	}
