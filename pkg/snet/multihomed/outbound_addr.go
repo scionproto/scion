@@ -25,6 +25,9 @@ import (
 // The port value in the remote udp address is irrelevant.
 // It relies on a previously populated table that maps remote addresses to egress addresses.
 // If the remote is not present, it is added.
+// Note that NAT address discovery support in scionproto via STUN will also dial periodically
+// connections to the STUN server, which should be enough to find the local address used
+// to route to the next hop.
 func OutboundIP(nextHop *net.UDPAddr) (net.IP, error) {
 	remote, ok := netip.AddrFromSlice(nextHop.IP)
 	if !ok {
