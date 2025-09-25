@@ -57,7 +57,6 @@ var (
 	// The local addresses are stored in an atomic pointer to allow tests to inspect the
 	// internal value of it without data races.
 	localAddresses = atomic.Pointer[[]netip.Addr]{}
-	ticker         = time.NewTicker(CheckInterfacesPeriod)
 	stopTicker     = make(chan struct{})
 )
 
@@ -80,6 +79,7 @@ func StopContinuousCheckInterfaces(*testing.T) {
 
 func continuousCheckInterfaces() {
 	clearCacheIfLocalChanges()
+	ticker := time.NewTicker(CheckInterfacesPeriod)
 loop:
 	for {
 		select {
