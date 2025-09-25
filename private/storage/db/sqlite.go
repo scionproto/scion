@@ -217,7 +217,7 @@ func (db *Sqlite) Close() error {
 	return nil
 }
 
-// memoryDBCheck is a saftey mechanism to prevent multiple in-memory databases with the same
+// memoryDBCheck is a safety mechanism to prevent multiple in-memory databases with the same
 // name. Such databases would share the same underlying database, leading to unexpected behavior in
 // tests.
 var memoryDBCheck = struct {
