@@ -108,7 +108,7 @@ func clearCacheIfLocalChanges() {
 
 	// Not equal, invalidate every entry.
 	invalidateAll()
-	// And store previous state.
+	// And store current state.
 	localAddresses.Store(&addrs)
 }
 
