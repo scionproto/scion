@@ -35,6 +35,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -100,7 +101,7 @@ func clearCacheIfLocalChanges() {
 	}
 
 	// Compare with previous result.
-	if equalAddressList(addrs, *localAddresses.Load()) {
+	if slices.Equal(addrs, *localAddresses.Load()) {
 		// They are the same, bail.
 		return
 	}
@@ -127,18 +128,6 @@ func getInterfacesLocalAddresses() []netip.Addr {
 		return addrs[i].Compare(addrs[j]) < 0
 	})
 	return addrs
-}
-
-func equalAddressList(a, b []netip.Addr) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i].Compare(b[i]) != 0 {
-			return false
-		}
-	}
-	return true
 }
 
 func invalidateAll() {
