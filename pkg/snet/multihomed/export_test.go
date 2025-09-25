@@ -45,5 +45,5 @@ func ReplaceRemoteToEgressMap(newMap map[netip.Addr]netip.Addr) {
 }
 
 func GetEgressesLastState() *[]netip.Addr {
-	return localAddresses.Load()
+	return &localAddresses
 }

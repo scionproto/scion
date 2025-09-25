@@ -77,11 +77,8 @@ func (s *MultihomedTestSuite) TestInternalEgressCache() {
 	// Synchronize with the internal ticker routine to ensure it finished the update.
 	checkTicker := time.NewTicker(10 * time.Millisecond)
 	for i, _ := 0, <-checkTicker.C; i < 10; i, _ = i+1, <-checkTicker.C {
-		multihomed.GetInternalMutex().RLock()
-		state := *multihomed.GetEgressesLastState()
-		multihomed.GetInternalMutex().RUnlock()
 		// Check that the egress table is not empty.
-		if len(state) > 0 {
+		if len(*multihomed.GetEgressesLastState()) > 0 {
 			break
 		}
 	}

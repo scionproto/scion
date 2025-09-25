@@ -38,7 +38,6 @@ import (
 	"slices"
 	"sort"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -54,16 +53,11 @@ const (
 var (
 	remoteToEgress   map[netip.Addr]netip.Addr = make(map[netip.Addr]netip.Addr)
 	muRemoteToEgress sync.RWMutex              = sync.RWMutex{}
-
-	// The local addresses are stored in an atomic pointer to allow tests to inspect the
-	// internal value of it without data races.
-	localAddresses = atomic.Pointer[[]netip.Addr]{}
-	stopTicker     = make(chan struct{})
+	localAddresses                             = make([]netip.Addr, 0)
+	stopTicker                                 = make(chan struct{})
 )
 
 func init() {
-	localAddrs := make([]netip.Addr, 0)
-	localAddresses.Store(&localAddrs)
 	go func() {
 		defer log.HandlePanic()
 		continuousCheckInterfaces()
@@ -101,7 +95,7 @@ func clearCacheIfLocalChanges() {
 	}
 
 	// Compare with previous result.
-	if slices.Equal(addrs, *localAddresses.Load()) {
+	if slices.Equal(addrs, localAddresses) {
 		// They are the same, bail.
 		return
 	}
@@ -109,7 +103,7 @@ func clearCacheIfLocalChanges() {
 	// Not equal, invalidate every entry.
 	invalidateAll()
 	// And store current state.
-	localAddresses.Store(&addrs)
+	localAddresses = addrs
 }
 
 func getInterfacesLocalAddresses() []netip.Addr {
