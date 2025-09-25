@@ -15,6 +15,7 @@
 package multihomed_test
 
 import (
+	"crypto/rand"
 	"net/netip"
 	"sync"
 	"testing"
@@ -109,4 +110,88 @@ func (s *MultihomedTestSuite) TestInternalEgressCache() {
 	got, err := multihomed.OutboundIP(mockRemote)
 	require.NoError(t, err)
 	require.Equal(t, expected, got)
+}
+
+// BenchmarkSyncMapWrites (and the other 3 analogous benchmarks) are used to check the performance
+// of a sync.Map (any->any) and a regular map (IP->IP) with a RWMutex.
+func BenchmarkSyncMapWrites(b *testing.B) {
+	// Create a set of `size` IP addresses.
+	addrs := generateIpAddrs(b.N)
+
+	m := sync.Map{}
+	b.ResetTimer()
+	storeInSyncMap(&m, addrs)
+}
+
+func BenchmarkSyncMapReads(b *testing.B) {
+	addrs := generateIpAddrs(b.N)
+	m := sync.Map{}
+	storeInSyncMap(&m, addrs)
+
+	// Refrain optimizer from removing code by adding the values to a discard buffer.
+	discardBuff := make([]netip.Addr, b.N)
+	b.ResetTimer()
+	for i, addr := range addrs {
+		a, ok := m.Load(addr)
+		addr = a.(netip.Addr)
+		_ = ok
+		discardBuff[i] = addr
+	}
+	b.StopTimer()
+	require.NotEmpty(b, discardBuff)
+	require.Len(b, discardBuff, b.N)
+}
+
+func BenchmarkMuMapWrites(b *testing.B) {
+	addrs := generateIpAddrs(b.N)
+
+	m := make(map[netip.Addr]netip.Addr)
+	mu := sync.RWMutex{}
+	b.ResetTimer()
+	storeInMuMap(m, &mu, addrs)
+}
+
+func BenchmarkMuMapReads(b *testing.B) {
+	addrs := generateIpAddrs(b.N)
+	m := make(map[netip.Addr]netip.Addr)
+	mu := sync.RWMutex{}
+	storeInMuMap(m, &mu, addrs)
+
+	// Refrain optimizer from removing code by adding the values to a discard buffer.
+	discardBuff := make([]netip.Addr, b.N)
+	b.ResetTimer()
+	for i, addr := range addrs {
+		mu.RLock()
+		addr, ok := m[addr]
+		mu.RUnlock()
+		_ = ok
+		discardBuff[i] = addr
+	}
+	b.StopTimer()
+	require.NotEmpty(b, discardBuff)
+	require.Len(b, discardBuff, b.N)
+}
+
+func generateIpAddrs(size int) []netip.Addr {
+	addrs := make([]netip.Addr, size)
+	raw := [4]byte{}
+	for i := range size {
+		rand.Read(raw[:])
+		addrs[i] = netip.AddrFrom4(raw)
+	}
+	return addrs
+}
+
+func storeInSyncMap(m *sync.Map, addrs []netip.Addr) {
+	for _, addr := range addrs {
+		m.Store(addr, addr)
+	}
+}
+
+func storeInMuMap(m map[netip.Addr]netip.Addr, mu *sync.RWMutex, addrs []netip.Addr) {
+	for _, addr := range addrs {
+		mu.Lock()
+		m[addr] = addr
+		mu.Unlock()
+	}
 }
