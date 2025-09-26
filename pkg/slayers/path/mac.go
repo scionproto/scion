@@ -27,8 +27,8 @@ const MACBufferSize = 16
 // Modifying the provided buffer after calling this function may change the returned HopField MAC.
 func MAC(h hash.Hash, info InfoField, hf HopField, buffer []byte) [MacLen]byte {
 	mac := FullMAC(h, info, hf, buffer)
-	var res /*@@@*/ [MacLen]byte
-	copy(res[:], mac[:MacLen] /*@, perm(0/1) @*/)
+	var res [MacLen]byte
+	copy(res[:], mac[:MacLen])
 	return res
 }
 
