@@ -15,7 +15,7 @@ jobs:
       - name: Checkout the SCION repository
         uses: actions/checkout@v2
       - name: Check that the package gobra/utils is well-formed
-        uses: viperproject/gobra-action@v25.09
+        uses: viperproject/gobra-action@v25.09.1
         with:
           packages: 'gobra/utils'
           # Gobra only verifies files annotated with the header "// +gobra"
@@ -25,7 +25,7 @@ jobs:
           module: ${{ env.module }}
           includePaths: ${{ env.includePaths }}
       - name: Check that specifications of third-party libraries are well-formed
-        uses: viperproject/gobra-action@v25.09
+        uses: viperproject/gobra-action@v25.09.1
         with:
           projectLocation: 'scion/gobra/stdlib-specs'
           headerOnly: '1'
@@ -37,7 +37,7 @@ jobs:
           module: ${{ env.module }}
           includePaths: '. ../..' # relative to project location
       - name: Verify package `pkg/addr`
-        uses: viperproject/gobra-action@v25.09
+        uses: viperproject/gobra-action@v25.09.1
         with:
           packages: 'pkg/addr'
           headerOnly: '1'
@@ -46,7 +46,7 @@ jobs:
           module: ${{ env.module }}
           includePaths: ${{ env.includePaths }}
       - name: Verify package `pkg/slayers/path`
-        uses: viperproject/gobra-action@v25.09
+        uses: viperproject/gobra-action@v25.09.1
         with:
           packages: 'pkg/slayers/path'
           headerOnly: '1'
