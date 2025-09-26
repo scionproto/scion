@@ -34,7 +34,7 @@ jobs:
       - name: Check that specifications of third-party libraries are well-formed
         uses: viperproject/gobra-action@v25.09
         with:
-          projectLocation: 'gobra/stdlib-specs'
+          projectLocation: 'scion/gobra/stdlib-specs'
           # Gobra only verifies files annotated with the header "// +gobra"
           headerOnly: '1'
           # Traverse the entire repository, including nested packages,
