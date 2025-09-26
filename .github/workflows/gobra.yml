@@ -10,7 +10,7 @@ jobs:
     env:
       imageVersion: 'v25.09'
       module: 'github.com/scionproto/scion/'
-      includePaths: '. ./gobra ./gobra/stdlib-specs'
+      includePaths: '. ./gobra/stdlib-specs'
     steps:
       - name: Checkout the SCION repository
         uses: actions/checkout@v2
@@ -36,16 +36,21 @@ jobs:
           imageVersion: ${{ env.imageVersion }}
           module: ${{ env.module }}
           includePaths: '. ../..' # relative to project location
-## - name: Verify the specified files
-##   uses: viperproject/gobra-action@v22.10.2
-##   with:
-##     # Prefix used to resolve SCION packages
-##     module: 'github.com/scionproto/scion/'
-##     # Gobra only verifies files annotated with the header "// +gobra"
-##     headerOnly: '1'
-##     # Traverse the entire repository, including nested packages,
-##     # in search for annotated files to verify
-##     recursive: '1'
-##     timeout: 10m
-##     caching: '1'
-##     statsFile: ${{ env.statsFile }}
+      - name: Verify package `pkg/addr`
+        uses: viperproject/gobra-action@v25.09
+        with:
+          packages: 'pkg/addr'
+          headerOnly: '1'
+          timeout: 2m
+          imageVersion: ${{ env.imageVersion }}
+          module: ${{ env.module }}
+          includePaths: ${{ env.includePaths }}
+      - name: Verify package `pkg/slayers/path`
+        uses: viperproject/gobra-action@v25.09
+        with:
+          packages: 'pkg/slayers/path'
+          headerOnly: '1'
+          timeout: 2m
+          imageVersion: ${{ env.imageVersion }}
+          module: ${{ env.module }}
+          includePaths: ${{ env.includePaths }}
