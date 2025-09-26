@@ -34,10 +34,13 @@ var (
 // Type indicates the type of the path contained in the SCION header.
 type Type uint8
 
-// @ trusted
-// @ requires false
+// @ requires 0 <= t && t < maxPathType
+// @ preserves acc(PkgMem(), utils.ReadPerm)
+// @ decreases
 func (t Type) String() string {
+	// @ unfold acc(PkgMem(), utils.ReadPerm)
 	pm := registeredPaths[t]
+	// @ fold acc(PkgMem(), utils.ReadPerm)
 	if !pm.inUse {
 		return fmt.Sprintf("UNKNOWN (%d)", t)
 	}
@@ -62,15 +65,15 @@ type Path interface {
 
 	// SerializeTo serializes the path into the provided buffer.
 	// @ preserves acc(Mem(), utils.ReadPerm)
-	// @ preserves acc(DecodedFrom())
-	// @ preserves acc(b)
+	// @ preserves acc(utils.ByteSlice(DecodedFrom()))
+	// @ preserves utils.ByteSlice(b)
 	// @ ensures   err != nil ==> err.ErrorMem()
 	SerializeTo(b []byte) (err error)
 
 	// DecodesFromBytes decodes the path from the provided buffer.
 	// @ requires  PreDecodeMem()
-	// @ preserves acc(b, utils.ReadPerm)
-	// @ ensures   err == nil ==> Mem()
+	// @ preserves acc(utils.ByteSlice(b), utils.ReadPerm)
+	// @ ensures   err == nil ==> Mem() && DecodedFrom() === b
 	// @ ensures   err != nil ==> err.ErrorMem() && PreDecodeMem()
 	DecodeFromBytes(b []byte) (err error)
 
@@ -78,7 +81,8 @@ type Path interface {
 	//
 	// XXX(shitz): This method should possibly be moved to a higher-level path manipulation package.
 	// @ requires Mem()
-	// @ requires acc(DecodedFrom())
+	// @ requires acc(utils.ByteSlice(DecodedFrom()))
+	// @ ensures  acc(utils.ByteSlice(old(DecodedFrom())))
 	// @ ensures  err == nil ==>
 	// @ 	p != nil && p.Mem() && p.DecodedFrom() === old(DecodedFrom())
 	// @ ensures err != nil ==> err.ErrorMem()
@@ -111,15 +115,20 @@ type Metadata struct {
 
 // RegisterPath registers a new SCION path type globally.
 // The PathType passed in must be unique, or a runtime panic will occur.
-// @ trusted
-// @ requires false
+// @ requires 0 <= pathMeta.Type && pathMeta.Type < maxPathType
+// @ requires PkgMem() && !Registered(pathMeta.Type)
+// @ requires pathMeta.New implements NewPathSpec
+// @ ensures  PkgMem()
+// @ decreases
 func RegisterPath(pathMeta Metadata) {
+	// @ unfold PkgMem()
 	pm := registeredPaths[pathMeta.Type]
 	if pm.inUse {
 		panic("path type already registered: " + pathMeta.Type.String())
 	}
 	registeredPaths[pathMeta.Type].inUse = true
 	registeredPaths[pathMeta.Type].Metadata = pathMeta
+	// @ fold PkgMem()
 }
 
 // StrictDecoding enables or disables strict path decoding. If enabled, unknown
@@ -129,16 +138,21 @@ func RegisterPath(pathMeta Metadata) {
 // Strict parsing is enabled by default.
 //
 // Experimental: This function is experimental and might be subject to change.
-// @ trusted
-// @ requires false
+// @ preserves PkgMem()
+// @ decreases
 func StrictDecoding(strict bool) {
+	// @ unfold PkgMem()
 	strictDecoding = strict
+	// @ fold PkgMem()
 }
 
 // NewPath returns a new path object of pathType.
-// @ trusted
-// @ requires false
+// @ requires 0 <= pathType && pathType < maxPathType
+// @ preserves acc(PkgMem(), utils.ReadPerm)
+// @ decreases
 func NewPath(pathType Type) (Path, error) {
+	// @ unfold  acc(PkgMem(), utils.ReadPerm)
+	// @ defer fold  acc(PkgMem(), utils.ReadPerm)
 	pm := registeredPaths[pathType]
 	if !pm.inUse {
 		if strictDecoding {
@@ -164,21 +178,27 @@ type rawPath struct {
 }
 
 // @ preserves acc(p.Mem(), utils.ReadPerm)
-// @ preserves acc(p.DecodedFrom(), utils.ReadPerm)
-// @ preserves acc(b)
+// @ preserves acc(utils.ByteSlice(p.DecodedFrom()), utils.ReadPerm)
+// @ preserves utils.ByteSlice(b)
+// @ ensures   p.DecodedFrom() === old(p.DecodedFrom())
 // @ ensures   err != nil ==> err.ErrorMem()
 // @ decreases
 func (p *rawPath) SerializeTo(b []byte) (err error) {
 	// @ ghost buf := p.DecodedFrom()
 	// @ unfold acc(p.Mem(), utils.ReadPerm)
 	// @ assert buf === p.raw
-	// @ defer fold acc(p.Mem(), utils.ReadPerm)
+
+	// @ unfold utils.ByteSlice(b)
+	// @ unfold acc(utils.ByteSlice(p.raw), utils.ReadPerm)
 	copy(b, p.raw /*@, utils.ReadPerm @*/)
+	// @ fold acc(utils.ByteSlice(p.raw), utils.ReadPerm)
+	// @ fold utils.ByteSlice(b)
+	// @ fold acc(p.Mem(), utils.ReadPerm)
 	return nil
 }
 
 // @ requires  p.PreDecodeMem()
-// @ ensures   err == nil && p.Mem()
+// @ ensures   err == nil && p.Mem() && p.DecodedFrom() === b
 // @ decreases
 func (p *rawPath) DecodeFromBytes(b []byte) (err error) {
 	// @ unfold p.PreDecodeMem()

@@ -81,3 +81,7 @@ const (
 	R56
 	ReadPerm
 )
+
+pred ByteSlice(s []byte) {
+	forall i int :: { &s[i] } 0 <= i && i < len(s) ==> acc(&s[i])
+}

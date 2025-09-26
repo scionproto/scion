@@ -21,13 +21,24 @@ import "github.com/scionproto/scion/gobra/utils"
 
 pred PkgMem() {
 	acc(&registeredPaths) &&
-	acc(&strictDecoding)
+	acc(&strictDecoding)  &&
+	(forall t Type :: { &registeredPaths[t].inUse } (0 <= t && t < maxPathType && registeredPaths[t].inUse) ==>
+		registeredPaths[t].Metadata.New implements NewPathSpec)
+}
+
+ghost
+requires 0 <= t && t < maxPathType
+requires PkgMem()
+decreases
+pure func Registered(t Type) (res bool) {
+	return unfolding PkgMem() in registeredPaths[t].inUse
 }
 
 
 // TODO doc
-requires false
-func NewPathSpec() Path
+ensures p != nil && p.PreDecodeMem()
+decreases
+func NewPathSpec() (p Path)
 
 ////
 
@@ -44,12 +55,4 @@ requires p.Mem()
 decreases
 pure func (p *rawPath) DecodedFrom() []byte {
 	return unfolding p.Mem() in p.raw
-}
-
-(*rawPath) implements Path {
-	(p *rawPath) SerializeTo(b []byte) (err error) {
-		assert acc(p.DecodedFrom())
-		err = p.SerializeTo(b)
-	}
-
 }
