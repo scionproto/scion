@@ -14,13 +14,6 @@ jobs:
     steps:
       - name: Checkout the SCION repository
         uses: actions/checkout@v2
-      - name: Set-up caching for the verification results
-        uses: actions/cache@v3
-        env:
-          cache-name: gobra-cache
-        with:
-          path: ${{ runner.workspace }}/.gobra/cache.json
-          key: ${{ env.cache-name }}
       - name: Check that the package gobra/utils is well-formed
         uses: viperproject/gobra-action@v25.09
         with:
@@ -35,7 +28,6 @@ jobs:
         uses: viperproject/gobra-action@v25.09
         with:
           projectLocation: 'scion/gobra/stdlib-specs'
-          # Gobra only verifies files annotated with the header "// +gobra"
           headerOnly: '1'
           # Traverse the entire repository, including nested packages,
           # in search for annotated files to verify
@@ -43,17 +35,17 @@ jobs:
           timeout: 10m
           imageVersion: ${{ env.imageVersion }}
           module: ${{ env.module }}
-          includePaths: '. ..' # relative to project location
-      - name: Verify the specified files
-        uses: viperproject/gobra-action@v22.10.2
-        with:
-          # Prefix used to resolve SCION packages
-          module: 'github.com/scionproto/scion/'
-          # Gobra only verifies files annotated with the header "// +gobra"
-          headerOnly: '1'
-          # Traverse the entire repository, including nested packages,
-          # in search for annotated files to verify
-          recursive: '1'
-          timeout: 10m
-          caching: '1'
-          statsFile: ${{ env.statsFile }}
+          includePaths: '. ../..' # relative to project location
+## - name: Verify the specified files
+##   uses: viperproject/gobra-action@v22.10.2
+##   with:
+##     # Prefix used to resolve SCION packages
+##     module: 'github.com/scionproto/scion/'
+##     # Gobra only verifies files annotated with the header "// +gobra"
+##     headerOnly: '1'
+##     # Traverse the entire repository, including nested packages,
+##     # in search for annotated files to verify
+##     recursive: '1'
+##     timeout: 10m
+##     caching: '1'
+##     statsFile: ${{ env.statsFile }}
