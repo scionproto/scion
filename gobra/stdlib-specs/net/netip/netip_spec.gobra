@@ -1,0 +1,80 @@
+// Copyright 2025 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// +gobra
+
+package netip
+
+import (
+	"github.com/scionproto/scion/gobra/utils/"
+)
+
+type Addr struct {
+	privateField utils.PrivateField
+}
+
+type AddrPort struct {
+	privateField utils.PrivateField
+}
+
+decreases
+func (ip Addr) String() string
+
+ensures err != nil ==> err.ErrorMem()
+decreases
+func ParseAddr(s string) (addr Addr, err error)
+
+decreases
+func AddrFrom4(addr [4]byte) Addr
+
+decreases
+func AddrFrom16(addr [16]byte) Addr
+
+decreases
+func (ip Addr) Unmap() Addr
+
+/*
+ghost
+decreases
+pure func (ip Addr) IsValidSpec() bool
+
+//ensures res == ip.IsValidSpec()
+*/
+
+decreases
+func (ip Addr) IsValid() (res bool)
+
+decreases
+func (ip Addr) Is4() bool
+
+decreases
+func (ip Addr) Is6() bool
+
+ensures acc(b)
+decreases
+func (ip Addr) AsSlice() (b []byte)
+
+/*
+ghost
+decreases
+pure func (ip AddrPort) IsValidSpec() bool
+
+ensures res == p.IsValidSpec()
+*/
+
+decreases
+func (p AddrPort) IsValid() (res bool)
+
+decreases
+func (p AddrPort) Addr() Addr

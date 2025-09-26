@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +gobra
+
 package addr
 
 import (
@@ -30,6 +32,8 @@ const (
 	HostTypeSVC
 )
 
+// @ requires t.IsValid()
+// @ decreases
 func (t HostAddrType) String() string {
 	switch t {
 	case HostTypeNone:
@@ -58,7 +62,9 @@ type Host struct {
 // returning the result as a Host address.
 // s can either be a SVC address, in the format supported by ParseSVC(s),
 // or an IP address in dotted decimal or IPv6 format.
-func ParseHost(s string) (Host, error) {
+// @ ensures err != nil ==> err.ErrorMem()
+// @ decreases
+func ParseHost(s string) (h Host, err error) {
 	svc, err := ParseSVC(s)
 	if err == nil {
 		return HostSVC(svc), nil
@@ -72,6 +78,8 @@ func ParseHost(s string) (Host, error) {
 
 // MustParseHost calls ParseHost(s) and panics on error.
 // It is intended for use in tests with hard-coded strings.
+// @ trusted
+// @ requires false
 func MustParseHost(s string) Host {
 	host, err := ParseHost(s)
 	if err != nil {
@@ -81,22 +89,28 @@ func MustParseHost(s string) Host {
 }
 
 // HostIP returns a Host address representing ip, with type HostTypeIP.
+// @ decreases
 func HostIP(ip netip.Addr) Host {
 	return Host{t: HostTypeIP, ip: ip}
 }
 
 // HostSvc returns a Host address representing svc, with type HostTypeSVC.
+// @ decreases
 func HostSVC(svc SVC) Host {
 	return Host{t: HostTypeSVC, svc: svc}
 }
 
 // Type returns the type of the address represented by h.
+// @ pure
+// @ decreases
 func (h Host) Type() HostAddrType {
 	return h.t
 }
 
 // IP returns the IP address represented by h.
 // Panics if h.Type() is not HostTypeIP.
+// @ requires h.Type() == HostTypeIP
+// @ decreases
 func (h Host) IP() netip.Addr {
 	if h.t != HostTypeIP {
 		panic("IP called on non-IP address: " + h.t.String())
@@ -106,6 +120,8 @@ func (h Host) IP() netip.Addr {
 
 // SVC returns the SVC address represented by h.
 // Panics if h.Type() is not HostTypeSVC.
+// @ requires h.Type() == HostTypeSVC
+// @ decreases
 func (h Host) SVC() SVC {
 	if h.t != HostTypeSVC {
 		panic("SVC called on non-SVC address: " + h.t.String())
@@ -113,6 +129,8 @@ func (h Host) SVC() SVC {
 	return h.svc
 }
 
+// @ requires h.Type().IsValid()
+// @ decreases
 func (h Host) String() string {
 	switch t := h.Type(); t {
 	case HostTypeNone:
@@ -127,11 +145,15 @@ func (h Host) String() string {
 }
 
 // Set implements flag.Value interface
+// @ preserves h.Mem()
+// @ decreases
 func (h *Host) Set(s string) error {
 	pH, err := ParseHost(s)
 	if err != nil {
 		return err
 	}
+	// @ unfold h.Mem()
 	*h = pH
+	// @ fold h.Mem()
 	return nil
 }
