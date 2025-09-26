@@ -19,6 +19,16 @@ jobs:
         with:
           path: ${{ runner.workspace }}/.gobra/cache.json
           key: ${{ env.cache-name }}
+      - name: Check that specifications of third-party libraries are well-formed
+        uses: viperproject/gobra-action@v25.09
+        with:
+          projectRoot: "gobra/stdlib-specs"
+          # Gobra only verifies files annotated with the header "// +gobra"
+          headerOnly: '1'
+          # Traverse the entire repository, including nested packages,
+          # in search for annotated files to verify
+          recursive: '1'
+          timeout: 10m
       - name: Verify the specified files
         uses: viperproject/gobra-action@v22.10.2
         with:
@@ -32,8 +42,3 @@ jobs:
           timeout: 10m
           caching: '1'
           statsFile: ${{ env.statsFile }}
-      - name: Upload the verification report
-        uses: actions/upload-artifact@v4
-        with:
-          name: verification_stats.json
-          path: ${{ env.statsFile }}
