@@ -10,6 +10,7 @@ jobs:
     env:
       imageVersion: 'v25.09'
       module: 'github.com/scionproto/scion/'
+      includePaths: '. ./gobra/stdlib-specs'
     steps:
       - name: Checkout the SCION repository
         uses: actions/checkout@v2
@@ -29,6 +30,7 @@ jobs:
           timeout: 2m
           imageVersion: ${{ env.imageVersion }}
           module: ${{ env.module }}
+          includePaths: ${{ env.includePaths }}
       - name: Check that specifications of third-party libraries are well-formed
         uses: viperproject/gobra-action@v25.09
         with:
@@ -41,6 +43,7 @@ jobs:
           timeout: 10m
           imageVersion: ${{ env.imageVersion }}
           module: ${{ env.module }}
+          includePaths: ${{ env.includePaths }}
       - name: Verify the specified files
         uses: viperproject/gobra-action@v22.10.2
         with:
