@@ -162,7 +162,10 @@ func (a AS) inRange() (res bool) {
 	return a <= MaxAS
 }
 
-func (a AS) MarshalText() ([]byte, error) {
+// @ ensures err == nil ==> acc(res)
+// @ ensures err != nil ==> err.ErrorMem()
+// @ decreases
+func (a AS) MarshalText() (res []byte, err error) {
 	if !a.inRange() {
 		return nil, serrors.New("AS out of range", "max", MaxAS, "value", a)
 	}
@@ -171,8 +174,9 @@ func (a AS) MarshalText() ([]byte, error) {
 
 // @ preserves a.Mem()
 // @ preserves acc(text, utils.ReadPerm)
+// @ ensures   err != nil ==> err.ErrorMem()
 // @ decreases
-func (a *AS) UnmarshalText(text []byte) error {
+func (a *AS) UnmarshalText(text []byte) (err error) {
 	parsed, err := ParseAS(string(text))
 	if err != nil {
 		return err

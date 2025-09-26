@@ -111,8 +111,6 @@ func FormatAS(a AS, opts ...FormatOption) string {
 	return s
 }
 
-// TODO
-// @ trusted
 // @ decreases
 func fmtAS(a AS, sep string) string {
 	if !a.inRange() {
@@ -123,9 +121,12 @@ func fmtAS(a AS, sep string) string {
 		return strconv.FormatUint(uint64(a), 10)
 	}
 	// Format all other ASes as 'sep'-separated hex.
-	const maxLen = len("ffff:ffff:ffff")
-	var b strings.Builder
+	var maxLen = len("ffff:ffff:ffff")
+	var b /*@@@*/ strings.Builder
+	// @ b.ZeroBuilderIsReadyToUse()
 	b.Grow(maxLen)
+	// @ invariant b.Mem()
+	// @ decreases asParts - i
 	for i := 0; i < asParts; i++ {
 		if i > 0 {
 			b.WriteString(sep)

@@ -16,7 +16,6 @@
 
 package utils
 
-
 // TODO: doc
 type PrivateField int
 
