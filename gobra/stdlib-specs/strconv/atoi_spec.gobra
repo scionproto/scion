@@ -16,48 +16,10 @@
 
 package strconv
 
-// TODO: move to a math library when there is one
-// a to the power of b
-ghost
-requires 0 <= exp
-decreases exp
-pure func Exp(base int, exp int) (res int) {
-	return exp == 0 ? 1 : (base * Exp(base, exp - 1))
-}
-
-ghost
-requires 10 <= exp
-ensures  Exp(2, exp) == 1024 * Exp(2, exp - 10)
-decreases
-func Exp2to10(exp int) {
-	assert Exp(2, exp) == 2 * Exp(2, exp - 1)
-	assert Exp(2, exp) == 4 * Exp(2, exp - 2)
-	assert Exp(2, exp) == 8 * Exp(2, exp - 3)
-	assert Exp(2, exp) == 16 * Exp(2, exp - 4)
-	assert Exp(2, exp) == 32 * Exp(2, exp - 5)
-	assert Exp(2, exp) == 64 * Exp(2, exp - 6)
-	assert Exp(2, exp) == 128 * Exp(2, exp - 7)
-	assert Exp(2, exp) == 256 * Exp(2, exp - 8)
-	assert Exp(2, exp) == 512 * Exp(2, exp - 9)
-}
-
-ghost
-ensures  Exp(2, 32) == 4294967296
-decreases
-func Exp2to32() {
-	assert Exp(2, 32) == 2 * Exp(2, 31)
-	assert Exp(2, 32) == 4 * Exp(2, 30)
-	Exp2to10(30)
-	Exp2to10(20)
-	Exp2to10(10)
-}
-
 // ParseUint is like ParseInt but for unsigned numbers.
 requires base == 0 || (2 <= base && base <= 36)
-requires bitSize > 0 && bitSize <= 64
-ensures  retErr == nil ==> (ret >= 0 && ret < Exp(2, bitSize))
+requires 0 < bitSize && bitSize <= 64
+ensures  retErr == nil ==> (0 <= ret && ret < Exp(2, bitSize))
 ensures  retErr != nil ==> retErr.ErrorMem()
 decreases
 func ParseUint(s string, base int, bitSize int) (ret uint64, retErr error)
-
-

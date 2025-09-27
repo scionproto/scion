@@ -16,45 +16,40 @@
 
 package hash
 
-//import "io"
+import "github.com/scionproto/scion/gobra/utils/"
 
 type Hash interface {
 	pred Mem()
 
+	// Implementations of Hash must also implement io.Writer.
 	preserves Mem() 
-	preserves acc(p, 1/1000)
+	preserves acc(p, utils.ReadPerm)
 	ensures   0 <= n && n <= len(p)
-	// the last conjunct comes from the spec of io.Writer
+	// The documentation of this interface states that the Write
+	// method in implementations of Hash may never fail.
+	// (https://pkg.go.dev/hash#Hash)
 	ensures   err == nil && n == len(p)
 	ensures   Size() == old(Size()) + len(p)
 	decreases
 	Write(p []byte) (n int, err error)
 
-	// Sum appends the current hash to b and returns the resulting slice.
-	// It does not change the underlying hash state.
-	preserves acc(Mem(), 1/1000)
+	preserves acc(Mem(), utils.ReadPerm)
 	requires acc(b)
-	ensures  acc(res) && len(res) == Size()
+	ensures  acc(res) && len(res) == len(b) + Size()
 	decreases
 	Sum(b []byte) (res []byte)
 
-	// Reset resets the Hash to its initial state.
 	preserves Mem()
 	decreases
 	Reset()
 
-	// Size returns the number of bytes Sum will return.
-	requires acc(Mem(), _)
-	ensures  res >= 0
+	requires Mem()
+	ensures  0 <= res
 	decreases
 	pure Size() (res int)
 
-	// BlockSize returns the hash's underlying block size.
-	// The Write method must be able to accept any amount
-	// of data, but it may operate more efficiently if all writes
-	// are a multiple of the block size.
-	requires acc(Mem(), _)
-	ensures  res >= 0
+	requires Mem()
+	ensures  0 <= res
 	decreases
-	BlockSize() (res int)
+	pure BlockSize() (res int)
 }

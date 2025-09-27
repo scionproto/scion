@@ -16,13 +16,16 @@
 
 package utils
 
-// TODO: doc
+// This type is used to mark the existence of private fields in
+// the specification of types from specified (but not verified) imported
+// libraries like the Go standard library.
 type PrivateField int
 
-const HalfPerm perm = 1/2
 const (
-	R00 perm = 1/(2 << iota)
-	R0
+	// Constants of the form RX stand for permission amounts smaller than 1,
+	// and thus, stand for "read" but not "write" permissions. If both exist,
+	// RX+1 is half of RX.
+	R0 perm = 1/(2 << iota)
 	R1
 	R2
 	R3
@@ -33,55 +36,11 @@ const (
 	R8
 	R9
 	R10
-	R11
-	R12
-	R13
-	R14
-	R15
-	R16
-	R17
-	R18
-	R19
-	R20
-	R21
-	R22
-	R23
-	R24
-	R25
-	R26
-	R27
-	R28
-	R29
-	R30
-	R31
-	R32
-	R33
-	R34
-	R35
-	R36
-	R37
-	R38
-	R39
-	R40
-	R41
-	R42
-	R43
-	R44
-	R45
-	R46
-	R47
-	R48
-	R49
-	R50
-	R51
-	R52
-	R53
-	R54
-	R55
-	R56
+	// Small permission amount commonly used as a place-holder for read permissions.
 	ReadPerm
 )
 
+// Short-hand for the ownership of an entire slice of bytes.
 pred ByteSlice(s []byte) {
 	forall i int :: { &s[i] } 0 <= i && i < len(s) ==> acc(&s[i])
 }

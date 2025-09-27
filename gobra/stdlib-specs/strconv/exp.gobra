@@ -1,0 +1,58 @@
+// Copyright 2025 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// +gobra
+
+// This file contains a ghost function Exp (the exponentiation function)
+// that is useful to specify ParseUInt and other similar functions. It also
+// contains two additional lemmas that are useful in discharging proof obligations
+// with Gobra.
+
+package strconv
+
+// TODO: move to a math library when there is one
+// a to the power of b
+ghost
+requires 0 <= exp
+decreases exp
+pure func Exp(base int, exp int) (res int) {
+	return exp == 0 ? 1 : (base * Exp(base, exp - 1))
+}
+
+ghost
+requires 10 <= exp
+ensures  Exp(2, exp) == 1024 * Exp(2, exp - 10)
+decreases
+func Exp2to10(exp int) {
+	assert Exp(2, exp) == 2 * Exp(2, exp - 1)
+	assert Exp(2, exp) == 4 * Exp(2, exp - 2)
+	assert Exp(2, exp) == 8 * Exp(2, exp - 3)
+	assert Exp(2, exp) == 16 * Exp(2, exp - 4)
+	assert Exp(2, exp) == 32 * Exp(2, exp - 5)
+	assert Exp(2, exp) == 64 * Exp(2, exp - 6)
+	assert Exp(2, exp) == 128 * Exp(2, exp - 7)
+	assert Exp(2, exp) == 256 * Exp(2, exp - 8)
+	assert Exp(2, exp) == 512 * Exp(2, exp - 9)
+}
+
+ghost
+ensures  Exp(2, 32) == 4294967296
+decreases
+func Exp2to32() {
+	assert Exp(2, 32) == 2 * Exp(2, 31)
+	assert Exp(2, 32) == 4 * Exp(2, 30)
+	Exp2to10(30)
+	Exp2to10(20)
+	Exp2to10(10)
+}

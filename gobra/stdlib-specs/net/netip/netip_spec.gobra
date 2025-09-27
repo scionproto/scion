@@ -16,9 +16,7 @@
 
 package netip
 
-import (
-	"github.com/scionproto/scion/gobra/utils/"
-)
+import "github.com/scionproto/scion/gobra/utils/"
 
 type Addr struct {
 	privateField utils.PrivateField
@@ -44,14 +42,6 @@ func AddrFrom16(addr [16]byte) Addr
 decreases
 func (ip Addr) Unmap() Addr
 
-/*
-ghost
-decreases
-pure func (ip Addr) IsValidSpec() bool
-
-//ensures res == ip.IsValidSpec()
-*/
-
 decreases
 func (ip Addr) IsValid() (res bool)
 
@@ -64,14 +54,6 @@ func (ip Addr) Is6() bool
 ensures acc(b)
 decreases
 func (ip Addr) AsSlice() (b []byte)
-
-/*
-ghost
-decreases
-pure func (ip AddrPort) IsValidSpec() bool
-
-ensures res == p.IsValidSpec()
-*/
 
 decreases
 func (p AddrPort) IsValid() (res bool)
