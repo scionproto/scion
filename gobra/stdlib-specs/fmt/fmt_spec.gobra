@@ -16,12 +16,11 @@
 
 package fmt
 
-import (
-	"github.com/scionproto/scion/gobra/utils/"
-)
+import "github.com/scionproto/scion/gobra/utils/"
 
-preserves forall i int :: { &v[i] } 0 <= i && i < len(v) ==> acc(&v[i], utils.ReadPerm)
-decreases _
+preserves forall i int :: { &v[i] } 0 <= i && i < len(v) ==>
+	acc(&v[i], utils.ReadPerm)
+decreases
 func Sprintf(format string, v ...interface{}) string
 
 type Stringer interface {
