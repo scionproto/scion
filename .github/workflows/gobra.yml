@@ -29,8 +29,7 @@ jobs:
         with:
           projectLocation: 'scion/gobra/stdlib-specs'
           headerOnly: '1'
-          # Traverse the entire repository, including nested packages,
-          # in search for annotated files to verify
+          # Check all package specifications in directory stdlib-specs
           recursive: '1'
           timeout: 10m
           imageVersion: ${{ env.imageVersion }}
