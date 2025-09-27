@@ -27,7 +27,7 @@ func Sprintf(format string, v ...interface{}) string
 type Stringer interface {
 	pred Mem()
 
-	preserves acc(Mem())
+	preserves Mem()
 	decreases
 	String() string
 }

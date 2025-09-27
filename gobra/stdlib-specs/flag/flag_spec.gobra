@@ -17,11 +17,11 @@ package flag
 type Value interface {
 	pred Mem()
 
-	preserves acc(Mem())
+	preserves Mem()
 	decreases
 	String() string
 
-	preserves acc(Mem())
+	preserves Mem()
 	decreases
 	Set(string) error
 }
