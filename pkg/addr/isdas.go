@@ -271,8 +271,9 @@ func (ia IA) MarshalText() (s []byte, err error) {
 
 // @ preserves ia.Mem()
 // @ preserves acc(b, utils.ReadPerm)
+// @ ensures   err != nil ==> err.ErrorMem()
 // @ decreases
-func (ia *IA) UnmarshalText(b []byte) error {
+func (ia *IA) UnmarshalText(b []byte) (err error) {
 	parsed, err := ParseIA(string(b))
 	if err != nil {
 		return err
