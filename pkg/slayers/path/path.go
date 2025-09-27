@@ -50,13 +50,15 @@ func (t Type) String() string {
 // Path is the path contained in the SCION header.
 type Path interface {
 
-	// (VerifiedSCION) Must imply the resources required to initialize
-	// a new instance of a predicate.
+	// Ownserhip of all necessary memory locations required to safely call
+	// DecodeFromBytes() on a Path instance.
 	//@ pred PreDecodeMem()
 
-	// (VerifiedSCION) Must hold for every valid Path.
+	// Ownserhip of all memory locations on an instance of Path initialized
+	// via a call to DecodeFromBytes.
 	//@ pred Mem()
 
+	// Returns the slice of bytes from which the Path instance was decoded.
 	// @ ghost
 	// @ pure
 	// @ requires Mem()
@@ -65,6 +67,12 @@ type Path interface {
 
 	// SerializeTo serializes the path into the provided buffer.
 	// @ preserves acc(Mem(), utils.ReadPerm)
+	// SerializeTo takes full ownership of the slice from which
+	// the instance was decoded, which allows for that slice to
+	// be mutated during the call to this method. This is perhaps
+	// surpising; one may expect that that slice is only read.
+	// However, the implementations of this method for type *Raw
+	// (declared in pkg/slayers/scion) does mutate the slice.
 	// @ preserves acc(utils.ByteSlice(DecodedFrom()))
 	// @ preserves utils.ByteSlice(b)
 	// @ ensures   err != nil ==> err.ErrorMem()

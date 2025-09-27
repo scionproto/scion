@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: doc the purpose of this file
-
 // +gobra
 
 package addr
@@ -48,7 +46,10 @@ IA implements fmt.Stringer {
 
 (*IA) implements flag.Value
 
-// TODO: explain why this was introduced
+// While this function may appear redundant (it's the same as inRange),
+// this function is part of the public API and thus, may be used in the
+// specification of public functions and methods. We should consider
+// making inRange part of the public API of AS.
 ghost
 decreases
 pure func (a AS) InRangeSpec() bool {

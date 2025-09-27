@@ -11,17 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: doc the purpose of this file
-
 // +gobra
 
 package path
 
 import "github.com/scionproto/scion/gobra/utils"
 
+// Resource PkgMem() stands for the ownership of the global state of this package.
 pred PkgMem() {
 	acc(&registeredPaths) &&
 	acc(&strictDecoding)  &&
+	// for every registered path, the allocator function in its metadata satisfies the contract of NewPathSpec.
 	(forall t Type :: { &registeredPaths[t].inUse } (0 <= t && t < maxPathType && registeredPaths[t].inUse) ==>
 		registeredPaths[t].Metadata.New implements NewPathSpec)
 }
@@ -34,13 +34,11 @@ pure func Registered(t Type) (res bool) {
 	return unfolding PkgMem() in registeredPaths[t].inUse
 }
 
-
-// TODO doc
+// Contract that allocator functions for Path implementations stored in
+// registeredPaths must implement.
 ensures p != nil && p.PreDecodeMem()
 decreases
 func NewPathSpec() (p Path)
-
-////
 
 pred (p *rawPath) PreDecodeMem() {
 	acc(p)
