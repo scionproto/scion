@@ -19,7 +19,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/control/beacon"
@@ -34,35 +33,33 @@ import (
 var _ beacon.DB = (*Backend)(nil)
 
 type Backend struct {
-	db *sql.DB
+	db *db.Sqlite
 	*executor
 }
 
 // New returns a new SQLite backend opening a database at the given path. If
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from the one in schema.go, an error is returned.
-func New(path string, ia addr.IA) (*Backend, error) {
-	db, err := db.NewSqlite(path, Schema, SchemaVersion)
+func New(path string, ia addr.IA, cfg *db.SqliteConfig) (*Backend, error) {
+	db, err := db.NewSqlite(path, cfg)
 	if err != nil {
+		return nil, err
+	}
+	if err := db.Setup(Schema, SchemaVersion); err != nil {
 		return nil, err
 	}
 	return &Backend{
 		executor: &executor{
-			db: db,
-			ia: ia,
+			write: db.Full,
+			read:  db.ReadOnly,
+			ia:    ia,
 		},
 		db: db,
 	}, nil
 }
 
-// SetMaxOpenConns sets the maximum number of open connections.
-func (b *Backend) SetMaxOpenConns(maxOpenConns int) {
-	b.db.SetMaxOpenConns(maxOpenConns)
-}
-
-// SetMaxIdleConns sets the maximum number of idle connections.
-func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
-	b.db.SetMaxIdleConns(maxIdleConns)
+func (b *Backend) DB() *db.Sqlite {
+	return b.db
 }
 
 // Close closes the database.
@@ -71,8 +68,11 @@ func (b *Backend) Close() error {
 }
 
 type executor struct {
-	sync.RWMutex
-	db db.Sqler
+	write db.Sqler
+	read  interface {
+		QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	}
 	ia addr.IA
 }
 
@@ -83,10 +83,8 @@ type beaconMeta struct {
 }
 
 func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
-	e.RLock()
-	defer e.RUnlock()
 	query := `SELECT DISTINCT StartIsd, StartAs FROM BEACONS`
-	rows, err := e.db.QueryContext(ctx, query)
+	rows, err := e.read.QueryContext(ctx, query)
 	if err != nil {
 		return nil, db.NewReadError("Error selecting source IAs", err)
 	}
@@ -117,8 +115,6 @@ func (e *executor) CandidateBeacons(
 	src addr.IA,
 ) ([]beacon.Beacon, error) {
 
-	e.RLock()
-	defer e.RUnlock()
 	srcCond := ``
 	if !src.IsZero() {
 		srcCond = `AND StartIsd == ?4 AND StartAs == ?5`
@@ -130,7 +126,7 @@ func (e *executor) CandidateBeacons(
 		ORDER BY b.HopsLength ASC
 		LIMIT ?2
 	`, srcCond)
-	rows, err := e.db.QueryContext(ctx, query, usage, setSize, util.TimeToSecs(time.Now()),
+	rows, err := e.read.QueryContext(ctx, query, usage, setSize, util.TimeToSecs(time.Now()),
 		src.ISD(), src.AS())
 	if err != nil {
 		return nil, db.NewReadError("Error selecting beacons", err)
@@ -168,8 +164,6 @@ func (e *executor) InsertBeacon(
 	// Compute ids outside of the lock.
 	segID := b.Segment.ID()
 
-	e.Lock()
-	defer e.Unlock()
 	meta, err := e.getBeaconMeta(ctx, segID)
 	if err != nil {
 		return ret, err
@@ -186,7 +180,7 @@ func (e *executor) InsertBeacon(
 		return ret, nil
 	}
 	// Insert new beacon.
-	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	err = db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		return insertNewBeacon(ctx, tx, b, usage, time.Now())
 	})
 	if err != nil {
@@ -203,10 +197,8 @@ func (e *executor) GetBeacons(
 	params *storagebeacon.QueryParams,
 ) ([]storagebeacon.Beacon, error) {
 
-	e.RLock()
-	defer e.RUnlock()
 	stmt, args := e.buildQuery(params)
-	rows, err := e.db.QueryContext(ctx, stmt, args...)
+	rows, err := e.read.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, serrors.Wrap("looking up beacons", err, "query", stmt)
 	}
@@ -324,7 +316,7 @@ func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []any)
 func (e *executor) getBeaconMeta(ctx context.Context, segID []byte) (*beaconMeta, error) {
 	var rowID, infoTime, lastUpdated int64
 	query := "SELECT RowID, InfoTime, LastUpdated FROM Beacons WHERE SegID=?"
-	err := e.db.QueryRowContext(ctx, query, segID).Scan(&rowID, &infoTime, &lastUpdated)
+	err := e.read.QueryRowContext(ctx, query, segID).Scan(&rowID, &infoTime, &lastUpdated)
 	// New beacons are not in the table.
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -360,7 +352,7 @@ func (e *executor) updateExistingBeacon(
 	inst := `UPDATE Beacons SET FullID=?, InIntfID=?, HopsLength=?, InfoTime=?,
 			ExpirationTime=?, LastUpdated=?, Usage=?, Beacon=?
 			WHERE RowID=?`
-	_, err = e.db.ExecContext(ctx, inst, fullID, b.InIfID, len(b.Segment.ASEntries), infoTime,
+	_, err = e.write.ExecContext(ctx, inst, fullID, b.InIfID, len(b.Segment.ASEntries), infoTime,
 		expTime, lastUpdated, usage, packedSeg, rowID)
 	if err != nil {
 		return db.NewWriteError("update segment", err)
@@ -413,7 +405,5 @@ func (e *executor) deleteInTx(
 	delFunc func(tx *sql.Tx) (sql.Result, error),
 ) (int, error) {
 
-	e.Lock()
-	defer e.Unlock()
-	return db.DeleteInTx(ctx, e.db, delFunc)
+	return db.DeleteInTx(ctx, e.write, delFunc)
 }
