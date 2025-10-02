@@ -77,6 +77,7 @@ go_test(
         "//pkg/snet/mock_snet:go_default_library",
         "//pkg/snet/path:go_default_library",
         "//private/app/command:go_default_library",
+        "//private/storage/db:go_default_library",
         "//private/storage/trust/sqlite:go_default_library",
         "//private/trust/internal/metrics:go_default_library",
         "//private/trust/mock_trust:go_default_library",
