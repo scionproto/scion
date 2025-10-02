@@ -1,3 +1,18 @@
+# This file sets up a workflow that runs Gobra (github.com/viperproject/gobra)
+# on selected packages of the SCION implementation. Gobra is a program verifier,
+# i.e., it checks that the implementation of each function behaves as expected.
+# The expected behaviour of each function is provided as a formal specification
+# written in comments above the function signature. When Gobra is not able to
+# prove that a function behaves according to its specification, it generates an
+# (hopefully) informative error message, which identifies the parts of the code
+# where the issues might lie.
+# For more information on Gobra and its error messages, check the following:
+# - The Gobra Book (WIP): viperproject.github.io/gobra-book/
+# - The tutorial: github.com/viperproject/gobra/blob/master/docs/tutorial.md
+# The former covers more features of Gobra and contains more up-to-date
+# information, but it is still under construction.
+
+
 name: Verify the specified codebase
 
 on:
