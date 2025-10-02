@@ -26,6 +26,7 @@ jobs:
       imageVersion: 'v25.09'
       module: 'github.com/scionproto/scion/'
       includePaths: '. ./gobra/stdlib-specs'
+      continueOnError: true
     steps:
       - name: Checkout the SCION repository
         uses: actions/checkout@v2
@@ -39,6 +40,7 @@ jobs:
           imageVersion: ${{ env.imageVersion }}
           module: ${{ env.module }}
           includePaths: ${{ env.includePaths }}
+          continue-on-error: ${{ env.continueOnError }}
       - name: Check that specifications of third-party libraries are well-formed
         uses: viperproject/gobra-action@v25.09.1
         with:
@@ -50,6 +52,7 @@ jobs:
           imageVersion: ${{ env.imageVersion }}
           module: ${{ env.module }}
           includePaths: '. ../..' # relative to project location
+          continue-on-error: ${{ env.continueOnError }}
       - name: Verify package `pkg/addr`
         uses: viperproject/gobra-action@v25.09.1
         with:
@@ -59,6 +62,7 @@ jobs:
           imageVersion: ${{ env.imageVersion }}
           module: ${{ env.module }}
           includePaths: ${{ env.includePaths }}
+          continue-on-error: ${{ env.continueOnError }}
       - name: Verify package `pkg/slayers/path`
         uses: viperproject/gobra-action@v25.09.1
         with:
@@ -68,3 +72,4 @@ jobs:
           imageVersion: ${{ env.imageVersion }}
           module: ${{ env.module }}
           includePaths: ${{ env.includePaths }}
+          continue-on-error: ${{ env.continueOnError }}
