@@ -121,7 +121,11 @@ func ReadPEMCerts(file string) ([]*x509.Certificate, error) {
 // ParsePEMCerts parses the PEM encoded certificate blocks in raw.
 func ParsePEMCerts(raw []byte) ([]*x509.Certificate, error) {
 	var certs []*x509.Certificate
-	for len(raw) > 0 {
+	if isAllASCIIWhitespace(raw) {
+		return nil, serrors.New("empty")
+	}
+
+	for len(raw) > 0 && !isAllASCIIWhitespace(raw) {
 		var block *pem.Block
 		block, raw = pem.Decode(raw)
 		if block == nil {
@@ -138,6 +142,17 @@ func ParsePEMCerts(raw []byte) ([]*x509.Certificate, error) {
 		certs = append(certs, cert)
 	}
 	return certs, nil
+}
+
+var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+
+func isAllASCIIWhitespace(b []byte) bool {
+	for _, c := range b {
+		if asciiSpace[c] == 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // VerifyOptions contains parameters for certificate chain verification.

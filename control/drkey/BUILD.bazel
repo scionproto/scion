@@ -40,6 +40,7 @@ go_test(
         "//pkg/private/util:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//private/periodic:go_default_library",
+        "//private/storage/db:go_default_library",
         "//private/storage/drkey/level1/sqlite:go_default_library",
         "//private/storage/drkey/secret/sqlite:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",

@@ -30,8 +30,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
+	"github.com/scionproto/scion/private/storage/db"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -39,7 +41,10 @@ import (
 func BenchmarkConcurrent10(b *testing.B) {
 	dir := genCrypto(b)
 
-	db, err := sqlite.New("file::memory:")
+	db, err := sqlite.New(
+		xtest.SanitizedName(b),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(b, err)
 
 	_, err = trust.LoadTRCs(context.Background(), filepath.Join(dir, "trcs"), db)
@@ -80,7 +85,10 @@ func BenchmarkConcurrent10(b *testing.B) {
 func BenchmarkConcurrentCache10(b *testing.B) {
 	dir := genCrypto(b)
 
-	db, err := sqlite.New("file::memory:")
+	db, err := sqlite.New(
+		xtest.SanitizedName(b),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(b, err)
 
 	_, err = trust.LoadTRCs(context.Background(), filepath.Join(dir, "trcs"), db)
