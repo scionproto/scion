@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: Apache-2.0
-//
 // Copyright 2025 SCION Association
+//
+// SPDX-License-Identifier: Apache-2.0
 
 //go:build ignore
 
@@ -11,15 +11,18 @@
 #include <linux/udp.h>
 #include "bpf_helpers.h"
 
-// This tells our bpf program which address/port(s) goes to the AF_PACKET socket
-// and therefore not to the kernel.
+// kfilter: the kernel-side filter. The purpose of this program is to prevent the traffic that goes
+// to the AF_PACKET socket from getting to the regular kernel networking stack as well. If it did,
+// the kernel would expand resources processing the traffic, generating ICMP responses AND sending
+// them!
 //
-// This is a set of (address/port) pairs. Ports must be in network byte order.
+// This is still not ideal because I have yet to find a way to dispatch traffic before it is cloned
+// for AF_PACKET handling but after it is turned into an SKB. To solve that problem we would need to
+// go to XDP.
 //
-// The same port numbers are used by sockfilter to perform the opposite filtering. We may have many
-// addrPorts to filter for a given interface. We could have several one-addrPort filters in series,
-// we would easily exceed the number of filters that can be attached to an interface (not
-// mentionning this would be inefficient). So we need a map with multiple ports.
+// This might not be as bad as it looks though: traffic is cloned via c-o-w and it might even not be
+// cloned until the AF_PACKET tap has made a drop/keep decision. The traffic that we keep is
+// definitely cloned; so...  dear cow, a third swiss industry is now counting on you.
 
 typedef struct {
   __u8 ip_addr[16];
@@ -28,6 +31,13 @@ typedef struct {
   __u8 padding; // just to make it clear what the real size of the struct is.
 } addrPort;
 
+// k_map_flt tells our bpf program which address/port(s) go to the AF_PACKET socket and therefore
+// not to the kernel. Ports must be in network byte order.
+//
+// The same data is used by sockfilter to perform the opposite filtering. We may have many
+// pairs to filter for a given interface. We could have several one-addrPort filters in series,
+// but we would easily exceed the number of filters that can be attached to an interface (not
+// mentionning this would be inefficient). So we need a map with multiple pairs.
 struct {
   __uint(type, BPF_MAP_TYPE_HASH);
   __type(key, addrPort); // An IP address and a port number.
@@ -35,21 +45,9 @@ struct {
   __uint(max_entries, 64);
 } k_map_flt SEC(".maps");
 
-// The traffic that goes to the AF_PACKET socket, must not get to the regular kernel networking
-// stack; else it will expand resources processing it, generating ICMP responses AND sending them!
-// That is the purpose of this program.
-// 
 // This is a very simple classifier type of filter: it looks at the packet's protocol and dest
 // port. If it is UDP and if the port is found in sock_map_filt, then the packet is dropped (because
 // the AF_PACKET socket will get and process it).
-//
-// This is not ideal because I have yet to find a way to dispatch traffic before it is cloned
-// for AF_PACKET handling but after it is turned into an SKB. To solve that problem we need to go to
-// XDP.
-//
-// This might not be as bad as it looks though: traffic is cloned via c-o-w and it might even not be
-// cloned until the AF_PACKET tap has made a drop/keep decision. The traffic that we keep is
-// definitely cloned; so...  dear cow, a third swiss industry is now counting on you.
 SEC("tcx/ingress")
 int bpf_k_filter(struct __sk_buff *skb)
 {

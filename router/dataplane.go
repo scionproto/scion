@@ -217,10 +217,12 @@ func (p *Packet) WithHeader(n int) []byte {
 	return p.buffer[start-n : end]
 }
 
-// BufHead returns a slice of bytes of the requested size borrowed from the head of the packet.
-// buffer. This space can be used safely by an underlay to store data on ingest and retrieve on
+// BufHead returns a slice of bytes of the requested size borrowed from the head of the packet
+// buffer. This space can be used safely by an underlay to store data on ingest and retrieve it on
 // egress; should the same underlay perform both operations. The data is protected against
-// overwrites provided that n is included in the underlay's headroom requirements.
+// overwrites provided that the value of n is counted in the underlay's headroom requirements.
+//
+// n is the size of the slice to be borrowed from the head of the packet buffer.
 func (p *Packet) BuffHead(n int) []byte {
 	return p.buffer[0:n]
 }
@@ -1332,12 +1334,12 @@ func (p *scionPacketProcessor) validateSrcDstIA() disposition {
 	srcIsLocal := (p.scionLayer.SrcIA == p.d.localIA)
 	dstIsLocal := (p.scionLayer.DstIA == p.d.localIA)
 	if p.ingressFromLink == 0 {
-		// In via internal or sibling (may only be outbound)
+		// Ingested via internal or sibling link. Therefore may only go to a different AS.
 		// Only check SrcIA if first hop, for transit this already checked by ingress router.
 		// Note: SCMP error messages triggered by the sibling router may use paths that
 		// don't start with the first hop.
 		if p.path.IsFirstHop() && !srcIsLocal {
-			// How did it get here?
+			// This is absurd; gross error or forgery attempt.
 			return p.respInvalidSrcIA()
 		}
 		if dstIsLocal {
@@ -2235,7 +2237,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	fwLink := b.dataPlane.interfaces[b.ifID]
 
 	// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
-	// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
+	// the solution is to use BFD's demand-mode. To be considered in a future refactoring.
 	// TODO(jiceatscion): the underlay will still count a dropped packet. We migh want to avoid
 	// that.
 	fwLink.Send(p)
