@@ -22,11 +22,13 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/storage"
 	"github.com/scionproto/scion/private/storage/beacon"
 	"github.com/scionproto/scion/private/storage/beacon/dbtest"
 	"github.com/scionproto/scion/private/storage/beacon/metrics"
 	"github.com/scionproto/scion/private/storage/beacon/sqlite"
+	"github.com/scionproto/scion/private/storage/db"
 )
 
 var testIA = addr.MustParseIA("1-ff00:0:333")
@@ -37,7 +39,11 @@ type TestBackend struct {
 }
 
 func (b *TestBackend) Prepare(t *testing.T, _ context.Context) {
-	db, err := sqlite.New("file::memory:", testIA)
+	db, err := sqlite.New(
+		xtest.SanitizedName(t),
+		testIA,
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 	b.BeaconDB = metrics.WrapDB(db, metrics.Config{
 		Driver:       "mem-sqlite",

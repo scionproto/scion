@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -32,39 +31,37 @@ import (
 
 // DB implements the trust DB with an SQLite backend.
 type DB struct {
-	db *sql.DB
+	db *db.Sqlite
 	*executor
 }
 
 // New returns a new SQLite backend opening a database at the given path. If
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from the one in schema.go, an error is returned.
-func New(path string) (DB, error) {
-	db, err := db.NewSqlite(path, Schema, SchemaVersion)
+func New(path string, cfg *db.SqliteConfig) (DB, error) {
+	db, err := db.NewSqlite(path, cfg)
 	if err != nil {
+		return DB{}, err
+	}
+	if err := db.Setup(Schema, SchemaVersion); err != nil {
 		return DB{}, err
 	}
 	return NewFromDB(db), nil
 }
 
 // NewFromDB returns a new backend from the given database.
-func NewFromDB(db *sql.DB) DB {
+func NewFromDB(db *db.Sqlite) DB {
 	return DB{
 		db: db,
 		executor: &executor{
-			db: db,
+			write: db.Full,
+			read:  db.ReadOnly,
 		},
 	}
 }
 
-// SetMaxOpenConns sets the maximum number of open connections.
-func (db DB) SetMaxOpenConns(maxOpenConns int) {
-	db.db.SetMaxOpenConns(maxOpenConns)
-}
-
-// SetMaxIdleConns sets the maximum number of idle connections.
-func (db DB) SetMaxIdleConns(maxIdleConns int) {
-	db.db.SetMaxIdleConns(maxIdleConns)
+func (db DB) DB() *db.Sqlite {
+	return db.db
 }
 
 // Close closes the database.
@@ -73,14 +70,14 @@ func (db DB) Close() error {
 }
 
 type executor struct {
-	sync.RWMutex
-	db db.Sqler
+	write db.Sqler
+	read  interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+		QueryRowContext(context.Context, string, ...any) *sql.Row
+	}
 }
 
 func (e *executor) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedTRC, error) {
-	e.RLock()
-	defer e.RUnlock()
-
 	if id.Base.IsLatest() != id.Serial.IsLatest() {
 		return cppki.SignedTRC{}, serrors.New("unsupported TRC ID for query", "id", id)
 	}
@@ -93,7 +90,7 @@ func (e *executor) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedT
 		sqlQuery = `SELECT trc FROM trcs WHERE isd_id=$1 AND base=$2 AND serial=$3`
 		args = append(args, id.Base, id.Serial)
 	}
-	r := e.db.QueryRowContext(ctx, sqlQuery, args...)
+	r := e.read.QueryRowContext(ctx, sqlQuery, args...)
 	var rawTRC []byte
 	err := r.Scan(&rawTRC)
 	if err == sql.ErrNoRows {
@@ -110,16 +107,13 @@ func (e *executor) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedT
 }
 
 func (e *executor) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, error) {
-	e.Lock()
-	defer e.Unlock()
-
 	sqlQuery := `INSERT INTO trcs (isd_id, base, serial, fingerprint, trc)
 				 SELECT $1, $2, $3, $4, $5 WHERE NOT EXISTS (
 					 SELECT 1 FROM trcs
 					 WHERE isd_id=$1 AND base=$2 AND serial=$3 AND fingerprint=$4
 				 )`
 	var inserted bool
-	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	err := db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		r, err := tx.ExecContext(ctx, sqlQuery,
 			trc.TRC.ID.ISD,
 			trc.TRC.ID.Base,
@@ -145,9 +139,6 @@ func (e *executor) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, er
 
 func (e *executor) Chains(ctx context.Context,
 	query trust.ChainQuery) ([][]*x509.Certificate, error) {
-
-	e.RLock()
-	defer e.RUnlock()
 
 	sqlQuery := []string{"SELECT as_cert, ca_cert FROM chains"}
 	var args []any
@@ -175,7 +166,7 @@ func (e *executor) Chains(ctx context.Context,
 		sqlQuery = append(sqlQuery, "WHERE")
 	}
 	sqlQuery = append(sqlQuery, strings.Join(filters, " AND "))
-	rows, err := e.db.QueryContext(ctx, strings.Join(sqlQuery, "\n"), args...)
+	rows, err := e.read.QueryContext(ctx, strings.Join(sqlQuery, "\n"), args...)
 	if err != nil {
 		return nil, serrors.JoinNoStack(db.ErrReadFailed, err)
 	}
@@ -205,10 +196,8 @@ func (e *executor) Chains(ctx context.Context,
 func (e *executor) Chain(ctx context.Context,
 	chainID []byte) ([]*x509.Certificate, error) {
 
-	e.RLock()
-	defer e.RUnlock()
 	sqlQuery := "SELECT as_cert, ca_cert FROM chains WHERE chain_fingerprint=$1"
-	r := e.db.QueryRowContext(ctx, sqlQuery, chainID)
+	r := e.read.QueryRowContext(ctx, sqlQuery, chainID)
 	var chain []*x509.Certificate
 	var rawAS, rawCA []byte
 	if err := r.Scan(&rawAS, &rawCA); err != nil {
@@ -227,8 +216,6 @@ func (e *executor) Chain(ctx context.Context,
 }
 
 func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (bool, error) {
-	e.Lock()
-	defer e.Unlock()
 
 	if len(chain) != 2 {
 		return false, serrors.JoinNoStack(db.ErrInvalidInputData, nil,
@@ -247,7 +234,7 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			  ON CONFLICT DO NOTHING`
 	var inserted bool
-	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	err = db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		r, err := tx.ExecContext(ctx, query, ia.ISD(), ia.AS(), chain[0].SubjectKeyId,
 			chain[0].NotBefore.UTC(), chain[0].NotAfter.UTC(),
 			truststorage.ChainID(chain), chain[0].Raw, chain[1].Raw)
@@ -270,8 +257,6 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 // SignedTRCs returns the TRC from each ISD in the trust database according to the query.
 func (e *executor) SignedTRCs(ctx context.Context,
 	query truststorage.TRCsQuery) (cppki.SignedTRCs, error) {
-	e.RLock()
-	defer e.RUnlock()
 
 	var filter string
 	var args []any
@@ -303,7 +288,7 @@ func (e *executor) SignedTRCs(ctx context.Context,
 
 		`, filter)
 	}
-	rows, err := e.db.QueryContext(ctx, sqlQuery, args...)
+	rows, err := e.read.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, serrors.JoinNoStack(db.ErrReadFailed, err)
 	}

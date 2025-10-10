@@ -17,7 +17,6 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/drkey"
@@ -41,22 +40,30 @@ var _ drkey.SecretValueDB = (*Backend)(nil)
 // Backend implements a SV DB with sqlite.
 type Backend struct {
 	*executor
-	db *sql.DB
+	db *db.Sqlite
 }
 
 // NewBackend creates a database and prepares all statements.
-func NewBackend(path string) (*Backend, error) {
-	db, err := db.NewSqlite(path, SVSchema, SVSchemaVersion)
+func NewBackend(path string, cfg *db.SqliteConfig) (*Backend, error) {
+	db, err := db.NewSqlite(path, cfg)
 	if err != nil {
+		return nil, err
+	}
+	if err := db.Setup(SVSchema, SVSchemaVersion); err != nil {
 		return nil, err
 	}
 	b := &Backend{
 		executor: &executor{
-			db: db,
+			write: db.Full,
+			read:  db.ReadOnly,
 		},
 		db: db,
 	}
 	return b, nil
+}
+
+func (b *Backend) DB() *db.Sqlite {
+	return b.db
 }
 
 // Close closes the database connection.
@@ -64,19 +71,11 @@ func (b *Backend) Close() error {
 	return b.db.Close()
 }
 
-// SetMaxOpenConns sets the maximum number of open connections.
-func (b *Backend) SetMaxOpenConns(maxOpenConns int) {
-	b.db.SetMaxOpenConns(maxOpenConns)
-}
-
-// SetMaxIdleConns sets the maximum number of idle connections.
-func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
-	b.db.SetMaxIdleConns(maxIdleConns)
-}
-
 type executor struct {
-	sync.RWMutex
-	db db.Sqler
+	write db.Sqler
+	read  interface {
+		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	}
 }
 
 const getSVStmt = `
@@ -93,12 +92,10 @@ func (e *executor) GetValue(
 	asSecret []byte,
 ) (drkey.SecretValue, error) {
 
-	e.RLock()
-	defer e.RUnlock()
 	var epochBegin, epochEnd int
 
 	valSecs := util.TimeToSecs(meta.Validity)
-	err := e.db.QueryRowContext(ctx, getSVStmt, meta.ProtoId, valSecs, valSecs).Scan(&epochBegin,
+	err := e.read.QueryRowContext(ctx, getSVStmt, meta.ProtoId, valSecs, valSecs).Scan(&epochBegin,
 		&epochEnd)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -126,10 +123,7 @@ func (e *executor) InsertValue(
 	epoch drkey.Epoch,
 ) error {
 
-	e.RLock()
-	defer e.RUnlock()
-
-	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	return db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, insertSVStmt, proto, uint32(epoch.NotBefore.Unix()),
 			uint32(epoch.NotAfter.Unix()))
 		if err != nil {
@@ -147,10 +141,7 @@ DELETE FROM DRKeySV WHERE ? >= EpochEnd
 // which expiration time is strictly smaller than the cutoff
 func (e *executor) DeleteExpiredValues(ctx context.Context, cutoff time.Time) (int, error) {
 
-	e.RLock()
-	defer e.RUnlock()
-
-	return db.DeleteInTx(ctx, e.db, func(tx *sql.Tx) (sql.Result, error) {
+	return db.DeleteInTx(ctx, e.write, func(tx *sql.Tx) (sql.Result, error) {
 		cutoffSecs := util.TimeToSecs(cutoff)
 		return tx.ExecContext(ctx, deleteExpiredSVStmt, cutoffSecs)
 	})

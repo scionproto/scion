@@ -69,7 +69,6 @@ use_repo(
     "com_github_iancoleman_strcase",
     "com_github_lestrrat_go_jwx_v3",
     "com_github_mattn_go_isatty",
-    "com_github_mattn_go_sqlite3",
     "com_github_mdlayher_arp",
     "com_github_mdlayher_ethernet",
     "com_github_oapi_codegen_oapi_codegen_v2",
