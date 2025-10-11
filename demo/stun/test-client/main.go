@@ -28,6 +28,9 @@ import (
 	"tailscale.com/net/stun"
 )
 
+// This demo handles all STUN requests manually to demonstrate how STUN can be implemented in SCION.
+// Normal clients should use a client library that performs STUN automatically and transparently.
+
 func main() {
 	log.Println("Client running")
 
