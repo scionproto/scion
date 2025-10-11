@@ -145,7 +145,7 @@ class Compose(object):
         """
         user = kwargs.get("user", "{}:{}".format(os.getuid(), os.getgid()))
         return self("exec", "-T", "--user", user, container,
-                    "timeout", "20s", *args, **kwargs)
+                    "timeout", "1m", *args, **kwargs)
 
     def execute_detached(self, container, *args, **kwargs):
         """Executes an arbitrary command in the specified container.
