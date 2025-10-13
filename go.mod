@@ -35,7 +35,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/procfs v0.16.0
-	github.com/quic-go/quic-go v0.53.0
+	github.com/quic-go/quic-go v0.54.1
 	github.com/sergi/go-diff v1.3.1
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/spf13/cobra v1.9.1
