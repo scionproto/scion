@@ -3,7 +3,7 @@ Private ISDs
 ************
 
 - Author(s): Tilmann Zäschke (+ ideas from others)
-- Last updated: 2025-08-15
+- Last updated: 2025-10-08
 - Discussion at: :issue:`4827`
 - Status: **WIP**
 
@@ -71,13 +71,16 @@ Building a P-ISD
    These ASes can be from different ISDs, but they must be
    non-separated, meaning that they must form a single contiguous network
    where every AS can reach every other AS without leaving the network.
+   A P-ISD may use the same interfaces/links between ASes that are already
+   in used by the public ISD or by other P-ISD. It may also use interfaces/links
+   that are not otherwise available.
 
 2. We chose one or more of the selected ASes to be P-COREs.
-   Like normal ISD cores, these P-COREs provide TRC and  beaconing for
+   Like normal ISD cores, these P-COREs provide TRC and beaconing for
    all ASes in the P-ISD. However, unlike normal ISD cores, P-COREs do not
    have external "core" links to any other (P-)ISDs.
 
-3. Pick an (P-)ISD number. For now, we can use an ISD number from the `private range (16-63)
+3. Pick an (P-)ISD number. For now, we can use any ISD number from the `private range (16-63)
    <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
    In case of nested P-ISDs, we need to ensure that no AS participates in P-ISDs
    that use the same ISD number.
@@ -95,6 +98,10 @@ However, there are some differences:
 Note: An P-ISD can contain ASes (including P-COREs) and links that are not
 visible outside of the P-ISD. These are called "private",
 see also `Private Links and Private ASes`_.
+
+Note: In all diagrams, ASes have only their public ISD number specified.
+The P-ISD numbers are not shown but there is one P-ISD identifier in each
+P-ISD (dashed oval shapes).
 
 Example: Simple P-ISD
 ^^^^^^^^^^^^^^^^^^^^^
@@ -163,8 +170,13 @@ See also `Nested P-ISDs and Hierarchies`_.
 
 Endhost: Sending Traffic
 ------------------------
-Endhosts need to be able to know all P-ISDs that the local AS AS is part of,
-at least if it wants to use a "private" connection (i.e. inside a given P-ISD).
+Endhosts can, but don´t need to, know their AS's P-ISD.
+They can get information about P-ISDs from the topofile, control service or
+from an extended version of the new endhost API service.
+
+When requesting segments, an endhost may specify specific P-ISDs for which it
+requires segments. If no P-ISD is given, the path server should return
+any segments it deems fitting.
 
 When constructing a path, an endhost must take care to use segments
 that are all either from the same P-ISD or all from public ISDs.
@@ -180,20 +192,27 @@ structural change. This change is fully backwards compatible.
 
 Border Routers
 --------------
-Border routers need to look at the P-ISD in the SCION address header to
-identify which TRC should be used for authenticating the segments.
+For independence of a potentially compromised public ISD, an AS has separate
+forwarding keys for each (P-)ISD.
+For any incoming data packets, border routers need to look at the P-ISD in
+the SCION address header to identify which forwarding key should be used
+for authenticating the hopfields.
 
 
-Endhost: Path Verification
---------------------------
-To verify incoming paths, similar to border routers, endhosts can get the
-P-ISD identifier from the SCION address header.
+DRKey, EPIC, ...
+----------------
+Using the P-ISD's TRC, an AS can derive DRKeys which can, for example,
+be used for EPIC.
+To verify incoming packets with EPIC, endhosts can get the
+P-ISD identifier from the SCION address header to identify which DRKey
+to use for authentication (i.e. the DRKey derived from the public ISD/TRC
+or from any of the P-ISD's TRCs).
 
 
 Nested P-ISDs and Hierarchies
 -----------------------------
 P-ISDs can be nested or overlap arbitrarily. However, if an AS wishes to
-participate in multiple ASes, all ASes must have different identifiers.
+participate in multiple P-ISDs, all P-ISDs must have different identifiers.
 Also, every AS must specify a preference list for routing, if the source and
 destination AS have multiple P-ISDs in common, it must be clear from which
 P-ISD (or ISD) the segments should used.
@@ -205,9 +224,18 @@ P-ISD (or ISD) the segments should used.
    In this example the smaller ones participate only in the large one. This need not
    be the case, the P-ISDs can overlap arbitrarily and partially as desired.
 
-**TODO open question: Disallow one AS being CORE for multiple (P-)ISDs?***
-This should be possible, but it is not clear how useful that is and it
-may add quite a bit of complexity to CS implementations.
+In some scenarios it may be useful if an AS can act as P-CORE for multiple P-ISDs.
+For example an ISP could offer to set up P-ISDs as a service for customers,
+it's own AS would then act as P-CORE for each P-ISD.
+This should work but is limited by two aspects:
+
+- (P-)ISD numbers are limited to 64bit. Even if we use the reserved ISD numbers
+  the range would be limited to 60000 or so. This can be circumvented by the ISP
+  by setting up multiple ASes, then each AS can serve up to 60000 P-ISDs.
+- If the P-ISDs of an ISP include ASes of other ISPs, the P-ISD number may
+  conflict with (be the same as) P-ISD numbers used by the remote ISP.
+  If an ISP participates in many P-ISDs, it may be necessary to maintain
+  additional ASes that allow choosing P-ISDs number that are not already used.
 
 
 Private Links and Private ASes
