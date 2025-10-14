@@ -92,10 +92,13 @@ linters:
           - goheader
         path: pkg/scrypto/cms
       - linters:
-          - all
+          - goheader
         path: pkg/stun/stun.go
       - linters:
-          - all
+          - goheader
+          - ineffassign
+          - lll
+          - staticcheck
         path: pkg/stun/stun_test.go
     paths:
       - third_party$
