@@ -1017,8 +1017,8 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	metrics[sc].InputBytesTotal.Add(float64(size))
 
 	p.Link = l
-	// This is a unconnected link. We must record the src address in case the packet is turned around,
-	// e.g., by SCMP.
+	// This is an unconnected link. We must record the src address in case the packet is turned
+	// around, e.g., by SCMP.
 	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
 	var q chan *router.Packet
