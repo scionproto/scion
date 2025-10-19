@@ -71,6 +71,7 @@ TRC Signing Ceremony - Script Builder
                     keyLabel: $persist(''),
                     keyAwsRegion: $persist(''),
                     keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
                 regularVoting: {
                     key: $persist('$KEYDIR/regular-voting.key'),
@@ -83,6 +84,7 @@ TRC Signing Ceremony - Script Builder
                     keyLabel: $persist(''),
                     keyAwsRegion: $persist(''),
                     keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
                 root: {
                     key: $persist('$KEYDIR/cp-root.key'),
@@ -95,6 +97,7 @@ TRC Signing Ceremony - Script Builder
                     keyLabel: $persist(''),
                     keyAwsRegion: $persist(''),
                     keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
             },
             signatures: {
@@ -104,6 +107,7 @@ TRC Signing Ceremony - Script Builder
                     kms: $persist('file'),
                     keyAwsRegion: $persist(''),
                     keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
                 regularVote: {
                     key: $persist('$PREV_KEYDIR/regular-voting.key'),
@@ -111,6 +115,7 @@ TRC Signing Ceremony - Script Builder
                     kms: $persist('file'),
                     keyAwsRegion: $persist(''),
                     keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
                 rootApproval: {
                     key: $persist('$PREV_KEYDIR/cp-root.key'),
@@ -118,6 +123,7 @@ TRC Signing Ceremony - Script Builder
                     kms: $persist('file'),
                     keyAwsRegion: $persist(''),
                     keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
             },
 
@@ -256,11 +262,12 @@ TRC Signing Ceremony - Script Builder
                     title: 'Show Proof-of-Possession for the Sensitive Voting Key',
                     verifyTitle: 'Verify Proof-of-Possession for the Sensitive Voting Key',
                     crt: form.cert,
-                    key:  ['awskms', 'azurekms', 'cloudkms'].includes(form.kms) ? form.key : form.kms === 'file' ? form.key : form.keyLabel,
+                    key:  ['awskms', 'azurekms', 'cloudkms', 'pkcs11'].includes(form.kms) ? form.key : form.kms === 'file' ? form.key : form.keyLabel,
                     signed: this.trcPrefix+'.sensitive.pop.trc',
                     kms: form.kms,
                     keyAwsRegion: form.keyAwsRegion,
                     keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             if (this.createRegular) {
@@ -269,11 +276,12 @@ TRC Signing Ceremony - Script Builder
                     title: 'Show Proof-of-Possession for the Regular Voting Key',
                     verifyTitle: 'Verify Proof-of-Possession for the Regular Voting Key',
                     crt: form.cert,
-                    key:  ['awskms', 'azurekms', 'cloudkms'].includes(form.kms) ? form.key : form.kms === 'file' ? form.key : form.keyLabel,
+                    key:  ['awskms', 'azurekms', 'cloudkms', 'pkcs11'].includes(form.kms) ? form.key : form.kms === 'file' ? form.key : form.keyLabel,
                     signed: this.trcPrefix+'.regular.pop.trc',
                     kms: form.kms,
                     keyAwsRegion: form.keyAwsRegion,
                     keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             if (this.castRootApproval) {
@@ -282,11 +290,12 @@ TRC Signing Ceremony - Script Builder
                     title: 'Show approval for the Root Certificate Change',
                     verifyTitle: 'Verify approval for the Root Certificate Change',
                     crt: form.cert,
-                    key:  ['awskms', 'azurekms', 'cloudkms'].includes(form.kms) ? form.key : form.kms === 'file' ? form.key : form.keyLabel,
+                    key:  ['awskms', 'azurekms', 'cloudkms', 'pkcs11'].includes(form.kms) ? form.key : form.kms === 'file' ? form.key : form.keyLabel,
                     signed: this.trcPrefix+'.root.approval.trc',
                     kms: form.kms,
                     keyAwsRegion: form.keyAwsRegion,
                     keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             if (this.castSensitiveVote) {
@@ -300,6 +309,7 @@ TRC Signing Ceremony - Script Builder
                     kms: form.kms,
                     keyAwsRegion: form.keyAwsRegion,
                     keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             if (this.castRegularVote) {
@@ -313,6 +323,7 @@ TRC Signing Ceremony - Script Builder
                     kms: form.kms,
                     keyAwsRegion: form.keyAwsRegion,
                     keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             return signatures
@@ -593,6 +604,7 @@ TRC Signing Ceremony - Script Builder
                                 <option value="awskms">AWS KMS</option>
                                 <option value="azurekms">Azure Key Vault</option>
                                 <option value="cloudkms">Google Cloud KMS</option>
+                                <option value="pkcs11">PKCS#11</option>
                             </select>
                         </td>
                     </tr>
@@ -602,6 +614,7 @@ TRC Signing Ceremony - Script Builder
                             <span x-show="tool === 'scion-pki' && v.form.kms === 'awskms'"> (UUID)</span>
                             <span x-show="tool === 'scion-pki' && v.form.kms === 'azurekms'"> (Name)</span>
                             <span x-show="tool === 'scion-pki' && v.form.kms === 'cloudkms'"> (<a href="https://cloud.google.com/kms/docs/getting-resource-ids" class="underline text-blue-600">ID</a> including version)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'pkcs11'"> (<a href="https://github.com/smallstep/step-kms-plugin?tab=readme-ov-file#general-usage" class="underline text-blue-600">ID</a>)</span>
                         </td>
                         <td class="px-4 py-2 border-b">
                             <input type="text" x-model="v.form.key" class="block w-full border rounded-lg px-4 py-2">
@@ -623,6 +636,12 @@ TRC Signing Ceremony - Script Builder
                         <td class="px-4 py-2 border-b">Private Key (Azure Vault Name)</td>
                         <td class="px-4 py-2 border-b">
                             <input type="text" x-model="v.form.keyAzureVault" class="block w-full border rounded-lg px-4 py-2">
+                        </td>
+                    </tr>
+                    <tr x-show="tool === 'scion-pki' && v.form.kms === 'pkcs11'">
+                        <td class="px-4 py-2 border-b">Private Key (<a href="https://github.com/smallstep/step-kms-plugin?tab=readme-ov-file#general-usage" class="underline text-blue-600">URI</a>)</td>
+                        <td class="px-4 py-2 border-b">
+                            <input type="text" x-model="v.form.keyPkcs11" class="block w-full border rounded-lg px-4 py-2">
                         </td>
                     </tr>
                     <tr>
@@ -672,6 +691,7 @@ TRC Signing Ceremony - Script Builder
                                 <option value="awskms">AWS KMS</option>
                                 <option value="azurekms">Azure Key Vault</option>
                                 <option value="cloudkms">Google Cloud KMS</option>
+                                <option value="pkcs11">PKCS#11</option>
                             </select>
                         </td>
                     </tr>
@@ -681,6 +701,7 @@ TRC Signing Ceremony - Script Builder
                             <span x-show="tool === 'scion-pki' && v.form.kms === 'awskms'"> (UUID)</span>
                             <span x-show="tool === 'scion-pki' && v.form.kms === 'azurekms'"> (Name)</span>
                             <span x-show="tool === 'scion-pki' && v.form.kms === 'cloudkms'"> (<a href="https://cloud.google.com/kms/docs/getting-resource-ids" class="underline text-blue-600">ID</a> including version)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'pkcs11'"> (<a href="https://github.com/smallstep/step-kms-plugin?tab=readme-ov-file#general-usage" class="underline text-blue-600">ID</a>)</span>
                         </td>
                         <td class="px-4 py-2 border-b">
                             <input type="text" x-model="v.form.key" class="block w-full border rounded-lg px-4 py-2">
@@ -696,6 +717,12 @@ TRC Signing Ceremony - Script Builder
                         <td class="px-4 py-2 border-b">Private Key (Azure Vault Name)</td>
                         <td class="px-4 py-2 border-b">
                             <input type="text" x-model="v.form.keyAzureVault" class="block w-full border rounded-lg px-4 py-2">
+                        </td>
+                    </tr>
+                    <tr x-show="tool === 'scion-pki' && v.form.kms === 'pkcs11'">
+                        <td class="px-4 py-2 border-b">Private Key (<a href="https://github.com/smallstep/step-kms-plugin?tab=readme-ov-file#general-usage">URI</a>)</td>
+                        <td class="px-4 py-2 border-b">
+                            <input type="text" x-model="v.form.keyPkcs11" class="block w-full border rounded-lg px-4 py-2">
                         </td>
                     </tr>
                     <tr>
@@ -769,6 +796,10 @@ TRC Signing Ceremony - Script Builder
         <span>
         --key "<span x-text="cert.key"></span>" \
         --kms "cloudkms:" \</span>
+        </template><template x-if="cert.kms === 'pkcs11'">
+        <span>
+        --key "pkcs11:<span x-text="cert.key"></span>" \
+        --kms "pkcs11:<span x-text="cert.keyPkcs11"></span>" \</span>
         </template>
         <span x-text="form.paths.workingDir"></span>/subject.tmpl \
         <span x-text="cert.cert"></span><template x-if="cert.kms === 'file'"><span> \
@@ -1008,6 +1039,10 @@ TRC Signing Ceremony - Script Builder
         <span>
         "<span x-text="v.key"></span>" \
         --kms "cloudkms:" \</span>
+        </template><template x-if="v.kms === 'pkcs11'">
+        <span>
+        "pkcs11:<span x-text="v.key"></span>" \
+        --kms "pkcs11:<span x-text="v.keyPkcs11"></span>" \</span>
         </template><template x-if="v.kms === 'file'">
         <span>
         <span x-text="v.key"></span> \</span>
