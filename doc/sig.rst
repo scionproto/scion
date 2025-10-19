@@ -28,6 +28,30 @@ This protocol is designed to:
 SIGs map IP prefixes to SCION ASes using SGRP.
 
 
+SCION Gateway Routing Protocol (SGRP)
+=====================================
+
+The SCION Gateway Routing Protocol (SGRP) enables SIGs to map IP prefixes to SCION ASes.
+
+A SIG participating in SGRP between two SCION ASes does the following:
+
+1. It discovers the SIGs in the remote SCION AS by periodically sending a discovery message to the Control Plane of the remote AS which replies with a list of local tunneling endpoints.
+
+2. It periodically queries each discovered SIG in the remote AS to learn the IP prefixes that it announces. From that, the local SIG builds a mapping of IP prefix to remote SIGs.
+
+3. When queried by a remote SIG, the local SIG replies with the set of IP prefixes it wants to announce.
+
+The set of announced IP prefixes can be statically configured.
+
+SGRP Messages
+-------------
+
+https://github.com/scionproto/scion/blob/master/proto/gateway/v1/prefix.proto
+
+Server - https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_server.go
+Client - https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_fetcher.go
+
+
 SIG Framing Protocol
 ====================
 
@@ -112,27 +136,4 @@ Following example shows three IP packets packed into three SIG frames:
   +----------------------------+------------+
   | SIG HDR Index=0xffff Seq=2 | ...payload |
   +----------------------------+------------+
-
-
-SCION Gateway Routing Protocol (SGRP)
-=====================================
-
-The SCION Gateway Routing Protocol (SGRP) enables SIGs to map IP prefixes to SCION ASes.
-
-A SIG participating in SGRP between two SCION ASes does the following:
-
-1. It discovers the SIGs in the remote SCION AS by periodically sending a discovery message to the Control Plane of the remote AS which replies with a list of local tunneling endpoints.
-
-2. It periodically queries each discovered SIG in the remote AS to learn the IP prefixes that it announces. From that, the local SIG builds a mapping of IP prefix to remote SIGs.
-
-3. When queried by a remote SIG, the local SIG replies with the set of IP prefixes it wants to announce.
-
-The set of announced IP prefixes can either be statically configured or can be dynamically learned via BGP.
-
-SGRP Messages
--------------
-
-https://github.com/scionproto/scion/blob/master/proto/gateway/v1/prefix.proto
-
-Server - https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_server.go
-Client - https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_fetcher.go
+  
