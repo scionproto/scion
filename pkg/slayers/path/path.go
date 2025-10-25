@@ -27,7 +27,7 @@ import (
 const maxPathType = 256
 
 var (
-	registeredPaths /*@@@*/ [maxPathType]metadata
+	registeredPaths/*@@@*/ [maxPathType]metadata
 	strictDecoding/*@@@*/ bool = true
 )
 
