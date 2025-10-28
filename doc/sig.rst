@@ -136,4 +136,3 @@ Following example shows three IP packets packed into three SIG frames:
   +----------------------------+------------+
   | SIG HDR Index=0xffff Seq=2 | ...payload |
   +----------------------------+------------+
-  
