@@ -1,0 +1,55 @@
+// Copyright 2025 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// +gobra
+
+package hash
+
+import "github.com/scionproto/scion/gobra/utils/"
+
+type Hash interface {
+	pred Mem()
+
+	// Implementations of Hash must also implement io.Writer.
+	preserves Mem() 
+	preserves acc(p, utils.ReadPerm)
+	ensures   0 <= n && n <= len(p)
+	// The documentation of this interface states that the Write
+	// method in implementations of Hash may never fail.
+	// (https://pkg.go.dev/hash#Hash)
+	ensures   err == nil && n == len(p)
+	ensures   Size() == old(Size()) + len(p)
+	decreases
+	Write(p []byte) (n int, err error)
+
+	preserves acc(Mem(), utils.ReadPerm)
+	requires acc(b)
+	ensures  acc(res) && len(res) == len(b) + Size()
+	decreases
+	Sum(b []byte) (res []byte)
+
+	preserves Mem()
+	decreases
+	Reset()
+
+	requires Mem()
+	ensures  0 <= res
+	decreases
+	pure Size() (res int)
+
+	requires Mem()
+	ensures  0 <= res
+	decreases
+	pure BlockSize() (res int)
+}
