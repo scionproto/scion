@@ -57,9 +57,7 @@ py_binary(
         "--brload",
         "$(location //acceptance/router_benchmark/brload:brload)",
     ],
-    data = [
-        "//acceptance/router_benchmark/brload",
-    ],
+    data = data,
     imports = ["."],
     visibility = ["//visibility:public"],
     deps = [
