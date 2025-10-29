@@ -93,11 +93,11 @@ func (d ConnectionDispatcher) Run(ctx context.Context) error {
 		}
 		go func() {
 			defer log.HandlePanic()
-			if conn.ConnectionState().TLS.NegotiatedProtocol == "h3" {
+			if d.Connect != nil && conn.ConnectionState().TLS.NegotiatedProtocol == "h3" {
 				if err := d.Connect.ServeQUICConn(conn); err != nil {
 					d.Error(err)
 				}
-			} else {
+			} else if d.Grpc != nil {
 				if err := d.Grpc.ServeQUICConn(conn); err != nil {
 					d.Error(err)
 				}

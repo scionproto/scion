@@ -54,6 +54,7 @@ type Config struct {
 	Features    env.Features       `toml:"features,omitempty"`
 	Logging     log.Config         `toml:"log,omitempty"`
 	Metrics     env.Metrics        `toml:"metrics,omitempty"`
+	RPC         env.RPC            `toml:"rpc,omitempty"`
 	API         api.Config         `toml:"api,omitempty"`
 	Tracing     env.Tracing        `toml:"tracing,omitempty"`
 	BeaconDB    storage.DBConfig   `toml:"beacon_db,omitempty"`
@@ -73,6 +74,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.RPC,
 		&cfg.API,
 		&cfg.Tracing,
 		&cfg.BeaconDB,
@@ -93,6 +95,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.RPC,
 		&cfg.API,
 		&cfg.BeaconDB,
 		&cfg.TrustDB,
@@ -112,6 +115,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.RPC,
 		&cfg.API,
 		&cfg.Tracing,
 		config.OverrideName(

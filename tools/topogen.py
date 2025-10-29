@@ -53,6 +53,12 @@ def add_arguments(parser):
     parser.add_argument('--sig', action='store_true',
                         help='Generate a SIG per AS (only available with -d, the SIG image needs\
                         to be built manually e.g. when running acceptance tests)')
+    parser.add_argument('--rpc_server_protocol',
+                        help='Configures services that can to accept RPCs over the given protocol \
+                        (grpc, connectrpc, all)', default='all')
+    parser.add_argument('--rpc_client_protocol',
+                        help='Configures services that can to issue RPCs over the given protocol \
+                        (grpc, connectrpc, all)', default='all')
     parser.add_argument('--features', help='Feature flags to enable, a comma separated list\
                         e.g. foo,bar enables foo and bar feature.')
     return parser
