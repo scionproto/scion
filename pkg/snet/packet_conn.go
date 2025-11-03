@@ -115,7 +115,7 @@ type SCIONPacketConnMetrics struct {
 // packets.
 type SCIONPacketConn struct {
 	// Conn is the connection to send/receive serialized packets on.
-	Conn *net.UDPConn
+	Conn UDPConn
 	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
