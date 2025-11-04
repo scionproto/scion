@@ -123,13 +123,13 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 	rh2 := addr.HostIP(netip.MustParseAddrPort(r2.Addr).Addr())
 	nobfd := control.BFD{Disable: ptr.To(true)}
 	link1 := control.LinkInfo{
-		Provider: "udpip",
+		Protocol: "udpip",
 		Local:    l,
 		Remote:   r1,
 		BFD:      nobfd,
 	}
 	link2 := control.LinkInfo{
-		Provider: "udpip",
+		Protocol: "udpip",
 		Local:    l,
 		Remote:   r2,
 		BFD:      nobfd,
@@ -148,7 +148,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		link3 := control.LinkInfo{
-			Provider: "udpip",
+			Protocol: "udpip",
 			Local:    control.LinkEnd{},
 			Remote:   r1,
 			BFD:      nobfd,
@@ -161,7 +161,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		link3 := control.LinkInfo{
-			Provider: "udpip",
+			Protocol: "udpip",
 			Local:    l,
 			Remote:   control.LinkEnd{},
 			BFD:      nobfd,
@@ -242,13 +242,13 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 	rh2 := addr.HostIP(netip.MustParseAddrPort(r2.Addr).Addr())
 	nobfd := control.BFD{Disable: ptr.To(true)}
 	link1 := control.LinkInfo{
-		Provider: "udpip",
+		Protocol: "udpip",
 		Local:    l,
 		Remote:   r1,
 		BFD:      nobfd,
 	}
 	link2 := control.LinkInfo{
-		Provider: "udpip",
+		Protocol: "udpip",
 		Local:    l,
 		Remote:   r2,
 		BFD:      nobfd,
@@ -267,7 +267,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		link3 := control.LinkInfo{
-			Provider: "udpip",
+			Protocol: "udpip",
 			Local:    control.LinkEnd{},
 			Remote:   r1,
 			BFD:      nobfd,
@@ -281,7 +281,7 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		link3 := control.LinkInfo{
-			Provider: "udpip",
+			Protocol: "udpip",
 			Local:    l,
 			Remote:   control.LinkEnd{},
 			BFD:      nobfd,
@@ -409,7 +409,7 @@ func TestDataPlaneRun(t *testing.T) {
 				rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 				nobfd := control.BFD{Disable: ptr.To(true)}
 				link := control.LinkInfo{
-					Provider: "udpip",
+					Protocol: "udpip",
 					Local:    l,
 					Remote:   r,
 					BFD:      nobfd,
@@ -521,7 +521,7 @@ func TestDataPlaneRun(t *testing.T) {
 					}
 					rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 					link := control.LinkInfo{
-						Provider: "udpip",
+						Protocol: "udpip",
 						Local:    l,
 						Remote:   r,
 						BFD:      bfd(),
@@ -558,7 +558,7 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 				rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 				link := control.LinkInfo{
-					Provider: "udpip",
+					Protocol: "udpip",
 					Local:    l,
 					Remote:   r,
 					BFD:      bfd(),
@@ -671,7 +671,7 @@ func TestDataPlaneRun(t *testing.T) {
 				rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 
 				link := control.LinkInfo{
-					Provider: "udpip",
+					Protocol: "udpip",
 					Local:    l,
 					Remote:   r,
 					BFD:      bfd(),
@@ -766,7 +766,7 @@ func TestDataPlaneRun(t *testing.T) {
 				lh := addr.HostIP(netip.MustParseAddrPort(l.Addr).Addr())
 				rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 				link := control.LinkInfo{
-					Provider: "udpip",
+					Protocol: "udpip",
 					Local:    l,
 					Remote:   r,
 					BFD:      bfd(),

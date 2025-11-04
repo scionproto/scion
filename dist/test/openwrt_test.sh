@@ -29,7 +29,7 @@ if [ "$DEBUG" == 0 ]; then  # if DEBUG: keep container openwrt-x86_64 running af
 fi
 
 # Start container as-is.
-docker run -d --rm --name openwrt-x86_64 -t \
+docker run -d --rm --name openwrt-x86_64 -t --privileged \
        -v $SCION_OPENWRT_PACKAGES_DIR:/openwrt \
        "openwrt/rootfs:x86-64-openwrt-24.10" /sbin/init
 
