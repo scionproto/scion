@@ -72,6 +72,8 @@ const (
 	SCMPCodeInvalidExtensionHeader SCMPCode = 64
 	SCMPCodeUnknownHopByHopOption  SCMPCode = 65
 	SCMPCodeUnknownEndToEndOption  SCMPCode = 66
+
+	SCMPCodeReservationExpired SCMPCode = 71
 )
 
 // SCMP informational messages.

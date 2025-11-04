@@ -1,0 +1,58 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "asm_amd64.s",
+        "asm_arm64.s",
+        "asm_ppc64x.s",
+        "base.go",
+        "decoded.go",
+        "flyoverhopfield.go",
+        "mac.go",
+        "raw.go",
+    ],
+    importpath = "github.com/scionproto/scion/pkg/slayers/path/hummingbird",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/slayers/path:go_default_library",
+        "//pkg/slayers/path/scion:go_default_library",
+    ] + select({
+        "@rules_go//go/platform:amd64": [
+            "//pkg/addr:go_default_library",
+        ],
+        "@rules_go//go/platform:arm64": [
+            "//pkg/addr:go_default_library",
+        ],
+        "@rules_go//go/platform:ppc64": [
+            "//pkg/addr:go_default_library",
+        ],
+        "@rules_go//go/platform:ppc64le": [
+            "//pkg/addr:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "base_test.go",
+        "decoded_test.go",
+        "export_test.go",
+        "flyoverhopfield_test.go",
+        "mac_test.go",
+        "raw_test.go",
+        "testpaths_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/slayers/path:go_default_library",
+        "//pkg/slayers/path/scion:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
