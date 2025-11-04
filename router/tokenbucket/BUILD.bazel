@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["tokenbucket.go"],
+    importpath = "github.com/scionproto/scion/router/tokenbucket",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["tokenbucket_test.go"],
+    deps = [
+        ":go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
+)
