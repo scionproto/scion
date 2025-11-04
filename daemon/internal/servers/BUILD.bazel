@@ -3,6 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
+        "backend.go",
         "grpc.go",
         "metrics.go",
     ],
@@ -12,6 +13,7 @@ go_library(
         "//daemon/drkey:go_default_library",
         "//daemon/fetcher:go_default_library",
         "//pkg/addr:go_default_library",
+        "//pkg/daemon:go_default_library",
         "//pkg/drkey:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/metrics:go_default_library",
