@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package servers
+package server
 
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/netip"
 	"slices"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"golang.org/x/sync/singleflight"
 
 	drkey_daemon "github.com/scionproto/scion/daemon/drkey"
-	"github.com/scionproto/scion/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"
@@ -37,6 +38,13 @@ import (
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/topology"
 )
+
+type Topology interface {
+	IfIDs() []uint16
+	UnderlayNextHop(uint16) *net.UDPAddr
+	ControlServiceAddresses() []*net.UDPAddr
+	PortRange() (uint16, uint16)
+}
 
 // ConnectorBackend implements the Connector interface with the core business logic.
 type ConnectorBackend struct {

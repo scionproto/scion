@@ -16,7 +16,6 @@ package servers
 
 import (
 	"context"
-	"net"
 	"net/netip"
 	"time"
 
@@ -40,13 +39,6 @@ import (
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology"
 )
-
-type Topology interface {
-	IfIDs() []uint16
-	UnderlayNextHop(uint16) *net.UDPAddr
-	ControlServiceAddresses() []*net.UDPAddr
-	PortRange() (uint16, uint16)
-}
 
 // DaemonServer handles gRPC requests and delegates to a Connector implementation.
 type DaemonServer struct {

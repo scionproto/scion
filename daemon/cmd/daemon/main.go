@@ -29,6 +29,7 @@ import (
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/resolver"
@@ -37,7 +38,6 @@ import (
 	"github.com/scionproto/scion/daemon/config"
 	sd_drkey "github.com/scionproto/scion/daemon/drkey"
 	sd_grpc "github.com/scionproto/scion/daemon/drkey/grpc"
-	"github.com/scionproto/scion/daemon/fetcher"
 	api "github.com/scionproto/scion/daemon/mgmtapi"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
@@ -277,16 +277,16 @@ func realMain(ctx context.Context) error {
 			Topology: topo,
 			Fetcher: fetcher.NewFetcher(
 				fetcher.FetcherConfig{
-					IA:         topo.IA(),
-					MTU:        topo.MTU(),
-					Core:       topo.Core(),
-					NextHopper: topo,
-					RPC:        requester,
-					PathDB:     pathDB,
-					Inspector:  engine,
-					Verifier:   createVerifier(),
-					RevCache:   revCache,
-					Cfg:        globalCfg.SD,
+					IA:            topo.IA(),
+					MTU:           topo.MTU(),
+					Core:          topo.Core(),
+					NextHopper:    topo,
+					RPC:           requester,
+					PathDB:        pathDB,
+					Inspector:     engine,
+					Verifier:      createVerifier(),
+					RevCache:      revCache,
+					QueryInterval: globalCfg.SD.QueryInterval.Duration,
 				},
 			),
 			Engine:      engine,
