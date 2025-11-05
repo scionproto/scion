@@ -183,6 +183,20 @@ func (c *Connector) SetKey(ia addr.IA, index int, key []byte) error {
 	return c.DataPlane.SetKey(key)
 }
 
+// SetHbirdKey sets the hummingbird key for the given ISD-AS at the given indey
+func (c *Connector) SetHbirdKey(ia addr.IA, index int, sv []byte) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	log.Debug("Setting Humingbird secret key", "isd_as", ia, "index", index)
+	if !c.ia.Equal(ia) {
+		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", ia)
+	}
+	if index != 0 {
+		return serrors.New("currently only index 0 secret key is supported")
+	}
+	return c.DataPlane.SetHbirdKey(sv)
+}
+
 func (c *Connector) ListInternalInterfaces() ([]control.InternalInterface, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()

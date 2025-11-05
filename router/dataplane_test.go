@@ -105,6 +105,8 @@ func TestDataPlaneSetKey(t *testing.T) {
 	})
 }
 
+// deleteme test SetHbirdKey
+
 func TestDataPlaneAddExternalInterface(t *testing.T) {
 	l := control.LinkEnd{
 		IA:   addr.MustParseIA("1-ff00:0:1"),
@@ -420,6 +422,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				assert.NoError(t, ret.SetIA(local))
 				assert.NoError(t, ret.SetKey(key))
+				assert.NoError(t, ret.SetHbirdKey(key))
 				return ret
 			},
 		},
@@ -454,6 +457,7 @@ func TestDataPlaneRun(t *testing.T) {
 					return buffer.Bytes()
 				}
 				assert.NoError(t, ret.SetKey([]byte("randomkeyformacs")))
+				assert.NoError(t, ret.SetHbirdKey([]byte("randomkeyformacs")))
 
 				// We don't care what happens on the internal connection. Sink it.
 				mInternal := mock_router.NewMockBatchConn(ctrl)
@@ -605,6 +609,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				assert.NoError(t, ret.SetKey([]byte("randomkeyformacs")))
+				assert.NoError(t, ret.SetHbirdKey([]byte("randomkeyformacs")))
 				// Let the same connection be used for internal and sibling. We only send on the
 				// latter and we don't care what we receive or where.
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
@@ -678,6 +683,7 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 
 				assert.NoError(t, ret.SetKey([]byte("randomkeyformacs")))
+				assert.NoError(t, ret.SetHbirdKey([]byte("randomkeyformacs")))
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 				assert.NoError(t, ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"))
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mExternal})
@@ -773,6 +779,7 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 
 				assert.NoError(t, ret.SetKey([]byte("randomkeyformacs")))
+				assert.NoError(t, ret.SetHbirdKey([]byte("randomkeyformacs")))
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mInternal})
 				assert.NoError(t, ret.AddInternalInterface(addr.Host{}, "udpip", "127.0.0.1:0"))
 				ret.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl, Conn: mExternal})
