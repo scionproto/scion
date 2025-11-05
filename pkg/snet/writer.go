@@ -83,6 +83,32 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		return 0, serrors.New("invalid listen host IP", "ip", c.local.Host.IP)
 	}
 
+	// Rewrite source IP if STUN is in use
+	if scionConn, ok := c.conn.(*SCIONPacketConn); ok {
+		if stunHandler, ok := scionConn.Conn.(*stunHandler); ok {
+			sameIA := func() bool {
+				switch a := raddr.(type) {
+				case *UDPAddr:
+					return a.IA.Equal(c.local.IA)
+				case *SVCAddr:
+					return a.IA.Equal(c.local.IA)
+				default:
+					return false
+				}
+			}()
+			if !sameIA {
+				mappedAddr, err := stunHandler.getMappedAddr(nextHop)
+				if err != nil {
+					return 0, serrors.New("Error getting mapped address for STUN", "stun", err)
+				}
+				listenHostIP, ok = netip.AddrFromSlice(mappedAddr.IP)
+				if !ok {
+					return 0, serrors.New("STUN returned invalid mapped host IP", "stun", mappedAddr.IP)
+				}
+			}
+		}
+	}
+
 	pkt := &Packet{
 		Bytes: Bytes(c.buffer),
 		PacketInfo: PacketInfo{

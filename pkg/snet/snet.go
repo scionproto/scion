@@ -154,6 +154,13 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 		return nil, err
 	}
 	log.FromCtx(ctx).Debug("UDP socket opened on", "addr", packetConn.LocalAddr(), "to", remote)
+
+	// TODO: make STUN handling optional/configurable
+	scionPacketConn := packetConn.(*SCIONPacketConn)
+	stunHandlerConn := newSTUNHandler(scionPacketConn.Conn.(*net.UDPConn))
+	scionPacketConn.Conn = stunHandlerConn
+	packetConn = scionPacketConn
+
 	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather), WithRemote(remote))
 }
 
