@@ -202,6 +202,9 @@ func mustMakeDP(
 	if err := dp.SetKey(key); err != nil {
 		panic(err)
 	}
+	if err := dp.SetHbirdKey(key); err != nil {
+		panic(err)
+	}
 
 	// The rest is normally done by Run(); it is up to the invoking test:
 	// add packet pool

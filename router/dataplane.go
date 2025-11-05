@@ -18,6 +18,7 @@ package router
 
 import (
 	"context"
+	"crypto/cipher"
 	"crypto/subtle"
 	"encoding/binary"
 	"errors"
@@ -45,6 +46,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
+	hbird "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/spao"
@@ -229,6 +231,7 @@ type dataPlane struct {
 	neighborIAs         [math.MaxUint16 + 1]addr.IA
 	localHost           addr.Host
 	macFactory          func() hash.Hash
+	prfFactory          func() cipher.Block
 	localIA             addr.IA
 	mtx                 sync.Mutex
 	running             atomic.Bool
@@ -256,6 +259,9 @@ type dataPlane struct {
 	// link layer header. Underlay providers may use the preceding part of the packet buffer to
 	// receive the link layer header.
 	underlayHeadroom int
+
+	// Contains the token buckets for hummingbird bandwidth check.
+	tokenBuckets sync.Map
 }
 
 var (
@@ -976,7 +982,9 @@ func newPacketProcessor(d *dataPlane) *scionPacketProcessor {
 	p := &scionPacketProcessor{
 		d:              d,
 		mac:            d.macFactory(),
+		prf:            d.prfFactory(),
 		macInputBuffer: make([]byte, max(path.MACBufferSize, libepic.MACBufferSize)),
+		hbirdXkbuffer:  make([]uint32, hbird.XkBufferSize),
 	}
 	p.scionLayer.RecyclePaths()
 	return p
@@ -997,6 +1005,11 @@ func (p *scionPacketProcessor) reset() error {
 	p.hbhLayer = slayers.HopByHopExtnSkipper{}
 	// Reset e2e layer
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
+	// Hummingbird:
+	p.hbirdPath = nil
+	p.flyoverField = hbird.FlyoverHopField{}
+	p.hasPriority = false
+	p.isFlyoverXover = false
 	return nil
 }
 
@@ -1044,6 +1057,8 @@ func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
 		return p.processSCION()
 	case epic.PathType:
 		return p.processEPIC()
+	case hbird.PathType:
+		return p.processHummingbird()
 	default:
 		return errorDiscard("error", errUnsupportedPathType)
 	}
@@ -1139,6 +1154,13 @@ type scionPacketProcessor struct {
 	cachedMac       []byte                 // Full MAC. For a Xover, that of the down segment.
 	macInputBuffer  []byte                 // Reusable buffer for MAC computation.
 	bfdLayer        layers.BFD             // Reusable buffer for parsing BFD messages
+	// Hummingbird specific:
+	prf            cipher.Block          // Hummingbird authentication key derivation
+	hbirdPath      *hbird.Raw            // Raw Hummingbird path. Will be set during processing
+	flyoverField   hbird.FlyoverHopField // Hummingbird flyover field
+	hasPriority    bool                  // Determines Hummingbird priority
+	isFlyoverXover bool                  // True if this is a Hummingbird xover flyover
+	hbirdXkbuffer  []uint32              // Reusable buffer for Hummingbird MAC
 }
 
 type slowPathType int8
@@ -1449,11 +1471,17 @@ func (p *scionPacketProcessor) updateNonConsDirIngressSegID() disposition {
 }
 
 func (p *scionPacketProcessor) currentInfoPointer() uint16 {
+	if p.scionLayer.PathType == hbird.PathType {
+		return p.currentHbirdInfoPointer()
+	}
 	return uint16(slayers.CmnHdrLen + p.scionLayer.AddrHdrLen() +
 		scion.MetaLen + path.InfoLen*int(p.path.PathMeta.CurrINF))
 }
 
 func (p *scionPacketProcessor) currentHopPointer() uint16 {
+	if p.scionLayer.PathType == hbird.PathType {
+		return p.currentHbirdHopPointer()
+	}
 	return uint16(slayers.CmnHdrLen + p.scionLayer.AddrHdrLen() +
 		scion.MetaLen + path.InfoLen*p.path.NumINF + path.HopLen*int(p.path.PathMeta.CurrHF))
 }
@@ -2214,10 +2242,11 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 				"path type", pathType)
 		}
 		path = epicPath.ScionPath
+	case hbird.PathType:
+		return p.prepareHbirdSCMP(typ, code, scmpP, isError)
 	default:
 		return serrors.JoinNoStack(errCannotRoute, nil, "details", "unsupported path type",
 			"path type", pathType)
-
 	}
 	decPath, err := path.ToDecoded()
 	if err != nil {
