@@ -103,7 +103,7 @@ func (d ConnectionDispatcher) Run(ctx context.Context) error {
 				}
 			} else {
 				log.Error("neither Connect nor Grpc are available")
-				if err := conn.CloseWithError(serveConnError, err.Error()); err != nil {
+				if err := conn.CloseWithError(1, err.Error()); err != nil {
 					log.Error("can not close connection", "err", err)
 				}
 			}
