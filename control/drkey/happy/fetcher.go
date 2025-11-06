@@ -23,8 +23,9 @@ import (
 )
 
 type Fetcher struct {
-	Connect drkey.Fetcher
-	Grpc    drkey.Fetcher
+	Connect   drkey.Fetcher
+	Grpc      drkey.Fetcher
+	RpcConfig happy.Config
 }
 
 func (f Fetcher) Level1(ctx context.Context, meta libdrkey.Level1Meta) (libdrkey.Level1Key, error) {
@@ -40,6 +41,6 @@ func (f Fetcher) Level1(ctx context.Context, meta libdrkey.Level1Meta) (libdrkey
 			Input1: meta,
 			Typ:    "control_plane.v1.DRKeyInterService.DRKeyLevel1",
 		},
-		happy.Config{},
+		f.RpcConfig,
 	)
 }
