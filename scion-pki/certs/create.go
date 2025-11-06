@@ -202,7 +202,7 @@ A valid example for a JSON formatted template::
 			if err != nil {
 				return serrors.Wrap("parsing profile", err)
 			}
-			subject, err := createSubject(args[0], flags.commonName)
+			subject, err := createSubject(args[0], flags.commonName, ct == cppki.Sensitive || ct == cppki.Regular)
 			if err != nil {
 				return serrors.Wrap("creating subject", err)
 			}
@@ -414,8 +414,8 @@ func parseCertType(input string) (cppki.CertType, error) {
 	}
 }
 
-func createSubject(tmpl, commonName string) (pkix.Name, error) {
-	subject, err := loadSubject(tmpl)
+func createSubject(tmpl, commonName string, requireIA bool) (pkix.Name, error) {
+	subject, err := loadSubject(tmpl, requireIA)
 	if err != nil {
 		return pkix.Name{}, err
 	}
@@ -425,7 +425,7 @@ func createSubject(tmpl, commonName string) (pkix.Name, error) {
 	return subject, nil
 }
 
-func loadSubject(tmpl string) (pkix.Name, error) {
+func loadSubject(tmpl string, requireIA bool) (pkix.Name, error) {
 	raw, err := os.ReadFile(tmpl)
 	if err != nil {
 		return pkix.Name{}, err
@@ -447,7 +447,7 @@ func loadSubject(tmpl string) (pkix.Name, error) {
 	if err := json.Unmarshal(raw, &vars); err != nil {
 		return pkix.Name{}, err
 	}
-	return subjectFromVars(vars)
+	return subjectFromVars(vars, requireIA)
 }
 
 func parseCertificate(raw []byte) (*x509.Certificate, error) {
