@@ -61,14 +61,6 @@ type Database struct {
 	Metrics *Metrics
 }
 
-func (db *Database) SetMaxOpenConns(maxOpenConns int) {
-	db.Backend.SetMaxOpenConns(maxOpenConns)
-}
-
-func (db *Database) SetMaxIdleConns(maxIdleConns int) {
-	db.Backend.SetMaxIdleConns(maxIdleConns)
-}
-
 func (db *Database) Close() error {
 	return db.Backend.Close()
 }
