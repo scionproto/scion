@@ -100,6 +100,11 @@ func (d ConnectionDispatcher) Run(ctx context.Context) error {
 			} else if d.Grpc != nil {
 				if err := d.Grpc.ServeQUICConn(conn); err != nil {
 					d.Error(err)
+				} else {
+					log.Error("neither Connect nor Grpc are available")
+					if err := conn.CloseWithError(serveConnError, err.Error()); err != nil {
+						log.Error("can not close connection", "err", err)
+					}
 				}
 			}
 		}()
