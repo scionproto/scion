@@ -3,7 +3,7 @@ Private ISDs
 ************
 
 - Author(s): Tilmann Zäschke (+ ideas from others)
-- Last updated: 2025-10-08
+- Last updated: 2025-11-07
 - Discussion at: :issue:`4827`
 - Status: **WIP**
 
@@ -17,8 +17,8 @@ Abstract
 ========
 *TL;DR This proposal aims to resolve scaling issues with large numbers
 of ISD and core ASes. As a side effect it introduces new privacy
-features, censorship protection, and (maybe) removes the need for
-inter-ISD peering links.*
+features, such as hiding ASes and links, and improved censorship protection
+by using inter-ISD peering links as normal first class links in segments.*
 
 The current ISD design combines several features:
 
@@ -277,7 +277,8 @@ Advantages
 
 - P-ISDs provide isolation + independence of TRC and routing
 - P-ISDs can cross ISD boundaries as long as there are links.
-  They can probably replace current inter-ISD peering links.
+  They can make peering links more powerful by using them as normal links
+  and thus using several of them in a normal segment.
 
 - Privacy: An P-ISD can contain any number of ASes and links that are not visible
   outside the P-ISD (private ASes).
