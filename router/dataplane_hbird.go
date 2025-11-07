@@ -646,6 +646,10 @@ func (p *scionPacketProcessor) processHBIRDFlyover() disposition {
 	if disp := p.validateReservationExpiry(); disp != pForward {
 		return disp
 	}
+	// deleteme check humm specs for updating the INF when flyover==True
+	// if disp := p.updateHbirdNonConsDirIngressSegID(); disp != pForward {
+	// 	return disp
+	// }
 	if disp := p.verifyHbirdFlyoverMac(); disp != pForward {
 		return disp
 	}
@@ -741,7 +745,6 @@ func (p *scionPacketProcessor) processHBIRDFlyover() disposition {
 }
 
 func (p *scionPacketProcessor) processHBIRDBestEffort() disposition {
-
 	if disp := p.updateHbirdNonConsDirIngressSegID(); disp != pForward {
 		return disp
 	}
@@ -778,11 +781,11 @@ func (p *scionPacketProcessor) processHBIRDBestEffort() disposition {
 			return disp
 		}
 	}
+	egressID := p.egressInterface()
+	p.pkt.egress = egressID
 	if disp := p.validateEgressID(); disp != pForward {
 		return disp
 	}
-	egressID := p.egressInterface()
-	p.pkt.egress = egressID
 
 	// handle egress router alert before we check if it's up because we want to
 	// send the reply anyway, so that trace route can pinpoint the exact link

@@ -51,6 +51,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "dataplane_hbird_test.go",
         "dataplane_internal_test.go",
         "dataplane_test.go",
         "export_test.go",
@@ -68,6 +69,7 @@ go_test(
         "//pkg/slayers/path:go_default_library",
         "//pkg/slayers/path/empty:go_default_library",
         "//pkg/slayers/path/epic:go_default_library",
+        "//pkg/slayers/path/hummingbird:go_default_library",
         "//pkg/slayers/path/onehop:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
         "//private/topology:go_default_library",
