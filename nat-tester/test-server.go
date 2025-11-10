@@ -44,7 +44,7 @@ func main() {
 		}
 
 		if int(pld.DstPort) == localAddr.Host.Port {
-			log.Printf("Received data: \"%v\"", string(pld.Payload))
+			log.Printf("Received data: \"%v\" from %v:%v", string(pld.Payload), pkt.Source, pld.SrcPort)
 
 			pkt.Destination, pkt.Source = pkt.Source, pkt.Destination
 
