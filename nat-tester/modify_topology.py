@@ -1,5 +1,6 @@
 import yaml
-
+import sys
+from pathlib import Path
 
 def main():
     with (open("./gen/scion-dc.yml", "r") as file):
@@ -40,6 +41,12 @@ def main():
         "SCION_DAEMON_ADDRESS": "192.168.123.3:30255",
         "SCION_LOCAL_ADDR": "192.168.123.4"
     }
+
+    # Mount tester scripts in tester container
+    script_dir = Path(__file__).resolve().parent.parent
+    host_mount = str(script_dir / "nat-tester")
+    scion_dc["services"]["tester_1-ff00_0_110"]["volumes"].append(f"{host_mount}:/share/nat-tester:r")
+    scion_dc["services"]["tester_1-ff00_0_111"]["volumes"].append(f"{host_mount}:/share/nat-tester:r")
 
     # Create new docker container that acts as a NAT.
     # We use iptables for the NAT
