@@ -11,13 +11,21 @@ const timeoutDuration = 5 * time.Minute
 // stunHandler is a wrapper around net.UDPConn that handles STUN requests.
 type stunHandler struct {
 	*net.UDPConn
+	recvChan     chan bufferedPacket
 	recvStunChan chan []byte
 	mappings     map[*net.UDPAddr]*natMapping // TODO: necessary to protect with mutex?
+}
+
+type bufferedPacket struct {
+	data []byte
+	addr net.Addr
+	len  int
 }
 
 func newSTUNHandler(conn *net.UDPConn) *stunHandler {
 	return &stunHandler{
 		UDPConn:      conn,
+		recvChan:     make(chan bufferedPacket, 100),
 		recvStunChan: make(chan []byte, 100),
 		mappings:     make(map[*net.UDPAddr]*natMapping),
 	}
@@ -25,14 +33,40 @@ func newSTUNHandler(conn *net.UDPConn) *stunHandler {
 
 func (c *stunHandler) ReadFrom(b []byte) (int, net.Addr, error) {
 	for {
-		n, addr, err := c.UDPConn.ReadFrom(b)
-		if err != nil {
-			return n, addr, err
+		select {
+		case pkt := <-c.recvChan:
+			b = pkt.data
+			return pkt.len, pkt.addr, nil
+		default:
+			n, addr, err := c.UDPConn.ReadFrom(b)
+			if err != nil {
+				return n, addr, err
+			}
+			if stun.Is(b) {
+				c.recvStunChan <- b[:n]
+			} else {
+				return n, addr, nil
+			}
 		}
-		if stun.Is(b) {
-			c.recvStunChan <- b[:n]
-		} else {
-			return n, addr, nil
+	}
+}
+
+func (c *stunHandler) readStunPacket() ([]byte, error) {
+	select {
+	case pkt := <-c.recvStunChan:
+		return pkt, nil
+	default:
+		for {
+			buf := make([]byte, 1500)
+			n, addr, err := c.UDPConn.ReadFrom(buf)
+			if err != nil {
+				return nil, err
+			}
+			if stun.Is(buf[:n]) {
+				return buf[:n], nil
+			} else {
+				c.recvChan <- bufferedPacket{data: buf[:n], addr: addr, len: n}
+			}
 		}
 	}
 }
@@ -76,7 +110,10 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	}
 
 	for {
-		response := <-c.recvStunChan
+		response, err := c.readStunPacket()
+		if err != nil {
+			return nil, err
+		}
 		responseTxID, mappedAddress, err := stun.ParseResponse(response)
 		if err != nil {
 			continue
