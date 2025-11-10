@@ -95,12 +95,21 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	pktAddrPort := netip.AddrPortFrom(pkt.Destination.Host.IP(), udp.DstPort)
 	if c.local.IA != pkt.Destination.IA ||
 		c.local.Host.AddrPort() != pktAddrPort {
-		return 0, nil, serrors.New("packet is destined to a different host",
-			"local_isd_as", c.local.IA,
-			"local_host", c.local.Host,
-			"pkt_destination_isd_as", pkt.Destination.IA,
-			"pkt_destination_host", pktAddrPort,
-		)
+
+		// If the client is behind a NAT, the SCION packet will hold the mapped external address,
+		// which is expected to be different from the local address. To handle this case, we check
+		// whether the underlying connection is a stunHandler, which indicates that NAT traversal is in use.
+		// TODO: Is it necessary to check that the address matches one of the mapped addresses?
+		_, hasStunHandler := c.conn.(*SCIONPacketConn).Conn.(*stunHandler)
+
+		if !hasStunHandler {
+			return 0, nil, serrors.New("packet is destined to a different host",
+				"local_isd_as", c.local.IA,
+				"local_host", c.local.Host,
+				"pkt_destination_isd_as", pkt.Destination.IA,
+				"pkt_destination_host", pktAddrPort,
+			)
+		}
 	}
 
 	// Extract remote address.
