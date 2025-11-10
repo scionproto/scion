@@ -14,8 +14,15 @@ def main():
 
     }
     # Move tester dispatcher to new network
+    # Add default route to send packets to NAT (192.168.123.2)
     scion_dc["services"]["disp_tester_1-ff00_0_111"]["networks"] = \
         {"local_001": {"ipv4_address": "192.168.123.4"}}
+    scion_dc["services"]["disp_tester_1-ff00_0_111"]["entrypoint"] = []
+    scion_dc["services"]["disp_tester_1-ff00_0_111"]["command"] = \
+        ('sh -c "ip route del default && ip route add default via 192.168.123.2 && '
+        '/app/dispatcher --config /etc/scion/disp_tester_1-ff00_0_111.toml"')
+    scion_dc["services"]["disp_tester_1-ff00_0_111"]["cap_add"] = ["NET_ADMIN"]
+    scion_dc["services"]["disp_tester_1-ff00_0_111"].pop("user")
 
     # Move tester daemon to new network
     # Add default route to send packets to NAT (192.168.123.2)
