@@ -34,7 +34,7 @@ func main() {
 	}
 
 	if len(ps) == 0 {
-		log.Fatal("No paths to %v available", remoteAddr.IA)
+		log.Fatalf("No paths to %v available", remoteAddr.IA)
 	}
 
 	log.Printf("Available paths to %v:", remoteAddr.IA)
@@ -69,6 +69,8 @@ func main() {
 	}
 
 	defer conn.Close()
+
+	log.Print("Successfully established SCION connection")
 
 	_, err = conn.Write([]byte(data))
 	if err != nil {
