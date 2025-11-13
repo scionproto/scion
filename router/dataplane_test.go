@@ -19,9 +19,11 @@ package router_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -41,6 +43,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
+	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/private/topology"
@@ -1747,14 +1750,47 @@ func TestProcessPkt(t *testing.T) {
 	}
 }
 
-func assertPktEqual(t *testing.T, a, b *router.Packet) {
+func assertPktEqual(t *testing.T, expected, actual *router.Packet) {
 	// router.Packet.RemoteAddr is declared as unsafe.Pointer, so it can only be compared
 	// by address. That isn't what we want. We want the actual addresses compared. We know that
 	// those addresses are net.UDPAddress because we put them there. So, compare them separately.
-	assert.Equal(t, (*net.UDPAddr)(a.RemoteAddr), (*net.UDPAddr)(b.RemoteAddr))
-	a.RemoteAddr = nil
-	b.RemoteAddr = nil
-	assert.Equal(t, a, b)
+	assert.Equal(t, (*net.UDPAddr)(expected.RemoteAddr), (*net.UDPAddr)(actual.RemoteAddr))
+	expected.RemoteAddr = nil
+	actual.RemoteAddr = nil
+	if !assert.Equal(t, expected, actual) {
+		message := []string{"PATH INFORMATION INSIDE NON-EQUAL PACKETS:"}
+		p := router.PathFromRawPacket(expected.RawPacket)
+		p = toDecoded(t, p)
+		b, err := json.MarshalIndent(p, "", "    ")
+		require.NoError(t, err)
+		message = append(message, fmt.Sprintf("EXPECTED PATH:\n%s", string(b)))
+
+		p = router.PathFromRawPacket(actual.RawPacket)
+		p = toDecoded(t, p)
+		b, err = json.MarshalIndent(p, "", "    ")
+		require.NoError(t, err)
+		message = append(message, fmt.Sprintf("ACTUAL PATH:\n%s", string(b)))
+		t.Log(strings.Join(message, "\n"))
+	}
+}
+
+func toDecoded(t *testing.T, p path.Path) path.Path {
+	switch p.Type() {
+	case scion.PathType:
+		scionRaw, ok := p.(*scion.Raw)
+		require.True(t, ok)
+		dec, err := scionRaw.ToDecoded()
+		require.NoError(t, err)
+		return dec
+	case hummingbird.PathType:
+		hbirdRaw, ok := p.(*hummingbird.Raw)
+		require.True(t, ok)
+		dec, err := hbirdRaw.ToDecoded()
+		require.NoError(t, err)
+		return dec
+	default:
+		return p
+	}
 }
 
 func toBytes(t *testing.T, spkt *slayers.SCION, dpath path.Path) []byte {

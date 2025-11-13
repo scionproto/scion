@@ -121,7 +121,7 @@ func (p *scionPacketProcessor) validateHopExpiryHbird() disposition {
 	}
 	log.Debug("SCMP response", "cause", errExpiredHop,
 		"cons_dir", p.infoField.ConsDir, "if_id", p.ingressFromLink,
-		"curr_inf", p.path.PathMeta.CurrINF, "curr_hf", p.path.PathMeta.CurrHF)
+		"curr_inf", p.hbirdPath.PathMeta.CurrINF, "curr_hf", p.hbirdPath.PathMeta.CurrHF)
 	p.pkt.slowPathRequest = slowPathRequest{
 		spType:  slowPathType(slayers.SCMPTypeParameterProblem),
 		code:    slayers.SCMPCodePathExpired,
@@ -511,9 +511,11 @@ func (p *scionPacketProcessor) deAggregateAndCacheMac() disposition {
 	return pForward
 }
 
-func (p *scionPacketProcessor) doFlyoverXover() disposition {
+// xoverMoveFlyoverToNext is called during ASTransit incoming BR. It moves the flyover hopfield
+// to the next hopfield, so that the ASTransit outgoing BR forwards it with priority.
+func (p *scionPacketProcessor) xoverMoveFlyoverToNext() disposition {
 	// Move flyoverhopfield to next hop for benefit of egress router
-	if err := p.hbirdPath.DoFlyoverXover(); err != nil {
+	if err := p.hbirdPath.MoveFlyoverToNext(); err != nil {
 		return errorDiscard("error", err)
 	}
 
@@ -526,8 +528,8 @@ func (p *scionPacketProcessor) doFlyoverXover() disposition {
 	return pForward
 }
 
-func (p *scionPacketProcessor) reverseFlyoverXover() disposition {
-	if err := p.hbirdPath.ReverseFlyoverXover(); err != nil {
+func (p *scionPacketProcessor) xoverMoveFlyoverToPrevious() disposition {
+	if err := p.hbirdPath.MoveFlyoverToPrevious(); err != nil {
 		return errorDiscard("error", err)
 	}
 	// No MAC aggregation/de-aggregation, as these are already performed
@@ -618,6 +620,7 @@ func (p *scionPacketProcessor) processHummingbird() disposition {
 	if disp := p.determinePeerHbird(); disp != pForward {
 		return disp
 	}
+	// deleteme uncomment
 	if disp := p.validateHopExpiryHbird(); disp != pForward {
 		return disp
 	}
@@ -643,13 +646,10 @@ func (p *scionPacketProcessor) processHummingbird() disposition {
 }
 
 func (p *scionPacketProcessor) processHBIRDFlyover() disposition {
+	// deleteme uncomment
 	if disp := p.validateReservationExpiry(); disp != pForward {
 		return disp
 	}
-	// deleteme check humm specs for updating the INF when flyover==True
-	// if disp := p.updateHbirdNonConsDirIngressSegID(); disp != pForward {
-	// 	return disp
-	// }
 	if disp := p.verifyHbirdFlyoverMac(); disp != pForward {
 		return disp
 	}
@@ -679,9 +679,13 @@ func (p *scionPacketProcessor) processHBIRDFlyover() disposition {
 	// * ASTransit out: from another AS, in via internal from other BR, out via external.
 	// * BRTransit: from another AS, in via external, out via external.
 	if p.hbirdPath.IsXover() && !p.peering {
+		// An effective cross-over is a change of segment other than at
+		// a peering hop.
 		if disp := p.doHbirdXoverFlyover(); disp != pForward {
 			return disp
 		}
+		// doXover() has changed the current segment and hop field.
+		// We need to validate the new hop field.
 		if disp := p.validateHopExpiry(); disp != pForward {
 			return disp
 		}
@@ -690,11 +694,11 @@ func (p *scionPacketProcessor) processHBIRDFlyover() disposition {
 			return disp
 		}
 	}
+	egressID := p.egressInterface()
+	p.pkt.egress = egressID
 	if disp := p.validateEgressID(); disp != pForward {
 		return disp
 	}
-	egressID := p.egressInterface()
-	p.pkt.egress = egressID
 
 	// handle egress router alert before we check if it's up because we want to
 	// send the reply anyway, so that trace route can pinpoint the exact link
@@ -707,11 +711,12 @@ func (p *scionPacketProcessor) processHBIRDFlyover() disposition {
 	}
 
 	if p.d.interfaces[egressID].Scope() == External {
+		// Not ASTransit in.
 		if disp := p.deAggregateMac(); disp != pForward {
 			return disp
 		}
 		if p.hbirdPath.IsFirstHopAfterXover() && !p.effectiveXover && !p.peering {
-			if disp := p.reverseFlyoverXover(); disp != pForward {
+			if disp := p.xoverMoveFlyoverToPrevious(); disp != pForward {
 				return disp
 			}
 		}
@@ -736,7 +741,7 @@ func (p *scionPacketProcessor) processHBIRDFlyover() disposition {
 	// ASTransit in: pkt leaving this AS through another BR.
 	// We already know the egressID is valid. The packet can go straight to forwarding.
 	if p.isFlyoverXover {
-		if disp := p.doFlyoverXover(); disp != pForward {
+		if disp := p.xoverMoveFlyoverToNext(); disp != pForward {
 			return disp
 		}
 	}
