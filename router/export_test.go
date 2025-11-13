@@ -18,6 +18,7 @@ package router
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"unsafe"
@@ -26,6 +27,8 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ptr"
+	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/bfd"
@@ -85,6 +88,19 @@ func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packe
 	return &p
 }
 
+func PathFromRawPacket(raw []byte) path.Path {
+	scionLayer := &slayers.SCION{}
+
+	lastLayer, err := decodeLayers(raw, scionLayer)
+	if err != nil {
+		panic(err) // deleteme
+	}
+	if lastLayer != scionLayer {
+		panic(fmt.Errorf("scion parsing failed")) // deleteme
+	}
+	return scionLayer.Path
+}
+
 // MockConnOpener implements the udpip ConnOpener interface with a method that returns a mock
 // connection for testing purposes. An instance of this ConnOpener can be installed in a dataplane
 // by way of the SetConnOpener method, exported here by the Dataplane type, or by way of
@@ -126,7 +142,8 @@ func mustMakeDP(
 	internalNextHops map[uint16]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
-	key []byte) (dp dataPlane) {
+	key []byte,
+	hbirdKey []byte) (dp dataPlane) {
 
 	dp = makeDataPlane(RunConfig{NumProcessors: 1, BatchSize: 64}, false)
 
@@ -202,7 +219,7 @@ func mustMakeDP(
 	if err := dp.SetKey(key); err != nil {
 		panic(err)
 	}
-	if err := dp.SetHbirdKey(key); err != nil {
+	if err := dp.SetHbirdKey(hbirdKey); err != nil {
 		panic(err)
 	}
 
@@ -227,7 +244,7 @@ func newDP(
 	neighbors map[uint16]addr.IA,
 	key []byte) *dataPlane {
 
-	dp := mustMakeDP(external, linkTypes, connOpener, internalNextHops, local, neighbors, key)
+	dp := mustMakeDP(external, linkTypes, connOpener, internalNextHops, local, neighbors, key, key)
 	return &dp
 }
 
@@ -249,7 +266,23 @@ func NewDP(
 	key []byte) *DataPlane {
 
 	return &DataPlane{
-		mustMakeDP(external, linkTypes, connOpener, internalNextHops, local, neighbors, key),
+		*newDP(external, linkTypes, connOpener, internalNextHops, local, neighbors, key),
+	}
+}
+
+func NewDPWithHummingbirdKey(
+	external []uint16,
+	linkTypes map[uint16]topology.LinkType,
+	connOpener any, // Some implementation of BatchConnOpener, or nil for the default.
+	internalNextHops map[uint16]netip.AddrPort,
+	local addr.IA,
+	neighbors map[uint16]addr.IA,
+	key []byte,
+	hbirdKey []byte) *DataPlane {
+
+	return &DataPlane{
+		mustMakeDP(external, linkTypes, connOpener, internalNextHops, local, neighbors,
+			key, hbirdKey),
 	}
 }
 
@@ -279,6 +312,10 @@ func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
 
 func ExtractServices(s *Services[netip.AddrPort]) map[addr.SVC][]netip.AddrPort {
 	return s.m
+}
+
+func ExtractInterfaces(dp *DataPlane) [math.MaxUint16 + 1]Link {
+	return dp.dataPlane.interfaces
 }
 
 // We cannot know which tests are going to mock which underlay and what the opener's
