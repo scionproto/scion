@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/gateway/xnet"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/connect"
+	"github.com/scionproto/scion/pkg/connect/happy"
 	"github.com/scionproto/scion/pkg/daemon"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
@@ -51,6 +52,7 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/squic"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
+	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/service"
 	"github.com/scionproto/scion/private/svc"
@@ -196,6 +198,9 @@ type Gateway struct {
 
 	// Metrics are the metrics exported by the gateway.
 	Metrics *Metrics
+
+	// client (happy eyeballs) and server-side rpc config
+	RpcConfig env.RPC
 }
 
 func (g *Gateway) Run(ctx context.Context) error {
@@ -523,6 +528,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 				TLSConfig: connect.AdaptClientTLS(quicClientDialer.TLSConfig),
 				Rewriter:  grpcDialer.Rewriter,
 			}).NewDialer,
+			RpcConfig: happy.Config{
+				NoPreferred: g.RpcConfig.ConnectrpcClientDisabled,
+				NoFallback:  g.RpcConfig.GrpcClientDisabled,
+			},
 		},
 	}
 
@@ -584,13 +593,21 @@ func (g *Gateway) Run(ctx context.Context) error {
 	)
 
 	grpcConns := make(chan *quic.Conn)
-	prefixConnectionDispatcher := connect.ConnectionDispatcher{
-		Listener: internalQUICServerListener,
-		Connect:  &http3.Server{Handler: connect.AttachPeer(prefixConnect)},
-		Grpc: connect.QUICConnServerFunc(func(conn *quic.Conn) error {
+	var grpc connect.QUICConnServer
+	var connrpc connect.QUICConnServer
+	if !g.RpcConfig.GrpcServerDisabled {
+		grpc = connect.QUICConnServerFunc(func(conn *quic.Conn) error {
 			grpcConns <- conn
 			return nil
-		}),
+		})
+	}
+	if !g.RpcConfig.ConnectrpcServerDisabled {
+		connrpc = &http3.Server{Handler: connect.AttachPeer(prefixConnect)}
+	}
+	prefixConnectionDispatcher := connect.ConnectionDispatcher{
+		Listener: internalQUICServerListener,
+		Connect:  connrpc,
+		Grpc:     grpc,
 		Error: func(err error) {
 			logger.Debug("Failed to handle connection", "err", err)
 		},
