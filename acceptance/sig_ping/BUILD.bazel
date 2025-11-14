@@ -6,6 +6,66 @@ topogen_test(
     args = [
         "--executable",
         "sig_ping_acceptance:$(location //acceptance/cmd/sig_ping_acceptance)",
+        # default: rpc_client_protocol=rpc_server_protocol=all => connectrpc preferred
+    ],
+    data = [
+        "//acceptance/cmd/sig_ping_acceptance",
+    ],
+    gateway = True,
+    topo = "//topology:tiny4.topo",
+)
+
+# Validate protocol transition provisions.
+
+# Old, grpc-only clients can talk to transition (bi-compatible) servers.
+topogen_test(
+    name = "test_grpc_client",
+    src = "test.py",
+    args = [
+        "--executable",
+        "sig_ping_acceptance:$(location //acceptance/cmd/sig_ping_acceptance)",
+        "--setup-params",
+        "--rpc_client_protocol=grpc",  # client can only do grpc
+        "--setup-params",
+        "--rpc_server_protocol=all",  # server can do either grpc or connect.
+    ],
+    data = [
+        "//acceptance/cmd/sig_ping_acceptance",
+    ],
+    gateway = True,
+    topo = "//topology:tiny4.topo",
+)
+
+# Transition (bi-compatible) clients can talk to old grpc-only servers.
+topogen_test(
+    name = "test_grpc_server",
+    src = "test.py",
+    args = [
+        "--executable",
+        "sig_ping_acceptance:$(location //acceptance/cmd/sig_ping_acceptance)",
+        "--setup-params",
+        "--rpc_client_protocol=all",  # client can do either grpc or connect
+        "--setup-params",
+        "--rpc_server_protocol=grpc",  # server can only do grpc
+    ],
+    data = [
+        "//acceptance/cmd/sig_ping_acceptance",
+    ],
+    gateway = True,
+    topo = "//topology:tiny4.topo",
+)
+
+# clients can still talk with servers after removal of grpc from both sides.
+topogen_test(
+    name = "test_connectrpc",
+    src = "test.py",
+    args = [
+        "--executable",
+        "sig_ping_acceptance:$(location //acceptance/cmd/sig_ping_acceptance)",
+        "--setup-params",
+        "--rpc_client_protocol=connectrpc",  # client only does connect
+        "--setup-params",
+        "--rpc_server_protocol=connectrpc",  # server only does connect
     ],
     data = [
         "//acceptance/cmd/sig_ping_acceptance",
