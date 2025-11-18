@@ -232,6 +232,40 @@ func NewPathStorage(c DBConfig) (PathDB, error) {
 	}, nil
 }
 
+func NewInMemoryPathStorage() (PathDB, error) {
+	log.Info("Creating in-memory PathDB", "backend", BackendSqlite)
+	// Use timestamp to create unique database name for each instance
+	dbName := fmt.Sprintf("in_memory_path_db_%d", time.Now().UnixNano())
+	db, err := sqlitepathdb.New(dbName, &db.SqliteConfig{
+		InMemory:         true,
+		MaxOpenReadConns: 1,
+		MaxIdleReadConns: 1,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Start a periodic task that cleans up the expired path segments.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
+	cleaner := periodic.Start(
+		cleaner.New(
+			func(ctx context.Context) (int, error) {
+				checkpoint(ctx, db.DB())
+				return db.DeleteExpired(ctx, time.Now())
+			},
+			"control_pathstorage_cleaner",
+		),
+		30*time.Second,
+		30*time.Second,
+	)
+	return pathDBWithCleaner{
+		DB:       db,
+		cleaner:  cleaner,
+		dbCloser: db,
+	}, nil
+}
+
 // pathDBWithCleaner implements the path DB interface and stops both the
 // database and the cleanup task on Close.
 type pathDBWithCleaner struct {

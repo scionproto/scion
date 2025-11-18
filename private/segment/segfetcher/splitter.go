@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -45,6 +46,28 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 
 	src := s.LocalIA
 	srcCore := s.Core
+
+	if s.Inspector == nil { // In case inspector is not set, fall back to basic splitting
+		reqs := Requests{}
+		if !srcCore {
+			reqs = append(reqs, Requests{{Src: src, Dst: toWildCard(src), SegType: Up},
+				{Src: toWildCard(src), Dst: toWildCard(dst), SegType: Core},
+				{Src: toWildCard(dst), Dst: dst, SegType: Core},
+				{Src: toWildCard(dst), Dst: dst, SegType: Down}}...)
+			if src.ISD() == dst.ISD() && dst.IsWildcard() {
+				reqs = append(reqs, Requests{{Src: src, Dst: dst, SegType: Up}}...)
+			}
+			return reqs, nil
+		} else {
+			return Requests{
+				{Src: src, Dst: dst, SegType: Down},
+				{Src: src, Dst: dst, SegType: Core},
+				{Src: src, Dst: toWildCard(dst), SegType: Core},
+				{Src: toWildCard(dst), Dst: dst, SegType: Down},
+			}, nil
+		}
+	}
+
 	singleCore, dstCore, err := s.inspect(ctx, src, dst)
 	if err != nil {
 		return nil, err
@@ -86,6 +109,10 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 
 func (s *MultiSegmentSplitter) inspect(ctx context.Context,
 	src, dst addr.IA) (addr.IA, bool, error) {
+
+	if s.Inspector == nil {
+		return 0, false, serrors.New("inspector is nil, cannot inspect ASes")
+	}
 
 	if src.ISD() != dst.ISD() {
 		isCore, err := s.isCore(ctx, dst)
