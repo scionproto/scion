@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1757,20 +1756,20 @@ func assertPktEqual(t *testing.T, expected, actual *router.Packet) {
 	assert.Equal(t, (*net.UDPAddr)(expected.RemoteAddr), (*net.UDPAddr)(actual.RemoteAddr))
 	expected.RemoteAddr = nil
 	actual.RemoteAddr = nil
-	if !assert.Equal(t, expected, actual) {
-		message := []string{"PATH INFORMATION INSIDE NON-EQUAL PACKETS:"}
+	if !assert.Equal(t, expected, actual) && !bytes.Equal(expected.RawPacket, actual.RawPacket) {
 		p := router.PathFromRawPacket(expected.RawPacket)
 		p = toDecoded(t, p)
 		b, err := json.MarshalIndent(p, "", "    ")
 		require.NoError(t, err)
-		message = append(message, fmt.Sprintf("EXPECTED PATH:\n%s", string(b)))
+		expectedPktDescription := string(b)
 
 		p = router.PathFromRawPacket(actual.RawPacket)
 		p = toDecoded(t, p)
 		b, err = json.MarshalIndent(p, "", "    ")
 		require.NoError(t, err)
-		message = append(message, fmt.Sprintf("ACTUAL PATH:\n%s", string(b)))
-		t.Log(strings.Join(message, "\n"))
+		actualPktDescription := string(b)
+		require.JSONEq(t, expectedPktDescription, actualPktDescription,
+			"JSON description of the Packets.")
 	}
 }
 
