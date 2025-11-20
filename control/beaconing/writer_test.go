@@ -141,14 +141,12 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ any) (beacon.GroupedBeacons, error) {
+				func(_, _ any) ([]beacon.Beacon, []beacon.RegistrationPolicy, error) {
 					res := make([]beacon.Beacon, 0, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
 					}
-					return beacon.GroupedBeacons{
-						beacon.DefaultGroup: res,
-					}, nil
+					return res, nil, nil
 				})
 
 			var stored []*seg.Meta

@@ -23,10 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/control/beacon"
-	"github.com/scionproto/scion/control/beacon/mock_beacon"
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/segreg"
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -59,130 +57,6 @@ func MustParseSequence(t *testing.T, seq string) *pathpol.Sequence {
 	return sequence
 }
 
-func TestRetrieveGroupedBeacons(t *testing.T) {
-	mctrl := gomock.NewController(t)
-	g := graph.NewDefaultGraph(mctrl)
-
-	stub := graph.If_111_A_112_X
-	beacons := []beacon.Beacon{
-		testBeacon(g, graph.If_120_X_111_B, stub),
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
-		testBeacon(g, graph.If_130_B_120_A, graph.If_120_X_111_B, stub),
-	}
-
-	wildCardSeq := MustParseSequence(t, "0*")
-	twoHopsSeq := MustParseSequence(t, "0-0#0 0-0#0")
-	threeHopsSeq := MustParseSequence(t, "0-0#0 0-0#0 0-0#0")
-
-	type testCase struct {
-		Name        string
-		RegPolicies []beacon.RegistrationPolicy
-		Expected    beacon.GroupedBeacons
-	}
-
-	testCases := []testCase{
-		{
-			Name: "No policies",
-			Expected: beacon.GroupedBeacons{
-				beacon.DefaultGroup: beacons,
-			},
-		},
-		{
-			Name: "Empty policy",
-			RegPolicies: []beacon.RegistrationPolicy{
-				{
-					Name: "empty",
-					Matcher: beacon.RegistrationPolicyMatcher{
-						Sequence: wildCardSeq,
-					},
-				},
-			},
-			Expected: beacon.GroupedBeacons{
-				"empty": beacons,
-			},
-		},
-		{
-			Name: "Disjoint policies",
-			RegPolicies: []beacon.RegistrationPolicy{
-				{
-					Name: "twoHops",
-					Matcher: beacon.RegistrationPolicyMatcher{
-						Sequence: twoHopsSeq,
-					},
-				},
-				{
-					Name: "threeHops",
-					Matcher: beacon.RegistrationPolicyMatcher{
-						Sequence: threeHopsSeq,
-					},
-				},
-			},
-			Expected: beacon.GroupedBeacons{
-				"twoHops": []beacon.Beacon{
-					beacons[0],
-				},
-				"threeHops": []beacon.Beacon{
-					beacons[1],
-					beacons[2],
-				},
-			},
-		},
-		{
-			Name: "Overlapping policies",
-			RegPolicies: []beacon.RegistrationPolicy{
-				{
-					Name: "threeHops",
-					Matcher: beacon.RegistrationPolicyMatcher{
-						Sequence: threeHopsSeq,
-					},
-				},
-				{
-					Name: "all",
-					Matcher: beacon.RegistrationPolicyMatcher{
-						Sequence: wildCardSeq,
-					},
-				},
-			},
-			Expected: beacon.GroupedBeacons{
-				"threeHops": []beacon.Beacon{
-					beacons[1],
-					beacons[2],
-				},
-				"all": []beacon.Beacon{
-					beacons[0],
-				},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			ctx := t.Context()
-
-			// Create a mock database that returns the beacons.
-			db := mock_beacon.NewMockDB(mctrl)
-			db.EXPECT().CandidateBeacons(
-				gomock.Any(), gomock.Any(), gomock.Any(), addr.IA(0),
-			).Return(
-				beacons, nil,
-			)
-
-			policies := beacon.Policies{
-				UpReg: beacon.Policy{
-					RegistrationPolicies: tc.RegPolicies,
-				},
-			}
-			store, err := beacon.NewBeaconStore(policies, db)
-			require.NoError(t, err)
-
-			beacons, err := store.SegmentsToRegister(ctx, seg.TypeUp)
-			require.NoError(t, err)
-
-			require.Equal(t, tc.Expected, beacons)
-		})
-	}
-}
-
 func TestGroupWriter(t *testing.T) {
 	mctrl := gomock.NewController(t)
 	g := graph.NewDefaultGraph(mctrl)
@@ -197,40 +71,45 @@ func TestGroupWriter(t *testing.T) {
 	testReg1 := &testRegistrar{}
 	testReg2 := &testRegistrar{}
 
-	type testCase struct {
-		Name       string
-		Input      beacon.GroupedBeacons
-		Registrars map[string]*testRegistrar
+	twoHopsSeq := MustParseSequence(t, "0-0#0 0-0#0")
+	threeHopsSeq := MustParseSequence(t, "0-0#0 0-0#0 0-0#0")
 
-		Expected map[string][]beacon.Beacon
+	type testCase struct {
+		Name                 string
+		Input                []beacon.Beacon
+		RegistrationPolicies []beacon.RegistrationPolicy
+		Registrars           map[string]*testRegistrar
+		Expected             map[string][]beacon.Beacon
 	}
 
 	testCases := []testCase{
 		{
-			Name: "Basic",
-			Input: beacon.GroupedBeacons{
-				"all": []beacon.Beacon{
-					beacons[0],
-					beacons[1],
-					beacons[2],
+			Name:  "Grouped by policy",
+			Input: beacons,
+			RegistrationPolicies: []beacon.RegistrationPolicy{
+				{
+					Name: "twoHops",
+					Matcher: beacon.RegistrationPolicyMatcher{
+						Sequence: twoHopsSeq,
+					},
 				},
-				"some": []beacon.Beacon{
-					beacons[0],
-					beacons[2],
+				{
+					Name: "threeHops",
+					Matcher: beacon.RegistrationPolicyMatcher{
+						Sequence: threeHopsSeq,
+					},
 				},
 			},
 			Registrars: map[string]*testRegistrar{
-				"all":  testReg1,
-				"some": testReg2,
+				"twoHops":   testReg1,
+				"threeHops": testReg2,
 			},
 			Expected: map[string][]beacon.Beacon{
-				"all": {
+				"twoHops": {
 					beacons[0],
-					beacons[1],
-					beacons[2],
 				},
-				"some": {
-					beacons[0],
+				"threeHops": {
+					beacons[1],
 					beacons[2],
 				},
 			},
@@ -257,7 +136,7 @@ func TestGroupWriter(t *testing.T) {
 				Registrars: asRegistrars,
 			}
 
-			_, err := gw.Write(ctx, tc.Input, nil)
+			_, err := gw.Write(ctx, tc.Input, tc.RegistrationPolicies, nil)
 			require.NoError(t, err)
 
 			actual := make(map[string][]beacon.Beacon)
