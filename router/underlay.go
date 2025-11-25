@@ -60,7 +60,7 @@ type Link interface {
 	// Resolve finds and sets the packet's internal underlay destination for the given dst and port.
 	Resolve(p *Packet, dst addr.Host, port uint16) error
 	// Send queues the packet for sending over this link; discarding if the queue is full.
-	Send(p *Packet) bool
+	Send(p *Packet)
 	// SendBlocking queues the packet for sending over this link; blocking while the queue is full.
 	SendBlocking(p *Packet)
 }
@@ -69,11 +69,7 @@ type Link interface {
 //
 // For any given underlay, there are three kinds of Link implementations to choose from. The
 // difference between them is the intent regarding addressing.
-//
-// TODO(multi_underlay): The local internal address is explicitly a udpip underlay address as the
-// main router code as well as the entire end-host stack still assume that the internal network
-// underlay is always "udp/ip".
-type UnderlayProvider interface {
+type Underlay interface {
 
 	// SetConnOpener is a unit testing device: it allows the replacement of the function
 	// that opens new underlay connections. Underlay implementations can, at their
@@ -127,6 +123,7 @@ type UnderlayProvider interface {
 		bfd *bfd.Session,
 		local string,
 		remote string,
+		options string,
 		ifID uint16,
 		metrics *InterfaceMetrics,
 	) (Link, error)
@@ -140,6 +137,7 @@ type UnderlayProvider interface {
 		bfd *bfd.Session,
 		local string,
 		remote string,
+		options string,
 		metrics *InterfaceMetrics,
 	) (Link, error)
 
@@ -149,5 +147,7 @@ type UnderlayProvider interface {
 	NewInternalLink(localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error)
 }
 
-// NewProviderFn is a function that instantiates an underlay provider.
-type NewProviderFn func(batchSize, receiveBufferSize, sendBufferSize int) UnderlayProvider
+// ProviderFactory allows the instatiation of a provider.
+type UnderlayProvider interface {
+	New(batchSize, receiveBufferSize, sendBufferSize int) Underlay
+}
