@@ -15,6 +15,7 @@
 package topology_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/pkg/addr"
