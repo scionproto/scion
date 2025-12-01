@@ -14,6 +14,7 @@ Data Plane
    protocols/scmp
    protocols/authenticator-option
    protocols/bfd
+   protocols/hummingbird-header
    protocols/assigned-protocol-numbers
    protocols/stack
 
