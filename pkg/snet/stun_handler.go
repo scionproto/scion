@@ -3,6 +3,7 @@ package snet
 import (
 	"github.com/scionproto/scion/pkg/stun"
 	"net"
+	"syscall"
 	"time"
 )
 
@@ -11,7 +12,9 @@ const timeoutDuration = 5 * time.Minute
 // stunHandler is a wrapper around net.UDPConn that handles STUN requests.
 type stunHandler struct {
 	*net.UDPConn
-	recvChan     chan bufferedPacket
+	recvChan chan bufferedPacket
+	//queuedBytes    atomic.Int64
+	//maxQueuedBytes int64
 	recvStunChan chan []byte
 	mappings     map[*net.UDPAddr]*natMapping // TODO: necessary to protect with mutex?
 }
@@ -22,13 +25,27 @@ type bufferedPacket struct {
 	len  int
 }
 
-func newSTUNHandler(conn *net.UDPConn) *stunHandler {
+func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
+	// Get the receive buffer size
+	fd, err := conn.File()
+	if err != nil {
+		return nil, err
+	}
+	defer fd.Close()
+	rcvBufSize, err := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	if err != nil {
+		return nil, err
+	}
+	maxPacketAmount := rcvBufSize / 240
+
 	return &stunHandler{
-		UDPConn:      conn,
-		recvChan:     make(chan bufferedPacket, 100),
+		UDPConn:  conn,
+		recvChan: make(chan bufferedPacket, maxPacketAmount),
+		//queuedBytes:    atomic.Int64{},
+		//maxQueuedBytes: int64(rcvBufSize),
 		recvStunChan: make(chan []byte, 100),
 		mappings:     make(map[*net.UDPAddr]*natMapping),
-	}
+	}, nil
 }
 
 func (c *stunHandler) ReadFrom(b []byte) (int, net.Addr, error) {
@@ -65,7 +82,10 @@ func (c *stunHandler) readStunPacket() ([]byte, error) {
 			if stun.Is(buf[:n]) {
 				return buf[:n], nil
 			} else {
-				c.recvChan <- bufferedPacket{data: buf[:n], addr: addr, len: n}
+				select {
+				case c.recvChan <- bufferedPacket{data: buf[:n], addr: addr, len: n}:
+				default: // drop packet if recvChan is full
+				}
 			}
 		}
 	}
@@ -104,6 +124,12 @@ func (c *stunHandler) getMappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	txID := stun.NewTxID()
 	stunRequest := stun.Request(txID)
+
+	// Drain STUN channel since we are making a new STUN request
+	for len(c.recvStunChan) > 0 {
+		<-c.recvStunChan
+	}
+
 	_, err := c.WriteTo(stunRequest, dest)
 	if err != nil {
 		return nil, err
