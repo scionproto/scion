@@ -141,8 +141,6 @@ Examples:
 - Changes that are backwards compatible, such as adding a request or service
   to an API requires only an increment of the `api_version`.
 - Removing a request or service requires incrementing the `api_version_minimum`.
-  To maintain backward compatibility, this would probably also result in a
-  new `.proto` file.
 - The version could also be used to indicate non-grpc features, such as NAT support.
 
 
