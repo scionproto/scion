@@ -143,8 +143,8 @@ func printDMG(g *dmg) {
 
 			for _, segment := range segments {
 				e := edgeList[segment]
-				fmt.Printf(" %v--(%v, shortcut=%d, peer=%d)--> %v\n",
-					src.IA, segment.GetLoggingID(), e.Shortcut, e.Peer, dst.IA)
+				fmt.Printf(" --(%v, shortcut=%d, peer=%d)--> %v\n",
+					segment.GetLoggingID(), e.Shortcut, e.Peer, dst.IA)
 			}
 		}
 	}
@@ -415,15 +415,21 @@ type pathSolution struct {
 // Path builds the forwarding path with metadata by extracting it from a path
 // between source and destination in the DMG.
 func (solution *pathSolution) Path(hashState hashState) Path {
+	fmt.Println("PATH")
+
 	mtu := ^uint16(0)
 	var segments segmentList
 	var epicPathAuths [][]byte
 	for _, solEdge := range solution.edges {
+		fmt.Println(solEdge.src, solEdge.dst)
+		fmt.Println(solEdge.edge.Shortcut)
+
 		var hops []path.HopField
 		var intfs []snet.PathInterface
 		var pathASEntries []seg.ASEntry // ASEntries that on the path, eventually in path order.
 		var epicSegAuths [][]byte
 
+		// TODO: rephrase, this is a lie for core.
 		// Segments are in construction order, regardless of whether they're
 		// up or down segments. We traverse them FROM THE END. So, in reverse
 		// forwarding order for down segments and in forwarding order for
@@ -431,61 +437,120 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 		// We go through each ASEntry, starting from the last one until we
 		// find a shortcut (which can be 0, meaning the end of the segment).
 		asEntries := solEdge.segment.ASEntries
-		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
-			isShortcut := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Shortcut != 0
-			isPeer := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Peer != 0
-			asEntry := asEntries[asEntryIdx]
 
-			var hopField path.HopField
-			var epicAuth []byte
-			if !isPeer {
-				// Regular hop field.
-				entry := asEntry.HopEntry
-				hopField = path.HopField{
-					ExpTime:     entry.HopField.ExpTime,
-					ConsIngress: entry.HopField.ConsIngress,
-					ConsEgress:  entry.HopField.ConsEgress,
-					Mac:         entry.HopField.MAC,
-				}
-				// The Hop Entry's ingress MTU needs to be used to calculate the MTU for the
-				// segment. Except for the ingress MTU of segment's first HE that is used.
-				if entry.IngressMTU != 0 && !isShortcut {
-					mtu = min(mtu, uint16(entry.IngressMTU))
-				}
-				epicAuth = getAuth(&asEntry)
-			} else {
-				// We've reached the ASEntry where we want to switch
-				// segments on a peering link.
-				peer := asEntry.PeerEntries[solEdge.edge.Peer-1]
-				hopField = path.HopField{
-					ExpTime:     peer.HopField.ExpTime,
-					ConsIngress: peer.HopField.ConsIngress,
-					ConsEgress:  peer.HopField.ConsEgress,
-					Mac:         peer.HopField.MAC,
-				}
-				mtu = min(mtu, uint16(peer.PeerMTU))
-				epicAuth = getAuthPeer(&asEntry, solEdge.edge.Peer-1)
-			}
+		isCoreWithShortcut := solEdge.segment.Type == proto.PathSegType_core && solEdge.edge.Peer != 0
 
-			// Segment is traversed in reverse construction direction.
-			// Only include non-zero interfaces.
-			if hopField.ConsEgress != 0 {
-				intfs = append(intfs, snet.PathInterface{
-					IA: asEntry.Local,
-					ID: iface.ID(hopField.ConsEgress),
-				})
+		if !isCoreWithShortcut {
+			for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
+				isShortcut := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Shortcut != 0
+				isPeer := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Peer != 0
+				fmt.Println("isShortcut", isShortcut, "isPeer", isPeer)
+				asEntry := asEntries[asEntryIdx]
+
+				var hopField path.HopField
+				var epicAuth []byte
+				if !isPeer {
+					// Regular hop field.
+					entry := asEntry.HopEntry
+					hopField = path.HopField{
+						ExpTime:     entry.HopField.ExpTime,
+						ConsIngress: entry.HopField.ConsIngress,
+						ConsEgress:  entry.HopField.ConsEgress,
+						Mac:         entry.HopField.MAC,
+					}
+					// The Hop Entry's ingress MTU needs to be used to calculate the MTU for the
+					// segment. Except for the ingress MTU of segment's first HE that is used.
+					if entry.IngressMTU != 0 && !isShortcut {
+						mtu = min(mtu, uint16(entry.IngressMTU))
+					}
+					epicAuth = getAuth(&asEntry)
+				} else {
+					// We've reached the ASEntry where we want to switch
+					// segments on a peering link.
+					peer := asEntry.PeerEntries[solEdge.edge.Peer-1]
+					hopField = path.HopField{
+						ExpTime:     peer.HopField.ExpTime,
+						ConsIngress: peer.HopField.ConsIngress,
+						ConsEgress:  peer.HopField.ConsEgress,
+						Mac:         peer.HopField.MAC,
+					}
+					mtu = min(mtu, uint16(peer.PeerMTU))
+					epicAuth = getAuthPeer(&asEntry, solEdge.edge.Peer-1)
+				}
+
+				// Segment is traversed in reverse construction direction.
+				// Only include non-zero interfaces.
+				if hopField.ConsEgress != 0 {
+					intfs = append(intfs, snet.PathInterface{
+						IA: asEntry.Local,
+						ID: iface.ID(hopField.ConsEgress),
+					})
+				}
+				// In a non-peer shortcut the AS is not traversed completely.
+				if hopField.ConsIngress != 0 && (!isShortcut || isPeer) {
+					intfs = append(intfs, snet.PathInterface{
+						IA: asEntry.Local,
+						ID: iface.ID(hopField.ConsIngress),
+					})
+				}
+				hops = append(hops, hopField)
+				fmt.Println("non core", intfs)
+				pathASEntries = append(pathASEntries, asEntry)
+				epicSegAuths = append(epicSegAuths, epicAuth)
+				mtu = min(mtu, uint16(asEntry.MTU))
 			}
-			// In a non-peer shortcut the AS is not traversed completely.
-			if hopField.ConsIngress != 0 && (!isShortcut || isPeer) {
-				intfs = append(intfs, snet.PathInterface{
-					IA: asEntry.Local,
-					ID: iface.ID(hopField.ConsIngress),
-				})
+		} else {
+			for asEntryIdx := solEdge.edge.Shortcut; asEntryIdx >= 0; asEntryIdx-- {
+				// TODO
+				isShortcut := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Shortcut != 0
+				isPeer := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Peer != 0
+				fmt.Println("isShortcut", isShortcut, "isPeer", isPeer)
+				asEntry := asEntries[asEntryIdx]
+
+				var hopField path.HopField
+				var epicAuth []byte
+				if !isPeer {
+					// Regular hop field.
+					entry := asEntry.HopEntry
+					hopField = path.HopField{
+						ExpTime:     entry.HopField.ExpTime,
+						ConsIngress: entry.HopField.ConsIngress,
+						ConsEgress:  entry.HopField.ConsEgress,
+						Mac:         entry.HopField.MAC,
+					}
+					// The Hop Entry's ingress MTU needs to be used to calculate the MTU for the
+					// segment. Except for the ingress MTU of segment's first HE that is used.
+					if entry.IngressMTU != 0 && !isShortcut {
+						mtu = min(mtu, uint16(entry.IngressMTU))
+					}
+					epicAuth = getAuth(&asEntry)
+				} else {
+					// We've reached the ASEntry where we want to switch
+					// segments on a peering link.
+					peer := asEntry.PeerEntries[solEdge.edge.Peer-1]
+					hopField = path.HopField{
+						ExpTime:     peer.HopField.ExpTime,
+						ConsIngress: peer.HopField.ConsIngress,
+						ConsEgress:  peer.HopField.ConsEgress,
+						Mac:         peer.HopField.MAC,
+					}
+					mtu = min(mtu, uint16(peer.PeerMTU))
+					epicAuth = getAuthPeer(&asEntry, solEdge.edge.Peer-1)
+				}
+
+				// In a non-peer shortcut the AS is not traversed completely.
+				if hopField.ConsIngress != 0 {
+					intfs = append(intfs, snet.PathInterface{
+						IA: asEntry.Local,
+						ID: iface.ID(hopField.ConsIngress),
+					})
+				}
+				hops = append(hops, hopField)
+				fmt.Println("core", intfs)
+				pathASEntries = append(pathASEntries, asEntry)
+				epicSegAuths = append(epicSegAuths, epicAuth)
+				mtu = min(mtu, uint16(asEntry.MTU))
 			}
-			hops = append(hops, hopField)
-			pathASEntries = append(pathASEntries, asEntry)
-			epicSegAuths = append(epicSegAuths, epicAuth)
-			mtu = min(mtu, uint16(asEntry.MTU))
 		}
 
 		// Put the hops in forwarding order. Needed for down segments
@@ -509,11 +574,14 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 			Interfaces: intfs,
 			ASEntries:  pathASEntries,
 		})
+		fmt.Println("hops:", len(intfs))
 		epicPathAuths = append(epicPathAuths, epicSegAuths...)
 	}
+	fmt.Println("segments:", len(segments))
 
 	interfaces := segments.Interfaces()
 	asEntries := segments.ASEntries()
+	fmt.Println(interfaces)
 	staticInfo := collectMetadata(interfaces, asEntries)
 
 	path := Path{

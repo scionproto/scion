@@ -61,6 +61,7 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment,
 	findAllIdentical bool) []Path {
 
 	g := newDMG(ups, cores, downs)
+	printDMG(g)
 	solutions := g.GetPaths(vertexFromIA(src), vertexFromIA(dst))
 
 	paths := make([]Path, len(solutions))
