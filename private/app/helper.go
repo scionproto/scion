@@ -16,6 +16,7 @@ package app
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -105,4 +106,13 @@ func (c *Cleanup) Do() error {
 		}
 	}
 	return errs.ToError()
+}
+
+// ReadFileOrStdin reads the content of a file or stdin if the path is "-".
+// It returns the content as a byte slice.
+func ReadFileOrStdin(path string) ([]byte, error) {
+	if path == "-" {
+		return io.ReadAll(os.Stdin)
+	}
+	return os.ReadFile(path)
 }
