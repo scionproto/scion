@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"slices"
 	"time"
@@ -100,6 +101,56 @@ func newDMG(ups, cores, downs []*seg.PathSegment) *dmg {
 	return g
 }
 
+func printDMG(g *dmg) {
+	var srcs []vertex
+	for src := range g.Adjacencies {
+		srcs = append(srcs, src)
+	}
+	slices.SortFunc(srcs, func(a, b vertex) int {
+		return cmp.Or(
+			cmp.Compare(a.IA, b.IA),
+			cmp.Compare(a.UpIA, b.UpIA),
+			cmp.Compare(a.DownIA, b.DownIA),
+		)
+	})
+
+	for _, src := range srcs {
+		neighbors := g.Adjacencies[src]
+		fmt.Printf("%v Up %v#%v Down %v#%v\n", src.IA, src.UpIA, src.UpIfID, src.DownIA, src.DownIfID)
+
+		var dsts []vertex
+		for dst := range neighbors {
+			dsts = append(dsts, dst)
+		}
+		slices.SortFunc(dsts, func(a, b vertex) int {
+			return cmp.Or(
+				cmp.Compare(a.IA, b.IA),
+				cmp.Compare(a.UpIA, b.UpIA),
+				cmp.Compare(a.DownIA, b.DownIA),
+			)
+		})
+
+		for _, dst := range dsts {
+			edgeList := neighbors[dst]
+
+			var segments []*inputSegment
+			for segment := range edgeList {
+				segments = append(segments, segment)
+			}
+			slices.SortFunc(segments, func(a, b *inputSegment) int {
+				return bytes.Compare(a.ID(), b.ID())
+			})
+
+			for _, segment := range segments {
+				e := edgeList[segment]
+				fmt.Printf(" %v--(%v, shortcut=%d, peer=%d)--> %v\n",
+					src.IA, segment.GetLoggingID(), e.Shortcut, e.Peer, dst.IA)
+			}
+		}
+	}
+
+}
+
 func (g *dmg) traverseSegment(segment *inputSegment) {
 	asEntries := segment.ASEntries
 
@@ -112,6 +163,29 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 			segment,
 			&edge{Weight: len(asEntries) - 1},
 		)
+		type Tuple struct {
+			Src, Dst vertex
+			Peer     int
+		}
+
+		for peerEntryIdx, peer := range asEntries[0].PeerEntries {
+			ingress := iface.ID(peer.HopField.ConsIngress)
+			remote := iface.ID(peer.PeerInterface)
+
+			tuple := Tuple{
+				Src:  vertexFromPeering(peer.Peer, remote, asEntries[0].Local, ingress),
+				Dst:  vertexFromIA(asEntries[0].Local),
+				Peer: peerEntryIdx + 1,
+			}
+
+			g.AddEdge(tuple.Src, tuple.Dst, segment, &edge{
+				Weight:   1,
+				Shortcut: 0, // First hop
+				Peer:     tuple.Peer,
+			})
+
+		}
+
 		return
 	}
 
@@ -136,7 +210,7 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 		var tuples []Tuple
 		// This is the entry for our local AS; we're not interested in routing here,
 		// so we skip this entry.
-		if asEntryIndex != len(asEntries)-1 {
+		if asEntryIndex != len(asEntries)-1 && segment.Type != proto.PathSegType_core {
 			tuples = append(tuples, Tuple{
 				Src: vertexFromIA(pinnedIA),
 				Dst: vertexFromIA(currentIA),
@@ -146,11 +220,13 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 		for peerEntryIdx, peer := range asEntries[asEntryIndex].PeerEntries {
 			ingress := iface.ID(peer.HopField.ConsIngress)
 			remote := iface.ID(peer.PeerInterface)
+
 			tuples = append(tuples, Tuple{
 				Src:  vertexFromIA(pinnedIA),
-				Dst:  vertexFromPeering(currentIA, ingress, peer.Peer, remote),
+				Dst:  vertexFromPeering(currentIA, ingress, peer.Peer, remote), // <-----
 				Peer: peerEntryIdx + 1,
 			})
+
 		}
 
 		for _, tuple := range tuples {
