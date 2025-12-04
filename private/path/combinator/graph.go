@@ -156,7 +156,7 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 
 	// Directly process core segments, because we're not interested in
 	// shortcuts. Add edge from last entry IA to first entry IA.
-	if segment.Type == proto.PathSegType_core {
+	if segment.Type == proto.PathSegType_core && false {
 		g.AddEdge(
 			vertexFromIA(asEntries[len(asEntries)-1].Local),
 			vertexFromIA(asEntries[0].Local),
@@ -185,7 +185,6 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 			})
 
 		}
-
 		return
 	}
 
@@ -210,7 +209,9 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 		var tuples []Tuple
 		// This is the entry for our local AS; we're not interested in routing here,
 		// so we skip this entry.
-		if asEntryIndex != len(asEntries)-1 && segment.Type != proto.PathSegType_core {
+
+		if (segment.Type != proto.PathSegType_core && (asEntryIndex != len(asEntries)-1)) ||
+			(segment.Type == proto.PathSegType_core && asEntryIndex == 0) {
 			tuples = append(tuples, Tuple{
 				Src: vertexFromIA(pinnedIA),
 				Dst: vertexFromIA(currentIA),
@@ -226,6 +227,13 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 				Dst:  vertexFromPeering(currentIA, ingress, peer.Peer, remote), // <-----
 				Peer: peerEntryIdx + 1,
 			})
+			if segment.Type == proto.PathSegType_core {
+				tuples = append(tuples, Tuple{
+					Src:  vertexFromPeering(currentIA, ingress, peer.Peer, remote).Reverse(),
+					Dst:  vertexFromIA(asEntries[0].Local), // <-----
+					Peer: peerEntryIdx + 1,
+				})
+			}
 
 		}
 
@@ -420,7 +428,7 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 	mtu := ^uint16(0)
 	var segments segmentList
 	var epicPathAuths [][]byte
-	for _, solEdge := range solution.edges {
+	for i, solEdge := range solution.edges {
 		fmt.Println(solEdge.src, solEdge.dst)
 		fmt.Println(solEdge.edge.Shortcut)
 
@@ -438,7 +446,7 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 		// find a shortcut (which can be 0, meaning the end of the segment).
 		asEntries := solEdge.segment.ASEntries
 
-		isCoreWithShortcut := solEdge.segment.Type == proto.PathSegType_core && solEdge.edge.Peer != 0
+		isCoreWithShortcut := solEdge.segment.Type == proto.PathSegType_core && solEdge.edge.Peer != 0 && i != 0
 
 		if !isCoreWithShortcut {
 			for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
