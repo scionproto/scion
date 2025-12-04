@@ -446,9 +446,9 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 		// find a shortcut (which can be 0, meaning the end of the segment).
 		asEntries := solEdge.segment.ASEntries
 
-		isCoreWithShortcut := solEdge.segment.Type == proto.PathSegType_core && solEdge.edge.Peer != 0 && i != 0
+		isCoreWithPeer := solEdge.segment.Type == proto.PathSegType_core && solEdge.edge.Peer != 0 && i != 0
 
-		if !isCoreWithShortcut {
+		if !isCoreWithPeer {
 			for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
 				isShortcut := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Shortcut != 0
 				isPeer := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Peer != 0
@@ -574,7 +574,7 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 		segments = append(segments, segment{
 			InfoField: path.InfoField{
 				Timestamp: util.TimeToSecs(solEdge.segment.Info.Timestamp),
-				SegID:     calculateBeta(solEdge),
+				SegID:     calculateBeta(solEdge, i),
 				ConsDir:   solEdge.segment.IsDownSeg(),
 				Peer:      solEdge.edge.Peer != 0,
 			},
@@ -653,7 +653,7 @@ func isEpicAvailable(epicPathAuths [][]byte) ([]byte, []byte, bool) {
 	return epicPathAuths[l-2], epicPathAuths[l-1], true
 }
 
-func calculateBeta(se *solutionEdge) uint16 {
+func calculateBeta(se *solutionEdge, seIdx int) uint16 {
 	// If this is a peer hop, we need to set beta[i] = beta[i+1]. That is, the SegID
 	// accumulator must correspond to the next (in construction order) hop.
 	//
@@ -672,6 +672,8 @@ func calculateBeta(se *solutionEdge) uint16 {
 		if se.edge.Peer != 0 {
 			index++
 		}
+	} else if se.segment.Type == proto.PathSegType_core && seIdx != 0 && se.edge.Peer != 0 {
+		index = se.edge.Shortcut + 1
 	} else {
 		index = len(se.segment.ASEntries) - 1
 		if index == se.edge.Shortcut && se.edge.Peer != 0 {
