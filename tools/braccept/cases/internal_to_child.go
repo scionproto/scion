@@ -148,6 +148,8 @@ func InternalHostToChild(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:     "InternalHostToChild",
 		WriteTo:  "veth_int_host",
 		ReadFrom: "veth_141_host",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "InternalHostToChild"),
@@ -274,6 +276,8 @@ func InternalParentToChild(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:     "InternalParentToChild",
 		WriteTo:  "veth_int_host",
 		ReadFrom: "veth_141_host",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "InternalParentToChild"),
@@ -379,6 +383,8 @@ func InvalidSrcInternalParentToChild(artifactsDir string, mac hash.Hash) runner.
 		Name:     "InvalidSrcInternalParentToChild",
 		WriteTo:  "veth_int_host",
 		ReadFrom: "no_pkt_expected",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     nil,
 		StoreDir: filepath.Join(artifactsDir, "InvalidSrcInternalParentToChild"),
