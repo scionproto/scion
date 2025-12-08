@@ -13,11 +13,12 @@ const timeoutDuration = 5 * time.Minute
 // stunHandler is a wrapper around net.UDPConn that handles STUN requests.
 type stunHandler struct {
 	*net.UDPConn
-	recvChan       chan bufferedPacket
-	queuedBytes    atomic.Int64
-	maxQueuedBytes int64
-	recvStunChan   chan []byte
-	mappings       map[*net.UDPAddr]*natMapping // TODO: necessary to protect with mutex?
+	recvChan             chan bufferedPacket
+	queuedBytes          atomic.Int64
+	maxQueuedBytes       int64
+	recvStunChan         chan []byte
+	mappings             map[*net.UDPAddr]*natMapping // TODO: necessary to protect with mutex?
+	retransmissionTimers map[*net.UDPAddr]*retransmissionTimer
 }
 
 type bufferedPacket struct {
@@ -40,12 +41,13 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 	maxPacketAmount := rcvBufSize / 64 // assuming lower bound of per packet metadata of 64 bytes
 
 	return &stunHandler{
-		UDPConn:        conn,
-		recvChan:       make(chan bufferedPacket, maxPacketAmount),
-		queuedBytes:    atomic.Int64{},
-		maxQueuedBytes: int64(rcvBufSize),
-		recvStunChan:   make(chan []byte, 100),
-		mappings:       make(map[*net.UDPAddr]*natMapping),
+		UDPConn:              conn,
+		recvChan:             make(chan bufferedPacket, maxPacketAmount),
+		queuedBytes:          atomic.Int64{},
+		maxQueuedBytes:       int64(rcvBufSize),
+		recvStunChan:         make(chan []byte, 100),
+		mappings:             make(map[*net.UDPAddr]*natMapping),
+		retransmissionTimers: make(map[*net.UDPAddr]*retransmissionTimer),
 	}, nil
 }
 
@@ -140,6 +142,15 @@ func (c *stunHandler) getMappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 	return mapping.mappedAddr, nil
 }
 
+type retransmissionTimer struct {
+	// See RFC 6298 for details on these fields
+	srtt   time.Duration
+	rttvar time.Duration
+	rto    time.Duration
+
+	lastUsed time.Time
+}
+
 // TODO: handle resending requests on timeout
 func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	txID := stun.NewTxID()
@@ -149,6 +160,22 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	for len(c.recvStunChan) > 0 {
 		<-c.recvStunChan
 	}
+
+	if c.retransmissionTimers[dest] == nil {
+		c.retransmissionTimers[dest] = &retransmissionTimer{
+			srtt:     0,
+			rttvar:   0,
+			rto:      500 * time.Millisecond, // RFC8489 Section 6.2.1
+			lastUsed: time.Now(),
+		}
+	}
+
+	retransmissionTimer := c.retransmissionTimers[dest]
+	if time.Since(retransmissionTimer.lastUsed) > 10*time.Minute {
+		retransmissionTimer.rto = 500 * time.Millisecond
+	}
+
+	startTime := time.Now()
 
 	_, err := c.WriteTo(stunRequest, dest)
 	if err != nil {
@@ -168,6 +195,28 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 		if txID != responseTxID {
 			continue
 		}
+
+		endTime := time.Now()
+		rtt := endTime.Sub(startTime)
+
+		// Update retransmission timer based on measured RTT, see RFC 6298
+		if retransmissionTimer.srtt == 0 {
+			retransmissionTimer.srtt = rtt
+			retransmissionTimer.rttvar = rtt / 2
+		} else {
+			srttDiff := retransmissionTimer.srtt - rtt
+			if srttDiff < 0 {
+				srttDiff = -srttDiff
+			}
+			retransmissionTimer.rttvar = (3*retransmissionTimer.rttvar + srttDiff) / 4
+			retransmissionTimer.srtt = (7*retransmissionTimer.srtt + rtt) / 8
+		}
+		maxTerm := retransmissionTimer.rttvar * 4
+		if maxTerm < time.Millisecond {
+			maxTerm = time.Millisecond
+		}
+		retransmissionTimer.rto = retransmissionTimer.srtt + maxTerm
+		retransmissionTimer.lastUsed = time.Now()
 
 		mappedAddr, err := net.ResolveUDPAddr("udp", mappedAddress.String())
 		if err != nil {
