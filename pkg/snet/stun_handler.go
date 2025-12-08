@@ -3,6 +3,7 @@ package snet
 import (
 	"github.com/scionproto/scion/pkg/stun"
 	"net"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -12,11 +13,11 @@ const timeoutDuration = 5 * time.Minute
 // stunHandler is a wrapper around net.UDPConn that handles STUN requests.
 type stunHandler struct {
 	*net.UDPConn
-	recvChan chan bufferedPacket
-	//queuedBytes    atomic.Int64
-	//maxQueuedBytes int64
-	recvStunChan chan []byte
-	mappings     map[*net.UDPAddr]*natMapping // TODO: necessary to protect with mutex?
+	recvChan       chan bufferedPacket
+	queuedBytes    atomic.Int64
+	maxQueuedBytes int64
+	recvStunChan   chan []byte
+	mappings       map[*net.UDPAddr]*natMapping // TODO: necessary to protect with mutex?
 }
 
 type bufferedPacket struct {
@@ -36,44 +37,66 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 	if err != nil {
 		return nil, err
 	}
-	maxPacketAmount := rcvBufSize / 240
+	maxPacketAmount := rcvBufSize / 200 // assuming lower bound of per packet metadata of 200 bytes
 
 	return &stunHandler{
-		UDPConn:  conn,
-		recvChan: make(chan bufferedPacket, maxPacketAmount),
-		//queuedBytes:    atomic.Int64{},
-		//maxQueuedBytes: int64(rcvBufSize),
-		recvStunChan: make(chan []byte, 100),
-		mappings:     make(map[*net.UDPAddr]*natMapping),
+		UDPConn:        conn,
+		recvChan:       make(chan bufferedPacket, maxPacketAmount),
+		queuedBytes:    atomic.Int64{},
+		maxQueuedBytes: int64(rcvBufSize),
+		recvStunChan:   make(chan []byte, 100),
+		mappings:       make(map[*net.UDPAddr]*natMapping),
 	}, nil
+}
+
+func (c *stunHandler) queuePacket(pkt bufferedPacket) bool {
+	if c.queuedBytes.Load()+int64(len(pkt.data)) > c.maxQueuedBytes {
+		return false
+	}
+	select {
+	case c.recvChan <- pkt:
+		c.queuedBytes.Add(int64(len(pkt.data)))
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *stunHandler) dequeuePacket() (bufferedPacket, bool) {
+	select {
+	case pkt := <-c.recvChan:
+		c.queuedBytes.Add(-int64(len(pkt.data)))
+		return pkt, true
+	default:
+		return bufferedPacket{}, false
+	}
 }
 
 func (c *stunHandler) ReadFrom(b []byte) (int, net.Addr, error) {
 	for {
-		select {
-		case pkt := <-c.recvChan:
-			b = pkt.data
+		pkt, ok := c.dequeuePacket()
+		if ok {
+			copy(b, pkt.data)
 			return pkt.len, pkt.addr, nil
-		default:
-			n, addr, err := c.UDPConn.ReadFrom(b)
-			if err != nil {
-				return n, addr, err
-			}
-			if stun.Is(b) {
-				c.recvStunChan <- b[:n]
-			} else {
-				return n, addr, nil
-			}
+		}
+		n, addr, err := c.UDPConn.ReadFrom(b)
+		if err != nil {
+			return n, addr, err
+		}
+		if stun.Is(b) {
+			c.recvStunChan <- b[:n]
+		} else {
+			return n, addr, nil
 		}
 	}
 }
 
 func (c *stunHandler) readStunPacket() ([]byte, error) {
-	select {
-	case pkt := <-c.recvStunChan:
-		return pkt, nil
-	default:
-		for {
+	for {
+		select {
+		case pkt := <-c.recvStunChan:
+			return pkt, nil
+		default:
 			buf := make([]byte, 1500)
 			n, addr, err := c.UDPConn.ReadFrom(buf)
 			if err != nil {
@@ -82,10 +105,7 @@ func (c *stunHandler) readStunPacket() ([]byte, error) {
 			if stun.Is(buf[:n]) {
 				return buf[:n], nil
 			} else {
-				select {
-				case c.recvChan <- bufferedPacket{data: buf[:n], addr: addr, len: n}:
-				default: // drop packet if recvChan is full
-				}
+				c.queuePacket(bufferedPacket{data: buf[:n], addr: addr, len: n})
 			}
 		}
 	}
