@@ -37,7 +37,7 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 	if err != nil {
 		return nil, err
 	}
-	maxPacketAmount := rcvBufSize / 200 // assuming lower bound of per packet metadata of 200 bytes
+	maxPacketAmount := rcvBufSize / 64 // assuming lower bound of per packet metadata of 64 bytes
 
 	return &stunHandler{
 		UDPConn:        conn,
