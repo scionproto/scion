@@ -1126,11 +1126,15 @@ func createBeaconStore(
 	switch {
 	case policies.CorePolicies != nil:
 		policies := policies.CorePolicies
-		store, err := beacon.NewCoreBeaconStore(*policies, db, beacon.WithCheckChain(provider))
+		store, err := beacon.NewCoreBeaconStore(*policies, db,
+			beacon.WithSelectionAlgorithm(beacon.NewChainsAvailableAlgo(provider, beacon.DefaultSelectionAlgorithm())),
+		)
 		return store, *policies.Prop.Filter.AllowIsdLoop, err
 	case policies.NonCorePolicies != nil:
 		policies := policies.NonCorePolicies
-		store, err := beacon.NewBeaconStore(*policies, db, beacon.WithCheckChain(provider))
+		store, err := beacon.NewBeaconStore(*policies, db,
+			beacon.WithSelectionAlgorithm(beacon.NewChainsAvailableAlgo(provider, beacon.DefaultSelectionAlgorithm())),
+		)
 		return store, *policies.Prop.Filter.AllowIsdLoop, err
 	default:
 		return nil, false, serrors.New("no policies loaded")

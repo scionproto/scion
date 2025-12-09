@@ -28,17 +28,18 @@ type usager interface {
 }
 
 type storeOptions struct {
-	chainChecker ChainProvider
+	chainChecker  ChainProvider
+	selectionAlgo SelectionAlgorithm
 }
 
 type StoreOption interface {
 	apply(o *storeOptions)
 }
 
-type chainCheckerOption struct{ ChainProvider }
+type applyFunc func(o *storeOptions)
 
-func (c chainCheckerOption) apply(o *storeOptions) {
-	o.chainChecker = c.ChainProvider
+func (f applyFunc) apply(o *storeOptions) {
+	f(o)
 }
 
 // WithCheckChain ensures that only beacons for which all the required
@@ -47,7 +48,17 @@ func (c chainCheckerOption) apply(o *storeOptions) {
 // beacons are verifiable with cryptographic material available in the local
 // trust store.
 func WithCheckChain(p ChainProvider) StoreOption {
-	return chainCheckerOption{p}
+	return applyFunc(func(o *storeOptions) {
+		o.chainChecker = p
+	})
+}
+
+// WithSelectionAlgorithm sets the selection algorithm used to select the best
+// beacons according to the configured policies.
+func WithSelectionAlgorithm(algo SelectionAlgorithm) StoreOption {
+	return applyFunc(func(o *storeOptions) {
+		o.selectionAlgo = algo
+	})
 }
 
 func applyStoreOptions(opts []StoreOption) storeOptions {
@@ -262,7 +273,7 @@ func (s *CoreStore) MaxExpTime(policyType PolicyType) uint8 {
 type baseStore struct {
 	db     DB
 	usager usager
-	algo   selectionAlgorithm
+	algo   SelectionAlgorithm
 }
 
 // PreFilter indicates whether the beacon will be filtered on insert by
@@ -289,9 +300,15 @@ func (s *baseStore) UpdatePolicy(ctx context.Context, policy Policy) error {
 	return serrors.New("policy update not supported")
 }
 
-func selectAlgo(o storeOptions) selectionAlgorithm {
-	if o.chainChecker != nil {
-		return newChainsAvailableAlgo(o.chainChecker)
+func selectAlgo(o storeOptions) SelectionAlgorithm {
+	var algo SelectionAlgorithm
+	if o.selectionAlgo != nil {
+		algo = o.selectionAlgo
+	} else {
+		algo = DefaultSelectionAlgorithm()
 	}
-	return baseAlgo{}
+	if o.chainChecker != nil {
+		return NewChainsAvailableAlgo(o.chainChecker, algo)
+	}
+	return algo
 }
