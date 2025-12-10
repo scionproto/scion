@@ -91,7 +91,9 @@ type chainsAvailableAlgo struct {
 
 // NewChainsAvailableAlgo creates a SelectionAlgorithm that filters beacons
 // based on the availability of their verification chains before passing them to
-// the provided selector.
+// the provided selector. This can be paired with a chain provider that only
+// returns locally available chains to ensure that beacons are verifiable with
+// cryptographic material available in the local trust store.
 func NewChainsAvailableAlgo(engine ChainProvider, selector SelectionAlgorithm) SelectionAlgorithm {
 	return chainsAvailableAlgo{
 		verifier: chainChecker{

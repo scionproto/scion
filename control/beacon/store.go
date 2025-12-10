@@ -28,7 +28,6 @@ type usager interface {
 }
 
 type storeOptions struct {
-	chainChecker  ChainProvider
 	selectionAlgo SelectionAlgorithm
 }
 
@@ -40,17 +39,6 @@ type applyFunc func(o *storeOptions)
 
 func (f applyFunc) apply(o *storeOptions) {
 	f(o)
-}
-
-// WithCheckChain ensures that only beacons for which all the required
-// certificate chains are available are returned. This can be paired with a
-// chain provider that only returns locally available chains to ensure that
-// beacons are verifiable with cryptographic material available in the local
-// trust store.
-func WithCheckChain(p ChainProvider) StoreOption {
-	return applyFunc(func(o *storeOptions) {
-		o.chainChecker = p
-	})
 }
 
 // WithSelectionAlgorithm sets the selection algorithm used to select the best
@@ -306,9 +294,6 @@ func selectAlgo(o storeOptions) SelectionAlgorithm {
 		algo = o.selectionAlgo
 	} else {
 		algo = DefaultSelectionAlgorithm()
-	}
-	if o.chainChecker != nil {
-		return NewChainsAvailableAlgo(o.chainChecker, algo)
 	}
 	return algo
 }
