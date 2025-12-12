@@ -30,6 +30,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/client"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
@@ -106,26 +107,45 @@ On other errors, traceroute will exit with code 2.
 			if err := envFlags.LoadExternalVars(); err != nil {
 				return err
 			}
-			daemonAddr := envFlags.Daemon()
-			localIP := net.IP(envFlags.Local().AsSlice())
-			log.Debug("Resolved SCION environment flags",
-				"daemon", daemonAddr,
-				"local", localIP,
-			)
 
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
 			span.SetTag("dst.host", remote.Host.IP())
 			defer span.Finish()
 
-			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
-			defer cancelF()
-			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
-			if err != nil {
-				return serrors.Wrap("connecting to SCION Daemon", err)
+			// Check if we should use a local daemon or connect to a remote one
+			var sd daemon.Connector
+			var sdClose func() error
+			topoFile := envFlags.Topology()
+			if topoFile != "" {
+				// Use local daemon with topology file
+				log.Debug("Using local daemon with topology file", "topology", topoFile)
+				localDaemon, err := client.NewLocalDaemon(traceCtx, topoFile)
+				if err != nil {
+					return serrors.Wrap("creating local daemon", err)
+				}
+				sd = localDaemon
+				sdClose = func() error { return nil } // No cleanup needed for local daemon
+			} else {
+				// Connect to remote daemon
+				daemonAddr := envFlags.Daemon()
+				log.Debug("Connecting to SCION daemon", "daemon", daemonAddr)
+
+				ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
+				defer cancelF()
+				remoteSd, err := daemon.NewService(daemonAddr).Connect(ctx)
+				if err != nil {
+					return serrors.Wrap("connecting to SCION Daemon", err)
+				}
+				sd = remoteSd
+				sdClose = remoteSd.Close
 			}
-			defer sd.Close()
-			topo, err := daemon.LoadTopology(ctx, sd)
+			defer sdClose()
+
+			localIP := net.IP(envFlags.Local().AsSlice())
+			log.Debug("Using local IP", "local", localIP)
+
+			topo, err := daemon.LoadTopology(traceCtx, sd)
 			if err != nil {
 				return serrors.Wrap("loading topology", err)
 			}
@@ -183,7 +203,7 @@ On other errors, traceroute will exit with code 2.
 				IA:   topo.LocalIA,
 				Host: addr.HostIP(asNetipAddr),
 			}
-			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
+			ctx := app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
 			var stats traceroute.Stats
 			var updates []traceroute.Update
 			cfg := traceroute.Config{

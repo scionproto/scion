@@ -11,7 +11,7 @@ gomock(
 go_library(
     name = "go_default_library",
     srcs = ["mock.go"],
-    importpath = "github.com/scionproto/scion/daemon/fetcher/mock_fetcher",
+    importpath = "github.com/scionproto/scion/pkg/daemon/fetcher/mock_fetcher",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/addr:go_default_library",

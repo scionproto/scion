@@ -21,7 +21,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/daemon/config"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
@@ -47,7 +46,6 @@ type Fetcher interface {
 
 type fetcher struct {
 	pather segfetcher.Pather
-	config config.SDConfig
 }
 
 type FetcherConfig struct {
@@ -62,9 +60,9 @@ type FetcherConfig struct {
 	PathDB    pathdb.DB
 	Inspector trust.Inspector
 
-	Verifier infra.Verifier
-	RevCache revcache.RevCache
-	Cfg      config.SDConfig
+	Verifier      infra.Verifier
+	RevCache      revcache.RevCache
+	QueryInterval time.Duration
 }
 
 func NewFetcher(cfg FetcherConfig) Fetcher {
@@ -75,7 +73,7 @@ func NewFetcher(cfg FetcherConfig) Fetcher {
 			NextHopper: cfg.NextHopper,
 			RevCache:   cfg.RevCache,
 			Fetcher: &segfetcher.Fetcher{
-				QueryInterval: cfg.Cfg.QueryInterval.Duration,
+				QueryInterval: cfg.QueryInterval,
 				PathDB:        cfg.PathDB,
 				Resolver: segfetcher.NewResolver(
 					cfg.PathDB,
@@ -101,7 +99,6 @@ func NewFetcher(cfg FetcherConfig) Fetcher {
 				Inspector: cfg.Inspector,
 			},
 		},
-		config: cfg.Cfg,
 	}
 }
 
