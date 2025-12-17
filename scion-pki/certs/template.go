@@ -33,7 +33,7 @@ func newTemplateCmd(_ command.Pather) *cobra.Command {
 		Short: "Create subject template from a certificate or CSR",
 		Long: `'template' creates a subject template from a certificate, certificate chain, or CSR.
 
-This command allows reconstructing the subject template that was used to cerate a certificate
+This command allows reconstructing the subject template that was used to create a certificate
 or a certificate signing request (CSR). It is not necessary to use this command to create a
 new certificate or CSR, as the template to the 'create' command can also be a certificate
 itself.
