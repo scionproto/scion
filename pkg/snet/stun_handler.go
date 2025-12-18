@@ -171,8 +171,12 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	}
 
 	retransmissionTimer := c.retransmissionTimers[dest]
+
+	// Reset timer if it hasn't been used for 10 minutes (RFC 8489 Section 6.2.1)
 	if time.Since(retransmissionTimer.lastUsed) > 10*time.Minute {
 		retransmissionTimer.rto = 500 * time.Millisecond
+		retransmissionTimer.srtt = 0
+		retransmissionTimer.rttvar = 0
 	}
 
 	startTime := time.Now()
