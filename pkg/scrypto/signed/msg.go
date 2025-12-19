@@ -81,7 +81,7 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 	if err != nil {
 		return nil, serrors.Wrap("packing header", err)
 	}
-	hdrAndBody := &cryptopb.HeaderAndBodyInternal{
+	hdrAndBody := &cryptopb.HeaderAndBody{
 		Header: rawHdr,
 		Body:   body,
 	}
@@ -205,7 +205,7 @@ func extractHeaderAndBody(signed *cryptopb.SignedMessage) (*Header, []byte, erro
 	if signed == nil {
 		return nil, nil, serrors.New("nil message")
 	}
-	var hdrAndBody cryptopb.HeaderAndBodyInternal
+	var hdrAndBody cryptopb.HeaderAndBody
 	if err := proto.Unmarshal(signed.HeaderAndBody, &hdrAndBody); err != nil {
 		return nil, nil, err
 	}
