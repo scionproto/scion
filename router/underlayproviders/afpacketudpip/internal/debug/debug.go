@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package afpacketudpip
+package debug
 
 import (
 	"fmt"
@@ -30,7 +30,8 @@ func DissectAndShow(data []byte, ctx string) {
 	b.WriteString(ctx)
 	b.WriteString(": [\n")
 	for _, k := range []string{
-		"ethernet", "ARP", "ipv4", "ipv6", "network", "UDP", "icmp6", "transport", "payload"} {
+		"ethernet", "ARP", "ipv4", "ipv6", "network", "UDP", "icmp6", "transport", "payload",
+	} {
 		if v := outcome[k]; v != "" {
 			b.WriteString(k)
 			b.WriteString(": [")

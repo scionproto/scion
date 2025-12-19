@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["debug.go"],
+    importpath = "github.com/scionproto/scion/router/underlayproviders/afpacketudpip/internal/debug",
+    visibility = ["//router/underlayproviders/afpacketudpip:__subpackages__"],
+    deps = [
+        "//pkg/log:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//layers:go_default_library",
+        "@org_uber_go_zap//:go_default_library",
+        "@org_uber_go_zap//zapcore:go_default_library",
+    ],
+)

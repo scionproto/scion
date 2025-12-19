@@ -4,7 +4,6 @@ go_library(
     name = "go_default_library",
     srcs = [
         "afpacketudpip.go",
-        "dbg.go",
         "internallink.go",
         "mmsg.go",
         "neighbors.go",
@@ -26,7 +25,5 @@ go_library(
         "@com_github_gopacket_gopacket//afpacket:go_default_library",
         "@com_github_gopacket_gopacket//layers:go_default_library",
         "@org_golang_x_sys//unix:go_default_library",
-        "@org_uber_go_zap//:go_default_library",
-        "@org_uber_go_zap//zapcore:go_default_library",
     ],
 )
