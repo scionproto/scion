@@ -1,8 +1,11 @@
 package snet
 
 import (
+	"context"
 	"github.com/scionproto/scion/pkg/stun"
+	"golang.org/x/sync/errgroup"
 	"net"
+	"net/netip"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -19,6 +22,7 @@ type stunHandler struct {
 	recvStunChan         chan []byte
 	mappings             map[*net.UDPAddr]*natMapping // TODO: necessary to protect with mutex?
 	retransmissionTimers map[*net.UDPAddr]*retransmissionTimer
+	writeDeadline        time.Time
 }
 
 type bufferedPacket struct {
@@ -48,6 +52,7 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 		recvStunChan:         make(chan []byte, 100),
 		mappings:             make(map[*net.UDPAddr]*natMapping),
 		retransmissionTimers: make(map[*net.UDPAddr]*retransmissionTimer),
+		writeDeadline:        time.Time{},
 	}, nil
 }
 
@@ -93,21 +98,26 @@ func (c *stunHandler) ReadFrom(b []byte) (int, net.Addr, error) {
 	}
 }
 
-func (c *stunHandler) readStunPacket() ([]byte, error) {
+func (c *stunHandler) readStunPacket(ctx context.Context) ([]byte, error) {
 	for {
 		select {
-		case pkt := <-c.recvStunChan:
-			return pkt, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		default:
-			buf := make([]byte, 1500)
-			n, addr, err := c.UDPConn.ReadFrom(buf)
-			if err != nil {
-				return nil, err
-			}
-			if stun.Is(buf[:n]) {
-				return buf[:n], nil
-			} else {
-				c.queuePacket(bufferedPacket{data: buf[:n], addr: addr, len: n})
+			select {
+			case pkt := <-c.recvStunChan:
+				return pkt, nil
+			default:
+				buf := make([]byte, 1500)
+				n, addr, err := c.UDPConn.ReadFrom(buf)
+				if err != nil {
+					return nil, err
+				}
+				if stun.Is(buf[:n]) {
+					return buf[:n], nil
+				} else {
+					c.queuePacket(bufferedPacket{data: buf[:n], addr: addr, len: n})
+				}
 			}
 		}
 	}
@@ -151,7 +161,6 @@ type retransmissionTimer struct {
 	lastUsed time.Time
 }
 
-// TODO: handle resending requests on timeout
 func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	txID := stun.NewTxID()
 	stunRequest := stun.Request(txID)
@@ -179,62 +188,127 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 		retransmissionTimer.rttvar = 0
 	}
 
-	startTime := time.Now()
+	isRetransmission := atomic.Bool{}
+	isRetransmission.Store(false)
 
-	_, err := c.WriteTo(stunRequest, dest)
-	if err != nil {
+	var ctx context.Context
+	var cancel context.CancelFunc
+
+	if c.writeDeadline.IsZero() {
+		ctx, cancel = context.WithCancel(context.Background())
+	} else {
+		ctx, cancel = context.WithDeadline(context.Background(), c.writeDeadline)
+	}
+	defer cancel()
+	g, ctx := errgroup.WithContext(ctx)
+
+	var mappedAddress netip.AddrPort
+
+	// values according to RFC 8489
+	// TODO: make configurable?
+	const Rc = 7
+	const Rm = 16
+
+	var startTime, endTime time.Time
+
+	// Sending goroutine
+	g.Go(func() error {
+		currentRTO := retransmissionTimer.rto
+		startTime = time.Now()
+		for i := 0; i < Rc; i++ {
+			_, err := c.WriteTo(stunRequest, dest)
+			if err != nil {
+				return err
+			}
+
+			if i == 1 {
+				isRetransmission.Store(true)
+			}
+
+			var waitDuration time.Duration
+			if i < Rc-1 {
+				waitDuration = currentRTO
+				currentRTO *= 2
+			} else {
+				waitDuration = Rm * retransmissionTimer.rto
+			}
+
+			select {
+			case <-time.After(waitDuration):
+				// Continue to next iteration or timeout
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		return context.DeadlineExceeded
+	})
+
+	// Receiving goroutine
+	g.Go(func() error {
+		for {
+			response, err := c.readStunPacket(ctx)
+			if err != nil {
+				return err
+			}
+			var responseTxID stun.TxID
+			responseTxID, mappedAddress, err = stun.ParseResponse(response)
+			if err != nil {
+				continue
+			}
+
+			if txID == responseTxID {
+				endTime = time.Now()
+				cancel()
+				return nil
+			}
+		}
+	})
+
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 
-	for {
-		response, err := c.readStunPacket()
-		if err != nil {
-			return nil, err
-		}
-		responseTxID, mappedAddress, err := stun.ParseResponse(response)
-		if err != nil {
-			continue
-		}
+	mappedAddr, err := net.ResolveUDPAddr("udp", mappedAddress.String())
+	if err != nil {
+		return nil, err
+	}
+	mapping := c.mappings[dest]
+	if mapping == nil {
+		mapping = &natMapping{destination: dest}
+		c.mappings[dest] = mapping
+	}
+	mapping.mappedAddr = mappedAddr
+	mapping.touch()
 
-		if txID != responseTxID {
-			continue
-		}
-
-		endTime := time.Now()
-		rtt := endTime.Sub(startTime)
-
-		// Update retransmission timer based on measured RTT, see RFC 6298
-		if retransmissionTimer.srtt == 0 {
-			retransmissionTimer.srtt = rtt
-			retransmissionTimer.rttvar = rtt / 2
-		} else {
-			srttDiff := retransmissionTimer.srtt - rtt
-			if srttDiff < 0 {
-				srttDiff = -srttDiff
-			}
-			retransmissionTimer.rttvar = (3*retransmissionTimer.rttvar + srttDiff) / 4
-			retransmissionTimer.srtt = (7*retransmissionTimer.srtt + rtt) / 8
-		}
-		maxTerm := retransmissionTimer.rttvar * 4
-		if maxTerm < time.Millisecond {
-			maxTerm = time.Millisecond
-		}
-		retransmissionTimer.rto = retransmissionTimer.srtt + maxTerm
-		retransmissionTimer.lastUsed = time.Now()
-
-		mappedAddr, err := net.ResolveUDPAddr("udp", mappedAddress.String())
-		if err != nil {
-			return nil, err
-		}
-
-		mapping := c.mappings[dest]
-		if mapping == nil {
-			mapping = &natMapping{destination: dest}
-			c.mappings[dest] = mapping
-		}
-		mapping.mappedAddr = mappedAddr
-		mapping.touch()
-
+	// Skip RTT calculation on retransmission or error
+	if isRetransmission.Load() || endTime.IsZero() {
 		return mapping, nil
 	}
+
+	// Update retransmission timer based on measured RTT, see RFC 6298
+	rtt := endTime.Sub(startTime)
+	if retransmissionTimer.srtt == 0 {
+		retransmissionTimer.srtt = rtt
+		retransmissionTimer.rttvar = rtt / 2
+	} else {
+		srttDiff := retransmissionTimer.srtt - rtt
+		if srttDiff < 0 {
+			srttDiff = -srttDiff
+		}
+		retransmissionTimer.rttvar = (3*retransmissionTimer.rttvar + srttDiff) / 4
+		retransmissionTimer.srtt = (7*retransmissionTimer.srtt + rtt) / 8
+	}
+	maxTerm := retransmissionTimer.rttvar * 4
+	if maxTerm < time.Millisecond {
+		maxTerm = time.Millisecond
+	}
+	retransmissionTimer.rto = retransmissionTimer.srtt + maxTerm
+	retransmissionTimer.lastUsed = time.Now()
+
+	return mapping, nil
+}
+
+func (c *stunHandler) SetWriteDeadline(t time.Time) error {
+	c.writeDeadline = t
+	return c.UDPConn.SetWriteDeadline(t)
 }
