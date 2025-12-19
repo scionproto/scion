@@ -75,7 +75,7 @@ To inspect the created asn.1 file you can use the openssl tool::
 					Bytes: raw,
 				})
 			}
-			if err := os.WriteFile(flags.out, raw, 0644); err != nil {
+			if err := os.WriteFile(flags.out, raw, 0o644); err != nil {
 				return serrors.Wrap("failed to write extracted payload", err)
 			}
 			fmt.Printf("Successfully extracted payload at %s\n", flags.out)
@@ -111,7 +111,8 @@ func newExtractCertificates(pather command.Pather) *cobra.Command {
 				}
 				typ, ok := certTypes[t]
 				if !ok {
-					return fmt.Errorf("unknown certificate type %q, valid types are: %s", t, strings.Join(getTypes(), ", "))
+					return fmt.Errorf("unknown certificate type %q, valid types are: %s",
+						t, strings.Join(getTypes(), ", "))
 				}
 				types[typ] = true
 			}
@@ -131,7 +132,8 @@ func newExtractCertificates(pather command.Pather) *cobra.Command {
 				return err
 			}
 			if flags.out != "" && flags.out != "-" {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Successfully extracted certificates at %s\n", flags.out)
+				fmt.Fprintf(cmd.ErrOrStderr(),
+					"Successfully extracted certificates at %s\n", flags.out)
 			}
 			return nil
 		},
@@ -139,12 +141,16 @@ func newExtractCertificates(pather command.Pather) *cobra.Command {
 
 	addOptionalOutputFlag(&flags.out, cmd)
 
-	cmd.Flags().StringSliceVar(&flags.ias, "subject.isd-as", nil, "Filter certificates by ISD-AS of the subject (e.g., 1-ff00:0:110)")
-	cmd.Flags().StringSliceVar(&flags.types, "type", nil, "Filter certificates by type ("+strings.Join(getTypes(), "|")+")")
+	cmd.Flags().StringSliceVar(&flags.ias, "subject.isd-as", nil,
+		"Filter certificates by ISD-AS of the subject (e.g., 1-ff00:0:110)")
+	cmd.Flags().StringSliceVar(&flags.types, "type", nil,
+		"Filter certificates by type ("+strings.Join(getTypes(), "|")+")")
 	return cmd
 }
 
-func runExtractCertificates(in, out string, types map[cppki.CertType]bool, ias map[addr.IA]bool) error {
+func runExtractCertificates(
+	in, out string, types map[cppki.CertType]bool, ias map[addr.IA]bool,
+) error {
 	signed, err := DecodeFromFile(in)
 	if err != nil {
 		return serrors.Wrap("failed to load signed TRC", err)
@@ -168,7 +174,8 @@ func runExtractCertificates(in, out string, types map[cppki.CertType]bool, ias m
 		{
 			ia, err := cppki.ExtractIA(cert.Subject)
 			if err != nil {
-				return fmt.Errorf("failed to extract ISD-AS from certificate %s: %w", cert.Subject.CommonName, err)
+				return fmt.Errorf("failed to extract ISD-AS from certificate %s: %w",
+					cert.Subject.CommonName, err)
 			}
 			if len(ias) > 0 && !ias[ia] {
 				continue
