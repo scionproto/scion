@@ -22,9 +22,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
-	"github.com/spf13/cobra"
 )
 
 func newTemplateCmd(_ command.Pather) *cobra.Command {
