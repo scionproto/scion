@@ -30,7 +30,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/daemon/client"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
@@ -120,11 +119,11 @@ On other errors, traceroute will exit with code 2.
 			if topoFile != "" {
 				// Use local daemon with topology file
 				log.Debug("Using local daemon with topology file", "topology", topoFile)
-				localDaemon, err := client.NewLocalDaemon(traceCtx, topoFile)
+				standalone, err := daemon.NewStandaloneService(traceCtx, topoFile)
 				if err != nil {
 					return serrors.Wrap("creating local daemon", err)
 				}
-				sd = localDaemon
+				sd = standalone
 				sdClose = func() error { return nil } // No cleanup needed for local daemon
 			} else {
 				// Connect to remote daemon

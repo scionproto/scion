@@ -22,11 +22,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/daemon/client"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/app"
@@ -108,11 +108,11 @@ On other errors, showpaths will exit with code 2.
 			if topoFile != "" {
 				// Use local daemon with topology file
 				log.Debug("Using local daemon with topology file", "topology", topoFile)
-				localDaemon, err := client.NewLocalDaemon(traceCtx, topoFile)
+				standalone, err := daemon.NewStandaloneService(traceCtx, topoFile)
 				if err != nil {
 					return serrors.Wrap("creating local daemon", err)
 				}
-				flags.cfg.Connector = localDaemon
+				flags.cfg.Connector = standalone
 			} else {
 				// Use remote daemon
 				flags.cfg.Daemon = envFlags.Daemon()
