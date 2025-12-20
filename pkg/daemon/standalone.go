@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package client
+package daemon
 
 import (
 	"context"
@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/server"
 	"github.com/scionproto/scion/pkg/log"
 	"golang.org/x/sync/errgroup"
@@ -66,7 +65,7 @@ func (v acceptAllVerifier) WithValidity(cppki.Validity) infra.Verifier {
 	return v
 }
 
-// NewLocalDaemon creates a daemon Connector that runs locally without a daemon process.
+// NewStandaloneService creates a daemon Connector that runs locally without a daemon process.
 // It loads the topology from the specified file and initializes all necessary components
 // for path lookups and AS information queries.
 //
@@ -75,7 +74,7 @@ func (v acceptAllVerifier) WithValidity(cppki.Validity) infra.Verifier {
 //
 // Note: This function starts background tasks (cleaner, TRC loader) that should be stopped
 // when done. The caller should handle cleanup appropriately, typically via context cancellation.
-func NewLocalDaemon(ctx context.Context, topoFile string) (daemon.Connector, error) {
+func NewStandaloneService(ctx context.Context, topoFile string) (Connector, error) {
 	if topoFile == "" {
 		return nil, serrors.New("topology file path is required")
 	}
