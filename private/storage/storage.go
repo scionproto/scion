@@ -298,6 +298,23 @@ func NewTrustStorage(c DBConfig) (TrustDB, error) {
 	return db, nil
 }
 
+func NewInMemoryTrustStorage() (TrustDB, error) {
+	log.Info("Creating in-memory TrustDB", "backend", BackendSqlite)
+	dbName := fmt.Sprintf("in_memory_trust_db_%d", time.Now().UnixNano())
+	db, err := sqlitetrustdb.New(
+		dbName,
+		&db.SqliteConfig{
+			MaxOpenReadConns: 1,
+			MaxIdleReadConns: 1,
+			InMemory:         true,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
 func NewDRKeySecretValueStorage(c DBConfig) (drkey.SecretValueDB, error) {
 	log.Info("Connecting DRKeySecretValueDB", "	", BackendSqlite, "connection", c.Connection)
 	db, err := sqlitesecret.NewBackend(

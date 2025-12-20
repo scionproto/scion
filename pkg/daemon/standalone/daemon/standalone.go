@@ -18,11 +18,18 @@ import (
 	"context"
 	"errors"
 	"net"
+	"path/filepath"
 	"time"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
+	daemon2 "github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/server"
 	"github.com/scionproto/scion/pkg/log"
+	truststoragemetrics "github.com/scionproto/scion/private/storage/trust/metrics"
+	"github.com/scionproto/scion/private/trust"
+	"github.com/scionproto/scion/private/trust/compat"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/resolver"
 
@@ -66,61 +73,75 @@ func (v acceptAllVerifier) WithValidity(cppki.Validity) infra.Verifier {
 	return v
 }
 
+type StandaloneOptions struct {
+	// either TopoFile or Topo must be set
+	TopoFile string
+	// either TopoFile or Topo must be set
+	Topo *topology.Loader
+
+	// global configuration directory, used for trust engine setup
+	ConfigDir string
+
+	DisableSegVerification bool
+	EnablePeriodicCleanup  bool
+	EnableMetrics          bool
+}
+
 // wrapper for the standalone service to keep track of background tasks and storages to be closed
 type wrapperWithClose struct {
-	Connector
+	daemon2.Connector
 
 	// background tasks and storages to be closed on Close()
 	pathDBCleaner *periodic.Runner
 	pathDB        storage.PathDB
 	revCache      revcache.RevCache
 	rcCleaner     *periodic.Runner
-}
-
-// NewStandaloneServiceFromFile creates a daemon Connector that runs locally without a daemon process.
-// It loads the topology from the specified file and initializes all necessary components
-// for path lookups and AS information queries.
-//
-// The returned Connector can be used directly by SCION applications instead of connecting
-// to a daemon via gRPC.
-//
-// Note: This function starts a background task (topology loader) that should be stopped
-// when done. The caller should handle cleanup appropriately, typically via context cancellation.
-func NewStandaloneServiceFromFile(ctx context.Context, topoFile string) (Connector, error) {
-	if topoFile == "" {
-		return nil, serrors.New("topology file path is required")
-	}
-
-	// Load topology
-	topo, err := topology.NewLoader(topology.LoaderCfg{
-		File:      topoFile,
-		Reload:    nil, // No reload for local daemon
-		Validator: &topology.DefaultValidator{},
-		Metrics:   loaderMetrics(),
-	})
-
-	if err != nil {
-		return nil, serrors.Wrap("creating topology loader", err)
-	}
-	g, errCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		defer log.HandlePanic()
-		return topo.Run(errCtx)
-	})
-
-	return NewStandaloneService(topo)
+	trustDB       storage.TrustDB
+	trcLoaderTask *periodic.Runner
 }
 
 // NewStandaloneService creates a daemon Connector that runs locally without a daemon process.
-// It accepts a topology and initializes all necessary components for path lookups and AS
-// information queries.
+// It accepts a topology either as loader or as file path, and initializes all necessary
+// components for path lookups and AS information queries.
 //
 // The returned Connector can be used directly by SCION applications instead of connecting
 // to a daemon via gRPC.
 //
 // Note: This function starts background tasks (cleaner, TRC loader) that should be stopped
 // when done. The caller should handle cleanup appropriately, typically via context cancellation.
-func NewStandaloneService(topo *topology.Loader) (Connector, error) {
+func NewStandaloneService(ctx context.Context, options StandaloneOptions) (daemon2.Connector, error) {
+	if options.Topo == nil && options.TopoFile == "" {
+		return nil, serrors.New("either topology or topology file path must be provided")
+	}
+	if options.ConfigDir == "" {
+		if options.TopoFile != "" {
+			options.ConfigDir = filepath.Dir(options.TopoFile)
+		} else {
+			return nil, serrors.New("configuration directory must be provided")
+		}
+	}
+
+	g, errCtx := errgroup.WithContext(ctx)
+	topo := options.Topo
+	if topo == nil {
+		// Load topology
+		var err error
+		topo, err = topology.NewLoader(topology.LoaderCfg{
+			File:      options.TopoFile,
+			Reload:    nil, // No reload for local daemon
+			Validator: &topology.DefaultValidator{},
+			Metrics:   loaderMetrics(),
+		})
+
+		if err != nil {
+			return nil, serrors.Wrap("creating topology loader", err)
+		}
+		g.Go(func() error {
+			defer log.HandlePanic()
+			return topo.Run(errCtx)
+		})
+	}
+
 	// Create dialer for control service
 	dialer := &grpc.TCPDialer{
 		SvcResolver: func(dst addr.SVC) []resolver.Address {
@@ -147,16 +168,84 @@ func NewStandaloneService(topo *topology.Loader) (Connector, error) {
 		return nil, serrors.Wrap("initializing path storage", err)
 	}
 
-	// Start path DB cleaner
-	cleaner := periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
-		300*time.Second, 295*time.Second)
-
 	// Initialize revocation cache
 	revCache := storage.NewRevocationStorage()
 
-	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
-	rcCleaner := periodic.Start(revcache.NewCleaner(revCache, "sd_revocation"),
-		10*time.Second, 10*time.Second)
+	// Start periodic cleaners if enabled
+	var cleaner *periodic.Runner
+	var rcCleaner *periodic.Runner
+	if options.EnablePeriodicCleanup {
+		// Start path DB cleaner
+		cleaner = periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
+			300*time.Second, 295*time.Second)
+
+		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
+		rcCleaner = periodic.Start(revcache.NewCleaner(revCache, "sd_revocation"),
+			10*time.Second, 10*time.Second)
+	}
+
+	var trustDB storage.TrustDB
+	var inspector trust.Inspector
+	var verifier infra.Verifier
+	var trcLoaderTask *periodic.Runner
+
+	if options.DisableSegVerification {
+		// do not create trust engine to avoid requiring trust material
+		inspector = nil
+		verifier = acceptAllVerifier{}
+	} else {
+		// Create trust engine unless verification is disabled
+		trustDB, err = storage.NewInMemoryTrustStorage()
+		if err != nil {
+			return nil, serrors.Wrap("initializing trust database", err)
+		}
+		trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
+			Driver: string(storage.BackendSqlite),
+			QueriesTotal: metrics.NewPromCounterFrom(
+				prometheus.CounterOpts{
+					Name: "trustengine_db_queries_total",
+					Help: "Total queries to the database",
+				},
+				[]string{"driver", "operation", prom.LabelResult},
+			),
+		})
+		engine, err := daemon2.TrustEngine(
+			errCtx, options.ConfigDir, topo.IA(), trustDB, dialer,
+		)
+		if err != nil {
+			return nil, serrors.Wrap("creating trust engine", err)
+		}
+		engine.Inspector = trust.CachingInspector{
+			Inspector:          engine.Inspector,
+			Cache:              cache.New(time.Minute, time.Minute),
+			CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
+			MaxCacheExpiration: time.Minute,
+		}
+		trcLoader := trust.TRCLoader{
+			Dir: filepath.Join(options.ConfigDir, "certs"),
+			DB:  trustDB,
+		}
+		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
+		trcLoaderTask = periodic.Start(periodic.Func{
+			Task: func(ctx context.Context) {
+				res, err := trcLoader.Load(ctx)
+				if err != nil {
+					log.SafeInfo(log.FromCtx(ctx), "TRC loading failed", "err", err)
+				}
+				if len(res.Loaded) > 0 {
+					log.SafeInfo(log.FromCtx(ctx), "Loaded TRCs from disk", "trcs", res.Loaded)
+				}
+			},
+			TaskName: "daemon_trc_loader",
+		}, 10*time.Second, 10*time.Second)
+
+		verifier = compat.Verifier{Verifier: trust.Verifier{
+			Engine:             engine,
+			Cache:              cache.New(time.Minute, time.Minute),
+			CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
+			MaxCacheExpiration: time.Minute,
+		}}
+	}
 
 	// Create fetcher
 	newFetcher := fetcher.NewFetcher(
@@ -167,8 +256,8 @@ func NewStandaloneService(topo *topology.Loader) (Connector, error) {
 			NextHopper:    topo,
 			RPC:           requester,
 			PathDB:        pathDB,
-			Inspector:     nil,
-			Verifier:      acceptAllVerifier{},
+			Inspector:     inspector,
+			Verifier:      verifier,
 			RevCache:      revCache,
 			QueryInterval: 0,
 		},
@@ -184,7 +273,7 @@ func NewStandaloneService(topo *topology.Loader) (Connector, error) {
 		Topology:    topo,
 		Fetcher:     newFetcher,
 		RevCache:    revCache,
-		DRKeyClient: nil,
+		DRKeyClient: nil, // DRKey not supported in standalone daemon
 		Metrics:     serverMetrics,
 	}
 
@@ -194,6 +283,8 @@ func NewStandaloneService(topo *topology.Loader) (Connector, error) {
 		pathDB:        pathDB,
 		revCache:      revCache,
 		rcCleaner:     rcCleaner,
+		trustDB:       trustDB,
+		trcLoaderTask: trcLoaderTask,
 	}
 
 	return connectorWithClose, nil
@@ -215,6 +306,13 @@ func (s wrapperWithClose) Close() error {
 	}
 	if s.rcCleaner != nil {
 		s.rcCleaner.Stop()
+	}
+	if s.trustDB != nil {
+		err1 := s.trustDB.Close()
+		err = errors.Join(err, err1)
+	}
+	if s.trcLoaderTask != nil {
+		s.trcLoaderTask.Stop()
 	}
 	return err
 }

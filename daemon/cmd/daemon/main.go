@@ -29,6 +29,7 @@ import (
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	pkgdaemon "github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -155,7 +156,7 @@ func realMain(ctx context.Context) error {
 			[]string{"driver", "operation", prom.LabelResult},
 		),
 	})
-	engine, err := daemon.TrustEngine(
+	engine, err := pkgdaemon.TrustEngine(
 		errCtx, globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer,
 	)
 	if err != nil {

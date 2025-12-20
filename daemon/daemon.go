@@ -16,11 +16,8 @@
 package daemon
 
 import (
-	"context"
-	"errors"
 	"io"
 	"net"
-	"path/filepath"
 	"strconv"
 
 	opentracing "github.com/opentracing/opentracing-go"
@@ -32,16 +29,11 @@ import (
 	"github.com/scionproto/scion/daemon/internal/servers"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	libgrpc "github.com/scionproto/scion/pkg/grpc"
-	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/trust"
-	trustgrpc "github.com/scionproto/scion/private/trust/grpc"
-	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 // InitTracer initializes the global tracer.
@@ -52,60 +44,6 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 	}
 	opentracing.SetGlobalTracer(tracer)
 	return trCloser, nil
-}
-
-// TrustEngine builds the trust engine backed by the trust database.
-func TrustEngine(
-	ctx context.Context,
-	cfgDir string,
-	ia addr.IA,
-	db trust.DB,
-	dialer libgrpc.Dialer,
-) (trust.Engine, error) {
-	certsDir := filepath.Join(cfgDir, "certs")
-	loaded, err := trust.LoadTRCs(ctx, certsDir, db)
-	if err != nil {
-		return trust.Engine{}, serrors.Wrap("loading TRCs", err)
-	}
-	log.Info("TRCs loaded", "files", loaded.Loaded)
-	for f, r := range loaded.Ignored {
-		if errors.Is(r, trust.ErrAlreadyExists) {
-			log.Debug("Ignoring existing TRC", "file", f)
-			continue
-		}
-		log.Info("Ignoring non-TRC", "file", f, "reason", r)
-	}
-	loaded, err = trust.LoadChains(ctx, certsDir, db)
-	if err != nil {
-		return trust.Engine{}, serrors.Wrap("loading certificate chains",
-			err)
-	}
-	log.Info("Certificate chains loaded", "files", loaded.Loaded)
-	for f, r := range loaded.Ignored {
-		if errors.Is(r, trust.ErrAlreadyExists) {
-			log.Debug("Ignoring existing certificate chain", "file", f)
-			continue
-		}
-		if errors.Is(r, trust.ErrOutsideValidity) {
-			log.Debug("Ignoring certificate chain outside validity", "file", f)
-			continue
-		}
-		log.Info("Ignoring non-certificate chain", "file", f, "reason", r)
-	}
-	return trust.Engine{
-		Inspector: trust.DBInspector{DB: db},
-		Provider: trust.FetchingProvider{
-			DB: db,
-			Fetcher: trustgrpc.Fetcher{
-				IA:       ia,
-				Dialer:   dialer,
-				Requests: metrics.NewPromCounter(trustmetrics.RPC.Fetches),
-			},
-			Recurser: trust.LocalOnlyRecurser{},
-			Router:   trust.LocalRouter{IA: ia},
-		},
-		DB: db,
-	}, nil
 }
 
 // ServerConfig is the configuration for the daemon API server.

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/daemon"
+	daemon2 "github.com/scionproto/scion/pkg/daemon/standalone/daemon"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
@@ -111,7 +112,7 @@ On other errors, showpaths will exit with code 2.
 			if topoFile != "" {
 				// Use local daemon with topology file
 				log.Debug("Using local daemon with topology file", "topology", topoFile)
-				standalone, err := daemon.NewStandaloneServiceFromFile(traceCtx, topoFile)
+				standalone, err := daemon2.NewStandaloneService(traceCtx, daemon2.StandaloneOptions{TopoFile: topoFile})
 				if err != nil {
 					return serrors.Wrap("creating local daemon", err)
 				}
