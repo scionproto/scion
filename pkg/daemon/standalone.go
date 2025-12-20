@@ -16,6 +16,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
 
@@ -65,16 +66,27 @@ func (v acceptAllVerifier) WithValidity(cppki.Validity) infra.Verifier {
 	return v
 }
 
-// NewStandaloneService creates a daemon Connector that runs locally without a daemon process.
+// wrapper for the standalone service to keep track of background tasks and storages to be closed
+type wrapperWithClose struct {
+	Connector
+
+	// background tasks and storages to be closed on Close()
+	pathDBCleaner *periodic.Runner
+	pathDB        storage.PathDB
+	revCache      revcache.RevCache
+	rcCleaner     *periodic.Runner
+}
+
+// NewStandaloneServiceFromFile creates a daemon Connector that runs locally without a daemon process.
 // It loads the topology from the specified file and initializes all necessary components
 // for path lookups and AS information queries.
 //
 // The returned Connector can be used directly by SCION applications instead of connecting
 // to a daemon via gRPC.
 //
-// Note: This function starts background tasks (cleaner, TRC loader) that should be stopped
+// Note: This function starts a background task (topology loader) that should be stopped
 // when done. The caller should handle cleanup appropriately, typically via context cancellation.
-func NewStandaloneService(ctx context.Context, topoFile string) (Connector, error) {
+func NewStandaloneServiceFromFile(ctx context.Context, topoFile string) (Connector, error) {
 	if topoFile == "" {
 		return nil, serrors.New("topology file path is required")
 	}
@@ -86,6 +98,7 @@ func NewStandaloneService(ctx context.Context, topoFile string) (Connector, erro
 		Validator: &topology.DefaultValidator{},
 		Metrics:   loaderMetrics(),
 	})
+
 	if err != nil {
 		return nil, serrors.Wrap("creating topology loader", err)
 	}
@@ -95,6 +108,19 @@ func NewStandaloneService(ctx context.Context, topoFile string) (Connector, erro
 		return topo.Run(errCtx)
 	})
 
+	return NewStandaloneService(topo)
+}
+
+// NewStandaloneService creates a daemon Connector that runs locally without a daemon process.
+// It accepts a topology and initializes all necessary components for path lookups and AS
+// information queries.
+//
+// The returned Connector can be used directly by SCION applications instead of connecting
+// to a daemon via gRPC.
+//
+// Note: This function starts background tasks (cleaner, TRC loader) that should be stopped
+// when done. The caller should handle cleanup appropriately, typically via context cancellation.
+func NewStandaloneService(topo *topology.Loader) (Connector, error) {
 	// Create dialer for control service
 	dialer := &grpc.TCPDialer{
 		SvcResolver: func(dst addr.SVC) []resolver.Address {
@@ -124,29 +150,13 @@ func NewStandaloneService(ctx context.Context, topoFile string) (Connector, erro
 	// Start path DB cleaner
 	cleaner := periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
 		300*time.Second, 295*time.Second)
-	go func() { // Cleanup on context done
-		defer log.HandlePanic()
-		<-ctx.Done()
-		cleaner.Stop()
-		pathDB.Close()
-	}()
 
 	// Initialize revocation cache
 	revCache := storage.NewRevocationStorage()
-	go func() { // Cleanup on context done
-		defer log.HandlePanic()
-		<-ctx.Done()
-		revCache.Close()
-	}()
 
 	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	rcCleaner := periodic.Start(revcache.NewCleaner(revCache, "sd_revocation"),
 		10*time.Second, 10*time.Second)
-	go func() { // Cleanup on context done
-		defer log.HandlePanic()
-		<-ctx.Done()
-		rcCleaner.Stop()
-	}()
 
 	// Create fetcher
 	newFetcher := fetcher.NewFetcher(
@@ -178,7 +188,37 @@ func NewStandaloneService(ctx context.Context, topoFile string) (Connector, erro
 		Metrics:     serverMetrics,
 	}
 
-	return connector, nil
+	connectorWithClose := wrapperWithClose{
+		Connector:     connector,
+		pathDBCleaner: cleaner,
+		pathDB:        pathDB,
+		revCache:      revCache,
+		rcCleaner:     rcCleaner,
+	}
+
+	return connectorWithClose, nil
+}
+
+func (s wrapperWithClose) Close() error {
+	var err error
+	if s.pathDBCleaner != nil {
+		s.pathDBCleaner.Stop()
+	}
+	if s.pathDB != nil {
+		err = s.pathDB.Close()
+	}
+	if s.revCache != nil {
+		err2 := s.revCache.Close()
+		if err == nil {
+			err = err2
+		} else {
+			err = errors.Join(err, err2)
+		}
+	}
+	if s.rcCleaner != nil {
+		s.rcCleaner.Stop()
+	}
+	return err
 }
 
 // loaderMetrics creates metrics for the topology loader.
