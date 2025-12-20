@@ -103,6 +103,9 @@ On other errors, showpaths will exit with code 2.
 			span.SetTag("dst.isd_as", dst)
 			defer span.Finish()
 
+			ctx, cancel := context.WithTimeout(traceCtx, flags.timeout)
+			defer cancel()
+
 			// Check if we should use a local daemon or connect to a remote one
 			topoFile := envFlags.Topology()
 			if topoFile != "" {
@@ -114,16 +117,25 @@ On other errors, showpaths will exit with code 2.
 				}
 				flags.cfg.Connector = standalone
 			} else {
-				// Use remote daemon
-				flags.cfg.Daemon = envFlags.Daemon()
-				log.Debug("Using remote daemon", "daemon", flags.cfg.Daemon)
+				// Connect to remote daemon
+				daemonAddr := envFlags.Daemon()
+				remoteSd, err := daemon.NewService(daemonAddr).Connect(ctx)
+				if err != nil {
+					return serrors.Wrap("connecting to the SCION Daemon", err, "addr", daemonAddr)
+				}
+				flags.cfg.Connector = remoteSd
 			}
+
+			defer func(sd daemon.Connector) {
+				err := sd.Close()
+				if err != nil {
+					log.Error("Closing SCION Daemon connection", "err", err)
+				}
+			}(flags.cfg.Connector)
 
 			flags.cfg.Local = net.IP(envFlags.Local().AsSlice())
 			log.Debug("Using local IP", "local", flags.cfg.Local)
 
-			ctx, cancel := context.WithTimeout(traceCtx, flags.timeout)
-			defer cancel()
 			res, err := showpaths.Run(ctx, dst, flags.cfg)
 			if err != nil {
 				return err

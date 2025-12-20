@@ -330,23 +330,7 @@ func (r Result) Alive() int {
 
 // Run lists the paths to the specified ISD-AS to stdout.
 func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
-	var sdConn daemon.Connector
-	var closeConn func() error
-
-	if cfg.Connector != nil {
-		// Use provided connector (e.g., local daemon)
-		sdConn = cfg.Connector
-		closeConn = func() error { return nil }
-	} else {
-		// Connect to remote daemon
-		remoteSd, err := daemon.NewService(cfg.Daemon).Connect(ctx)
-		if err != nil {
-			return nil, serrors.Wrap("connecting to the SCION Daemon", err, "addr", cfg.Daemon)
-		}
-		sdConn = remoteSd
-		closeConn = remoteSd.Close
-	}
-	defer closeConn()
+	sdConn := cfg.Connector
 
 	topo, err := daemon.LoadTopology(ctx, sdConn)
 	if err != nil {
