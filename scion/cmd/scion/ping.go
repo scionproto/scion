@@ -139,17 +139,15 @@ On other errors, ping will exit with code 2.
 
 			// Check if we should use a local daemon or connect to a remote one
 			var sd daemon.Connector
-			var sdClose func() error
 			topoFile := envFlags.Topology()
 			if topoFile != "" {
 				// Use local daemon with topology file
 				log.Debug("Using local daemon with topology file", "topology", topoFile)
-				standalone, err := daemon.NewStandaloneService(traceCtx, topoFile)
+				standalone, err := daemon.NewStandaloneServiceFromFile(traceCtx, topoFile)
 				if err != nil {
 					return serrors.Wrap("creating local daemon", err)
 				}
 				sd = standalone
-				sdClose = func() error { return nil } // No cleanup needed for local daemon
 			} else {
 				// Connect to remote daemon
 				daemonAddr := envFlags.Daemon()
@@ -162,9 +160,14 @@ On other errors, ping will exit with code 2.
 					return serrors.Wrap("connecting to SCION Daemon", err)
 				}
 				sd = remoteSd
-				sdClose = remoteSd.Close
 			}
-			defer sdClose()
+
+			defer func(sd daemon.Connector) {
+				err := sd.Close()
+				if err != nil {
+					log.Error("Closing SCION Daemon connection", "err", err)
+				}
+			}(sd)
 
 			localIP := net.IP(envFlags.Local().AsSlice())
 			log.Debug("Using local IP", "local", localIP)

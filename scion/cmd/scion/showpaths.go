@@ -108,7 +108,7 @@ On other errors, showpaths will exit with code 2.
 			if topoFile != "" {
 				// Use local daemon with topology file
 				log.Debug("Using local daemon with topology file", "topology", topoFile)
-				standalone, err := daemon.NewStandaloneService(traceCtx, topoFile)
+				standalone, err := daemon.NewStandaloneServiceFromFile(traceCtx, topoFile)
 				if err != nil {
 					return serrors.Wrap("creating local daemon", err)
 				}
