@@ -69,9 +69,8 @@ func (s *DaemonServer) Paths(ctx context.Context,
 		return nil, err
 	}
 
-	reply := &daemonpb.PathsResponse{}
-	for _, p := range paths {
-		reply.Paths = append(reply.Paths, pathToPB(p))
+	reply := &daemonpb.PathsResponse{
+		Paths: slices.Transform(paths, pathToPB),
 	}
 	return reply, nil
 }
