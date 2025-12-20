@@ -46,13 +46,6 @@ type DaemonServer struct {
 	ASInspector trust.Inspector
 }
 
-// NewDaemonServer creates a new DaemonServer with the given connector.
-func NewDaemonServer(connector daemon.Connector) *DaemonServer {
-	return &DaemonServer{
-		Connector: connector,
-	}
-}
-
 // Paths serves the paths gRPC request.
 func (s *DaemonServer) Paths(ctx context.Context,
 	req *daemonpb.PathsRequest,
