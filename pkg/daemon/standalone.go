@@ -200,20 +200,18 @@ func NewStandaloneService(topo *topology.Loader) (Connector, error) {
 }
 
 func (s wrapperWithClose) Close() error {
-	var err error
+	err := s.Connector.Close()
+
 	if s.pathDBCleaner != nil {
 		s.pathDBCleaner.Stop()
 	}
 	if s.pathDB != nil {
-		err = s.pathDB.Close()
+		err1 := s.pathDB.Close()
+		err = errors.Join(err, err1)
 	}
 	if s.revCache != nil {
-		err2 := s.revCache.Close()
-		if err == nil {
-			err = err2
-		} else {
-			err = errors.Join(err, err2)
-		}
+		err1 := s.revCache.Close()
+		err = errors.Join(err, err1)
 	}
 	if s.rcCleaner != nil {
 		s.rcCleaner.Stop()
