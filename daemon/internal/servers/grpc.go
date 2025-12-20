@@ -235,13 +235,13 @@ func (s *DaemonServer) Services(ctx context.Context,
 	}
 
 	for svcType, uris := range svcInfo {
-		list := &daemonpb.ListService{}
-		for _, uri := range uris {
-			list.Services = append(list.Services, &daemonpb.Service{Uri: uri})
+		if svcType != addr.SVC(topology.Control) {
+			continue
 		}
-		// Map SVC type to string reprxesentation
-		if svcType == addr.SVC(topology.Control) {
-			reply.Services[topology.Control.String()] = list
+		reply.Services[topology.Control.String()] = &daemonpb.ListService{
+			Services: slices.Transform(uris, func(uri string) *daemonpb.Service{
+				return &daemonpb.Service{Uri: uri}
+			}),
 		}
 	}
 
