@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +gobra
+
 package addr
 
 import (
@@ -20,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	// @ "github.com/scionproto/scion/gobra/utils"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -31,7 +34,9 @@ type Addr struct {
 
 // ParseAddr parses s as an address in the format <ISD>-<AS>,<Host>,
 // returning the result as an Addr.
-func ParseAddr(s string) (Addr, error) {
+// @ ensures err != nil ==> err.ErrorMem()
+// @ decreases
+func ParseAddr(s string) (a Addr, err error) {
 	comma := strings.IndexByte(s, ',')
 	if comma < 0 {
 		return Addr{}, serrors.New("invalid address: expected comma", "value", s)
@@ -49,6 +54,8 @@ func ParseAddr(s string) (Addr, error) {
 
 // MustParseAddr calls ParseAddr(s) and panics on error.
 // It is intended for use in tests with hard-coded strings.
+// @ trusted
+// @ requires false
 func MustParseAddr(s string) Addr {
 	a, err := ParseAddr(s)
 	if err != nil {
@@ -57,17 +64,23 @@ func MustParseAddr(s string) Addr {
 	return a
 }
 
+// @ decreases
 func (a Addr) String() string {
 	return fmt.Sprintf("%s,%s", a.IA, a.Host)
 }
 
 // Set implements flag.Value interface
-func (a *Addr) Set(s string) error {
+// @ preserves a.Mem()
+// @ ensures   err != nil ==> err.ErrorMem()
+// @ decreases
+func (a *Addr) Set(s string) (err error) {
 	pA, err := ParseAddr(s)
 	if err != nil {
 		return err
 	}
+	// @ unfold a.Mem()
 	*a = pA
+	// @ fold a.Mem()
 	return nil
 }
 
@@ -75,6 +88,9 @@ func (a Addr) MarshalText() ([]byte, error) {
 	return []byte(a.String()), nil
 }
 
+// @ preserves a.Mem()
+// @ preserves acc(b, utils.ReadPerm)
+// @ decreases
 func (a *Addr) UnmarshalText(b []byte) error {
 	return a.Set(string(b))
 }
