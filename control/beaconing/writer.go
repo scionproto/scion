@@ -376,11 +376,8 @@ func (r *remoteWriter) startSendSegReg(
 	reg seg.Meta,
 	addr net.Addr,
 ) {
-
-	r.wg.Add(1)
-	go func() {
+	r.wg.Go(func() {
 		defer log.HandlePanic()
-		defer r.wg.Done()
 
 		labels := writerLabels{
 			StartIA: bseg.Segment.FirstIA(),
@@ -402,7 +399,7 @@ func (r *remoteWriter) startSendSegReg(
 			labels.WithResult(prom.Success).Expand()...))
 		logger.Debug("Successfully registered segment", "seg_type", r.writer.Type,
 			"addr", addr, "seg", bseg.Segment)
-	}()
+	})
 }
 
 type writerLabels struct {
@@ -510,19 +507,17 @@ func (w *GroupWriter) Write(
 	// Run the tasks concurrently and collect the write stats.
 	allWriteStats := make([]WriteStats, len(tasks))
 	wg := sync.WaitGroup{}
-	wg.Add(len(tasks))
 	for i, task := range tasks {
-		go func(j int) {
-			defer wg.Done()
+		wg.Go(func() {
 			sum := task.Reg.RegisterSegments(ctx, task.Beacons, peers)
 			if sum == nil {
 				return
 			}
-			allWriteStats[j] = WriteStats{
+			allWriteStats[i] = WriteStats{
 				Count:    sum.GetCount(),
 				StartIAs: sum.GetSrcs(),
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 	// Extend the write stats with the results from all registrars.

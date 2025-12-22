@@ -288,18 +288,15 @@ func sessionSubtest(name string, tc *sessionTestCase) func(t *testing.T) {
 		tc.sessionB.SetLogger(loggerB)
 
 		var wg sync.WaitGroup
-		wg.Add(2)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err := tc.sessionA.Run(log.CtxWith(context.Background(), loggerA))
 			require.NoError(t, err)
-		}()
+		})
 
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err := tc.sessionB.Run(log.CtxWith(context.Background(), loggerB))
 			require.NoError(t, err)
-		}()
+		})
 
 		tc.testBehavior(linkAToB, linkBToA)
 
@@ -358,19 +355,16 @@ func TestSessionDebootstrap(t *testing.T) {
 	sessionB.Sender = linkBToA
 
 	var wg sync.WaitGroup
-	wg.Add(3)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err := sessionA1.Run(log.CtxWith(context.Background(), loggerA1))
 		require.NoError(t, err)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err := sessionB.Run(log.CtxWith(context.Background(), loggerB))
 		require.NoError(t, err)
-	}()
+	})
 
 	// A1 is the running session, B bootstraps against it. A2 does not exist yet.
 	linkA1ToB.Sending(true)
@@ -384,11 +378,10 @@ func TestSessionDebootstrap(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// Router A "restarts", this time A2 starts with a different local discriminator.
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err := sessionA2.Run(log.CtxWith(context.Background(), loggerA2))
 		require.NoError(t, err)
-	}()
+	})
 	linkBToA.SetDestination(sessionA2)
 	linkA2ToB.Sending(true)
 
@@ -829,7 +822,6 @@ func TestDurationToBFDInterval(t *testing.T) {
 		assert.Equal(t, tc.expectedInterval, interval, fmt.Sprintf("test case %d (%+v)", i, tc))
 		tc.expectedError(t, err)
 	}
-
 }
 
 func TestBFDIntervalToDuration(t *testing.T) {

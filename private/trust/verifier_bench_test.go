@@ -70,13 +70,11 @@ func BenchmarkConcurrent10(b *testing.B) {
 
 	var wg sync.WaitGroup
 	for b.Loop() {
-		wg.Add(10)
 		for range 10 {
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				_, err := verifier.Verify(context.Background(), msg, associated...)
 				require.NoError(b, err)
-			}()
+			})
 		}
 		wg.Wait()
 	}
@@ -115,15 +113,13 @@ func BenchmarkConcurrentCache10(b *testing.B) {
 
 	var wg sync.WaitGroup
 	for b.Loop() {
-		wg.Add(10)
 		for range 10 {
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				_, err := verifier.Verify(context.Background(), msg, associated...)
 				if err != nil {
 					panic(err)
 				}
-			}()
+			})
 		}
 		wg.Wait()
 	}

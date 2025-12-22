@@ -122,12 +122,10 @@ func (w *BeaconWriter) Write(
 						return w.Pather.GetPath(addr.SvcCS, seg)
 					}
 				}
-				wg.Add(1)
-				go func(bseg beacon.Beacon) {
+				wg.Go(func() {
 					defer log.HandlePanic()
-					defer wg.Done()
-					rw.run(ctx, bseg)
-				}(b)
+					rw.run(ctx, b)
+				})
 			}
 		}
 	}
@@ -337,12 +335,11 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 						return w.Pather.GetPath(addr.SvcCS, seg)
 					}
 				}
-				wg.Add(1)
-				go func(bseg beacon.Beacon) {
+				wg.Go(func() {
 					defer log.HandlePanic()
-					defer wg.Done()
-					rw.run(ctx, bseg, status)
-				}(b)
+
+					rw.run(ctx, b, status)
+				})
 			}
 		}
 	}

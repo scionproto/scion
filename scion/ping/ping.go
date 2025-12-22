@@ -198,12 +198,9 @@ func (p *pinger) Ping(
 	}()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
+	wg.Go(func() {
 		defer log.HandlePanic()
-		defer wg.Done()
-		for i := uint16(0); i < p.attempts; i++ {
+		for range p.attempts {
 			if err := p.send(remote, dPath, nextHop); err != nil {
 				errSend <- serrors.Wrap("sending", err)
 				return
@@ -215,9 +212,9 @@ func (p *pinger) Ping(
 			}
 		}
 		time.AfterFunc(p.timeout, cancel)
-	}()
+	})
 
-	for i := uint16(0); i < p.attempts; i++ {
+	for range p.attempts {
 		select {
 		case <-ctx.Done():
 			return p.stats, nil

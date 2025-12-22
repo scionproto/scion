@@ -73,19 +73,17 @@ func (r *DefaultRequester) Request(ctx context.Context, reqs Requests) <-chan Re
 	var wg sync.WaitGroup
 
 	replies := make(chan ReplyOrErr, len(reqs))
-	wg.Add(len(reqs))
+	for i := range reqs {
+		wg.Go(func() {
+			defer log.HandlePanic()
+			r.requestWorker(ctx, reqs, i, replies)
+		})
+	}
 	go func() {
 		defer log.HandlePanic()
 		wg.Wait()
 		close(replies)
 	}()
-	for i := range reqs {
-		go func() {
-			defer log.HandlePanic()
-			defer wg.Done()
-			r.requestWorker(ctx, reqs, i, replies)
-		}()
-	}
 	return replies
 }
 

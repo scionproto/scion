@@ -106,7 +106,6 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 
 	s := newSummary()
 	var wg sync.WaitGroup
-	wg.Add(len(intfs))
 	for _, intf := range intfs {
 		b := beaconOriginator{
 			Originator: o,
@@ -115,15 +114,14 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 			summary:    s,
 			peers:      peers,
 		}
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
 
 			if err := b.originateBeacon(ctx); err != nil {
 				logger.Info("Unable to originate on interface",
 					"egress_interface", b.intf.TopoInfo().ID, "err", err)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	o.logSummary(logger, s)

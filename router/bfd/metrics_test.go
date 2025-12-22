@@ -63,18 +63,15 @@ func TestMetrics(t *testing.T) {
 	sessionB.Sender = linkBToA
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err := sessionA.Run(context.Background())
 		require.NoError(t, err)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err := sessionB.Run(context.Background())
 		require.NoError(t, err)
-	}()
+	})
 
 	linkAToB.Sending(true)
 	linkBToA.Sending(true)

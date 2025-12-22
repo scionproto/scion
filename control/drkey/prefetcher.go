@@ -50,17 +50,15 @@ func (f *Prefetcher) Name() string {
 // Run requests the level 1 keys to other CSs.
 func (f *Prefetcher) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
-	var wg sync.WaitGroup
 	keysMeta := f.Engine.GetLevel1PrefetchInfo()
 	logger.Debug("Prefetching level 1 DRKeys", "AS, proto:", keysMeta)
 	when := time.Now().Add(f.KeyDuration)
+	var wg sync.WaitGroup
 	for _, key := range keysMeta {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
 			getLevel1Key(ctx, f.Engine, key.IA, f.LocalIA, key.Proto, when)
-		}()
+		})
 	}
 	wg.Wait()
 }

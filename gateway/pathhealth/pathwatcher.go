@@ -154,13 +154,11 @@ func (w *pathWatcher) Run(ctx context.Context) {
 		"id", w.id,
 	)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		defer log.HandlePanic()
-		defer wg.Done()
 
 		w.drainConn(ctx)
-	}()
+	})
 
 	logger.Info("Starting path watcher", "path", fmt.Sprint(w.path.Path))
 	defer logger.Info("Stopped path watcher")
