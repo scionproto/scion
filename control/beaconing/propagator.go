@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -110,10 +111,8 @@ func (p *Propagator) run(ctx context.Context) error {
 		if len(beacons) == 0 {
 			continue
 		}
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
 			p := propagator{
 				extender:      p.Extender,
 				senderFactory: p.SenderFactory,
@@ -130,7 +129,7 @@ func (p *Propagator) run(ctx context.Context) error {
 					"err", err,
 				)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	return nil
@@ -277,10 +276,8 @@ func (p *propagator) Propagate(ctx context.Context) error {
 
 	var wg sync.WaitGroup
 	for _, b := range p.beacons {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
 
 			// Collect the ID before the segment is extended such that it
 			// matches the ID that was logged above in logCandidateBeacons.
@@ -326,7 +323,7 @@ func (p *propagator) Propagate(ctx context.Context) error {
 					"err", err,
 				)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	if !success {

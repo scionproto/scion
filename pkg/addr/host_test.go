@@ -1,4 +1,4 @@
-// Copyright 2023 SCION Association
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ func TestHostStructSize(t *testing.T) {
 	padding := 5
 	expected := ipv6 + zonePtr + svc + typ + padding
 
-	sizeofHost := int(reflect.TypeOf(addr.Host{}).Size())
+	sizeofHost := int(reflect.TypeFor[addr.Host]().Size())
 	assert.Equal(t, expected, sizeofHost)
 }
 

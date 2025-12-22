@@ -1,4 +1,5 @@
 // Copyright 2020 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -151,7 +152,7 @@ func ifsArrayToString(ifs []asIface) string {
 // then the number of interfaces and then finally the ID of the interfaces to sort.
 func (s *segment) lessThan(o *segment) bool {
 	segsLessThan := func(lhs, rhs *segment) bool {
-		for i := 0; i < len(lhs.interfaces); i++ {
+		for i := range len(lhs.interfaces) {
 			if lhs.interfaces[i].IA != rhs.interfaces[i].IA {
 				return lhs.interfaces[i].IA < rhs.interfaces[i].IA
 			} else if lhs.interfaces[i].ifNum != rhs.interfaces[i].ifNum {

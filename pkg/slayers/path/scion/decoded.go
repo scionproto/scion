@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,14 +42,14 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 
 	offset := MetaLen
 	s.InfoFields = make([]path.InfoField, s.NumINF)
-	for i := 0; i < s.NumINF; i++ {
+	for i := range s.NumINF {
 		if err := s.InfoFields[i].DecodeFromBytes(data[offset : offset+path.InfoLen]); err != nil {
 			return err
 		}
 		offset += path.InfoLen
 	}
 	s.HopFields = make([]path.HopField, s.NumHops)
-	for i := 0; i < s.NumHops; i++ {
+	for i := range s.NumHops {
 		if err := s.HopFields[i].DecodeFromBytes(data[offset : offset+path.HopLen]); err != nil {
 			return err
 		}
@@ -95,7 +96,7 @@ func (s *Decoded) Reverse() (path.Path, error) {
 		s.PathMeta.SegLen[0], s.PathMeta.SegLen[l] = s.PathMeta.SegLen[l], s.PathMeta.SegLen[0]
 	}
 	// Reverse cons dir flags
-	for i := 0; i < s.NumINF; i++ {
+	for i := range s.NumINF {
 		info := &s.InfoFields[i]
 		info.ConsDir = !info.ConsDir
 	}

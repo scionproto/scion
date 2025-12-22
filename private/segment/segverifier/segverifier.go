@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,8 +53,8 @@ const (
 // and spawns verify method on the units.
 // StartVerification returns a channel for the UnitResult and the expected amount of results.
 func StartVerification(ctx context.Context, verifier infra.Verifier, server net.Addr,
-	segMetas []*seg.Meta) (chan UnitResult, int) {
-
+	segMetas []*seg.Meta,
+) (chan UnitResult, int) {
 	units := BuildUnits(segMetas)
 	unitResultsC := make(chan UnitResult, len(units))
 	for i := range units {
@@ -74,7 +75,6 @@ type Unit struct {
 // BuildUnits constructs one verification unit for each segment,
 // together with its associated revocations.
 func BuildUnits(segMetas []*seg.Meta) []*Unit {
-
 	var units []*Unit
 	for _, segMeta := range segMetas {
 		unit := &Unit{SegMeta: segMeta}
@@ -90,8 +90,8 @@ func (u *Unit) Len() int {
 // Verify verifies a single unit, putting the results of verifications on
 // unitResults.
 func (u *Unit) Verify(ctx context.Context, verifier infra.Verifier,
-	server net.Addr, unitResults chan UnitResult) {
-
+	server net.Addr, unitResults chan UnitResult,
+) {
 	responses := make(chan ElemResult, u.Len())
 	go func() {
 		defer log.HandlePanic()
@@ -100,7 +100,7 @@ func (u *Unit) Verify(ctx context.Context, verifier infra.Verifier,
 	// Response writers must guarantee that the for loop below returns before
 	// (or very close around) ctx.Done()
 	errs := make(map[int]error)
-	for numResults := 0; numResults < u.Len(); numResults++ {
+	for range u.Len() {
 		result := <-responses
 		if result.Error != nil {
 			errs[result.Index] = result.Error
@@ -132,8 +132,8 @@ type ElemResult struct {
 }
 
 func verifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr, segment *seg.Meta,
-	ch chan ElemResult) {
-
+	ch chan ElemResult,
+) {
 	err := VerifySegment(ctx, verifier, server, segment.Segment)
 	select {
 	case ch <- ElemResult{Index: segErrIndex, Error: err}:
@@ -143,8 +143,8 @@ func verifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr
 }
 
 func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr,
-	segment *seg.PathSegment) error {
-
+	segment *seg.PathSegment,
+) error {
 	for i, asEntry := range segment.ASEntries {
 		// Bind the verifier to the values specified in the AS Entry since
 		// the sign meta does not carry this information.
