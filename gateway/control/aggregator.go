@@ -97,13 +97,12 @@ func (a *Aggregator) run(ctx context.Context) error {
 	go func() {
 		defer log.HandlePanic()
 		ticker := time.NewTicker(a.ReportingInterval)
-	LOOP:
 		for {
 			select {
 			case <-ticker.C:
 				a.report()
 			case <-a.workerBase.GetDoneChan():
-				break LOOP
+				return
 			}
 		}
 	}()
