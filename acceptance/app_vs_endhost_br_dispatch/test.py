@@ -2,6 +2,8 @@
 
 # Copyright 2023 ETH Zurich
 
+from plumbum import cli
+
 from acceptance.common import base
 from acceptance.common import scion
 
@@ -27,7 +29,16 @@ class Test(base.TestTopogen):
     It also includes a shim dispatcher.
     AS3 contains a BR with the port rewriting configuration to the default
     range. It does not include the shim dispatcher.
+
+    The daemon mode can be selected via --use-sciond flag:
+    - With --use-sciond: Uses remote daemon connector (connecting to sciond via gRPC)
+    - Without --use-sciond: Uses standalone daemon connector (embedded daemon using topology files)
     """
+
+    use_sciond = cli.Flag(
+        "--use-sciond",
+        help="Use remote SCION daemon instead of standalone daemon",
+    )
 
     def setup_prepare(self):
         super().setup_prepare()
@@ -46,7 +57,13 @@ class Test(base.TestTopogen):
 
     def _run(self):
         ping_test = self.get_executable("end2end_integration")
-        ping_test["-d", "-outDir", self.artifacts].run_fg()
+
+        if self.use_sciond:
+            print("=== Running with remote daemon (sciond) ===")
+            ping_test["-d", "-sciond", "-outDir", self.artifacts].run_fg()
+        else:
+            print("=== Running with standalone daemon ===")
+            ping_test["-d", "-outDir", self.artifacts].run_fg()
 
 
 if __name__ == "__main__":
