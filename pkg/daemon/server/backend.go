@@ -55,8 +55,6 @@ type ConnectorBackend struct {
 	RevCache    revcache.RevCache
 	DRKeyClient *drkey_daemon.ClientEngine
 
-	Metrics Metrics
-
 	foregroundPathDedupe singleflight.Group
 	backgroundPathDedupe singleflight.Group
 }
@@ -74,16 +72,6 @@ func (c *ConnectorBackend) PortRange(ctx context.Context) (uint16, uint16, error
 
 // Interfaces returns the map of interface identifiers to underlay internal addresses.
 func (c *ConnectorBackend) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error) {
-	start := time.Now()
-	interfaces, err := c.interfaces(ctx)
-	c.Metrics.InterfacesRequests.inc(
-		reqLabels{Result: errToMetricResult(err)},
-		time.Since(start).Seconds(),
-	)
-	return interfaces, unwrapMetricsError(err)
-}
-
-func (c *ConnectorBackend) interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error) {
 	result := make(map[uint16]netip.AddrPort)
 	for _, ifID := range c.Topology.IfIDs() {
 		nextHop := c.Topology.UnderlayNextHop(ifID)
@@ -101,16 +89,6 @@ func (c *ConnectorBackend) interfaces(ctx context.Context) (map[uint16]netip.Add
 
 // Paths requests a set of end-to-end paths between source and destination.
 func (c *ConnectorBackend) Paths(ctx context.Context, dst, src addr.IA, f daemon.PathReqFlags) ([]snet.Path, error) {
-	start := time.Now()
-	paths, err := c.paths(ctx, dst, src, f.Refresh)
-	c.Metrics.PathsRequests.inc(
-		pathReqLabels{Result: errToMetricResult(err), Dst: dst.ISD()},
-		time.Since(start).Seconds(),
-	)
-	return paths, unwrapMetricsError(err)
-}
-
-func (c *ConnectorBackend) paths(ctx context.Context, dst, src addr.IA, refresh bool) ([]snet.Path, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancelF context.CancelFunc
 		ctx, cancelF = context.WithTimeout(ctx, 10*time.Second)
@@ -119,13 +97,13 @@ func (c *ConnectorBackend) paths(ctx context.Context, dst, src addr.IA, refresh 
 
 	go func() {
 		defer log.HandlePanic()
-		c.backgroundPaths(ctx, src, dst, refresh)
+		c.backgroundPaths(ctx, src, dst, f.Refresh)
 	}()
 
-	paths, err := c.fetchPaths(ctx, &c.foregroundPathDedupe, src, dst, refresh)
+	paths, err := c.fetchPaths(ctx, &c.foregroundPathDedupe, src, dst, f.Refresh)
 	if err != nil {
 		log.FromCtx(ctx).Debug("Fetching paths", "err", err,
-			"src", src, "dst", dst, "refresh", refresh)
+			"src", src, "dst", dst, "refresh", f.Refresh)
 		return nil, err
 	}
 	return paths, nil
@@ -175,16 +153,6 @@ func (c *ConnectorBackend) backgroundPaths(origCtx context.Context, src, dst add
 
 // ASInfo requests information about AS ia.
 func (c *ConnectorBackend) ASInfo(ctx context.Context, ia addr.IA) (daemon.ASInfo, error) {
-	start := time.Now()
-	info, err := c.asInfo(ctx, ia)
-	c.Metrics.ASRequests.inc(
-		reqLabels{Result: errToMetricResult(err)},
-		time.Since(start).Seconds(),
-	)
-	return info, unwrapMetricsError(err)
-}
-
-func (c *ConnectorBackend) asInfo(ctx context.Context, ia addr.IA) (daemon.ASInfo, error) {
 	if ia.IsZero() {
 		ia = c.IA
 	}
@@ -202,16 +170,6 @@ func (c *ConnectorBackend) asInfo(ctx context.Context, ia addr.IA) (daemon.ASInf
 
 // SVCInfo requests information about infrastructure services.
 func (c *ConnectorBackend) SVCInfo(ctx context.Context, svcTypes []addr.SVC) (map[addr.SVC][]string, error) {
-	start := time.Now()
-	info, err := c.svcInfo(ctx, svcTypes)
-	c.Metrics.ServicesRequests.inc(
-		reqLabels{Result: errToMetricResult(err)},
-		time.Since(start).Seconds(),
-	)
-	return info, unwrapMetricsError(err)
-}
-
-func (c *ConnectorBackend) svcInfo(ctx context.Context, svcTypes []addr.SVC) (map[addr.SVC][]string, error) {
 	result := make(map[addr.SVC][]string)
 
 	// For now, we only support Control services.
@@ -235,16 +193,6 @@ func (c *ConnectorBackend) svcInfo(ctx context.Context, svcTypes []addr.SVC) (ma
 
 // RevNotification sends a RevocationInfo message to the daemon.
 func (c *ConnectorBackend) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
-	start := time.Now()
-	err := c.revNotification(ctx, revInfo)
-	c.Metrics.InterfaceDownNotifications.inc(
-		ifDownLabels{Result: errToMetricResult(err), Src: "notification"},
-		time.Since(start).Seconds(),
-	)
-	return unwrapMetricsError(err)
-}
-
-func (c *ConnectorBackend) revNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
 	_, err := c.RevCache.Insert(ctx, revInfo)
 	if err != nil {
 		log.FromCtx(ctx).Error("Inserting revocation", "err", err, "revInfo", revInfo)

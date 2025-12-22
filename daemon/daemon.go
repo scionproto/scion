@@ -60,17 +60,19 @@ type ServerConfig struct {
 // NewServer constructs a daemon API server.
 func NewServer(cfg ServerConfig) *servers.DaemonServer {
 	return &servers.DaemonServer{
-		Connector: &server.ConnectorBackend{
-			IA:  cfg.IA,
-			MTU: cfg.MTU,
-			// TODO(JordiSubira): This will be changed in the future to fetch
-			// the information from the CS instead of feeding the configuration
-			// file into.
-			Topology:    cfg.Topology,
-			Fetcher:     cfg.Fetcher,
-			RevCache:    cfg.RevCache,
-			DRKeyClient: cfg.DRKeyClient,
-			Metrics: server.Metrics{
+		Connector: &server.ConnectorMetricsWrapper{
+			Connector: &server.ConnectorBackend{
+				IA:  cfg.IA,
+				MTU: cfg.MTU,
+				// TODO(JordiSubira): This will be changed in the future to fetch
+				// the information from the CS instead of feeding the configuration
+				// file into.
+				Topology:    cfg.Topology,
+				Fetcher:     cfg.Fetcher,
+				RevCache:    cfg.RevCache,
+				DRKeyClient: cfg.DRKeyClient,
+			},
+			Metrics: &server.Metrics{
 				PathsRequests: server.RequestMetrics{
 					Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
 						Namespace: "sd",

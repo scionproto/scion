@@ -263,18 +263,24 @@ func NewStandaloneService(ctx context.Context, options StandaloneOptions) (daemo
 		},
 	)
 
-	// Create server metrics
-	serverMetrics := newServerMetrics()
-
 	// Create and return the connector
-	connector := &server.ConnectorBackend{
+	var connector daemonpkg.Connector = &server.ConnectorBackend{
 		IA:          topo.IA(),
 		MTU:         topo.MTU(),
 		Topology:    topo,
 		Fetcher:     newFetcher,
 		RevCache:    revCache,
 		DRKeyClient: nil, // DRKey not supported in standalone daemon
-		Metrics:     serverMetrics,
+	}
+
+	if options.EnableMetrics {
+		// Create server metrics
+		serverMetrics := newServerMetrics()
+		// Wrap connector with metrics
+		connector = &server.ConnectorMetricsWrapper{
+			Connector: connector,
+			Metrics:   &serverMetrics,
+		}
 	}
 
 	connectorWithClose := wrapperWithClose{

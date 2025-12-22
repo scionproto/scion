@@ -15,11 +15,75 @@
 package server
 
 import (
+	"context"
+	"net/netip"
+	"time"
+
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet"
 )
+
+type ConnectorMetricsWrapper struct {
+	daemon.Connector
+	Metrics *Metrics
+}
+
+// Note: No metrics are collected for LocalIA, PortRange and DRKey functions.
+
+func (c *ConnectorMetricsWrapper) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error) {
+	start := time.Now()
+	interfaces, err := c.Connector.Interfaces(ctx)
+	c.Metrics.InterfacesRequests.inc(
+		reqLabels{Result: errToMetricResult(err)},
+		time.Since(start).Seconds(),
+	)
+	return interfaces, unwrapMetricsError(err)
+}
+
+func (c *ConnectorMetricsWrapper) Paths(ctx context.Context, dst, src addr.IA, f daemon.PathReqFlags) ([]snet.Path, error) {
+	start := time.Now()
+	paths, err := c.Connector.Paths(ctx, dst, src, f)
+	c.Metrics.PathsRequests.inc(
+		pathReqLabels{Result: errToMetricResult(err), Dst: dst.ISD()},
+		time.Since(start).Seconds(),
+	)
+	return paths, unwrapMetricsError(err)
+}
+
+func (c *ConnectorMetricsWrapper) ASInfo(ctx context.Context, ia addr.IA) (daemon.ASInfo, error) {
+	start := time.Now()
+	info, err := c.Connector.ASInfo(ctx, ia)
+	c.Metrics.ASRequests.inc(
+		reqLabels{Result: errToMetricResult(err)},
+		time.Since(start).Seconds(),
+	)
+	return info, unwrapMetricsError(err)
+}
+
+func (c *ConnectorMetricsWrapper) SVCInfo(ctx context.Context, svcTypes []addr.SVC) (map[addr.SVC][]string, error) {
+	start := time.Now()
+	info, err := c.Connector.SVCInfo(ctx, svcTypes)
+	c.Metrics.ServicesRequests.inc(
+		reqLabels{Result: errToMetricResult(err)},
+		time.Since(start).Seconds(),
+	)
+	return info, unwrapMetricsError(err)
+}
+
+func (c *ConnectorMetricsWrapper) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
+	start := time.Now()
+	err := c.Connector.RevNotification(ctx, revInfo)
+	c.Metrics.InterfaceDownNotifications.inc(
+		ifDownLabels{Result: errToMetricResult(err), Src: "notification"},
+		time.Since(start).Seconds(),
+	)
+	return unwrapMetricsError(err)
+}
 
 // Labels used for metrics in the Metrics struct, those labels should be used
 // for initialization.
