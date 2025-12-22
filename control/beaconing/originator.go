@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -235,8 +236,10 @@ type originatorLabels struct {
 }
 
 func (l originatorLabels) Expand() []string {
-	return []string{"egress_interface", strconv.Itoa(int(l.intf.TopoInfo().ID)),
-		prom.LabelResult, l.Result}
+	return []string{
+		"egress_interface", strconv.Itoa(int(l.intf.TopoInfo().ID)),
+		prom.LabelResult, l.Result,
+	}
 }
 
 func (l originatorLabels) WithResult(result string) originatorLabels {
