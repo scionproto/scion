@@ -671,13 +671,6 @@ func (d *dataPlane) newNextHopBFD(
 	return bfd.NewSession(s, link.BFD, m)
 }
 
-func max(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 type RunConfig struct {
 	NumProcessors         int
 	NumSlowPathProcessors int

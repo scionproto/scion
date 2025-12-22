@@ -178,10 +178,3 @@ func (r *Ring) read(entries EntryList) {
 		r.readIndex = n
 	}
 }
-
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
