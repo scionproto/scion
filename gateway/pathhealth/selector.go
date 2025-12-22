@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -126,7 +127,7 @@ func (f *FilteringPathSelector) Select(selectables []Selectable, current Fingerp
 	}
 
 	paths := make([]snet.Path, 0, pathCount)
-	for i := 0; i < pathCount; i++ {
+	for i := range pathCount {
 		paths = append(paths, allowed[i].Path)
 	}
 	return Selection{

@@ -247,7 +247,7 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 			Payload:     snet.SCMPTracerouteRequest{Identifier: t.id},
 		},
 	}
-	for i := 0; i < t.probesPerHop; i++ {
+	for range t.probesPerHop {
 		sendTs := time.Now()
 		t.stats.Sent++
 		if err := t.conn.WriteTo(pkt, t.nextHop); err != nil {

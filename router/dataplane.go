@@ -209,7 +209,6 @@ func (p *PacketPool) Get() *Packet {
 // Put returns the given packet to the pool.
 func (p *PacketPool) Put(pkt *Packet) {
 	p.pool <- pkt
-
 }
 
 // makePacketPool creates a packetpool of size poolSize, that configures packet buffers with the
@@ -717,13 +716,13 @@ func (d *dataPlane) Run(ctx context.Context) error {
 	for _, u := range d.underlays {
 		u.Start(ctx, d.packetPool, procQs)
 	}
-	for i := 0; i < d.RunConfig.NumProcessors; i++ {
+	for i := range d.RunConfig.NumProcessors {
 		go func(i int) {
 			defer log.HandlePanic()
 			d.runProcessor(i, procQs[i], slowQs[i%d.RunConfig.NumSlowPathProcessors])
 		}(i)
 	}
-	for i := 0; i < d.RunConfig.NumSlowPathProcessors; i++ {
+	for i := range d.RunConfig.NumSlowPathProcessors {
 		go func(i int) {
 			defer log.HandlePanic()
 			d.runSlowPathProcessor(i, slowQs[i])
@@ -761,7 +760,7 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 	d.packetPool = makePacketPool(poolSize, headroom)
 	pktBuffers := make([][bufSize]byte, poolSize)
 	pktStructs := make([]Packet, poolSize)
-	for i := 0; i < poolSize; i++ {
+	for i := range poolSize {
 		d.packetPool.Put(pktStructs[i].init(&pktBuffers[i]))
 	}
 }
@@ -769,11 +768,11 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 // initializes the processing routines and queues
 func (d *dataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *Packet) {
 	procQs := make([]chan *Packet, d.RunConfig.NumProcessors)
-	for i := 0; i < d.RunConfig.NumProcessors; i++ {
+	for i := range d.RunConfig.NumProcessors {
 		procQs[i] = make(chan *Packet, processorQueueSize)
 	}
 	slowQs := make([]chan *Packet, d.RunConfig.NumSlowPathProcessors)
-	for i := 0; i < d.RunConfig.NumSlowPathProcessors; i++ {
+	for i := range d.RunConfig.NumSlowPathProcessors {
 		slowQs[i] = make(chan *Packet, processorQueueSize)
 	}
 	return procQs, slowQs

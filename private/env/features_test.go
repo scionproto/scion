@@ -1,4 +1,5 @@
 // Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +26,7 @@ import (
 
 func TestAllFeatureFlagsShouldBeBoolean(t *testing.T) {
 	features := reflect.TypeOf(Features{})
-	for i := 0; i < features.NumField(); i++ {
+	for i := range features.NumField() {
 		switch features.Field(i).Type {
 		case reflect.TypeOf(config.NoDefaulter{}), reflect.TypeOf(config.NoValidator{}):
 		default:

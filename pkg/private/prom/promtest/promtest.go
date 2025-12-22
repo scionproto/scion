@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +42,7 @@ func CheckLabelsStruct(t *testing.T, xLabels any) {
 func fieldNames(xLabels prom.Labels) []string {
 	names := []string{}
 	labelsType := reflect.TypeOf(xLabels)
-	for i := 0; i < labelsType.NumField(); i++ {
+	for i := range labelsType.NumField() {
 		field := labelsType.Field(i)
 		// handle nesting of other labels structs:
 		if field.Type.Implements(reflect.TypeOf((*prom.Labels)(nil)).Elem()) {

@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -264,7 +265,7 @@ func (g *Graph) beacon(ifIDs []uint16, addStaticInfo bool) *seg.PathSegment {
 	}
 
 	currIA = g.parents[ifIDs[0]]
-	for i := 0; i <= len(ifIDs); i++ {
+	for i := range len(ifIDs) {
 		switch {
 		case i < len(ifIDs):
 			var ok bool

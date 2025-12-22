@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,9 +21,11 @@ import (
 	"github.com/scionproto/scion/private/ringbuf/internal/metrics"
 )
 
-type Entry any
-type EntryList []Entry
-type NewEntryF func() any
+type (
+	Entry     any
+	EntryList []Entry
+	NewEntryF func() any
+)
 
 // Ring is a classic generic ring buffer on top of a fixed-sized slice. It is thread-safe.
 type Ring struct {
@@ -48,7 +51,7 @@ func New(count int, newf NewEntryF, ringID string) *Ring {
 	r.entries = make(EntryList, count)
 	// Only allocate memory if caller requested it
 	if newf != nil {
-		for i := 0; i < count; i++ {
+		for i := range count {
 			r.entries[i] = newf()
 		}
 		// A ring buffer that allocates data starts off as full
@@ -168,7 +171,7 @@ func (r *Ring) read(entries EntryList) {
 	if n < len(entries) {
 		n = copy(entries[n:], r.entries)
 		// Remove references that were just read.
-		for i := 0; i < n; i++ {
+		for i := range n {
 			r.entries[i] = nil
 		}
 		// Reset read index

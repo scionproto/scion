@@ -1,4 +1,3 @@
-// Copyright 2016 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
 // Copyright 2025 SCION Association
 //
@@ -106,7 +105,7 @@ func IsTemporary(err error) bool {
 func mkErrorInfo(cause error, addStack bool, errCtx ...any) errorInfo {
 	np := len(errCtx) / 2
 	ctx := make([]ctxPair, np)
-	for i := 0; i < np; i++ {
+	for i := range np {
 		k := errCtx[2*i]
 		v := errCtx[2*i+1]
 		ctx[i] = ctxPair{Key: fmt.Sprint(k), Value: v}
