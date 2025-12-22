@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -396,7 +397,7 @@ func calculateStats(s ping.Stats, replies []PingUpdate, run time.Duration) Stats
 	minRTT := replies[0].RTT
 	maxRTT := replies[0].RTT
 	var sum durationMillis
-	for i := 0; i < len(replies); i++ {
+	for i := range len(replies) {
 		if replies[i].RTT < minRTT {
 			minRTT = replies[i].RTT
 		}
@@ -409,7 +410,7 @@ func calculateStats(s ping.Stats, replies []PingUpdate, run time.Duration) Stats
 
 	// standard deviation
 	var sd float64
-	for i := 0; i < len(replies); i++ {
+	for i := range len(replies) {
 		sd += math.Pow(float64(replies[i].RTT-avgRTT), 2)
 	}
 	mdevRTT := math.Sqrt(sd / float64(len(replies)))

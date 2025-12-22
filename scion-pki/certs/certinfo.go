@@ -1,4 +1,5 @@
 // Copyright (c) 2016 Grant Ayers
+// Copyright 2025 SCION Association
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -273,7 +274,7 @@ func printSubjKeyID(ext pkix.Extension, buf *bytes.Buffer) error {
 	if _, err := asn1.Unmarshal(ext.Value, &subjectKeyID); err != nil {
 		return err
 	}
-	for i := 0; i < len(subjectKeyID); i++ {
+	for i := range len(subjectKeyID) {
 		if i == 0 {
 			fmt.Fprintf(buf, "%16s%02X", "", subjectKeyID[0])
 		} else {

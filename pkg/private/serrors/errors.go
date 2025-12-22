@@ -1,5 +1,6 @@
 // Copyright 2016 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -332,7 +333,7 @@ func encodeContext(buf io.Writer, pairs []ctxPair) {
 }
 
 func (s *stack) MarshalLogArray(enc zapcore.ArrayEncoder) error {
-	for i := 0; i < len(*s); i++ {
+	for i := range len(*s) {
 		f := Frame((*s)[i])
 		t, err := f.MarshalText()
 		if err != nil {
