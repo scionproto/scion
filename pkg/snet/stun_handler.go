@@ -2,10 +2,12 @@ package snet
 
 import (
 	"context"
+	"fmt"
 	"github.com/scionproto/scion/pkg/stun"
 	"golang.org/x/sync/errgroup"
 	"net"
 	"net/netip"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -20,15 +22,24 @@ type stunHandler struct {
 	queuedBytes          atomic.Int64
 	maxQueuedBytes       int64
 	recvStunChan         chan []byte
-	mappings             map[*net.UDPAddr]*natMapping // TODO: necessary to protect with mutex?
+	stunChans            map[stun.TxID]chan stunResponse
+	mappings             map[*net.UDPAddr]*natMapping
 	retransmissionTimers map[*net.UDPAddr]*retransmissionTimer
 	writeDeadline        time.Time
+	mutex                sync.Mutex
+	pendingRequests      map[*net.UDPAddr]bool
+	cond                 *sync.Cond
 }
 
 type bufferedPacket struct {
 	data []byte
 	addr net.Addr
 	len  int
+}
+
+type stunResponse struct {
+	mappedAddr netip.AddrPort
+	err        error
 }
 
 func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
@@ -44,16 +55,21 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 	}
 	maxPacketAmount := rcvBufSize / 64 // assuming lower bound of per packet metadata of 64 bytes
 
-	return &stunHandler{
+	handler := &stunHandler{
 		UDPConn:              conn,
 		recvChan:             make(chan bufferedPacket, maxPacketAmount),
 		queuedBytes:          atomic.Int64{},
 		maxQueuedBytes:       int64(rcvBufSize),
 		recvStunChan:         make(chan []byte, 100),
+		stunChans:            make(map[stun.TxID]chan stunResponse),
 		mappings:             make(map[*net.UDPAddr]*natMapping),
 		retransmissionTimers: make(map[*net.UDPAddr]*retransmissionTimer),
 		writeDeadline:        time.Time{},
-	}, nil
+		mutex:                sync.Mutex{},
+		pendingRequests:      make(map[*net.UDPAddr]bool),
+	}
+	handler.cond = sync.NewCond(&handler.mutex)
+	return handler, nil
 }
 
 func (c *stunHandler) queuePacket(pkt bufferedPacket) bool {
@@ -123,6 +139,44 @@ func (c *stunHandler) readStunPacket(ctx context.Context) ([]byte, error) {
 	}
 }
 
+func (c *stunHandler) getStunResponse(ctx context.Context, txid stun.TxID) (netip.AddrPort, error) {
+	c.mutex.Lock()
+	ch, ok := c.stunChans[txid]
+	c.mutex.Unlock()
+	if !ok {
+		return netip.AddrPort{}, fmt.Errorf("STUN response channel not found")
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return netip.AddrPort{}, ctx.Err()
+		default:
+			select {
+			case resp := <-ch:
+				return resp.mappedAddr, resp.err
+			default:
+				pkt, err := c.readStunPacket(ctx)
+				if err != nil {
+					return netip.AddrPort{}, err
+				}
+				respTxID, mappedAddr, err := stun.ParseResponse(pkt)
+				if err != nil {
+					continue
+				}
+				if respTxID == txid {
+					return mappedAddr, nil
+				}
+				// Send to the appropriate channel
+				c.mutex.Lock()
+				if ch, ok := c.stunChans[respTxID]; ok {
+					ch <- stunResponse{mappedAddr: mappedAddr, err: err}
+				}
+				c.mutex.Unlock()
+			}
+		}
+	}
+}
+
 type natMapping struct {
 	destination *net.UDPAddr
 	mappedAddr  *net.UDPAddr
@@ -138,14 +192,34 @@ func (mapping *natMapping) isValid() bool {
 }
 
 func (c *stunHandler) getMappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
-	if mapping, ok := c.mappings[dest]; ok {
-		if mapping.isValid() {
-			mapping.touch()
-			return mapping.mappedAddr, nil
+	c.mutex.Lock()
+	for {
+		// Check if mapping exists and is valid
+		if mapping, ok := c.mappings[dest]; ok {
+			if mapping.isValid() {
+				mapping.touch()
+				c.mutex.Unlock()
+				return mapping.mappedAddr, nil
+			}
 		}
+		// Check if STUN request is already happening concurrently
+		if c.pendingRequests[dest] {
+			c.cond.Wait()
+			continue // Re-check mapping
+		}
+
+		c.pendingRequests[dest] = true
+		break
 	}
 
+	c.mutex.Unlock()
 	mapping, err := c.makeStunRequest(dest)
+	c.mutex.Lock()
+
+	delete(c.pendingRequests, dest)
+	c.cond.Broadcast()
+	c.mutex.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
@@ -165,11 +239,12 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	txID := stun.NewTxID()
 	stunRequest := stun.Request(txID)
 
-	// Drain STUN channel since we are making a new STUN request
-	for len(c.recvStunChan) > 0 {
-		<-c.recvStunChan
-	}
+	// values according to RFC 8489 Section 6.2.1
+	// TODO: make configurable?
+	const Rc = 7  // Maximum number of retransmissions
+	const Rm = 16 // Multiplier for final retransmission wait time
 
+	c.mutex.Lock()
 	if c.retransmissionTimers[dest] == nil {
 		c.retransmissionTimers[dest] = &retransmissionTimer{
 			srtt:     0,
@@ -188,6 +263,15 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 		retransmissionTimer.rttvar = 0
 	}
 
+	c.stunChans[txID] = make(chan stunResponse, Rc*2)
+	c.mutex.Unlock()
+
+	defer func() {
+		c.mutex.Lock()
+		delete(c.stunChans, txID)
+		c.mutex.Unlock()
+	}()
+
 	isRetransmission := atomic.Bool{}
 	isRetransmission.Store(false)
 
@@ -203,17 +287,12 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	g, ctx := errgroup.WithContext(ctx)
 
 	var mappedAddress netip.AddrPort
-
-	// values according to RFC 8489
-	// TODO: make configurable?
-	const Rc = 7
-	const Rm = 16
-
 	var startTime, endTime time.Time
 
 	// Sending goroutine
 	g.Go(func() error {
-		currentRTO := retransmissionTimer.rto
+		originalRTO := retransmissionTimer.rto
+		currentRTO := originalRTO
 		startTime = time.Now()
 		for i := 0; i < Rc; i++ {
 			_, err := c.WriteTo(stunRequest, dest)
@@ -230,7 +309,7 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 				waitDuration = currentRTO
 				currentRTO *= 2
 			} else {
-				waitDuration = Rm * retransmissionTimer.rto
+				waitDuration = Rm * originalRTO
 			}
 
 			select {
@@ -245,23 +324,13 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 
 	// Receiving goroutine
 	g.Go(func() error {
-		for {
-			response, err := c.readStunPacket(ctx)
-			if err != nil {
-				return err
-			}
-			var responseTxID stun.TxID
-			responseTxID, mappedAddress, err = stun.ParseResponse(response)
-			if err != nil {
-				continue
-			}
-
-			if txID == responseTxID {
-				endTime = time.Now()
-				cancel()
-				return nil
-			}
+		var err error
+		mappedAddress, err = c.getStunResponse(ctx, txID)
+		if err != nil {
+			return err
 		}
+		endTime = time.Now()
+		return nil
 	})
 
 	if err := g.Wait(); err != nil {
@@ -272,6 +341,8 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	c.mutex.Lock()
 	mapping := c.mappings[dest]
 	if mapping == nil {
 		mapping = &natMapping{destination: dest}
@@ -282,6 +353,7 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 
 	// Skip RTT calculation on retransmission or error
 	if isRetransmission.Load() || endTime.IsZero() {
+		c.mutex.Unlock()
 		return mapping, nil
 	}
 
@@ -304,7 +376,7 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	}
 	retransmissionTimer.rto = retransmissionTimer.srtt + maxTerm
 	retransmissionTimer.lastUsed = time.Now()
-
+	c.mutex.Unlock()
 	return mapping, nil
 }
 
