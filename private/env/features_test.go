@@ -25,10 +25,10 @@ import (
 )
 
 func TestAllFeatureFlagsShouldBeBoolean(t *testing.T) {
-	features := reflect.TypeOf(Features{})
+	features := reflect.TypeFor[Features]()
 	for i := range features.NumField() {
 		switch features.Field(i).Type {
-		case reflect.TypeOf(config.NoDefaulter{}), reflect.TypeOf(config.NoValidator{}):
+		case reflect.TypeFor[config.NoDefaulter](), reflect.TypeFor[config.NoValidator]():
 		default:
 			assert.Equal(t, reflect.Bool, features.Field(i).Type.Kind())
 		}

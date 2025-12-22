@@ -45,7 +45,7 @@ func fieldNames(xLabels prom.Labels) []string {
 	for i := range labelsType.NumField() {
 		field := labelsType.Field(i)
 		// handle nesting of other labels structs:
-		if field.Type.Implements(reflect.TypeOf((*prom.Labels)(nil)).Elem()) {
+		if field.Type.Implements(reflect.TypeFor[prom.Labels]()) {
 			names = append(names, fieldNames(reflect.Zero(field.Type).Interface().(prom.Labels))...)
 		} else {
 			names = append(names, strcase.ToSnake(field.Name))
