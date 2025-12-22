@@ -202,7 +202,7 @@ A valid example for a JSON formatted template::
 			if err != nil {
 				return serrors.Wrap("parsing profile", err)
 			}
-			requireIA := ct == cppki.Sensitive || ct == cppki.Regular
+			requireIA := ct != cppki.Sensitive && ct != cppki.Regular
 			subject, err := createSubject(args[0], flags.commonName, requireIA)
 			if err != nil {
 				return serrors.Wrap("creating subject", err)
