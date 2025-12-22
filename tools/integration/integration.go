@@ -405,7 +405,7 @@ type workFunc func() error
 
 func workInParallel(workChan chan workFunc, errors chan error, maxGoRoutines int) error {
 	var wg sync.WaitGroup
-	for range maxGoRoutines {
+	for i := 1; i <= maxGoRoutines; i++ {
 		wg.Go(func() {
 			defer log.HandlePanic()
 			for work := range workChan {
