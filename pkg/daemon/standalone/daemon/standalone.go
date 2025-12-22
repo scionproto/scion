@@ -23,7 +23,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
-	daemon2 "github.com/scionproto/scion/pkg/daemon"
+	daemonpkg "github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/server"
 	"github.com/scionproto/scion/pkg/log"
 	truststoragemetrics "github.com/scionproto/scion/private/storage/trust/metrics"
@@ -89,7 +89,7 @@ type StandaloneOptions struct {
 
 // wrapper for the standalone service to keep track of background tasks and storages to be closed
 type wrapperWithClose struct {
-	daemon2.Connector
+	daemonpkg.Connector
 
 	// background tasks and storages to be closed on Close()
 	pathDBCleaner *periodic.Runner
@@ -109,7 +109,7 @@ type wrapperWithClose struct {
 //
 // Note: This function starts background tasks (cleaner, TRC loader) that should be stopped
 // when done. The caller should handle cleanup appropriately, typically via context cancellation.
-func NewStandaloneService(ctx context.Context, options StandaloneOptions) (daemon2.Connector, error) {
+func NewStandaloneService(ctx context.Context, options StandaloneOptions) (daemonpkg.Connector, error) {
 	if options.Topo == nil && options.TopoFile == "" {
 		return nil, serrors.New("either topology or topology file path must be provided")
 	}
@@ -209,7 +209,7 @@ func NewStandaloneService(ctx context.Context, options StandaloneOptions) (daemo
 				[]string{"driver", "operation", prom.LabelResult},
 			),
 		})
-		engine, err := daemon2.TrustEngine(
+		engine, err := daemonpkg.TrustEngine(
 			errCtx, options.ConfigDir, topo.IA(), trustDB, dialer,
 		)
 		if err != nil {
