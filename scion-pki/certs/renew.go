@@ -358,7 +358,7 @@ The template is expressed in JSON. A valid example::
 			if flags.subject != "" {
 				template = flags.subject
 			}
-			subject, err := createSubject(template, flags.commonName)
+			subject, err := createSubject(template, flags.commonName, true)
 			if err != nil {
 				return err
 			}
@@ -925,8 +925,8 @@ func extractChainLegacy(rep *cppb.ChainRenewalResponse) ([]*x509.Certificate, er
 	return chain, nil
 }
 
-func subjectFromVars(vars SubjectVars) (pkix.Name, error) {
-	if vars.IA.IsZero() {
+func subjectFromVars(vars SubjectVars, requireIA bool) (pkix.Name, error) {
+	if requireIA && vars.IA.IsZero() {
 		return pkix.Name{}, serrors.New("isd_as required in template")
 	}
 	s := pkix.Name{
