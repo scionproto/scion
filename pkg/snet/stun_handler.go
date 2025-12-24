@@ -19,17 +19,19 @@ const timeoutDuration = 5 * time.Minute
 // stunHandler is a wrapper around net.UDPConn that handles STUN requests.
 type stunHandler struct {
 	*net.UDPConn
-	recvChan             chan bufferedPacket
-	queuedBytes          atomic.Int64
-	maxQueuedBytes       int64
-	recvStunChan         chan []byte
+	recvChan       chan bufferedPacket
+	queuedBytes    atomic.Int64
+	maxQueuedBytes int64
+	recvStunChan   chan []byte
+	mutex          sync.Mutex
+
+	// the following fields are protected by mutex
 	stunChans            map[stun.TxID]chan stunResponse
 	mappings             map[*net.UDPAddr]*natMapping
 	retransmissionTimers map[*net.UDPAddr]*retransmissionTimer
-	writeDeadline        time.Time
-	mutex                sync.Mutex
 	pendingRequests      map[*net.UDPAddr]bool
-	cond                 *sync.Cond
+	writeDeadline        time.Time
+	cond                 *sync.Cond // condition variable for pending STUN requests
 }
 
 type bufferedPacket struct {
@@ -265,16 +267,6 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	}
 
 	c.stunChans[txID] = make(chan stunResponse, Rc*2)
-	c.mutex.Unlock()
-
-	defer func() {
-		c.mutex.Lock()
-		delete(c.stunChans, txID)
-		c.mutex.Unlock()
-	}()
-
-	isRetransmission := atomic.Bool{}
-	isRetransmission.Store(false)
 
 	var ctx context.Context
 	var cancel context.CancelFunc
@@ -285,6 +277,17 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 		ctx, cancel = context.WithDeadline(context.Background(), c.writeDeadline)
 	}
 	g, ctx := errgroup.WithContext(ctx)
+
+	c.mutex.Unlock()
+
+	defer func() {
+		c.mutex.Lock()
+		delete(c.stunChans, txID)
+		c.mutex.Unlock()
+	}()
+
+	isRetransmission := atomic.Bool{}
+	isRetransmission.Store(false)
 
 	var mappedAddress netip.AddrPort
 	var startTime, endTime time.Time
@@ -382,6 +385,8 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 }
 
 func (c *stunHandler) SetWriteDeadline(t time.Time) error {
+	c.mutex.Lock()
 	c.writeDeadline = t
+	c.mutex.Unlock()
 	return c.UDPConn.SetWriteDeadline(t)
 }
