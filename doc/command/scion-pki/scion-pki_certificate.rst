@@ -30,6 +30,7 @@ SEE ALSO
 * :ref:`scion-pki certificate match <scion-pki_certificate_match>` 	 - Match the certificate with other trust objects
 * :ref:`scion-pki certificate renew <scion-pki_certificate_renew>` 	 - Renew an AS certificate
 * :ref:`scion-pki certificate sign <scion-pki_certificate_sign>` 	 - Sign a certificate based on a certificate signing request
+* :ref:`scion-pki certificate template <scion-pki_certificate_template>` 	 - Create subject template from a certificate or CSR
 * :ref:`scion-pki certificate validate <scion-pki_certificate_validate>` 	 - Validate a SCION cert according to its type
 * :ref:`scion-pki certificate verify <scion-pki_certificate_verify>` 	 - Verify a certificate chain
 
