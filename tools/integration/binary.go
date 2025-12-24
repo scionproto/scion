@@ -122,7 +122,12 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 		args = replacePattern(Daemon, daemonAddr, args)
 	}
 	if needTopoDir(args) {
-		args = replacePattern(TopoDir, GenFile(""), args)
+		// In Docker mode, the gen directory is mounted at /share inside the container
+		if *Docker {
+			args = replacePattern(TopoDir, "/share", args)
+		} else {
+			args = replacePattern(TopoDir, GenFile(""), args)
+		}
 	}
 	r := exec.CommandContext(ctx, bi.cmd, args...)
 	log.Info(fmt.Sprintf("%v %v\n", bi.cmd, strings.Join(args, " ")))
@@ -195,7 +200,12 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 		args = replacePattern(Daemon, daemonAddr, args)
 	}
 	if needTopoDir(args) {
-		args = replacePattern(TopoDir, GenFile(""), args)
+		// In Docker mode, the gen directory is mounted at /share inside the container
+		if *Docker {
+			args = replacePattern(TopoDir, "/share", args)
+		} else {
+			args = replacePattern(TopoDir, GenFile(""), args)
+		}
 	}
 	r := &BinaryWaiter{
 		cmd:         exec.CommandContext(ctx, bi.cmd, args...),
