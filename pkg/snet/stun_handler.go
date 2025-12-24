@@ -2,6 +2,7 @@ package snet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/scionproto/scion/pkg/stun"
 	"golang.org/x/sync/errgroup"
@@ -283,7 +284,6 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	} else {
 		ctx, cancel = context.WithDeadline(context.Background(), c.writeDeadline)
 	}
-	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
 	var mappedAddress netip.AddrPort
@@ -326,6 +326,7 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	g.Go(func() error {
 		var err error
 		mappedAddress, err = c.getStunResponse(ctx, txID)
+		cancel()
 		if err != nil {
 			return err
 		}
@@ -333,7 +334,7 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 		return nil
 	})
 
-	if err := g.Wait(); err != nil {
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
 		return nil, err
 	}
 
