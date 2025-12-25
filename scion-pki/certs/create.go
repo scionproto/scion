@@ -142,7 +142,7 @@ func newCreateCmd(pather command.Pather) *cobra.Command {
 		Default: "depends on profile",
 	}
 
-	var cmd = &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "create [flags] <subject-template> <cert-file> <key-file>",
 		Short: "Create a certificate or certificate signing request",
 		Example: fmt.Sprintf(`  %[1]s create --profile cp-root subject.tmpl cp-root.crt cp-root.key
@@ -202,7 +202,8 @@ A valid example for a JSON formatted template::
 			if err != nil {
 				return serrors.Wrap("parsing profile", err)
 			}
-			subject, err := createSubject(args[0], flags.commonName)
+			requireIA := ct != cppki.Sensitive && ct != cppki.Regular
+			subject, err := createSubject(args[0], flags.commonName, requireIA)
 			if err != nil {
 				return serrors.Wrap("creating subject", err)
 			}
@@ -277,7 +278,7 @@ A valid example for a JSON formatted template::
 					panic("failed to encode CSR")
 				}
 				csrFile := args[1]
-				err = file.WriteFile(csrFile, encodedCSR, 0644, file.WithForce(flags.force))
+				err = file.WriteFile(csrFile, encodedCSR, 0o644, file.WithForce(flags.force))
 				if err != nil {
 					return serrors.Wrap("writing CSR", err)
 				}
@@ -313,7 +314,7 @@ A valid example for a JSON formatted template::
 					encodedCert = append(encodedCert, caCertRaw...)
 				}
 				certFile := args[1]
-				err = file.WriteFile(certFile, encodedCert, 0644, file.WithForce(flags.force))
+				err = file.WriteFile(certFile, encodedCert, 0o644, file.WithForce(flags.force))
 				if err != nil {
 					return serrors.Wrap("writing certificate", err)
 				}
@@ -325,7 +326,7 @@ A valid example for a JSON formatted template::
 				if err := file.CheckDirExists(filepath.Dir(keyFile)); err != nil {
 					return serrors.Wrap("checking that directory of private key exists", err)
 				}
-				err := file.WriteFile(keyFile, encodedKey, 0600, file.WithForce(flags.force))
+				err := file.WriteFile(keyFile, encodedKey, 0o600, file.WithForce(flags.force))
 				if err != nil {
 					return serrors.Wrap("writing private key", err)
 				}
@@ -414,8 +415,8 @@ func parseCertType(input string) (cppki.CertType, error) {
 	}
 }
 
-func createSubject(tmpl, commonName string) (pkix.Name, error) {
-	subject, err := loadSubject(tmpl)
+func createSubject(tmpl, commonName string, requireIA bool) (pkix.Name, error) {
+	subject, err := loadSubject(tmpl, requireIA)
 	if err != nil {
 		return pkix.Name{}, err
 	}
@@ -425,16 +426,14 @@ func createSubject(tmpl, commonName string) (pkix.Name, error) {
 	return subject, nil
 }
 
-func loadSubject(tmpl string) (pkix.Name, error) {
+func loadSubject(tmpl string, requireIA bool) (pkix.Name, error) {
 	raw, err := os.ReadFile(tmpl)
 	if err != nil {
 		return pkix.Name{}, err
 	}
-	// Check if template is a x509 certificate.
-	cert, err := parseCertificate(raw)
-	if err == nil {
-		s := cert.Subject
-		for _, name := range cert.Subject.Names {
+	if subject, err := loadPkixNameFromRaw(raw); err == nil {
+		s := subject
+		for _, name := range subject.Names {
 			// Ignore common name.
 			if name.Type.Equal(asn1.ObjectIdentifier{2, 5, 4, 3}) {
 				continue
@@ -449,7 +448,7 @@ func loadSubject(tmpl string) (pkix.Name, error) {
 	if err := json.Unmarshal(raw, &vars); err != nil {
 		return pkix.Name{}, err
 	}
-	return subjectFromVars(vars)
+	return subjectFromVars(vars, requireIA)
 }
 
 func parseCertificate(raw []byte) (*x509.Certificate, error) {

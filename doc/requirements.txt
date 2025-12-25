@@ -418,9 +418,9 @@ regex==2024.4.16 \
     --hash=sha256:fb83cc090eac63c006871fd24db5e30a1f282faa46328572661c0a24a2323a08 \
     --hash=sha256:fd80d1280d473500d8086d104962a82d77bfbf2b118053824b7be28cd5a79ea5
     # via sphinx-lint
-requests==2.32.3 \
-    --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760 \
-    --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
+requests==2.32.4 \
+    --hash=sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c \
+    --hash=sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422
     # via
     #   -r doc/requirements.in
     #   sphinx
@@ -617,13 +617,19 @@ sphinxcontrib-serializinghtml==1.1.10 \
     --hash=sha256:326369b8df80a7d2d8d7f99aa5ac577f51ea51556ed974e7716cfd4fca3f6cb7 \
     --hash=sha256:93f3f5dc458b91b192fe10c397e324f262cf163d79f3282c158e8436a2c4511f
     # via sphinx
-starlette==0.40.0 \
-    --hash=sha256:1a3139688fb298ce5e2d661d37046a66ad996ce94be4d4983be019a23a04ea35 \
-    --hash=sha256:c494a22fae73805376ea6bf88439783ecfba9aac88a43911b48c653437e784c4
-    # via sphinx-autobuild
-urllib3==2.4.0 \
-    --hash=sha256:414bc6535b787febd7567804cc015fee39daab8ad86268f1310a9250697de466 \
-    --hash=sha256:4e16665048960a0900c702d4a66415956a584919c03361cac9f1df5c5dd7e813
+starlette==0.50.0 \
+    --hash=sha256:9e5391843ec9b6e472eed1365a78c8098cfceb7a74bfd4d6b1c0c0095efb3bca \
+    --hash=sha256:a2a17b22203254bcbc2e1f926d2d55f3f9497f769416b3190768befe598fa3ca
+    # via
+    #   -r doc/requirements.in
+    #   sphinx-autobuild
+typing-extensions==4.14.1 \
+    --hash=sha256:38b39f4aeeab64884ce9f74c94263ef78f3c22467c8724005483154c26648d36 \
+    --hash=sha256:d1e1e3b58374dc93031d6eda2420a48ea44a36c2b4766a4fdeb3710755731d76
+    # via starlette
+urllib3==2.6.2 \
+    --hash=sha256:016f9c98bb7e98085cb2b4b17b87d2c702975664e4f060c6532e64d1c1a5e797 \
+    --hash=sha256:ec21cddfe7724fc7cb4ba4bea7aa8e2ef36f607a4bab81aa6ce42a13dc3f03dd
     # via
     #   -r doc/requirements.in
     #   requests

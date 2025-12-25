@@ -202,7 +202,7 @@ func (x *Header) GetAssociatedDataLength() int32 {
 	return 0
 }
 
-type HeaderAndBodyInternal struct {
+type HeaderAndBody struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Header        []byte                 `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	Body          []byte                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
@@ -210,20 +210,20 @@ type HeaderAndBodyInternal struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *HeaderAndBodyInternal) Reset() {
-	*x = HeaderAndBodyInternal{}
+func (x *HeaderAndBody) Reset() {
+	*x = HeaderAndBody{}
 	mi := &file_proto_crypto_v1_signed_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *HeaderAndBodyInternal) String() string {
+func (x *HeaderAndBody) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HeaderAndBodyInternal) ProtoMessage() {}
+func (*HeaderAndBody) ProtoMessage() {}
 
-func (x *HeaderAndBodyInternal) ProtoReflect() protoreflect.Message {
+func (x *HeaderAndBody) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_crypto_v1_signed_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -235,19 +235,19 @@ func (x *HeaderAndBodyInternal) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HeaderAndBodyInternal.ProtoReflect.Descriptor instead.
-func (*HeaderAndBodyInternal) Descriptor() ([]byte, []int) {
+// Deprecated: Use HeaderAndBody.ProtoReflect.Descriptor instead.
+func (*HeaderAndBody) Descriptor() ([]byte, []int) {
 	return file_proto_crypto_v1_signed_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *HeaderAndBodyInternal) GetHeader() []byte {
+func (x *HeaderAndBody) GetHeader() []byte {
 	if x != nil {
 		return x.Header
 	}
 	return nil
 }
 
-func (x *HeaderAndBodyInternal) GetBody() []byte {
+func (x *HeaderAndBody) GetBody() []byte {
 	if x != nil {
 		return x.Body
 	}
@@ -267,8 +267,8 @@ const file_proto_crypto_v1_signed_proto_rawDesc = "" +
 	"\x13verification_key_id\x18\x02 \x01(\fR\x11verificationKeyId\x128\n" +
 	"\ttimestamp\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1a\n" +
 	"\bmetadata\x18\x04 \x01(\fR\bmetadata\x124\n" +
-	"\x16associated_data_length\x18\x05 \x01(\x05R\x14associatedDataLength\"C\n" +
-	"\x15HeaderAndBodyInternal\x12\x16\n" +
+	"\x16associated_data_length\x18\x05 \x01(\x05R\x14associatedDataLength\";\n" +
+	"\rHeaderAndBody\x12\x16\n" +
 	"\x06header\x18\x01 \x01(\fR\x06header\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\fR\x04body*\xba\x01\n" +
 	"\x12SignatureAlgorithm\x12#\n" +
@@ -295,7 +295,7 @@ var file_proto_crypto_v1_signed_proto_goTypes = []any{
 	(SignatureAlgorithm)(0),       // 0: proto.crypto.v1.SignatureAlgorithm
 	(*SignedMessage)(nil),         // 1: proto.crypto.v1.SignedMessage
 	(*Header)(nil),                // 2: proto.crypto.v1.Header
-	(*HeaderAndBodyInternal)(nil), // 3: proto.crypto.v1.HeaderAndBodyInternal
+	(*HeaderAndBody)(nil),         // 3: proto.crypto.v1.HeaderAndBody
 	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_proto_crypto_v1_signed_proto_depIdxs = []int32{

@@ -45,7 +45,7 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	beaconingconnect "github.com/scionproto/scion/control/beaconing/connect"
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
-	"github.com/scionproto/scion/control/beaconing/happy"
+	beaconinghappy "github.com/scionproto/scion/control/beaconing/happy"
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
 	drkeyconnect "github.com/scionproto/scion/control/drkey/connect"
@@ -54,6 +54,7 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	api "github.com/scionproto/scion/control/mgmtapi"
 	"github.com/scionproto/scion/control/onehop"
+	"github.com/scionproto/scion/control/segreg"
 	segregconnect "github.com/scionproto/scion/control/segreg/connect"
 	segreggrpc "github.com/scionproto/scion/control/segreg/grpc"
 	"github.com/scionproto/scion/control/segreq"
@@ -65,6 +66,8 @@ import (
 	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
+	"github.com/scionproto/scion/pkg/connect/happy"
+	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
@@ -79,6 +82,7 @@ import (
 	discoveryext "github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/pkg/snet/squic"
 	"github.com/scionproto/scion/private/app"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
@@ -118,7 +122,9 @@ import (
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
-var globalCfg config.Config
+var (
+	globalCfg config.Config
+)
 
 func main() {
 	application := launcher.Application{
@@ -135,7 +141,6 @@ func main() {
 
 func realMain(ctx context.Context) error {
 	metrics := cs.NewMetrics()
-
 	topo, err := topology.NewLoader(topology.LoaderCfg{
 		File:      globalCfg.General.Topology(),
 		Reload:    app.SIGHUPChannel(ctx),
@@ -144,6 +149,10 @@ func realMain(ctx context.Context) error {
 	})
 	if err != nil {
 		return serrors.Wrap("creating topology loader", err)
+	}
+	rpcClientConfig := happy.Config{
+		NoPreferred: globalCfg.RPC.ConnectrpcClientDisabled,
+		NoFallback:  globalCfg.RPC.GrpcClientDisabled,
 	}
 	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -268,10 +277,13 @@ func realMain(ctx context.Context) error {
 		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
 	})
 
+	policies, err := loadPolicies(topo.Core(), globalCfg.BS.Policies)
+	if err != nil {
+		return serrors.Wrap("loading policies", err)
+	}
 	beaconStore, isdLoopAllowed, err := createBeaconStore(
+		policies,
 		beaconDB,
-		topo.Core(),
-		globalCfg.BS.Policies,
 		trust.FetchingProvider{
 			DB:       trustDB,
 			Recurser: trust.NeverRecurser{},
@@ -310,6 +322,7 @@ func realMain(ctx context.Context) error {
 				Dialer:   dialer,
 				Requests: libmetrics.NewPromCounter(trustmetrics.RPC.Fetches),
 			},
+			RpcConfig: rpcClientConfig,
 		},
 		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
 		// XXX(roosd): cyclic dependency on router. It is set below.
@@ -341,6 +354,7 @@ func realMain(ctx context.Context) error {
 			Grpc: &segfetchergrpc.Requester{
 				Dialer: dialer,
 			},
+			RpcConfig: rpcClientConfig,
 		},
 		Inspector: inspector,
 		Verifier:  verifier,
@@ -572,9 +586,9 @@ func realMain(ctx context.Context) error {
 		}
 
 		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
-		connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
-			RenewalServer: renewalServer,
-		}))
+		connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(
+			renewalconnect.RenewalServer{RenewalServer: renewalServer},
+		))
 		connectIntra.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
 			RenewalServer: renewalServer,
 		}))
@@ -715,6 +729,7 @@ func realMain(ctx context.Context) error {
 				Router:     segreq.NewRouter(fetcherCfg),
 				MaxRetries: 20,
 			},
+			RpcConfig: rpcClientConfig,
 		}
 		prefetchKeeper, err := drkey.NewLevel1ARC(globalCfg.DRKey.PrefetchEntries)
 		if err != nil {
@@ -748,10 +763,6 @@ func realMain(ctx context.Context) error {
 	promgrpc.Register(quicServer)
 
 	var cleanup app.Cleanup
-	connectServer := http3.Server{
-		Handler: libconnect.AttachPeer(connectInter),
-	}
-
 	grpcConns := make(chan *quic.Conn)
 	//nolint:contextcheck // false positive.
 	g.Go(func() error {
@@ -771,23 +782,29 @@ func realMain(ctx context.Context) error {
 					grpcConns <- conn
 					return
 				}
-
-				if err := connectServer.ServeQUICConn(conn); err != nil {
-					log.Debug("Error handling connectrpc connection", "err", err)
+				if !globalCfg.RPC.ConnectrpcServerDisabled {
+					connectServer := http3.Server{
+						Handler: libconnect.AttachPeer(connectInter),
+					}
+					if err := connectServer.ServeQUICConn(conn); err != nil {
+						log.Debug("Error handling connectrpc connection", "err", err)
+					}
 				}
 			}()
 		}
 	})
 
-	g.Go(func() error {
-		defer log.HandlePanic()
-		grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
-		if err := quicServer.Serve(grpcListener); err != nil {
-			return serrors.Wrap("serving gRPC/SCION API", err)
-		}
-		return nil
-	})
-	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+	if !globalCfg.RPC.GrpcServerDisabled {
+		g.Go(func() error {
+			defer log.HandlePanic()
+			grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
+			if err := quicServer.Serve(grpcListener); err != nil {
+				return serrors.Wrap("serving gRPC/SCION API", err)
+			}
+			return nil
+		})
+		cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+	}
 
 	intraServer := http.Server{
 		Handler: h2c.NewHandler(libconnect.AttachPeer(connectIntra), &http2.Server{}),
@@ -889,7 +906,22 @@ func realMain(ctx context.Context) error {
 		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
-	tasks, err := cs.StartTasks(cs.TasksConfig{
+	rpc := &beaconinghappy.Registrar{
+		Connect: beaconingconnect.Registrar{
+			Dialer: (&squic.EarlyDialerFactory{
+				Transport: quicStack.InsecureDialer.Transport,
+				TLSConfig: func() *tls.Config {
+					cfg := quicStack.InsecureDialer.TLSConfig.Clone()
+					cfg.NextProtos = []string{"h3", "SCION"}
+					return cfg
+				}(),
+				Rewriter: dialer.Rewriter,
+			}).NewDialer,
+		},
+		Grpc:      beaconinggrpc.Registrar{Dialer: dialer},
+		RpcConfig: rpcClientConfig,
+	}
+	tc := cs.TasksConfig{
 		IA:            topo.IA(),
 		Core:          topo.Core(),
 		MTU:           topo.MTU(),
@@ -904,7 +936,7 @@ func realMain(ctx context.Context) error {
 		TrustDB:  trustDB,
 		PathDB:   pathDB,
 		RevCache: revCache,
-		BeaconSenderFactory: &happy.BeaconSenderFactory{
+		BeaconSenderFactory: &beaconinghappy.BeaconSenderFactory{
 			Connect: &beaconingconnect.BeaconSenderFactory{
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
@@ -919,22 +951,10 @@ func realMain(ctx context.Context) error {
 			Grpc: &beaconinggrpc.BeaconSenderFactory{
 				Dialer: dialer,
 			},
+			RpcConfig: rpcClientConfig,
 		},
-		SegmentRegister: &happy.Registrar{
-			Connect: beaconingconnect.Registrar{
-				Dialer: (&squic.EarlyDialerFactory{
-					Transport: quicStack.InsecureDialer.Transport,
-					TLSConfig: func() *tls.Config {
-						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
-						cfg.NextProtos = []string{"h3", "SCION"}
-						return cfg
-					}(),
-					Rewriter: dialer.Rewriter,
-				}).NewDialer,
-			},
-			Grpc: beaconinggrpc.Registrar{Dialer: dialer},
-		},
-		BeaconStore: beaconStore,
+		SegmentRegister: rpc,
+		BeaconStore:     beaconStore,
 		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) ([]beaconing.Signer, error) {
 			signers, err := signer.SignerGen.Generate(ctx)
 			if err != nil {
@@ -975,7 +995,69 @@ func realMain(ctx context.Context) error {
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
 		EPIC:                      globalCfg.BS.EPIC,
-	})
+	}
+
+	var internalErr, registered libmetrics.Counter
+	if metrics != nil {
+		internalErr = libmetrics.NewPromCounter(metrics.BeaconingRegistrarInternalErrorsTotal)
+		registered = libmetrics.NewPromCounter(metrics.BeaconingRegisteredTotal)
+	}
+
+	pather := addrutil.Pather{
+		NextHopper: topo,
+	}
+	// initialize the plugins
+	localPlugin := &beaconing.LocalSegmentRegistrationPlugin{
+		InternalErrors: internalErr,
+		Registered:     registered,
+		Store:          &seghandler.DefaultStorage{PathDB: pathDB},
+	}
+	remotePlugin := &beaconing.RemoteSegmentRegistrationPlugin{
+		InternalErrors: internalErr,
+		Registered:     registered,
+		RPC:            rpc,
+		Pather:         pather,
+	}
+	var hiddenPathPlugin *hiddenpath.HiddenSegmentRegistrationPlugin
+	// Construct the hidden path plugin if the hidden path configuration exists.
+	if hpWriterCfg != nil {
+		hiddenPathPlugin = &hiddenpath.HiddenSegmentRegistrationPlugin{
+			InternalErrors:     internalErr,
+			Registered:         registered,
+			Pather:             pather,
+			RegistrationPolicy: hpWriterCfg.Policy,
+			RPC:                hpWriterCfg.RPC,
+			AddressResolver: hiddenpath.RegistrationResolver{
+				Router:     hpWriterCfg.Router,
+				Discoverer: hpWriterCfg.Discoverer,
+			},
+		}
+	}
+	ignorePlugin := &segreg.IgnoreSegmentRegistrationPlugin{}
+	defaultPlugin := &DefaultSegmentRegistrationPlugin{
+		LocalPlugin:  localPlugin,
+		RemotePlugin: remotePlugin,
+		HiddenPlugin: hiddenPathPlugin,
+	}
+	// plugins is a list of plugins that can be used to register segments.
+	plugins := []segreg.SegmentRegistrationPlugin{
+		localPlugin,
+		remotePlugin,
+		ignorePlugin,
+		defaultPlugin,
+	}
+	if hiddenPathPlugin != nil {
+		plugins = append(plugins, hiddenPathPlugin)
+	}
+
+	// Register the plugins so that they can be used everywhere.
+	for _, plugin := range plugins {
+		segreg.RegisterSegmentRegPlugin(plugin)
+	}
+	if err := tc.InitPlugins(errCtx, policies.RegistrationPolicies()); err != nil {
+		return serrors.Wrap("initializing tasks plugins", err)
+	}
+	tasks, err := cs.StartTasks(tc)
 	if err != nil {
 		return serrors.Wrap("starting periodic tasks", err)
 	}
@@ -996,26 +1078,69 @@ func realMain(ctx context.Context) error {
 	return g.Wait()
 }
 
-func createBeaconStore(
-	db storage.BeaconDB,
+// loadedPolicies is a struct that holds the loaded policies.
+// It can either be core policies or non-core policies, but not both.
+type loadedPolicies struct {
+	CorePolicies    *beacon.CorePolicies
+	NonCorePolicies *beacon.Policies
+}
+
+// loadPolicies loads the policies based on the given policyConfig and
+// the core flag, which must be true iff the service is core.
+func loadPolicies(
 	core bool,
 	policyConfig config.Policies,
-	provider beacon.ChainProvider,
-) (cs.Store, bool, error) {
+) (loadedPolicies, error) {
 	if core {
 		policies, err := cs.LoadCorePolicies(policyConfig)
 		if err != nil {
-			return nil, false, err
+			return loadedPolicies{}, serrors.Wrap("loading core policies", err)
 		}
-		store, err := beacon.NewCoreBeaconStore(policies, db, beacon.WithCheckChain(provider))
+		return loadedPolicies{CorePolicies: &policies}, nil
+	} else {
+		policies, err := cs.LoadNonCorePolicies(policyConfig)
+		if err != nil {
+			return loadedPolicies{}, serrors.Wrap("loading non-core policies", err)
+		}
+		return loadedPolicies{NonCorePolicies: &policies}, nil
+	}
+}
+
+// RegistrationPolicies returns the policies that are used for segment registration.
+func (l loadedPolicies) RegistrationPolicies() []beacon.Policy {
+	switch {
+	case l.CorePolicies != nil:
+		return []beacon.Policy{l.CorePolicies.CoreReg}
+	case l.NonCorePolicies != nil:
+		return []beacon.Policy{l.NonCorePolicies.UpReg, l.NonCorePolicies.DownReg}
+	default:
+		return nil
+	}
+}
+
+func createBeaconStore(
+	policies loadedPolicies,
+	db storage.BeaconDB,
+	provider beacon.ChainProvider,
+) (cs.Store, bool, error) {
+	switch {
+	case policies.CorePolicies != nil:
+		policies := policies.CorePolicies
+		selectionAlgo := beacon.NewChainsAvailableAlgo(provider, beacon.DefaultSelectionAlgorithm())
+		store, err := beacon.NewCoreBeaconStore(*policies, db,
+			beacon.WithSelectionAlgorithm(selectionAlgo),
+		)
 		return store, *policies.Prop.Filter.AllowIsdLoop, err
+	case policies.NonCorePolicies != nil:
+		policies := policies.NonCorePolicies
+		selectionAlgo := beacon.NewChainsAvailableAlgo(provider, beacon.DefaultSelectionAlgorithm())
+		store, err := beacon.NewBeaconStore(*policies, db,
+			beacon.WithSelectionAlgorithm(selectionAlgo),
+		)
+		return store, *policies.Prop.Filter.AllowIsdLoop, err
+	default:
+		return nil, false, serrors.New("no policies loaded")
 	}
-	policies, err := cs.LoadNonCorePolicies(policyConfig)
-	if err != nil {
-		return nil, false, err
-	}
-	store, err := beacon.NewBeaconStore(policies, db, beacon.WithCheckChain(provider))
-	return store, *policies.Prop.Filter.AllowIsdLoop, err
 }
 
 func adaptInterfaceMap(in map[iface.ID]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
