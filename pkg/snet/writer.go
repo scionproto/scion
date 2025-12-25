@@ -87,16 +87,13 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	// Rewrite source IP if STUN is in use
 	if scionConn, ok := c.conn.(*SCIONPacketConn); ok {
 		if stunHandler, ok := scionConn.Conn.(*stunHandler); ok {
-			sameIA := func() bool {
-				switch a := raddr.(type) {
-				case *UDPAddr:
-					return a.IA.Equal(c.local.IA)
-				case *SVCAddr:
-					return a.IA.Equal(c.local.IA)
-				default:
-					return false
-				}
-			}()
+			var sameIA bool
+			switch a := raddr.(type) {
+			case *UDPAddr:
+				sameIA = a.IA.Equal(c.local.IA)
+			case *SVCAddr:
+				sameIA = a.IA.Equal(c.local.IA)
+			}
 			if !sameIA {
 				mappedAddr, err := stunHandler.mappedAddr(nextHop)
 				if err != nil {
