@@ -79,20 +79,17 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 func (c *stunHandler) queuePacket(pkt bufferedPacket) bool {
 	pktLen := int64(len(pkt.data))
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	if c.queuedBytes+pktLen > c.maxQueuedBytes {
-		c.mutex.Unlock()
 		return false
 	}
-	c.queuedBytes += pktLen
-	c.mutex.Unlock()
 
 	select {
 	case c.recvChan <- pkt:
+		c.queuedBytes += pktLen
 		return true
 	default:
-		c.mutex.Lock()
-		c.queuedBytes -= pktLen
-		c.mutex.Unlock()
 		return false
 	}
 }
