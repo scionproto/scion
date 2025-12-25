@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/scionproto/scion/pkg/stun"
-	"golang.org/x/sync/errgroup"
 	"net"
 	"net/netip"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/scionproto/scion/pkg/stun"
 )
 
 const timeoutDuration = 5 * time.Minute
@@ -37,7 +39,6 @@ type stunHandler struct {
 type bufferedPacket struct {
 	data []byte
 	addr net.Addr
-	len  int
 }
 
 type stunResponse struct {
@@ -56,19 +57,19 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 	if err != nil {
 		return nil, err
 	}
-	maxPacketAmount := rcvBufSize / 64 // assuming lower bound of per packet metadata of 64 bytes
+	maxNumPacket := rcvBufSize / 64 // assuming lower bound of per packet metadata of 64 bytes
+	if maxNumPacket < 10 {
+		maxNumPacket = 10
+	}
 
 	handler := &stunHandler{
 		UDPConn:              conn,
-		recvChan:             make(chan bufferedPacket, maxPacketAmount),
-		queuedBytes:          atomic.Int64{},
+		recvChan:             make(chan bufferedPacket, maxNumPacket),
 		maxQueuedBytes:       int64(rcvBufSize),
 		recvStunChan:         make(chan []byte, 100),
 		stunChans:            make(map[stun.TxID]chan stunResponse),
 		mappings:             make(map[*net.UDPAddr]*natMapping),
 		retransmissionTimers: make(map[*net.UDPAddr]*retransmissionTimer),
-		writeDeadline:        time.Time{},
-		mutex:                sync.Mutex{},
 		pendingRequests:      make(map[*net.UDPAddr]bool),
 	}
 	handler.cond = sync.NewCond(&handler.mutex)
@@ -103,7 +104,7 @@ func (c *stunHandler) ReadFrom(b []byte) (int, net.Addr, error) {
 		pkt, ok := c.dequeuePacket()
 		if ok {
 			copy(b, pkt.data)
-			return pkt.len, pkt.addr, nil
+			return len(pkt.data), pkt.addr, nil
 		}
 		n, addr, err := c.UDPConn.ReadFrom(b)
 		if err != nil {
@@ -135,10 +136,11 @@ func (c *stunHandler) readStunPacket(ctx context.Context) ([]byte, error) {
 				if err != nil {
 					return nil, err
 				}
-				if stun.Is(buf[:n]) {
-					return buf[:n], nil
+				buf = buf[:n]
+				if stun.Is(buf) {
+					return buf, nil
 				} else {
-					c.queuePacket(bufferedPacket{data: buf[:n], addr: addr, len: n})
+					c.queuePacket(bufferedPacket{data: buf[:n], addr: addr})
 				}
 			}
 		}
@@ -197,7 +199,7 @@ func (mapping *natMapping) isValid() bool {
 	return time.Since(mapping.lastUsed) < timeoutDuration
 }
 
-func (c *stunHandler) getMappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
+func (c *stunHandler) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 	c.mutex.Lock()
 	for {
 		// Check if mapping exists and is valid

@@ -98,7 +98,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 				}
 			}()
 			if !sameIA {
-				mappedAddr, err := stunHandler.getMappedAddr(nextHop)
+				mappedAddr, err := stunHandler.mappedAddr(nextHop)
 				if err != nil {
 					return 0, serrors.New("Error getting mapped address for STUN", "stun", err)
 				}
