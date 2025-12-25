@@ -110,7 +110,10 @@ func (c *stunHandler) ReadFrom(b []byte) (int, net.Addr, error) {
 			return n, addr, err
 		}
 		if stun.Is(b) {
-			c.recvStunChan <- b[:n]
+			select {
+			case c.recvStunChan <- b[:n]:
+			default:
+			}
 		} else {
 			return n, addr, nil
 		}
