@@ -213,8 +213,9 @@ func (c *stunHandler) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 		if mapping, ok := c.mappings[dest]; ok {
 			if mapping.isValid() {
 				mapping.touch()
+				addr := mapping.mappedAddr
 				c.mutex.Unlock()
-				return mapping.mappedAddr, nil
+				return addr, nil
 			}
 		}
 		// Check if STUN request is already happening concurrently
@@ -233,12 +234,13 @@ func (c *stunHandler) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 
 	delete(c.pendingRequests, dest)
 	c.cond.Broadcast()
+	addr := mapping.mappedAddr
 	c.mutex.Unlock()
 
 	if err != nil {
 		return nil, err
 	}
-	return mapping.mappedAddr, nil
+	return addr, nil
 }
 
 type retransmissionTimer struct {
