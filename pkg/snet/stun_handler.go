@@ -234,12 +234,12 @@ func (c *stunHandler) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 
 	delete(c.pendingRequests, dest)
 	c.cond.Broadcast()
-	addr := mapping.mappedAddr
-	c.mutex.Unlock()
-
 	if err != nil {
+		c.mutex.Unlock()
 		return nil, err
 	}
+	addr := mapping.mappedAddr
+	c.mutex.Unlock()
 	return addr, nil
 }
 
