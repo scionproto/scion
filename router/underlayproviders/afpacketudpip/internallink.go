@@ -55,10 +55,10 @@ type internalLink struct {
 // copied into the outgoing packet header.
 func getRemoteAddr(p *router.Packet, is4 bool) ([]byte, uint16) {
 	if is4 {
-		bh := p.BuffHead(6)
+		bh := p.HeadBytes(6)
 		return bh[:4], binary.BigEndian.Uint16(bh[4:6])
 	}
-	bh := p.BuffHead(18)
+	bh := p.HeadBytes(18)
 	return bh[:16], binary.BigEndian.Uint16(bh[16:18])
 }
 
@@ -68,7 +68,7 @@ func getRemoteAddr(p *router.Packet, is4 bool) ([]byte, uint16) {
 func setRemoteAddr(p *router.Packet, ip []byte, port uint16) {
 	// FWIW: The storage format is identical to that produced by AddrPort.marshalBinary
 	// as long as there's no zone. Just without all the hullabaloo because we never need a netip.
-	bh := p.BuffHead(len(ip) + 2)
+	bh := p.HeadBytes(len(ip) + 2)
 	copy(bh, ip)
 	binary.BigEndian.PutUint16(bh[len(ip):], port)
 }

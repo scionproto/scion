@@ -217,13 +217,13 @@ func (p *Packet) WithHeader(n int) []byte {
 	return p.buffer[start-n : end]
 }
 
-// BufHead returns a slice of bytes of the requested size borrowed from the head of the packet
+// HeadBytes returns a slice of bytes of the requested size borrowed from the head of the packet
 // buffer. This space can be used safely by an underlay to store data on ingest and retrieve it on
 // egress; should the same underlay perform both operations. The data is protected against
 // overwrites provided that the value of n is counted in the underlay's headroom requirements.
 //
 // n is the size of the slice to be borrowed from the head of the packet buffer.
-func (p *Packet) BuffHead(n int) []byte {
+func (p *Packet) HeadBytes(n int) []byte {
 	return p.buffer[0:n]
 }
 

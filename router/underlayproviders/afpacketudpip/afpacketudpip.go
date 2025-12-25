@@ -218,7 +218,7 @@ func (u *underlay) Headroom() int {
 	// it is v4 with no options. As a result, the payload never starts earlier than planned. This is
 	// needed to ensure that the headroom we leave is never less than the worst case requirement
 	// across all underlays. We add the binary representation of src address and src port to our
-	// headroom requirements, so internal links can safely use packet.BuffHead() to store those.
+	// headroom requirements, so internal links can safely use packet.HeadBytes() to store those.
 	return ethLen + ipv6Len + udpLen + ipv6AddrLen + portLen
 }
 
