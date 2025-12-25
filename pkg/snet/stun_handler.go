@@ -22,12 +22,12 @@ const timeoutDuration = 5 * time.Minute
 type stunHandler struct {
 	*net.UDPConn
 	recvChan       chan bufferedPacket
-	queuedBytes    atomic.Int64
 	maxQueuedBytes int64
 	recvStunChan   chan []byte
 	mutex          sync.Mutex
 
 	// the following fields are protected by mutex
+	queuedBytes          int64
 	stunChans            map[stun.TxID]chan stunResponse
 	mappings             map[*net.UDPAddr]*natMapping
 	retransmissionTimers map[*net.UDPAddr]*retransmissionTimer
@@ -77,14 +77,22 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 }
 
 func (c *stunHandler) queuePacket(pkt bufferedPacket) bool {
-	if c.queuedBytes.Load()+int64(len(pkt.data)) > c.maxQueuedBytes {
+	pktLen := int64(len(pkt.data))
+	c.mutex.Lock()
+	if c.queuedBytes+pktLen > c.maxQueuedBytes {
+		c.mutex.Unlock()
 		return false
 	}
+	c.queuedBytes += pktLen
+	c.mutex.Unlock()
+
 	select {
 	case c.recvChan <- pkt:
-		c.queuedBytes.Add(int64(len(pkt.data)))
 		return true
 	default:
+		c.mutex.Lock()
+		c.queuedBytes -= pktLen
+		c.mutex.Unlock()
 		return false
 	}
 }
@@ -92,7 +100,9 @@ func (c *stunHandler) queuePacket(pkt bufferedPacket) bool {
 func (c *stunHandler) dequeuePacket() (bufferedPacket, bool) {
 	select {
 	case pkt := <-c.recvChan:
-		c.queuedBytes.Add(-int64(len(pkt.data)))
+		c.mutex.Lock()
+		c.queuedBytes -= int64(len(pkt.data))
+		c.mutex.Unlock()
 		return pkt, true
 	default:
 		return bufferedPacket{}, false
