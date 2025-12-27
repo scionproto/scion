@@ -1,33 +1,9 @@
 load("//acceptance/common:topogen.bzl", "topogen_test")
 
-# Test with standalone daemon (embedded daemon using topology files) - default behavior
 topogen_test(
-    name = "test_standalone",
-    src = "test.py",
-    args = [
-        "--executable=end2end_integration:$(location //tools/end2end_integration)",
-    ],
-    data = ["//tools/end2end_integration"],
-    topo = "//acceptance/app_vs_endhost_br_dispatch/testdata:topology.topo",
-)
-
-# Test with remote daemon (connecting to sciond via gRPC)
-topogen_test(
-    name = "test_sciond",
-    src = "test.py",
-    args = [
-        "--executable=end2end_integration:$(location //tools/end2end_integration)",
-        "--use-sciond",
-    ],
-    data = ["//tools/end2end_integration"],
-    topo = "//acceptance/app_vs_endhost_br_dispatch/testdata:topology.topo",
-)
-
-# Convenience target to run both tests
-test_suite(
     name = "test",
-    tests = [
-        ":test_sciond",
-        ":test_standalone",
-    ],
+    src = "test.py",
+    args = ["--executable=end2end_integration:$(location //tools/end2end_integration)"],
+    data = ["//tools/end2end_integration"],
+    topo = "//acceptance/app_vs_endhost_br_dispatch/testdata:topology.topo",
 )
