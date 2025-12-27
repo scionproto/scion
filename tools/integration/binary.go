@@ -122,9 +122,9 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 		args = replacePattern(Daemon, daemonAddr, args)
 	}
 	if needTopoDir(args) {
-		// In Docker mode, the gen directory is mounted at /share inside the container
+		// In Docker mode, the gen directory is mounted at /share/gen inside the container
 		if *Docker {
-			args = replacePattern(TopoDir, "/share", args)
+			args = replacePattern(TopoDir, "/share/gen", args)
 		} else {
 			args = replacePattern(TopoDir, GenFile(""), args)
 		}
@@ -200,9 +200,9 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 		args = replacePattern(Daemon, daemonAddr, args)
 	}
 	if needTopoDir(args) {
-		// In Docker mode, the gen directory is mounted at /share inside the container
+		// In Docker mode, the gen directory is mounted at /share/gen inside the container
 		if *Docker {
-			args = replacePattern(TopoDir, "/share", args)
+			args = replacePattern(TopoDir, "/share/gen", args)
 		} else {
 			args = replacePattern(TopoDir, GenFile(""), args)
 		}
