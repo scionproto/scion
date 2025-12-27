@@ -31,8 +31,8 @@ class Test(base.TestTopogen):
     range. It does not include the shim dispatcher.
 
     The daemon mode can be selected via --use-sciond flag:
-    - With --use-sciond: Uses remote daemon connector (connecting to sciond via gRPC)
-    - Without --use-sciond: Uses standalone daemon connector (embedded daemon using topology files) - default
+    - With --use-sciond: Uses remote daemon connector (via gRPC)
+    - Without --use-sciond (default): Uses standalone daemon connector
     """
 
     use_sciond = cli.Flag(
