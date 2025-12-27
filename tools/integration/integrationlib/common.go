@@ -78,10 +78,10 @@ func addFlags() error {
 	flag.Var(&Local, "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
-	flag.StringVar(&daemonAddr, "sciond", envFlags.Daemon(),
-		"SCION Daemon address. If not set and -topoDir is provided, uses standalone daemon.")
+	flag.StringVar(&daemonAddr, "sciond", "",
+		"SCION Daemon address. If set, uses remote daemon instead of standalone daemon.")
 	flag.StringVar(&topoDir, "topoDir", "",
-		"Directory containing topology files. Used for standalone daemon when -sciond is not set.")
+		"Directory containing topology files. Used for standalone daemon (default mode).")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 	flag.StringVar(&features, "features", "",
@@ -135,37 +135,38 @@ func validateFlags() {
 }
 
 // SDConn returns a daemon connector.
-// If -topoDir is specified, it creates a standalone daemon connector using the topology file.
-// Otherwise, it connects to a remote daemon using the -sciond address (which defaults to
-// the value from the SCION environment).
+// If -sciond is specified, it connects to a remote daemon.
+// Otherwise (default), it creates a standalone daemon connector using the topology file
+// from -topoDir.
 func SDConn() daemon.Connector {
-	// If topoDir is specified, use standalone daemon (takes precedence)
-	if topoDir != "" {
-		// Construct topology file path from the local IA
-		asDir := addr.FormatAS(Local.IA.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator())
-		topoFile := filepath.Join(topoDir, asDir, "topology.json")
-
-		log.Debug("Using standalone daemon", "topology", topoFile)
-		ctx := context.Background()
-		conn, err := standalonedaemon.NewStandaloneService(ctx, standalonedaemon.StandaloneOptions{
-			TopoFile:               topoFile,
-			DisableSegVerification: true,
-		})
+	// If sciond address is specified, use remote daemon
+	if daemonAddr != "" {
+		ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
+		defer cancelF()
+		conn, err := daemon.NewService(daemonAddr).Connect(ctx)
 		if err != nil {
-			LogFatal("Unable to create standalone daemon", "err", err, "topoFile", topoFile)
+			LogFatal("Unable to initialize SCION Daemon connection", "err", err)
 		}
 		return conn
 	}
 
-	// Use remote daemon
-	if daemonAddr == "" {
+	// Use standalone daemon by default (with topology file)
+	if topoDir == "" {
 		LogFatal("Either -sciond or -topoDir must be specified")
 	}
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
-	defer cancelF()
-	conn, err := daemon.NewService(daemonAddr).Connect(ctx)
+
+	// Construct topology file path from the local IA
+	asDir := addr.FormatAS(Local.IA.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator())
+	topoFile := filepath.Join(topoDir, asDir, "topology.json")
+
+	log.Debug("Using standalone daemon", "topology", topoFile)
+	ctx := context.Background()
+	conn, err := standalonedaemon.NewStandaloneService(ctx, standalonedaemon.StandaloneOptions{
+		TopoFile:               topoFile,
+		DisableSegVerification: true,
+	})
 	if err != nil {
-		LogFatal("Unable to initialize SCION Daemon connection", "err", err)
+		LogFatal("Unable to create standalone daemon", "err", err, "topoFile", topoFile)
 	}
 	return conn
 }

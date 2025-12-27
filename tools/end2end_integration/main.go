@@ -36,15 +36,15 @@ import (
 )
 
 var (
-	subset     string
-	attempts   int
-	timeout    = &util.DurWrap{Duration: 10 * time.Second}
+	subset      string
+	attempts    int
+	timeout     = &util.DurWrap{Duration: 10 * time.Second}
 	parallelism int
 	name        string
 	cmd         string
 	features    string
 	epic        bool
-	standalone  bool
+	useSciond   bool
 )
 
 func getCmd() (string, bool) {
@@ -86,14 +86,14 @@ func realMain() int {
 		clientArgs = append(clientArgs, "--features", features)
 		serverArgs = append(serverArgs, "--features", features)
 	}
-	if standalone {
-		// Use standalone daemon with topology file
-		clientArgs = append(clientArgs, "-topoDir", integration.TopoDir)
-		serverArgs = append(serverArgs, "-topoDir", integration.TopoDir)
-	} else if !*integration.Docker {
-		// Use remote daemon (original behavior for non-Docker mode)
+	if useSciond {
+		// Use remote daemon (connect to sciond via gRPC)
 		clientArgs = append(clientArgs, "-sciond", integration.Daemon)
 		serverArgs = append(serverArgs, "-sciond", integration.Daemon)
+	} else {
+		// Use standalone daemon by default (with topology file)
+		clientArgs = append(clientArgs, "-topoDir", integration.TopoDir)
+		serverArgs = append(serverArgs, "-topoDir", integration.TopoDir)
 	}
 
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
@@ -125,8 +125,9 @@ func addFlags() {
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
-	flag.BoolVar(&standalone, "standalone", false,
-		"Use standalone daemon with topology file instead of remote SCION daemon.")
+	flag.BoolVar(&useSciond, "sciond", false,
+		"Use remote SCION daemon instead of standalone daemon. "+
+			"By default, standalone daemon with topology file is used.")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -312,12 +313,12 @@ func clientTemplate(progressSock string) integration.Cmd {
 	if progress {
 		cmd.Args = append(cmd.Args, "-progress", progressSock)
 	}
-	if standalone {
-		// Use standalone daemon with topology file
-		cmd.Args = append(cmd.Args, "-topoDir", integration.TopoDir)
-	} else if !*integration.Docker {
-		// Use remote daemon (original behavior for non-Docker mode)
+	if useSciond {
+		// Use remote daemon (connect to sciond via gRPC)
 		cmd.Args = append(cmd.Args, "-sciond", integration.Daemon)
+	} else {
+		// Use standalone daemon by default (with topology file)
+		cmd.Args = append(cmd.Args, "-topoDir", integration.TopoDir)
 	}
 	return cmd
 }
