@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses-2.0
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,12 +23,12 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"golang.org/x/sync/singleflight"
 
-	drkey_daemon "github.com/scionproto/scion/daemon/drkey"
+	drkeydaemon "github.com/scionproto/scion/daemon/drkey"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
@@ -53,7 +53,7 @@ type ConnectorBackend struct {
 	Topology    Topology
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
-	DRKeyClient *drkey_daemon.ClientEngine
+	DRKeyClient *drkeydaemon.ClientEngine
 
 	foregroundPathDedupe singleflight.Group
 	backgroundPathDedupe singleflight.Group
@@ -88,7 +88,9 @@ func (c *ConnectorBackend) Interfaces(ctx context.Context) (map[uint16]netip.Add
 }
 
 // Paths requests a set of end-to-end paths between source and destination.
-func (c *ConnectorBackend) Paths(ctx context.Context, dst, src addr.IA, f daemon.PathReqFlags) ([]snet.Path, error) {
+func (c *ConnectorBackend) Paths(ctx context.Context, dst, src addr.IA,
+	f daemon.PathReqFlags,
+) ([]snet.Path, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancelF context.CancelFunc
 		ctx, cancelF = context.WithTimeout(ctx, 10*time.Second)
@@ -126,7 +128,9 @@ func (c *ConnectorBackend) fetchPaths(
 	return paths, err
 }
 
-func (c *ConnectorBackend) backgroundPaths(origCtx context.Context, src, dst addr.IA, refresh bool) {
+func (c *ConnectorBackend) backgroundPaths(origCtx context.Context, src,
+	dst addr.IA, refresh bool,
+) {
 	backgroundTimeout := 5 * time.Second
 	deadline, ok := origCtx.Deadline()
 	if !ok || time.Until(deadline) > backgroundTimeout {
@@ -142,7 +146,8 @@ func (c *ConnectorBackend) backgroundPaths(origCtx context.Context, src, dst add
 	if span := opentracing.SpanFromContext(origCtx); span != nil {
 		spanOpts = append(spanOpts, opentracing.FollowsFrom(span.Context()))
 	}
-	span, ctx := opentracing.StartSpanFromContext(ctx, "fetch.paths.background", spanOpts...)
+	span, ctx := opentracing.StartSpanFromContext(ctx,
+		"fetch.paths.background", spanOpts...)
 	defer span.Finish()
 	//nolint:contextcheck // false positive.
 	if _, err := c.fetchPaths(ctx, &c.backgroundPathDedupe, src, dst, refresh); err != nil {
@@ -169,7 +174,9 @@ func (c *ConnectorBackend) ASInfo(ctx context.Context, ia addr.IA) (daemon.ASInf
 }
 
 // SVCInfo requests information about infrastructure services.
-func (c *ConnectorBackend) SVCInfo(ctx context.Context, svcTypes []addr.SVC) (map[addr.SVC][]string, error) {
+func (c *ConnectorBackend) SVCInfo(ctx context.Context,
+	svcTypes []addr.SVC,
+) (map[addr.SVC][]string, error) {
 	result := make(map[addr.SVC][]string)
 
 	// For now, we only support Control services.
@@ -205,7 +212,9 @@ func (c *ConnectorBackend) RevNotification(ctx context.Context, revInfo *path_mg
 }
 
 // DRKeyGetASHostKey requests a AS-Host Key.
-func (c *ConnectorBackend) DRKeyGetASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+func (c *ConnectorBackend) DRKeyGetASHostKey(ctx context.Context,
+	meta drkey.ASHostMeta,
+) (drkey.ASHostKey, error) {
 	if c.DRKeyClient == nil {
 		return drkey.ASHostKey{}, serrors.New("DRKey is not available")
 	}
@@ -219,7 +228,9 @@ func (c *ConnectorBackend) DRKeyGetASHostKey(ctx context.Context, meta drkey.ASH
 }
 
 // DRKeyGetHostASKey requests a Host-AS Key.
-func (c *ConnectorBackend) DRKeyGetHostASKey(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error) {
+func (c *ConnectorBackend) DRKeyGetHostASKey(ctx context.Context,
+	meta drkey.HostASMeta,
+) (drkey.HostASKey, error) {
 	if c.DRKeyClient == nil {
 		return drkey.HostASKey{}, serrors.New("DRKey is not available")
 	}
@@ -233,7 +244,9 @@ func (c *ConnectorBackend) DRKeyGetHostASKey(ctx context.Context, meta drkey.Hos
 }
 
 // DRKeyGetHostHostKey requests a Host-Host Key.
-func (c *ConnectorBackend) DRKeyGetHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
+func (c *ConnectorBackend) DRKeyGetHostHostKey(ctx context.Context,
+	meta drkey.HostHostMeta,
+) (drkey.HostHostKey, error) {
 	if c.DRKeyClient == nil {
 		return drkey.HostHostKey{}, serrors.New("DRKey is not available")
 	}

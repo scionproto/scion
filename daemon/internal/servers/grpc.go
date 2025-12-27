@@ -19,9 +19,6 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
-	"github.com/scionproto/scion/private/trust"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -29,7 +26,9 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/drkey"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
+	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	daemonpb "github.com/scionproto/scion/pkg/proto/daemon"
@@ -38,6 +37,7 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/trust"
 )
 
 // DaemonServer handles gRPC requests and delegates to a Connector implementation.
@@ -165,7 +165,9 @@ func linkTypeToPB(lt snet.LinkType) daemonpb.LinkType {
 }
 
 // AS serves the AS gRPC request.
-func (s *DaemonServer) AS(ctx context.Context, req *daemonpb.ASRequest) (*daemonpb.ASResponse, error) {
+func (s *DaemonServer) AS(ctx context.Context,
+	req *daemonpb.ASRequest,
+) (*daemonpb.ASResponse, error) {
 	reqIA := addr.IA(req.IsdAs)
 
 	info, err := s.Connector.ASInfo(ctx, reqIA)
@@ -232,7 +234,7 @@ func (s *DaemonServer) Services(ctx context.Context,
 			continue
 		}
 		reply.Services[topology.Control.String()] = &daemonpb.ListService{
-			Services: slices.Transform(uris, func(uri string) *daemonpb.Service{
+			Services: slices.Transform(uris, func(uri string) *daemonpb.Service {
 				return &daemonpb.Service{Uri: uri}
 			}),
 		}

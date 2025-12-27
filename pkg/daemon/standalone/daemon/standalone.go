@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses-2.0
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,19 +23,15 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
-	daemonpkg "github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/daemon/server"
-	"github.com/scionproto/scion/pkg/log"
-	truststoragemetrics "github.com/scionproto/scion/private/storage/trust/metrics"
-	"github.com/scionproto/scion/private/trust"
-	"github.com/scionproto/scion/private/trust/compat"
-	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/pkg/addr"
+	daemonpkg "github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	"github.com/scionproto/scion/pkg/daemon/server"
 	"github.com/scionproto/scion/pkg/grpc"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -49,7 +45,11 @@ import (
 	segfetchergrpc "github.com/scionproto/scion/private/segment/segfetcher/grpc"
 	infra "github.com/scionproto/scion/private/segment/verifier"
 	"github.com/scionproto/scion/private/storage"
+	truststoragemetrics "github.com/scionproto/scion/private/storage/trust/metrics"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/trust"
+	"github.com/scionproto/scion/private/trust/compat"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 // acceptAllVerifier accepts all path segments without verification.
@@ -109,7 +109,8 @@ type wrapperWithClose struct {
 //
 // Note: This function starts background tasks (cleaner, TRC loader) that should be stopped
 // when done. The caller should handle cleanup appropriately, typically via context cancellation.
-func NewStandaloneService(ctx context.Context, options StandaloneOptions) (daemonpkg.Connector, error) {
+func NewStandaloneService(ctx context.Context, options StandaloneOptions,
+) (daemonpkg.Connector, error) {
 	if options.Topo == nil && options.TopoFile == "" {
 		return nil, serrors.New("either topology or topology file path must be provided")
 	}
@@ -175,7 +176,7 @@ func NewStandaloneService(ctx context.Context, options StandaloneOptions) (daemo
 	var cleaner *periodic.Runner
 	var rcCleaner *periodic.Runner
 	if options.EnablePeriodicCleanup {
-		// Start path DB cleaner
+		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 		cleaner = periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
 			300*time.Second, 295*time.Second)
 
@@ -233,7 +234,8 @@ func NewStandaloneService(ctx context.Context, options StandaloneOptions) (daemo
 					log.SafeInfo(log.FromCtx(ctx), "TRC loading failed", "err", err)
 				}
 				if len(res.Loaded) > 0 {
-					log.SafeInfo(log.FromCtx(ctx), "Loaded TRCs from disk", "trcs", res.Loaded)
+					log.SafeInfo(log.FromCtx(ctx),
+						"Loaded TRCs from disk", "trcs", res.Loaded)
 				}
 			},
 			TaskName: "daemon_trc_loader",

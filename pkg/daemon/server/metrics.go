@@ -35,7 +35,8 @@ type ConnectorMetricsWrapper struct {
 
 // Note: No metrics are collected for LocalIA, PortRange and DRKey functions.
 
-func (c *ConnectorMetricsWrapper) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error) {
+func (c *ConnectorMetricsWrapper) Interfaces(ctx context.Context,
+) (map[uint16]netip.AddrPort, error) {
 	start := time.Now()
 	interfaces, err := c.Connector.Interfaces(ctx)
 	c.Metrics.InterfacesRequests.inc(
@@ -45,7 +46,9 @@ func (c *ConnectorMetricsWrapper) Interfaces(ctx context.Context) (map[uint16]ne
 	return interfaces, unwrapMetricsError(err)
 }
 
-func (c *ConnectorMetricsWrapper) Paths(ctx context.Context, dst, src addr.IA, f daemon.PathReqFlags) ([]snet.Path, error) {
+func (c *ConnectorMetricsWrapper) Paths(ctx context.Context, dst, src addr.IA,
+	f daemon.PathReqFlags,
+) ([]snet.Path, error) {
 	start := time.Now()
 	paths, err := c.Connector.Paths(ctx, dst, src, f)
 	c.Metrics.PathsRequests.inc(
@@ -65,7 +68,9 @@ func (c *ConnectorMetricsWrapper) ASInfo(ctx context.Context, ia addr.IA) (daemo
 	return info, unwrapMetricsError(err)
 }
 
-func (c *ConnectorMetricsWrapper) SVCInfo(ctx context.Context, svcTypes []addr.SVC) (map[addr.SVC][]string, error) {
+func (c *ConnectorMetricsWrapper) SVCInfo(ctx context.Context,
+	svcTypes []addr.SVC,
+) (map[addr.SVC][]string, error) {
 	start := time.Now()
 	info, err := c.Connector.SVCInfo(ctx, svcTypes)
 	c.Metrics.ServicesRequests.inc(
@@ -75,7 +80,9 @@ func (c *ConnectorMetricsWrapper) SVCInfo(ctx context.Context, svcTypes []addr.S
 	return info, unwrapMetricsError(err)
 }
 
-func (c *ConnectorMetricsWrapper) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
+func (c *ConnectorMetricsWrapper) RevNotification(ctx context.Context,
+	revInfo *path_mgmt.RevInfo,
+) error {
 	start := time.Now()
 	err := c.Connector.RevNotification(ctx, revInfo)
 	c.Metrics.InterfaceDownNotifications.inc(
