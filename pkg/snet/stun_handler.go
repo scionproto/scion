@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -37,7 +38,6 @@ type stunHandler struct {
 	*net.UDPConn
 	recvChan       chan bufferedPacket
 	maxQueuedBytes int64
-	recvStunChan   chan []byte
 	mutex          sync.Mutex
 
 	// the following fields are protected by mutex
@@ -81,7 +81,6 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 		UDPConn:              conn,
 		recvChan:             make(chan bufferedPacket, maxNumPacket),
 		maxQueuedBytes:       int64(rcvBufSize),
-		recvStunChan:         make(chan []byte, 100),
 		stunChans:            make(map[stun.TxID]chan stunResponse),
 		mappings:             make(map[*net.UDPAddr]*natMapping),
 		retransmissionTimers: make(map[*net.UDPAddr]*retransmissionTimer),
@@ -148,65 +147,33 @@ func (c *stunHandler) queuePacket(pkt bufferedPacket) bool {
 	}
 }
 
-func (c *stunHandler) dequeuePacket() (bufferedPacket, bool) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	select {
-	case pkt := <-c.recvChan:
-		c.queuedBytes -= int64(len(pkt.data))
-		return pkt, true
-	default:
-		return bufferedPacket{}, false
-	}
-}
-
 func (c *stunHandler) ReadFrom(b []byte) (int, net.Addr, error) {
-	for {
-		pkt, ok := c.dequeuePacket()
-		if ok {
-			copy(b, pkt.data)
-			return len(pkt.data), pkt.addr, nil
-		}
-		n, addr, err := c.UDPConn.ReadFrom(b)
-		if err != nil {
-			return n, addr, err
-		}
-		if stun.Is(b) {
-			bb := make([]byte, n)
-			copy(bb, b[:n])
-			select {
-			case c.recvStunChan <- bb:
-			default:
-			}
-		} else {
-			return n, addr, nil
-		}
-	}
-}
+	c.mutex.Lock()
+	deadline := c.readDeadline
+	c.mutex.Unlock()
 
-func (c *stunHandler) readStunPacket(ctx context.Context) ([]byte, error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			select {
-			case pkt := <-c.recvStunChan:
-				return pkt, nil
-			default:
-				buf := make([]byte, 1500)
-				n, addr, err := c.UDPConn.ReadFrom(buf)
-				if err != nil {
-					return nil, err
-				}
-				buf = buf[:n]
-				if stun.Is(buf) {
-					return buf, nil
-				} else {
-					c.queuePacket(bufferedPacket{data: buf[:n], addr: addr})
-				}
-			}
+	var timeoutChan <-chan time.Time
+	if !deadline.IsZero() {
+		timeout := time.Until(deadline)
+		if timeout <= 0 {
+			return 0, nil, os.ErrDeadlineExceeded
 		}
+		timeoutChan = time.After(timeout)
+	} else {
+		timeoutChan = nil // no timeout
+	}
+	select {
+	case pkt, ok := <-c.recvChan:
+		if !ok {
+			return 0, nil, net.ErrClosed
+		}
+		c.mutex.Lock()
+		c.queuedBytes -= int64(len(pkt.data))
+		c.mutex.Unlock()
+		n := copy(b, pkt.data)
+		return n, pkt.addr, nil
+	case <-timeoutChan:
+		return 0, nil, os.ErrDeadlineExceeded
 	}
 }
 
@@ -221,33 +188,8 @@ func (c *stunHandler) getStunResponse(ctx context.Context, txid stun.TxID) (neti
 		select {
 		case <-ctx.Done():
 			return netip.AddrPort{}, ctx.Err()
-		default:
-			select {
-			case resp := <-ch:
-				return resp.mappedAddr, resp.err
-			default:
-				pkt, err := c.readStunPacket(ctx)
-				if err != nil {
-					return netip.AddrPort{}, err
-				}
-				respTxID, mappedAddr, err := stun.ParseResponse(pkt)
-				if err != nil {
-					continue
-				}
-				if respTxID == txid {
-					return mappedAddr, nil
-				}
-				// Send to the appropriate channel
-				c.mutex.Lock()
-				ch, ok := c.stunChans[respTxID]
-				c.mutex.Unlock()
-				if ok {
-					select {
-					case ch <- stunResponse{mappedAddr: mappedAddr, err: err}:
-					default:
-					}
-				}
-			}
+		case resp := <-ch:
+			return resp.mappedAddr, resp.err
 		}
 	}
 }
