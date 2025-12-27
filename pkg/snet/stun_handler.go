@@ -47,6 +47,7 @@ type stunHandler struct {
 	retransmissionTimers map[*net.UDPAddr]*retransmissionTimer
 	pendingRequests      map[*net.UDPAddr]bool
 	writeDeadline        time.Time
+	readDeadline         time.Time
 	cond                 *sync.Cond // condition variable for pending STUN requests
 }
 
@@ -457,9 +458,24 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	return mapping, nil
 }
 
+func (c *stunHandler) SetDeadline(t time.Time) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.readDeadline = t
+	c.writeDeadline = t
+	return c.UDPConn.SetDeadline(t)
+}
+
+func (c *stunHandler) SetReadDeadline(t time.Time) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.readDeadline = t
+	return c.UDPConn.SetReadDeadline(t)
+}
+
 func (c *stunHandler) SetWriteDeadline(t time.Time) error {
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	c.writeDeadline = t
-	c.mutex.Unlock()
 	return c.UDPConn.SetWriteDeadline(t)
 }
