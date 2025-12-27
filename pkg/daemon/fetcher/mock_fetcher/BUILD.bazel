@@ -4,7 +4,7 @@ gomock(
     name = "go_default_mock",
     out = "mock.go",
     interfaces = ["Fetcher"],
-    library = "//daemon/fetcher:go_default_library",
+    library = "//pkg/daemon/fetcher:go_default_library",
     package = "mock_fetcher",
 )
 
