@@ -35,11 +35,12 @@ Options
 
 ::
 
-  -h, --help            help for address
-      --isd-as isd-as   The local ISD-AS to use. (default 0-0)
-      --json            Write the output as machine readable json
-  -l, --local ip        Local IP address to listen on. (default invalid IP)
-      --sciond string   SCION Daemon address. (default "127.0.0.1:30255")
+  -h, --help              help for address
+      --isd-as isd-as     The local ISD-AS to use. (default 0-0)
+      --json              Write the output as machine readable json
+  -l, --local ip          Local IP address to listen on. (default invalid IP)
+      --sciond string     SCION Daemon address. (default "127.0.0.1:30255")
+      --topology string   Path to topology file. If set, use local daemon instead of connecting to daemon.
 
 SEE ALSO
 ~~~~~~~~
