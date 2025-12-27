@@ -87,6 +87,45 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 		pendingRequests:      make(map[*net.UDPAddr]bool),
 	}
 	handler.cond = sync.NewCond(&handler.mutex)
+
+	// background goroutine to continuously read from the underlying UDP connection and filter out
+	// STUN packets
+	go func() {
+		buf := make([]byte, 1500)
+		for {
+			n, addr, err := handler.UDPConn.ReadFrom(buf)
+			if err != nil {
+				if errors.Is(err, net.ErrClosed) ||
+					errors.Is(err, syscall.EBADF) { // bad file descriptor (connection closed)
+					close(handler.recvChan)
+					return
+				}
+				continue
+			}
+
+			data := make([]byte, n)
+			copy(data, buf[:n])
+
+			if stun.Is(data) {
+				respTxID, mappedAddr, err := stun.ParseResponse(data)
+				if err != nil {
+					continue
+				}
+				handler.mutex.Lock()
+				ch, ok := handler.stunChans[respTxID]
+				handler.mutex.Unlock()
+				if ok {
+					select {
+					case ch <- stunResponse{mappedAddr: mappedAddr, err: err}:
+					default:
+					}
+				}
+			} else {
+				handler.queuePacket(bufferedPacket{data: data, addr: addr})
+			}
+		}
+	}()
+
 	return handler, nil
 }
 
