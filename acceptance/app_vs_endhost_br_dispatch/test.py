@@ -30,14 +30,14 @@ class Test(base.TestTopogen):
     AS3 contains a BR with the port rewriting configuration to the default
     range. It does not include the shim dispatcher.
 
-    The daemon mode can be selected via --use-sciond flag:
-    - With --use-sciond: Uses remote daemon connector (connecting to sciond via gRPC)
-    - Without --use-sciond: Uses standalone daemon connector (embedded daemon using topology files)
+    The daemon mode can be selected via --standalone flag:
+    - With --standalone: Uses standalone daemon connector (embedded daemon using topology files)
+    - Without --standalone: Uses remote daemon connector (connecting to sciond via gRPC)
     """
 
-    use_sciond = cli.Flag(
-        "--use-sciond",
-        help="Use remote SCION daemon instead of standalone daemon",
+    standalone = cli.Flag(
+        "--standalone",
+        help="Use standalone daemon with topology file instead of remote SCION daemon",
     )
 
     def setup_prepare(self):
@@ -58,11 +58,11 @@ class Test(base.TestTopogen):
     def _run(self):
         ping_test = self.get_executable("end2end_integration")
 
-        if self.use_sciond:
-            print("=== Running with remote daemon (sciond) ===")
-            ping_test["-d", "-sciond", "-outDir", self.artifacts].run_fg()
-        else:
+        if self.standalone:
             print("=== Running with standalone daemon ===")
+            ping_test["-d", "-standalone", "-outDir", self.artifacts].run_fg()
+        else:
+            print("=== Running with remote daemon (sciond) ===")
             ping_test["-d", "-outDir", self.artifacts].run_fg()
 
 
