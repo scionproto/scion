@@ -26,6 +26,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon"
+	daemon2 "github.com/scionproto/scion/pkg/daemon/standalone/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/app"
@@ -98,19 +100,44 @@ On other errors, showpaths will exit with code 2.
 				return err
 			}
 
-			flags.cfg.Daemon = envFlags.Daemon()
-			flags.cfg.Local = net.IP(envFlags.Local().AsSlice())
-			log.Debug("Resolved SCION environment flags",
-				"daemon", flags.cfg.Daemon,
-				"local", flags.cfg.Local,
-			)
-
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", dst)
 			defer span.Finish()
 
 			ctx, cancel := context.WithTimeout(traceCtx, flags.timeout)
 			defer cancel()
+
+			// Check if we should use a local daemon or connect to a remote one
+			topoFile := envFlags.Topology()
+			if topoFile != "" {
+				// Use local daemon with topology file
+				log.Debug("Using local daemon with topology file", "topology", topoFile)
+				standalone, err := daemon2.NewStandaloneService(traceCtx,
+					daemon2.StandaloneOptions{TopoFile: topoFile})
+				if err != nil {
+					return serrors.Wrap("creating local daemon", err)
+				}
+				flags.cfg.Connector = standalone
+			} else {
+				// Connect to remote daemon
+				daemonAddr := envFlags.Daemon()
+				remoteSd, err := daemon.NewService(daemonAddr).Connect(ctx)
+				if err != nil {
+					return serrors.Wrap("connecting to the SCION Daemon", err, "addr", daemonAddr)
+				}
+				flags.cfg.Connector = remoteSd
+			}
+
+			defer func(sd daemon.Connector) {
+				err := sd.Close()
+				if err != nil {
+					log.Error("Closing SCION Daemon connection", "err", err)
+				}
+			}(flags.cfg.Connector)
+
+			flags.cfg.Local = net.IP(envFlags.Local().AsSlice())
+			log.Debug("Using local IP", "local", flags.cfg.Local)
+
 			res, err := showpaths.Run(ctx, dst, flags.cfg)
 			if err != nil {
 				return err

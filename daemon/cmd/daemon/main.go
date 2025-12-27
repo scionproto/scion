@@ -37,9 +37,10 @@ import (
 	"github.com/scionproto/scion/daemon/config"
 	sd_drkey "github.com/scionproto/scion/daemon/drkey"
 	sd_grpc "github.com/scionproto/scion/daemon/drkey/grpc"
-	"github.com/scionproto/scion/daemon/fetcher"
 	api "github.com/scionproto/scion/daemon/mgmtapi"
 	"github.com/scionproto/scion/pkg/addr"
+	pkgdaemon "github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
@@ -155,7 +156,7 @@ func realMain(ctx context.Context) error {
 			[]string{"driver", "operation", prom.LabelResult},
 		),
 	})
-	engine, err := daemon.TrustEngine(
+	engine, err := pkgdaemon.TrustEngine(
 		errCtx, globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer,
 	)
 	if err != nil {
@@ -277,16 +278,16 @@ func realMain(ctx context.Context) error {
 			Topology: topo,
 			Fetcher: fetcher.NewFetcher(
 				fetcher.FetcherConfig{
-					IA:         topo.IA(),
-					MTU:        topo.MTU(),
-					Core:       topo.Core(),
-					NextHopper: topo,
-					RPC:        requester,
-					PathDB:     pathDB,
-					Inspector:  engine,
-					Verifier:   createVerifier(),
-					RevCache:   revCache,
-					Cfg:        globalCfg.SD,
+					IA:            topo.IA(),
+					MTU:           topo.MTU(),
+					Core:          topo.Core(),
+					NextHopper:    topo,
+					RPC:           requester,
+					PathDB:        pathDB,
+					Inspector:     engine,
+					Verifier:      createVerifier(),
+					RevCache:      revCache,
+					QueryInterval: globalCfg.SD.QueryInterval.Duration,
 				},
 			),
 			Engine:      engine,

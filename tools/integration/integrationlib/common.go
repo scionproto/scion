@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	standalonedaemon "github.com/scionproto/scion/pkg/daemon/standalone/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
@@ -51,6 +53,7 @@ var (
 	Mode       string
 	Progress   string
 	daemonAddr string
+	topoDir    string
 	Attempts   int
 	logConsole string
 	features   string
@@ -75,7 +78,10 @@ func addFlags() error {
 	flag.Var(&Local, "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
-	flag.StringVar(&daemonAddr, "sciond", envFlags.Daemon(), "SCION Daemon address")
+	flag.StringVar(&daemonAddr, "sciond", "",
+		"SCION Daemon address. If set, uses remote daemon instead of standalone daemon.")
+	flag.StringVar(&topoDir, "topoDir", "",
+		"Directory containing topology files. Used for standalone daemon (default mode).")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 	flag.StringVar(&features, "features", "",
@@ -128,12 +134,39 @@ func validateFlags() {
 	}
 }
 
+// SDConn returns a daemon connector.
+// If -sciond is specified, it connects to a remote daemon.
+// Otherwise (default), it creates a standalone daemon connector using the topology file
+// from -topoDir.
 func SDConn() daemon.Connector {
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
-	defer cancelF()
-	conn, err := daemon.NewService(daemonAddr).Connect(ctx)
+	// If sciond address is specified, use remote daemon
+	if daemonAddr != "" {
+		ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
+		defer cancelF()
+		conn, err := daemon.NewService(daemonAddr).Connect(ctx)
+		if err != nil {
+			LogFatal("Unable to initialize SCION Daemon connection", "err", err)
+		}
+		return conn
+	}
+
+	// Use standalone daemon by default (with topology file)
+	if topoDir == "" {
+		LogFatal("Either -sciond or -topoDir must be specified")
+	}
+
+	// Construct topology file path from the local IA
+	asDir := addr.FormatAS(Local.IA.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator())
+	topoFile := filepath.Join(topoDir, asDir, "topology.json")
+
+	log.Debug("Using standalone daemon", "topology", topoFile)
+	ctx := context.Background()
+	conn, err := standalonedaemon.NewStandaloneService(ctx, standalonedaemon.StandaloneOptions{
+		TopoFile:               topoFile,
+		DisableSegVerification: true,
+	})
 	if err != nil {
-		LogFatal("Unable to initialize SCION Daemon connection", "err", err)
+		LogFatal("Unable to create standalone daemon", "err", err, "topoFile", topoFile)
 	}
 	return conn
 }

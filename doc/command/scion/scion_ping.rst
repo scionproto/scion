@@ -110,6 +110,7 @@ Options
       --sciond string          SCION Daemon address. (default "127.0.0.1:30255")
       --sequence string        Space separated list of hop predicates
       --timeout duration       timeout per packet (default 1s)
+      --topology string        Path to topology file. If set, use local daemon instead of connecting to daemon.
       --tracing.agent string   Tracing agent address
 
 SEE ALSO

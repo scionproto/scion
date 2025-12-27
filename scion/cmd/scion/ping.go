@@ -30,6 +30,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemon2 "github.com/scionproto/scion/pkg/daemon/standalone/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
@@ -131,27 +132,49 @@ On other errors, ping will exit with code 2.
 			if err := envFlags.LoadExternalVars(); err != nil {
 				return err
 			}
-			daemonAddr := envFlags.Daemon()
-			localIP := net.IP(envFlags.Local().AsSlice())
-			log.Debug("Resolved SCION environment flags",
-				"daemon", daemonAddr,
-				"local", localIP,
-			)
 
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
 			span.SetTag("dst.host", remote.Host.IP())
 			defer span.Finish()
 
-			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
-			defer cancelF()
-			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
-			if err != nil {
-				return serrors.Wrap("connecting to SCION Daemon", err)
-			}
-			defer sd.Close()
+			// Check if we should use a local daemon or connect to a remote one
+			var sd daemon.Connector
+			topoFile := envFlags.Topology()
+			if topoFile != "" {
+				// Use local daemon with topology file
+				log.Debug("Using local daemon with topology file", "topology", topoFile)
+				standalone, err := daemon2.NewStandaloneService(traceCtx,
+					daemon2.StandaloneOptions{TopoFile: topoFile})
+				if err != nil {
+					return serrors.Wrap("creating local daemon", err)
+				}
+				sd = standalone
+			} else {
+				// Connect to remote daemon
+				daemonAddr := envFlags.Daemon()
+				log.Debug("Connecting to SCION daemon", "daemon", daemonAddr)
 
-			topo, err := daemon.LoadTopology(ctx, sd)
+				ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
+				defer cancelF()
+				remoteSd, err := daemon.NewService(daemonAddr).Connect(ctx)
+				if err != nil {
+					return serrors.Wrap("connecting to SCION Daemon", err)
+				}
+				sd = remoteSd
+			}
+
+			defer func(sd daemon.Connector) {
+				err := sd.Close()
+				if err != nil {
+					log.Error("Closing SCION Daemon connection", "err", err)
+				}
+			}(sd)
+
+			localIP := net.IP(envFlags.Local().AsSlice())
+			log.Debug("Using local IP", "local", localIP)
+
+			topo, err := daemon.LoadTopology(traceCtx, sd)
 			if err != nil {
 				return serrors.Wrap("loading topology", err)
 			}
@@ -243,7 +266,7 @@ On other errors, ping will exit with code 2.
 			printf("PING %s pld=%dB scion_pkt=%dB\n", remote, pldSize, pktSize)
 
 			start := time.Now()
-			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
+			ctx := app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
 			count := flags.count
 			if count == 0 {
 				count = math.MaxUint16

@@ -25,10 +25,13 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemon2 "github.com/scionproto/scion/pkg/daemon/standalone/daemon"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
+	"github.com/scionproto/scion/private/tracing"
 )
 
 type addrInfo struct {
@@ -58,16 +61,46 @@ case, the host could have multiple SCION addresses.
 			if err := envFlags.LoadExternalVars(); err != nil {
 				return err
 			}
-			daemonAddr := envFlags.Daemon()
-
 			cmd.SilenceUsage = true
+
+			span, traceCtx := tracing.CtxWith(context.Background(), "run")
+			defer span.Finish()
+
+			// Check if we should use a local daemon or connect to a remote one
+			var sd daemon.Connector
+			topoFile := envFlags.Topology()
+			if topoFile != "" {
+				// Use local daemon with topology file
+				log.Debug("Using local daemon with topology file", "topology", topoFile)
+				standalone, err := daemon2.NewStandaloneService(traceCtx,
+					daemon2.StandaloneOptions{TopoFile: topoFile})
+				if err != nil {
+					return serrors.Wrap("creating local daemon", err)
+				}
+				sd = standalone
+			} else {
+				// Connect to remote daemon
+				daemonAddr := envFlags.Daemon()
+				log.Debug("Connecting to SCION daemon", "daemon", daemonAddr)
+
+				ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
+				defer cancelF()
+				remoteSd, err := daemon.NewService(daemonAddr).Connect(ctx)
+				if err != nil {
+					return serrors.Wrap("connecting to SCION Daemon", err)
+				}
+				sd = remoteSd
+			}
+
+			defer func(sd daemon.Connector) {
+				err := sd.Close()
+				if err != nil {
+					log.Error("Closing SCION Daemon connection", "err", err)
+				}
+			}(sd)
+
 			ctx, cancelF := context.WithTimeout(cmd.Context(), time.Second)
 			defer cancelF()
-			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
-			if err != nil {
-				return serrors.Wrap("connecting to SCION Daemon", err)
-			}
-			defer sd.Close()
 
 			info, err := app.QueryASInfo(ctx, sd)
 			if err != nil {
@@ -96,7 +129,8 @@ case, the host could have multiple SCION addresses.
 		},
 	}
 	envFlags.Register(cmd.Flags())
-	cmd.Flags().BoolVar(&flags.json, "json", false, "Write the output as machine readable json")
+	cmd.Flags().BoolVar(&flags.json, "json", false,
+		"Write the output as machine readable json")
 
 	return cmd
 }
