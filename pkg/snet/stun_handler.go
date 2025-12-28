@@ -17,16 +17,12 @@ package snet
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/netip"
 	"os"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
-
-	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/pkg/stun"
 )
@@ -177,23 +173,6 @@ func (c *stunHandler) ReadFrom(b []byte) (int, net.Addr, error) {
 	}
 }
 
-func (c *stunHandler) getStunResponse(ctx context.Context, txid stun.TxID) (netip.AddrPort, error) {
-	c.mutex.Lock()
-	ch, ok := c.stunChans[txid]
-	c.mutex.Unlock()
-	if !ok {
-		return netip.AddrPort{}, fmt.Errorf("STUN response channel not found")
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			return netip.AddrPort{}, ctx.Err()
-		case resp := <-ch:
-			return resp.mappedAddr, resp.err
-		}
-	}
-}
-
 type natMapping struct {
 	destination *net.UDPAddr
 	mappedAddr  *net.UDPAddr
@@ -282,17 +261,15 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 		retransmissionTimer.rttvar = 0
 	}
 
-	c.stunChans[txID] = make(chan stunResponse, Rc*2)
+	stunChan := make(chan stunResponse, Rc*2)
+	c.stunChans[txID] = stunChan
 
-	var ctx context.Context
+	ctx := context.Background()
 	var cancel context.CancelFunc
-
-	if c.writeDeadline.IsZero() {
-		ctx, cancel = context.WithCancel(context.Background())
-	} else {
-		ctx, cancel = context.WithDeadline(context.Background(), c.writeDeadline)
+	if !c.writeDeadline.IsZero() {
+		ctx, cancel = context.WithDeadline(ctx, c.writeDeadline)
+		defer cancel()
 	}
-	g, ctx := errgroup.WithContext(ctx)
 
 	c.mutex.Unlock()
 
@@ -302,59 +279,47 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 		c.mutex.Unlock()
 	}()
 
-	isRetransmission := atomic.Bool{}
-	isRetransmission.Store(false)
+	isRetransmission := false
 
 	var mappedAddress netip.AddrPort
 	var startTime, endTime time.Time
 
-	// Sending goroutine
-	g.Go(func() error {
-		originalRTO := retransmissionTimer.rto
-		currentRTO := originalRTO
-		startTime = time.Now()
-		for i := 0; i < Rc; i++ {
-			_, err := c.WriteTo(stunRequest, dest)
-			if err != nil {
-				return err
-			}
+	originalRTO := retransmissionTimer.rto
+	currentRTO := originalRTO
+	startTime = time.Now()
 
-			if i == 1 {
-				isRetransmission.Store(true)
-			}
-
-			var waitDuration time.Duration
-			if i < Rc-1 {
-				waitDuration = currentRTO
-				currentRTO *= 2
-			} else {
-				waitDuration = Rm * originalRTO
-			}
-
-			select {
-			case <-time.After(waitDuration):
-				// Continue to next iteration or timeout
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		}
-		return context.DeadlineExceeded
-	})
-
-	// Receiving goroutine
-	g.Go(func() error {
-		var err error
-		mappedAddress, err = c.getStunResponse(ctx, txID)
-		cancel()
+STUNLoop:
+	for i := 0; i < Rc; i++ {
+		_, err := c.WriteTo(stunRequest, dest)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		endTime = time.Now()
-		return nil
-	})
 
-	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
-		return nil, err
+		if i == 1 {
+			isRetransmission = true
+		}
+
+		var waitDuration time.Duration
+		if i < Rc-1 {
+			waitDuration = currentRTO
+			currentRTO *= 2
+		} else {
+			waitDuration = Rm * originalRTO
+		}
+
+		select {
+		case <-time.After(waitDuration):
+			continue
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case resp := <-stunChan:
+			if resp.err != nil {
+				return nil, resp.err
+			}
+			mappedAddress = resp.mappedAddr
+			endTime = time.Now()
+			break STUNLoop
+		}
 	}
 
 	mappedAddr, err := net.ResolveUDPAddr("udp", mappedAddress.String())
@@ -372,7 +337,7 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	mapping.touch()
 
 	// Skip RTT calculation on retransmission or error
-	if isRetransmission.Load() || endTime.IsZero() {
+	if isRetransmission || endTime.IsZero() {
 		c.mutex.Unlock()
 		return mapping, nil
 	}
