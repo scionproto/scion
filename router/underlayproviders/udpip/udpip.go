@@ -1040,6 +1040,10 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 // that numProcRoutines is non-negative and not larger than 4294967295. hashSeed is used for hash
 // computation. If data is clearly not a valid SCION packet, it returns ok=false. Otherwise, it
 // returns a processor ID smaller than numProcRoutines and ok=true.
+// Specifically for STUN packets, the check for valid SCION packets fails since the part of the STUN
+// header that overlaps with the SCION common header NextHdr field contains value 0x21, which is not
+// a valid L4 protocol type. Therefore, STUN packets will always result in ok=false.
+// If we ever have a protocol type assigned to value 0x21, we need to revisit this function.
 func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, bool) {
 	if len(data) < slayers.CmnHdrLen {
 		return uint32(numProcRoutines), false
@@ -1048,7 +1052,7 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, b
 	switch slayers.L4ProtocolType(data[4]) {
 	case slayers.L4TCP, slayers.L4UDP, slayers.L4SCMP, slayers.L4BFD,
 		slayers.HopByHopClass, slayers.End2EndClass,
-		253, 254 /* experimentation and testing */ :
+		slayers.ExperimentationAndTesting, slayers.ExperimentationAndTesting2:
 		break
 	default:
 		return uint32(numProcRoutines), false
