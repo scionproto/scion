@@ -268,6 +268,8 @@ type trafficMetrics struct {
 	DroppedPacketsBusyForwarder prometheus.Counter
 	DroppedPacketsBusySlowPath  prometheus.Counter
 	ProcessedPackets            prometheus.Counter
+	STUNRequestsTotal           prometheus.Counter
+	STUNResponsesTotal          prometheus.Counter
 	Output                      [ttMax]outputMetrics
 }
 

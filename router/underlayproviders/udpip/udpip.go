@@ -911,6 +911,8 @@ func (l *internalLink) runProcessor() {
 func (l *internalLink) processPacket(pkt *router.Packet) error {
 	if stun.Is(pkt.RawPacket) {
 		// Process STUN packet
+		sc := router.ClassOfSize(len(pkt.RawPacket))
+		l.metrics[sc].STUNRequestsTotal.Inc()
 		txid, err := stun.ParseBindingRequest(pkt.RawPacket)
 		if err != nil {
 			return serrors.Wrap("processing STUN packet", err)
@@ -918,6 +920,7 @@ func (l *internalLink) processPacket(pkt *router.Packet) error {
 		resp := stun.Response(txid, (*net.UDPAddr)(pkt.RemoteAddr).AddrPort())
 		pkt.RawPacket = pkt.RawPacket[:len(resp)]
 		copy(pkt.RawPacket, resp)
+		l.metrics[sc].STUNResponsesTotal.Inc()
 		return nil
 	}
 	// Drop packet
