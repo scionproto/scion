@@ -18,11 +18,13 @@ import (
 	"flag"
 	"log"
 	"net"
+	"os"
 
 	"github.com/scionproto/scion/pkg/snet"
 )
 
 func main() {
+	log.SetOutput(os.Stdout)
 	log.Print("Server running")
 
 	var localAddr snet.UDPAddr
