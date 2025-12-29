@@ -46,15 +46,19 @@ class Test(base.TestTopogen):
 
             # Move tester daemon to new network
             # Add default route to send packets to NAT (192.168.123.2)
+            # Fix Docker permissions
             scion_dc["services"]["sd1-ff00_0_111"]["entrypoint"] = []
             scion_dc["services"]["sd1-ff00_0_111"]["command"] = \
                 ('sh -c "ip route del default && ip route add default via 192.168.123.2 && '
-                 '/app/daemon --config /etc/scion/sd.toml && tail -f /dev/null"')
+                 'addgroup -g 1000 scion && adduser -D -u 1000 -G scion scion && chown -R scion:scion /etc/scion && '
+                 'sleep 5 && exec su scion -s /busybox/sh -c \'/app/daemon --config /etc/scion/sd.toml\'"')
             scion_dc["services"]["sd1-ff00_0_111"]["depends_on"].append("nat_1-ff00_0_111")
             scion_dc["services"]["sd1-ff00_0_111"]["cap_add"] = ["NET_ADMIN"]
             scion_dc["services"]["sd1-ff00_0_111"]["networks"] = \
                 {"local_001": {"ipv4_address": "192.168.123.3"}}
             scion_dc["services"]["sd1-ff00_0_111"].pop("user")
+            scion_dc["services"]["sd1-ff00_0_111"]["volumes"][1] = \
+                scion_dc["services"]["sd1-ff00_0_111"]["volumes"][1][:-2] + "rw"
 
             # Move tester container to new network
             scion_dc["services"]["tester_1-ff00_0_110"]["environment"]["SCION_DAEMON_ADDRESS"] = \
@@ -87,7 +91,7 @@ class Test(base.TestTopogen):
             # see https://www.man7.org/linux/man-pages/man8/iptables-extensions.8.html for more
             # information
             scion_dc["services"]["nat_1-ff00_0_111"] = {
-                "command": 'sh -c "sleep 5 && apk update && apk add --no-cache iptables '
+                "command": 'sh -c "apk update && apk add --no-cache iptables '
                            '&& iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -p tcp -o eth1 '
                            '-j MASQUERADE && iptables -t nat -A POSTROUTING -s 192.168.123.0/24 '
                            '-p udp -o eth1 -j MASQUERADE --random --to-ports 31000-32767 '
