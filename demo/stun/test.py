@@ -51,7 +51,8 @@ class Test(base.TestTopogen):
             scion_dc["services"]["sd1-ff00_0_111"]["command"] = \
                 ('sh -c "ip route del default && ip route add default via 192.168.123.2 && '
                  'addgroup -g 1000 scion && adduser -D -u 1000 -G scion scion && '
-                 'cp -r /etc/scion /tmp/scion && chown -R scion:scion /tmp/scion && sleep 5 && '
+                 'cp -r /etc/scion /tmp/scion && chown -R scion:scion /tmp/scion && '
+                 'cp -r /share/cache /tmp/cache && chown -R scion:scion /tmp/cache && sleep 5 && '
                  'exec su scion -s /busybox/sh -c \'/app/daemon --config /etc/scion/sd.toml\'"')
             scion_dc["services"]["sd1-ff00_0_111"]["depends_on"].append("nat_1-ff00_0_111")
             scion_dc["services"]["sd1-ff00_0_111"]["cap_add"] = ["NET_ADMIN"]
@@ -133,6 +134,7 @@ class Test(base.TestTopogen):
 
         filecontent = filecontent.replace("172.20.0.28", "192.168.123.3")
         filecontent = filecontent.replace("/etc/scion", "/tmp/scion")
+        filecontent = filecontent.replace("/share/cache", "/tmp/cache")
 
         with open(self.artifacts / "gen/ASff00_0_111/sd.toml", "w") as file:
             file.write(filecontent)
