@@ -51,7 +51,7 @@ class Test(base.TestTopogen):
             scion_dc["services"]["sd1-ff00_0_111"]["command"] = \
                 ('sh -c "ip route del default && ip route add default via 192.168.123.2 && '
                  'addgroup -g 1000 scion && adduser -D -u 1000 -G scion scion && '
-                 'chown -R scion:scion /etc/scion && sleep 5 && '
+                 'cp -r /etc/scion /tmp/scion && chown -R scion:scion /tmp/scion && sleep 5 && '
                  'exec su scion -s /busybox/sh -c \'/app/daemon --config /etc/scion/sd.toml\'"')
             scion_dc["services"]["sd1-ff00_0_111"]["depends_on"].append("nat_1-ff00_0_111")
             scion_dc["services"]["sd1-ff00_0_111"]["cap_add"] = ["NET_ADMIN"]
