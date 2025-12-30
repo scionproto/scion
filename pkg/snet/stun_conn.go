@@ -85,7 +85,7 @@ func newSTUNConn(conn *net.UDPConn) (*stunConn, error) {
 	// background goroutine to continuously read from the underlying UDP connection and filter out
 	// STUN packets
 	go func() {
-		buf := make([]byte, 1500)
+		buf := make([]byte, 65535)
 		for {
 			n, addr, err := handler.UDPConn.ReadFrom(buf)
 			if err != nil {
