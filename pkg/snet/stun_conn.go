@@ -300,19 +300,19 @@ func (c *stunConn) SetDeadline(t time.Time) error {
 	defer c.mutex.Unlock()
 	c.readDeadline = t
 	c.writeDeadline = t
-	return c.UDPConn.SetDeadline(t)
+	return nil
 }
 
 func (c *stunConn) SetReadDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.readDeadline = t
-	return c.UDPConn.SetReadDeadline(t)
+	return nil
 }
 
 func (c *stunConn) SetWriteDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.writeDeadline = t
-	return c.UDPConn.SetWriteDeadline(t)
+	return nil
 }
