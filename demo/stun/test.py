@@ -132,6 +132,7 @@ class Test(base.TestTopogen):
             filecontent = file.read()
 
         filecontent = filecontent.replace("172.20.0.28", "192.168.123.3")
+        filecontent = filecontent.replace("/etc/scion", "/tmp/scion")
 
         with open(self.artifacts / "gen/ASff00_0_111/sd.toml", "w") as file:
             file.write(filecontent)
