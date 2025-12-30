@@ -37,14 +37,13 @@ type stunHandler struct {
 	mutex          sync.Mutex
 
 	// the following fields are protected by mutex
-	queuedBytes          int64
-	stunChans            map[stun.TxID]chan stunResponse
-	mappings             map[*net.UDPAddr]*natMapping
-	retransmissionTimers map[*net.UDPAddr]*retransmissionTimer
-	pendingRequests      map[*net.UDPAddr]bool
-	writeDeadline        time.Time
-	readDeadline         time.Time
-	cond                 *sync.Cond // condition variable for pending STUN requests
+	queuedBytes     int64
+	stunChans       map[stun.TxID]chan stunResponse
+	mappings        map[*net.UDPAddr]*natMapping
+	pendingRequests map[*net.UDPAddr]bool
+	writeDeadline   time.Time
+	readDeadline    time.Time
+	cond            *sync.Cond // condition variable for pending STUN requests
 }
 
 type bufferedPacket struct {
@@ -74,13 +73,12 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 	}
 
 	handler := &stunHandler{
-		UDPConn:              conn,
-		recvChan:             make(chan bufferedPacket, maxNumPacket),
-		maxQueuedBytes:       int64(rcvBufSize),
-		stunChans:            make(map[stun.TxID]chan stunResponse),
-		mappings:             make(map[*net.UDPAddr]*natMapping),
-		retransmissionTimers: make(map[*net.UDPAddr]*retransmissionTimer),
-		pendingRequests:      make(map[*net.UDPAddr]bool),
+		UDPConn:         conn,
+		recvChan:        make(chan bufferedPacket, maxNumPacket),
+		maxQueuedBytes:  int64(rcvBufSize),
+		stunChans:       make(map[stun.TxID]chan stunResponse),
+		mappings:        make(map[*net.UDPAddr]*natMapping),
+		pendingRequests: make(map[*net.UDPAddr]bool),
 	}
 	handler.cond = sync.NewCond(&handler.mutex)
 
@@ -224,15 +222,6 @@ func (c *stunHandler) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 	return addr, nil
 }
 
-type retransmissionTimer struct {
-	// See RFC 6298 for details on these fields
-	srtt   time.Duration
-	rttvar time.Duration
-	rto    time.Duration
-
-	lastUsed time.Time
-}
-
 func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	txID := stun.NewTxID()
 	stunRequest := stun.Request(txID)
@@ -241,26 +230,9 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 	// TODO: make configurable?
 	const Rc = 7  // Maximum number of retransmissions
 	const Rm = 16 // Multiplier for final retransmission wait time
+	const initialRTO = 500 * time.Millisecond
 
 	c.mutex.Lock()
-	if c.retransmissionTimers[dest] == nil {
-		c.retransmissionTimers[dest] = &retransmissionTimer{
-			srtt:     0,
-			rttvar:   0,
-			rto:      500 * time.Millisecond, // RFC8489 Section 6.2.1
-			lastUsed: time.Now(),
-		}
-	}
-
-	retransmissionTimer := c.retransmissionTimers[dest]
-
-	// Reset timer if it hasn't been used for 10 minutes (RFC 8489 Section 6.2.1)
-	if time.Since(retransmissionTimer.lastUsed) > 10*time.Minute {
-		retransmissionTimer.rto = 500 * time.Millisecond
-		retransmissionTimer.srtt = 0
-		retransmissionTimer.rttvar = 0
-	}
-
 	stunChan := make(chan stunResponse, Rc*2)
 	c.stunChans[txID] = stunChan
 
@@ -279,14 +251,8 @@ func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
 		c.mutex.Unlock()
 	}()
 
-	isRetransmission := false
-
 	var mappedAddress netip.AddrPort
-	var startTime, endTime time.Time
-
-	originalRTO := retransmissionTimer.rto
-	currentRTO := originalRTO
-	startTime = time.Now()
+	currentRTO := initialRTO
 
 STUNLoop:
 	for i := 0; i < Rc; i++ {
@@ -295,16 +261,12 @@ STUNLoop:
 			return nil, err
 		}
 
-		if i == 1 {
-			isRetransmission = true
-		}
-
 		var waitDuration time.Duration
 		if i < Rc-1 {
 			waitDuration = currentRTO
 			currentRTO *= 2
 		} else {
-			waitDuration = Rm * originalRTO
+			waitDuration = Rm * initialRTO
 		}
 
 		select {
@@ -317,7 +279,6 @@ STUNLoop:
 				return nil, resp.err
 			}
 			mappedAddress = resp.mappedAddr
-			endTime = time.Now()
 			break STUNLoop
 		}
 	}
@@ -336,31 +297,6 @@ STUNLoop:
 	mapping.mappedAddr = mappedAddr
 	mapping.touch()
 
-	// Skip RTT calculation on retransmission or error
-	if isRetransmission || endTime.IsZero() {
-		c.mutex.Unlock()
-		return mapping, nil
-	}
-
-	// Update retransmission timer based on measured RTT, see RFC 6298
-	rtt := endTime.Sub(startTime)
-	if retransmissionTimer.srtt == 0 {
-		retransmissionTimer.srtt = rtt
-		retransmissionTimer.rttvar = rtt / 2
-	} else {
-		srttDiff := retransmissionTimer.srtt - rtt
-		if srttDiff < 0 {
-			srttDiff = -srttDiff
-		}
-		retransmissionTimer.rttvar = (3*retransmissionTimer.rttvar + srttDiff) / 4
-		retransmissionTimer.srtt = (7*retransmissionTimer.srtt + rtt) / 8
-	}
-	maxTerm := retransmissionTimer.rttvar * 4
-	if maxTerm < time.Millisecond {
-		maxTerm = time.Millisecond
-	}
-	retransmissionTimer.rto = retransmissionTimer.srtt + maxTerm
-	retransmissionTimer.lastUsed = time.Now()
 	c.mutex.Unlock()
 	return mapping, nil
 }
