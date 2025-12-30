@@ -36,7 +36,7 @@ require (
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/procfs v0.16.0
 	github.com/quic-go/quic-go v0.57.0
-	github.com/sergi/go-diff v1.3.1
+	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
@@ -57,6 +57,7 @@ require (
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.40.1
+	tailscale.com v1.84.3
 	zgo.at/zcache/v2 v2.1.0
 )
 
