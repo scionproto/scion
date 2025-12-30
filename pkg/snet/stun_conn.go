@@ -40,7 +40,6 @@ type stunConn struct {
 	stunChans       map[stun.TxID]chan stunResponse
 	mappings        map[netip.AddrPort]*natMapping
 	pendingRequests map[netip.AddrPort]bool
-	writeDeadline   time.Time
 	readDeadline    time.Time
 	cond            *sync.Cond // condition variable for pending STUN requests
 }
@@ -289,7 +288,6 @@ func (c *stunConn) SetDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.readDeadline = t
-	c.writeDeadline = t
 	return c.UDPConn.SetWriteDeadline(t)
 }
 
@@ -298,11 +296,4 @@ func (c *stunConn) SetReadDeadline(t time.Time) error {
 	defer c.mutex.Unlock()
 	c.readDeadline = t
 	return nil
-}
-
-func (c *stunConn) SetWriteDeadline(t time.Time) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.writeDeadline = t
-	return c.UDPConn.SetWriteDeadline(t)
 }
