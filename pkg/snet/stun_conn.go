@@ -115,30 +115,22 @@ func newSTUNConn(conn *net.UDPConn) (*stunConn, error) {
 					}
 				}
 			} else {
-				handler.queuePacket(dataPacket{data: data, addr: addr})
+				handler.mutex.Lock()
+				pktLen := int64(len(data))
+				if handler.queuedBytes+pktLen > handler.maxQueuedBytes {
+					continue
+				}
+				select {
+				case handler.recvChan <- dataPacket{data: data, addr: addr}:
+					handler.queuedBytes += pktLen
+				default:
+				}
+				handler.mutex.Unlock()
 			}
 		}
 	}()
 
 	return handler, nil
-}
-
-func (c *stunConn) queuePacket(pkt dataPacket) bool {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	pktLen := int64(len(pkt.data))
-
-	if c.queuedBytes+pktLen > c.maxQueuedBytes {
-		return false
-	}
-
-	select {
-	case c.recvChan <- pkt:
-		c.queuedBytes += pktLen
-		return true
-	default:
-		return false
-	}
 }
 
 func (c *stunConn) ReadFrom(b []byte) (int, net.Addr, error) {
