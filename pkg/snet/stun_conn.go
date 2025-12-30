@@ -297,3 +297,8 @@ func (c *stunConn) SetReadDeadline(t time.Time) error {
 	c.readDeadline = t
 	return nil
 }
+
+func (c *SCIONPacketConn) isSTUNConn() bool {
+	_, ok := c.Conn.(*stunConn)
+	return ok
+}
