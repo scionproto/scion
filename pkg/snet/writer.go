@@ -86,7 +86,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 
 	// Rewrite source IP if STUN is in use
 	if scionConn, ok := c.conn.(*SCIONPacketConn); ok {
-		if stunHandler, ok := scionConn.Conn.(*stunHandler); ok {
+		if stunHandler, ok := scionConn.Conn.(*stunConn); ok {
 			var sameIA bool
 			switch a := raddr.(type) {
 			case *UDPAddr:

@@ -29,8 +29,8 @@ import (
 
 const timeoutDuration = 5 * time.Minute
 
-// stunHandler is a wrapper around net.UDPConn that handles STUN requests.
-type stunHandler struct {
+// stunConn is a wrapper around net.UDPConn that handles STUN requests.
+type stunConn struct {
 	*net.UDPConn
 	recvChan       chan bufferedPacket
 	maxQueuedBytes int64
@@ -56,7 +56,7 @@ type stunResponse struct {
 	err        error
 }
 
-func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
+func newSTUNConn(conn *net.UDPConn) (*stunConn, error) {
 	// Get the receive buffer size
 	fd, err := conn.File()
 	if err != nil {
@@ -72,7 +72,7 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 		maxNumPacket = 10
 	}
 
-	handler := &stunHandler{
+	handler := &stunConn{
 		UDPConn:         conn,
 		recvChan:        make(chan bufferedPacket, maxNumPacket),
 		maxQueuedBytes:  int64(rcvBufSize),
@@ -123,7 +123,7 @@ func newSTUNHandler(conn *net.UDPConn) (*stunHandler, error) {
 	return handler, nil
 }
 
-func (c *stunHandler) queuePacket(pkt bufferedPacket) bool {
+func (c *stunConn) queuePacket(pkt bufferedPacket) bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	pktLen := int64(len(pkt.data))
@@ -141,7 +141,7 @@ func (c *stunHandler) queuePacket(pkt bufferedPacket) bool {
 	}
 }
 
-func (c *stunHandler) ReadFrom(b []byte) (int, net.Addr, error) {
+func (c *stunConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	c.mutex.Lock()
 	deadline := c.readDeadline
 	c.mutex.Unlock()
@@ -185,7 +185,7 @@ func (mapping *natMapping) isValid() bool {
 	return time.Since(mapping.lastUsed) < timeoutDuration
 }
 
-func (c *stunHandler) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
+func (c *stunConn) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 	c.mutex.Lock()
 	for {
 		// Check if mapping exists and is valid
@@ -208,7 +208,7 @@ func (c *stunHandler) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 	}
 
 	c.mutex.Unlock()
-	mapping, err := c.makeStunRequest(dest)
+	mapping, err := c.makeSTUNRequest(dest)
 	c.mutex.Lock()
 
 	delete(c.pendingRequests, dest)
@@ -222,7 +222,7 @@ func (c *stunHandler) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 	return addr, nil
 }
 
-func (c *stunHandler) makeStunRequest(dest *net.UDPAddr) (*natMapping, error) {
+func (c *stunConn) makeSTUNRequest(dest *net.UDPAddr) (*natMapping, error) {
 	txID := stun.NewTxID()
 	stunRequest := stun.Request(txID)
 
@@ -301,7 +301,7 @@ STUNLoop:
 	return mapping, nil
 }
 
-func (c *stunHandler) SetDeadline(t time.Time) error {
+func (c *stunConn) SetDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.readDeadline = t
@@ -309,14 +309,14 @@ func (c *stunHandler) SetDeadline(t time.Time) error {
 	return c.UDPConn.SetDeadline(t)
 }
 
-func (c *stunHandler) SetReadDeadline(t time.Time) error {
+func (c *stunConn) SetReadDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.readDeadline = t
 	return c.UDPConn.SetReadDeadline(t)
 }
 
-func (c *stunHandler) SetWriteDeadline(t time.Time) error {
+func (c *stunConn) SetWriteDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.writeDeadline = t

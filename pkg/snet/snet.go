@@ -157,7 +157,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 
 	// TODO: make STUN handling optional/configurable
 	scionPacketConn := packetConn.(*SCIONPacketConn)
-	stunHandlerConn, err := newSTUNHandler(scionPacketConn.Conn.(*net.UDPConn))
+	stunHandlerConn, err := newSTUNConn(scionPacketConn.Conn.(*net.UDPConn))
 	if err != nil {
 		return nil, serrors.Wrap("Error creating STUN handler", err)
 	}
