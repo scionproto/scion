@@ -15,7 +15,6 @@
 package snet
 
 import (
-	"context"
 	"errors"
 	"net"
 	"net/netip"
@@ -228,13 +227,6 @@ func (c *stunConn) makeSTUNRequest(dest netip.AddrPort) (*natMapping, error) {
 	stunChan := make(chan stunResponse, Rc*2)
 	c.stunChans[txID] = stunChan
 
-	ctx := context.Background()
-	var cancel context.CancelFunc
-	if !c.writeDeadline.IsZero() {
-		ctx, cancel = context.WithDeadline(ctx, c.writeDeadline)
-		defer cancel()
-	}
-
 	c.mutex.Unlock()
 
 	defer func() {
@@ -267,8 +259,6 @@ STUNLoop:
 				return nil, errors.New("STUN request timed out")
 			}
 			continue
-		case <-ctx.Done():
-			return nil, ctx.Err()
 		case resp := <-stunChan:
 			if resp.err != nil {
 				return nil, resp.err
@@ -300,7 +290,7 @@ func (c *stunConn) SetDeadline(t time.Time) error {
 	defer c.mutex.Unlock()
 	c.readDeadline = t
 	c.writeDeadline = t
-	return nil
+	return c.UDPConn.SetWriteDeadline(t)
 }
 
 func (c *stunConn) SetReadDeadline(t time.Time) error {
@@ -314,5 +304,5 @@ func (c *stunConn) SetWriteDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.writeDeadline = t
-	return nil
+	return c.UDPConn.SetWriteDeadline(t)
 }
