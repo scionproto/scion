@@ -44,23 +44,9 @@ class Test(base.TestTopogen):
             scion_dc["services"]["disp_tester_1-ff00_0_111"]["networks"] = \
                 {"local_001": {"ipv4_address": "192.168.123.4"}}
 
-            # Move tester daemon to new network
-            # Add default route to send packets to NAT (192.168.123.2)
-            # Fix Docker permissions
-            scion_dc["services"]["sd1-ff00_0_111"]["entrypoint"] = []
-            scion_dc["services"]["sd1-ff00_0_111"]["command"] = \
-                ('sh -c "ip route del default && ip route add default via 192.168.123.2 && '
-                 'addgroup -g 1000 scion && adduser -D -u 1000 -G scion scion && '
-                 'cp -r /etc/scion /tmp/scion && chown -R scion:scion /tmp/scion && '
-                 'cp -r /share/cache /tmp/cache && chown -R scion:scion /tmp/cache && sleep 5 && '
-                 'exec su scion -s /busybox/sh -c \'/app/daemon --config /etc/scion/sd.toml\'"')
-            scion_dc["services"]["sd1-ff00_0_111"]["depends_on"].append("nat_1-ff00_0_111")
-            scion_dc["services"]["sd1-ff00_0_111"]["cap_add"] = ["NET_ADMIN"]
-            scion_dc["services"]["sd1-ff00_0_111"]["networks"] = \
-                {"local_001": {"ipv4_address": "192.168.123.3"}}
-            scion_dc["services"]["sd1-ff00_0_111"].pop("user")
-            scion_dc["services"]["sd1-ff00_0_111"]["volumes"][1] = \
-                scion_dc["services"]["sd1-ff00_0_111"]["volumes"][1][:-2] + "rw"
+            # Connect tester daemon to new network
+            scion_dc["services"]["sd1-ff00_0_111"]["networks"]["local_001"] = \
+                {"ipv4_address": "192.168.123.3"}
 
             # Move tester container to new network
             scion_dc["services"]["tester_1-ff00_0_110"]["environment"]["SCION_DAEMON_ADDRESS"] = \
@@ -100,7 +86,7 @@ class Test(base.TestTopogen):
                            '&& tail -f /dev/null"',
                 "image": "alpine:latest",
                 "networks": {
-                    "scn_002": {"ipv4_address": "172.20.0.28"},
+                    "scn_002": {"ipv4_address": "172.20.0.29"},
                     "local_001": {"ipv4_address": "192.168.123.2"},
                 },
                 "cap_add": ["NET_ADMIN"]
@@ -133,13 +119,12 @@ class Test(base.TestTopogen):
             filecontent = file.read()
 
         filecontent = filecontent.replace("172.20.0.28", "192.168.123.3")
-        filecontent = filecontent.replace("/etc/scion", "/tmp/scion")
-        filecontent = filecontent.replace("/share/cache", "/tmp/cache")
 
         with open(self.artifacts / "gen/ASff00_0_111/sd.toml", "w") as file:
             file.write(filecontent)
 
     def _run(self):
+        self.await_connectivity()
         time.sleep(10)  # wait for everything to start up
 
         # copy test executables to test container
