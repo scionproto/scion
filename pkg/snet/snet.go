@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics/v2"
+	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -156,8 +157,15 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 	log.FromCtx(ctx).Debug("UDP socket opened on", "addr", packetConn.LocalAddr(), "to", remote)
 
 	// TODO: make STUN handling optional/configurable
-	scionPacketConn := packetConn.(*SCIONPacketConn)
-	stunHandlerConn, err := newSTUNConn(scionPacketConn.Conn.(*net.UDPConn))
+	scionPacketConn, ok := packetConn.(*SCIONPacketConn)
+	if !ok {
+		return nil, serrors.New("expected SCIONPacketConn", "type", common.TypeOf(packetConn))
+	}
+	udpConn, ok := scionPacketConn.Conn.(*net.UDPConn)
+	if !ok {
+		return nil, serrors.New("expected UDPConn", "type", common.TypeOf(scionPacketConn.Conn))
+	}
+	stunHandlerConn, err := newSTUNConn(udpConn)
 	if err != nil {
 		return nil, serrors.Wrap("error creating STUN handler", err)
 	}
