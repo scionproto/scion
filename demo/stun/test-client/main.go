@@ -21,12 +21,10 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"testing"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/stretchr/testify/assert"
 
 	"tailscale.com/net/stun"
 )
@@ -189,9 +187,7 @@ func main() {
 
 	response := string(pld.Payload)
 	log.Printf("Received data: \"%s\"", response)
-	t := &testing.T{}
-	assert.Equal(t, data, response)
-	if t.Failed() {
+	if data != response {
 		log.Fatalf("Assertion failed: response does not match sent data")
 	}
 }
