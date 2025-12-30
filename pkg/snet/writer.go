@@ -82,7 +82,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	if !ok {
 		return 0, serrors.New("invalid listen host IP", "ip", c.local.Host.IP)
 	}
-	listenHostPort := c.local.Host.Port
+	listenHostPort := uint16(c.local.Host.Port)
 
 	// Rewrite source IP if STUN is in use
 	if scionConn, ok := c.conn.(*SCIONPacketConn); ok {
@@ -95,15 +95,12 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 				sameIA = a.IA.Equal(c.local.IA)
 			}
 			if !sameIA {
-				mappedAddr, err := stunHandler.mappedAddr(nextHop)
+				mappedAddr, err := stunHandler.mappedAddr(netip.AddrPortFrom(listenHostIP, listenHostPort))
 				if err != nil {
 					return 0, serrors.New("Error getting mapped address for STUN", "stun", err)
 				}
-				listenHostIP, ok = netip.AddrFromSlice(mappedAddr.IP)
-				if !ok {
-					return 0, serrors.New("STUN returned invalid mapped host IP", "stun", mappedAddr.IP)
-				}
-				listenHostPort = mappedAddr.Port
+				listenHostIP = mappedAddr.Addr()
+				listenHostPort = mappedAddr.Port()
 			}
 		}
 	}
@@ -118,7 +115,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 			},
 			Path: path,
 			Payload: UDPPayload{
-				SrcPort: uint16(listenHostPort),
+				SrcPort: listenHostPort,
 				DstPort: uint16(port),
 				Payload: b,
 			},

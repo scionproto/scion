@@ -39,8 +39,8 @@ type stunConn struct {
 	// the following fields are protected by mutex
 	queuedBytes     int64
 	stunChans       map[stun.TxID]chan stunResponse
-	mappings        map[*net.UDPAddr]*natMapping
-	pendingRequests map[*net.UDPAddr]bool
+	mappings        map[netip.AddrPort]*natMapping
+	pendingRequests map[netip.AddrPort]bool
 	writeDeadline   time.Time
 	readDeadline    time.Time
 	cond            *sync.Cond // condition variable for pending STUN requests
@@ -77,8 +77,8 @@ func newSTUNConn(conn *net.UDPConn) (*stunConn, error) {
 		recvChan:        make(chan dataPacket, maxNumPacket),
 		maxQueuedBytes:  int64(rcvBufSize),
 		stunChans:       make(map[stun.TxID]chan stunResponse),
-		mappings:        make(map[*net.UDPAddr]*natMapping),
-		pendingRequests: make(map[*net.UDPAddr]bool),
+		mappings:        make(map[netip.AddrPort]*natMapping),
+		pendingRequests: make(map[netip.AddrPort]bool),
 	}
 	handler.cond = sync.NewCond(&handler.mutex)
 
@@ -164,8 +164,8 @@ func (c *stunConn) ReadFrom(b []byte) (int, net.Addr, error) {
 }
 
 type natMapping struct {
-	destination *net.UDPAddr
-	mappedAddr  *net.UDPAddr
+	destination netip.AddrPort
+	mappedAddr  netip.AddrPort
 	lastUsed    time.Time
 }
 
@@ -177,7 +177,7 @@ func (mapping *natMapping) isValid() bool {
 	return time.Since(mapping.lastUsed) < timeoutDuration
 }
 
-func (c *stunConn) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
+func (c *stunConn) mappedAddr(dest netip.AddrPort) (netip.AddrPort, error) {
 	c.mutex.Lock()
 	for {
 		// Check if mapping exists and is valid
@@ -207,14 +207,14 @@ func (c *stunConn) mappedAddr(dest *net.UDPAddr) (*net.UDPAddr, error) {
 	c.cond.Broadcast()
 	if err != nil {
 		c.mutex.Unlock()
-		return nil, err
+		return netip.AddrPort{}, err
 	}
 	addr := mapping.mappedAddr
 	c.mutex.Unlock()
 	return addr, nil
 }
 
-func (c *stunConn) makeSTUNRequest(dest *net.UDPAddr) (*natMapping, error) {
+func (c *stunConn) makeSTUNRequest(dest netip.AddrPort) (*natMapping, error) {
 	txID := stun.NewTxID()
 	stunRequest := stun.Request(txID)
 
@@ -243,12 +243,12 @@ func (c *stunConn) makeSTUNRequest(dest *net.UDPAddr) (*natMapping, error) {
 		c.mutex.Unlock()
 	}()
 
-	var mappedAddress netip.AddrPort
+	var mappedAddr netip.AddrPort
 	currentRTO := initialRTO
 
 STUNLoop:
 	for i := 0; i < Rc; i++ {
-		_, err := c.WriteTo(stunRequest, dest)
+		_, err := c.WriteTo(stunRequest, net.UDPAddrFromAddrPort(dest))
 		if err != nil {
 			return nil, err
 		}
@@ -263,6 +263,9 @@ STUNLoop:
 
 		select {
 		case <-time.After(waitDuration):
+			if i == Rc-1 {
+				return nil, errors.New("STUN request timed out")
+			}
 			continue
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -270,14 +273,13 @@ STUNLoop:
 			if resp.err != nil {
 				return nil, resp.err
 			}
-			mappedAddress = resp.addr
+			mappedAddr = resp.addr
 			break STUNLoop
 		}
 	}
 
-	mappedAddr, err := net.ResolveUDPAddr("udp", mappedAddress.String())
-	if err != nil {
-		return nil, err
+	if !mappedAddr.IsValid() {
+		return nil, errors.New("invalid mapped address")
 	}
 
 	c.mutex.Lock()
