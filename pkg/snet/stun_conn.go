@@ -32,7 +32,7 @@ const timeoutDuration = 5 * time.Minute
 // stunConn is a wrapper around net.UDPConn that handles STUN requests.
 type stunConn struct {
 	*net.UDPConn
-	recvChan       chan bufferedPacket
+	recvChan       chan dataPacket
 	maxQueuedBytes int64
 	mutex          sync.Mutex
 
@@ -46,14 +46,14 @@ type stunConn struct {
 	cond            *sync.Cond // condition variable for pending STUN requests
 }
 
-type bufferedPacket struct {
+type dataPacket struct {
 	data []byte
 	addr net.Addr
 }
 
 type stunResponse struct {
-	mappedAddr netip.AddrPort
-	err        error
+	addr netip.AddrPort
+	err  error
 }
 
 func newSTUNConn(conn *net.UDPConn) (*stunConn, error) {
@@ -74,7 +74,7 @@ func newSTUNConn(conn *net.UDPConn) (*stunConn, error) {
 
 	handler := &stunConn{
 		UDPConn:         conn,
-		recvChan:        make(chan bufferedPacket, maxNumPacket),
+		recvChan:        make(chan dataPacket, maxNumPacket),
 		maxQueuedBytes:  int64(rcvBufSize),
 		stunChans:       make(map[stun.TxID]chan stunResponse),
 		mappings:        make(map[*net.UDPAddr]*natMapping),
@@ -110,12 +110,12 @@ func newSTUNConn(conn *net.UDPConn) (*stunConn, error) {
 				handler.mutex.Unlock()
 				if ok {
 					select {
-					case ch <- stunResponse{mappedAddr: mappedAddr, err: err}:
+					case ch <- stunResponse{addr: mappedAddr, err: err}:
 					default:
 					}
 				}
 			} else {
-				handler.queuePacket(bufferedPacket{data: data, addr: addr})
+				handler.queuePacket(dataPacket{data: data, addr: addr})
 			}
 		}
 	}()
@@ -123,7 +123,7 @@ func newSTUNConn(conn *net.UDPConn) (*stunConn, error) {
 	return handler, nil
 }
 
-func (c *stunConn) queuePacket(pkt bufferedPacket) bool {
+func (c *stunConn) queuePacket(pkt dataPacket) bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	pktLen := int64(len(pkt.data))
@@ -278,7 +278,7 @@ STUNLoop:
 			if resp.err != nil {
 				return nil, resp.err
 			}
-			mappedAddress = resp.mappedAddr
+			mappedAddress = resp.addr
 			break STUNLoop
 		}
 	}

@@ -159,7 +159,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 	scionPacketConn := packetConn.(*SCIONPacketConn)
 	stunHandlerConn, err := newSTUNConn(scionPacketConn.Conn.(*net.UDPConn))
 	if err != nil {
-		return nil, serrors.Wrap("Error creating STUN handler", err)
+		return nil, serrors.Wrap("error creating STUN handler", err)
 	}
 	scionPacketConn.Conn = stunHandlerConn
 	packetConn = scionPacketConn
