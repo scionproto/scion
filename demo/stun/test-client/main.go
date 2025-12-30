@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"net"
 	"net/netip"
@@ -27,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/stretchr/testify/assert"
 
 	"tailscale.com/net/stun"
 )
