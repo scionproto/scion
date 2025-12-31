@@ -18,7 +18,6 @@ go_library(
         "sock_error_windows.go",
         "stun_conn.go",
         "svcaddr.go",
-        "udp_conn.go",
         "udpaddr.go",
         "writer.go",
     ],
