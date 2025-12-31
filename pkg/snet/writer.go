@@ -86,7 +86,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 
 	// Rewrite source IP if STUN is in use
 	if scionConn, ok := c.conn.(*SCIONPacketConn); ok {
-		if stunHandler, ok := scionConn.conn.(*stunConn); ok {
+		if stunConn, ok := scionConn.conn.(*stunConn); ok {
 			var sameIA bool
 			switch a := raddr.(type) {
 			case *UDPAddr:
@@ -95,7 +95,13 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 				sameIA = a.IA.Equal(c.local.IA)
 			}
 			if !sameIA {
-				mappedAddr, err := stunHandler.mappedAddr(netip.AddrPortFrom(listenHostIP, listenHostPort))
+				nextHopIP, ok := netip.AddrFromSlice(nextHop.IP)
+				if !ok {
+					return 0, serrors.New("invalid next hop IP", "ip", nextHop.IP)
+				}
+				nextHopIP = nextHopIP.Unmap()
+				nextHopAddrPort := netip.AddrPortFrom(nextHopIP, uint16(nextHop.Port))
+				mappedAddr, err := stunConn.mappedAddr(nextHopAddrPort)
 				if err != nil {
 					return 0, serrors.New("Error getting mapped address for STUN", "stun", err)
 				}
