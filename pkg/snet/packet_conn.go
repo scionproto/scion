@@ -115,7 +115,7 @@ type SCIONPacketConnMetrics struct {
 // packets.
 type SCIONPacketConn struct {
 	// conn is the connection to send/receive serialized packets on.
-	conn RawPacketConn
+	conn sysPacketConn
 	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
@@ -126,9 +126,9 @@ type SCIONPacketConn struct {
 	Topology Topology
 }
 
-// RawPacketConn is a wrapper interface around net.PacketConn.
+// sysPacketConn is a wrapper interface around net.PacketConn.
 // It exists so custom types can wrap or customize the standard net.PacketConn methods.
-type RawPacketConn interface {
+type sysPacketConn interface {
 	net.PacketConn
 	SyscallConn() (syscall.RawConn, error)
 	SetReadBuffer(bytes int) error

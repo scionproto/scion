@@ -28,9 +28,9 @@ import (
 
 const timeoutDuration = 5 * time.Minute
 
-// stunConn is a wrapper around RawPacketConn that handles STUN requests.
+// stunConn is a wrapper around sysPacketConn that handles STUN requests.
 type stunConn struct {
-	RawPacketConn
+	sysPacketConn
 	recvChan       chan dataPacket
 	maxQueuedBytes int64
 	mutex          sync.Mutex
@@ -54,7 +54,7 @@ type stunResponse struct {
 	err  error
 }
 
-func newSTUNConn(conn RawPacketConn) (*stunConn, error) {
+func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 	udpConn, ok := conn.(*net.UDPConn)
 	if !ok {
 		return nil, errors.New("stunConn only supports UDP connections")
@@ -75,7 +75,7 @@ func newSTUNConn(conn RawPacketConn) (*stunConn, error) {
 	}
 
 	handler := &stunConn{
-		RawPacketConn:   conn,
+		sysPacketConn:   conn,
 		recvChan:        make(chan dataPacket, maxNumPacket),
 		maxQueuedBytes:  int64(rcvBufSize),
 		stunChans:       make(map[stun.TxID]chan stunResponse),
@@ -89,7 +89,7 @@ func newSTUNConn(conn RawPacketConn) (*stunConn, error) {
 	go func() {
 		buf := make([]byte, 65535)
 		for {
-			n, addr, err := handler.RawPacketConn.ReadFrom(buf)
+			n, addr, err := handler.sysPacketConn.ReadFrom(buf)
 			if err != nil {
 				if errors.Is(err, net.ErrClosed) ||
 					errors.Is(err, syscall.EBADF) { // bad file descriptor (connection closed)
@@ -292,7 +292,7 @@ func (c *stunConn) SetDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.readDeadline = t
-	return c.RawPacketConn.SetWriteDeadline(t)
+	return c.sysPacketConn.SetWriteDeadline(t)
 }
 
 func (c *stunConn) SetReadDeadline(t time.Time) error {
