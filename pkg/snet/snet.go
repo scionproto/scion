@@ -90,6 +90,7 @@ type SCIONNetwork struct {
 	// SCMPHandler describes the network behaviour upon receiving SCMP traffic.
 	SCMPHandler       SCMPHandler
 	PacketConnMetrics SCIONPacketConnMetrics
+	STUNEnabled       bool
 }
 
 // OpenRaw returns a PacketConn which listens on the specified address.
@@ -156,21 +157,22 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 	}
 	log.FromCtx(ctx).Debug("UDP socket opened on", "addr", packetConn.LocalAddr(), "to", remote)
 
-	// TODO: make STUN handling optional/configurable
-	scionPacketConn, ok := packetConn.(*SCIONPacketConn)
-	if !ok {
-		return nil, serrors.New("expected SCIONPacketConn", "type", common.TypeOf(packetConn))
+	if n.STUNEnabled {
+		scionPacketConn, ok := packetConn.(*SCIONPacketConn)
+		if !ok {
+			return nil, serrors.New("expected SCIONPacketConn", "type", common.TypeOf(packetConn))
+		}
+		udpConn, ok := scionPacketConn.conn.(*net.UDPConn)
+		if !ok {
+			return nil, serrors.New("expected UDPConn", "type", common.TypeOf(scionPacketConn.conn))
+		}
+		stunHandlerConn, err := newSTUNConn(udpConn)
+		if err != nil {
+			return nil, serrors.Wrap("error creating STUN handler", err)
+		}
+		scionPacketConn.conn = stunHandlerConn
+		packetConn = scionPacketConn
 	}
-	udpConn, ok := scionPacketConn.conn.(*net.UDPConn)
-	if !ok {
-		return nil, serrors.New("expected UDPConn", "type", common.TypeOf(scionPacketConn.conn))
-	}
-	stunHandlerConn, err := newSTUNConn(udpConn)
-	if err != nil {
-		return nil, serrors.Wrap("error creating STUN handler", err)
-	}
-	scionPacketConn.conn = stunHandlerConn
-	packetConn = scionPacketConn
 
 	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather), WithRemote(remote))
 }

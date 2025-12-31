@@ -48,7 +48,8 @@ func main() {
 	}
 
 	scionNetwork := snet.SCIONNetwork{
-		Topology: topology,
+		Topology:    topology,
+		STUNEnabled: true,
 	}
 
 	remoteAddr.Path = sp.Dataplane()
