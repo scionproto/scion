@@ -20,6 +20,7 @@ import (
 	"log"
 	"net"
 	"net/netip"
+	"os"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -32,6 +33,7 @@ import (
 // Normal clients should use a client library that performs STUN automatically and transparently.
 
 func main() {
+	log.SetOutput(os.Stdout)
 	log.Println("Client running")
 
 	var daemonAddr string
@@ -183,5 +185,9 @@ func main() {
 		log.Fatal("Failed to read packet payload")
 	}
 
-	log.Printf("Received data: \"%s\"", string(pld.Payload))
+	response := string(pld.Payload)
+	log.Printf("Received data: \"%s\"", response)
+	if data != response {
+		log.Fatalf("Assertion failed: response does not match sent data")
+	}
 }
