@@ -122,7 +122,7 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 		return nil, err
 	}
 	return &SCIONPacketConn{
-		Conn:        pconn,
+		conn:        pconn,
 		SCMPHandler: n.SCMPHandler,
 		Metrics:     n.PacketConnMetrics,
 		Topology:    n.Topology,
@@ -161,15 +161,15 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 	if !ok {
 		return nil, serrors.New("expected SCIONPacketConn", "type", common.TypeOf(packetConn))
 	}
-	udpConn, ok := scionPacketConn.Conn.(*net.UDPConn)
+	udpConn, ok := scionPacketConn.conn.(*net.UDPConn)
 	if !ok {
-		return nil, serrors.New("expected UDPConn", "type", common.TypeOf(scionPacketConn.Conn))
+		return nil, serrors.New("expected UDPConn", "type", common.TypeOf(scionPacketConn.conn))
 	}
 	stunHandlerConn, err := newSTUNConn(udpConn)
 	if err != nil {
 		return nil, serrors.Wrap("error creating STUN handler", err)
 	}
-	scionPacketConn.Conn = stunHandlerConn
+	scionPacketConn.conn = stunHandlerConn
 	packetConn = scionPacketConn
 
 	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather), WithRemote(remote))
