@@ -43,41 +43,43 @@ func main() {
 			continue
 		}
 
-		if int(pld.DstPort) == localAddr.Host.Port {
-			log.Printf("Received data: \"%v\" from %v:%v", string(pld.Payload), pkt.Source, pld.SrcPort)
+		if int(pld.DstPort) != localAddr.Host.Port {
+			continue
+		}
 
-			pkt.Destination, pkt.Source = pkt.Source, pkt.Destination
+		log.Printf("Received data: \"%v\" from %v:%v", string(pld.Payload), pkt.Source, pld.SrcPort)
 
-			rp, ok := pkt.Path.(snet.RawPath)
-			if !ok {
-				log.Printf("Failed to reverse path, unecpected path type: %v", pkt.Path)
-				continue
-			}
-			replyPather := snet.DefaultReplyPather{}
-			replyPath, err := replyPather.ReplyPath(rp)
-			if err != nil {
-				log.Printf("Failed to reverse path: %v", err)
-				continue
-			}
-			pkt.Path = replyPath
+		pkt.Destination, pkt.Source = pkt.Source, pkt.Destination
 
-			pkt.Payload = snet.UDPPayload{
-				SrcPort: pld.DstPort,
-				DstPort: pld.SrcPort,
-				Payload: pld.Payload,
-			}
+		rp, ok := pkt.Path.(snet.RawPath)
+		if !ok {
+			log.Printf("Failed to reverse path, unecpected path type: %v", pkt.Path)
+			continue
+		}
+		replyPather := snet.DefaultReplyPather{}
+		replyPath, err := replyPather.ReplyPath(rp)
+		if err != nil {
+			log.Printf("Failed to reverse path: %v", err)
+			continue
+		}
+		pkt.Path = replyPath
 
-			err = pkt.Serialize()
-			if err != nil {
-				log.Printf("Failed to serialize SCION packet: %v", err)
-				continue
-			}
+		pkt.Payload = snet.UDPPayload{
+			SrcPort: pld.DstPort,
+			DstPort: pld.SrcPort,
+			Payload: pld.Payload,
+		}
 
-			_, err = conn.WriteTo(pkt.Bytes, lastHop)
-			if err != nil {
-				log.Printf("Failed to write packet: %v", err)
-				continue
-			}
+		err = pkt.Serialize()
+		if err != nil {
+			log.Printf("Failed to serialize SCION packet: %v", err)
+			continue
+		}
+
+		_, err = conn.WriteTo(pkt.Bytes, lastHop)
+		if err != nil {
+			log.Printf("Failed to write packet: %v", err)
+			continue
 		}
 	}
 }

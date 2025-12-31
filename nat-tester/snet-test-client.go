@@ -37,11 +37,6 @@ func main() {
 		log.Fatalf("No paths to %v available", remoteAddr.IA)
 	}
 
-	log.Printf("Available paths to %v:", remoteAddr.IA)
-	for _, p := range ps {
-		log.Printf("\t%v", p)
-	}
-
 	sp := ps[0]
 
 	log.Printf("Selected path to %v:", remoteAddr.IA)
@@ -53,11 +48,7 @@ func main() {
 	}
 
 	scionNetwork := snet.SCIONNetwork{
-		Topology:          topology,
-		ReplyPather:       nil,
-		Metrics:           snet.SCIONNetworkMetrics{},
-		SCMPHandler:       nil,
-		PacketConnMetrics: snet.SCIONPacketConnMetrics{},
+		Topology: topology,
 	}
 
 	remoteAddr.Path = sp.Dataplane()
