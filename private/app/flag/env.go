@@ -86,6 +86,9 @@ type SCIONEnvironment struct {
 	localFlag  *pflag.Flag
 	file       env.SCION
 	filepath   string
+	nat        bool
+	natEnv     *bool
+	natFlag    *pflag.Flag
 
 	mtx sync.Mutex
 }
@@ -105,6 +108,9 @@ func (e *SCIONEnvironment) Register(flagSet *pflag.FlagSet) {
 		"The local ISD-AS to use.")
 	e.localFlag = flagSet.VarPF((*ipVal)(&e.local), "local", "l",
 		"Local IP address to listen on.")
+	flagSet.BoolVar(&e.nat, "nat", false,
+		"Enable NAT traversal using STUN.")
+	e.natFlag = flagSet.Lookup("nat")
 }
 
 // LoadExternalVar loads variables from the SCION environment file and from the
@@ -160,6 +166,10 @@ func (e *SCIONEnvironment) loadEnv() error {
 		}
 		e.localEnv = &a
 	}
+	if n, ok := os.LookupEnv("SCION_NAT"); ok {
+		nat := n == "true" || n == "1"
+		e.natEnv = &nat
+	}
 	return nil
 }
 
@@ -205,4 +215,22 @@ func (e *SCIONEnvironment) Local() netip.Addr {
 		return *e.localEnv
 	}
 	return netip.Addr{}
+}
+
+// NAT returns whether NAT traversal is enabled. The value is loaded from one of
+// the following sources with the precedence as listed:
+//  1. Command line flag
+//  2. Environment variable
+//  3. Default value (false).
+func (e *SCIONEnvironment) NAT() bool {
+	e.mtx.Lock()
+	defer e.mtx.Unlock()
+
+	if e.natFlag != nil && e.natFlag.Changed {
+		return e.nat
+	}
+	if e.natEnv != nil {
+		return *e.natEnv
+	}
+	return false
 }
