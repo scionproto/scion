@@ -74,7 +74,7 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 		maxNumPacket = 10
 	}
 
-	handler := &stunConn{
+	c := &stunConn{
 		sysPacketConn:   conn,
 		recvChan:        make(chan dataPacket, maxNumPacket),
 		maxQueuedBytes:  int64(rcvBufSize),
@@ -82,34 +82,30 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 		mappings:        make(map[netip.AddrPort]*natMapping),
 		pendingRequests: make(map[netip.AddrPort]bool),
 	}
-	handler.cond = sync.NewCond(&handler.mutex)
+	c.cond = sync.NewCond(&c.mutex)
 
 	// background goroutine to continuously read from the underlying UDP connection and filter out
 	// STUN packets
 	go func() {
 		buf := make([]byte, 65535)
 		for {
-			n, addr, err := handler.sysPacketConn.ReadFrom(buf)
+			n, addr, err := c.sysPacketConn.ReadFrom(buf)
 			if err != nil {
 				if errors.Is(err, net.ErrClosed) ||
 					errors.Is(err, syscall.EBADF) { // bad file descriptor (connection closed)
-					close(handler.recvChan)
+					close(c.recvChan)
 					return
 				}
 				continue
 			}
-
-			data := make([]byte, n)
-			copy(data, buf[:n])
-
-			if stun.Is(data) {
-				respTxID, mappedAddr, err := stun.ParseResponse(data)
+			if stun.Is(buf[:n]) {
+				respTxID, mappedAddr, err := stun.ParseResponse(buf[:n])
 				if err != nil {
 					continue
 				}
-				handler.mutex.Lock()
-				ch, ok := handler.stunChans[respTxID]
-				handler.mutex.Unlock()
+				c.mutex.Lock()
+				ch, ok := c.stunChans[respTxID]
+				c.mutex.Unlock()
 				if ok {
 					select {
 					case ch <- stunResponse{addr: mappedAddr, err: err}:
@@ -117,22 +113,23 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 					}
 				}
 			} else {
-				handler.mutex.Lock()
+				data := make([]byte, n)
+				copy(data, buf[:n])
+				c.mutex.Lock()
 				pktLen := int64(len(data))
-				if handler.queuedBytes+pktLen > handler.maxQueuedBytes {
-					continue
+				if c.queuedBytes+pktLen <= c.maxQueuedBytes {
+					select {
+					case c.recvChan <- dataPacket{data: data, addr: addr}:
+						c.queuedBytes += pktLen
+					default:
+					}
 				}
-				select {
-				case handler.recvChan <- dataPacket{data: data, addr: addr}:
-					handler.queuedBytes += pktLen
-				default:
-				}
-				handler.mutex.Unlock()
+				c.mutex.Unlock()
 			}
 		}
 	}()
 
-	return handler, nil
+	return c, nil
 }
 
 func (c *stunConn) ReadFrom(b []byte) (int, net.Addr, error) {
@@ -193,6 +190,7 @@ func (c *stunConn) mappedAddr(dest netip.AddrPort) (netip.AddrPort, error) {
 		}
 		// Check if STUN request is already happening concurrently
 		if c.pendingRequests[dest] {
+			// Wait() automatically releases the mutex, waits, then reacquires it before continuing
 			c.cond.Wait()
 			continue // Re-check mapping
 		}
@@ -229,7 +227,6 @@ func (c *stunConn) makeSTUNRequest(dest netip.AddrPort) (*natMapping, error) {
 	c.mutex.Lock()
 	stunChan := make(chan stunResponse, Rc*2)
 	c.stunChans[txID] = stunChan
-
 	c.mutex.Unlock()
 
 	defer func() {
@@ -283,16 +280,19 @@ STUNLoop:
 	}
 	mapping.mappedAddr = mappedAddr
 	mapping.touch()
-
 	c.mutex.Unlock()
+
 	return mapping, nil
 }
 
 func (c *stunConn) SetDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.readDeadline = t
-	return c.sysPacketConn.SetWriteDeadline(t)
+	err := c.sysPacketConn.SetWriteDeadline(t)
+	if err != nil {
+		c.readDeadline = t
+	}
+	return err
 }
 
 func (c *stunConn) SetReadDeadline(t time.Time) error {
