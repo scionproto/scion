@@ -289,7 +289,7 @@ func (c *stunConn) SetDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	err := c.sysPacketConn.SetWriteDeadline(t)
-	if err != nil {
+	if err == nil {
 		c.readDeadline = t
 	}
 	return err
