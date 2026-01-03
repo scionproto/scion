@@ -20,8 +20,8 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/scionproto/scion/pkg/daemon/control_plane"
 	drkey_daemon "github.com/scionproto/scion/pkg/daemon/private/drkey"
-	daemontopology "github.com/scionproto/scion/pkg/daemon/topology"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -60,7 +60,7 @@ type DaemonServer struct {
 func NewDaemonServer(
 	ia addr.IA,
 	mtu uint16,
-	topo daemontopology.Topology,
+	cpInfo control_plane.CPInfo,
 	fetcher fetcher.Fetcher,
 	revCache revcache.RevCache,
 	asInspector trust.Inspector,
@@ -71,7 +71,7 @@ func NewDaemonServer(
 		Engine: &engine.DaemonEngine{
 			IA:          ia,
 			MTU:         mtu,
-			Topology:    topo,
+			CPInfo:      cpInfo,
 			Fetcher:     fetcher,
 			RevCache:    revCache,
 			ASInspector: asInspector,

@@ -166,7 +166,7 @@ func SDConn() daemon.Connector {
 	topoFile := filepath.Join(asPath, "topology.json")
 
 	log.Debug("Using standalone daemon", "topology", topoFile)
-	topo, err := daemon.LoadTopologyFromFile(topoFile)
+	topo, err := daemon.LoadCPInfoFromFile(topoFile)
 	if err != nil {
 		LogFatal("Unable to load topology", "err", err, "topoFile", topoFile)
 	}

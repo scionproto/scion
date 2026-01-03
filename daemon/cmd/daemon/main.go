@@ -271,9 +271,9 @@ func realMain(ctx context.Context) error {
 	)
 	sdpb.RegisterDaemonServiceServer(server, daemon.NewServer(
 		daemon.ServerConfig{
-			IA:       topo.IA(),
-			MTU:      topo.MTU(),
-			Topology: topo,
+			IA:     topo.IA(),
+			MTU:    topo.MTU(),
+			CPInfo: topo,
 			Fetcher: fetcher.NewFetcher(
 				fetcher.FetcherConfig{
 					IA:            topo.IA(),

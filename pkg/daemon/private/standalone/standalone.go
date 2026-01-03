@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon/control_plane"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
 	"github.com/scionproto/scion/pkg/daemon/private/types"
-	"github.com/scionproto/scion/pkg/daemon/topology"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/prom"
@@ -39,12 +39,12 @@ import (
 // functionality without going through gRPC.
 // Also collects metrics for all operations.
 //
-// Close() will clean up all resources, including the topology if it implements
+// Close() will clean up all resources, including CPInfo if it implements
 // io.Closer.
 type Daemon struct {
 	Engine        *engine.DaemonEngine
 	Metrics       Metrics
-	Topo          topology.Topology
+	CPInfo        control_plane.CPInfo
 	PathDBCleaner *periodic.Runner
 	PathDB        storage.PathDB
 	RevCache      revcache.RevCache
@@ -182,8 +182,8 @@ func (s *Daemon) Close() error {
 	if s.TrcLoaderTask != nil {
 		s.TrcLoaderTask.Stop()
 	}
-	// Close topology if it implements io.Closer.
-	if closer, ok := s.Topo.(io.Closer); ok {
+	// Close CPInfo if it implements io.Closer.
+	if closer, ok := s.CPInfo.(io.Closer); ok {
 		err1 := closer.Close()
 		err = errors.Join(err, err1)
 	}

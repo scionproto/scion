@@ -20,7 +20,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/scionproto/scion/pkg/daemon/topology"
+	"github.com/scionproto/scion/pkg/daemon/control_plane"
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -91,17 +91,17 @@ func WithMetrics() standaloneOption {
 	}
 }
 
-// LoadTopologyFromFile loads a topology from a file.
+// LoadCPInfoFromFile loads a topology from a file.
 // The returned topology can be passed to NewStandaloneConnector.
 //
 // Most users should use NewStandaloneConnector() directly with a file path
 // instead of using this function.
-func LoadTopologyFromFile(topoFile string) (topology.Topology, error) {
-	return topology.LoadFromFile(topoFile)
+func LoadCPInfoFromFile(topoFile string) (control_plane.CPInfo, error) {
+	return control_plane.LoadFromTopoFile(topoFile)
 }
 
 // NewStandaloneConnector creates a daemon Connector that runs locally without a daemon process.
-// It requires a Topology (use LoadTopologyFromFile to create one from a file) and accepts
+// It requires a CPInfo (use LoadCPInfoFromFile to create one from a file) and accepts
 // functional options for configuration.
 //
 // The returned Connector can be used directly by SCION applications instead of connecting
@@ -109,14 +109,14 @@ func LoadTopologyFromFile(topoFile string) (topology.Topology, error) {
 //
 // Example:
 //
-//	topo, err := daemon.LoadTopologyFromFile("/path/to/topology.json")
+//	cpinfo, err := daemon.LoadCPInfoFromFile("/path/to/topology.json")
 //	if err != nil { ... }
-//	conn, err := daemon.NewStandaloneConnector(ctx, topo,
+//	conn, err := daemon.NewStandaloneConnector(ctx, cpinfo,
 //	    daemon.WithCertsDir("/path/to/certs"),
 //	    daemon.WithMetrics(),
 //	)
 func NewStandaloneConnector(
-	ctx context.Context, topo topology.Topology, opts ...standaloneOption,
+	ctx context.Context, cpInfo control_plane.CPInfo, opts ...standaloneOption,
 ) (Connector, error) {
 
 	options := &standaloneOptions{
@@ -134,7 +134,7 @@ func NewStandaloneConnector(
 					base.String())
 			}
 			targets := []resolver.Address{}
-			for _, entry := range topo.ControlServiceAddresses() {
+			for _, entry := range cpInfo.ControlServiceAddresses() {
 				targets = append(targets, resolver.Address{Addr: entry.String()})
 			}
 			return targets
@@ -194,7 +194,7 @@ func NewStandaloneConnector(
 			),
 		})
 		trustEngine, err := trust.Engine(
-			ctx, options.certsDir, topo.IA(), trustDB, dialer,
+			ctx, options.certsDir, cpInfo.IA(), trustDB, dialer,
 		)
 		if err != nil {
 			return nil, serrors.Wrap("creating trust engine", err)
@@ -242,10 +242,10 @@ func NewStandaloneConnector(
 	// Create fetcher
 	newFetcher := fetcher.NewFetcher(
 		fetcher.FetcherConfig{
-			IA:            topo.IA(),
-			MTU:           topo.MTU(),
-			Core:          topo.Core(),
-			NextHopper:    topo,
+			IA:            cpInfo.IA(),
+			MTU:           cpInfo.MTU(),
+			Core:          cpInfo.Core(),
+			NextHopper:    cpInfo,
 			RPC:           requester,
 			PathDB:        pathDB,
 			Inspector:     inspector,
@@ -257,9 +257,9 @@ func NewStandaloneConnector(
 
 	// Create the daemon engine
 	daemonEngine := &engine.DaemonEngine{
-		IA:          topo.IA(),
-		MTU:         topo.MTU(),
-		Topology:    topo,
+		IA:          cpInfo.IA(),
+		MTU:         cpInfo.MTU(),
+		CPInfo:      cpInfo,
 		Fetcher:     newFetcher,
 		RevCache:    revCache,
 		ASInspector: inspector,
@@ -274,7 +274,7 @@ func NewStandaloneConnector(
 	standaloneDaemon := &standalone.Daemon{
 		Engine:        daemonEngine,
 		Metrics:       standaloneMetrics,
-		Topo:          topo,
+		CPInfo:        cpInfo,
 		PathDBCleaner: cleaner,
 		PathDB:        pathDB,
 		RevCache:      revCache,

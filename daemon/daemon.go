@@ -25,13 +25,12 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/scionproto/scion/pkg/daemon/private/drkey"
-	"github.com/scionproto/scion/pkg/daemon/topology"
-
 	"github.com/scionproto/scion/daemon/internal/servers"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/control_plane"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	"github.com/scionproto/scion/pkg/daemon/private/drkey"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
@@ -116,7 +115,7 @@ type ServerConfig struct {
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	Engine      trust.Engine
-	Topology    topology.Topology
+	CPInfo      control_plane.CPInfo
 	DRKeyClient *drkey.ClientEngine
 }
 
@@ -129,7 +128,7 @@ func NewServer(cfg ServerConfig) *servers.DaemonServer {
 			// TODO(JordiSubira): This will be changed in the future to fetch
 			// the information from the CS instead of feeding the configuration
 			// file into.
-			Topology:    cfg.Topology,
+			CPInfo:      cfg.CPInfo,
 			Fetcher:     cfg.Fetcher,
 			ASInspector: cfg.Engine.Inspector,
 			RevCache:    cfg.RevCache,

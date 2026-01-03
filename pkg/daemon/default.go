@@ -65,11 +65,11 @@ func DefaultConnector(ctx context.Context, opts ...SuppliedOption) (Connector, e
 	// DEFAULT FALLBACKS
 	// Priority 1: Load topology from file if it exists
 	if _, err := os.Stat(DefaultTopologyFile); err == nil {
-		topo, err := LoadTopologyFromFile(DefaultTopologyFile)
+		cpinfo, err := LoadCPInfoFromFile(DefaultTopologyFile)
 		if err != nil {
 			return nil, serrors.Wrap("loading topology from file", err)
 		}
-		return NewStandaloneConnector(ctx, topo, WithCertsDir(DefaultCertsDir))
+		return NewStandaloneConnector(ctx, cpinfo, WithCertsDir(DefaultCertsDir))
 	}
 
 	// Priority 2: Connect to daemon via gRPC

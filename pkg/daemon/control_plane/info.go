@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package topology
+package control_plane
 
 import (
 	"net"
@@ -24,8 +24,8 @@ import (
 	"github.com/scionproto/scion/private/topology"
 )
 
-// Topology provides topology information for the daemon engine.
-type Topology interface {
+// CPInfo provides control plane info information for the daemon engine.
+type CPInfo interface {
 	// IA returns the local ISD-AS number.
 	IA() addr.IA
 	// MTU returns the MTU of the local AS.
@@ -44,9 +44,9 @@ type Topology interface {
 	PortRange() (uint16, uint16)
 }
 
-// LoadFromFile loads a topology from a file.
-// The returned Topology can be passed to NewStandaloneConnector.
-func LoadFromFile(topoFile string) (Topology, error) {
+// LoadFromTopoFile loads a control plane info from a file.
+// The returned CPInfo can be passed to NewStandaloneConnector.
+func LoadFromTopoFile(topoFile string) (CPInfo, error) {
 	loader, err := topology.NewLoader(
 		topology.LoaderCfg{
 			File:      topoFile,
