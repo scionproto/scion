@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/daemon/internal/servers"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/daemon/control_plane"
+	"github.com/scionproto/scion/pkg/daemon/cp"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/daemon/private/drkey"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
@@ -116,7 +116,7 @@ type ServerConfig struct {
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	Engine      trust.Engine
-	CPInfo      control_plane.CPInfo
+	CPInfo      cp.CPInfo
 	DRKeyClient *drkey.ClientEngine
 }
 

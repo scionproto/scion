@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/daemon/control_plane"
+	"github.com/scionproto/scion/pkg/daemon/cp"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
 	"github.com/scionproto/scion/pkg/daemon/private/standalone"
@@ -96,8 +96,8 @@ func WithMetrics() standaloneOption {
 //
 // Most users should use NewStandaloneConnector() directly with a file path
 // instead of using this function.
-func LoadCPInfoFromFile(topoFile string) (control_plane.CPInfo, error) {
-	return control_plane.LoadFromTopoFile(topoFile)
+func LoadCPInfoFromFile(topoFile string) (cp.CPInfo, error) {
+	return cp.LoadFromTopoFile(topoFile)
 }
 
 // NewStandaloneConnector creates a daemon Connector that runs locally without a daemon process.
@@ -116,7 +116,7 @@ func LoadCPInfoFromFile(topoFile string) (control_plane.CPInfo, error) {
 //	    daemon.WithMetrics(),
 //	)
 func NewStandaloneConnector(
-	ctx context.Context, cpInfo control_plane.CPInfo, opts ...standaloneOption,
+	ctx context.Context, cpInfo cp.CPInfo, opts ...standaloneOption,
 ) (Connector, error) {
 
 	options := &standaloneOptions{

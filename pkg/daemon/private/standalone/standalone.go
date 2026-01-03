@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/daemon/control_plane"
+	"github.com/scionproto/scion/pkg/daemon/cp"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
 	"github.com/scionproto/scion/pkg/daemon/private/types"
 	"github.com/scionproto/scion/pkg/drkey"
@@ -44,7 +44,7 @@ import (
 type Daemon struct {
 	Engine        *engine.DaemonEngine
 	Metrics       Metrics
-	CPInfo        control_plane.CPInfo
+	CPInfo        cp.CPInfo
 	PathDBCleaner *periodic.Runner
 	PathDB        storage.PathDB
 	RevCache      revcache.RevCache

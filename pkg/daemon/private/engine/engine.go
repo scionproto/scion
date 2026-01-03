@@ -24,7 +24,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/daemon/control_plane"
+	"github.com/scionproto/scion/pkg/daemon/cp"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	drkey_daemon "github.com/scionproto/scion/pkg/daemon/private/drkey"
 	"github.com/scionproto/scion/pkg/daemon/private/types"
@@ -46,7 +46,7 @@ import (
 type DaemonEngine struct {
 	IA          addr.IA
 	MTU         uint16
-	CPInfo      control_plane.CPInfo
+	CPInfo      cp.CPInfo
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	ASInspector trust.Inspector

@@ -26,7 +26,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/daemon/control_plane"
+	"github.com/scionproto/scion/pkg/daemon/cp"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	drkey_daemon "github.com/scionproto/scion/pkg/daemon/private/drkey"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
@@ -60,7 +60,7 @@ type DaemonServer struct {
 func NewDaemonServer(
 	ia addr.IA,
 	mtu uint16,
-	cpInfo control_plane.CPInfo,
+	cpInfo cp.CPInfo,
 	fetcher fetcher.Fetcher,
 	revCache revcache.RevCache,
 	asInspector trust.Inspector,
