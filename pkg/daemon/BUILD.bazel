@@ -6,7 +6,6 @@ go_library(
     srcs = [
         "apitypes.go",
         "connector.go",
-        "connector_metrics.go",
         "default.go",
         "grpc.go",
         "grpc_metrics.go",
