@@ -22,11 +22,11 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	drkey_daemon "github.com/scionproto/scion/pkg/daemon/private/drkey"
+	"github.com/scionproto/scion/pkg/daemon/topology"
 	"golang.org/x/sync/singleflight"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
-	"github.com/scionproto/scion/pkg/daemon/private/topology"
 	"github.com/scionproto/scion/pkg/daemon/private/types"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"

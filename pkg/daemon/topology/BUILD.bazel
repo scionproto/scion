@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = ["topology.go"],
-    importpath = "github.com/scionproto/scion/pkg/daemon/private/topology",
+    importpath = "github.com/scionproto/scion/pkg/daemon/topology",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/addr:go_default_library",

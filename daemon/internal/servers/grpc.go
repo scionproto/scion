@@ -21,6 +21,7 @@ import (
 	"time"
 
 	drkey_daemon "github.com/scionproto/scion/pkg/daemon/private/drkey"
+	daemontopology "github.com/scionproto/scion/pkg/daemon/topology"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -29,7 +30,6 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
-	daemontopology "github.com/scionproto/scion/pkg/daemon/private/topology"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"

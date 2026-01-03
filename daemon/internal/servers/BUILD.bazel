@@ -14,7 +14,7 @@ go_library(
         "//pkg/daemon/fetcher:go_default_library",
         "//pkg/daemon/private/drkey:go_default_library",
         "//pkg/daemon/private/engine:go_default_library",
-        "//pkg/daemon/private/topology:go_default_library",
+        "//pkg/daemon/topology:go_default_library",
         "//pkg/drkey:go_default_library",
         "//pkg/metrics:go_default_library",
         "//pkg/private/prom:go_default_library",

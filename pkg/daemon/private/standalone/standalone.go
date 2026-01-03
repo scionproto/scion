@@ -23,8 +23,8 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
-	"github.com/scionproto/scion/pkg/daemon/private/topology"
 	"github.com/scionproto/scion/pkg/daemon/private/types"
+	"github.com/scionproto/scion/pkg/daemon/topology"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/prom"
