@@ -16,7 +16,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/addr:go_default_library",
-        "//pkg/daemon/control_plane:go_default_library",
+        "//pkg/daemon/cp:go_default_library",
         "//pkg/daemon/fetcher:go_default_library",
         "//pkg/daemon/private/engine:go_default_library",
         "//pkg/daemon/private/standalone:go_default_library",
