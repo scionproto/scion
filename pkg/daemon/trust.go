@@ -50,10 +50,8 @@ func TrustEngine(
 	}
 	loaded, err = trust.LoadChains(ctx, certsDir, db)
 	if err != nil {
-		return trust.Engine{}, serrors.Wrap(
-			"loading certificate chains",
-			err,
-		)
+		return trust.Engine{}, serrors.Wrap("loading certificate chains",
+			err)
 	}
 	log.Info("Certificate chains loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {

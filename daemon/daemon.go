@@ -76,10 +76,8 @@ func TrustEngine(
 	}
 	loaded, err = trust.LoadChains(ctx, certsDir, db)
 	if err != nil {
-		return trust.Engine{}, serrors.Wrap(
-			"loading certificate chains",
-			err,
-		)
+		return trust.Engine{}, serrors.Wrap("loading certificate chains",
+			err)
 	}
 	log.Info("Certificate chains loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
@@ -137,102 +135,80 @@ func NewServer(cfg ServerConfig) *servers.DaemonServer {
 		},
 		Metrics: servers.Metrics{
 			PathsRequests: servers.RequestMetrics{
-				Requests: metrics.NewPromCounterFrom(
-					prometheus.CounterOpts{
-						Namespace: "sd",
-						Subsystem: "path",
-						Name:      "requests_total",
-						Help:      "The amount of path requests received.",
-					}, servers.PathsRequestsLabels,
-				),
-				Latency: metrics.NewPromHistogramFrom(
-					prometheus.HistogramOpts{
-						Namespace: "sd",
-						Subsystem: "path",
-						Name:      "request_duration_seconds",
-						Help:      "Time to handle path requests.",
-						Buckets:   prom.DefaultLatencyBuckets,
-					}, servers.LatencyLabels,
-				),
+				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
+					Namespace: "sd",
+					Subsystem: "path",
+					Name:      "requests_total",
+					Help:      "The amount of path requests received.",
+				}, servers.PathsRequestsLabels),
+				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+					Namespace: "sd",
+					Subsystem: "path",
+					Name:      "request_duration_seconds",
+					Help:      "Time to handle path requests.",
+					Buckets:   prom.DefaultLatencyBuckets,
+				}, servers.LatencyLabels),
 			},
 			ASRequests: servers.RequestMetrics{
-				Requests: metrics.NewPromCounterFrom(
-					prometheus.CounterOpts{
-						Namespace: "sd",
-						Subsystem: "as_info",
-						Name:      "requests_total",
-						Help:      "The amount of AS requests received.",
-					}, servers.ASRequestsLabels,
-				),
-				Latency: metrics.NewPromHistogramFrom(
-					prometheus.HistogramOpts{
-						Namespace: "sd",
-						Subsystem: "as_info",
-						Name:      "request_duration_seconds",
-						Help:      "Time to handle AS requests.",
-						Buckets:   prom.DefaultLatencyBuckets,
-					}, servers.LatencyLabels,
-				),
+				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
+					Namespace: "sd",
+					Subsystem: "as_info",
+					Name:      "requests_total",
+					Help:      "The amount of AS requests received.",
+				}, servers.ASRequestsLabels),
+				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+					Namespace: "sd",
+					Subsystem: "as_info",
+					Name:      "request_duration_seconds",
+					Help:      "Time to handle AS requests.",
+					Buckets:   prom.DefaultLatencyBuckets,
+				}, servers.LatencyLabels),
 			},
 			InterfacesRequests: servers.RequestMetrics{
-				Requests: metrics.NewPromCounterFrom(
-					prometheus.CounterOpts{
-						Namespace: "sd",
-						Subsystem: "if_info",
-						Name:      "requests_total",
-						Help:      "The amount of interfaces requests received.",
-					}, servers.InterfacesRequestsLabels,
-				),
-				Latency: metrics.NewPromHistogramFrom(
-					prometheus.HistogramOpts{
-						Namespace: "sd",
-						Subsystem: "if_info",
-						Name:      "request_duration_seconds",
-						Help:      "Time to handle interfaces requests.",
-						Buckets:   prom.DefaultLatencyBuckets,
-					}, servers.LatencyLabels,
-				),
+				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
+					Namespace: "sd",
+					Subsystem: "if_info",
+					Name:      "requests_total",
+					Help:      "The amount of interfaces requests received.",
+				}, servers.InterfacesRequestsLabels),
+				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+					Namespace: "sd",
+					Subsystem: "if_info",
+					Name:      "request_duration_seconds",
+					Help:      "Time to handle interfaces requests.",
+					Buckets:   prom.DefaultLatencyBuckets,
+				}, servers.LatencyLabels),
 			},
 			ServicesRequests: servers.RequestMetrics{
-				Requests: metrics.NewPromCounterFrom(
-					prometheus.CounterOpts{
-						Namespace: "sd",
-						Subsystem: "service_info",
-						Name:      "requests_total",
-						Help:      "The amount of services requests received.",
-					}, servers.ServicesRequestsLabels,
-				),
-				Latency: metrics.NewPromHistogramFrom(
-					prometheus.HistogramOpts{
-						Namespace: "sd",
-						Subsystem: "service_info",
-						Name:      "request_duration_seconds",
-						Help:      "Time to handle services requests.",
-						Buckets:   prom.DefaultLatencyBuckets,
-					}, servers.LatencyLabels,
-				),
+				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
+					Namespace: "sd",
+					Subsystem: "service_info",
+					Name:      "requests_total",
+					Help:      "The amount of services requests received.",
+				}, servers.ServicesRequestsLabels),
+				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+					Namespace: "sd",
+					Subsystem: "service_info",
+					Name:      "request_duration_seconds",
+					Help:      "Time to handle services requests.",
+					Buckets:   prom.DefaultLatencyBuckets,
+				}, servers.LatencyLabels),
 			},
 			InterfaceDownNotifications: servers.RequestMetrics{
-				Requests: metrics.NewPromCounter(
-					prom.SafeRegister(
-						prometheus.NewCounterVec(
-							prometheus.CounterOpts{
-								Namespace: "sd",
-								Name:      "received_revocations_total",
-								Help:      "The amount of revocations received.",
-							}, servers.InterfaceDownNotificationsLabels,
-						),
-					).(*prometheus.CounterVec),
-				),
-				Latency: metrics.NewPromHistogramFrom(
-					prometheus.HistogramOpts{
+				Requests: metrics.NewPromCounter(prom.SafeRegister(
+					prometheus.NewCounterVec(prometheus.CounterOpts{
 						Namespace: "sd",
-						Subsystem: "revocation",
-						Name:      "notification_duration_seconds",
-						Help:      "Time to handle interface down notifications.",
-						Buckets:   prom.DefaultLatencyBuckets,
-					}, servers.LatencyLabels,
+						Name:      "received_revocations_total",
+						Help:      "The amount of revocations received.",
+					}, servers.InterfaceDownNotificationsLabels)).(*prometheus.CounterVec),
 				),
+				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+					Namespace: "sd",
+					Subsystem: "revocation",
+					Name:      "notification_duration_seconds",
+					Help:      "Time to handle interface down notifications.",
+					Buckets:   prom.DefaultLatencyBuckets,
+				}, servers.LatencyLabels),
 			},
 		},
 	}

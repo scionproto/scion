@@ -40,6 +40,11 @@ import (
 	"github.com/scionproto/scion/private/topology"
 )
 
+// Errors for SCION Daemon API requests
+var (
+	ErrUnableToConnect = serrors.New("unable to connect to the SCION Daemon")
+)
+
 const (
 	// DefaultAPIAddress contains the system default for a daemon API socket.
 	DefaultAPIAddress = "127.0.0.1:30255"
@@ -109,8 +114,7 @@ type Service struct {
 }
 
 func (s Service) Connect(ctx context.Context) (Connector, error) {
-	conn, err := grpc.NewClient(
-		s.Address,
+	conn, err := grpc.NewClient(s.Address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		libgrpc.UnaryClientInterceptor(),
 		libgrpc.StreamClientInterceptor(),
@@ -166,20 +170,16 @@ func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, er
 	return result, nil
 }
 
-func (c grpcConn) Paths(
-	ctx context.Context, dst, src addr.IA,
-	f PathReqFlags,
-) ([]snet.Path, error) {
+func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
+	f PathReqFlags) ([]snet.Path, error) {
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
-	response, err := client.Paths(
-		ctx, &sdpb.PathsRequest{
-			SourceIsdAs:      uint64(src),
-			DestinationIsdAs: uint64(dst),
-			Hidden:           f.Hidden,
-			Refresh:          f.Refresh,
-		},
-	)
+	response, err := client.Paths(ctx, &sdpb.PathsRequest{
+		SourceIsdAs:      uint64(src),
+		DestinationIsdAs: uint64(dst),
+		Hidden:           f.Hidden,
+		Refresh:          f.Refresh,
+	})
 	if err != nil {
 		c.metrics.incPaths(err)
 		return nil, err
@@ -232,21 +232,17 @@ func (c grpcConn) SVCInfo(
 
 func (c grpcConn) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
 	client := sdpb.NewDaemonServiceClient(c.conn)
-	_, err := client.NotifyInterfaceDown(
-		ctx, &sdpb.NotifyInterfaceDownRequest{
-			Id:    uint64(revInfo.IfID),
-			IsdAs: uint64(revInfo.RawIsdas),
-		},
-	)
+	_, err := client.NotifyInterfaceDown(ctx, &sdpb.NotifyInterfaceDownRequest{
+		Id:    uint64(revInfo.IfID),
+		IsdAs: uint64(revInfo.RawIsdas),
+	})
 	c.metrics.incIfDown(err)
 	return err
 
 }
 
-func (c grpcConn) DRKeyGetASHostKey(
-	ctx context.Context,
-	meta drkey.ASHostMeta,
-) (drkey.ASHostKey, error) {
+func (c grpcConn) DRKeyGetASHostKey(ctx context.Context,
+	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	pbReq := asHostMetaToProtoRequest(meta)
@@ -261,10 +257,8 @@ func (c grpcConn) DRKeyGetASHostKey(
 	return key, nil
 }
 
-func (c grpcConn) DRKeyGetHostASKey(
-	ctx context.Context,
-	meta drkey.HostASMeta,
-) (drkey.HostASKey, error) {
+func (c grpcConn) DRKeyGetHostASKey(ctx context.Context,
+	meta drkey.HostASMeta) (drkey.HostASKey, error) {
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	req := hostASMetaToProtoRequest(meta)
@@ -279,10 +273,8 @@ func (c grpcConn) DRKeyGetHostASKey(
 	return key, nil
 }
 
-func (c grpcConn) DRKeyGetHostHostKey(
-	ctx context.Context,
-	meta drkey.HostHostMeta,
-) (drkey.HostHostKey, error) {
+func (c grpcConn) DRKeyGetHostHostKey(ctx context.Context,
+	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	pbReq := hostHostMetaToProtoRequest(meta)
@@ -382,20 +374,16 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 			for _, cs := range di.ControlServiceAddresses {
 				ap, err := netip.ParseAddrPort(cs)
 				if err != nil {
-					return path.Path{}, serrors.Wrap(
-						"parsing control service address", err,
-						"address", cs, "ia", ia,
-					)
+					return path.Path{}, serrors.Wrap("parsing control service address", err,
+						"address", cs, "ia", ia)
 				}
 				cses = append(cses, ap)
 			}
 			for _, ds := range di.DiscoveryServiceAddresses {
 				ap, err := netip.ParseAddrPort(ds)
 				if err != nil {
-					return path.Path{}, serrors.Wrap(
-						"parsing discovery service address", err,
-						"address", ds, "ia", ia,
-					)
+					return path.Path{}, serrors.Wrap("parsing discovery service address", err,
+						"address", ds, "ia", ia)
 				}
 				dses = append(dses, ap)
 
@@ -449,10 +437,8 @@ func asHostMetaToProtoRequest(meta drkey.ASHostMeta) *sdpb.DRKeyASHostRequest {
 	}
 }
 
-func getASHostKeyFromReply(
-	rep *sdpb.DRKeyASHostResponse,
-	meta drkey.ASHostMeta,
-) (drkey.ASHostKey, error) {
+func getASHostKeyFromReply(rep *sdpb.DRKeyASHostResponse,
+	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
@@ -476,10 +462,8 @@ func getASHostKeyFromReply(
 	}
 
 	if len(rep.Key) != 16 {
-		return drkey.ASHostKey{}, serrors.New(
-			"key size in reply is not 16 bytes",
-			"len", len(rep.Key),
-		)
+		return drkey.ASHostKey{}, serrors.New("key size in reply is not 16 bytes",
+			"len", len(rep.Key))
 	}
 	copy(returningKey.Key[:], rep.Key)
 	return returningKey, nil
@@ -495,10 +479,8 @@ func hostASMetaToProtoRequest(meta drkey.HostASMeta) *sdpb.DRKeyHostASRequest {
 	}
 }
 
-func getHostASKeyFromReply(
-	rep *sdpb.DRKeyHostASResponse,
-	meta drkey.HostASMeta,
-) (drkey.HostASKey, error) {
+func getHostASKeyFromReply(rep *sdpb.DRKeyHostASResponse,
+	meta drkey.HostASMeta) (drkey.HostASKey, error) {
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
@@ -521,10 +503,8 @@ func getHostASKeyFromReply(
 		SrcHost: meta.SrcHost,
 	}
 	if len(rep.Key) != 16 {
-		return drkey.HostASKey{}, serrors.New(
-			"key size in reply is not 16 bytes",
-			"len", len(rep.Key),
-		)
+		return drkey.HostASKey{}, serrors.New("key size in reply is not 16 bytes",
+			"len", len(rep.Key))
 	}
 	copy(returningKey.Key[:], rep.Key)
 	return returningKey, nil
@@ -541,10 +521,8 @@ func hostHostMetaToProtoRequest(meta drkey.HostHostMeta) *sdpb.DRKeyHostHostRequ
 	}
 }
 
-func getHostHostKeyFromReply(
-	rep *sdpb.DRKeyHostHostResponse,
-	meta drkey.HostHostMeta,
-) (drkey.HostHostKey, error) {
+func getHostHostKeyFromReply(rep *sdpb.DRKeyHostHostResponse,
+	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
 
 	err := rep.EpochBegin.CheckValid()
 	if err != nil {
@@ -568,10 +546,8 @@ func getHostHostKeyFromReply(
 		DstHost: meta.DstHost,
 	}
 	if len(rep.Key) != 16 {
-		return drkey.HostHostKey{}, serrors.New(
-			"key size in reply is not 16 bytes",
-			"len", len(rep.Key),
-		)
+		return drkey.HostHostKey{}, serrors.New("key size in reply is not 16 bytes",
+			"len", len(rep.Key))
 	}
 	copy(returningKey.Key[:], rep.Key)
 	return returningKey, nil

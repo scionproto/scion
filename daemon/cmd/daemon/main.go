@@ -84,24 +84,20 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	topo, err := topology.NewLoader(
-		topology.LoaderCfg{
-			File:      globalCfg.General.Topology(),
-			Reload:    app.SIGHUPChannel(ctx),
-			Validator: &topology.DefaultValidator{},
-			Metrics:   loaderMetrics(),
-		},
-	)
+	topo, err := topology.NewLoader(topology.LoaderCfg{
+		File:      globalCfg.General.Topology(),
+		Reload:    app.SIGHUPChannel(ctx),
+		Validator: &topology.DefaultValidator{},
+		Metrics:   loaderMetrics(),
+	})
 	if err != nil {
 		return serrors.Wrap("creating topology loader", err)
 	}
 	g, errCtx := errgroup.WithContext(ctx)
-	g.Go(
-		func() error {
-			defer log.HandlePanic()
-			return topo.Run(errCtx)
-		},
-	)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return topo.Run(errCtx)
+	})
 
 	closer, err := daemon.InitTracer(globalCfg.Tracing, globalCfg.General.ID)
 	if err != nil {
@@ -114,33 +110,25 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.Wrap("initializing path storage", err)
 	}
-	pathDB = pathstoragemetrics.WrapDB(
-		pathDB, pathstoragemetrics.Config{
-			Driver: string(storage.BackendSqlite),
-		},
-	)
+	pathDB = pathstoragemetrics.WrapDB(pathDB, pathstoragemetrics.Config{
+		Driver: string(storage.BackendSqlite),
+	})
 	defer pathDB.Close()
 	defer revCache.Close()
 	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
-	cleaner := periodic.Start(
-		pathdb.NewCleaner(pathDB, "sd_segments"),
-		300*time.Second, 295*time.Second,
-	)
+	cleaner := periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
+		300*time.Second, 295*time.Second)
 	defer cleaner.Stop()
 	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
-	rcCleaner := periodic.Start(
-		revcache.NewCleaner(revCache, "sd_revocation"),
-		10*time.Second, 10*time.Second,
-	)
+	rcCleaner := periodic.Start(revcache.NewCleaner(revCache, "sd_revocation"),
+		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
 
 	dialer := &libgrpc.TCPDialer{
 		SvcResolver: func(dst addr.SVC) []resolver.Address {
 			if base := dst.Base(); base != addr.SvcCS {
-				panic(
-					"unsupported address type, possible implementation error: " +
-						base.String(),
-				)
+				panic("unsupported address type, possible implementation error: " +
+					base.String())
 			}
 			targets := []resolver.Address{}
 			for _, entry := range topo.ControlServiceAddresses() {
@@ -155,18 +143,16 @@ func realMain(ctx context.Context) error {
 		return serrors.Wrap("initializing trust database", err)
 	}
 	defer trustDB.Close()
-	trustDB = truststoragemetrics.WrapDB(
-		trustDB, truststoragemetrics.Config{
-			Driver: string(storage.BackendSqlite),
-			QueriesTotal: metrics.NewPromCounterFrom(
-				prometheus.CounterOpts{
-					Name: "trustengine_db_queries_total",
-					Help: "Total queries to the database",
-				},
-				[]string{"driver", "operation", prom.LabelResult},
-			),
-		},
-	)
+	trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
+		Driver: string(storage.BackendSqlite),
+		QueriesTotal: metrics.NewPromCounterFrom(
+			prometheus.CounterOpts{
+				Name: "trustengine_db_queries_total",
+				Help: "Total queries to the database",
+			},
+			[]string{"driver", "operation", prom.LabelResult},
+		),
+	})
 	certsDir := filepath.Join(globalCfg.General.ConfigDir, "certs")
 	engine, err := daemonpkg.TrustEngine(
 		errCtx, certsDir, topo.IA(), trustDB, dialer,
@@ -185,20 +171,18 @@ func realMain(ctx context.Context) error {
 		DB:  trustDB,
 	}
 	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
-	trcLoaderTask := periodic.Start(
-		periodic.Func{
-			Task: func(ctx context.Context) {
-				res, err := trcLoader.Load(ctx)
-				if err != nil {
-					log.SafeInfo(log.FromCtx(ctx), "TRC loading failed", "err", err)
-				}
-				if len(res.Loaded) > 0 {
-					log.SafeInfo(log.FromCtx(ctx), "Loaded TRCs from disk", "trcs", res.Loaded)
-				}
-			},
-			TaskName: "daemon_trc_loader",
-		}, 10*time.Second, 10*time.Second,
-	)
+	trcLoaderTask := periodic.Start(periodic.Func{
+		Task: func(ctx context.Context) {
+			res, err := trcLoader.Load(ctx)
+			if err != nil {
+				log.SafeInfo(log.FromCtx(ctx), "TRC loading failed", "err", err)
+			}
+			if len(res.Loaded) > 0 {
+				log.SafeInfo(log.FromCtx(ctx), "Loaded TRCs from disk", "trcs", res.Loaded)
+			}
+		},
+		TaskName: "daemon_trc_loader",
+	}, 10*time.Second, 10*time.Second)
 	defer trcLoaderTask.Stop()
 
 	var drkeyClientEngine *sddrkey.ClientEngine
@@ -242,10 +226,8 @@ func realMain(ctx context.Context) error {
 		for _, cleaner := range cleaners {
 			// SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 			//nolint:staticcheck
-			cleaner_task := periodic.Start(
-				cleaner,
-				5*time.Minute, 5*time.Minute,
-			)
+			cleaner_task := periodic.Start(cleaner,
+				5*time.Minute, 5*time.Minute)
 			defer cleaner_task.Stop()
 		}
 	}
@@ -275,70 +257,60 @@ func realMain(ctx context.Context) error {
 		if globalCfg.SD.DisableSegVerification {
 			return segverifier.AcceptAll{}
 		}
-		return compat.Verifier{
-			Verifier: trust.Verifier{
-				Engine:             engine,
-				Cache:              globalCfg.TrustEngine.Cache.New(),
-				CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
-				MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
-			},
-		}
+		return compat.Verifier{Verifier: trust.Verifier{
+			Engine:             engine,
+			Cache:              globalCfg.TrustEngine.Cache.New(),
+			CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
+			MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
+		}}
 	}
 
 	server := grpc.NewServer(
 		libgrpc.UnaryServerInterceptor(),
 		libgrpc.DefaultMaxConcurrentStreams(),
 	)
-	sdpb.RegisterDaemonServiceServer(
-		server, daemon.NewServer(
-			daemon.ServerConfig{
-				IA:       topo.IA(),
-				MTU:      topo.MTU(),
-				Topology: topo,
-				Fetcher: fetcher.NewFetcher(
-					fetcher.FetcherConfig{
-						IA:            topo.IA(),
-						MTU:           topo.MTU(),
-						Core:          topo.Core(),
-						NextHopper:    topo,
-						RPC:           requester,
-						PathDB:        pathDB,
-						Inspector:     engine,
-						Verifier:      createVerifier(),
-						RevCache:      revCache,
-						QueryInterval: globalCfg.SD.QueryInterval.Duration,
-					},
-				),
-				Engine:      engine,
-				RevCache:    revCache,
-				DRKeyClient: drkeyClientEngine,
-			},
-		),
-	)
+	sdpb.RegisterDaemonServiceServer(server, daemon.NewServer(
+		daemon.ServerConfig{
+			IA:       topo.IA(),
+			MTU:      topo.MTU(),
+			Topology: topo,
+			Fetcher: fetcher.NewFetcher(
+				fetcher.FetcherConfig{
+					IA:            topo.IA(),
+					MTU:           topo.MTU(),
+					Core:          topo.Core(),
+					NextHopper:    topo,
+					RPC:           requester,
+					PathDB:        pathDB,
+					Inspector:     engine,
+					Verifier:      createVerifier(),
+					RevCache:      revCache,
+					QueryInterval: globalCfg.SD.QueryInterval.Duration,
+				},
+			),
+			Engine:      engine,
+			RevCache:    revCache,
+			DRKeyClient: drkeyClientEngine,
+		},
+	))
 
 	promgrpc.Register(server)
 
 	var cleanup app.Cleanup
-	g.Go(
-		func() error {
-			defer log.HandlePanic()
-			if err := server.Serve(listener); err != nil {
-				return serrors.Wrap("serving gRPC API", err, "addr", listen)
-			}
-			return nil
-		},
-	)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		if err := server.Serve(listener); err != nil {
+			return serrors.Wrap("serving gRPC API", err, "addr", listen)
+		}
+		return nil
+	})
 	cleanup.Add(func() error { server.GracefulStop(); return nil })
 
 	if globalCfg.API.Addr != "" {
 		r := chi.NewRouter()
-		r.Use(
-			cors.Handler(
-				cors.Options{
-					AllowedOrigins: []string{"*"},
-				},
-			),
-		)
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
 		r.Get("/", api.ServeSpecInteractive)
 		r.Get("/openapi.json", api.ServeSpecJSON)
 		server := api.Server{
@@ -358,16 +330,14 @@ func realMain(ctx context.Context) error {
 			Addr:    globalCfg.API.Addr,
 			Handler: h,
 		}
-		g.Go(
-			func() error {
-				defer log.HandlePanic()
-				err := mgmtServer.ListenAndServe()
-				if err != nil && !errors.Is(err, http.ErrServerClosed) {
-					return serrors.Wrap("serving service management API", err)
-				}
-				return nil
-			},
-		)
+		g.Go(func() error {
+			defer log.HandlePanic()
+			err := mgmtServer.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return serrors.Wrap("serving service management API", err)
+			}
+			return nil
+		})
 		cleanup.Add(mgmtServer.Close)
 	}
 
@@ -382,27 +352,22 @@ func realMain(ctx context.Context) error {
 		return serrors.Wrap("registering status pages", err)
 	}
 
-	g.Go(
-		func() error {
-			defer log.HandlePanic()
-			return globalCfg.Metrics.ServePrometheus(errCtx)
-		},
-	)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return globalCfg.Metrics.ServePrometheus(errCtx)
+	})
 
-	g.Go(
-		func() error {
-			defer log.HandlePanic()
-			<-errCtx.Done()
-			return cleanup.Do()
-		},
-	)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		<-errCtx.Done()
+		return cleanup.Do()
+	})
 
 	return g.Wait()
 }
 
 func loaderMetrics() topology.LoaderMetrics {
-	updates := prom.NewCounterVec(
-		"", "",
+	updates := prom.NewCounterVec("", "",
 		"topology_updates_total",
 		"The total number of updates.",
 		[]string{prom.LabelResult},
@@ -411,8 +376,7 @@ func loaderMetrics() topology.LoaderMetrics {
 		ValidationErrors: metrics.NewPromCounter(updates).With(prom.LabelResult, "err_validate"),
 		ReadErrors:       metrics.NewPromCounter(updates).With(prom.LabelResult, "err_read"),
 		LastUpdate: metrics.NewPromGauge(
-			prom.NewGaugeVec(
-				"", "",
+			prom.NewGaugeVec("", "",
 				"topology_last_update_time",
 				"Timestamp of the last successful update.",
 				[]string{},

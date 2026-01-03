@@ -184,10 +184,8 @@ func NewStandaloneConnector(
 	dialer := &grpc.TCPDialer{
 		SvcResolver: func(dst addr.SVC) []resolver.Address {
 			if base := dst.Base(); base != addr.SvcCS {
-				panic(
-					"unsupported address type, possible implementation error: " +
-						base.String(),
-				)
+				panic("unsupported address type, possible implementation error: " +
+					base.String())
 			}
 			targets := []resolver.Address{}
 			for _, entry := range topo.ControlServiceAddresses() {
@@ -216,16 +214,12 @@ func NewStandaloneConnector(
 	var rcCleaner *periodic.Runner
 	if options.enablePeriodicCleanup {
 		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
-		cleaner = periodic.Start(
-			pathdb.NewCleaner(pathDB, "sd_segments"),
-			300*time.Second, 295*time.Second,
-		)
+		cleaner = periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
+			300*time.Second, 295*time.Second)
 
 		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
-		rcCleaner = periodic.Start(
-			revcache.NewCleaner(revCache, "sd_revocation"),
-			10*time.Second, 10*time.Second,
-		)
+		rcCleaner = periodic.Start(revcache.NewCleaner(revCache, "sd_revocation"),
+			10*time.Second, 10*time.Second)
 	}
 
 	var trustDB storage.TrustDB
@@ -243,18 +237,16 @@ func NewStandaloneConnector(
 		if err != nil {
 			return nil, serrors.Wrap("initializing trust database", err)
 		}
-		trustDB = truststoragemetrics.WrapDB(
-			trustDB, truststoragemetrics.Config{
-				Driver: string(storage.BackendSqlite),
-				QueriesTotal: metrics.NewPromCounterFrom(
-					prometheus.CounterOpts{
-						Name: "trustengine_db_queries_total",
-						Help: "Total queries to the database",
-					},
-					[]string{"driver", "operation", prom.LabelResult},
-				),
-			},
-		)
+		trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
+			Driver: string(storage.BackendSqlite),
+			QueriesTotal: metrics.NewPromCounterFrom(
+				prometheus.CounterOpts{
+					Name: "trustengine_db_queries_total",
+					Help: "Total queries to the database",
+				},
+				[]string{"driver", "operation", prom.LabelResult},
+			),
+		})
 		engine, err := TrustEngine(
 			ctx, options.certsDir, topo.IA(), trustDB, dialer,
 		)
