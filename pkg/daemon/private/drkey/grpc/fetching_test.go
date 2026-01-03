@@ -23,8 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	sd_drkey "github.com/scionproto/scion/daemon/drkey"
-	sd_grpc "github.com/scionproto/scion/daemon/drkey/grpc"
+	sd_drkey "github.com/scionproto/scion/pkg/daemon/private/drkey"
+	sd_grpc "github.com/scionproto/scion/pkg/daemon/private/drkey/grpc"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"

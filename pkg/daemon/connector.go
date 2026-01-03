@@ -21,42 +21,10 @@ import (
 	"net/netip"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/daemon/internal/metrics"
 	"github.com/scionproto/scion/pkg/drkey"
-	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 )
-
-// Errors for SCION Daemon API requests
-var (
-	ErrUnableToConnect = serrors.New("unable to connect to the SCION Daemon")
-)
-
-const (
-	// DefaultAPIAddress contains the system default for a daemon API socket.
-	DefaultAPIAddress = "127.0.0.1:30255"
-	// DefaultAPIPort contains the default port for a daemon client API socket.
-	DefaultAPIPort = 30255
-)
-
-// NewService returns a SCION Daemon API connection factory.
-// Deprecated: Use Service struct directly instead.
-func NewService(name string) Service {
-	return Service{
-		Address: name,
-		Metrics: Metrics{
-			Connects: libmetrics.NewPromCounter(metrics.Conns.CounterVec()),
-			PathsRequests: libmetrics.NewPromCounter(
-				metrics.PathRequests.CounterVec()),
-			ASRequests:                 libmetrics.NewPromCounter(metrics.ASInfos.CounterVec()),
-			InterfacesRequests:         libmetrics.NewPromCounter(metrics.IFInfos.CounterVec()),
-			ServicesRequests:           libmetrics.NewPromCounter(metrics.SVCInfos.CounterVec()),
-			InterfaceDownNotifications: libmetrics.NewPromCounter(metrics.Revocations.CounterVec()),
-		},
-	}
-}
 
 // A Connector is used to query the SCION daemon. All connector methods block until
 // either an error occurs, or the method successfully returns.

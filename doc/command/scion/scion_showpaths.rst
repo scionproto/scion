@@ -101,7 +101,8 @@ Options
       --no-color               disable colored output
       --no-probe               Do not probe the paths and print the health status
   -r, --refresh                Set refresh flag for SCION Daemon path request
-      --sciond string          SCION Daemon address. (default "127.0.0.1:30255")
+      --sciond string          Connect to SCION Daemon at the specified address instead of using the local
+                               topology.json (IP:Port or "default" for 127.0.0.1:30255)
       --sequence string        Space separated list of hop predicates
       --timeout duration       Timeout (default 5s)
       --tracing.agent string   Tracing agent address

@@ -47,6 +47,14 @@ func (c Cmd) Template(src, dst *snet.UDPAddr) (Cmd, error) {
 		}
 		args = replacePattern(Daemon, daemonAddr, args)
 	}
+	if needTopoDir(args) {
+		// In Docker mode, the gen directory is mounted at /share/gen inside the container
+		if *Docker {
+			args = replacePattern(TopoDir, "/share/gen", args)
+		} else {
+			args = replacePattern(TopoDir, GenFile(""), args)
+		}
+	}
 	return Cmd{Binary: c.Binary, Args: args}, nil
 }
 

@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/private/app/env"
 	"github.com/scionproto/scion/private/app/flag"
 )
@@ -80,7 +79,7 @@ func TestSCIONEnvironment(t *testing.T) {
 			flags:  noFlags,
 			env:    noEnv,
 			file:   noFile,
-			daemon: daemon.DefaultAPIAddress,
+			daemon: "",
 			local:  netip.Addr{},
 		},
 		"flag values set": {

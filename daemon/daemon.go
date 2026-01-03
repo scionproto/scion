@@ -26,11 +26,13 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/daemon/drkey"
-	"github.com/scionproto/scion/daemon/fetcher"
 	"github.com/scionproto/scion/daemon/internal/servers"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/cp"
+	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	"github.com/scionproto/scion/pkg/daemon/private/drkey"
+	"github.com/scionproto/scion/pkg/daemon/private/engine"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -114,23 +116,25 @@ type ServerConfig struct {
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	Engine      trust.Engine
-	Topology    servers.Topology
+	CPInfo      cp.CPInfo
 	DRKeyClient *drkey.ClientEngine
 }
 
 // NewServer constructs a daemon API server.
 func NewServer(cfg ServerConfig) *servers.DaemonServer {
 	return &servers.DaemonServer{
-		IA:  cfg.IA,
-		MTU: cfg.MTU,
-		// TODO(JordiSubira): This will be changed in the future to fetch
-		// the information from the CS instead of feeding the configuration
-		// file into.
-		Topology:    cfg.Topology,
-		Fetcher:     cfg.Fetcher,
-		ASInspector: cfg.Engine.Inspector,
-		RevCache:    cfg.RevCache,
-		DRKeyClient: cfg.DRKeyClient,
+		Engine: &engine.DaemonEngine{
+			IA:  cfg.IA,
+			MTU: cfg.MTU,
+			// TODO(JordiSubira): This will be changed in the future to fetch
+			// the information from the CS instead of feeding the configuration
+			// file into.
+			CPInfo:      cfg.CPInfo,
+			Fetcher:     cfg.Fetcher,
+			ASInspector: cfg.Engine.Inspector,
+			RevCache:    cfg.RevCache,
+			DRKeyClient: cfg.DRKeyClient,
+		},
 		Metrics: servers.Metrics{
 			PathsRequests: servers.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{

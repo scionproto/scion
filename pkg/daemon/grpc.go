@@ -28,7 +28,9 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
+	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
+	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
@@ -37,6 +39,70 @@ import (
 	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology"
 )
+
+// Errors for SCION Daemon API requests
+var (
+	ErrUnableToConnect = serrors.New("unable to connect to the SCION Daemon")
+)
+
+const (
+	// DefaultAPIAddress contains the system default for a daemon API socket.
+	DefaultAPIAddress = "127.0.0.1:30255"
+	// DefaultAPIPort contains the default port for a daemon client API socket.
+	DefaultAPIPort = 30255
+)
+
+// NewService returns a SCION Daemon API connection factory.
+// Deprecated: Use Service struct directly instead.
+func NewService(name string) Service {
+	return Service{
+		Address: name,
+		Metrics: Metrics{
+			Connects: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "conn", "connections_total",
+					"The amount of SCIOND connection attempts.", promLabels{},
+				),
+			),
+			PathsRequests: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "path", "requests_total",
+					"The amount of Path requests sent.", promLabels{},
+				),
+			),
+			ASRequests: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "as_info", "requests_total",
+					"The amount of AS info requests sent.", promLabels{},
+				),
+			),
+			InterfacesRequests: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "if_info", "requests_total",
+					"The amount of IF info requests sent.", promLabels{},
+				),
+			),
+			ServicesRequests: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "service_info", "requests_total",
+					"The amount of SVC info requests sent.", promLabels{},
+				),
+			),
+			InterfaceDownNotifications: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "revocation", "requests_total",
+					"The amount of Revocation requests sent.", promLabels{},
+				),
+			),
+		},
+	}
+}
+
+// promLabels implements prom.Labels for result label.
+type promLabels struct{}
+
+func (promLabels) Labels() []string { return []string{prom.LabelResult} }
+func (promLabels) Values() []string { return []string{""} }
 
 // Service exposes the API to connect to a SCION daemon service.
 type Service struct {

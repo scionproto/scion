@@ -20,22 +20,18 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon/private/types"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/topology"
 )
 
-type PathReqFlags struct {
-	Refresh bool
-	Hidden  bool
-}
+// PathReqFlags contains flags for path requests.
+type PathReqFlags = types.PathReqFlags
 
 // ASInfo provides information about the local AS.
-type ASInfo struct {
-	IA  addr.IA
-	MTU uint16
-}
+type ASInfo = types.ASInfo
 
 type Querier struct {
 	Connector Connector
