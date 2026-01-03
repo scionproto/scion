@@ -224,3 +224,12 @@ func (e *DaemonEngine) DRKeyGetHostHostKey(
 	}
 	return e.DRKeyClient.GetHostHostKey(ctx, meta)
 }
+
+type metricsError struct {
+	err    error
+	result string
+}
+
+func (e metricsError) Error() string {
+	return e.err.Error()
+}
