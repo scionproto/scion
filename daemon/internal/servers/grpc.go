@@ -20,15 +20,15 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/scionproto/scion/pkg/daemon/control_plane"
-	drkey_daemon "github.com/scionproto/scion/pkg/daemon/private/drkey"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/control_plane"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	drkey_daemon "github.com/scionproto/scion/pkg/daemon/private/drkey"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"

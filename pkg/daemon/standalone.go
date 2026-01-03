@@ -20,10 +20,10 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/scionproto/scion/pkg/daemon/control_plane"
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon/control_plane"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
 	"github.com/scionproto/scion/pkg/daemon/private/standalone"
@@ -280,7 +280,7 @@ func NewStandaloneConnector(
 		RevCache:      revCache,
 		RcCleaner:     rcCleaner,
 		TrustDB:       trustDB,
-		TrcLoaderTask: trcLoaderTask,
+		TRCLoaderTask: trcLoaderTask,
 	}
 
 	return standaloneDaemon, nil

@@ -50,7 +50,7 @@ type Daemon struct {
 	RevCache      revcache.RevCache
 	RcCleaner     *periodic.Runner
 	TrustDB       storage.TrustDB
-	TrcLoaderTask *periodic.Runner
+	TRCLoaderTask *periodic.Runner
 }
 
 // LocalIA returns the local ISD-AS number.
@@ -179,8 +179,8 @@ func (s *Daemon) Close() error {
 		err1 := s.TrustDB.Close()
 		err = errors.Join(err, err1)
 	}
-	if s.TrcLoaderTask != nil {
-		s.TrcLoaderTask.Stop()
+	if s.TRCLoaderTask != nil {
+		s.TRCLoaderTask.Stop()
 	}
 	// Close CPInfo if it implements io.Closer.
 	if closer, ok := s.CPInfo.(io.Closer); ok {
