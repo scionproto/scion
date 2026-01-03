@@ -36,12 +36,15 @@ type stunConn struct {
 	mutex          sync.Mutex
 
 	// the following fields are protected by mutex
-	queuedBytes     int64
-	stunChans       map[stun.TxID]chan stunResponse
-	mappings        map[netip.AddrPort]*natMapping
-	pendingRequests map[netip.AddrPort]bool
-	readDeadline    time.Time
-	cond            *sync.Cond // condition variable for pending STUN requests
+	queuedBytes          int64
+	stunChans            map[stun.TxID]chan stunResponse
+	mappings             map[netip.AddrPort]*natMapping
+	pendingRequests      map[netip.AddrPort]bool
+	readDeadline         time.Time
+	writeDeadline        time.Time
+	readDeadlineChanged  chan struct{}
+	writeDeadlineChanged chan struct{}
+	cond                 *sync.Cond // condition variable for pending STUN requests
 }
 
 type dataPacket struct {
@@ -133,32 +136,37 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 }
 
 func (c *stunConn) ReadFrom(b []byte) (int, net.Addr, error) {
-	c.mutex.Lock()
-	deadline := c.readDeadline
-	c.mutex.Unlock()
-
-	var timeoutChan <-chan time.Time
-	if !deadline.IsZero() {
-		timeout := time.Until(deadline)
-		if timeout <= 0 {
-			return 0, nil, os.ErrDeadlineExceeded
-		}
-		timeoutChan = time.After(timeout)
-	} else {
-		timeoutChan = nil // no timeout
-	}
-	select {
-	case pkt, ok := <-c.recvChan:
-		if !ok {
-			return 0, nil, net.ErrClosed
-		}
+	for {
 		c.mutex.Lock()
-		c.queuedBytes -= int64(len(pkt.data))
+		deadline := c.readDeadline
+		deadlineChan := c.readDeadlineChanged
 		c.mutex.Unlock()
-		n := copy(b, pkt.data)
-		return n, pkt.addr, nil
-	case <-timeoutChan:
-		return 0, nil, os.ErrDeadlineExceeded
+
+		var timeoutChan <-chan time.Time
+		if !deadline.IsZero() {
+			timeout := time.Until(deadline)
+			if timeout <= 0 {
+				return 0, nil, os.ErrDeadlineExceeded
+			}
+			timeoutChan = time.After(timeout)
+		} else {
+			timeoutChan = nil // no timeout
+		}
+		select {
+		case pkt, ok := <-c.recvChan:
+			if !ok {
+				return 0, nil, net.ErrClosed
+			}
+			c.mutex.Lock()
+			c.queuedBytes -= int64(len(pkt.data))
+			c.mutex.Unlock()
+			n := copy(b, pkt.data)
+			return n, pkt.addr, nil
+		case <-timeoutChan:
+			return 0, nil, os.ErrDeadlineExceeded
+		case <-deadlineChan:
+			continue // read deadline changed, re-evaluate
+		}
 	}
 }
 
@@ -253,18 +261,40 @@ STUNLoop:
 			waitDuration = Rm * initialRTO
 		}
 
-		select {
-		case <-time.After(waitDuration):
-			if i == Rc-1 {
-				return nil, errors.New("STUN request timed out")
+		for {
+			c.mutex.Lock()
+			deadline := c.writeDeadline
+			deadlineChan := c.writeDeadlineChanged
+			c.mutex.Unlock()
+
+			var timeoutChan <-chan time.Time
+			if !deadline.IsZero() {
+				timeout := time.Until(deadline)
+				if timeout <= 0 {
+					return nil, os.ErrDeadlineExceeded
+				}
+				timeoutChan = time.After(timeout)
+			} else {
+				timeoutChan = nil // no timeout
 			}
-			continue
-		case resp := <-stunChan:
-			if resp.err != nil {
-				return nil, resp.err
+
+			select {
+			case <-time.After(waitDuration):
+				if i == Rc-1 {
+					return nil, errors.New("STUN request timed out")
+				}
+				continue STUNLoop
+			case <-timeoutChan:
+				return nil, os.ErrDeadlineExceeded
+			case <-deadlineChan:
+				continue // write deadline changed, re-evaluate
+			case resp := <-stunChan:
+				if resp.err != nil {
+					return nil, resp.err
+				}
+				mappedAddr = resp.addr
+				break STUNLoop
 			}
-			mappedAddr = resp.addr
-			break STUNLoop
 		}
 	}
 
@@ -291,6 +321,11 @@ func (c *stunConn) SetDeadline(t time.Time) error {
 	err := c.sysPacketConn.SetWriteDeadline(t)
 	if err == nil {
 		c.readDeadline = t
+		c.writeDeadline = t
+		close(c.readDeadlineChanged)
+		close(c.writeDeadlineChanged)
+		c.readDeadlineChanged = make(chan struct{})
+		c.writeDeadlineChanged = make(chan struct{})
 	}
 	return err
 }
@@ -299,7 +334,21 @@ func (c *stunConn) SetReadDeadline(t time.Time) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.readDeadline = t
+	close(c.readDeadlineChanged)
+	c.readDeadlineChanged = make(chan struct{})
 	return nil
+}
+
+func (c *stunConn) SetWriteDeadline(t time.Time) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	err := c.sysPacketConn.SetWriteDeadline(t)
+	if err == nil {
+		c.writeDeadline = t
+		close(c.writeDeadlineChanged)
+		c.writeDeadlineChanged = make(chan struct{})
+	}
+	return err
 }
 
 func (c *SCIONPacketConn) isSTUNConn() bool {
