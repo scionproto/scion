@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package daemon
+package engine
 
 import (
 	"context"
@@ -26,6 +26,8 @@ import (
 	drkey_daemon "github.com/scionproto/scion/daemon/drkey"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	"github.com/scionproto/scion/pkg/daemon/private/topology"
+	"github.com/scionproto/scion/pkg/daemon/private/types"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
@@ -44,7 +46,7 @@ import (
 type DaemonEngine struct {
 	IA          addr.IA
 	MTU         uint16
-	Topology    Topology
+	Topology    topology.Topology
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	ASInspector trust.Inspector
@@ -83,7 +85,7 @@ func (e *DaemonEngine) Interfaces(ctx context.Context) (map[uint16]netip.AddrPor
 func (e *DaemonEngine) Paths(
 	ctx context.Context,
 	dst, src addr.IA,
-	flags PathReqFlags,
+	flags types.PathReqFlags,
 ) ([]snet.Path, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancelF context.CancelFunc
@@ -145,7 +147,7 @@ func (e *DaemonEngine) backgroundPaths(origCtx context.Context, src, dst addr.IA
 }
 
 // ASInfo requests information about an AS. The zero IA returns local AS info.
-func (e *DaemonEngine) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
+func (e *DaemonEngine) ASInfo(ctx context.Context, ia addr.IA) (types.ASInfo, error) {
 	reqIA := ia
 	if reqIA.IsZero() {
 		reqIA = e.IA
@@ -154,7 +156,7 @@ func (e *DaemonEngine) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
 	if reqIA.Equal(e.IA) {
 		mtu = e.MTU
 	}
-	return ASInfo{
+	return types.ASInfo{
 		IA:  reqIA,
 		MTU: mtu,
 	}, nil

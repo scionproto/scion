@@ -20,41 +20,18 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon/private/types"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/topology"
 )
 
-type Topology interface {
-	// IA returns the local ISD-AS number.
-	IA() addr.IA
-	// MTU returns the MTU of the local AS.
-	MTU() uint16
-	// Core returns whether the local AS is core.
-	Core() bool
-	// IfIDs InterfaceIDs returns all interface IDS from the local AS.
-	IfIDs() []uint16
-	// UnderlayNextHop returns the internal underlay address of the router
-	// containing the interface ID.
-	UnderlayNextHop(uint16) *net.UDPAddr
-	// ControlServiceAddresses returns the addresses of the control services
-	ControlServiceAddresses() []*net.UDPAddr
-	// PortRange returns the first and last ports of the port range (both included),
-	// in which endhost listen for SCION/UDP application using the UDP/IP underlay.
-	PortRange() (uint16, uint16)
-}
-
-type PathReqFlags struct {
-	Refresh bool
-	Hidden  bool
-}
+// PathReqFlags contains flags for path requests.
+type PathReqFlags = types.PathReqFlags
 
 // ASInfo provides information about the local AS.
-type ASInfo struct {
-	IA  addr.IA
-	MTU uint16
-}
+type ASInfo = types.ASInfo
 
 type Querier struct {
 	Connector Connector

@@ -28,6 +28,8 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	"github.com/scionproto/scion/pkg/daemon/private/engine"
+	daemontopology "github.com/scionproto/scion/pkg/daemon/private/topology"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
@@ -50,7 +52,7 @@ type Topology interface {
 // DaemonServer handles gRPC requests to the SCION daemon.
 // It delegates business logic to the embedded DaemonEngine.
 type DaemonServer struct {
-	Engine  *daemon.DaemonEngine
+	Engine  *engine.DaemonEngine
 	Metrics Metrics
 }
 
@@ -58,7 +60,7 @@ type DaemonServer struct {
 func NewDaemonServer(
 	ia addr.IA,
 	mtu uint16,
-	topo daemon.Topology,
+	topo daemontopology.Topology,
 	fetcher fetcher.Fetcher,
 	revCache revcache.RevCache,
 	asInspector trust.Inspector,
@@ -66,7 +68,7 @@ func NewDaemonServer(
 	metrics Metrics,
 ) *DaemonServer {
 	return &DaemonServer{
-		Engine: &daemon.DaemonEngine{
+		Engine: &engine.DaemonEngine{
 			IA:          ia,
 			MTU:         mtu,
 			Topology:    topo,

@@ -69,7 +69,6 @@ func DefaultConnector(ctx context.Context, opts ...SuppliedOption) (Connector, e
 		if err != nil {
 			return nil, serrors.Wrap("loading topology from file", err)
 		}
-
 		return NewStandaloneConnector(ctx, topo, WithCertsDir(DefaultCertsDir))
 	}
 

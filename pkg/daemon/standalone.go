@@ -16,9 +16,6 @@ package daemon
 
 import (
 	"context"
-	"errors"
-	"io"
-	"net/netip"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -27,14 +24,14 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
-	"github.com/scionproto/scion/pkg/drkey"
+	"github.com/scionproto/scion/pkg/daemon/private/engine"
+	"github.com/scionproto/scion/pkg/daemon/private/standalone"
+	"github.com/scionproto/scion/pkg/daemon/private/topology"
+	"github.com/scionproto/scion/pkg/daemon/private/trust"
 	"github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
-	"github.com/scionproto/scion/pkg/private/prom"
+	pkgmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/revcache"
@@ -43,20 +40,19 @@ import (
 	segverifier "github.com/scionproto/scion/private/segment/verifier"
 	"github.com/scionproto/scion/private/storage"
 	truststoragemetrics "github.com/scionproto/scion/private/storage/trust/metrics"
-	"github.com/scionproto/scion/private/topology"
-	"github.com/scionproto/scion/private/trust"
+	privtrust "github.com/scionproto/scion/private/trust"
 	"github.com/scionproto/scion/private/trust/compat"
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
-
-// StandaloneOption is a functional option for NewStandaloneConnector.
-type StandaloneOption func(*standaloneOptions)
 
 // DefaultTopologyFile is the default path to the topology file.
 const DefaultTopologyFile = "/etc/scion/topology.json"
 
 // DefaultCertsDir is the default directory for trust material.
 const DefaultCertsDir = "/etc/scion/certs"
+
+// standaloneOption is a functional option for NewStandaloneConnector.
+type standaloneOption func(*standaloneOptions)
 
 type standaloneOptions struct {
 	certsDir               string
@@ -67,7 +63,7 @@ type standaloneOptions struct {
 
 // WithCertsDir sets the configuration directory for trust material.
 // Defaults to /etc/scion/certs.
-func WithCertsDir(dir string) StandaloneOption {
+func WithCertsDir(dir string) standaloneOption {
 	return func(o *standaloneOptions) {
 		o.certsDir = dir
 	}
@@ -75,84 +71,33 @@ func WithCertsDir(dir string) StandaloneOption {
 
 // WithDisableSegVerification disables segment verification.
 // WARNING: This should NOT be used in production!
-func WithDisableSegVerification() StandaloneOption {
+func WithDisableSegVerification() standaloneOption {
 	return func(o *standaloneOptions) {
 		o.disableSegVerification = true
 	}
 }
 
 // WithPeriodicCleanup enables periodic cleanup of path database and revocation cache.
-func WithPeriodicCleanup() StandaloneOption {
+func WithPeriodicCleanup() standaloneOption {
 	return func(o *standaloneOptions) {
 		o.enablePeriodicCleanup = true
 	}
 }
 
 // WithMetrics enables metrics collection for the standalone daemon.
-func WithMetrics() StandaloneOption {
+func WithMetrics() standaloneOption {
 	return func(o *standaloneOptions) {
 		o.enableMetrics = true
 	}
 }
 
 // LoadTopologyFromFile loads a topology from a file.
-// The returned Topology can be passed to NewStandaloneConnector.
-func LoadTopologyFromFile(topoFile string) (Topology, error) {
-	loader, err := topology.NewLoader(
-		topology.LoaderCfg{
-			File:      topoFile,
-			Reload:    nil,
-			Validator: &topology.DefaultValidator{},
-			Metrics:   newLoaderMetrics(),
-		},
-	)
-	if err != nil {
-		return nil, serrors.Wrap("creating topology loader", err)
-	}
-	return loader, nil
-}
-
-// newLoaderMetrics creates metrics for the topology loader.
-func newLoaderMetrics() topology.LoaderMetrics {
-	updates := prom.NewCounterVec(
-		"", "",
-		"topology_updates_total",
-		"The total number of updates.",
-		[]string{prom.LabelResult},
-	)
-	return topology.LoaderMetrics{
-		ValidationErrors: metrics.NewPromCounter(updates).With(prom.LabelResult, "err_validate"),
-		ReadErrors:       metrics.NewPromCounter(updates).With(prom.LabelResult, "err_read"),
-		LastUpdate: metrics.NewPromGauge(
-			prom.NewGaugeVec(
-				"", "",
-				"topology_last_update_time",
-				"Timestamp of the last successful update.",
-				[]string{},
-			),
-		),
-		Updates: metrics.NewPromCounter(updates).With(prom.LabelResult, prom.Success),
-	}
-}
-
-// StandaloneDaemon implements the daemon.Connector interface by directly
-// delegating to a DaemonEngine. This allows in-process usage of daemon
-// functionality without going through gRPC.
-// Also collects metrics for all operations.
+// The returned topology can be passed to NewStandaloneConnector.
 //
-// Close() will clean up all resources, including the topology if it implements
-// io.Closer.
-type StandaloneDaemon struct {
-	Engine  *DaemonEngine
-	Metrics StandaloneMetrics
-
-	topo          Topology
-	pathDBCleaner *periodic.Runner
-	pathDB        storage.PathDB
-	revCache      revcache.RevCache
-	rcCleaner     *periodic.Runner
-	trustDB       storage.TrustDB
-	trcLoaderTask *periodic.Runner
+// Most users should use NewStandaloneConnector() directly with a file path
+// instead of using this function.
+func LoadTopologyFromFile(topoFile string) (topology.Topology, error) {
+	return topology.LoadFromFile(topoFile)
 }
 
 // NewStandaloneConnector creates a daemon Connector that runs locally without a daemon process.
@@ -171,8 +116,9 @@ type StandaloneDaemon struct {
 //	    daemon.WithMetrics(),
 //	)
 func NewStandaloneConnector(
-	ctx context.Context, topo Topology, opts ...StandaloneOption,
+	ctx context.Context, topo topology.Topology, opts ...standaloneOption,
 ) (Connector, error) {
+
 	options := &standaloneOptions{
 		certsDir: DefaultCertsDir,
 	}
@@ -223,7 +169,7 @@ func NewStandaloneConnector(
 	}
 
 	var trustDB storage.TrustDB
-	var inspector trust.Inspector
+	var inspector privtrust.Inspector
 	var verifier segverifier.Verifier
 	var trcLoaderTask *periodic.Runner
 
@@ -239,27 +185,27 @@ func NewStandaloneConnector(
 		}
 		trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
 			Driver: string(storage.BackendSqlite),
-			QueriesTotal: metrics.NewPromCounterFrom(
+			QueriesTotal: pkgmetrics.NewPromCounterFrom(
 				prometheus.CounterOpts{
 					Name: "trustengine_db_queries_total",
 					Help: "Total queries to the database",
 				},
-				[]string{"driver", "operation", prom.LabelResult},
+				[]string{"driver", "operation", "result"},
 			),
 		})
-		engine, err := TrustEngine(
+		trustEngine, err := trust.Engine(
 			ctx, options.certsDir, topo.IA(), trustDB, dialer,
 		)
 		if err != nil {
 			return nil, serrors.Wrap("creating trust engine", err)
 		}
-		engine.Inspector = trust.CachingInspector{
-			Inspector:          engine.Inspector,
+		trustEngine.Inspector = privtrust.CachingInspector{
+			Inspector:          trustEngine.Inspector,
 			Cache:              cache.New(time.Minute, time.Minute),
-			CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
+			CacheHits:          pkgmetrics.NewPromCounter(trustmetrics.CacheHitsTotal),
 			MaxCacheExpiration: time.Minute,
 		}
-		trcLoader := trust.TRCLoader{
+		trcLoader := privtrust.TRCLoader{
 			Dir: options.certsDir,
 			DB:  trustDB,
 		}
@@ -283,14 +229,14 @@ func NewStandaloneConnector(
 		)
 
 		verifier = compat.Verifier{
-			Verifier: trust.Verifier{
-				Engine:             engine,
+			Verifier: privtrust.Verifier{
+				Engine:             trustEngine,
 				Cache:              cache.New(time.Minute, time.Minute),
-				CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
+				CacheHits:          pkgmetrics.NewPromCounter(trustmetrics.CacheHitsTotal),
 				MaxCacheExpiration: time.Minute,
 			},
 		}
-		inspector = engine.Inspector
+		inspector = trustEngine.Inspector
 	}
 
 	// Create fetcher
@@ -309,8 +255,8 @@ func NewStandaloneConnector(
 		},
 	)
 
-	// Create and return the connector
-	daemonEngine := &DaemonEngine{
+	// Create the daemon engine
+	daemonEngine := &engine.DaemonEngine{
 		IA:          topo.IA(),
 		MTU:         topo.MTU(),
 		Topology:    topo,
@@ -320,246 +266,22 @@ func NewStandaloneConnector(
 		DRKeyClient: nil, // DRKey not supported in standalone daemon
 	}
 
-	var standaloneMetrics StandaloneMetrics
+	var standaloneMetrics standalone.Metrics
 	if options.enableMetrics {
-		standaloneMetrics = NewStandaloneMetrics()
+		standaloneMetrics = standalone.NewStandaloneMetrics()
 	}
 
-	standalone := &StandaloneDaemon{
+	standaloneDaemon := &standalone.Daemon{
 		Engine:        daemonEngine,
 		Metrics:       standaloneMetrics,
-		topo:          topo,
-		pathDBCleaner: cleaner,
-		pathDB:        pathDB,
-		revCache:      revCache,
-		rcCleaner:     rcCleaner,
-		trustDB:       trustDB,
-		trcLoaderTask: trcLoaderTask,
+		Topo:          topo,
+		PathDBCleaner: cleaner,
+		PathDB:        pathDB,
+		RevCache:      revCache,
+		RcCleaner:     rcCleaner,
+		TrustDB:       trustDB,
+		TrcLoaderTask: trcLoaderTask,
 	}
 
-	return standalone, nil
-}
-
-// LocalIA returns the local ISD-AS number.
-func (s *StandaloneDaemon) LocalIA(ctx context.Context) (addr.IA, error) {
-	start := time.Now()
-	ia, err := s.Engine.LocalIA(ctx)
-	s.Metrics.LocalIA.observe(err, time.Since(start))
-	return ia, err
-}
-
-// PortRange returns the beginning and the end of the SCION/UDP endhost port range.
-func (s *StandaloneDaemon) PortRange(ctx context.Context) (uint16, uint16, error) {
-	start := time.Now()
-	startPort, endPort, err := s.Engine.PortRange(ctx)
-	s.Metrics.PortRange.observe(err, time.Since(start))
-	return startPort, endPort, err
-}
-
-// Interfaces returns the map of interface identifiers to the underlay internal address.
-func (s *StandaloneDaemon) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error) {
-	start := time.Now()
-	result, err := s.Engine.Interfaces(ctx)
-	s.Metrics.Interfaces.observe(err, time.Since(start))
-	return result, err
-}
-
-// Paths requests from the daemon a set of end to end paths between the source and destination.
-func (s *StandaloneDaemon) Paths(
-	ctx context.Context,
-	dst, src addr.IA,
-	f PathReqFlags,
-) ([]snet.Path, error) {
-	start := time.Now()
-	paths, err := s.Engine.Paths(ctx, dst, src, f)
-	s.Metrics.Paths.observe(err, time.Since(start), prom.LabelDst, dst.ISD().String())
-	return paths, err
-}
-
-// ASInfo requests information about an AS. The zero IA returns local AS info.
-func (s *StandaloneDaemon) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
-	start := time.Now()
-	asInfo, err := s.Engine.ASInfo(ctx, ia)
-	s.Metrics.ASInfo.observe(err, time.Since(start))
-	return asInfo, err
-}
-
-// SVCInfo requests information about addresses and ports of infrastructure services.
-func (s *StandaloneDaemon) SVCInfo(
-	ctx context.Context,
-	_ []addr.SVC,
-) (map[addr.SVC][]string, error) {
-	start := time.Now()
-	uris, err := s.Engine.SVCInfo(ctx)
-	s.Metrics.SVCInfo.observe(err, time.Since(start))
-	if err != nil {
-		return nil, err
-	}
-	result := make(map[addr.SVC][]string)
-	if len(uris) > 0 {
-		result[addr.SvcCS] = uris
-	}
-	return result, nil
-}
-
-// RevNotification sends a RevocationInfo message to the daemon.
-func (s *StandaloneDaemon) RevNotification(
-	ctx context.Context,
-	revInfo *path_mgmt.RevInfo,
-) error {
-	start := time.Now()
-	err := s.Engine.NotifyInterfaceDown(ctx, revInfo.RawIsdas, uint64(revInfo.IfID))
-	s.Metrics.InterfaceDown.observe(err, time.Since(start))
-	return err
-}
-
-// DRKeyGetASHostKey requests an AS-Host Key from the daemon.
-func (s *StandaloneDaemon) DRKeyGetASHostKey(
-	ctx context.Context,
-	meta drkey.ASHostMeta,
-) (drkey.ASHostKey, error) {
-	start := time.Now()
-	key, err := s.Engine.DRKeyGetASHostKey(ctx, meta)
-	s.Metrics.DRKeyASHost.observe(err, time.Since(start))
-	return key, err
-}
-
-// DRKeyGetHostASKey requests a Host-AS Key from the daemon.
-func (s *StandaloneDaemon) DRKeyGetHostASKey(
-	ctx context.Context,
-	meta drkey.HostASMeta,
-) (drkey.HostASKey, error) {
-	start := time.Now()
-	key, err := s.Engine.DRKeyGetHostASKey(ctx, meta)
-	s.Metrics.DRKeyHostAS.observe(err, time.Since(start))
-	return key, err
-}
-
-// DRKeyGetHostHostKey requests a Host-Host Key from the daemon.
-func (s *StandaloneDaemon) DRKeyGetHostHostKey(
-	ctx context.Context,
-	meta drkey.HostHostMeta,
-) (drkey.HostHostKey, error) {
-	start := time.Now()
-	key, err := s.Engine.DRKeyGetHostHostKey(ctx, meta)
-	s.Metrics.DRKeyHostHost.observe(err, time.Since(start))
-	return key, err
-}
-
-func (s *StandaloneDaemon) Close() error {
-	var err error
-	if s.pathDBCleaner != nil {
-		s.pathDBCleaner.Stop()
-	}
-	if s.pathDB != nil {
-		err1 := s.pathDB.Close()
-		err = errors.Join(err, err1)
-	}
-	if s.revCache != nil {
-		err1 := s.revCache.Close()
-		err = errors.Join(err, err1)
-	}
-	if s.rcCleaner != nil {
-		s.rcCleaner.Stop()
-	}
-	if s.trustDB != nil {
-		err1 := s.trustDB.Close()
-		err = errors.Join(err, err1)
-	}
-	if s.trcLoaderTask != nil {
-		s.trcLoaderTask.Stop()
-	}
-	// Close topology if it implements io.Closer.
-	if closer, ok := s.topo.(io.Closer); ok {
-		err1 := closer.Close()
-		err = errors.Join(err, err1)
-	}
-	return err
-}
-
-// Compile-time assertion that StandaloneDaemon implements daemon.Connector.
-var _ Connector = (*StandaloneDaemon)(nil)
-
-// StandaloneMetrics contains metrics for all StandaloneDaemon operations.
-type StandaloneMetrics struct {
-	LocalIA       requestMetric
-	PortRange     requestMetric
-	Interfaces    requestMetric
-	Paths         requestMetric
-	ASInfo        requestMetric
-	SVCInfo       requestMetric
-	InterfaceDown requestMetric
-	DRKeyASHost   requestMetric
-	DRKeyHostAS   requestMetric
-	DRKeyHostHost requestMetric
-}
-
-// requestMetric contains the metrics for a given request type.
-type requestMetric struct {
-	Requests metrics.Counter
-	Latency  metrics.Histogram
-}
-
-func (m requestMetric) observe(err error, latency time.Duration, extraLabels ...string) {
-	result := standaloneResultFromErr(err)
-	if m.Requests != nil {
-		m.Requests.With(append([]string{prom.LabelResult, result}, extraLabels...)...).Add(1)
-	}
-	if m.Latency != nil {
-		m.Latency.With(prom.LabelResult, result).Observe(latency.Seconds())
-	}
-}
-
-func standaloneResultFromErr(err error) string {
-	if err == nil {
-		return prom.Success
-	}
-	if serrors.IsTimeout(err) {
-		return prom.ErrTimeout
-	}
-	return prom.ErrNotClassified
-}
-
-// NewStandaloneMetrics creates metrics for StandaloneDaemon operations.
-func NewStandaloneMetrics() StandaloneMetrics {
-	resultLabels := []string{prom.LabelResult}
-	pathLabels := []string{prom.LabelResult, prom.LabelDst}
-	return StandaloneMetrics{
-		LocalIA:    newRequestMetric("local_ia", "local IA", resultLabels),
-		PortRange:  newRequestMetric("port_range", "port range", resultLabels),
-		Interfaces: newRequestMetric("interfaces", "interfaces", resultLabels),
-		Paths:      newRequestMetric("paths", "path", pathLabels),
-		ASInfo:     newRequestMetric("as_info", "AS info", resultLabels),
-		SVCInfo:    newRequestMetric("svc_info", "SVC info", resultLabels),
-		InterfaceDown: newRequestMetric(
-			"interface_down", "interface down notification", resultLabels,
-		),
-		DRKeyASHost:   newRequestMetric("drkey_as_host", "DRKey AS-Host", resultLabels),
-		DRKeyHostAS:   newRequestMetric("drkey_host_as", "DRKey Host-AS", resultLabels),
-		DRKeyHostHost: newRequestMetric("drkey_host_host", "DRKey Host-Host", resultLabels),
-	}
-}
-
-func newRequestMetric(subsystem, description string, labels []string) requestMetric {
-	return requestMetric{
-		Requests: metrics.NewPromCounterFrom(
-			prometheus.CounterOpts{
-				Namespace: "standalone_daemon",
-				Subsystem: subsystem,
-				Name:      "requests_total",
-				Help:      "The amount of " + description + " requests.",
-			},
-			labels,
-		),
-		Latency: metrics.NewPromHistogramFrom(
-			prometheus.HistogramOpts{
-				Namespace: "standalone_daemon",
-				Subsystem: subsystem,
-				Name:      "request_duration_seconds",
-				Help:      "Time to handle " + description + " requests.",
-				Buckets:   prom.DefaultLatencyBuckets,
-			},
-			[]string{prom.LabelResult},
-		),
-	}
+	return standaloneDaemon, nil
 }

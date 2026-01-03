@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package daemon
+package trust
 
 import (
 	"context"
@@ -28,8 +28,8 @@ import (
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
-// TrustEngine builds the trust engine backed by the trust database.
-func TrustEngine(
+// Engine builds the trust engine backed by the trust database.
+func Engine(
 	ctx context.Context,
 	certsDir string,
 	ia addr.IA,

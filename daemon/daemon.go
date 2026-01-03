@@ -31,6 +31,8 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	"github.com/scionproto/scion/pkg/daemon/private/engine"
+	"github.com/scionproto/scion/pkg/daemon/private/topology"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -114,14 +116,14 @@ type ServerConfig struct {
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	Engine      trust.Engine
-	Topology    daemon.Topology
+	Topology    topology.Topology
 	DRKeyClient *drkey.ClientEngine
 }
 
 // NewServer constructs a daemon API server.
 func NewServer(cfg ServerConfig) *servers.DaemonServer {
 	return &servers.DaemonServer{
-		Engine: &daemon.DaemonEngine{
+		Engine: &engine.DaemonEngine{
 			IA:  cfg.IA,
 			MTU: cfg.MTU,
 			// TODO(JordiSubira): This will be changed in the future to fetch

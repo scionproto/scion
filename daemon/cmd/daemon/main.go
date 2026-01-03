@@ -39,8 +39,8 @@ import (
 	sdgrpc "github.com/scionproto/scion/daemon/drkey/grpc"
 	api "github.com/scionproto/scion/daemon/mgmtapi"
 	"github.com/scionproto/scion/pkg/addr"
-	daemonpkg "github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	daemontrust "github.com/scionproto/scion/pkg/daemon/private/trust"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
@@ -154,7 +154,7 @@ func realMain(ctx context.Context) error {
 		),
 	})
 	certsDir := filepath.Join(globalCfg.General.ConfigDir, "certs")
-	engine, err := daemonpkg.TrustEngine(
+	engine, err := daemontrust.Engine(
 		errCtx, certsDir, topo.IA(), trustDB, dialer,
 	)
 	if err != nil {
