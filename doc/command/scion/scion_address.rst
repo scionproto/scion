@@ -39,6 +39,7 @@ Options
       --isd-as isd-as   The local ISD-AS to use. (default 0-0)
       --json            Write the output as machine readable json
   -l, --local ip        Local IP address to listen on. (default invalid IP)
+      --nat             Enable NAT traversal using STUN.
       --sciond string   SCION Daemon address. (default "127.0.0.1:30255")
 
 SEE ALSO

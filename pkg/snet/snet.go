@@ -162,11 +162,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 		if !ok {
 			return nil, serrors.New("expected SCIONPacketConn", "type", common.TypeOf(packetConn))
 		}
-		sysPacketConn, ok := scionPacketConn.conn.(sysPacketConn)
-		if !ok {
-			return nil, serrors.New("expected sysPacketConn", "type", common.TypeOf(scionPacketConn.conn))
-		}
-		stunConn, err := newSTUNConn(sysPacketConn)
+		stunConn, err := newSTUNConn(scionPacketConn.conn)
 		if err != nil {
 			return nil, serrors.Wrap("error creating STUN conn", err)
 		}

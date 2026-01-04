@@ -106,7 +106,8 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 
 		// If the client is behind a NAT, the SCION packet will hold the mapped external address,
 		// which is expected to be different from the local address. To handle this case, we check
-		// whether the underlying connection is a stunConn, which indicates that NAT traversal is in use.
+		// whether the underlying connection is a stunConn, which indicates that NAT traversal
+		// is in use.
 		// TODO: Is it necessary to check that the address matches one of the mapped addresses?
 		scionConn, ok := c.conn.(*SCIONPacketConn)
 		if !ok || !scionConn.isSTUNConn() {
