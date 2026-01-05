@@ -67,7 +67,7 @@ func main() {
 
 			rp, ok := pkt.Path.(snet.RawPath)
 			if !ok {
-				log.Printf("Failed to reverse path, unecpected path type: %v", pkt.Path)
+				log.Printf("Failed to reverse path, unexpected path type: %v", pkt.Path)
 				continue
 			}
 			replyPather := snet.DefaultReplyPather{}
