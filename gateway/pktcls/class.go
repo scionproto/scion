@@ -17,7 +17,7 @@ package pktcls
 import (
 	"encoding/json"
 
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 )
 
 var (
@@ -60,7 +60,7 @@ func (c *Class) UnmarshalJSON(b []byte) error {
 }
 
 // ClassMap is a container for Classes, keyed by their unique name.  ClassMap
-// can be used to marshal Classes to JSON. Unmarshaling back to ClassMap is
+// can be used to marshal Classes to JSON. Unmarshalling back to ClassMap is
 // guaranteed to yield an object that is identical to the initial one.
 type ClassMap map[string]*Class
 
@@ -78,11 +78,11 @@ func (cm *ClassMap) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (cm ClassMap) MarshalYAML() (interface{}, error) {
+func (cm ClassMap) MarshalYAML() (any, error) {
 	return (map[string]*Class)(cm), nil
 }
 
-func (cm *ClassMap) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (cm *ClassMap) UnmarshalYAML(unmarshal func(any) error) error {
 	err := unmarshal(cm)
 	if err != nil {
 		return err

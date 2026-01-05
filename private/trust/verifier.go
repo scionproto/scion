@@ -18,7 +18,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"time"
 
@@ -161,7 +161,7 @@ func (v *Verifier) getChains(ctx context.Context, q ChainQuery) ([][]*x509.Certi
 	return chains, nil
 }
 
-func (v *Verifier) cacheGet(key string, reqType string) (interface{}, bool) {
+func (v *Verifier) cacheGet(key string, reqType string) (any, bool) {
 	if v.Cache == nil {
 		return nil, false
 	}
@@ -179,7 +179,7 @@ func (v *Verifier) cacheGet(key string, reqType string) (interface{}, bool) {
 	return result, ok
 }
 
-func (v *Verifier) cacheAdd(key string, value interface{}, d time.Duration) {
+func (v *Verifier) cacheAdd(key string, value any, d time.Duration) {
 	if v.Cache == nil {
 		return
 	}
@@ -191,7 +191,7 @@ func (v *Verifier) cacheExpiration(chains [][]*x509.Certificate) time.Duration {
 	if dur == 0 {
 		dur = defaultCacheExpiration
 	}
-	validity := time.Duration(rand.Int63n(int64(dur-(dur/2))) + int64(dur/2))
+	validity := time.Duration(rand.Int64N(int64(dur-(dur/2))) + int64(dur/2))
 	expiration := time.Now().Add(validity)
 	for _, chain := range chains {
 		if notAfter := chain[0].NotAfter; notAfter.Before(expiration) {

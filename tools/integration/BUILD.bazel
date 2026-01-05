@@ -1,4 +1,5 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -22,7 +23,7 @@ go_library(
         "//pkg/snet:go_default_library",
         "//private/topology:go_default_library",
         "//tools/integration/progress:go_default_library",
-        "@in_gopkg_yaml_v2//:go_default_library",
+        "@in_gopkg_yaml_v3//:go_default_library",
     ],
 )
 

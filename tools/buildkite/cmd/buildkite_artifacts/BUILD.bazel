@@ -1,4 +1,4 @@
-load("//tools/lint:go.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
 
 go_library(
@@ -10,7 +10,7 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//private/app:go_default_library",
         "//tools/buildkite:go_default_library",
-        "@com_github_buildkite_go_buildkite_v2//buildkite:go_default_library",
+        "@com_github_buildkite_go_buildkite_v4//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
     ],
 )

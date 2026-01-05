@@ -85,12 +85,10 @@ func TestGateways(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			d := discovery.Topology{
 				Information: tc.info(t, ctrl),
@@ -197,12 +195,10 @@ func TestHiddenSegmentServices(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			d := discovery.Topology{Information: tc.info(t, ctrl)}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)

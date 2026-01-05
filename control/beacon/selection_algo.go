@@ -24,8 +24,8 @@ import (
 	"github.com/scionproto/scion/private/segment/segverifier"
 )
 
-type selectionAlgorithm interface {
-	// SelectBeacons selects the `n` best beacons from the provided slice of beacons.
+type SelectionAlgorithm interface {
+	// SelectBeacons selects the `resultSize` best beacons from the provided slice of beacons.
 	SelectBeacons(ctx context.Context, beacons []Beacon, resultSize int) []Beacon
 }
 
@@ -33,10 +33,16 @@ type selectionAlgorithm interface {
 // short paths, but also tries to achieve some path diversity.
 type baseAlgo struct{}
 
+// DefaultSelectionAlgorithm implements a very simple selection algorithm that
+// optimizes for short paths, but also tries to achieve minimal path diversity.
+func DefaultSelectionAlgorithm() SelectionAlgorithm {
+	return baseAlgo{}
+}
+
 // SelectBeacons implements a very simple selection algorithm. The best beacon
-// is the one with a shortest path. The slice contains the k-1 shortest
+// is the one with the shortest path. The slice contains the resultSize-1 shortest
 // beacons. The last beacon is either the most diverse beacon from the remaining
-// beacons, if the diversity exceeds what has already been served. Or the
+// beacons, if the diversity exceeds what has already been served, or the
 // shortest remaining beacon, otherwise.
 func (a baseAlgo) SelectBeacons(_ context.Context, beacons []Beacon, resultSize int) []Beacon {
 	if len(beacons) <= resultSize {
@@ -52,8 +58,7 @@ func (a baseAlgo) SelectBeacons(_ context.Context, beacons []Beacon, resultSize 
 	if diversityRest > diversity {
 		return append(result, mostDiverseRest)
 	}
-	// If the most diverse beacon was already served, serve shortest from the
-	// rest.
+	// If the most diverse beacon was already served, serve shortest from the rest.
 	return append(result, beacons[resultSize-1])
 }
 
@@ -81,15 +86,22 @@ func (baseAlgo) selectMostDiverse(beacons []Beacon, best Beacon) (Beacon, int) {
 type chainsAvailableAlgo struct {
 	verifier     chainChecker
 	logThrottled *cache.Cache
+	selector     SelectionAlgorithm
 }
 
-func newChainsAvailableAlgo(engine ChainProvider) chainsAvailableAlgo {
+// NewChainsAvailableAlgo creates a SelectionAlgorithm that filters beacons
+// based on the availability of their verification chains before passing them to
+// the provided selector. This can be paired with a chain provider that only
+// returns locally available chains to ensure that beacons are verifiable with
+// cryptographic material available in the local trust store.
+func NewChainsAvailableAlgo(engine ChainProvider, selector SelectionAlgorithm) SelectionAlgorithm {
 	return chainsAvailableAlgo{
 		verifier: chainChecker{
 			Engine: engine,
 			Cache:  cache.New(defaultCacheHitExpiration, defaultCacheHitExpiration),
 		},
 		logThrottled: cache.New(defaultCacheHitExpiration, defaultCacheHitExpiration),
+		selector:     selector,
 	}
 }
 
@@ -115,5 +127,5 @@ func (a chainsAvailableAlgo) SelectBeacons(
 			a.logThrottled.Set(id, struct{}{}, cache.DefaultExpiration)
 		}
 	}
-	return baseAlgo{}.SelectBeacons(ctx, withChain, resultSize)
+	return a.selector.SelectBeacons(ctx, withChain, resultSize)
 }

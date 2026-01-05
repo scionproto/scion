@@ -27,15 +27,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/scion-pki/key"
 )
 
 func TestNewCreateCmd(t *testing.T) {
-	dir, cleanup := xtest.MustTempDir("", "certificate-create-test")
-	defer cleanup()
+	dir := t.TempDir()
 
 	now := time.Now()
 
@@ -439,8 +437,7 @@ func TestNewCreateCmd(t *testing.T) {
 }
 
 func TestNewCreateCmdCSR(t *testing.T) {
-	dir, cleanup := xtest.MustTempDir("", "certificate-create-csr-test")
-	defer cleanup()
+	dir := t.TempDir()
 
 	testCases := map[string]struct {
 		Prepare      func(t *testing.T)

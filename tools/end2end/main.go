@@ -134,13 +134,21 @@ func (s server) run() {
 
 	sdConn := integration.SDConn()
 	defer sdConn.Close()
+
+	loadCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	topo, err := daemon.LoadTopology(loadCtx, sdConn)
+	if err != nil {
+		integration.LogFatal("Error loading topology", "err", err)
+	}
+
 	sn := &snet.SCIONNetwork{
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
 		PacketConnMetrics: scionPacketConnMetrics,
-		Topology:          sdConn,
+		Topology:          topo,
 	}
 	conn, err := sn.Listen(context.Background(), "udp", integration.Local.Host)
 	if err != nil {
@@ -233,13 +241,21 @@ func (c *client) run() int {
 	defer integration.Done(integration.Local.IA, remote.IA)
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
+
+	loadCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	topo, err := daemon.LoadTopology(loadCtx, c.sdConn)
+	if err != nil {
+		integration.LogFatal("Error loading topology", "err", err)
+	}
+
 	c.network = &snet.SCIONNetwork{
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
 		PacketConnMetrics: scionPacketConnMetrics,
-		Topology:          c.sdConn,
+		Topology:          topo,
 	}
 	log.Info("Send", "local",
 		fmt.Sprintf("%v,[%v] -> %v,[%v]",
@@ -284,7 +300,7 @@ func (c *client) attemptRequest(n int) bool {
 	if err := c.pong(ctx); err != nil {
 		logger.Error("Error receiving pong", "err", withTag(err))
 		if path != nil {
-			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
+			c.errorPaths[path.Metadata().Fingerprint()] = struct{}{}
 		}
 		return false
 	}
@@ -344,7 +360,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	// Select first path that didn't error before.
 	var path snet.Path
 	for _, p := range paths {
-		if _, ok := c.errorPaths[snet.Fingerprint(p)]; ok {
+		if _, ok := c.errorPaths[p.Metadata().Fingerprint()]; ok {
 			continue
 		}
 		path = p
@@ -414,7 +430,7 @@ func readFrom(conn *snet.Conn, pld []byte) (int, net.Addr, error) {
 	n, remoteAddr, err := conn.ReadFrom(pld)
 	// Attach more context to error
 	var opErr *snet.OpError
-	if !(errors.As(err, &opErr) && opErr.RevInfo() != nil) {
+	if !errors.As(err, &opErr) || opErr.RevInfo() == nil {
 		return n, remoteAddr, err
 	}
 	return n, remoteAddr, serrors.WrapNoStack("error", err,

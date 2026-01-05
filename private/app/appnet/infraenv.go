@@ -80,7 +80,7 @@ type NetworkConfig struct {
 
 // QUICStack contains everything to run a QUIC based RPC stack.
 type QUICStack struct {
-	Listener       *squic.ConnListener
+	Listener       *quic.Listener
 	InsecureDialer *squic.ConnDialer
 	Dialer         *squic.ConnDialer
 }
@@ -93,9 +93,8 @@ func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
 	})
 }
 
-func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
-
-	client, server, err := nc.initQUICSockets()
+func (nc *NetworkConfig) QUICStack(ctx context.Context) (*QUICStack, error) {
+	client, server, err := nc.initQUICSockets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +105,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		InsecureSkipVerify: true,
 		GetCertificate:     nc.QUIC.GetCertificate,
 		ClientAuth:         tls.RequestClientCert,
-		NextProtos:         []string{"SCION"},
+		NextProtos:         []string{"h3", "SCION"},
 	}
 
 	listener, err := quic.Listen(server, serverTLSConfig, nil)
@@ -130,7 +129,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	}
 
 	return &QUICStack{
-		Listener: squic.NewConnListener(listener),
+		Listener: listener,
 		InsecureDialer: &squic.ConnDialer{
 			Transport: clientTransport,
 			TLSConfig: insecureClientTLSConfig,
@@ -208,7 +207,9 @@ func (nc *NetworkConfig) AddressRewriter() *AddressRewriter {
 	}
 }
 
-func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {
+func (nc *NetworkConfig) initQUICSockets(
+	ctx context.Context,
+) (net.PacketConn, net.PacketConn, error) {
 	reply := &svc.Reply{
 		Transports: map[svc.Transport]string{
 			svc.QUIC: nc.Public.String(),
@@ -228,7 +229,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 		SCMPHandler:       ignoreSCMP{},
 		PacketConnMetrics: nc.SCIONPacketConnMetrics,
 	}
-	pconn, err := serverNet.OpenRaw(context.Background(), nc.Public)
+	pconn, err := serverNet.OpenRaw(ctx, nc.Public)
 	if err != nil {
 		return nil, nil, serrors.Wrap("creating server raw PacketConn", err)
 	}
@@ -262,7 +263,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 		IP:   nc.Public.IP,
 		Zone: nc.Public.Zone,
 	}
-	client, err := clientNet.Listen(context.Background(), "udp", clientAddr)
+	client, err := clientNet.Listen(ctx, "udp", clientAddr)
 	if err != nil {
 		return nil, nil, serrors.Wrap("creating client connection", err)
 	}

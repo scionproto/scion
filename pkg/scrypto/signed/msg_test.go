@@ -195,7 +195,6 @@ func TestSign(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			body := []byte("super securely signed message")
@@ -362,7 +361,7 @@ func TestVerify(t *testing.T) {
 				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				require.NoError(t, err)
 
-				hdrAndBody := &cryptopb.HeaderAndBodyInternal{
+				hdrAndBody := &cryptopb.HeaderAndBody{
 					Header: []byte("someweirdmalformedthingy"),
 					Body:   []byte("body"),
 				}
@@ -396,7 +395,6 @@ func TestVerify(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			signedMsg, associatedData, key := tc.Input(t)
@@ -462,7 +460,6 @@ func TestComputeSignatureInput(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			in, _ := signed.ComputeSignatureInput(tc.Algo, tc.HeaderAndBody, tc.AssociatedData...)

@@ -33,7 +33,6 @@ import (
 
 func TestGatewayWatcherRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	fetcherCounts := metrics.NewTestCounter()
 	discoveryCounts := metrics.NewTestCounter()
@@ -49,14 +48,14 @@ func TestGatewayWatcherRun(t *testing.T) {
 	fetcher.EXPECT().Close().AnyTimes().Return(nil)
 
 	discoverer.EXPECT().Gateways(gomock.Any()).DoAndReturn(
-		func(interface{}) ([]control.Gateway, error) {
+		func(any) ([]control.Gateway, error) {
 			discoveryCounts.Add(1)
 			return []control.Gateway{gateway1, gateway2}, nil
 		},
 	)
 
 	fetcher.EXPECT().Prefixes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-		func(_ interface{}, g *net.UDPAddr) ([]*net.IPNet, error) {
+		func(_ any, g *net.UDPAddr) ([]*net.IPNet, error) {
 			fetcherCounts.With("gateway", g.String()).Add(1)
 			return nil, serrors.New("error")
 		},
@@ -88,10 +87,7 @@ func TestGatewayWatcherRun(t *testing.T) {
 		assert.NoError(t, bg.Wait())
 	})
 
-	for {
-		if metrics.GaugeValue(remotes) > 0 {
-			break
-		}
+	for metrics.GaugeValue(remotes) <= 0 {
 		time.Sleep(10 * time.Millisecond)
 	}
 	cancel()
@@ -105,7 +101,7 @@ func TestGatewayWatcherRun(t *testing.T) {
 
 	// now let's reset and remove one gateway, this time we only return gateway1
 	discoverer.EXPECT().Gateways(gomock.Any()).DoAndReturn(
-		func(interface{}) ([]control.Gateway, error) {
+		func(any) ([]control.Gateway, error) {
 			discoveryCounts.Add(1)
 			return []control.Gateway{gateway1}, nil
 		},
@@ -124,7 +120,6 @@ func TestGatewayWatcherRun(t *testing.T) {
 
 func TestPrefixWatcherRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	fetcherCounts := metrics.NewTestCounter()
 	consumerCounts := metrics.NewTestCounter()
@@ -144,26 +139,26 @@ func TestPrefixWatcherRun(t *testing.T) {
 	// called with the up to date list.
 	first := []*net.IPNet{cidr(t, "127.0.0.0/24"), cidr(t, "127.0.1.0/24"), cidr(t, "::/64")}
 	fetcher.EXPECT().Prefixes(gomock.Any(), gateway.Control).DoAndReturn(
-		func(_, _ interface{}) ([]*net.IPNet, error) {
+		func(_, _ any) ([]*net.IPNet, error) {
 			fetcherCounts.Add(1)
 			return first, nil
 		},
 	)
 	consumer.EXPECT().Prefixes(gomock.Any(), gateway, first).Do(
-		func(_, _, _ interface{}) {
+		func(_, _, _ any) {
 			consumerCounts.Add(1)
 		},
 	)
 
 	afterwards := []*net.IPNet{cidr(t, "127.0.0.0/24"), cidr(t, "::/64")}
 	fetcher.EXPECT().Prefixes(gomock.Any(), gateway.Control).AnyTimes().DoAndReturn(
-		func(_, _ interface{}) ([]*net.IPNet, error) {
+		func(_, _ any) ([]*net.IPNet, error) {
 			fetcherCounts.Add(1)
 			return afterwards, nil
 		},
 	)
 	consumer.EXPECT().Prefixes(gomock.Any(), gateway, afterwards).AnyTimes().Do(
-		func(_, _, _ interface{}) {
+		func(_, _, _ any) {
 			consumerCounts.Add(1)
 		},
 	)
@@ -262,7 +257,6 @@ func TestComputeDiff(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -277,7 +271,6 @@ func udp(t *testing.T, addr string) *net.UDPAddr {
 	u, err := net.ResolveUDPAddr("udp", addr)
 	require.NoError(t, err)
 	return u
-
 }
 
 func cidr(t *testing.T, network string) *net.IPNet {

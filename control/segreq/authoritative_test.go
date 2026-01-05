@@ -120,7 +120,6 @@ func TestAuthoritativeClassify(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			p := AuthoritativeLookup{
 				LocalIA:     test.LocalIA,

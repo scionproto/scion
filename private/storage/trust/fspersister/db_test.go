@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/storage"
+	"github.com/scionproto/scion/private/storage/db"
 	"github.com/scionproto/scion/private/storage/trust/dbtest"
 	"github.com/scionproto/scion/private/storage/trust/fspersister"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
@@ -37,20 +38,21 @@ const (
 
 type DB struct {
 	storage.TrustDB
-	Dir     string
-	cleanup []func()
+	Dir string
 }
 
-func (db *DB) Prepare(t *testing.T, _ context.Context) {
-	dir, cleanupF := xtest.MustTempDir("", "tmp")
-	db.prepare(t, dir)
-	db.cleanup = append(db.cleanup, cleanupF)
+func (d *DB) Prepare(t *testing.T, _ context.Context) {
+	dir := t.TempDir()
+	d.prepare(t, dir)
 }
 
-func (db *DB) prepare(t *testing.T, dbDir string) {
-	sqliteDB, err := sqlite.New("file::memory:")
+func (d *DB) prepare(t *testing.T, dbDir string) {
+	sqliteDB, err := sqlite.New(
+		xtest.SanitizedName(t),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
-	*db = DB{
+	*d = DB{
 		TrustDB: fspersister.WrapDB(sqliteDB, fspersister.Config{
 			TRCDir: dbDir,
 		}),
@@ -61,9 +63,6 @@ func (db *DB) prepare(t *testing.T, dbDir string) {
 func TestDB(t *testing.T) {
 	testDB := &DB{}
 	dbtest.Run(t, testDB, dbtest.Config{})
-	for _, cleanup := range testDB.cleanup {
-		cleanup()
-	}
 }
 
 func TestInsertTRCWithFSPersistenceBadCfg(t *testing.T) {
@@ -147,10 +146,6 @@ func TestInsertTRCWithFSPersistence(t *testing.T) {
 		persistedTRC := xtest.LoadTRC(t, persistedTRCPath)
 		require.Equal(t, SignedTRC, persistedTRC)
 	})
-
-	for _, cleanup := range testDB.cleanup {
-		cleanup()
-	}
 }
 
 func getModTime(t *testing.T, file string) int64 {

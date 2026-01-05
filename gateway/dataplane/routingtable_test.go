@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -33,7 +33,7 @@ import (
 
 func TestRoutingTable(t *testing.T) {
 	rt := &dataplane.RoutingTable{}
-	_, ok := interface{}(rt).(control.RoutingTable)
+	_, ok := any(rt).(control.RoutingTable)
 	if ok != true {
 		assert.Fail(t, "should implement the client interface")
 	}
@@ -168,11 +168,9 @@ func TestRoutingTableRouteIPv4(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			for i, input := range tc.input {
-				i, input := i, input
 				t.Run(strconv.Itoa(i), func(t *testing.T) {
 					t.Parallel()
 					got := tc.rt().RouteIPv4(input)
@@ -237,7 +235,6 @@ func TestRoutingTableRouteIPv6(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := tc.rt().RouteIPv6(tc.input)
@@ -304,7 +301,7 @@ type testPktWriter struct {
 	ID int
 }
 
-func (_ testPktWriter) Write(gopacket.Packet) {}
+func (testPktWriter) Write(gopacket.Packet) {}
 func (w testPktWriter) String() string {
 	return fmt.Sprintf("%d", w.ID)
 }

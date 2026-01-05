@@ -1,5 +1,5 @@
+load("@scion_python_deps//:requirements.bzl", "requirement")
 load("//tools/lint:py.bzl", "py_binary", "py_library", "py_test")
-load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
 # Bug in bazel: HOME isn't set to TEST_TMPDIR.
 # Bug in docker-compose v2.21 a writable HOME is required (eventhough not used).
@@ -13,6 +13,7 @@ def raw_test(
         deps = [],
         data = [],
         tags = [],
+        imports = ["."],
         homedir = "",
         local = False):
     py_library(
@@ -33,6 +34,7 @@ def raw_test(
         args = ["setup"] + args,
         main = src,
         deps = [":%s_lib" % name],
+        imports = imports,
         data = data,
     )
 
@@ -42,6 +44,7 @@ def raw_test(
         args = ["run"] + args,
         main = src,
         deps = [":%s_lib" % name],
+        imports = imports,
         data = data,
     )
 
@@ -51,6 +54,7 @@ def raw_test(
         args = ["teardown"],
         main = src,
         deps = [":%s_lib" % name],
+        imports = imports,
         data = data,
     )
 
@@ -61,6 +65,7 @@ def raw_test(
         main = src,
         args = args,
         deps = [":%s_lib" % name],
+        imports = imports,
         data = data,
         tags = tags + ["integration", "exclusive"],
         local = local,

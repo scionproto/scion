@@ -59,41 +59,52 @@ func TestCSRTemplate(t *testing.T) {
 	testCases := map[string]struct {
 		File         string
 		CommonName   string
+		RequireIA    bool
 		Expected     pkix.RDNSequence
 		ErrAssertion assert.ErrorAssertionFunc
 	}{
 		"valid": {
 			File:         "testdata/renew/ISD1-ASff00_0_111.csr.json",
+			RequireIA:    true,
+			Expected:     wantSubject.ToRDNSequence(),
+			ErrAssertion: assert.NoError,
+		},
+		"valid - no ISD-AS": {
+			File:         "testdata/renew/ISD1-ASff00_0_111.csr.json",
+			RequireIA:    false,
 			Expected:     wantSubject.ToRDNSequence(),
 			ErrAssertion: assert.NoError,
 		},
 		"from chain": {
 			File:         "testdata/renew/ISD1-ASff00_0_111.pem",
+			RequireIA:    true,
 			Expected:     wantSubject.ToRDNSequence(),
 			ErrAssertion: assert.NoError,
 		},
 		"custom common name": {
 			File:         "testdata/renew/ISD1-ASff00_0_111.csr.json",
 			CommonName:   "custom",
+			RequireIA:    true,
 			Expected:     customSubject.ToRDNSequence(),
 			ErrAssertion: assert.NoError,
 		},
 		"custom common name from chain": {
 			File:         "testdata/renew/ISD1-ASff00_0_111.pem",
 			CommonName:   "custom",
+			RequireIA:    true,
 			Expected:     customSubject.ToRDNSequence(),
 			ErrAssertion: assert.NoError,
 		},
 		"no ISD-AS": {
 			File:         "testdata/renew/no_isd_as.json",
+			RequireIA:    true,
 			ErrAssertion: assert.Error,
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			subject, err := createSubject(tc.File, tc.CommonName)
+			subject, err := createSubject(tc.File, tc.CommonName, tc.RequireIA)
 			tc.ErrAssertion(t, err)
 			if err != nil {
 				return
@@ -249,7 +260,6 @@ func TestSelectLatestTRCs(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			_ = tc
 			t.Parallel()

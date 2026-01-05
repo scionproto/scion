@@ -36,7 +36,7 @@ var goCallFilter = []ast.Node{
 	(*ast.GoStmt)(nil),
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	inspect.Preorder(goCallFilter, func(n ast.Node) {
 		goStmt := n.(*ast.GoStmt)

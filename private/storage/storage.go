@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/config"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
@@ -109,9 +110,11 @@ var _ (config.Config) = (*DBConfig)(nil)
 
 // DBConfig is the configuration for the connection to a database.
 type DBConfig struct {
-	Connection   string `toml:"connection,omitempty"`
-	MaxOpenConns int    `toml:"max_open_conns,omitempty"`
-	MaxIdleConns int    `toml:"max_idle_conns,omitempty"`
+	config.NoDefaulter
+	Connection       string `toml:"connection,omitempty"`
+	MaxOpenReadConns int    `toml:"max_open_read_conns,omitempty"`
+	MaxIdleReadConns int    `toml:"max_idle_read_conns,omitempty"`
+	allowEmptyConn   bool
 }
 
 type writeDefault struct {
@@ -129,24 +132,16 @@ func (cfg *DBConfig) WithDefault(path string) config.Defaulter {
 	return writeDefault{DBConfig: cfg, defaultPath: path}
 }
 
-// SetConnLimits sets the maximum number of open and idle connections based on the configuration.
-// Limits of 0 mean the Go default will be used.
-func SetConnLimits(d db.LimitSetter, c DBConfig) {
-	if c.MaxOpenConns != 0 {
-		d.SetMaxOpenConns(c.MaxOpenConns)
-	}
-	if c.MaxIdleConns != 0 {
-		d.SetMaxIdleConns(c.MaxIdleConns)
-	}
-}
-
-func (cfg *DBConfig) InitDefaults() {
-	if cfg.Connection == "" {
-		cfg.Connection = DefaultPath
-	}
+func (cfg *DBConfig) WithAllowEmptyConn() *DBConfig {
+	c := *cfg
+	c.allowEmptyConn = true
+	return &c
 }
 
 func (cfg *DBConfig) Validate() error {
+	if cfg.Connection == "" && !cfg.allowEmptyConn {
+		return serrors.New("connection must be set")
+	}
 	return nil
 }
 
@@ -162,16 +157,24 @@ func (cfg *DBConfig) ConfigName() string {
 
 func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
 	log.Info("Connecting BeaconDB", "backend", BackendSqlite, "connection", c.Connection)
-	db, err := sqlitebeacondb.New(c.Connection, ia)
+	db, err := sqlitebeacondb.New(
+		c.Connection,
+		ia,
+		&db.SqliteConfig{
+			MaxOpenReadConns: c.MaxOpenReadConns,
+			MaxIdleReadConns: c.MaxIdleReadConns,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	SetConnLimits(db, c)
 
 	// Start a periodic task that cleans up the expired beacons.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	cleaner := periodic.Start(
 		cleaner.New(
 			func(ctx context.Context) (int, error) {
+				checkpoint(ctx, db.DB())
 				return db.DeleteExpiredBeacons(ctx, time.Now())
 			},
 			"control_beaconstorage_cleaner",
@@ -199,16 +202,22 @@ func (b beaconDBWithCleaner) Close() error {
 
 func NewPathStorage(c DBConfig) (PathDB, error) {
 	log.Info("Connecting PathDB", "backend", BackendSqlite, "connection", c.Connection)
-	db, err := sqlitepathdb.New(c.Connection)
+	db, err := sqlitepathdb.New(c.Connection,
+		&db.SqliteConfig{
+			MaxOpenReadConns: c.MaxOpenReadConns,
+			MaxIdleReadConns: c.MaxIdleReadConns,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	SetConnLimits(db, c)
 
 	// Start a periodic task that cleans up the expired path segments.
+	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	cleaner := periodic.Start(
 		cleaner.New(
 			func(ctx context.Context) (int, error) {
+				checkpoint(ctx, db.DB())
 				return db.DeleteExpired(ctx, time.Now())
 			},
 			"control_pathstorage_cleaner",
@@ -242,40 +251,94 @@ func NewRevocationStorage() revcache.RevCache {
 
 func NewTrustStorage(c DBConfig) (TrustDB, error) {
 	log.Info("Connecting TrustDB", "backend", BackendSqlite, "connection", c.Connection)
-	db, err := sqlitetrustdb.New(c.Connection)
+	db, err := sqlitetrustdb.New(
+		c.Connection,
+		&db.SqliteConfig{
+			MaxOpenReadConns: c.MaxOpenReadConns,
+			MaxIdleReadConns: c.MaxIdleReadConns,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	SetConnLimits(db, c)
 	return db, nil
 }
 
 func NewDRKeySecretValueStorage(c DBConfig) (drkey.SecretValueDB, error) {
 	log.Info("Connecting DRKeySecretValueDB", "	", BackendSqlite, "connection", c.Connection)
-	db, err := sqlitesecret.NewBackend(c.Connection)
+	db, err := sqlitesecret.NewBackend(
+		c.Connection,
+		&db.SqliteConfig{
+			MaxOpenReadConns: c.MaxOpenReadConns,
+			MaxIdleReadConns: c.MaxIdleReadConns,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	SetConnLimits(db, c)
 	return db, nil
 }
 
 func NewDRKeyLevel1Storage(c DBConfig) (drkey.Level1DB, error) {
 	log.Info("Connecting DRKeyLevel1DB", "	", BackendSqlite, "connection", c.Connection)
-	db, err := sqlitelevel1.NewBackend(c.Connection)
+	db, err := sqlitelevel1.NewBackend(
+		c.Connection,
+		&db.SqliteConfig{
+			MaxOpenReadConns: c.MaxOpenReadConns,
+			MaxIdleReadConns: c.MaxIdleReadConns,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	SetConnLimits(db, c)
 	return db, nil
 }
 
 func NewDRKeyLevel2Storage(c DBConfig) (drkey.Level2DB, error) {
 	log.Info("Connecting DRKeyDB", "	", BackendSqlite, "connection", c.Connection)
-	db, err := sqlitelevel2.NewBackend(c.Connection)
+	db, err := sqlitelevel2.NewBackend(
+		c.Connection,
+		&db.SqliteConfig{
+			MaxOpenReadConns: c.MaxOpenReadConns,
+			MaxIdleReadConns: c.MaxIdleReadConns,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	SetConnLimits(db, c)
 	return db, nil
+}
+
+func checkpoint(ctx context.Context, db *db.Sqlite) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	stats, err := db.Checkpoint(ctx)
+	if err != nil {
+		log.FromCtx(ctx).Error("Failed to checkpoint", "err", err)
+		return
+	}
+	if stats.Busy > 0 {
+		log.FromCtx(ctx).Info("Checkpointed with busy readers",
+			"stats.busy", stats.Busy,
+			"stats.log_frames", stats.LogFrames,
+			"stats.checkpointed", stats.Checkpointed,
+		)
+		return
+	}
+	log.FromCtx(ctx).Debug("Checkpointed",
+		"stats.busy", stats.Busy,
+		"stats.log_frames", stats.LogFrames,
+		"stats.checkpointed", stats.Checkpointed,
+	)
+
+	// Panic if the number of frames in the WAL is above 1,000,000 frames (~4 GB for 4 KB pages).
+	// Checkpoint should happen at 1,000 frames (4 MB for 4 KB pages).
+	if stats.LogFrames > 1_000_000 && stats.Checkpointed != stats.LogFrames {
+		panic(
+			fmt.Sprintf(
+				"An unreasonable amount of frames is present in the WAL: %d",
+				stats.LogFrames,
+			),
+		)
+	}
 }

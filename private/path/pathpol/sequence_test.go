@@ -307,7 +307,6 @@ func TestSequenceEval(t *testing.T) {
 		},
 	}
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {

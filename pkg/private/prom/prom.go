@@ -105,7 +105,7 @@ func ExportElementID(id string) {
 
 // SafeRegister registers c and returns the registered collector. If c was
 // already registered the already registered collector is returned. In case of
-// any other error this method panicks (as MustRegister).
+// any other error this method panics (as MustRegister).
 func SafeRegister(c prometheus.Collector) prometheus.Collector {
 	if err := prometheus.Register(c); err != nil {
 		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {

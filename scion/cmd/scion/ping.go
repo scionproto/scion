@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -90,7 +90,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		format      string
 	}
 
-	var cmd = &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "ping [flags] <remote>",
 		Short: "Test connectivity to a remote SCION host using SCMP echo packets",
 		Example: fmt.Sprintf(`  %[1]s ping 1-ff00:0:110,10.0.0.1
@@ -140,7 +140,7 @@ On other errors, ping will exit with code 2.
 
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
-			span.SetTag("dst.host", remote.Host.IP)
+			span.SetTag("dst.host", remote.Host.IP())
 			defer span.Finish()
 
 			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
@@ -151,11 +151,12 @@ On other errors, ping will exit with code 2.
 			}
 			defer sd.Close()
 
-			info, err := app.QueryASInfo(traceCtx, sd)
+			topo, err := daemon.LoadTopology(ctx, sd)
 			if err != nil {
-				return err
+				return serrors.Wrap("loading topology", err)
 			}
-			span.SetTag("src.isd_as", info.IA)
+
+			span.SetTag("src.isd_as", topo.LocalIA)
 
 			opts := []path.Option{
 				path.WithInteractive(flags.interactive),
@@ -166,7 +167,7 @@ On other errors, ping will exit with code 2.
 			}
 			if flags.healthyOnly {
 				opts = append(opts, path.WithProbing(&path.ProbeConfig{
-					LocalIA: info.IA,
+					LocalIA: topo.LocalIA,
 					LocalIP: localIP,
 				}))
 			}
@@ -201,7 +202,6 @@ On other errors, ping will exit with code 2.
 				}
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.Wrap("resolving local address", err)
-
 				}
 				printf("Resolved local address:\n  %s\n", localIP)
 			}
@@ -209,10 +209,10 @@ On other errors, ping will exit with code 2.
 			span.SetTag("src.host", localIP)
 			asNetipAddr, ok := netip.AddrFromSlice(localIP)
 			if !ok {
-				panic("Invalid Local IP address")
+				panic("invalid local IP address: " + localIP.String())
 			}
 			local := addr.Addr{
-				IA:   info.IA,
+				IA:   topo.LocalIA,
 				Host: addr.HostIP(asNetipAddr),
 			}
 			pldSize := int(flags.size)
@@ -256,7 +256,7 @@ On other errors, ping will exit with code 2.
 			res := Result{
 				ScionPacketSize: pktSize,
 				Path: Path{
-					Fingerprint: snet.Fingerprint(path).String(),
+					Fingerprint: path.Metadata().Fingerprint().String(),
 					Hops:        getHops(path),
 					Sequence:    seq,
 					LocalIP:     localIP,
@@ -266,7 +266,7 @@ On other errors, ping will exit with code 2.
 			}
 
 			stats, err := ping.Run(ctx, ping.Config{
-				Topology:    sd,
+				Topology:    topo,
 				Attempts:    count,
 				Interval:    flags.interval,
 				Timeout:     flags.timeout,
@@ -296,7 +296,7 @@ On other errors, ping will exit with code 2.
 						State:    update.State.String(),
 					})
 					printf("%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
-						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
+						update.Size, update.Source.IA, update.Source.Host.IP(), update.Sequence,
 						durationMillis(update.RTT), additional)
 				},
 			})
@@ -308,7 +308,7 @@ On other errors, ping will exit with code 2.
 			switch flags.format {
 			case "human":
 				s := res.Statistics.Stats
-				printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
+				printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP())
 				printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
 					s.Sent, s.Received, res.Statistics.Loss,
 					res.Statistics.Time,

@@ -36,7 +36,7 @@ import (
 //
 // This flag should be checked by golden file tests to see whether the golden
 // files should be updated or not. The golden files should be deterministic.
-// Use UpdateNonDeterminsticGoldenFiles instead, if they are not deterministic.
+// Use UpdateNonDeterministicGoldenFiles instead, if they are not deterministic.
 //
 // To update all golden files, run the following command:
 //
@@ -53,7 +53,7 @@ func UpdateGoldenFiles() *bool {
 	return flag.Bool("update", false, "set to regenerate the golden files")
 }
 
-// UpdateNonDeterminsticGoldenFiles registers the '-update-non-deterministic'
+// UpdateNonDeterministicGoldenFiles registers the '-update-non-deterministic'
 // flag for the test.
 //
 // This flag should be checked by golden file tests to see whether the
@@ -69,8 +69,8 @@ func UpdateGoldenFiles() *bool {
 //
 // The flag should be registered as a package global variable:
 //
-//	var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
-func UpdateNonDeterminsticGoldenFiles() *bool {
+//	var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
+func UpdateNonDeterministicGoldenFiles() *bool {
 	return flag.Bool("update-non-deterministic", false,
 		"set to regenerate the non-deterministic golden files",
 	)
@@ -108,20 +108,6 @@ func MustTempFileName(dir, prefix string) string {
 	return name
 }
 
-// MustTempDir creates a new temporary directory under dir with the specified
-// prefix. If the function encounters an error it panics. The second return
-// value is a clean-up function that can be called to recursively delete the
-// entire directory.
-func MustTempDir(dir, prefix string) (string, func()) {
-	name, err := os.MkdirTemp(dir, prefix)
-	if err != nil {
-		panic(err)
-	}
-	return name, func() {
-		os.RemoveAll(name)
-	}
-}
-
 // SanitizedName sanitizes the test name such that it can be used as a file name.
 func SanitizedName(t testing.TB) string {
 	return strings.NewReplacer(" ", "_", "/", "_", "\\", "_", ":", "_").Replace(t.Name())
@@ -139,7 +125,7 @@ func CopyFile(t testing.TB, src, dst string) {
 // MustMarshalJSONToFile marshals v and writes the result to file
 // testdata/baseName. If the file exists, it is truncated; if it doesn't exist,
 // it is created. On errors, t.Fatal() is called.
-func MustMarshalJSONToFile(t testing.TB, v interface{}, baseName string) {
+func MustMarshalJSONToFile(t testing.TB, v any, baseName string) {
 	t.Helper()
 
 	enc, err := json.MarshalIndent(v, "", "    ")

@@ -1,4 +1,5 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -21,16 +22,15 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "db_test.go",
-        "export_test.go",
-    ],
-    embed = [":go_default_library"],
+    srcs = ["db_test.go"],
     deps = [
+        ":go_default_library",
         "//control/beacon:go_default_library",
         "//control/beacon/beacondbtest:go_default_library",
         "//pkg/addr:go_default_library",
+        "//pkg/private/xtest:go_default_library",
         "//private/storage/beacon/dbtest:go_default_library",
+        "//private/storage/db:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],

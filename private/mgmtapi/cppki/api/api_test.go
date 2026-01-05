@@ -336,11 +336,9 @@ func TestAPI(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			req, err := http.NewRequest("GET", tc.RequestURL, nil)
 			require.NoError(t, err)
@@ -354,7 +352,7 @@ func TestAPI(t *testing.T) {
 				return
 			}
 			if *update {
-				require.NoError(t, os.WriteFile(tc.ResponseFile, rr.Body.Bytes(), 0666))
+				require.NoError(t, os.WriteFile(tc.ResponseFile, rr.Body.Bytes(), 0o666))
 			}
 			golden, err := os.ReadFile(tc.ResponseFile)
 			require.NoError(t, err)

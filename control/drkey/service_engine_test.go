@@ -1,4 +1,5 @@
 // Copyright 2022 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/private/storage/db"
 	level1_sql "github.com/scionproto/scion/private/storage/drkey/level1/sqlite"
 	secret_sql "github.com/scionproto/scion/private/storage/drkey/secret/sqlite"
 )
@@ -89,7 +91,7 @@ func TestDeriveLevel1Key(t *testing.T) {
 		Validity: time.Now(),
 	}
 
-	key, err := store.DeriveLevel1(meta)
+	key, err := store.DeriveLevel1(context.Background(), meta)
 	assert.NoError(t, err)
 	assert.Equal(t, meta.DstIA, key.DstIA)
 	assert.Equal(t, meta.ProtoId, key.ProtoId)
@@ -104,7 +106,6 @@ func TestDeriveHostAS(t *testing.T) {
 	defer lvl1db.Close()
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	fetcher := mock_drkey.NewMockFetcher(mctrl)
 	fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -136,7 +137,7 @@ func TestDeriveHostAS(t *testing.T) {
 		PrefetchKeeper: cache,
 	}
 
-	var tests = []drkey.Protocol{
+	tests := []drkey.Protocol{
 		drkey.SCMP,
 		drkey.Protocol(7),
 	}
@@ -182,7 +183,6 @@ func TestGetLevel1Key(t *testing.T) {
 	copy(secondLevel1Key.Key[:], k)
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	fetcher := mock_drkey.NewMockFetcher(mctrl)
 	gomock.InOrder(
@@ -233,7 +233,7 @@ func TestGetLevel1Key(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, secondLevel1Key, rcvKey3)
-	//Simulate a call coming from the prefetcher, it must not update cache
+	// Simulate a call coming from the prefetcher, it must not update cache
 	pref_ctx := context.WithValue(context.Background(), cs_drkey.FromPrefetcher(), true)
 	rcvKey4, err := store.GetLevel1Key(pref_ctx, drkey.Level1Meta{
 		ProtoId:  firstLevel1Key.ProtoId,
@@ -260,18 +260,23 @@ func TestGetLevel1Key(t *testing.T) {
 	}
 	_, err = store.GetLevel1Key(context.Background(), locallvl1Meta)
 	assert.NoError(t, err)
-
 }
 
 func newLevel1Database(t *testing.T) *level1_sql.Backend {
-	db, err := level1_sql.NewBackend("file::memory:")
+	db, err := level1_sql.NewBackend(
+		xtest.SanitizedName(t)+"_level1",
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 
 	return db
 }
 
 func newSVDatabase(t *testing.T) *secret_sql.Backend {
-	db, err := secret_sql.NewBackend("file::memory:")
+	db, err := secret_sql.NewBackend(
+		xtest.SanitizedName(t)+"_secret",
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 
 	return db

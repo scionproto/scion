@@ -181,7 +181,7 @@ func (fb *frameBuf) String() string {
 }
 
 func initFreeFrames() {
-	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
+	freeFrames = ringbuf.New(freeFramesCap, func() any {
 		return newFrameBuf()
 	}, "ingress_free")
 }

@@ -45,7 +45,6 @@ var (
 
 func TestBadPeering(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	// Test that paths are not constructed across peering links where the IFIDs
 	// on both ends do not match.
 	g := graph.NewDefaultGraph(ctrl)
@@ -98,7 +97,6 @@ func TestBadPeering(t *testing.T) {
 
 func TestMiscPeering(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 	// Add a core-core peering link. It can be used in some cases.
 	g.AddLink("1-ff00:0:130", 4001, "2-ff00:0:210", 4002, true)
@@ -165,7 +163,6 @@ func TestMiscPeering(t *testing.T) {
 
 func TestSameCoreParent(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 
 	testCases := []struct {
@@ -206,9 +203,155 @@ func TestSameCoreParent(t *testing.T) {
 	}
 }
 
+func TestCalculateMTU(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	g := graph.NewDefaultGraph(ctrl)
+	// Remove one peer link between 211 and 111 s.t. we only get one path per test case.
+	g.RemoveLink(graph.If_211_A_111_B)
+
+	resetMTUs := func(segment *seg.PathSegment) {
+		for i := range segment.ASEntries {
+			segment.ASEntries[i].MTU = 1000
+			if i != 0 {
+				segment.ASEntries[i].HopEntry.IngressMTU = 1000
+			}
+			for j := range segment.ASEntries[i].PeerEntries {
+				segment.ASEntries[i].PeerEntries[j].PeerMTU = 1000
+			}
+		}
+	}
+
+	// Create two segments that have MTU 1000 on all hops and links.
+	// The segments form the following topology:
+	//
+	//   ┌───┐     ┌───┐
+	//   │130|     │210|
+	//   └─┬─┘     └─┬─┘
+	//     │         │
+	//   ┌─▼─┐     ┌─▼─┐
+	//   │111|─ ─ ─┤211|
+	//   └─┬─┘     └─┬─┘
+	//     │         │
+	//   ┌─▼─┐     ┌─▼─┐
+	//   │112|     │212|
+	//   └───┘     └───┘
+	//
+	// 130 and 210 are core ASes. The up segment is from 130 to 112.
+	// The down segment is from 210 to 212.
+	testSegments := func() (*seg.PathSegment, *seg.PathSegment) {
+		upSegment := g.Beacon([]uint16{graph.If_130_B_111_A, graph.If_111_A_112_X})
+		resetMTUs(upSegment)
+		downSegment := g.Beacon([]uint16{graph.If_210_X_211_A, graph.If_211_A_212_X})
+		resetMTUs(downSegment)
+		return upSegment, downSegment
+	}
+
+	testCases := map[string]struct {
+		Segments    func() (*seg.PathSegment, *seg.PathSegment)
+		Src         addr.IA
+		Dst         addr.IA
+		expectedMTU uint16
+	}{
+		// Check that a shortcut path only uses the mtu of the traversed ASes and links.
+		"shortcut path as mtu": {
+			Segments: func() (*seg.PathSegment, *seg.PathSegment) {
+				up, _ := testSegments()
+				up.ASEntries[2].MTU = 1005
+				up.ASEntries[2].HopEntry.IngressMTU = 1005
+				// The path MTU is determined by the final hop's (112) AS MTU.
+				up.ASEntries[1].MTU = 1002
+				return up, nil
+			},
+			Src:         addr.MustParseIA("1-ff00:0:112"),
+			Dst:         addr.MustParseIA("1-ff00:0:111"),
+			expectedMTU: 1002,
+		},
+		"shortcut path ingress mtu": {
+			Segments: func() (*seg.PathSegment, *seg.PathSegment) {
+				up, _ := testSegments()
+				up.ASEntries[2].MTU = 1005
+				// The path MTU is determined by the MTU of the link between 111 and 112.
+				up.ASEntries[2].HopEntry.IngressMTU = 1002
+				up.ASEntries[1].MTU = 1005
+				return up, nil
+			},
+			Src:         addr.MustParseIA("1-ff00:0:112"),
+			Dst:         addr.MustParseIA("1-ff00:0:111"),
+			expectedMTU: 1002,
+		},
+		"full up segment": {
+			Segments: func() (*seg.PathSegment, *seg.PathSegment) {
+				up, _ := testSegments()
+				up.ASEntries[2].MTU = 1005
+				up.ASEntries[2].HopEntry.IngressMTU = 1004
+				up.ASEntries[1].MTU = 1003
+				up.ASEntries[1].HopEntry.IngressMTU = 1002
+				// The path MTU is determined by the final hop's (130) AS MTU.
+				up.ASEntries[0].MTU = 1001
+				return up, nil
+			},
+			Src:         addr.MustParseIA("1-ff00:0:112"),
+			Dst:         addr.MustParseIA("1-ff00:0:130"),
+			expectedMTU: 1001,
+		},
+		"peer mtu": {
+			Segments: func() (*seg.PathSegment, *seg.PathSegment) {
+				up, down := testSegments()
+				up.ASEntries[2].MTU = 1005
+				up.ASEntries[2].HopEntry.IngressMTU = 1005
+				up.ASEntries[1].MTU = 1005
+				down.ASEntries[1].MTU = 1005
+				// Path MTU is determined by the peer entry mtus.
+				up.ASEntries[1].PeerEntries[1].PeerMTU = 1002
+				down.ASEntries[1].PeerEntries[1].PeerMTU = 1001
+				down.ASEntries[2].MTU = 1005
+				down.ASEntries[2].HopEntry.IngressMTU = 1005
+				return up, down
+			},
+			Src:         addr.MustParseIA("1-ff00:0:112"),
+			Dst:         addr.MustParseIA("2-ff00:0:212"),
+			expectedMTU: 1001,
+		},
+		"peer mtu down segment": {
+			Segments: func() (*seg.PathSegment, *seg.PathSegment) {
+				up, down := testSegments()
+				up.ASEntries[2].MTU = 1005
+				up.ASEntries[2].HopEntry.IngressMTU = 1005
+				up.ASEntries[1].MTU = 1005
+				up.ASEntries[1].PeerEntries[1].PeerMTU = 1005
+				down.ASEntries[1].PeerEntries[1].PeerMTU = 1005
+				down.ASEntries[1].MTU = 1005
+				down.ASEntries[2].HopEntry.IngressMTU = 1005
+				// The path MTU is determined by the final hop's (212) AS MTU.
+				down.ASEntries[2].MTU = 1002
+				return up, down
+			},
+			Src:         addr.MustParseIA("1-ff00:0:112"),
+			Dst:         addr.MustParseIA("2-ff00:0:212"),
+			expectedMTU: 1002,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			up, down := tc.Segments()
+			upSegments := []*seg.PathSegment{}
+			if up != nil {
+				upSegments = []*seg.PathSegment{up}
+			}
+			downSegments := []*seg.PathSegment{}
+			if down != nil {
+				downSegments = []*seg.PathSegment{down}
+			}
+			result := combinator.Combine(tc.Src, tc.Dst, upSegments, nil, downSegments, false)
+			assert.Len(t, result, 1)
+			assert.Equal(t, int(tc.expectedMTU), int(result[0].Metadata.MTU))
+		})
+	}
+}
+
 func TestLoops(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 	testCases := []struct {
 		Name     string
@@ -259,7 +402,6 @@ func TestLoops(t *testing.T) {
 
 func TestComputePath(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 
 	testCases := []struct {

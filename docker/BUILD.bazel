@@ -1,23 +1,22 @@
-load("@rules_debian_packages//debian_packages:defs.bzl", "debian_packages_lockfile")
+load(":labels.bzl", "scion_labels")
 load(":scion_app.bzl", "scion_app_base", "scion_app_image")
 load(":tester.bzl", "scion_tester_image")
-load(":labels.bzl", "scion_labels")
 
 filegroup(
     name = "prod",
     srcs = [
-        ":control.tar",
-        ":daemon.tar",
-        ":dispatcher.tar",
-        ":gateway.tar",
-        ":router.tar",
+        ":control.tarball",
+        ":daemon.tarball",
+        ":dispatcher.tarball",
+        ":gateway.tarball",
+        ":router.tarball",
     ],
 )
 
 filegroup(
     name = "test",
     srcs = [
-        ":tester.tar",
+        ":tester.tarball",
     ],
 )
 
@@ -75,22 +74,6 @@ scion_app_image(
         "/etc/scion/sig.toml",
     ],
     entrypoint = ["/app/gateway"],
-)
-
-### Tester image with more tools for scripting in integration tests
-# This is a debian image with additional packages installed. The
-# packages are added to the image as layers created with
-# rules_debian_packages.
-#
-# Generate lockfile with:
-# bazel run //docker:tester_debian_packages.generate
-# Update snapshots with:
-# bazel run //docker:tester_debian_packages.update
-debian_packages_lockfile(
-    name = "tester_debian10_packages",
-    lock_file = "tester_packages.lock",
-    packages_file = "tester_packages.yaml",
-    snapshots_file = "tester_snapshots.yaml",
 )
 
 scion_tester_image()

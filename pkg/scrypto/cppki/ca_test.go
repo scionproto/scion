@@ -116,7 +116,6 @@ func TestCAPolicyCreateChain(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		// This test must not be run in parallel because we modify the CA
 		// certificate struct.
 		t.Run(name, func(t *testing.T) {

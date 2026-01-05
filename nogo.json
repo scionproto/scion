@@ -43,7 +43,6 @@
         },
         "exclude_files": {
             "gazelle/cmd/gazelle/diff.go": "",
-            "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
             "/com_github_mattn_go_sqlite3": "",
             "/com_github_cloudflare_sidh": "",
             "/com_github_vishvananda_netlink": "",
@@ -157,19 +156,16 @@
     },
     "maincheck": {
         "exclude_files": {
-            "/com_github_deepmap_oapi_codegen_v2/": "",
+            "/com_github_oapi_codegen_oapi_codegen_v2/": "",
             "/com_github_golang_mock/mockgen": "",
             "/org_golang_x_tools": "",
             "gazelle/language/go/gen_std_package_list": "",
             "gazelle/language/proto/gen/gen_known_imports": "",
-            "gazelle/cmd/gazelle/gazelle": "",
-            "/com_github_bazelbuild_buildtools": "",
-            "/com_github_oncilla_ineffassign/": ""
+            "gazelle/cmd/gazelle/gazelle": ""
         }
     },
     "reflectvaluecompare": {
         "exclude_files": {
-            "in_gopkg_yaml_v2": "",
             "com_github_smartystreets_assertions": "",
             "/com_github_smarty_assertions": ""
         }
@@ -183,8 +179,6 @@
             "org_golang_x_tools": "",
             "org_golang_google_protobuf": "",
             "org_golang_google_grpc": "",
-            "in_gopkg_yaml_v2/": "",
-            "in_gopkg_yaml_v3": "",
             "in_gopkg_ini_v1": "",
             "com_github_google_go_cmp/cmp": "",
             "com_github_google_gopacket": "",
@@ -218,7 +212,7 @@
             "org_golang_x_mod": "",
             "org_golang_x_crypto/ed25519/internal/edwards25519": "",
             "com_github_vishvananda_netlink/nl": "",
-            "com_github_deepmap_oapi_codegen_v2/pkg/codegen": "",
+            "com_github_oapi_codegen_oapi_codegen_v2/pkg/codegen": "",
             "com_github_quic_go_quic_go": "",
             "com_github_bazelbuild_buildtools": "",
             "/bazel_gazelle/": ""

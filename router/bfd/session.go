@@ -16,15 +16,19 @@ package bfd
 
 import (
 	"context"
+	"crypto/rand"
+	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"sync"
 	"time"
 
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket/layers"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/router/control"
 )
 
 const (
@@ -39,10 +43,8 @@ const (
 	defaultDetectionTimeout = time.Minute
 )
 
-var (
-	// AlreadyRunning is the error returned by session run function when called for twice.
-	AlreadyRunning = serrors.New("is running")
-)
+// ErrAlreadyRunning is the error returned by session run function when called repeatedly.
+var ErrAlreadyRunning = errors.New("is running")
 
 // Session describes a BFD Version 1 (RFC 5880) Session. Only Asynchronous mode is supported.
 //
@@ -161,6 +163,32 @@ type Session struct {
 	testLogger log.Logger
 }
 
+// NewSession returns a new BFD session, configured as specified and updating the
+// given metrics. BFD packets are transmitted via the given Sender. Up to 10 incoming BFD packets
+// per session can be queued waiting for processing; excess traffic will be blocked.
+// A random discriminator is generated automatically. This can be used by the recipient to route
+// packets to the correct session.
+//
+// TODO(jiceatscion): blocking incoming traffic (*all of it*) when the BFD queue is full is
+// probably the wrong thing to do, but this is what we have been doing so far.
+func NewSession(s Sender, cfg control.BFD, metrics Metrics) (*Session, error) {
+	// Generate random discriminator. It can't be zero.
+	discInt, err := rand.Int(rand.Reader, big.NewInt(0xfffffffe))
+	if err != nil {
+		return nil, err
+	}
+	disc := layers.BFDDiscriminator(uint32(discInt.Uint64()) + 1)
+	return &Session{
+		Sender:                s,
+		DetectMult:            layers.BFDDetectMultiplier(cfg.DetectMult),
+		DesiredMinTxInterval:  cfg.DesiredMinTxInterval,
+		RequiredMinRxInterval: cfg.RequiredMinRxInterval,
+		LocalDiscriminator:    disc,
+		ReceiveQueueSize:      10,
+		Metrics:               metrics,
+	}, nil
+}
+
 func (s *Session) String() string {
 	return fmt.Sprintf("local_disc %v, remote_disc %v, sender %v",
 		s.LocalDiscriminator, s.getRemoteDiscriminator(), s.Sender)
@@ -195,7 +223,6 @@ func (s *Session) Run(ctx context.Context) error {
 
 	s.desiredMinTXInterval = defaultTransmissionInterval
 	sendTimer := time.NewTimer(s.desiredMinTXInterval)
-
 	pkt := &layers.BFD{}
 MainLoop:
 	for {
@@ -223,7 +250,6 @@ MainLoop:
 			if s.Metrics.PacketsReceived != nil {
 				s.Metrics.PacketsReceived.Add(1)
 			}
-
 			s.remoteState = state(msg.State)
 			s.remoteMinRxInterval = bfdIntervalToDuration(msg.RequiredMinRxInterval)
 			if s.getRemoteDiscriminator() == 0 {
@@ -301,7 +327,7 @@ func (s *Session) runOnceCheck() error {
 	s.runMarkerLock.Lock()
 	defer s.runMarkerLock.Unlock()
 	if s.runMarker {
-		return AlreadyRunning
+		return ErrAlreadyRunning
 	}
 	s.runMarker = true
 	return nil
@@ -395,6 +421,7 @@ func (s *Session) ReceiveMessage(msg *layers.BFD) {
 		return
 	}
 
+	// The packet will be returning to the pool. We do not keep a reference to any part of it.
 	s.messages <- bfdMessage{
 		State:                 msg.State,
 		DetectMultiplier:      msg.DetectMultiplier,
@@ -507,15 +534,15 @@ func shouldDiscard(pkt *layers.BFD) (bool, string) {
 	if pkt.MyDiscriminator == 0 {
 		return true, ""
 	}
-	if pkt.YourDiscriminator == 0 {
-		if !((pkt.State == layers.BFDStateAdminDown) || (pkt.State == layers.BFDStateDown)) {
-			return true, ""
-		}
+	if pkt.YourDiscriminator == 0 &&
+		pkt.State != layers.BFDStateAdminDown &&
+		pkt.State != layers.BFDStateDown {
+		return true, ""
 	}
-	if !pkt.AuthPresent {
-		if pkt.AuthHeader != nil && pkt.AuthHeader.AuthType != layers.BFDAuthTypeNone {
-			return true, ""
-		}
+	if !pkt.AuthPresent &&
+		pkt.AuthHeader != nil &&
+		pkt.AuthHeader.AuthType != layers.BFDAuthTypeNone {
+		return true, ""
 	}
 
 	// Authentication is not supported (see Anapaya/scion#3280). We currently discard

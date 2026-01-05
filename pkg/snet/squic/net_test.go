@@ -19,6 +19,7 @@ package squic_test
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net"
 	"os"
 	"sync"
@@ -31,6 +32,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	mock_cp "github.com/scionproto/scion/pkg/proto/control_plane/mock_control_plane"
@@ -43,7 +45,6 @@ func TestAcceptLoopParallelism(t *testing.T) {
 	}
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	handler := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 	handler.EXPECT().TRC( // nolint - name from published protobuf
@@ -77,8 +78,9 @@ func TestAcceptLoopParallelism(t *testing.T) {
 				defer cancel()
 
 				dialer := connDialer(t)
+				//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 				conn, err := grpc.DialContext(ctx, "server",
-					grpc.WithInsecure(),
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
 					grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 						return dialer.Dial(ctx, srvConn.LocalAddr())
 					}),
@@ -111,7 +113,6 @@ func TestAcceptLoopParallelism(t *testing.T) {
 
 func TestGRPCQUIC(t *testing.T) {
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 
 	handler := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 	handler.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(
@@ -130,8 +131,9 @@ func TestGRPCQUIC(t *testing.T) {
 	}()
 
 	dialer := connDialer(t)
+	//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 	conn, err := grpc.DialContext(context.Background(), "server",
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 			return dialer.Dial(ctx, srvConn.LocalAddr())
 		}),
@@ -205,11 +207,40 @@ func TestEstablishConnection(t *testing.T) {
 	})
 }
 
+type DelegatingListener struct {
+	quic  *quic.Listener
+	conns chan<- *quic.Conn
+	squic *squic.ConnListener
+}
+
+func (d *DelegatingListener) Accept() (net.Conn, error) {
+	conn, err := d.quic.Accept(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	d.conns <- conn
+	return d.squic.Accept()
+}
+
+func (d *DelegatingListener) Close() error {
+	return errors.Join(d.quic.Close(), d.squic.Close())
+}
+
+func (d *DelegatingListener) Addr() net.Addr {
+	return d.squic.Addr()
+}
+
 func netListener(t *testing.T) (net.Listener, *net.UDPConn) {
 	srvConn := newConn(t)
 	listener, err := quic.Listen(srvConn, tlsConfig(t), nil)
 	require.NoError(t, err)
-	return squic.NewConnListener(listener), srvConn
+
+	c := make(chan *quic.Conn, 1)
+	return &DelegatingListener{
+		quic:  listener,
+		conns: c,
+		squic: squic.NewConnListener(c, listener.Addr()),
+	}, srvConn
 }
 
 func connDialer(t *testing.T) *squic.ConnDialer {

@@ -24,7 +24,9 @@ import (
 
 	cs "github.com/scionproto/scion/control"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/app/command"
+	"github.com/scionproto/scion/private/storage/db"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 )
@@ -32,10 +34,14 @@ import (
 func TestNewSigner(t *testing.T) {
 	dir := testCrypto(t)
 
-	db, err := sqlite.New("file::memory:")
+	db, err := sqlite.New(
+		xtest.SanitizedName(t),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 
 	signer := cs.NewSigner(
+		context.Background(),
 		addr.MustParseIA("1-ff00:0:110"),
 		db,
 		filepath.Join(dir, "/ISD1/ASff00_0_110"),
@@ -59,7 +65,7 @@ func testCrypto(t *testing.T) string {
 
 	raw, err := os.ReadFile(filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
 	require.NoError(t, err)
-	err = os.WriteFile(filepath.Join(dir, "ISD1/ASff00_0_110/certs/ISD1-B1-S1.trc"), raw, 0666)
+	err = os.WriteFile(filepath.Join(dir, "ISD1/ASff00_0_110/certs/ISD1-B1-S1.trc"), raw, 0o666)
 	require.NoError(t, err)
 	return dir
 }

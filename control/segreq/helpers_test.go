@@ -72,7 +72,6 @@ func TestCoreChecker(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			i := mock_trust.NewMockInspector(ctrl)
 			test.PrepareInspector(i)
 			c := segreq.CoreChecker{Inspector: i}

@@ -42,6 +42,8 @@ def add_arguments(parser):
                         help='IPv6 network to create subnets in (E.g. "fd00:f00d:cafe::7f00:0000/104"')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
+    parser.add_argument('-t', '--topology-jsons-only', action='store_true',
+                        help='Create only topology.json files')
     parser.add_argument('--random-ifids', action='store_true',
                         help='Generate random IFIDs')
     parser.add_argument('--docker-registry', help='Specify docker registry to pull images from',
@@ -51,6 +53,12 @@ def add_arguments(parser):
     parser.add_argument('--sig', action='store_true',
                         help='Generate a SIG per AS (only available with -d, the SIG image needs\
                         to be built manually e.g. when running acceptance tests)')
+    parser.add_argument('--rpc_server_protocol',
+                        help='Configures services that can to accept RPCs over the given protocol \
+                        (grpc, connectrpc, all)', default='all')
+    parser.add_argument('--rpc_client_protocol',
+                        help='Configures services that can to issue RPCs over the given protocol \
+                        (grpc, connectrpc, all)', default='all')
     parser.add_argument('--features', help='Feature flags to enable, a comma separated list\
                         e.g. foo,bar enables foo and bar feature.')
     return parser

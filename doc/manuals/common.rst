@@ -253,35 +253,19 @@ of the individual fields below.
          while :option:`underlay.remote <topology-json remote>` is the address of the remote side of the link.
 
          In the configuration for the corresponding interface in the neighbor AS, these
-         addresses are exactly swapped.
+         addresses are exactly swapped (unless one or both routers are behind NAT).
 
          .. option:: remote = <ip|hostname>:<port>, required
 
-            The IP/UDP address of the corresponding router interface in the neighbor AS.
+            The IP/UDP address of the corresponding router interface in the neighbor AS. If that router
+            is behind NAT, this address should be its public address.
 
          .. option:: local = [<ip|hostname>]:<port>, required
 
             The IP/UDP address of this router interface.
-            The IP or hostname can be ommitted; in this case the router will just bind to a wildcard
-            address.
-
-         .. option:: public = <ip|hostname>:<port>, deprecated
-
-            The IP/UDP address of this router interface.
-
-            .. admonition:: Deprecated
-               :class: caution
-
-               Replaced by :option:`underlay.local <topology-json local>`.
-
-         .. option:: bind = <ip>, deprecated
-
-            IP address of this router interface. Overrides IP of :option:`underlay.public <topology-json public>`.
-
-            .. admonition:: Deprecated
-               :class: caution
-
-               Replaced by :option:`underlay.local <topology-json local>`.
+            The IP or hostname can be omitted; in this case the router will just bind to a wildcard
+            address. If the router is behind NAT, this field must be set to the non-public address;
+            that is, the address that the router should bind to.
 
       .. option:: bfd, optional
 
@@ -307,7 +291,7 @@ of the individual fields below.
 
          .. option:: desired_min_tx_interval = <duration>, default router.bfd.desired_min_tx_interval
 
-            See :option:`router.bfd.disired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
+            See :option:`router.bfd.desired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
 
             Defines the frequency at which this router should send BFD control messages for this
             inter-domain link.

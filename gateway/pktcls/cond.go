@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket"
+	"github.com/gopacket/gopacket/layers"
 )
 
 // Cond is used to decide which objects match a logical predicate. Types implementing Cond

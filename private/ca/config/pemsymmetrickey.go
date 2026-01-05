@@ -56,6 +56,6 @@ func NewPEMSymmetricKey(path string) *PEMSymmetricKey {
 	}
 }
 
-func parsePEMSymmetricKey(b []byte) (interface{}, error) {
+func parsePEMSymmetricKey(b []byte) (any, error) {
 	return scrypto.ParsePEMSymmetricKey(b)
 }

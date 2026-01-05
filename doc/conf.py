@@ -9,7 +9,7 @@ import os
 # -- Project information -----------------------------------------------------
 
 project = "SCION"
-copyright = "2023, Anapaya Systems, ETH Zurich, SCION Association"
+copyright = "2025, Anapaya Systems, ETH Zurich, SCION Association"
 author = "Anapaya Systems, ETH Zurich, SCION Association"
 
 
@@ -33,6 +33,7 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx.ext.extlinks",
     "sphinxcontrib.openapi",
+    "sphinxcontrib.mermaid",
 ]
 
 copybutton_prompt_text = r"\w*\$ "  # matches e.g. <hostname>$

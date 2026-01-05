@@ -112,10 +112,8 @@ func TestDBInspectorByAttributes(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			i := trust.DBInspector{DB: tc.db(ctrl)}
 			ias, err := i.ByAttributes(context.Background(), tc.query.ISD, tc.query.Attrs)
 			tc.assertErr(t, err)
@@ -183,10 +181,8 @@ func TestDBInspectorHasAttributes(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			i := trust.DBInspector{DB: tc.db(ctrl)}
 			has, err := i.HasAttributes(context.Background(), tc.query.IA, tc.query.Attrs)
 			tc.assertErr(t, err)

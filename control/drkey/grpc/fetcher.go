@@ -17,6 +17,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -25,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 )
 
 const (
@@ -47,6 +49,7 @@ type Fetcher struct {
 	Router     snet.Router
 	MaxRetries int
 
+	once       sync.Once
 	errorPaths map[snet.PathFingerprint]struct{}
 }
 
@@ -55,8 +58,9 @@ func (f *Fetcher) Level1(
 	ctx context.Context,
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
+	f.init()
 
-	req := level1MetaToProtoRequest(meta)
+	req := Level1MetaToProtoRequest(meta)
 
 	// Keep retrying until the reaching MaxRetries.
 	// getLevel1Key will use different paths out of Router retrieved paths.
@@ -65,7 +69,7 @@ func (f *Fetcher) Level1(
 	// by using longer lived grpc connections over different paths and thereby
 	// explicitly keeping track of the path health.
 	var errList serrors.List
-	f.errorPaths = make(map[snet.PathFingerprint]struct{})
+	clear(f.errorPaths)
 	for i := 0; i < f.MaxRetries; i++ {
 		rep, err := f.getLevel1Key(ctx, meta.SrcIA, req)
 		if errors.Is(err, errNotReachable) {
@@ -77,7 +81,7 @@ func (f *Fetcher) Level1(
 			)
 		}
 		if err == nil {
-			lvl1Key, err := getLevel1KeyFromReply(meta, rep)
+			lvl1Key, err := GetLevel1KeyFromReply(meta, rep)
 			if err != nil {
 				return drkey.Level1Key{}, serrors.Wrap("obtaining level 1 key from reply", err)
 			}
@@ -103,12 +107,7 @@ func (f *Fetcher) getLevel1Key(
 	if err != nil {
 		return nil, err
 	}
-	remote := &snet.SVCAddr{
-		IA:      srcIA,
-		Path:    path.Dataplane(),
-		NextHop: path.UnderlayNextHop(),
-		SVC:     addr.SvcCS,
-	}
+	remote := addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
 	dialCtx, cancelF := context.WithTimeout(ctx, defaultRPCDialTimeout)
 	defer cancelF()
 	conn, err := f.Dialer.Dial(dialCtx, remote)
@@ -133,13 +132,20 @@ func (f *Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error)
 		return nil, errNotReachable
 	}
 	for _, p := range paths {
-		if _, ok := f.errorPaths[snet.Fingerprint(p)]; ok {
+		fp := p.Metadata().Fingerprint()
+		if _, ok := f.errorPaths[fp]; ok {
 			continue
 		}
-		f.errorPaths[snet.Fingerprint(p)] = struct{}{}
+		f.errorPaths[fp] = struct{}{}
 		return p, nil
 	}
 	// we've tried out all the paths; we reset the map to retry them.
-	f.errorPaths = make(map[snet.PathFingerprint]struct{})
+	clear(f.errorPaths)
 	return paths[0], nil
+}
+
+func (f *Fetcher) init() {
+	f.once.Do(func() {
+		f.errorPaths = make(map[snet.PathFingerprint]struct{})
+	})
 }

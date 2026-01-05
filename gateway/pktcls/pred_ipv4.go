@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket/layers"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 )

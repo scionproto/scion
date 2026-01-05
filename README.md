@@ -12,7 +12,7 @@
 [![Release](https://img.shields.io/github/release-pre/scionproto/scion.svg)](https://github.com/scionproto/scion/releases)
 [![License](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
 
-Welcome to the open-source implementation of [SCION](http://www.scion-architecture.net)
+Welcome to the open-source implementation of [SCION](https://www.scion.org/)
 (Scalability, Control and Isolation On next-generation Networks), a future Internet architecture.
 SCION provides route control, failure isolation, and explicit trust information for end-to-end communication.
 To find out more about the project, please visit our [documentation site](https://docs.scion.org/en/latest/).
@@ -56,8 +56,13 @@ Interested in contribution to the SCION project? Please visit our
 for more information about how you can do so.
 
 Join us on our [slack workspace](https://scionproto.slack.com) with this invite link:
-[join scionproto.slack.com](https://join.slack.com/t/scionproto/shared_invite/zt-2mhzmqe84-cWs~UuTYT7kwtlU7_2X3lg)
+[join scionproto.slack.com](https://join.slack.com/t/scionproto/shared_invite/zt-3ccepqf5z-~piJ5HBOV2dnjIBNGfeJmw)
+
+Join us in our #dev room on our federated [matrix instance](https://matrix.scion.org) with this link:
+[#dev:matrix.scion.org](https://matrix.to/#/#dev:matrix.scion.org)
 
 ## License
 
 [![License](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
+
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)

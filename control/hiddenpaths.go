@@ -15,16 +15,20 @@
 package control
 
 import (
+	"net/http"
+
 	"google.golang.org/grpc"
 
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
 	"github.com/scionproto/scion/control/segreq"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
+	"github.com/scionproto/scion/pkg/experimental/hiddenpath/connect"
 	hpgrpc "github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	hspb "github.com/scionproto/scion/pkg/proto/hidden_segment"
+	"github.com/scionproto/scion/pkg/proto/hidden_segment/v1/hidden_segmentconnect"
 	"github.com/scionproto/scion/private/pathdb"
 	infra "github.com/scionproto/scion/private/segment/verifier"
 )
@@ -37,7 +41,7 @@ type HiddenPathConfigurator struct {
 	PathDB            pathdb.DB
 	Dialer            libgrpc.Dialer
 	FetcherConfig     segreq.FetcherConfig
-	IntraASTCPServer  *grpc.Server
+	IntraASTCPServer  *http.ServeMux
 	InterASQUICServer *grpc.Server
 }
 
@@ -58,26 +62,31 @@ func (c HiddenPathConfigurator) Setup(location string) (*HiddenPathRegistrationC
 		return nil, nil
 	}
 	log.Info("Starting hidden path forward server")
-	hspb.RegisterHiddenSegmentLookupServiceServer(c.IntraASTCPServer, &hpgrpc.SegmentServer{
-		Lookup: hiddenpath.ForwardServer{
-			Groups:    groups,
-			LocalAuth: c.localAuthServer(groups),
-			LocalIA:   c.LocalIA,
-			RPC: &hpgrpc.AuthoritativeRequester{
-				Dialer: c.Dialer,
-				Signer: c.Signer,
-			},
-			Resolver: hiddenpath.LookupResolver{
-				Router: segreq.NewRouter(c.FetcherConfig),
-				Discoverer: &hpgrpc.Discoverer{
-					Dialer: c.Dialer,
+	c.IntraASTCPServer.Handle(hidden_segmentconnect.NewHiddenSegmentLookupServiceHandler(
+		connect.SegmentServer{
+			SegmentServer: &hpgrpc.SegmentServer{
+				Lookup: hiddenpath.ForwardServer{
+					Groups:    groups,
+					LocalAuth: c.localAuthServer(groups),
+					LocalIA:   c.LocalIA,
+					RPC: &hpgrpc.AuthoritativeRequester{
+						Dialer: c.Dialer,
+						Signer: c.Signer,
+					},
+					Resolver: hiddenpath.LookupResolver{
+						Router: segreq.NewRouter(c.FetcherConfig),
+						Discoverer: &hpgrpc.Discoverer{
+							Dialer: c.Dialer,
+						},
+					},
+					Verifier: hiddenpath.VerifierAdapter{
+						Verifier: c.Verifier,
+					},
 				},
 			},
-			Verifier: hiddenpath.VerifierAdapter{
-				Verifier: c.Verifier,
-			},
 		},
-	})
+	))
+
 	if roles.Registry {
 		log.Info("Starting hidden path authoritative and registration server")
 		hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(c.InterASQUICServer,

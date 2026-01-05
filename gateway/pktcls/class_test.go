@@ -96,7 +96,7 @@ func TestClassMapMarshalUnMarshal(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, strings.TrimRight(string(expected), "\n"), string(enc))
 
-			// Check that unmarshaling from reference files matches structure
+			// Check that unmarshalling from reference files matches structure
 			var classes pktcls.ClassMap
 			err = json.Unmarshal(expected, &classes)
 			require.NoError(t, err)

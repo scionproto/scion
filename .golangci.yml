@@ -1,0 +1,111 @@
+version: "2"
+run:
+  skip-dirs:
+    - ^doc/
+  timeout: 3m
+linters:
+  default: none
+  enable:
+    - contextcheck
+    - copyloopvar
+    - errcheck
+    - forbidigo
+    - goheader
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - unconvert
+    - unused
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - "-QF1001" # disable "Apply De Morgan's law".
+        # The use of Go ideomatic identifiers is a recommendation, not a law.
+        - "-ST1003" # disable "Poorly chosen identifier".
+        - "-QF1008" # disable "Omit embedded fields from selector expression".
+    errcheck:
+      exclude-functions:
+        - (*github.com/spf13/cobra.Command).MarkFlagRequired
+    forbidigo:
+      forbid:
+        - pattern: ([iI][fF][iI]d)|([iI]F[iI][dD])|([iI][fF]i[dD])
+          msg: spell interface ID as ifID / IfID
+        - pattern: (?i)interfaceID
+          msg: spell interface ID as ifID / IfID
+        - pattern: Trc
+          msg: spell trust root certificate as trc / TRC
+    goheader:
+      values:
+        regexp:
+          copyright-lines: |-
+            (Copyright 20[0-9][0-9] .*)(
+            Copyright 20[0-9][0-9] .*)*
+      template: |-
+        {{copyright-lines}}
+
+        Licensed under the Apache License, Version 2.0 (the "License");
+        you may not use this file except in compliance with the License.
+        You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software
+        distributed under the License is distributed on an "AS IS" BASIS,
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        See the License for the specific language governing permissions and
+        limitations under the License.
+    lll:
+      line-length: 100
+      tab-width: 4
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - lll
+        source: http[s]://\S{80,}$
+      - linters:
+          - lll
+        source: '`(yaml|toml|json):"[^`]*`$'
+      - linters:
+          - goheader
+        path: pkg/private/util/duration.go
+      - linters:
+          - errcheck
+          - goheader
+        path: pkg/private/serrors/stack.go
+      - linters:
+          - errcheck
+          - goheader
+          - lll
+        path: scion-pki/certs/(certinfo|certformat).go
+      - linters:
+          - goheader
+        path: pkg/scrypto/cms
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/scionproto/scion
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

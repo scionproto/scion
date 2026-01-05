@@ -7,16 +7,20 @@ Contribution Guide
 Welcome to the SCION contribution guide! If you are interested in contributing to
 the project, this page will help you out on your journey to your first SCION commit.
 
+.. Attention:: In all your interactions with the SCION developer community, you agree to be bound by our `Code of Conduct <https://github.com/scionproto/scion>`__.
+
 .. _slack:
 
 
 .. Hint::
    If you have any questions, you can always find us
-   on our `Slack workspace <https://scionproto.slack.com>`__
+   on our `Slack workspace <https://scionproto.slack.com>`__,
+   in our `Matrix #dev room <https://matrix.to/#/#dev:matrix.scion.org>`__,
    or on our `Github project page <https://github.com/scionproto/scion>`__.
    Do not hesitate to ask us anything, or feel free to just drop by and say "Hi".
 
-   Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-2tbqf49yo-4quzKc4N3g5h8wjZ~axNYQ>`__.
+   Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-3ccepqf5z-~piJ5HBOV2dnjIBNGfeJmw>`__.
+   For Matrix, create a user account with your preferred Matrix homeserver identity provider.
 
 
 What skills do you need to contribute?
@@ -43,7 +47,16 @@ links to resources to get you started if you've never used before), please visit
 
 No matter what language you want to contribute to, one of the first steps to take is to set
 up a development environment. See :ref:`setting-up-the-development-environment` for the needed steps.
-If you encounter issues, please visit our :ref:`Slack <slack>` and ask for help.
+If you encounter issues, please visit our :ref:`Slack or Matrix room <slack>` and ask for help.
+
+.. _code-map:
+
+Source code map
+===============
+
+Because the code is mostly written in Go and hosted on a public repository, its inline documentation
+is rendered automatically at `<https://pkg.go.dev/github.com/scionproto/scion>`__ and includes a helpful
+index.
 
 .. _finding-an-issue-to-contribute-to:
 
@@ -66,7 +79,7 @@ the first step in gathering more information about the issue from the SCION team
 
 From this point on, somebody from the SCION maintainers team will reach out to
 you and guide you for the rest of the process. If you have any questions, please
-remember to shoot us a question on our :ref:`Slack <slack>`.
+remember to shoot us a question on our :ref:`Slack or Matrix room <slack>`.
 
 Finally, make sure that the code you write adheres to the SCION project
 :doc:`style/index`.
@@ -93,18 +106,20 @@ implementation projects.
 
 The current members of the TC Implementation are:
 
-* Jean-Christophe Hugly (|span-github| `@jiceatscion <https://github.com/jiceatscion>`_, |span-slack| @Jean-Christophe Hugly)
-* Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @roosd)
+* Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @Dominik Roos)
+* Ekaterina Titkova  (|span-github| `@katyatitkova <https://github.com/katyatitkova>`_, |span-slack| Katya Titkova)
 * François Wirz (|span-github| `@FR4NK-W <https://github.com/FR4NK-W>`_, |span-slack| @frank)
+* Jordi Subirà (|span-github| `@JordiSubira <https://github.com/JordiSubira>`_, |span-slack| @Jordi Subirà-Nieto)
 * Lukas Vogel (|span-github| `@lukedirtwalker <https://github.com/lukedirtwalker>`_, |span-slack| @luke)
 * Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
-* Jordi Subirà (|span-github| `@JordiSubira <https://github.com/JordiSubira>`_, |span-slack| @jordisubira)
-
+* Markus Legner (|span-github| `@mlegner <https://github.com/mlegner>`_, |span-slack| @Markus Legner)
+* Roman Sharkov  (|span-github| `@romshark <https://github.com/romshark>`_, |span-slack| @Roman Scharkov)
+* Tilmann Zäschke (|span-github| `@tzaeschke <https://github.com/tzaeschke>`_, |span-slack| @Tilmann Zäschke)
 
 .. rubric:: Responsibilities and Tasks
 
 The TC Implementation has the following main responsibilities, as defined in its
-`charter <https://www.scion.org/assets/docs/SCION-Association-Charter-TC-Implementation.pdf>`_:
+`charter <https://www.scion.org/wp-content/uploads/2024/07/SCION-Association-Charter-TC-Implementation.pdf>`_:
 
 * Coordination with the Association Board and other bodies of the SCION
   Association. In particular, coordinate with the TC Standardisation to

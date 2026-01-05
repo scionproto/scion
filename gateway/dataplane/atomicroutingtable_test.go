@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/google/gopacket/layers"
+	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/gateway/control/mock_control"
@@ -27,7 +27,6 @@ import (
 
 func TestAtomicRoutingTable(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	art := &dataplane.AtomicRoutingTable{}
 

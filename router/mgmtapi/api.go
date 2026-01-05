@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package mgmtapi implements the http status API of the router.
 package mgmtapi
 
 import (
@@ -23,7 +24,7 @@ import (
 	"github.com/scionproto/scion/router/control"
 )
 
-// Server implements the Control Service API.
+// Server implements the http status API of the router.
 type Server struct {
 	Config    http.HandlerFunc
 	Info      http.HandlerFunc
@@ -89,7 +90,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 	findInternalInterface := func(ia addr.IA) string {
 		for _, intf := range internalInterfaces {
 			if intf.IA.Equal(ia) {
-				return intf.Addr.String()
+				return intf.Addr
 			}
 		}
 		return "undefined"
@@ -105,7 +106,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 			InterfaceId:       int(intf.IfID), // nolint - name from published API.
 			InternalInterface: findInternalInterface(intf.Link.Local.IA),
 			Neighbor: InterfaceNeighbor{
-				Address: intf.Link.Remote.Addr.String(),
+				Address: intf.Link.Remote.Addr,
 				IsdAs:   intf.Link.Remote.IA.String(),
 			},
 			Relationship: LinkRelationship(intf.Link.LinkTo.String()),
@@ -118,8 +119,9 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 
 	for _, intf := range siblingInterfaces {
 		siblingInterface := SiblingInterface{
-			InterfaceId:       int(intf.IfID), // nolint - name from published API.
-			InternalInterface: intf.InternalInterface.String(),
+			InterfaceId: int(intf.IfID), // nolint - name from published API.
+			// The name InternalInterface is poorly chosen but enshrined in the schema.
+			InternalInterface: intf.InternalAddress,
 			Neighbor: SiblingNeighbor{
 				IsdAs: intf.NeighborIA.String(),
 			},

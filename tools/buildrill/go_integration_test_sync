@@ -2,7 +2,7 @@
 
 GAZELLE_MODE="${GAZELLE_MODE:-fix}"
 
-bazel run @com_github_bazelbuild_buildtools//buildozer -- \
+bazel run @buildifier_prebuilt//:buildozer -- \
    --root_dir $PWD \
   "copy deps go_default_test" \
   "copy srcs go_default_test" \

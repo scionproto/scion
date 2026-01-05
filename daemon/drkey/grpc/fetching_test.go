@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	sd_drkey "github.com/scionproto/scion/daemon/drkey"
 	sd_grpc "github.com/scionproto/scion/daemon/drkey/grpc"
@@ -35,13 +35,10 @@ var _ sd_drkey.Fetcher = (*sd_grpc.Fetcher)(nil)
 
 func TestGetHostHost(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	now := time.Now().UTC()
-	epochBegin, err := ptypes.TimestampProto(now)
-	require.NoError(t, err)
-	epochEnd, err := ptypes.TimestampProto(now.Add(24 * time.Hour))
-	require.NoError(t, err)
+	epochBegin := timestamppb.New(now)
+	epochEnd := timestamppb.New(now.Add(24 * time.Hour))
 
 	resp := &cppb.DRKeyHostHostResponse{
 		Key:        xtest.MustParseHexString("c584cad32613547c64823c756651b6f5"),
@@ -65,6 +62,6 @@ func TestGetHostHost(t *testing.T) {
 	}
 
 	meta := drkey.HostHostMeta{}
-	_, err = fetcher.HostHostKey(context.Background(), meta)
+	_, err := fetcher.HostHostKey(context.Background(), meta)
 	require.NoError(t, err)
 }

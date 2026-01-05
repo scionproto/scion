@@ -59,20 +59,6 @@ const (
 	DaemonServiceDRKeyHostHostProcedure = "/proto.daemon.v1.DaemonService/DRKeyHostHost"
 )
 
-// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
-var (
-	daemonServiceServiceDescriptor                   = daemon.File_proto_daemon_v1_daemon_proto.Services().ByName("DaemonService")
-	daemonServicePathsMethodDescriptor               = daemonServiceServiceDescriptor.Methods().ByName("Paths")
-	daemonServiceASMethodDescriptor                  = daemonServiceServiceDescriptor.Methods().ByName("AS")
-	daemonServiceInterfacesMethodDescriptor          = daemonServiceServiceDescriptor.Methods().ByName("Interfaces")
-	daemonServiceServicesMethodDescriptor            = daemonServiceServiceDescriptor.Methods().ByName("Services")
-	daemonServiceNotifyInterfaceDownMethodDescriptor = daemonServiceServiceDescriptor.Methods().ByName("NotifyInterfaceDown")
-	daemonServicePortRangeMethodDescriptor           = daemonServiceServiceDescriptor.Methods().ByName("PortRange")
-	daemonServiceDRKeyASHostMethodDescriptor         = daemonServiceServiceDescriptor.Methods().ByName("DRKeyASHost")
-	daemonServiceDRKeyHostASMethodDescriptor         = daemonServiceServiceDescriptor.Methods().ByName("DRKeyHostAS")
-	daemonServiceDRKeyHostHostMethodDescriptor       = daemonServiceServiceDescriptor.Methods().ByName("DRKeyHostHost")
-)
-
 // DaemonServiceClient is a client for the proto.daemon.v1.DaemonService service.
 type DaemonServiceClient interface {
 	Paths(context.Context, *connect.Request[daemon.PathsRequest]) (*connect.Response[daemon.PathsResponse], error)
@@ -95,59 +81,60 @@ type DaemonServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewDaemonServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) DaemonServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	daemonServiceMethods := daemon.File_proto_daemon_v1_daemon_proto.Services().ByName("DaemonService").Methods()
 	return &daemonServiceClient{
 		paths: connect.NewClient[daemon.PathsRequest, daemon.PathsResponse](
 			httpClient,
 			baseURL+DaemonServicePathsProcedure,
-			connect.WithSchema(daemonServicePathsMethodDescriptor),
+			connect.WithSchema(daemonServiceMethods.ByName("Paths")),
 			connect.WithClientOptions(opts...),
 		),
 		aS: connect.NewClient[daemon.ASRequest, daemon.ASResponse](
 			httpClient,
 			baseURL+DaemonServiceASProcedure,
-			connect.WithSchema(daemonServiceASMethodDescriptor),
+			connect.WithSchema(daemonServiceMethods.ByName("AS")),
 			connect.WithClientOptions(opts...),
 		),
 		interfaces: connect.NewClient[daemon.InterfacesRequest, daemon.InterfacesResponse](
 			httpClient,
 			baseURL+DaemonServiceInterfacesProcedure,
-			connect.WithSchema(daemonServiceInterfacesMethodDescriptor),
+			connect.WithSchema(daemonServiceMethods.ByName("Interfaces")),
 			connect.WithClientOptions(opts...),
 		),
 		services: connect.NewClient[daemon.ServicesRequest, daemon.ServicesResponse](
 			httpClient,
 			baseURL+DaemonServiceServicesProcedure,
-			connect.WithSchema(daemonServiceServicesMethodDescriptor),
+			connect.WithSchema(daemonServiceMethods.ByName("Services")),
 			connect.WithClientOptions(opts...),
 		),
 		notifyInterfaceDown: connect.NewClient[daemon.NotifyInterfaceDownRequest, daemon.NotifyInterfaceDownResponse](
 			httpClient,
 			baseURL+DaemonServiceNotifyInterfaceDownProcedure,
-			connect.WithSchema(daemonServiceNotifyInterfaceDownMethodDescriptor),
+			connect.WithSchema(daemonServiceMethods.ByName("NotifyInterfaceDown")),
 			connect.WithClientOptions(opts...),
 		),
 		portRange: connect.NewClient[emptypb.Empty, daemon.PortRangeResponse](
 			httpClient,
 			baseURL+DaemonServicePortRangeProcedure,
-			connect.WithSchema(daemonServicePortRangeMethodDescriptor),
+			connect.WithSchema(daemonServiceMethods.ByName("PortRange")),
 			connect.WithClientOptions(opts...),
 		),
 		dRKeyASHost: connect.NewClient[daemon.DRKeyASHostRequest, daemon.DRKeyASHostResponse](
 			httpClient,
 			baseURL+DaemonServiceDRKeyASHostProcedure,
-			connect.WithSchema(daemonServiceDRKeyASHostMethodDescriptor),
+			connect.WithSchema(daemonServiceMethods.ByName("DRKeyASHost")),
 			connect.WithClientOptions(opts...),
 		),
 		dRKeyHostAS: connect.NewClient[daemon.DRKeyHostASRequest, daemon.DRKeyHostASResponse](
 			httpClient,
 			baseURL+DaemonServiceDRKeyHostASProcedure,
-			connect.WithSchema(daemonServiceDRKeyHostASMethodDescriptor),
+			connect.WithSchema(daemonServiceMethods.ByName("DRKeyHostAS")),
 			connect.WithClientOptions(opts...),
 		),
 		dRKeyHostHost: connect.NewClient[daemon.DRKeyHostHostRequest, daemon.DRKeyHostHostResponse](
 			httpClient,
 			baseURL+DaemonServiceDRKeyHostHostProcedure,
-			connect.WithSchema(daemonServiceDRKeyHostHostMethodDescriptor),
+			connect.WithSchema(daemonServiceMethods.ByName("DRKeyHostHost")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -230,58 +217,59 @@ type DaemonServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewDaemonServiceHandler(svc DaemonServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	daemonServiceMethods := daemon.File_proto_daemon_v1_daemon_proto.Services().ByName("DaemonService").Methods()
 	daemonServicePathsHandler := connect.NewUnaryHandler(
 		DaemonServicePathsProcedure,
 		svc.Paths,
-		connect.WithSchema(daemonServicePathsMethodDescriptor),
+		connect.WithSchema(daemonServiceMethods.ByName("Paths")),
 		connect.WithHandlerOptions(opts...),
 	)
 	daemonServiceASHandler := connect.NewUnaryHandler(
 		DaemonServiceASProcedure,
 		svc.AS,
-		connect.WithSchema(daemonServiceASMethodDescriptor),
+		connect.WithSchema(daemonServiceMethods.ByName("AS")),
 		connect.WithHandlerOptions(opts...),
 	)
 	daemonServiceInterfacesHandler := connect.NewUnaryHandler(
 		DaemonServiceInterfacesProcedure,
 		svc.Interfaces,
-		connect.WithSchema(daemonServiceInterfacesMethodDescriptor),
+		connect.WithSchema(daemonServiceMethods.ByName("Interfaces")),
 		connect.WithHandlerOptions(opts...),
 	)
 	daemonServiceServicesHandler := connect.NewUnaryHandler(
 		DaemonServiceServicesProcedure,
 		svc.Services,
-		connect.WithSchema(daemonServiceServicesMethodDescriptor),
+		connect.WithSchema(daemonServiceMethods.ByName("Services")),
 		connect.WithHandlerOptions(opts...),
 	)
 	daemonServiceNotifyInterfaceDownHandler := connect.NewUnaryHandler(
 		DaemonServiceNotifyInterfaceDownProcedure,
 		svc.NotifyInterfaceDown,
-		connect.WithSchema(daemonServiceNotifyInterfaceDownMethodDescriptor),
+		connect.WithSchema(daemonServiceMethods.ByName("NotifyInterfaceDown")),
 		connect.WithHandlerOptions(opts...),
 	)
 	daemonServicePortRangeHandler := connect.NewUnaryHandler(
 		DaemonServicePortRangeProcedure,
 		svc.PortRange,
-		connect.WithSchema(daemonServicePortRangeMethodDescriptor),
+		connect.WithSchema(daemonServiceMethods.ByName("PortRange")),
 		connect.WithHandlerOptions(opts...),
 	)
 	daemonServiceDRKeyASHostHandler := connect.NewUnaryHandler(
 		DaemonServiceDRKeyASHostProcedure,
 		svc.DRKeyASHost,
-		connect.WithSchema(daemonServiceDRKeyASHostMethodDescriptor),
+		connect.WithSchema(daemonServiceMethods.ByName("DRKeyASHost")),
 		connect.WithHandlerOptions(opts...),
 	)
 	daemonServiceDRKeyHostASHandler := connect.NewUnaryHandler(
 		DaemonServiceDRKeyHostASProcedure,
 		svc.DRKeyHostAS,
-		connect.WithSchema(daemonServiceDRKeyHostASMethodDescriptor),
+		connect.WithSchema(daemonServiceMethods.ByName("DRKeyHostAS")),
 		connect.WithHandlerOptions(opts...),
 	)
 	daemonServiceDRKeyHostHostHandler := connect.NewUnaryHandler(
 		DaemonServiceDRKeyHostHostProcedure,
 		svc.DRKeyHostHost,
-		connect.WithSchema(daemonServiceDRKeyHostHostMethodDescriptor),
+		connect.WithSchema(daemonServiceMethods.ByName("DRKeyHostHost")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.daemon.v1.DaemonService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

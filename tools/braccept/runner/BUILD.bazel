@@ -1,25 +1,37 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
     srcs = [
         "compare.go",
         "print.go",
-        "run.go",
+        "run_linux.go",
+        "runner.go",
     ],
     importpath = "github.com/scionproto/scion/tools/braccept/runner",
     visibility = ["//visibility:public"],
     deps = [
-        "//pkg/log:go_default_library",
-        "//pkg/private/common:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
-        "@com_github_google_gopacket//afpacket:go_default_library",
-        "@com_github_google_gopacket//layers:go_default_library",
-        "@com_github_google_gopacket//pcapgo:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//layers:go_default_library",
         "@com_github_mattn_go_isatty//:go_default_library",
         "@com_github_sergi_go_diff//diffmatchpatch:go_default_library",
-    ],
+    ] + select({
+        "@rules_go//go/platform:android": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/common:go_default_library",
+            "@com_github_gopacket_gopacket//afpacket:go_default_library",
+            "@com_github_gopacket_gopacket//pcapgo:go_default_library",
+        ],
+        "@rules_go//go/platform:linux": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/common:go_default_library",
+            "@com_github_gopacket_gopacket//afpacket:go_default_library",
+            "@com_github_gopacket_gopacket//pcapgo:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 go_test(
@@ -33,7 +45,7 @@ go_test(
         "//pkg/slayers:go_default_library",
         "//pkg/slayers/path:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
-        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_gopacket_gopacket//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )

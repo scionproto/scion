@@ -47,7 +47,6 @@ func TestHandlerHandleBeacon(t *testing.T) {
 
 	validBeacon := func() beacon.Beacon {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
 		return beacon.Beacon{
 			Segment: testSegment(g, []uint16{graph.If_220_X_120_B, graph.If_120_A_110_X}),
@@ -85,7 +84,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   0,
+					IA:   addr.MustParseIA("2-ff00:0:220"),
 					Path: path.SCION{},
 				}
 			},
@@ -109,7 +108,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   0,
+					IA:   addr.MustParseIA("2-ff00:0:220"),
 					Path: path.SCION{},
 				}
 			},
@@ -135,7 +134,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   0,
+					IA:   addr.MustParseIA("2-ff00:0:220"),
 					Path: path.SCION{},
 				}
 			},
@@ -160,7 +159,34 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				}
 				b.Segment.ASEntries[b.Segment.MaxIdx()].Local = addr.MustParseIA("1-ff00:0:111")
 				return b
-
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.MustParseIA("2-ff00:0:220"),
+					Path: path.SCION{},
+				}
+			},
+			Assertion: assert.Error,
+		},
+		"invalid peer ISD-AS": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+				inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
+				return inserter
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				return mock_infra.NewMockVerifier(mctrl)
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				g := graph.NewDefaultGraph(mctrl)
+				b := beacon.Beacon{
+					Segment: testSegment(g, []uint16{
+						graph.If_220_X_120_B, graph.If_120_A_110_X,
+					}),
+					InIfID: localIF,
+				}
+				b.Segment.ASEntries[b.Segment.MaxIdx()].Next = addr.MustParseIA("1-ff00:0:111")
+				return b
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
@@ -192,7 +218,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   0,
+					IA:   addr.MustParseIA("2-ff00:0:220"),
 					Path: path.SCION{},
 				}
 			},
@@ -218,7 +244,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   0,
+					IA:   addr.MustParseIA("2-ff00:0:220"),
 					Path: path.SCION{},
 				}
 			},
@@ -247,7 +273,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   0,
+					IA:   addr.MustParseIA("2-ff00:0:220"),
 					Path: path.SCION{},
 				}
 			},
@@ -255,11 +281,9 @@ func TestHandlerHandleBeacon(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 
 			handler := beaconing.Handler{
 				LocalIA:    localIA,

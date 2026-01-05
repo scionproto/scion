@@ -38,12 +38,6 @@ const (
 	IPPrefixesServicePrefixesProcedure = "/proto.gateway.v1.IPPrefixesService/Prefixes"
 )
 
-// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
-var (
-	iPPrefixesServiceServiceDescriptor        = gateway.File_proto_gateway_v1_prefix_proto.Services().ByName("IPPrefixesService")
-	iPPrefixesServicePrefixesMethodDescriptor = iPPrefixesServiceServiceDescriptor.Methods().ByName("Prefixes")
-)
-
 // IPPrefixesServiceClient is a client for the proto.gateway.v1.IPPrefixesService service.
 type IPPrefixesServiceClient interface {
 	Prefixes(context.Context, *connect.Request[gateway.PrefixesRequest]) (*connect.Response[gateway.PrefixesResponse], error)
@@ -58,11 +52,12 @@ type IPPrefixesServiceClient interface {
 // http://api.acme.com or https://acme.com/grpc).
 func NewIPPrefixesServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) IPPrefixesServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
+	iPPrefixesServiceMethods := gateway.File_proto_gateway_v1_prefix_proto.Services().ByName("IPPrefixesService").Methods()
 	return &iPPrefixesServiceClient{
 		prefixes: connect.NewClient[gateway.PrefixesRequest, gateway.PrefixesResponse](
 			httpClient,
 			baseURL+IPPrefixesServicePrefixesProcedure,
-			connect.WithSchema(iPPrefixesServicePrefixesMethodDescriptor),
+			connect.WithSchema(iPPrefixesServiceMethods.ByName("Prefixes")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -89,10 +84,11 @@ type IPPrefixesServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewIPPrefixesServiceHandler(svc IPPrefixesServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	iPPrefixesServiceMethods := gateway.File_proto_gateway_v1_prefix_proto.Services().ByName("IPPrefixesService").Methods()
 	iPPrefixesServicePrefixesHandler := connect.NewUnaryHandler(
 		IPPrefixesServicePrefixesProcedure,
 		svc.Prefixes,
-		connect.WithSchema(iPPrefixesServicePrefixesMethodDescriptor),
+		connect.WithSchema(iPPrefixesServiceMethods.ByName("Prefixes")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/proto.gateway.v1.IPPrefixesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

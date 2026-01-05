@@ -15,7 +15,7 @@
 package router
 
 import (
-	"github.com/google/gopacket"
+	"github.com/gopacket/gopacket"
 )
 
 // serializeProxy implements gopacket.SerializeBuffer. It is a very simple implementation that
@@ -43,7 +43,7 @@ func newSerializeProxy(buf []byte) serializeProxy {
 }
 
 // newSerializeProxyStart returns a new serializeProxy. The initial prepend/append point is set to
-// the given start value. This has the same effect as calling clear(statr).
+// the given start value. This has the same effect as calling clear(start).
 func newSerializeProxyStart(buf []byte, start int) serializeProxy {
 	serBuf := serializeProxy{
 		data: buf,

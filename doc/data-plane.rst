@@ -15,4 +15,5 @@ Data Plane
    protocols/authenticator-option
    protocols/bfd
    protocols/assigned-protocol-numbers
+   protocols/stack
 

@@ -1,20 +1,18 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
     srcs = [
         "doc.go",
         "errors.go",
-        "limits.go",
         "metrics.go",
         "sqler.go",
         "sqlite.go",
-        "sqlite_modernc.go",
     ],
     importpath = "github.com/scionproto/scion/private/storage/db",
     visibility = ["//visibility:public"],
     deps = [
-        "//pkg/private/common:go_default_library",
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "@org_modernc_sqlite//:go_default_library",
@@ -25,4 +23,5 @@ go_test(
     name = "go_default_test",
     srcs = ["errors_test.go"],
     embed = [":go_default_library"],
+    deps = ["@com_github_stretchr_testify//require:go_default_library"],
 )

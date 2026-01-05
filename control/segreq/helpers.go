@@ -16,12 +16,12 @@ package segreq
 
 import (
 	"context"
-	"math/rand"
+	"math/rand/v2"
+	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
-	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/pathdb/query"
 	"github.com/scionproto/scion/private/revcache"
@@ -30,7 +30,7 @@ import (
 
 // Pather computes the remote address with a path based on the provided segment.
 type Pather interface {
-	GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error)
+	GetPath(svc addr.SVC, ps *seg.PathSegment) (net.Addr, error)
 }
 
 // CoreChecker checks whether a given ia is core.
@@ -54,8 +54,10 @@ type SegSelector struct {
 }
 
 // SelectSeg selects a suitable segment for the given path db query.
-func (s *SegSelector) SelectSeg(ctx context.Context,
-	params *query.Params) (snet.Path, error) {
+func (s *SegSelector) SelectSeg(
+	ctx context.Context,
+	params *query.Params,
+) (net.Addr, error) {
 
 	res, err := s.PathDB.Get(ctx, params)
 	if err != nil {
@@ -71,12 +73,7 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 	if len(segs) < 1 {
 		return nil, serrors.New("no segments found")
 	}
-	seg := segs[rand.Intn(len(segs))]
+	seg := segs[rand.IntN(len(segs))]
 
-	svcaddr, err := s.Pather.GetPath(addr.SvcCS, seg)
-	// odd interface, builds address not path. Use GetPath to convert to snet.Path
-	if err != nil {
-		return nil, err
-	}
-	return svcaddr.GetPath()
+	return s.Pather.GetPath(addr.SvcCS, seg)
 }

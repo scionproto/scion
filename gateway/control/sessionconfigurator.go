@@ -286,8 +286,8 @@ func diffRemoteGateway(a, b RemoteGateway) bool {
 // on removal of an IA). If the static configuration is nil an empty list is
 // returned.
 func buildSessionConfigs(sessionPolicies SessionPolicies,
-	remoteGateways RemoteGateways) ([]*SessionConfig, error) {
-
+	remoteGateways RemoteGateways,
+) ([]*SessionConfig, error) {
 	if sessionPolicies == nil {
 		return nil, nil
 	}
@@ -335,7 +335,6 @@ func PathPolicyWithAllowedInterfaces(
 	remote addr.IA,
 	allowedInterfaces []uint64,
 ) policies.PathPolicy {
-
 	if len(allowedInterfaces) == 0 {
 		return policy
 	}
@@ -382,7 +381,7 @@ func newPathPolForEnteringAS(ia addr.IA, allowedInterfaces []uint64) policies.Pa
 	rawSeq := fmt.Sprintf("0* (%s)", strings.Join(lastHops, "|"))
 	seq, err := pathpol.NewSequence(rawSeq)
 	if err != nil {
-		panic("invalid sequence: " + rawSeq)
+		panic(fmt.Errorf("invalid sequence: %q", rawSeq))
 	}
 	return &pathpol.Policy{Sequence: seq}
 }

@@ -25,7 +25,7 @@ import (
 )
 
 func TestUDPAddrInterface(t *testing.T) {
-	var x interface{} = &snet.UDPAddr{}
+	var x any = &snet.UDPAddr{}
 	_, ok := x.(net.Addr)
 	assert.True(t, ok, "should implement net interface")
 }

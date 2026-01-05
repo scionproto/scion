@@ -16,8 +16,7 @@ package segreq
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"time"
 
@@ -167,7 +166,6 @@ type dstProvider struct {
 // Dsts provides the address of and the path to the authoritative server for
 // this request.
 func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {
-
 	// The request is directed to the AS at the start of the requested segment:
 	dst := req.Src
 
@@ -184,7 +182,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		if err != nil {
 			return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, err)
 		}
-		path = up
+		return up, nil
 	case seg.TypeDown:
 		// Select a random path (just like we choose a random segment above)
 		// Avoids potentially being stuck with a broken but not revoked path;
@@ -196,21 +194,20 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		if len(paths) == 0 {
 			return nil, segfetcher.ErrNotReachable
 		}
-		path = paths[rand.Intn(len(paths))]
+		path = paths[rand.IntN(len(paths))]
+		addr := addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
+		return addr, nil
 	default:
-		panic(fmt.Errorf("Unsupported segment type for request forwarding. "+
-			"Up segment should have been resolved locally. SegType: %s", req.SegType))
+		panic(
+			"unsupported segment type for request forwarding: " +
+				"up segment should have been resolved locally: " +
+				req.SegType.String(),
+		)
 	}
-	addr := &snet.SVCAddr{
-		IA:      path.Destination(),
-		Path:    path.Dataplane(),
-		NextHop: path.UnderlayNextHop(),
-		SVC:     addr.SvcCS,
-	}
-	return addr, nil
+
 }
 
-func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (snet.Path, error) {
+func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (net.Addr, error) {
 	return p.segSelector.SelectSeg(ctx, &query.Params{
 		StartsAt: []addr.IA{dst},
 		EndsAt:   []addr.IA{p.localIA},

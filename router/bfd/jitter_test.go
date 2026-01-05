@@ -31,7 +31,6 @@ func TestComputeInterval(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		// controller is shared between test cases, and clean-up runs once at the end,
 		// but it's fine here.
-		defer ctrl.Finish()
 
 		mockIntervalGenerator := mock_bfd.NewMockIntervalGenerator(ctrl)
 		testCases := []*struct {
@@ -114,7 +113,6 @@ func TestComputeInterval(t *testing.T) {
 
 		for i, tc := range testCases {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			mockGenerator := mock_bfd.NewMockIntervalGenerator(ctrl)
 			tc.generatorSetup(mockGenerator)
@@ -172,7 +170,6 @@ func TestGenerate(t *testing.T) {
 				panic(fmt.Sprintf("bad test data, %d >= (%d - %d)", tc.offset, tc.y, tc.x))
 			}
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			mockSource := mock_bfd.NewMockSource(ctrl)
 			mockSource.EXPECT().Intn(gomock.Any()).Return(tc.offset).AnyTimes()

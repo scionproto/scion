@@ -43,7 +43,7 @@ const (
 	defaultCacheMissExpiration = 30 * time.Second
 )
 
-var _ infra.Verifier = (chainChecker{})
+var _ infra.Verifier = chainChecker{}
 
 // chainChecker checks that the certificate chain is available locally. This is used
 // to ensure we do not propagate beacons that are not verifiable.
@@ -125,7 +125,7 @@ func (v chainChecker) checkChains(ctx context.Context, q trust.ChainQuery) error
 			// After the cache is cleared here, we will attempt to fetch and
 			// cache the empty result, thus, not hitting this code path again.
 			v.Cache.Delete(key)
-			return serrors.New("chached certificate chains do not cover required validity")
+			return serrors.New("cached certificate chains do not cover required validity")
 		}
 		return nil
 	}

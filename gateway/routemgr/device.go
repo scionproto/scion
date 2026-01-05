@@ -57,7 +57,7 @@ type deviceHandle struct {
 func (h *deviceHandle) Close() error {
 	// The callback runs outside the mutex, thus avoiding deadlocks in deviceHandle
 	// methods if for whatever reason the destruction callback blocks.
-	err, destructionF := h.innerClose()
+	destructionF, err := h.innerClose()
 	if destructionF != nil {
 		destructionF()
 	}
@@ -66,17 +66,17 @@ func (h *deviceHandle) Close() error {
 
 // innerClose closes the base handle and returns a cleanup function. The cleanup
 // function must always be executed, even if the error return value is non-nil.
-func (h *deviceHandle) innerClose() (error, destructionCallback) {
+func (h *deviceHandle) innerClose() (destructionCallback, error) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
 	if h.refCount == 0 {
-		return serrors.New("handle closed too many times"), nil
+		return nil, serrors.New("handle closed too many times")
 	}
 
 	h.refCount--
 	if h.refCount == 0 {
-		return h.base.Close(), h.destructionCallback
+		return h.destructionCallback, h.base.Close()
 	}
 	return nil, nil
 }

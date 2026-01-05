@@ -37,5 +37,5 @@ To update a specific package, run the following command::
 
 The flag should be registered as a package global variable::
 
-    var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+    var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
 

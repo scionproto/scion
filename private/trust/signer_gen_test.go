@@ -61,7 +61,8 @@ func TestSignerGenGenerate(t *testing.T) {
 		filepath.Join(dir, "certs/ISD1-ASff00_0_110-2.pem"),
 		filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as-2.key"),
 	})
-	cmd.SetOutput(&buf)
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
 	err := cmd.Execute()
 	require.NoError(t, err, buf.String())
 
@@ -322,7 +323,7 @@ func TestSignerGenGenerate(t *testing.T) {
 		"rsa key": {
 			keyRing: func(mctrl *gomock.Controller) trust.KeyRing {
 				ring := mock_trust.NewMockKeyRing(mctrl)
-				priv, err := rsa.GenerateKey(rand.Reader, 512)
+				priv, err := rsa.GenerateKey(rand.Reader, 1024)
 				require.NoError(t, err)
 
 				ring.EXPECT().PrivateKeys(gomock.Any()).Return(
@@ -419,11 +420,9 @@ func TestSignerGenGenerate(t *testing.T) {
 	metrics.Signer.Signers.Reset()
 	t.Run("cases", func(t *testing.T) {
 		for name, tc := range testCases {
-			name, tc := name, tc
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				mctrl := gomock.NewController(t)
-				defer mctrl.Finish()
 
 				gen := trust.SignerGen{
 					IA:      addr.MustParseIA("1-ff00:0:110"),
@@ -438,7 +437,6 @@ func TestSignerGenGenerate(t *testing.T) {
 	})
 	t.Run("metrics", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 		// Ensure the gauge is set to the expected value.
 		ring := mock_trust.NewMockKeyRing(mctrl)
 		ring.EXPECT().PrivateKeys(gomock.Any()).Return([]crypto.Signer{key}, nil)

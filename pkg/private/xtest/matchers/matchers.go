@@ -40,7 +40,7 @@ func IsSnetSVCAddrWithIA(ia addr.IA) gomock.Matcher {
 	return &addrIAMatcher{ia: ia}
 }
 
-func (m *addrIAMatcher) Matches(x interface{}) bool {
+func (m *addrIAMatcher) Matches(x any) bool {
 	sAddr, ok := x.(*snet.SVCAddr)
 	if !ok {
 		return false
@@ -64,7 +64,7 @@ type QueryParams struct {
 
 // Matches returns whether x matches the defined query parameter ignoring the
 // order of the slices.
-func (m *QueryParams) Matches(x interface{}) bool {
+func (m *QueryParams) Matches(x any) bool {
 	query, ok := x.(*query.Params)
 	if !ok {
 		return false
@@ -108,7 +108,7 @@ type QueryHPGroupIDs struct {
 
 // Matches returns whether x matches the defined HPGroupIDs ignoring the
 // order of the slice elements.
-func (m *QueryHPGroupIDs) Matches(x interface{}) bool {
+func (m *QueryHPGroupIDs) Matches(x any) bool {
 	ids, ok := x.([]uint64)
 	if !ok {
 		return false
@@ -128,10 +128,10 @@ func (m *QueryHPGroupIDs) String() string {
 // value are ignored. Passing a target which is not a struct or a pointer to a
 // struct is invalid and will result in a matcher that matches nothing.
 type PartialStruct struct {
-	Target interface{}
+	Target any
 }
 
-func (m PartialStruct) Matches(x interface{}) bool {
+func (m PartialStruct) Matches(x any) bool {
 	expect := reflect.ValueOf(m.Target)
 	unpack := func(v reflect.Value) reflect.Value { return v }
 	if expect.Kind() == reflect.Ptr {

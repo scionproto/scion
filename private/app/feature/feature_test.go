@@ -30,9 +30,9 @@ func TestParse(t *testing.T) {
 
 	testCases := map[string]struct {
 		Input          []string
-		FeatureSet     interface{}
+		FeatureSet     any
 		ErrorAssertion assert.ErrorAssertionFunc
-		Expected       interface{}
+		Expected       any
 	}{
 		"default": {
 			Input:          []string{"header_legacy"},
@@ -80,7 +80,6 @@ func TestParse(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -113,7 +112,6 @@ func TestParseDefault(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -132,7 +130,7 @@ func TestString(t *testing.T) {
 	}
 
 	testCases := map[string]struct {
-		FeatureSet interface{}
+		FeatureSet any
 		Expected   string
 	}{
 		"default": {
@@ -161,7 +159,6 @@ func TestString(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

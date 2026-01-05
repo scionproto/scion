@@ -14,7 +14,6 @@
 // limitations under the License.
 
 //go:build go1.9
-// +build go1.9
 
 // Package conn implements underlay sockets.
 package conn
@@ -22,15 +21,10 @@ package conn
 import (
 	"net"
 	"net/netip"
-	"syscall"
 	"time"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
-
-	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/private/underlay/sockctrl"
 )
 
 // Messages is a list of ipX.Messages. It is necessary to hide the type alias
@@ -158,107 +152,6 @@ type connUDPBase struct {
 	Listen netip.AddrPort
 	Remote netip.AddrPort
 	closed bool
-}
-
-func (cc *connUDPBase) initConnUDP(
-	network string,
-	laddr, raddr netip.AddrPort,
-	cfg *Config) error {
-
-	var c *net.UDPConn
-	var err error
-	if !laddr.IsValid() {
-		return serrors.New("listen address must be specified")
-	}
-	if !raddr.IsValid() {
-		if c, err = net.ListenUDP(network, net.UDPAddrFromAddrPort(laddr)); err != nil {
-			return serrors.Wrap("Error listening on socket", err,
-				"network", network, "listen", laddr)
-
-		}
-	} else {
-		if c, err = net.DialUDP(
-			network,
-			net.UDPAddrFromAddrPort(laddr),
-			net.UDPAddrFromAddrPort(raddr),
-		); err != nil {
-			return serrors.Wrap("Error setting up connection", err,
-				"network", network, "listen", laddr, "remote", raddr)
-		}
-	}
-
-	// Set and confirm send buffer size
-	if cfg.SendBufferSize != 0 {
-		before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_SNDBUF)
-		if err != nil {
-			return serrors.Wrap("Error getting SO_SNDBUF socket option (before)", err,
-				"listen", laddr,
-				"remote", raddr,
-			)
-		}
-		target := cfg.SendBufferSize
-		if err = c.SetWriteBuffer(target); err != nil {
-			return serrors.Wrap("Error setting send buffer size", err,
-				"listen", laddr,
-				"remote", raddr,
-			)
-		}
-		after, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_SNDBUF)
-		if err != nil {
-			return serrors.Wrap("Error getting SO_SNDBUF socket option (after)", err,
-				"listen", laddr,
-				"remote", raddr,
-			)
-		}
-		if after/2 < target {
-			// Note: kernel doubles value passed in SetSendBuffer, value
-			// returned is the doubled value
-			log.Info("Send buffer size smaller than requested",
-				"expected", target,
-				"actual", after/2,
-				"before", before/2,
-			)
-		}
-	}
-
-	// Set and confirm receive buffer size
-	if cfg.ReceiveBufferSize != 0 {
-		before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
-		if err != nil {
-			return serrors.Wrap("Error getting SO_RCVBUF socket option (before)", err,
-				"listen", laddr,
-				"remote", raddr,
-			)
-		}
-		target := cfg.ReceiveBufferSize
-		if err = c.SetReadBuffer(target); err != nil {
-			return serrors.Wrap("Error setting recv buffer size", err,
-				"listen", laddr,
-				"remote", raddr,
-			)
-		}
-		after, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
-		if err != nil {
-			return serrors.Wrap("Error getting SO_RCVBUF socket option (after)", err,
-				"listen", laddr,
-				"remote", raddr,
-			)
-		}
-		if after/2 < target {
-			// Note: kernel doubles value passed in SetReadBuffer, value
-			// returned is the doubled value
-			log.Info("Receive buffer size smaller than requested",
-				"expected", target,
-				"actual", after/2,
-				"before", before/2,
-			)
-		}
-	}
-
-	cc.conn = c
-	cc.Listen = laddr
-	cc.Remote = raddr
-	return nil
 }
 
 func (c *connUDPBase) Write(b []byte) (int, error) {

@@ -77,43 +77,43 @@ steps:
       - bazel-testlogs.tar.gz
     retry: *automatic-retry
     timeout_in_minutes: 20
-  - label: "Lint :bash:"
-    command:
-      - make lint
-    key: lint
-    retry: *automatic-retry
-    timeout_in_minutes: 20
-  - label: "Check Generated :bash:"
-    command:
-      - echo "--- go_deps.bzl"
-      - mkdir -p /tmp/test-artifacts
-      - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
-      - make go.mod
-      - make go_deps.bzl -B
-      - diff -u /tmp/test-artifacts/go.mod go.mod
-      - diff -u /tmp/test-artifacts/go.sum go.sum
-      - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
-      - echo "--- protobuf"
-      - cp -R pkg/proto/ /tmp/test-artifacts
-      - make protobuf
-      - diff -ur /tmp/test-artifacts/proto/ pkg/proto/
-      - echo "--- licenses"
-      - mkdir -p /tmp/test-artifacts/licenses
-      - ./tools/licenses.sh /tmp/test-artifacts/licenses
-      - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
-      - echo "--- gomocks"
-      - make mocksdiff
-      - echo "--- antlr"
-      - rm -rf /tmp/test-artifacts/antlr
-      - cp -R antlr/ /tmp/test-artifacts/antlr
-      - make antlr
-      - diff -ur /tmp/test-artifacts/antlr/ antlr/
-      - echo "--- testdata"
-      - ./tools/update_testdata.sh
-    timeout_in_minutes: 20
-    key: check_generated
-    retry: *automatic-retry
   - wait
+  - group: "Check Src Tree"
+    steps:
+    - label: "Lint :bash:"
+      command:
+        - make lint
+      key: lint
+      retry: *automatic-retry
+      timeout_in_minutes: 20
+    - label: "Check Generated :bash:"
+      command:
+        - echo "--- go.mod"
+        - mkdir -p /tmp/test-artifacts
+        - cp go.mod go.sum /tmp/test-artifacts/
+        - make go.mod
+        - diff -u /tmp/test-artifacts/go.mod go.mod
+        - diff -u /tmp/test-artifacts/go.sum go.sum
+        - echo "--- protobuf"
+        - cp -R pkg/proto/ /tmp/test-artifacts
+        - make protobuf
+        - diff -ur /tmp/test-artifacts/proto/ pkg/proto/
+        - echo "--- licenses"
+        - mkdir -p /tmp/test-artifacts/licenses
+        - ./tools/licenses.sh /tmp/test-artifacts/licenses
+        - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
+        - echo "--- gomocks"
+        - make mocksdiff
+        - echo "--- antlr"
+        - rm -rf /tmp/test-artifacts/antlr
+        - cp -R antlr/ /tmp/test-artifacts/antlr
+        - make antlr
+        - diff -ur /tmp/test-artifacts/antlr/ antlr/
+        - echo "--- testdata"
+        - ./tools/update_testdata.sh
+      timeout_in_minutes: 20
+      key: check_generated
+      retry: *automatic-retry
   - group: "End to End"
     key: e2e
     steps:

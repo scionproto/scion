@@ -1,0 +1,34 @@
+Vagrant.configure("2") do |config|
+  base_ssh_port = 2200
+
+  ip_map = {
+    1 => "10.100.0.11",
+    2 => "10.100.0.12",
+    3 => "10.100.0.13",
+    4 => "10.100.0.14",
+    5 => "10.100.0.15",
+  }
+
+  (1..5).each do |i|
+    ssh_host_port = base_ssh_port + i
+    static_ip_addr = ip_map[i]
+
+    
+    config.vm.define "scion%02d" % i do |node|
+        node.vm.box = "bento/ubuntu-24.04"  # Use a 64-bit x86 image compatible with VirtualBox
+        node.vm.hostname = "scion%02d" % i
+
+        # Static IP (host-only network)
+        node.vm.network "private_network", ip: static_ip_addr
+
+        # Optional: Forward SSH port to host (so you can SSH to each VM individually from host)
+        node.vm.network "forwarded_port", guest: 22, host: ssh_host_port, auto_correct: true
+
+        node.vm.provider "virtualbox" do |vb|
+            vb.name = "scion%02d" % i
+            vb.memory = 1024
+            vb.cpus = 1
+      end
+    end
+  end
+end

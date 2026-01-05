@@ -33,9 +33,8 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
-	"github.com/scionproto/scion/pkg/proto/hidden_segment"
 	hspb "github.com/scionproto/scion/pkg/proto/hidden_segment"
-	"github.com/scionproto/scion/pkg/proto/hidden_segment/mock_hidden_segment"
+	mockhspb "github.com/scionproto/scion/pkg/proto/hidden_segment/mock_hidden_segment"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
@@ -43,16 +42,16 @@ import (
 func TestRegistererRegisterSegment(t *testing.T) {
 	testCases := map[string]struct {
 		input     hiddenpath.SegmentRegistration
-		hpServer  func(*gomock.Controller) hidden_segment.HiddenSegmentRegistrationServiceServer
+		hpServer  func(*gomock.Controller) hspb.HiddenSegmentRegistrationServiceServer
 		signer    func(ctrl *gomock.Controller) hpgrpc.Signer
 		regular   func(*gomock.Controller) beaconing.RPC
 		assertErr assert.ErrorAssertionFunc
 	}{
 		"valid hidden": {
 			hpServer: func(c *gomock.Controller) hspb.HiddenSegmentRegistrationServiceServer {
-				s := mock_hidden_segment.NewMockHiddenSegmentRegistrationServiceServer(c)
+				s := mockhspb.NewMockHiddenSegmentRegistrationServiceServer(c)
 				s.EXPECT().HiddenSegmentRegistration(gomock.Any(), gomock.Any()).
-					Return(&hidden_segment.HiddenSegmentRegistrationResponse{}, nil)
+					Return(&hspb.HiddenSegmentRegistrationResponse{}, nil)
 				return s
 			},
 			signer: func(ctrl *gomock.Controller) hpgrpc.Signer {
@@ -74,9 +73,9 @@ func TestRegistererRegisterSegment(t *testing.T) {
 		},
 		"valid public": {
 			hpServer: func(c *gomock.Controller) hspb.HiddenSegmentRegistrationServiceServer {
-				s := mock_hidden_segment.NewMockHiddenSegmentRegistrationServiceServer(c)
+				s := mockhspb.NewMockHiddenSegmentRegistrationServiceServer(c)
 				s.EXPECT().HiddenSegmentRegistration(gomock.Any(), gomock.Any()).
-					Return(&hidden_segment.HiddenSegmentRegistrationResponse{}, nil).Times(0)
+					Return(&hspb.HiddenSegmentRegistrationResponse{}, nil).Times(0)
 				return s
 			},
 			signer: func(ctrl *gomock.Controller) hpgrpc.Signer {
@@ -94,12 +93,10 @@ func TestRegistererRegisterSegment(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			svc := xtest.NewGRPCService()
 			hspb.RegisterHiddenSegmentRegistrationServiceServer(svc.Server(), tc.hpServer(ctrl))
@@ -117,7 +114,6 @@ func TestRegistererRegisterSegment(t *testing.T) {
 			tc.assertErr(t, err)
 		})
 	}
-
 }
 
 func createSeg(t *testing.T) seg.Meta {

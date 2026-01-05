@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/segment/iface"
-	"github.com/scionproto/scion/private/storage/db"
 )
 
 // Key denotes the key for the revocation cache.
@@ -52,7 +51,7 @@ type RevOrErr struct {
 // ResultChan is a channel of results.
 type ResultChan <-chan RevOrErr
 
-// RevCache is a cache for revocations. Revcache implementations must be safe for concurrent usage.
+// RevCache is a cache for revocations. RevCache implementations must be safe for concurrent usage.
 type RevCache interface {
 	// Get items with the given keys from the cache. Returns all present requested items that are
 	// not expired or an error if the query failed.
@@ -72,6 +71,5 @@ type RevCache interface {
 	// ever growing cache.
 	// Returns the amount of deleted entries.
 	DeleteExpired(ctx context.Context) (int64, error)
-	db.LimitSetter
 	io.Closer
 }

@@ -31,10 +31,18 @@ import (
 
 func TestStoreSegmentsToRegister(t *testing.T) {
 	testStoreSelection(t, func(store *beacon.Store) ([]beacon.Beacon, error) {
-		return store.SegmentsToRegister(context.Background(), seg.TypeUp)
+		s, err := store.SegmentsToRegister(context.Background(), seg.TypeUp)
+		if err != nil {
+			return nil, err
+		}
+		return s[beacon.DefaultGroup], nil
 	})
 	testStoreSelection(t, func(store *beacon.Store) ([]beacon.Beacon, error) {
-		return store.SegmentsToRegister(context.Background(), seg.TypeDown)
+		s, err := store.SegmentsToRegister(context.Background(), seg.TypeDown)
+		if err != nil {
+			return nil, err
+		}
+		return s[beacon.DefaultGroup], nil
 	})
 }
 
@@ -48,7 +56,6 @@ func testStoreSelection(t *testing.T,
 	methodToTest func(store *beacon.Store) ([]beacon.Beacon, error)) {
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	g := graph.NewDefaultGraph(mctrl)
 
 	// Ensure remote out if is set in last AS entry.
@@ -111,7 +118,6 @@ func testStoreSelection(t *testing.T,
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			db := mock_beacon.NewMockDB(mctrl)
 			policies := beacon.Policies{
 				Prop:    beacon.Policy{BestSetSize: test.bestSize},
@@ -144,7 +150,11 @@ func testStoreSelection(t *testing.T,
 
 func TestCoreStoreSegmentsToRegister(t *testing.T) {
 	testCoreStoreSelection(t, func(store *beacon.CoreStore) ([]beacon.Beacon, error) {
-		return store.SegmentsToRegister(context.Background(), seg.TypeCore)
+		s, err := store.SegmentsToRegister(context.Background(), seg.TypeCore)
+		if err != nil {
+			return nil, err
+		}
+		return s[beacon.DefaultGroup], nil
 	})
 }
 
@@ -158,7 +168,6 @@ func testCoreStoreSelection(t *testing.T,
 	methodToTest func(store *beacon.CoreStore) ([]beacon.Beacon, error)) {
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	g := graph.NewDefaultGraph(mctrl)
 
 	// Ensure remote out if is set in last AS entry.
@@ -228,7 +237,6 @@ func testCoreStoreSelection(t *testing.T,
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			db := mock_beacon.NewMockDB(mctrl)
 			policies := beacon.CorePolicies{
 				Prop:    beacon.Policy{BestSetSize: test.bestSize},

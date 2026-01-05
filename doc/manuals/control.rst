@@ -33,7 +33,7 @@ Options
 
 .. option:: --config <config.toml>
 
-   Specifes the :ref:`configuration file <control-conf-toml>` and starts the control service.
+   Specifies the :ref:`configuration file <control-conf-toml>` and starts the control service.
 
 .. option:: help, -h, --help [subcommand]
 
@@ -114,7 +114,7 @@ considers the following options.
 
       An identifier for this control service.
 
-      This is used to identify which parts of the :ref:`control-conf-topo` file are refering to self.
+      This is used to identify which parts of the :ref:`control-conf-topo` file are referring to self.
       Thus, ``id`` must match a key in the :ref:`control-conf-topo` files' ``control_service`` section.
 
    .. option:: general.config_dir = <string> (Required)
@@ -153,6 +153,16 @@ considers the following options.
 
       Address at which to expose the :ref:`control-rest-api`,
       in the form ``host:port``, ``ip:port`` or ``:port``.
+
+.. object:: rpc
+
+   .. option:: rpc.client_protocol = "grpc"|"connectrpc"|"all" (Default = "all")
+
+      The rpc protocols that should be attempted when invoking another :program:`control` service.
+
+   .. option:: rpc.server_protocol = "grpc"|"connectrpc"|"all" (Default = "all")
+
+      The rpc protocols that should be supported by the :program:`control` service.
 
 .. object:: tracing
 
@@ -690,7 +700,7 @@ of the individual fields below.
       "Hops": {
          <interface-id>: {
             "Intra": {
-               <inteface-id>: <number>
+               <interface-id>: <number>
                # ...
             }
          }

@@ -32,13 +32,13 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+var updateNonDeterministic = xtest.UpdateNonDeterministicGoldenFiles()
 
-func updateCert(goldenCert string) ([]byte, error) {
-	dir, cleanF := xtest.MustTempDir("", "safedir")
-	defer cleanF()
+func updateCert(t *testing.T, goldenCert string) ([]byte, error) {
+	t.Helper()
+	dir := t.TempDir()
 
-	cmd := exec.Command("sh", "-c", "./testdata/update_certs.sh")
+	cmd := exec.Command("bash", "-c", "./testdata/update_certs.sh")
 	cmd.Env = []string{
 		"SAFEDIR=" + dir,
 		"STARTDATE=20200624120000Z",
@@ -52,7 +52,7 @@ func updateCert(goldenCert string) ([]byte, error) {
 
 	src, dst := filepath.Join(dir, goldenCert), filepath.Join("./testdata", goldenCert)
 	command := fmt.Sprintf("mv %s %s", src, dst)
-	return exec.Command("sh", "-c", command).CombinedOutput()
+	return exec.Command("bash", "-c", command).CombinedOutput()
 }
 
 type testCase struct {
@@ -275,7 +275,7 @@ func TestValidateRoot(t *testing.T) {
 	testF := cppki.ValidateRoot
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, string(out))
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return
@@ -320,7 +320,6 @@ func TestValidateRoot(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -330,7 +329,6 @@ func TestValidateRoot(t *testing.T) {
 			tc.assertErr(t, err)
 		})
 	}
-
 }
 
 func TestValidateCA(t *testing.T) {
@@ -338,7 +336,7 @@ func TestValidateCA(t *testing.T) {
 	goldenCert := "cp-ca.crt"
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, string(out))
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return
@@ -369,7 +367,6 @@ func TestValidateCA(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -386,7 +383,7 @@ func TestValidateAS(t *testing.T) {
 	goldenCert := "cp-as.crt"
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, string(out))
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return
@@ -463,7 +460,6 @@ func TestValidateAS(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -542,7 +538,7 @@ func TestValidateRegular(t *testing.T) {
 	testF := cppki.ValidateRegular
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, out)
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return
@@ -580,7 +576,6 @@ func TestValidateRegular(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -597,7 +592,7 @@ func TestValidateSensitive(t *testing.T) {
 	testF := cppki.ValidateSensitive
 
 	if *updateNonDeterministic {
-		out, err := updateCert(goldenCert)
+		out, err := updateCert(t, goldenCert)
 		require.NoError(t, err, out)
 		t.Logf("git add ./testdata/%s", goldenCert)
 		return
@@ -635,7 +630,6 @@ func TestValidateSensitive(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", goldenCert))
@@ -696,7 +690,6 @@ func TestValidateCert(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			validCert, err := cppki.ReadPEMCerts(filepath.Join("./testdata", tc.CertFile))
@@ -718,13 +711,13 @@ func TestValidateChain(t *testing.T) {
 		modify    func([]*x509.Certificate) []*x509.Certificate
 		assertErr assert.ErrorAssertionFunc
 	}{
-		"invalid legth less than two": {
+		"invalid length less than two": {
 			modify: func(c []*x509.Certificate) []*x509.Certificate {
 				return c[:1]
 			},
 			assertErr: assert.Error,
 		},
-		"invalid legth more than two": {
+		"invalid length more than two": {
 			modify: func(c []*x509.Certificate) []*x509.Certificate {
 				c = append(c, c[0])
 				return c
@@ -772,7 +765,6 @@ func TestValidateChain(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			chain, err := cppki.ReadPEMCerts(validChainFile)
@@ -784,7 +776,7 @@ func TestValidateChain(t *testing.T) {
 }
 
 func TestVerifyChain(t *testing.T) {
-	// testadata files generated with scion-pki:
+	// testdata files generated with scion-pki:
 	/*
 		scion-pki testcrypto -t topology/default.topo -o gen
 		cp gen/ISD1/ISD1-B1-S1.trc pkg/scrypto/cppki/testdata/verifychain
@@ -940,7 +932,6 @@ func TestVerifyChain(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			err := cppki.VerifyChain(tc.chain, tc.opts)

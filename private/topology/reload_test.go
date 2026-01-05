@@ -15,6 +15,7 @@
 package topology_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -215,8 +215,8 @@ func TestLoader(t *testing.T) {
 		sub2 := l.Subscribe()
 		timeout := time.After(time.Second)
 		reloadCh <- struct{}{}
-		// the updates channel can be filled in anyorder so below code has to be
-		// oder independent.
+		// the Updates channel can be filled in any order so the code below has to be
+		// order independent.
 		for i := 0; i < 2; i++ {
 			select {
 			case <-sub1.Updates:

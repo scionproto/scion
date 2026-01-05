@@ -52,8 +52,6 @@ func TestRevocationsString(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
-
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tc.Output, segfetcher.RevocationsString(tc.Input))

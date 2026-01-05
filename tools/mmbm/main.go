@@ -36,8 +36,10 @@ import (
 )
 
 // The arena that we play with.
-const allBufs = 8192
-const cycleStep = 5 // Must not divide any working set size, must not be 1.
+const (
+	allBufs   = 8192
+	cycleStep = 5 // Must not divide any working set size, must not be 1.
+)
 
 // Block is a packet buffer representation arranged to make it easy to copy 1, 172 or 4096
 // bytes. It is exported to make sure go cannot optimize fields out.
@@ -119,7 +121,7 @@ func tc(name string, numBufs int, copySize int) (float64, float64) {
 			benchmarkCopyBlock(b.N, numBufs)
 		})
 	default:
-		panic("Size not supported")
+		panic(fmt.Errorf("size not supported: %d", copySize))
 	}
 	bytes := uint64(res.N) * uint64(copySize)
 	megaBytes := float64(bytes) / (1024 * 1024)

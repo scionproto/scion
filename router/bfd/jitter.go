@@ -16,7 +16,7 @@ package bfd
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 )
 
@@ -45,10 +45,10 @@ const (
 // periodic BFD Control packets should be reduced by. If gen is nil, math/rand is used
 // for randomness.
 func computeInterval(transmitInterval time.Duration, detectMult uint,
-	gen IntervalGenerator) time.Duration {
-
+	gen IntervalGenerator,
+) time.Duration {
 	if transmitInterval <= 0 {
-		panic("transmission interval must be > 0")
+		panic(fmt.Errorf("transmission interval must be > 0: %d", transmitInterval))
 	}
 	if detectMult == 0 {
 		panic("detection multiplier must be > 0")
@@ -89,14 +89,14 @@ type defaultIntervalGenerator struct {
 // The generator is not safe for cryptographic use.
 func (g defaultIntervalGenerator) Generate(x, y int) int {
 	if x < 0 || y <= x {
-		panic(fmt.Sprintf("bad integer range: [%d,%d)", x, y))
+		panic(fmt.Sprintf("bad integer range: [%d,%d]", x, y))
 	}
 	return g.intn(y-x) + x
 }
 
 func (g defaultIntervalGenerator) intn(n int) int {
 	if g.Source == nil {
-		return rand.Intn(n)
+		return rand.IntN(n)
 	}
 	return g.Source.Intn(n)
 }

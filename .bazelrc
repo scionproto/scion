@@ -26,10 +26,10 @@ build --define gotags=sqlite_modernc,netgo
 build:osx --define gotags=sqlite_modernc
 
 ### options for test
-test --build_tests_only --print_relative_test_log_paths --test_output=errors --nobuild_python_zip
+test --build_tests_only --print_relative_test_log_paths --test_output=errors --nobuild_python_zip --spawn_strategy=remote,worker,processwrapper-sandbox,local --strategy=Genrule=local
 
 ### predefined configurations (use with --config, eg. `bazel test --config=unit_all`)
-test:race --@io_bazel_rules_go//go/config:race
+test:race --@rules_go//go/config:race
 test:unit --test_tag_filters=unit
 test:unit_all --config=unit //...
 

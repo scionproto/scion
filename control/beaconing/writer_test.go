@@ -36,12 +36,14 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/control/segreg"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
@@ -87,29 +89,49 @@ func TestRegistrarRun(t *testing.T) {
 	for _, test := range testsLocal {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 			topo, err := topology.FromJSONFile(test.fn)
 			require.NoError(t, err)
 			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			segStore := mock_beaconing.NewMockSegmentStore(mctrl)
 
+			var policyType beacon.RegPolicyType
+			switch test.segType {
+			case seg.TypeDown:
+				policyType = beacon.RegPolicyTypeDown
+			case seg.TypeCore:
+				policyType = beacon.RegPolicyTypeCore
+			default:
+				policyType = beacon.RegPolicyTypeUp
+			}
+
+			rw := &beaconing.LocalWriter{
+				LocalSegmentRegistrationPlugin: beaconing.LocalSegmentRegistrationPlugin{
+					Store: segStore,
+				},
+				Type: test.segType,
+			}
 			r := beaconing.WriteScheduler{
-				Writer: &beaconing.LocalWriter{
+				Writer: &beaconing.GroupWriter{
+					PolicyType: policyType,
+					Registrars: segreg.SegmentRegistrars{
+						policyType: {
+							segreg.DefaultPluginID: rw,
+						},
+					},
+					Intfs: intfs,
 					Extender: &beaconing.DefaultExtender{
 						IA:  topo.IA(),
 						MTU: topo.MTU(),
 						SignerGen: testSignerGen{
 							Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
 						},
-						Intfs:      intfs,
-						MAC:        macFactory,
-						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+						Intfs:                intfs,
+						MAC:                  macFactory,
+						MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+						StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+						DiscoveryInformation: func() *discovery.Extension { return nil },
 					},
-					Intfs: intfs,
-					Store: segStore,
-					Type:  test.segType,
 				},
 				Intfs:    intfs,
 				Tick:     beaconing.NewTick(time.Hour),
@@ -119,12 +141,14 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ interface{}) ([]beacon.Beacon, error) {
+				func(_, _ any) (beacon.GroupedBeacons, error) {
 					res := make([]beacon.Beacon, 0, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
 					}
-					return res, nil
+					return beacon.GroupedBeacons{
+						beacon.DefaultGroup: res,
+					}, nil
 				})
 
 			var stored []*seg.Meta
@@ -173,7 +197,6 @@ func TestRegistrarRun(t *testing.T) {
 	for _, test := range testsRemote {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
 
 			topo, err := topology.FromJSONFile(test.fn)
 			require.NoError(t, err)
@@ -182,25 +205,46 @@ func TestRegistrarRun(t *testing.T) {
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			rpc := mock_beaconing.NewMockRPC(mctrl)
 
+			var policyType beacon.RegPolicyType
+			switch test.segType {
+			case seg.TypeDown:
+				policyType = beacon.RegPolicyTypeDown
+			case seg.TypeCore:
+				policyType = beacon.RegPolicyTypeCore
+			default:
+				policyType = beacon.RegPolicyTypeUp
+			}
+
+			rw := &beaconing.RemoteWriter{
+				RemoteSegmentRegistrationPlugin: beaconing.RemoteSegmentRegistrationPlugin{
+					RPC: rpc,
+					Pather: addrutil.Pather{
+						NextHopper: topoWrap{Topo: topo},
+					},
+				},
+				Type: test.segType,
+			}
 			r := beaconing.WriteScheduler{
-				Writer: &beaconing.RemoteWriter{
+				Writer: &beaconing.GroupWriter{
+					PolicyType: policyType,
+					Registrars: segreg.SegmentRegistrars{
+						policyType: {
+							segreg.DefaultPluginID: rw,
+						},
+					},
+					Intfs: intfs,
 					Extender: &beaconing.DefaultExtender{
 						IA:  topo.IA(),
 						MTU: topo.MTU(),
 						SignerGen: testSignerGen{
 							Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
 						},
-						Intfs:      intfs,
-						MAC:        macFactory,
-						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+						Intfs:                intfs,
+						MAC:                  macFactory,
+						MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+						StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+						DiscoveryInformation: func() *discovery.Extension { return nil },
 					},
-					Pather: addrutil.Pather{
-						NextHopper: topoWrap{Topo: topo},
-					},
-					RPC:   rpc,
-					Type:  test.segType,
-					Intfs: intfs,
 				},
 				Intfs:    intfs,
 				Tick:     beaconing.NewTick(time.Hour),
@@ -210,12 +254,14 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ interface{}) ([]beacon.Beacon, error) {
+				func(_, _ any) (beacon.GroupedBeacons, error) {
 					res := make([]beacon.Beacon, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
 					}
-					return res, nil
+					return beacon.GroupedBeacons{
+						beacon.DefaultGroup: res,
+					}, nil
 				})
 			type regMsg struct {
 				Meta seg.Meta
@@ -275,7 +321,6 @@ func TestRegistrarRun(t *testing.T) {
 
 	t.Run("Faulty beacons are not sent", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
 
 		topo, err := topology.FromJSONFile(topoNonCore)
 		require.NoError(t, err)
@@ -283,25 +328,36 @@ func TestRegistrarRun(t *testing.T) {
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		rpc := mock_beaconing.NewMockRPC(mctrl)
 
+		rw := &beaconing.RemoteWriter{
+			RemoteSegmentRegistrationPlugin: beaconing.RemoteSegmentRegistrationPlugin{
+				RPC: rpc,
+				Pather: addrutil.Pather{
+					NextHopper: topoWrap{Topo: topo},
+				},
+			},
+		}
 		r := beaconing.WriteScheduler{
-			Writer: &beaconing.RemoteWriter{
+			Writer: &beaconing.GroupWriter{
+				PolicyType: beacon.RegPolicyTypeDown,
 				Extender: &beaconing.DefaultExtender{
 					IA:  topo.IA(),
 					MTU: topo.MTU(),
 					SignerGen: testSignerGen{
 						Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
 					},
-					Intfs:      intfs,
-					MAC:        macFactory,
-					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+					Intfs:                intfs,
+					MAC:                  macFactory,
+					MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+					StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+					DiscoveryInformation: func() *discovery.Extension { return nil },
 				},
-				Pather: addrutil.Pather{
-					NextHopper: topoWrap{Topo: topo},
+				Registrars: segreg.SegmentRegistrars{
+					beacon.RegPolicyTypeDown: {
+						segreg.DefaultPluginID: rw,
+					},
 				},
-				RPC:   rpc,
-				Intfs: intfs,
-				Type:  seg.TypeDown,
+				Intfs:          intfs,
+				InternalErrors: nil,
 			},
 			Intfs:    intfs,
 			Tick:     beaconing.NewTick(time.Hour),
@@ -313,7 +369,7 @@ func TestRegistrarRun(t *testing.T) {
 		require.NoError(t, err)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(),
 			seg.TypeDown).DoAndReturn(
-			func(_, _ interface{}) (<-chan beacon.Beacon, error) {
+			func(_, _ any) (<-chan beacon.Beacon, error) {
 				res := make(chan beacon.Beacon, 1)
 				b := testBeacon(g, []uint16{graph.If_120_X_111_B})
 				b.InIfID = 10

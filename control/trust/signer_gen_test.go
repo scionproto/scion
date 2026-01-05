@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/private/trust"
 )
 
-func TestChachingSignerGen(t *testing.T) {
+func TestCachingSignerGen(t *testing.T) {
 	exp := time.Now().Add(5 * time.Minute)
 	otherExp := time.Now().Add(time.Hour)
 
@@ -194,7 +194,6 @@ func TestChachingSignerGen(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)

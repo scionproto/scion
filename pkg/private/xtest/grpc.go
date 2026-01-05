@@ -89,10 +89,13 @@ func (s *GRPCService) Start(t *testing.T) {
 }
 
 func (s *GRPCService) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, error) {
-	transportSecurity := grpc.WithInsecure()
+	var transportSecurity grpc.DialOption
 	if s.clientCredentials != nil {
 		transportSecurity = grpc.WithTransportCredentials(s.clientCredentials)
+	} else {
+		transportSecurity = grpc.WithTransportCredentials(insecure.NewCredentials())
 	}
+	//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
 	return grpc.DialContext(ctx, addr.String(),
 		grpc.WithContextDialer(
 			func(context.Context, string) (net.Conn, error) {

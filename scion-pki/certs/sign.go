@@ -198,8 +198,12 @@ offset from the current time.`,
 		"Bundle the certificate with the issuer certificate as a certificate chain",
 	)
 	scionpki.BindFlagKmsCA(cmd.Flags(), &flags.caKms)
-	cmd.MarkFlagRequired("ca")
-	cmd.MarkFlagRequired("ca-key")
+	if err := cmd.MarkFlagRequired("ca"); err != nil {
+		panic(err)
+	}
+	if err := cmd.MarkFlagRequired("ca-key"); err != nil {
+		panic(err)
+	}
 
 	return cmd
 }

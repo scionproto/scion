@@ -629,7 +629,8 @@ func TestAPI(t *testing.T) {
 							Base:   2,
 							Serial: 1,
 							ISD:    12,
-						}},
+						},
+					},
 				)
 				h.EXPECT().GetCAHealth(gomock.Any()).Return(
 					api.Available, true,
@@ -881,11 +882,9 @@ func TestAPI(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			req, err := http.NewRequest("GET", tc.RequestURL, nil)
 			require.NoError(t, err)
@@ -902,7 +901,7 @@ func TestAPI(t *testing.T) {
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
 				raw := strings.ReplaceAll(rr.Body.String(), expiresAt, "EXPIRES_AT")
-				require.NoError(t, os.WriteFile(goldenFile, []byte(raw), 0666))
+				require.NoError(t, os.WriteFile(goldenFile, []byte(raw), 0o666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)

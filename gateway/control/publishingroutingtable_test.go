@@ -63,7 +63,6 @@ func TestNewPublishingRoutingTableLate(t *testing.T) {
 	chains, routeV4, routeV6 := getRoutingChains(t)
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	publisher := mock_control.NewMockPublisher(ctrl)
 	publisher.EXPECT().AddRoute(routeV4)
@@ -91,7 +90,6 @@ func TestNewPublishingRoutingTableHealthiness(t *testing.T) {
 	chains, routeV4, routeV6 := getRoutingChains(t)
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	publisher := mock_control.NewMockPublisher(ctrl)
 	publisher.EXPECT().AddRoute(routeV4)

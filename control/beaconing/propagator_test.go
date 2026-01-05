@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +37,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -52,7 +54,6 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	}
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	topo, err := topology.FromJSONFile(topoNonCore)
 	require.NoError(t, err)
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
@@ -63,13 +64,16 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	}
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+			IA:  topo.IA(),
+			MTU: topo.MTU(),
+			SignerGen: testSignerGen{
+				Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
+			},
+			Intfs:                intfs,
+			MAC:                  macFactory,
+			MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+			StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+			DiscoveryInformation: func() *discovery.Extension { return nil },
 		},
 		SenderFactory: senderFactory,
 		IA:            topo.IA(),
@@ -83,7 +87,7 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	}
 	g := graph.NewDefaultGraph(mctrl)
 	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(1).DoAndReturn(
-		func(_ interface{}) ([]beacon.Beacon, error) {
+		func(_ any) ([]beacon.Beacon, error) {
 			res := make([]beacon.Beacon, 0, len(beacons))
 			for _, desc := range beacons {
 				res = append(res, testBeacon(g, desc))
@@ -96,12 +100,12 @@ func TestPropagatorRunNonCore(t *testing.T) {
 		gomock.Any()).Times(1).DoAndReturn(
 
 		func(_ context.Context, _ addr.IA, egIfID uint16,
-			nextHop *net.UDPAddr) (beaconing.Sender, error) {
-
+			nextHop *net.UDPAddr,
+		) (beaconing.Sender, error) {
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(3).DoAndReturn(
-				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfID, nextHop, pub, topo)
+				func(ctx context.Context, b *seg.PathSegment) error {
+					validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -126,7 +130,6 @@ func TestPropagatorRunCore(t *testing.T) {
 	}
 
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	topo, err := topology.FromJSONFile(topoCore)
 	require.NoError(t, err)
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
@@ -137,13 +140,16 @@ func TestPropagatorRunCore(t *testing.T) {
 	}
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+			IA:  topo.IA(),
+			MTU: topo.MTU(),
+			SignerGen: testSignerGen{
+				Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
+			},
+			Intfs:                intfs,
+			MAC:                  macFactory,
+			MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+			StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+			DiscoveryInformation: func() *discovery.Extension { return nil },
 		},
 		SenderFactory: senderFactory,
 		IA:            topo.IA(),
@@ -157,7 +163,7 @@ func TestPropagatorRunCore(t *testing.T) {
 	}
 	g := graph.NewDefaultGraph(mctrl)
 	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(2).DoAndReturn(
-		func(_ interface{}) ([]beacon.Beacon, error) {
+		func(_ any) ([]beacon.Beacon, error) {
 			res := make([]beacon.Beacon, 0, len(beacons))
 			for _, desc := range beacons {
 				res = append(res, testBeacon(g, desc))
@@ -166,15 +172,15 @@ func TestPropagatorRunCore(t *testing.T) {
 		},
 	)
 
-	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1121),
+	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), graph.If_110_X_210_X,
 		gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ addr.IA, egIfID uint16,
-			nextHop *net.UDPAddr) (beaconing.Sender, error) {
-
+			nextHop *net.UDPAddr,
+		) (beaconing.Sender, error) {
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
-				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfID, nextHop, pub, topo)
+				func(ctx context.Context, b *seg.PathSegment) error {
+					validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -182,15 +188,15 @@ func TestPropagatorRunCore(t *testing.T) {
 			return sender, nil
 		},
 	)
-	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1113),
+	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), graph.If_110_X_130_A,
 		gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ addr.IA, egIfID uint16,
-			nextHop *net.UDPAddr) (beaconing.Sender, error) {
-
+			nextHop *net.UDPAddr,
+		) (beaconing.Sender, error) {
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfID, nextHop, pub, topo)
+				func(ctx context.Context, b *seg.PathSegment) error {
+					validateSend(ctx, t, b, egIfID, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -212,7 +218,6 @@ func TestPropagatorFastRecovery(t *testing.T) {
 		{graph.If_130_B_120_A, graph.If_120_A_110_X},
 	}
 	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
 	topo, err := topology.FromJSONFile(topoCore)
 	require.NoError(t, err)
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
@@ -225,13 +230,16 @@ func TestPropagatorFastRecovery(t *testing.T) {
 
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+			IA:  topo.IA(),
+			MTU: topo.MTU(),
+			SignerGen: testSignerGen{
+				Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
+			},
+			Intfs:                intfs,
+			MAC:                  macFactory,
+			MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+			StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+			DiscoveryInformation: func() *discovery.Extension { return nil },
 		},
 		SenderFactory: senderFactory,
 		IA:            topo.IA(),
@@ -248,7 +256,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	// We call run 4 times in this test, since the interface to 1-ff00:0:120
 	// will never be beaconed on, because the beacons are filtered for loops.
 	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(4).DoAndReturn(
-		func(_ interface{}) ([]beacon.Beacon, error) {
+		func(_ any) ([]beacon.Beacon, error) {
 			return []beacon.Beacon{testBeacon(g, beacons[0])}, nil
 		},
 	)
@@ -278,6 +286,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 }
 
 func validateSend(
+	ctx context.Context,
 	t *testing.T,
 	b *seg.PathSegment,
 	egIfID uint16,
@@ -287,7 +296,7 @@ func validateSend(
 ) {
 	// Check the beacon is valid and verifiable.
 	assert.NoError(t, b.Validate(seg.ValidateBeacon))
-	assert.NoError(t, b.VerifyASEntry(context.Background(),
+	assert.NoError(t, b.VerifyASEntry(ctx,
 		segVerifier{pubKey: pub}, b.MaxIdx()))
 	// Extract the hop field from the current AS entry to compare.
 	hopF := b.ASEntries[b.MaxIdx()].HopEntry.HopField

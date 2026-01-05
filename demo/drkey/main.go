@@ -23,6 +23,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -33,7 +34,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/snet"
 	env "github.com/scionproto/scion/private/app/flag"
 )
@@ -157,8 +157,10 @@ func realMain() int {
 		}
 		fmt.Printf(
 			"Server: host key = %s, protocol = %s, fetch-sv = %v"+
-				"\n\tduration without cache: %s\n\tduration with cache: %s\n",
+				"\n\tduration without cache: %s\n\tduration with cache: %s"+
+				"\n\tserver: %s\n\tclient: %s\n",
 			hex.EncodeToString(serverKey.Key[:]), meta.ProtoId, fetchSV, t2.Sub(t0), t2.Sub(t1),
+			serverAddr, clientAddr,
 		)
 	} else {
 		// Client: fetch key from daemon
@@ -176,8 +178,10 @@ func realMain() int {
 		t1 = time.Now()
 
 		fmt.Printf(
-			"Client: host key = %s, protocol = %s\n\tduration: %s\n",
+			"Client: host key = %s, protocol = %s\n\tduration: %s\n"+
+				"\n\tserver: %s\n\tclient: %s\n",
 			hex.EncodeToString(clientKey.Key[:]), meta.ProtoId, t1.Sub(t0),
+			serverAddr, clientAddr,
 		)
 	}
 	return 0
@@ -270,7 +274,10 @@ func (s Server) FetchSV(
 	}
 
 	// Contact CS directly for SV
-	conn, err := grpc.DialContext(ctx, cs[0], grpc.WithInsecure())
+	//nolint:staticcheck // ignore SA1019; Support remains in 1.x; we won't use v2.
+	conn, err := grpc.DialContext(
+		ctx, cs[0], grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		return drkey.SecretValue{}, serrors.Wrap("dialing control service", err)
 	}
@@ -305,10 +312,8 @@ func getSecretFromReply(
 		return drkey.SecretValue{}, err
 	}
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
+		NotBefore: rep.EpochBegin.AsTime(),
+		NotAfter:  rep.EpochEnd.AsTime(),
 	}
 	returningKey := drkey.SecretValue{
 		ProtoId: proto,

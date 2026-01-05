@@ -29,8 +29,10 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beacon/beacondbtest"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/storage/beacon/dbtest"
 	"github.com/scionproto/scion/private/storage/beacon/sqlite"
+	"github.com/scionproto/scion/private/storage/db"
 )
 
 var testIA = addr.MustParseIA("1-ff00:0:333")
@@ -40,7 +42,11 @@ type TestBackend struct {
 }
 
 func (b *TestBackend) Prepare(t *testing.T, _ context.Context) {
-	db, err := sqlite.New("file::memory:", testIA)
+	db, err := sqlite.New(
+		xtest.SanitizedName(t),
+		testIA,
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 	b.Backend = db
 }
@@ -58,7 +64,7 @@ func TestOpenExisting(t *testing.T) {
 	b := beacondbtest.InsertBeacon(t, db, beacondbtest.Info1, 2, 10, beacon.UsageProp)
 	db.Close()
 	// Open existing database
-	db, err := sqlite.New(tmpF, testIA)
+	db, err := sqlite.New(tmpF, testIA, nil)
 	require.NoError(t, err)
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
@@ -74,17 +80,17 @@ func TestOpenNewer(t *testing.T) {
 	b, tmpF := setupDB(t)
 	defer cleanup(tmpF)
 	// Write a newer version
-	_, err := b.DB().Exec(fmt.Sprintf("PRAGMA user_version = %d", sqlite.SchemaVersion+1))
+	_, err := b.DB().Full.Exec(fmt.Sprintf("PRAGMA user_version = %d", sqlite.SchemaVersion+1))
 	require.NoError(t, err)
 	b.DB().Close()
-	b, err = sqlite.New(tmpF, testIA)
+	b, err = sqlite.New(tmpF, testIA, nil)
 	assert.Error(t, err)
 	assert.Nil(t, b)
 }
 
 func setupDB(t *testing.T) (*sqlite.Backend, string) {
 	tmpFile := tempFilename(t)
-	b, err := sqlite.New(tmpFile, testIA)
+	b, err := sqlite.New(tmpFile, testIA, nil)
 	require.NoError(t, err, "Failed to open DB")
 	return b, tmpFile
 }

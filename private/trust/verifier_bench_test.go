@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,8 +30,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
+	"github.com/scionproto/scion/private/storage/db"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -38,7 +41,10 @@ import (
 func BenchmarkConcurrent10(b *testing.B) {
 	dir := genCrypto(b)
 
-	db, err := sqlite.New("file::memory:")
+	db, err := sqlite.New(
+		xtest.SanitizedName(b),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(b, err)
 
 	_, err = trust.LoadTRCs(context.Background(), filepath.Join(dir, "trcs"), db)
@@ -47,7 +53,7 @@ func BenchmarkConcurrent10(b *testing.B) {
 	_, err = trust.LoadChains(context.Background(), filepath.Join(dir, "certs"), db)
 	require.NoError(b, err)
 
-	signer := loadTrustSigner(b, dir, db)
+	signer := loadTrustSigner(b, dir)
 
 	associated := [][]byte{make([]byte, 300), make([]byte, 300), make([]byte, 300)}
 	msg, err := signer.Sign(context.Background(), make([]byte, 5000), associated...)
@@ -62,12 +68,10 @@ func BenchmarkConcurrent10(b *testing.B) {
 		},
 	}
 
-	b.ResetTimer()
-
 	var wg sync.WaitGroup
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		wg.Add(10)
-		for j := 0; j < 10; j++ {
+		for range 10 {
 			go func() {
 				defer wg.Done()
 				_, err := verifier.Verify(context.Background(), msg, associated...)
@@ -81,7 +85,10 @@ func BenchmarkConcurrent10(b *testing.B) {
 func BenchmarkConcurrentCache10(b *testing.B) {
 	dir := genCrypto(b)
 
-	db, err := sqlite.New("file::memory:")
+	db, err := sqlite.New(
+		xtest.SanitizedName(b),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(b, err)
 
 	_, err = trust.LoadTRCs(context.Background(), filepath.Join(dir, "trcs"), db)
@@ -90,7 +97,7 @@ func BenchmarkConcurrentCache10(b *testing.B) {
 	_, err = trust.LoadChains(context.Background(), filepath.Join(dir, "certs"), db)
 	require.NoError(b, err)
 
-	signer := loadTrustSigner(b, dir, db)
+	signer := loadTrustSigner(b, dir)
 
 	associated := [][]byte{make([]byte, 300), make([]byte, 300), make([]byte, 300)}
 	msg, err := signer.Sign(context.Background(), make([]byte, 5000), associated...)
@@ -106,23 +113,23 @@ func BenchmarkConcurrentCache10(b *testing.B) {
 		Cache: cache.New(time.Second, time.Minute),
 	}
 
-	b.ResetTimer()
-
 	var wg sync.WaitGroup
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		wg.Add(10)
-		for j := 0; j < 10; j++ {
+		for range 10 {
 			go func() {
 				defer wg.Done()
 				_, err := verifier.Verify(context.Background(), msg, associated...)
-				require.NoError(b, err)
+				if err != nil {
+					panic(err)
+				}
 			}()
 		}
 		wg.Wait()
 	}
 }
 
-func loadTrustSigner(b *testing.B, dir string, db trust.DB) trust.Signer {
+func loadTrustSigner(b *testing.B, dir string) trust.Signer {
 	raw, err := os.ReadFile(filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as.key"))
 	require.NoError(b, err)
 	block, _ := pem.Decode(raw)

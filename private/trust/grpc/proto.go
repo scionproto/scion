@@ -17,7 +17,7 @@ package grpc
 import (
 	"crypto/x509"
 
-	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -26,7 +26,7 @@ import (
 	trustmetrics "github.com/scionproto/scion/private/trust/internal/metrics"
 )
 
-func chainQueryToReq(query trust.ChainQuery) *cppb.ChainsRequest {
+func ChainQueryToReq(query trust.ChainQuery) *cppb.ChainsRequest {
 	return &cppb.ChainsRequest{
 		IsdAs:             uint64(query.IA),
 		SubjectKeyId:      query.SubjectKeyID,
@@ -35,7 +35,7 @@ func chainQueryToReq(query trust.ChainQuery) *cppb.ChainsRequest {
 	}
 }
 
-func repToChains(pbChains []*cppb.Chain) ([][]*x509.Certificate, string, error) {
+func RepToChains(pbChains []*cppb.Chain) ([][]*x509.Certificate, string, error) {
 	chains := make([][]*x509.Certificate, 0, len(pbChains))
 	for _, c := range pbChains {
 		var err error
@@ -54,7 +54,7 @@ func repToChains(pbChains []*cppb.Chain) ([][]*x509.Certificate, string, error) 
 	return chains, "", nil
 }
 
-func idToReq(id cppki.TRCID) *cppb.TRCRequest {
+func IDToReq(id cppki.TRCID) *cppb.TRCRequest {
 	return &cppb.TRCRequest{
 		Isd:    uint32(id.ISD),
 		Base:   uint64(id.Base),

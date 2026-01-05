@@ -1,8 +1,8 @@
-load("@rules_pkg//pkg:pkg.bzl", "pkg_deb", "pkg_tar")
-load("@rules_pkg//pkg:rpm.bzl", "pkg_rpm")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("@rules_pkg//pkg:providers.bzl", "PackageVariablesInfo")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
+load("@rules_pkg//pkg:pkg.bzl", "pkg_deb", "pkg_tar")
+load("@rules_pkg//pkg:providers.bzl", "PackageVariablesInfo")
+load("@rules_pkg//pkg:rpm.bzl", "pkg_rpm")
 
 SCION_PKG_HOMEPAGE = "https://github.com/scionproto/scion"
 SCION_PKG_MAINTAINER = "SCION Contributors"
@@ -131,6 +131,8 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
     #              versions of pkg_rpm fix that.
     # debug_package: Starting with rpmbuild 4.20, debug-info packages are built by default. We
     #                currently don't want that and our binaries do not have the required symbols.
+    # buildsubdir and debug_package don't work with older rpmbuild, so they're added in the patch
+    # (dist/rpm/patch_make_rpm.patch)
 
     pkg_rpm(
         name = name,
@@ -143,7 +145,7 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
         package_name = package,
         release = "%autorelease",
         version_file = ":%s_version" % name,
-        defines = {"_smp_build_ncpus": "1", "buildsubdir": "..", "debug_package": "%{nil}"},
+        defines = {"_smp_build_ncpus": "1"},
         requires = deps,
         post_scriptlet_file = post,
         source_date_epoch = 0,

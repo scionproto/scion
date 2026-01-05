@@ -7,7 +7,7 @@ SCMP Authentication
 - Discussion at: :issue:`3969`
 - Status: **Postponed**
 
-Reason for postponment: no clear consensus that this is the right approach. See "Discussion" section.
+Reason for postponement: no clear consensus that this is the right approach. See "Discussion" section.
 Experimental support in router, added in :issue:`4255`.
 
 Abstract

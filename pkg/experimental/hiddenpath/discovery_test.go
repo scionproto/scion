@@ -72,6 +72,8 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
+				path.EXPECT().Destination().AnyTimes().Return(addr.MustParseIA("1-ff00:0:110"))
+				path.EXPECT().Metadata().AnyTimes().Return(nil)
 				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(path, nil)
 				return router
@@ -96,6 +98,8 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
+				path.EXPECT().Destination().AnyTimes().Return(addr.MustParseIA("1-ff00:0:110"))
+				path.EXPECT().Metadata().AnyTimes().Return(nil)
 				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(path, nil)
 				return router
@@ -120,6 +124,8 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
+				path.EXPECT().Destination().AnyTimes().Return(addr.MustParseIA("1-ff00:0:110"))
+				path.EXPECT().Metadata().AnyTimes().Return(nil)
 				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(path, nil)
 				return router
@@ -148,12 +154,10 @@ func TestRegistrationResolverResolve(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			r := hiddenpath.RegistrationResolver{
 				Router:     tc.router(ctrl),
@@ -162,7 +166,6 @@ func TestRegistrationResolverResolve(t *testing.T) {
 			got, err := r.Resolve(context.Background(), addr.MustParseIA("1-ff00:0:110"))
 			tc.assertErr(t, err)
 			assert.Equal(t, tc.want, got)
-
 		})
 	}
 }

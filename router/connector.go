@@ -15,37 +15,58 @@
 package router
 
 import (
-	"net/netip"
 	"sync"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/segment/iface"
-	"github.com/scionproto/scion/private/underlay/conn"
+	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 )
 
-// Connector implements the Dataplane API of the router control process. It sets
-// up connections for the DataPlane.
+// Connector implements the Dataplane interface used by the router control API. It sets
+// up connections for the data plane.
 type Connector struct {
-	DataPlane DataPlane
+	DataPlane dataPlane
 
 	ia                 addr.IA
 	mtx                sync.Mutex
 	internalInterfaces []control.InternalInterface
 	externalInterfaces map[uint16]control.ExternalInterface
 	siblingInterfaces  map[uint16]control.SiblingInterface
+	ReceiveBufferSize  int
+	SendBufferSize     int
 
-	ReceiveBufferSize   int
-	SendBufferSize      int
 	BFD                 config.BFD
 	DispatchedPortStart *int
 	DispatchedPortEnd   *int
 }
 
 var errMultiIA = serrors.New("different IA not allowed")
+
+// NewConnector returns a new connector: a data plane decorated with
+// a configuration interface.
+func NewConnector(config config.RouterConfig, features env.Features) *Connector {
+	return &Connector{
+		DataPlane: makeDataPlane(
+			RunConfig{
+				NumProcessors:         config.NumProcessors,
+				NumSlowPathProcessors: config.NumSlowPathProcessors,
+				BatchSize:             config.BatchSize,
+				ReceiveBufferSize:     config.ReceiveBufferSize,
+				SendBufferSize:        config.SendBufferSize,
+			},
+			features.ExperimentalSCMPAuthentication,
+		),
+		ReceiveBufferSize:   config.ReceiveBufferSize,
+		SendBufferSize:      config.SendBufferSize,
+		BFD:                 config.BFD,
+		DispatchedPortStart: config.DispatchedPortStart,
+		DispatchedPortEnd:   config.DispatchedPortEnd,
+	}
+}
 
 // CreateIACtx creates the context for ISD-AS.
 func (c *Connector) CreateIACtx(ia addr.IA) error {
@@ -60,28 +81,26 @@ func (c *Connector) CreateIACtx(ia addr.IA) error {
 }
 
 // AddInternalInterface adds the internal interface.
-func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error {
+func (c *Connector) AddInternalInterface(
+	ia addr.IA, localHost addr.Host, provider, localAddr string) error {
+
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	log.Debug("Adding internal interface", "isd_as", ia, "local", local)
+	log.Debug("Adding internal interface", "isd_as", ia, "local", localAddr)
 	if !c.ia.Equal(ia) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", ia)
 	}
-	connection, err := conn.New(local, netip.AddrPort{},
-		&conn.Config{ReceiveBufferSize: c.ReceiveBufferSize, SendBufferSize: c.SendBufferSize})
-	if err != nil {
-		return err
-	}
 	c.internalInterfaces = append(c.internalInterfaces, control.InternalInterface{
-		IA:   ia,
-		Addr: local,
+		IA:       ia,
+		Provider: provider,
+		Addr:     localAddr,
 	})
-	return c.DataPlane.AddInternalInterface(connection, local.Addr())
+	return c.DataPlane.AddInternalInterface(localHost, provider, localAddr)
 }
 
 // AddExternalInterface adds a link between the local and remote address.
-func (c *Connector) AddExternalInterface(localIfID iface.ID, link control.LinkInfo,
-	owned bool) error {
+func (c *Connector) AddExternalInterface(
+	localIfID iface.ID, link control.LinkInfo, localHost, remoteHost addr.Host, owned bool) error {
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
@@ -97,69 +116,57 @@ func (c *Connector) AddExternalInterface(localIfID iface.ID, link control.LinkIn
 	if !c.ia.Equal(link.Local.IA) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", link.Local.IA)
 	}
-	if err := c.DataPlane.AddLinkType(intf, link.LinkTo); err != nil {
-		return serrors.Wrap("adding link type", err, "if_id", localIfID)
-	}
 	if err := c.DataPlane.AddNeighborIA(intf, link.Remote.IA); err != nil {
 		return serrors.Wrap("adding neighboring IA", err, "if_id", localIfID)
 	}
 
 	link.BFD = c.applyBFDDefaults(link.BFD)
-	if owned {
-		if len(c.externalInterfaces) == 0 {
-			c.externalInterfaces = make(map[uint16]control.ExternalInterface)
-		}
-		c.externalInterfaces[intf] = control.ExternalInterface{
-			IfID:  intf,
-			Link:  link,
-			State: control.InterfaceDown,
-		}
-	} else {
+	if !owned {
 		if len(c.siblingInterfaces) == 0 {
 			c.siblingInterfaces = make(map[uint16]control.SiblingInterface)
 		}
 		c.siblingInterfaces[intf] = control.SiblingInterface{
-			IfID:              intf,
-			InternalInterface: link.Remote.Addr,
-			Relationship:      link.LinkTo,
-			MTU:               link.MTU,
-			NeighborIA:        link.Remote.IA,
-			State:             control.InterfaceDown,
+			IfID:            intf,
+			InternalAddress: link.Remote.Addr, // address of the sibling router
+			Relationship:    link.LinkTo,
+			MTU:             link.MTU,
+			NeighborIA:      link.Remote.IA,
+			State:           control.InterfaceDown,
 		}
-		return c.DataPlane.AddNextHop(intf, link.Local.Addr, link.Remote.Addr,
-			link.BFD, link.Instance)
+		return c.DataPlane.AddNextHop(intf, link, localHost, remoteHost)
 	}
 
-	connection, err := conn.New(link.Local.Addr, link.Remote.Addr,
-		&conn.Config{ReceiveBufferSize: c.ReceiveBufferSize, SendBufferSize: c.SendBufferSize})
-	if err != nil {
-		return err
+	if len(c.externalInterfaces) == 0 {
+		c.externalInterfaces = make(map[uint16]control.ExternalInterface)
 	}
-
-	return c.DataPlane.AddExternalInterface(intf, connection, link.Local, link.Remote, link.BFD)
+	c.externalInterfaces[intf] = control.ExternalInterface{
+		IfID:  intf,
+		Link:  link,
+		State: control.InterfaceDown,
+	}
+	return c.DataPlane.AddExternalInterface(intf, link, localHost, remoteHost)
 }
 
 // AddSvc adds the service address for the given ISD-AS.
-func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
-
+func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, p uint16) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", a)
 	}
-	return c.DataPlane.AddSvc(svc, a)
+	return c.DataPlane.AddSvc(svc, a, p)
 }
 
 // DelSvc deletes the service entry for the given ISD-AS and IP pair.
-func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
+func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a addr.Host, p uint16) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", a)
 	}
-	return c.DataPlane.DelSvc(svc, a)
+	return c.DataPlane.DelSvc(svc, a, p)
 }
 
 // SetKey sets the key for the given ISD-AS at the given index.

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
@@ -48,15 +48,14 @@ type Service struct {
 }
 
 func (s Service) Connect(ctx context.Context) (Connector, error) {
-	a, err := net.ResolveTCPAddr("tcp", s.Address)
+	conn, err := grpc.NewClient(s.Address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		libgrpc.UnaryClientInterceptor(),
+		libgrpc.StreamClientInterceptor(),
+	)
 	if err != nil {
 		s.Metrics.incConnects(err)
-		return nil, serrors.Wrap("resolving addr", err)
-	}
-	conn, err := libgrpc.SimpleDialer{}.Dial(ctx, a)
-	if err != nil {
-		s.Metrics.incConnects(err)
-		return nil, serrors.Wrap("dialing", err)
+		return nil, serrors.Wrap("creating client", err)
 	}
 	s.Metrics.incConnects(nil)
 	return grpcConn{conn: conn, metrics: s.Metrics}, nil
@@ -146,7 +145,7 @@ func (c grpcConn) SVCInfo(
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Services(ctx, &sdpb.ServicesRequest{})
 	if err != nil {
-		c.metrics.incServcies(err)
+		c.metrics.incServices(err)
 		return nil, err
 	}
 	result := make(map[addr.SVC][]string)
@@ -161,7 +160,7 @@ func (c grpcConn) SVCInfo(
 		}
 		result[svc] = uris
 	}
-	c.metrics.incServcies(nil)
+	c.metrics.incServices(nil)
 	return result, nil
 }
 
@@ -301,6 +300,35 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 		},
 	}
 
+	if p.DiscoveryInformation != nil {
+		res.Meta.DiscoveryInformation = make(map[addr.IA]snet.DiscoveryInformation)
+		for ia, di := range p.DiscoveryInformation {
+			cses := make([]netip.AddrPort, 0, len(di.ControlServiceAddresses))
+			dses := make([]netip.AddrPort, 0, len(di.DiscoveryServiceAddresses))
+			for _, cs := range di.ControlServiceAddresses {
+				ap, err := netip.ParseAddrPort(cs)
+				if err != nil {
+					return path.Path{}, serrors.Wrap("parsing control service address", err,
+						"address", cs, "ia", ia)
+				}
+				cses = append(cses, ap)
+			}
+			for _, ds := range di.DiscoveryServiceAddresses {
+				ap, err := netip.ParseAddrPort(ds)
+				if err != nil {
+					return path.Path{}, serrors.Wrap("parsing discovery service address", err,
+						"address", ds, "ia", ia)
+				}
+				dses = append(dses, ap)
+
+			}
+			res.Meta.DiscoveryInformation[addr.IA(ia)] = snet.DiscoveryInformation{
+				ControlServices:   cses,
+				DiscoveryServices: dses,
+			}
+		}
+	}
+
 	if p.EpicAuths == nil {
 		return res, nil
 	}
@@ -355,10 +383,8 @@ func getASHostKeyFromReply(rep *sdpb.DRKeyASHostResponse,
 		return drkey.ASHostKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
+		NotBefore: rep.EpochBegin.AsTime(),
+		NotAfter:  rep.EpochEnd.AsTime(),
 	}
 
 	returningKey := drkey.ASHostKey{
@@ -399,10 +425,8 @@ func getHostASKeyFromReply(rep *sdpb.DRKeyHostASResponse,
 		return drkey.HostASKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
+		NotBefore: rep.EpochBegin.AsTime(),
+		NotAfter:  rep.EpochEnd.AsTime(),
 	}
 
 	returningKey := drkey.HostASKey{
@@ -443,10 +467,8 @@ func getHostHostKeyFromReply(rep *sdpb.DRKeyHostHostResponse,
 		return drkey.HostHostKey{}, serrors.Wrap("invalid EpochEnd from response", err)
 	}
 	epoch := drkey.Epoch{
-		Validity: cppki.Validity{
-			NotBefore: rep.EpochBegin.AsTime(),
-			NotAfter:  rep.EpochEnd.AsTime(),
-		},
+		NotBefore: rep.EpochBegin.AsTime(),
+		NotAfter:  rep.EpochEnd.AsTime(),
 	}
 
 	returningKey := drkey.HostHostKey{

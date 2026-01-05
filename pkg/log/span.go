@@ -25,19 +25,19 @@ type Span struct {
 }
 
 // Debug logs to the logger and span.
-func (s Span) Debug(msg string, ctx ...interface{}) {
+func (s Span) Debug(msg string, ctx ...any) {
 	s.Logger.Debug(msg, ctx...)
 	s.spanLog("debug", msg, ctx...)
 }
 
 // Info logs to the logger and span.
-func (s Span) Info(msg string, ctx ...interface{}) {
+func (s Span) Info(msg string, ctx ...any) {
 	s.Logger.Info(msg, ctx...)
 	s.spanLog("info", msg, ctx...)
 }
 
 // Error logs to the logger and span.
-func (s Span) Error(msg string, ctx ...interface{}) {
+func (s Span) Error(msg string, ctx ...any) {
 	s.Logger.Error(msg, ctx...)
 	s.spanLog("error", msg, ctx...)
 }
@@ -47,16 +47,16 @@ func (s Span) Enabled(lvl Level) bool {
 }
 
 // New creates a new logger with the context attached.
-func (s Span) New(ctx ...interface{}) Logger {
+func (s Span) New(ctx ...any) Logger {
 	return Span{
 		Logger: s.Logger.New(ctx...),
 		Span:   s.Span,
 	}
 }
 
-func (s Span) spanLog(lvl, msg string, ctx ...interface{}) {
+func (s Span) spanLog(lvl, msg string, ctx ...any) {
 	if s.Span == nil {
 		return
 	}
-	s.Span.LogKV(append([]interface{}{"level", lvl, "event", msg}, ctx...)...)
+	s.Span.LogKV(append([]any{"level", lvl, "event", msg}, ctx...)...)
 }
