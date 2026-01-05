@@ -78,12 +78,14 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 	}
 
 	c := &stunConn{
-		sysPacketConn:   conn,
-		recvChan:        make(chan dataPacket, maxNumPacket),
-		maxQueuedBytes:  int64(rcvBufSize),
-		stunChans:       make(map[stun.TxID]chan stunResponse),
-		mappings:        make(map[netip.AddrPort]*natMapping),
-		pendingRequests: make(map[netip.AddrPort]bool),
+		sysPacketConn:        conn,
+		recvChan:             make(chan dataPacket, maxNumPacket),
+		maxQueuedBytes:       int64(rcvBufSize),
+		stunChans:            make(map[stun.TxID]chan stunResponse),
+		mappings:             make(map[netip.AddrPort]*natMapping),
+		pendingRequests:      make(map[netip.AddrPort]bool),
+		readDeadlineChanged:  make(chan struct{}),
+		writeDeadlineChanged: make(chan struct{}),
 	}
 	c.cond = sync.NewCond(&c.mutex)
 
@@ -260,33 +262,34 @@ STUNLoop:
 		} else {
 			waitDuration = Rm * initialRTO
 		}
+		retransmissionTimeout := time.After(waitDuration)
 
 		for {
 			c.mutex.Lock()
 			deadline := c.writeDeadline
-			deadlineChan := c.writeDeadlineChanged
+			deadlineChanged := c.writeDeadlineChanged
 			c.mutex.Unlock()
 
-			var timeoutChan <-chan time.Time
+			var deadlineExceeded <-chan time.Time
 			if !deadline.IsZero() {
 				timeout := time.Until(deadline)
 				if timeout <= 0 {
 					return nil, os.ErrDeadlineExceeded
 				}
-				timeoutChan = time.After(timeout)
+				deadlineExceeded = time.After(timeout)
 			} else {
-				timeoutChan = nil // no timeout
+				deadlineExceeded = nil // no timeout
 			}
 
 			select {
-			case <-time.After(waitDuration):
+			case <-retransmissionTimeout:
 				if i == Rc-1 {
 					return nil, errors.New("STUN request timed out")
 				}
 				continue STUNLoop
-			case <-timeoutChan:
+			case <-deadlineExceeded:
 				return nil, os.ErrDeadlineExceeded
-			case <-deadlineChan:
+			case <-deadlineChanged:
 				continue // write deadline changed, re-evaluate
 			case resp := <-stunChan:
 				if resp.err != nil {
