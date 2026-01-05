@@ -68,18 +68,18 @@ func main() {
 
 		pkt.Destination, pkt.Source = pkt.Source, pkt.Destination
 
-		rp, ok := pkt.Path.(snet.RawPath)
-		if !ok {
-			log.Printf("Failed to reverse path, unecpected path type: %v", pkt.Path)
-			continue
-		}
-		replyPather := snet.DefaultReplyPather{}
-		replyPath, err := replyPather.ReplyPath(rp)
-		if err != nil {
-			log.Printf("Failed to reverse path: %v", err)
-			continue
-		}
-		pkt.Path = replyPath
+			rp, ok := pkt.Path.(snet.RawPath)
+			if !ok {
+				log.Printf("Failed to reverse path, unexpected path type: %v", pkt.Path)
+				continue
+			}
+			replyPather := snet.DefaultReplyPather{}
+			replyPath, err := replyPather.ReplyPath(rp)
+			if err != nil {
+				log.Printf("Failed to reverse path: %v", err)
+				continue
+			}
+			pkt.Path = replyPath
 
 		pkt.Payload = snet.UDPPayload{
 			SrcPort: pld.DstPort,

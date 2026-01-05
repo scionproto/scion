@@ -96,9 +96,7 @@ linters:
         path: pkg/stun/stun.go
       - linters:
           - goheader
-          - ineffassign
           - lll
-          - staticcheck
         path: pkg/stun/stun_test.go
     paths:
       - third_party$

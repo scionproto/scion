@@ -848,9 +848,7 @@ func (l *internalLink) start(
 ) {
 	maxCap := 0
 	for _, q := range procQs {
-		if cap(q) > maxCap {
-			maxCap = cap(q)
-		}
+		maxCap = max(maxCap, cap(q))
 	}
 	l.procQ = make(chan *router.Packet, maxCap)
 	l.procStop = make(chan struct{})
@@ -1053,7 +1051,6 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, b
 	case slayers.L4TCP, slayers.L4UDP, slayers.L4SCMP, slayers.L4BFD,
 		slayers.HopByHopClass, slayers.End2EndClass,
 		slayers.ExperimentationAndTesting, slayers.ExperimentationAndTesting2:
-		break
 	default:
 		return uint32(numProcRoutines), false
 	}

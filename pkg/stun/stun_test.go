@@ -266,21 +266,21 @@ func TestParseBindingRequest(t *testing.T) {
 	}
 
 	req = []byte("\x00\x00\x00\x00" + magicCookie + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00") // not STUN
-	gotTx, err = stun.ParseBindingRequest(req)
+	_, err = stun.ParseBindingRequest(req)
 	if err == nil {
 		t.Error("Expected error \"malformed STUN packet\". No error thrown.")
 	}
 
 	tx = newTxID()
 	req = requestWithoutFingerprint(tx)
-	gotTx, err = stun.ParseBindingRequest(req)
+	_, err = stun.ParseBindingRequest(req)
 	if err == nil {
 		t.Error("Expected error \"STUN request didn't end in fingerprint\". No error thrown.")
 	}
 
 	tx = newTxID()
 	req = requestWrongFingerprint(tx)
-	gotTx, err = stun.ParseBindingRequest(req)
+	_, err = stun.ParseBindingRequest(req)
 	if err == nil {
 		t.Error("Expected error \"STUN request had bogus fingerprint\". No error thrown.")
 	}
@@ -298,14 +298,14 @@ func TestParseBindingRequest(t *testing.T) {
 
 	tx = newTxID()
 	req = requestFingerprintNotLastAttribute(tx)
-	gotTx, err = stun.ParseBindingRequest(req)
+	_, err = stun.ParseBindingRequest(req)
 	if err == nil {
 		t.Error("Expected error \"STUN request didn't end in fingerprint\". No error thrown.")
 	}
 
 	tx = newTxID()
 	req = requestMalformedAttribute(tx)
-	gotTx, err = stun.ParseBindingRequest(req)
+	_, err = stun.ParseBindingRequest(req)
 	if err == nil {
 		t.Error("Expected error \"STUN response has malformed attributes\". No error thrown.")
 	}
