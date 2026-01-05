@@ -93,6 +93,8 @@ func main() {
 		srcAddr = srcAddr.Unmap()
 		srcPort = uint16(localAddr.Host.Port)
 		nextHop = remoteAddr.Host
+	} else if nextHop == nil {
+		log.Fatalf("Unexpected nil next hop for inter-AS path")
 	} else {
 
 		// Generate and send STUN request
