@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	sslices "github.com/scionproto/scion/pkg/slices"
 	"github.com/scionproto/scion/pkg/stun"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
@@ -207,7 +208,7 @@ type udpConnection struct {
 	name         string                     // for logs. It's more informative than ifID.
 	link         udpLink                    // Link with exclusive use of the connection.
 	links        map[netip.AddrPort]udpLink // Links that share this connection
-	queue        chan *router.Packet
+	queue        chan *router.Packet        // Packets to be sent.
 	metrics      *router.InterfaceMetrics
 	receiverDone chan struct{}
 	senderDone   chan struct{}
@@ -315,35 +316,65 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 	}
 }
 
-func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*router.Packet) int {
-	i := 0
-	if needsBlocking {
-		p, ok := <-queue
-		if !ok {
-			return i
+func readUpTo(
+	pktIter sslices.Iter[**router.Packet], // Where to write the packet pointer.
+	queue <-chan *router.Packet, // Packet pointer source.
+	needsBlocking bool,
+) int {
+	// This is the reading function pointer.
+	var read func(**router.Packet) bool
+
+	// This reading function implementation changes the function pointer to a
+	// simpler one after the first run. This allows to check for blocking behavior only once.
+	// After the first call to read(), read will always behave as readAsync.
+	read = func(ptr **router.Packet) bool {
+		readBlock := func(ptr **router.Packet) bool {
+			var ok bool
+			*ptr, ok = <-queue
+			return ok
 		}
-		pkts[i] = p
-		i++
+
+		readAsync := func(ptr **router.Packet) bool {
+			var ok bool
+			select {
+			case *ptr, ok = <-queue:
+			default:
+			}
+			return ok
+		}
+
+		// Modify the function pointer to readAsync.
+		read = readAsync
+
+		// And for the first time and only time this function runs, call block or async.
+		var ok bool
+		if needsBlocking {
+			ok = readBlock(ptr)
+		} else {
+			ok = readAsync(ptr)
+		}
+		return ok
 	}
 
-	for ; i < n; i++ {
-		select {
-		case p, ok := <-queue:
-			if !ok {
-				return i
-			}
-			pkts[i] = p
-		default:
-			return i
+	pktCount := 0
+	for _, ptr := range pktIter {
+		if !read(ptr) {
+			break
 		}
+		pktCount++
 	}
-	return i
+	return pktCount
 }
 
 func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 	log.Debug("Send", "connection", u.name)
 
-	// We use this somewhat like a ring buffer.
+	// Ring buffer storing the packets.
+	// Using circular (modular) iterators to access this buffer.
+	// Depiction of the ring buffer:
+	//	 |x|x| | | | |x|x|
+	// With x meaning packet to be sent on that index.
+	// The buffer above has batchSize = 8, currentIdx = 6, toWrite = 4.
 	pkts := make([]*router.Packet, batchSize)
 
 	// We use this as a temporary buffer, but allocate it just once
@@ -353,47 +384,62 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 		msgs[i].Buffers = make([][]byte, 1)
 	}
 
-	queue := u.queue
-	conn := u.conn
-	metrics := u.metrics
-	toWrite := 0
-
+	currentIdx := 0 // Index of the first packet pending to be sent.
+	toWrite := 0    // Amount of packets pending to be sent.
 	for u.running.Load() {
-		// Top-up our batch.
-		toWrite += readUpTo(queue, batchSize-toWrite, toWrite == 0, pkts[toWrite:])
+		// Top-up our batch. Write onto the ring buffer, starting from the first free "bucket" and
+		// no more than the count of free buckets.
+		newBatchPktCount := readUpTo(
+			sslices.CDIterator(pkts, currentIdx+toWrite, batchSize-toWrite),
+			u.queue,
+			toWrite == 0)
 
 		// Turn the packets into underlay messages that WriteBatch can send.
-		for i, p := range pkts[:toWrite] {
+		// Only packets stored from currentIdx+toWrite and onwards are new, copy only the new ones.
+		i := 0
+		for _, p := range sslices.CircularIterator(pkts, currentIdx, toWrite+newBatchPktCount) {
 			msgs[i].Buffers[0] = p.RawPacket
-			msgs[i].Addr = nil
-			// If we're using a connected socket we must not specify the address. It might cause
-			// redundant route queries and the address might not even be set in the packet.
-			// Otherwise, we must specify the address.
-			if !u.connected {
+			if u.connected {
+				// If we're using a connected socket we must not specify the address. It might cause
+				// redundant route queries and the address might not even be set in the packet.
+				msgs[i].Addr = nil
+			} else {
+				// Otherwise, we must specify the address.
 				msgs[i].Addr = (*net.UDPAddr)(p.RemoteAddr)
 			}
+			i++
 		}
 
-		written, _ := conn.WriteBatch(msgs[:toWrite], 0)
+		// Attempt to write the remaining packets from previous batches and this new one.
+		written, _ := u.conn.WriteBatch(msgs[:toWrite+newBatchPktCount], 0)
 		if written < 0 {
 			// WriteBatch returns -1 on error, we just consider this as
-			// 0 packets written
+			// 0 packets written.
 			written = 0
 		}
-		router.UpdateOutputMetrics(metrics, pkts[:written])
-		for _, p := range pkts[:written] {
+		iterator := sslices.ToValueIterator(
+			sslices.CircularIterator(pkts, currentIdx, written))
+		router.UpdateOutputMetrics(u.metrics, iterator)
+		// Return storage for all the written packets.
+		for p := range iterator {
 			pool.Put(p)
 		}
+		// The next packet to write is now the first one not written.
+		currentIdx = (currentIdx + written) % batchSize
+
+		// Compute the number of packets to still write for next iteration.
+		toWrite += newBatchPktCount
 		if written != toWrite {
-			// Only one is dropped at this time. We'll retry the rest.
-			sc := router.ClassOfSize(len(pkts[written].RawPacket))
-			metrics[sc].DroppedPacketsInvalid.Inc()
-			pool.Put(pkts[written])
+			// The batch was not completely written. We assume that the failure was caused by
+			// the first packet not being sent, i.e. with index = currentIdx.
+			taintedPktIndex := currentIdx
+			sc := router.ClassOfSize(len(pkts[taintedPktIndex].RawPacket))
+			u.metrics[sc].DroppedPacketsInvalid.Inc()
+			// Return storage for this bad packet.
+			pool.Put(pkts[taintedPktIndex])
+			// We drop the packet and try again with the rest.
+			currentIdx++
 			toWrite -= (written + 1)
-			// Shift the leftovers to the head of the buffers.
-			for i := 0; i < toWrite; i++ {
-				pkts[i] = pkts[i+written+1]
-			}
 		} else {
 			toWrite = 0
 		}

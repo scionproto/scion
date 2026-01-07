@@ -15,6 +15,7 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//pkg/slayers:go_default_library",
         "//pkg/stun:go_default_library",
+        "//pkg/slices:go_default_library",
         "//private/underlay/conn:go_default_library",
         "//router:go_default_library",
         "//router/bfd:go_default_library",

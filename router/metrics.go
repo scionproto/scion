@@ -16,6 +16,7 @@
 package router
 
 import (
+	"iter"
 	"math/bits"
 	"strconv"
 	"strings"
@@ -399,13 +400,13 @@ func serviceLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
 // UpdateOutputMetrics updates the given InterfaceMetrics in bulk according
 // to the given set of just sent packets. This is much faster than looking up
 // the right set of metrics by size class and traffic type for each packet.
-func UpdateOutputMetrics(metrics *InterfaceMetrics, packets []*Packet) {
+func UpdateOutputMetrics(metrics *InterfaceMetrics, packets iter.Seq[*Packet]) {
 	// We need to collect stats by traffic type and size class.
 	// Try to reduce the metrics lookup penalty by using some
 	// simpler staging data structure.
 	writtenPkts := [ttMax][maxSizeClass]int{}
 	writtenBytes := [ttMax][maxSizeClass]int{}
-	for _, p := range packets {
+	for p := range packets {
 		s := len(p.RawPacket)
 		sc := ClassOfSize(s)
 		tt := p.trafficType
