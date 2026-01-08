@@ -99,7 +99,6 @@ Options
       --max-mtu                choose the payload size such that the sent SCION packet including the SCION Header,
                                SCMP echo header and payload are equal to the MTU of the path. This flag overrides the
                                'payload_size' and 'packet_size' flags.
-      --nat                    Enable NAT traversal using STUN.
       --no-color               disable colored output
       --packet-size uint       number of bytes to be sent including the SCION Header and SCMP echo header,
                                the desired size must provide enough space for the required headers. This flag

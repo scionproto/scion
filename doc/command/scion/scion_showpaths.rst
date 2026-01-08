@@ -98,7 +98,6 @@ Options
   -l, --local ip               Local IP address to listen on. (default invalid IP)
       --log.level string       Console logging level verbosity (debug|info|error)
   -m, --maxpaths int           Maximum number of paths that are displayed (default 10)
-      --nat                    Enable NAT traversal using STUN.
       --no-color               disable colored output
       --no-probe               Do not probe the paths and print the health status
   -r, --refresh                Set refresh flag for SCION Daemon path request

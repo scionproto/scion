@@ -128,7 +128,6 @@ Options
       --isd-as isd-as          The local ISD-AS to use. (default 0-0)
   -l, --local ip               Local IP address to listen on. (default invalid IP)
       --log.level string       Console logging level verbosity (debug|info|error)
-      --nat                    Enable NAT traversal using STUN.
       --no-color               disable colored output
       --no-probe               do not probe paths for health
       --out string             The path to write the renewed certificate chain

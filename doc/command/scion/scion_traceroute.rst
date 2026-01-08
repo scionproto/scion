@@ -86,7 +86,6 @@ Options
       --isd-as isd-as          The local ISD-AS to use. (default 0-0)
   -l, --local ip               Local IP address to listen on. (default invalid IP)
       --log.level string       Console logging level verbosity (debug|info|error)
-      --nat                    Enable NAT traversal using STUN.
       --no-color               disable colored output
       --refresh                set refresh flag for path request
       --sciond string          SCION Daemon address. (default "127.0.0.1:30255")
