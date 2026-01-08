@@ -58,20 +58,19 @@ type stunResponse struct {
 }
 
 func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
-	udpConn, ok := conn.(*net.UDPConn)
-	if !ok {
-		return nil, errors.New("stunConn only supports UDP connections")
-	}
 	// Get the receive buffer size
-	fd, err := udpConn.File()
+	sysCallConn, err := conn.SyscallConn()
 	if err != nil {
 		return nil, err
 	}
-	defer fd.Close()
-	rcvBufSize, err := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	var rcvBufSize int
+	err = sysCallConn.Control(func(fd uintptr) {
+		rcvBufSize, err = syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	maxNumPacket := rcvBufSize / 64 // assuming lower bound of per packet metadata of 64 bytes
 	if maxNumPacket < 10 {
 		maxNumPacket = 10
