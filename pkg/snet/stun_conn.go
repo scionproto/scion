@@ -117,11 +117,11 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 					}
 				}
 			} else {
-				data := make([]byte, n)
-				copy(data, buf[:n])
 				c.mutex.Lock()
-				pktLen := int64(len(data))
+				pktLen := int64(len(buf[:n]))
 				if c.queuedBytes+pktLen <= c.maxQueuedBytes {
+					data := make([]byte, n)
+					copy(data, buf[:n])
 					select {
 					case c.recvChan <- dataPacket{data: data, addr: addr}:
 						c.queuedBytes += pktLen
