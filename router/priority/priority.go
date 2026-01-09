@@ -17,7 +17,7 @@ import (
 	"reflect"
 )
 
-type PriorityLabel int
+type PriorityLabel uint8
 
 const (
 	WithPriority PriorityLabel = iota

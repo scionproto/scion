@@ -19,6 +19,7 @@ go_library(
         "//private/underlay/conn:go_default_library",
         "//router:go_default_library",
         "//router/bfd:go_default_library",
+        "//router/priority:go_default_library",
     ],
 )
 

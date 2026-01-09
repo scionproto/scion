@@ -53,6 +53,7 @@ import (
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/bfd"
 	"github.com/scionproto/scion/router/control"
+	pr "github.com/scionproto/scion/router/priority"
 )
 
 const (
@@ -120,6 +121,17 @@ const (
 // arch) until SlowpathRequest which is 4 bytes long. The rest is in decreasing order of size and
 // size-aligned. We want to fit neatly into cache lines, so we need to fit in 64 bytes. The padding
 // required to occupy exactly 64 bytes depends on the architecture.
+//
+// Note(juagargi): if the Packet struct grows larger than 64 bytes, it should have a size multiple
+// of 64 bytes. This prevents "false sharing", i.e. having the same bytes being accessed by
+// multiple threads simultaneously, thus failing cache coherence and hurting performance.
+// This "Packet struct alignment to 64 bytes" is achieved through the presence of the field
+// `_ [_pad]byte`. The value `_pad` is computed via a helper struct `alignHelperForPacket`,
+// who contains the same exact fields and in the same order as in Packet.
+// The presence of the _ [_pad]field needs to be not at the last position of the struct for there
+// is a specific case (with _pad==0) where the compiler would add extra padding to avoid pointer
+// aliasing with the next Packet object. The last field in the structure (QueueIndex PriorityLabel)
+// must not introduce additional padding due to its alignment.
 type Packet struct {
 	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).  It
 	// can be any portion of the full buffer; not necessarily the start. This code maintains the
@@ -140,9 +152,39 @@ type Packet struct {
 	// The type of traffic. This is used for metrics at the forwarding stage, but is most
 	// economically determined at the processing stage. So store it here. It's 2 bytes long.
 	trafficType trafficType
-	// Pad to 64 bytes. For 64bit arch, add 1 byte. For 32bit arch, add 29 bytes.
-	_ [1 + is32bit*28]byte
+	// The struct padding field cannot be the last field of the struct. This is because if the
+	// helper constant _pad is zero and the field is at the end, the compiler will need to avoid
+	// aliasing this field with the next struct's pointer (e.g. in an array).
+	// Since the real last field of this struct is a byte long, this does't introduce alignment
+	// issues (and thus does not modify the final size of the struct regardless of the value
+	// of _pad). See notes for the Packet struct.
+	_ [_pad]byte
+	// Priority forwarding label: packets with more priority are forwarded first
+	QueueIndex pr.PriorityLabel
 }
+
+// alignHelperForPacket is only used to compute the initial size of the Packet struct without
+// any extra padding. Since we can't define Packet recursively in terms of Packet without padding,
+// an extra struct is necessary.
+// The alignHelperForPacket fields must be kept in synchrony with Packet.
+type alignHelperForPacket struct {
+	RawPacket       []byte
+	buffer          *[bufSize]byte
+	RemoteAddr      unsafe.Pointer
+	Link            Link
+	slowPathRequest slowPathRequest
+	egress          uint16
+	trafficType     trafficType
+	QueueIndex      pr.PriorityLabel
+}
+
+// Make sure that the packet structure has the size we expect.
+const (
+	_pad = (64 - int(unsafe.Sizeof(alignHelperForPacket{})%64)) % 64
+)
+
+// Fail (negative array size) if the struct is not a multiple of 64.
+var _ [-(int(unsafe.Sizeof(Packet{}) % 64))]byte
 
 // Keep this 4 bytes long. See comment for packet.
 type slowPathRequest struct {
@@ -150,12 +192,6 @@ type slowPathRequest struct {
 	spType  slowPathType
 	code    slayers.SCMPCode
 }
-
-// Make sure that the packet structure has the size we expect.
-const (
-	_ uintptr = 64 - unsafe.Sizeof(Packet{}) // assert 64 >= sizeof(Packet)
-	_ uintptr = unsafe.Sizeof(Packet{}) - 64 // assert sizeof(Packet) >= 64
-)
 
 // initPacket configures the given blank packet (and returns it, for convenience).
 func (p *Packet) init(buffer *[bufSize]byte) *Packet {
