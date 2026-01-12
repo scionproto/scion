@@ -131,45 +131,133 @@ func TestReadBlockingReflect(t *testing.T) {
 	t.Logf("v = %d", v)
 }
 
-func BenchmarkReadBlocking(b *testing.B) {
-	b.Run("readblocking", func(b *testing.B) {
-		queuesOut := newPriorityQueue(2)
-		queues := toInChannels(queuesOut)
-		go func() {
-			for {
-				queuesOut[0] <- 0
-				queuesOut[1] <- 1
-			}
-		}()
+// BenchmarkRead measures how long it takes to obtain N "values" from the queues,
+// using different methods.
+func BenchmarkRead(b *testing.B) {
+	const N = 1024
+
+	b.Run("blocking-native", func(b *testing.B) {
 		for range b.N {
-			pr.ReadBlocking(queues)
+			queuesOut := [2]chan int{
+				make(chan int),
+				make(chan int),
+			}
+			queues := toInChannels(queuesOut)
+			go func() {
+				for {
+					queuesOut[0] <- 0
+					queuesOut[1] <- 1
+				}
+			}()
+			for range N {
+				// Try from queue 0:
+				select {
+				case <-queues[0]:
+				default:
+					// Then try from queue 1:
+					select {
+					case <-queues[1]:
+					default:
+						// Both empty, try both without ordering:
+						select {
+						case <-queues[0]:
+						case <-queues[1]:
+						}
+					}
+				}
+			}
 		}
 	})
-	b.Run("reflect", func(b *testing.B) {
-		queuesOut := newPriorityQueue(2)
-		queues := toInChannels(queuesOut)
+
+	b.Run("async-native", func(b *testing.B) {
+		queues := [2]chan int{
+			make(chan int),
+			make(chan int),
+		}
+		queuesIn := toInChannels(queues)
 		go func() {
 			for {
-				queuesOut[0] <- 0
-				queuesOut[1] <- 1
+				queues[0] <- 0
+				queues[1] <- 1
 			}
 		}()
 		for range b.N {
-			pr.ReadBlockingReflect(queues)
+			for range b.N {
+				// read one value:
+				var ok bool
+				for !ok {
+					select {
+					case _, ok = <-queuesIn[0]:
+					case _, ok = <-queuesIn[1]:
+					default:
+					}
+				}
+			}
 		}
 	})
-	b.Run("reflect-wrapper", func(b *testing.B) {
-		queuesOut := newPriorityQueue(2)
-		queues := toInChannels(queuesOut)
-		wrapper := pr.NewReflectWrapper(queues)
-		go func() {
-			for {
-				queuesOut[0] <- 0
-				queuesOut[1] <- 1
-			}
-		}()
+
+	b.Run("blocking", func(b *testing.B) {
 		for range b.N {
-			wrapper.ReadBlocking()
+			queuesOut := newPriorityQueue(2)
+			queues := toInChannels(queuesOut)
+			go func() {
+				for {
+					queuesOut[0] <- 0
+					queuesOut[1] <- 1
+				}
+			}()
+			for range N {
+				pr.ReadBlocking(queues)
+			}
+		}
+	})
+	b.Run("async", func(b *testing.B) {
+		for range b.N {
+			queuesOut := newPriorityQueue(2)
+			queues := toInChannels(queuesOut)
+			go func() {
+				for {
+					queuesOut[0] <- 0
+					queuesOut[1] <- 1
+				}
+			}()
+			for range N {
+				var ok bool
+				for !ok {
+					_, ok = pr.ReadAsync(queues)
+				}
+			}
+		}
+	})
+	b.Run("blocking-reflect", func(b *testing.B) {
+		for range b.N {
+			queuesOut := newPriorityQueue(2)
+			queues := toInChannels(queuesOut)
+			go func() {
+				for {
+					queuesOut[0] <- 0
+					queuesOut[1] <- 1
+				}
+			}()
+			for range N {
+				pr.ReadBlockingReflect(queues)
+			}
+		}
+	})
+	b.Run("blocking-wrapper", func(b *testing.B) {
+		for range b.N {
+			queuesOut := newPriorityQueue(2)
+			queues := toInChannels(queuesOut)
+			wrapper := pr.NewReflectWrapper(queues)
+			go func() {
+				for {
+					queuesOut[0] <- 0
+					queuesOut[1] <- 1
+				}
+			}()
+			for range N {
+				wrapper.ReadBlocking()
+			}
 		}
 	})
 }

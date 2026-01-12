@@ -38,6 +38,10 @@ loop:
 	for _, q := range queue {
 		select {
 		case v, ok = <-q:
+			if !ok {
+				// Channel is closed.
+				continue
+			}
 			break loop
 		default:
 		}
@@ -52,17 +56,23 @@ loop:
 // channels. There exists reflect.Select, but it's expensive (see unexported functions below).
 // Instead, we
 func ReadBlocking[T any](queue Queue[T]) (T, bool) {
-	// First read in priority order.
+	// Compile guards because we have manual code below that is written only for the
+	// case of two queues (channels) in the Queue definition.
+	var _ [2 - len(queue)]int // assert( len(queue) <= 2 )
+	var _ [len(queue) - 2]int // assert( len(queue) >= 2 )
+
 	v, ok := ReadAsync(queue)
 	if ok {
+		// We got a value we can return.
 		return v, ok
 	}
 	// Block until any queue has a value.
 	select {
-	case v, ok = <-queue[0]:
-	case v, ok = <-queue[1]:
+	case v, ok := <-queue[0]:
+		return v, ok
+	case v, ok := <-queue[1]:
+		return v, ok
 	}
-	return v, ok
 }
 
 // The following functions are left here only for reference and to test the performance of the
