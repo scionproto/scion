@@ -1,6 +1,6 @@
 // Copyright 2018 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
-// Copyright 2023 SCION Association
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -145,7 +145,7 @@ type AttemptFunc func(n int) bool
 // were executed. Between two attempts at least RetryTimeout time has to pass.
 // Returns 0 on success, 1 on failure.
 func AttemptRepeatedly(name string, attempt AttemptFunc) int {
-	for attempts := 0; attempts < Attempts; attempts++ {
+	for attempts := range Attempts {
 		if attempts != 0 {
 			log.Info("Retrying...")
 			time.Sleep(integration.RetryTimeout)
@@ -164,7 +164,7 @@ func AttemptRepeatedly(name string, attempt AttemptFunc) int {
 // This is very similar to AttemptRepeatedly, but difference in failure/success behaviour
 // justify a different function: parameter-based tweaks would be easily confusing.
 func RepeatUntilFail(name string, doit AttemptFunc) int {
-	for attempts := 0; attempts < Attempts; attempts++ {
+	for attempts := range Attempts {
 		if doit(attempts) {
 			log.Error(fmt.Sprintf("%s failed...", name))
 			return 1

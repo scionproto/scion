@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -497,13 +498,6 @@ func printPacket(bfd *layers.BFD) string {
 		time.Duration(bfd.DesiredMinTxInterval)*time.Microsecond,
 		time.Duration(bfd.RequiredMinRxInterval)*time.Microsecond,
 	)
-}
-
-func max(x, y time.Duration) time.Duration {
-	if x > y {
-		return x
-	}
-	return y
 }
 
 // shouldDiscard returns true if the packet should be discarded, either (1) for a reason as defined

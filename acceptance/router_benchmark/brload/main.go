@@ -200,7 +200,7 @@ func run(cmd *cobra.Command) int {
 	// Prepare a batch worth of packets.
 	batchSize := int(8)
 	allPkts := make([][]byte, batchSize)
-	for i := 0; i < batchSize; i++ {
+	for i := range batchSize {
 		allPkts[i] = make([]byte, len(rawPkt))
 		copy(allPkts[i], rawPkt)
 	}

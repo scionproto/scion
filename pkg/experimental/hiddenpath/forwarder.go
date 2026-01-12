@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,8 +59,8 @@ type ForwardServer struct {
 // the authoritative server and makes the QUIC grpc call. It does not support
 // local cache.
 func (s ForwardServer) Segments(ctx context.Context,
-	req SegmentRequest) ([]*seg.Meta, error) {
-
+	req SegmentRequest,
+) ([]*seg.Meta, error) {
 	if len(req.GroupIDs) == 0 {
 		return nil, serrors.New("no group IDs provided")
 	}
@@ -152,7 +153,7 @@ func (v VerifierAdapter) Verify(ctx context.Context, segments []*seg.Meta, serve
 	resCh, units := segverifier.StartVerification(ctx, v.Verifier, server, segments)
 
 	var errors serrors.List
-	for u := 0; u < units; u++ {
+	for range units {
 		vu := <-resCh
 		if err := vu.SegError(); err != nil {
 			errors = append(errors, err)

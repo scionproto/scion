@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -145,7 +146,7 @@ func (m PartialStruct) Matches(x any) bool {
 		return false
 	}
 	v := unpack(reflect.ValueOf(x))
-	for i := 0; i < expect.NumField(); i++ {
+	for i := range expect.NumField() {
 		ev := expect.Field(i)
 		if ev.IsZero() {
 			continue

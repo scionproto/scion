@@ -181,7 +181,7 @@ func (s *stack) Format(st fmt.State, verb rune) {
 
 func (s *stack) StackTrace() StackTrace {
 	f := make([]Frame, len(*s))
-	for i := 0; i < len(f); i++ {
+	for i := range len(f) {
 		f[i] = Frame((*s)[i])
 	}
 	return f
