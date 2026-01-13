@@ -1,3 +1,18 @@
+# This file sets up a workflow that runs Gobra (github.com/viperproject/gobra)
+# on selected packages of the SCION implementation. Gobra is a program verifier,
+# i.e., it checks that the implementation of each function behaves as expected.
+# The expected behaviour of each function is provided as a formal specification
+# written in comments above the function signature. When Gobra is not able to
+# prove that a function behaves according to its specification, it generates an
+# (hopefully) informative error message, which identifies the parts of the code
+# where the issues might lie.
+# For more information on Gobra and its error messages, check the following:
+# - The Gobra Book (WIP): viperproject.github.io/gobra-book/
+# - The tutorial: github.com/viperproject/gobra/blob/master/docs/tutorial.md
+# The former covers more features of Gobra and contains more up-to-date
+# information, but it is still under construction.
+
+
 name: Verify the specified codebase
 
 on:
@@ -8,32 +23,53 @@ jobs:
   setup-and-test:
     runs-on: ubuntu-latest
     env:
-      statsFile: '/gobra/stats.json'
+      imageVersion: 'v25.09'
+      module: 'github.com/scionproto/scion/'
+      includePaths: '. ./gobra/stdlib-specs'
+      continueOnError: true
     steps:
       - name: Checkout the SCION repository
         uses: actions/checkout@v2
-      - name: Set-up caching for the verification results
-        uses: actions/cache@v3
-        env:
-          cache-name: gobra-cache
+      - name: Check that the package gobra/utils is well-formed
+        uses: viperproject/gobra-action@v25.09.1
         with:
-          path: ${{ runner.workspace }}/.gobra/cache.json
-          key: ${{ env.cache-name }}
-      - name: Verify the specified files
-        uses: viperproject/gobra-action@v22.10.2
-        with:
-          # Prefix used to resolve SCION packages
-          module: 'github.com/scionproto/scion/'
+          packages: 'gobra/utils'
           # Gobra only verifies files annotated with the header "// +gobra"
           headerOnly: '1'
-          # Traverse the entire repository, including nested packages,
-          # in search for annotated files to verify
+          timeout: 2m
+          imageVersion: ${{ env.imageVersion }}
+          module: ${{ env.module }}
+          includePaths: ${{ env.includePaths }}
+          continue-on-error: ${{ env.continueOnError }}
+      - name: Check that specifications of third-party libraries are well-formed
+        uses: viperproject/gobra-action@v25.09.1
+        with:
+          projectLocation: 'scion/gobra/stdlib-specs'
+          headerOnly: '1'
+          # Check all package specifications in directory stdlib-specs
           recursive: '1'
           timeout: 10m
-          caching: '1'
-          statsFile: ${{ env.statsFile }}
-      - name: Upload the verification report
-        uses: actions/upload-artifact@v4
+          imageVersion: ${{ env.imageVersion }}
+          module: ${{ env.module }}
+          includePaths: '. ../..' # relative to project location
+          continue-on-error: ${{ env.continueOnError }}
+      - name: Verify package `pkg/addr`
+        uses: viperproject/gobra-action@v25.09.1
         with:
-          name: verification_stats.json
-          path: ${{ env.statsFile }}
+          packages: 'pkg/addr'
+          headerOnly: '1'
+          timeout: 2m
+          imageVersion: ${{ env.imageVersion }}
+          module: ${{ env.module }}
+          includePaths: ${{ env.includePaths }}
+          continue-on-error: ${{ env.continueOnError }}
+      - name: Verify package `pkg/slayers/path`
+        uses: viperproject/gobra-action@v25.09.1
+        with:
+          packages: 'pkg/slayers/path'
+          headerOnly: '1'
+          timeout: 2m
+          imageVersion: ${{ env.imageVersion }}
+          module: ${{ env.module }}
+          includePaths: ${{ env.includePaths }}
+          continue-on-error: ${{ env.continueOnError }}

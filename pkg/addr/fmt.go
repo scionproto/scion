@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +gobra
+
 package addr
 
 import (
@@ -24,6 +26,8 @@ import (
 
 // ParseFormattedIA parses an IA that was formatted with the FormatIA function.
 // The same options must be provided to successfully parse.
+// @ trusted
+// @ requires false
 func ParseFormattedIA(ia string, opts ...FormatOption) (IA, error) {
 	parts := strings.Split(ia, "-")
 	if len(parts) != 2 {
@@ -33,15 +37,17 @@ func ParseFormattedIA(ia string, opts ...FormatOption) (IA, error) {
 	if err != nil {
 		return 0, serrors.Wrap("parsing ISD part", err, "value", ia)
 	}
-	as, err := ParseFormattedAS(parts[1], opts...)
+	a, err := ParseFormattedAS(parts[1], opts...)
 	if err != nil {
 		return 0, serrors.Wrap("parsing AS part", err, "value", ia)
 	}
-	return MustIAFrom(isd, as), nil
+	return MustIAFrom(isd, a), nil
 }
 
 // ParseFormattedISD parses an ISD number that was formatted with the FormatISD
 // function. The same options must be provided to successfully parse.
+// @ trusted
+// @ requires false
 func ParseFormattedISD(isd string, opts ...FormatOption) (ISD, error) {
 	o := applyFormatOptions(opts)
 	if o.defaultPrefix {
@@ -56,29 +62,35 @@ func ParseFormattedISD(isd string, opts ...FormatOption) (ISD, error) {
 
 // ParseFormattedAS parses an AS number that was formatted with the FormatAS
 // function. The same options must be provided to successfully parse.
-func ParseFormattedAS(as string, opts ...FormatOption) (AS, error) {
+// @ trusted
+// @ requires false
+func ParseFormattedAS(a string, opts ...FormatOption) (AS, error) {
 	o := applyFormatOptions(opts)
 	if o.defaultPrefix {
-		trimmed := strings.TrimPrefix(as, "AS")
-		if trimmed == as {
-			return 0, serrors.New("prefix is missing", "prefix", "AS", "value", as)
+		trimmed := strings.TrimPrefix(a, "AS")
+		if trimmed == a {
+			return 0, serrors.New("prefix is missing", "prefix", "AS", "value", a)
 		}
-		as = trimmed
+		a = trimmed
 	}
-	return parseAS(as, o.separator)
+	return parseAS(a, o.separator)
 }
 
 // FormatIA formats the ISD-AS.
+// @ trusted
+// @ requires false
 func FormatIA(ia IA, opts ...FormatOption) string {
 	o := applyFormatOptions(opts)
-	as := fmtAS(ia.AS(), o.separator)
+	a := fmtAS(ia.AS(), o.separator)
 	if o.defaultPrefix {
-		return fmt.Sprintf("ISD%d-AS%s", ia.ISD(), as)
+		return fmt.Sprintf("ISD%d-AS%s", ia.ISD(), a)
 	}
-	return fmt.Sprintf("%d-%s", ia.ISD(), as)
+	return fmt.Sprintf("%d-%s", ia.ISD(), a)
 }
 
 // FormatISD formats the ISD number.
+// @ trusted
+// @ requires false
 func FormatISD(isd ISD, opts ...FormatOption) string {
 	o := applyFormatOptions(opts)
 	if o.defaultPrefix {
@@ -88,44 +100,54 @@ func FormatISD(isd ISD, opts ...FormatOption) string {
 }
 
 // FormatAS formats the AS number.
-func FormatAS(as AS, opts ...FormatOption) string {
+// @ trusted
+// @ requires false
+func FormatAS(a AS, opts ...FormatOption) string {
 	o := applyFormatOptions(opts)
-	s := fmtAS(as, o.separator)
+	s := fmtAS(a, o.separator)
 	if o.defaultPrefix {
 		return "AS" + s
 	}
 	return s
 }
 
-func fmtAS(as AS, sep string) string {
-	if !as.inRange() {
-		return fmt.Sprintf("%d [Illegal AS: larger than %d]", as, MaxAS)
+// @ decreases
+func fmtAS(a AS, sep string) string {
+	if !a.inRange() {
+		return fmt.Sprintf("%d [Illegal AS: larger than %d]", a, MaxAS)
 	}
 	// Format BGP ASes as decimal
-	if as <= MaxBGPAS {
-		return strconv.FormatUint(uint64(as), 10)
+	if a <= MaxBGPAS {
+		return strconv.FormatUint(uint64(a), 10)
 	}
 	// Format all other ASes as 'sep'-separated hex.
-	const maxLen = len("ffff:ffff:ffff")
-	var b strings.Builder
+	var maxLen = len("ffff:ffff:ffff")
+	var b /*@@@*/ strings.Builder
+	// @ b.ZeroBuilderIsReadyToUse()
 	b.Grow(maxLen)
+	// @ invariant b.Mem()
+	// @ decreases asParts - i
 	for i := 0; i < asParts; i++ {
 		if i > 0 {
 			b.WriteString(sep)
 		}
 		shift := uint(asPartBits * (asParts - i - 1))
-		b.WriteString(strconv.FormatUint(uint64(as>>shift)&asPartMask, asPartBase))
+		b.WriteString(strconv.FormatUint(uint64(a>>shift)&asPartMask, asPartBase))
 	}
 	return b.String()
 }
 
-type FormatOption func(*formatOptions)
+// The following is a type alias instead of a declared type. Currently, Gobra does
+// not support this type declaration.
+type FormatOption = func(*formatOptions)
 
 type formatOptions struct {
 	defaultPrefix bool
 	separator     string
 }
 
+// @ trusted
+// @ requires false
 func applyFormatOptions(opts []FormatOption) formatOptions {
 	o := formatOptions{
 		defaultPrefix: false,
@@ -139,6 +161,8 @@ func applyFormatOptions(opts []FormatOption) formatOptions {
 
 // WithDefaultPrefix enables the default prefix which depends on the type. For
 // the AS number, the prefix is 'AS'. For the ISD number, the prefix is 'ISD'.
+// @ trusted
+// @ requires false
 func WithDefaultPrefix() FormatOption {
 	return func(o *formatOptions) {
 		o.defaultPrefix = true
@@ -147,6 +171,8 @@ func WithDefaultPrefix() FormatOption {
 
 // WithSeparator sets the separator to use for formatting AS numbers. In case of
 // the empty string, the ':' is used.
+// @ trusted
+// @ requires false
 func WithSeparator(separator string) FormatOption {
 	return func(o *formatOptions) {
 		o.separator = separator
@@ -154,6 +180,8 @@ func WithSeparator(separator string) FormatOption {
 }
 
 // WithFileSeparator returns an option that sets the separator to underscore.
+// @ trusted
+// @ requires false
 func WithFileSeparator() FormatOption {
 	return WithSeparator("_")
 }
