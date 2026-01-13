@@ -1,0 +1,11 @@
+# Grafana datasource configuration
+# Auto-provisions Prometheus as the default datasource
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://scion-prometheus:9090
+    isDefault: true
+    editable: true

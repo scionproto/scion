@@ -44,12 +44,14 @@ type Metrics struct {
 	SiblingBFDPacketsSent     *prometheus.CounterVec
 	SiblingBFDPacketsReceived *prometheus.CounterVec
 	SiblingBFDStateChanges    *prometheus.CounterVec
+	ProcessDuration           *prometheus.HistogramVec
+	ProcessResult             *prometheus.CounterVec
 }
 
 // NewMetrics initializes the metrics for the Border Router, and registers them with the default
 // registry.
 func NewMetrics() *Metrics {
-	return &Metrics{
+	m := &Metrics{
 		ProcessedPackets: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_processed_pkts_total",
@@ -165,6 +167,10 @@ func NewMetrics() *Metrics {
 			[]string{"sibling", "isd_as"},
 		),
 	}
+	// Processing metrics are conditionally compiled with -tags router_profile
+	// to avoid overhead in production. See metrics_processing.go.
+	m.ProcessDuration, m.ProcessResult = initProcessingMetrics()
+	return m
 }
 
 // trafficType labels traffic as being of either of the following types: in, out, inTransit,

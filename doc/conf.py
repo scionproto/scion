@@ -56,6 +56,7 @@ exclude_patterns = [
     ".DS_Store",
     "manuals/*/*",  # manuals/<x>.rst uses "include" directive to compose files from subdirectories
     "dev/design/TEMPLATE.rst",
+    "tutorials/deploy/monitoring/*",  # operational configs, not documentation
 ]
 
 master_doc = "index"
