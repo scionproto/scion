@@ -19,10 +19,14 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
 )
 
@@ -71,7 +75,7 @@ To inspect the created asn.1 file you can use the openssl tool::
 					Bytes: raw,
 				})
 			}
-			if err := os.WriteFile(flags.out, raw, 0644); err != nil {
+			if err := os.WriteFile(flags.out, raw, 0o644); err != nil {
 				return serrors.Wrap("failed to write extracted payload", err)
 			}
 			fmt.Printf("Successfully extracted payload at %s\n", flags.out)
@@ -86,51 +90,138 @@ To inspect the created asn.1 file you can use the openssl tool::
 
 func newExtractCertificates(pather command.Pather) *cobra.Command {
 	var flags struct {
-		out string
+		out   string
+		ias   []string
+		types []string
 	}
 
 	cmd := &cobra.Command{
 		Use:     "certificates",
-		Aliases: []string{"certs"},
+		Aliases: []string{"certs", "certificate", "cert"},
 		Short:   "Extract the bundled certificates",
 		Example: fmt.Sprintf(`  %[1]s certificates -o bundle.pem input.trc`, pather.CommandPath()),
 		Long:    `'certificates' extracts the certificates into a bundled PEM file.`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runExtractCertificates(args[0], flags.out); err != nil {
+			types := make(map[cppki.CertType]bool)
+			for _, t := range flags.types {
+				if t == "any" {
+					types = nil // No filter, all types are included.
+					break
+				}
+				typ, ok := certTypes[t]
+				if !ok {
+					return fmt.Errorf("unknown certificate type %q, valid types are: %s",
+						t, strings.Join(getTypes(), ", "))
+				}
+				types[typ] = true
+			}
+
+			ias := make(map[addr.IA]bool)
+			for _, v := range flags.ias {
+				ia, err := addr.ParseIA(v)
+				if err != nil {
+					return fmt.Errorf("invalid ISD-AS %q: %w", v, err)
+				}
+				ias[ia] = true
+			}
+
+			cmd.SilenceUsage = true
+
+			if err := runExtractCertificates(args[0], flags.out, types, ias); err != nil {
 				return err
 			}
-			fmt.Printf("Successfully extracted certificates at %s\n", flags.out)
+			if flags.out != "" && flags.out != "-" {
+				fmt.Fprintf(cmd.ErrOrStderr(),
+					"Successfully extracted certificates at %s\n", flags.out)
+			}
 			return nil
 		},
 	}
 
-	addOutputFlag(&flags.out, cmd)
+	addOptionalOutputFlag(&flags.out, cmd)
+
+	cmd.Flags().StringSliceVar(&flags.ias, "subject.isd-as", nil,
+		"Filter certificates by ISD-AS of the subject (e.g., 1-ff00:0:110)")
+	cmd.Flags().StringSliceVar(&flags.types, "type", nil,
+		"Filter certificates by type ("+strings.Join(getTypes(), "|")+")")
 	return cmd
 }
 
-func runExtractCertificates(in, out string) error {
+func runExtractCertificates(
+	in, out string, types map[cppki.CertType]bool, ias map[addr.IA]bool,
+) error {
 	signed, err := DecodeFromFile(in)
 	if err != nil {
 		return serrors.Wrap("failed to load signed TRC", err)
 	}
-	return writeBundle(out, signed.TRC.Certificates)
+	certs := make([]*x509.Certificate, 0, len(signed.TRC.Certificates))
+
+	// Filter the certificates based on the user input.
+	for _, cert := range signed.TRC.Certificates {
+		// Check certificate type
+		{
+			typ, err := cppki.ValidateCert(cert)
+			if err != nil {
+				return fmt.Errorf("invalid certificate %s: %w", cert.Subject.CommonName, err)
+			}
+			if len(types) > 0 && !types[typ] {
+				continue
+			}
+		}
+
+		// Check certificate ISD-AS
+		{
+			ia, err := cppki.ExtractIA(cert.Subject)
+			if err != nil {
+				return fmt.Errorf("failed to extract ISD-AS from certificate %s: %w",
+					cert.Subject.CommonName, err)
+			}
+			if len(ias) > 0 && !ias[ia] {
+				continue
+			}
+		}
+		certs = append(certs, cert)
+	}
+
+	return writeBundle(out, certs)
 }
 
 func writeBundle(out string, certs []*x509.Certificate) error {
-	file, err := os.Create(out)
-	if err != nil {
-		return serrors.Wrap("unable to create file", err)
+	o := os.Stdout
+	if out != "" && out != "-" {
+		var err error
+		if o, err = os.Create(out); err != nil {
+			return serrors.Wrap("unable to create file", err)
+		}
+		defer o.Close()
 	}
-	defer file.Close()
 	for i, cert := range certs {
 		block := pem.Block{
 			Type:  "CERTIFICATE",
 			Bytes: cert.Raw,
 		}
-		if err := pem.Encode(file, &block); err != nil {
+		if err := pem.Encode(o, &block); err != nil {
 			return serrors.Wrap("unable to encode certificate", err, "index", i)
 		}
 	}
 	return nil
+}
+
+var certTypes = map[string]cppki.CertType{
+	cppki.Root.String():      cppki.Root,
+	cppki.CA.String():        cppki.CA,
+	cppki.AS.String():        cppki.AS,
+	cppki.Sensitive.String(): cppki.Sensitive,
+	cppki.Regular.String():   cppki.Regular,
+}
+
+func getTypes() []string {
+	options := make([]string, 0, len(certTypes)+1)
+	for k := range certTypes {
+		options = append(options, k)
+	}
+	options = append(options, "any")
+	slices.Sort(options)
+	return options
 }
