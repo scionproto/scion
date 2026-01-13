@@ -1,0 +1,126 @@
+{
+  "__README": "Copy this file and rename to your-hypothesis.json. Replace all YOUR_ placeholders.",
+  "annotations": { "list": [] },
+  "description": "YOUR_HYPOTHESIS: What question does this dashboard answer?",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "title": "YOUR_QUESTION: Is X the bottleneck?",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "The Answer (YOUR_METRIC as % of total)",
+      "description": "Green: <10% (not a bottleneck). Yellow: 10-20% (worth investigating). Red: >20% (optimize this).",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "orange", "value": 0.2 },
+              { "color": "red", "value": 0.3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value_and_name" },
+      "targets": [
+        {
+          "expr": "sum(rate(YOUR_METRIC_sum[5m])) / sum(rate(YOUR_TOTAL_METRIC_sum[5m]))",
+          "legendFormat": "YOUR_LABEL % of Total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "YOUR_METRIC Latency Percentiles",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 1 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(YOUR_METRIC_bucket[1m])) by (le))",
+          "legendFormat": "P50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(YOUR_METRIC_bucket[1m])) by (le))",
+          "legendFormat": "P95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(YOUR_METRIC_bucket[1m])) by (le))",
+          "legendFormat": "P99",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "title": "Context & Correlation",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "collapsed": false
+    },
+    {
+      "title": "YOUR_METRIC Over Time",
+      "description": "How does this metric change with load?",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(YOUR_METRIC_sum[1m]))",
+          "legendFormat": "Total time in YOUR_COMPONENT",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Throughput for Context",
+      "description": "Correlate your metric with overall throughput",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "fieldConfig": {
+        "defaults": { "unit": "pps" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(router_processed_pkts_total[1m]))",
+          "legendFormat": "Packets/sec",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["scion", "router", "YOUR_COMPONENT", "hypothesis"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "SCION Router: YOUR_HYPOTHESIS",
+  "uid": "your-hypothesis-uid",
+  "version": 1
+}

@@ -1,0 +1,19 @@
+# Prometheus configuration for SCION tutorial monitoring
+#
+# WARNING: LOCAL DEVELOPMENT ONLY - no authentication configured
+#
+# Scrapes metrics from all border routers on port 9100
+# Border router metrics endpoint: http://<container>:9100/metrics
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: 'scion-routers'
+    static_configs:
+      - targets:
+          - 'scion01:9100'  # AS 15-ffaa:1:1 border router
+          - 'scion02:9100'  # AS 15-ffaa:1:2 border router
+          - 'scion03:9100'  # AS 15-ffaa:1:3 border router
+          - 'scion04:9100'  # AS 15-ffaa:1:4 border router
+          - 'scion05:9100'  # AS 15-ffaa:1:5 border router
