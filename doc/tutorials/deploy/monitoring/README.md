@@ -54,6 +54,7 @@ Before writing any code, write down:
 3. **What you'll do**: "If yes, investigate caching. If no, look elsewhere."
 
 Example from this PR:
+
 - Question: Is MAC verification the bottleneck?
 - Signal: MAC verify time as % of total processing time
 - Threshold: >30% = worth optimizing, <10% = look elsewhere
@@ -62,11 +63,12 @@ Example from this PR:
 
 #### Metric Naming Convention
 
-```
+```text
 router_<component>_<measurement>_<unit>
 ```
 
 Examples:
+
 - `router_process_duration_seconds` - time spent processing
 - `router_cache_hit_total` - cache hits (counter)
 - `router_queue_depth` - current queue size (gauge)
@@ -176,6 +178,7 @@ open http://localhost:3000/d/your-hypothesis
 See `provisioning/dashboards/TEMPLATE.json` for a starting point.
 
 The template includes:
+
 - Title row with your hypothesis question
 - Key answer stat panel with thresholds
 - Time series panel
@@ -197,21 +200,25 @@ When contributing a new dashboard:
 ## Useful PromQL Patterns
 
 ### Latency percentiles
+
 ```promql
 histogram_quantile(0.99, rate(router_your_metric_bucket[1m]))
 ```
 
 ### Percentage of total
+
 ```promql
 sum(rate(metric_a[5m])) / sum(rate(metric_total[5m]))
 ```
 
 ### Rate of change
+
 ```promql
 rate(router_counter_total[1m])
 ```
 
 ### Compare before/after
+
 ```promql
 # Use time shift
 rate(metric[5m]) / rate(metric[5m] offset 1h)
