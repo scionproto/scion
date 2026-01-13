@@ -2217,6 +2217,9 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	// the forwarding queue is an serious internal error. Let that panic.
 	fwLink := b.dataPlane.interfaces[b.ifID]
 
+	// BFD packets are always marked as priority.
+	p.QueueIndex = pr.WithPriority
+
 	if !fwLink.Send(p) {
 		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
 		// the solution is do use BFD's demand-mode. To be considered in a future refactoring.

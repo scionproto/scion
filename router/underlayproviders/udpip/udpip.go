@@ -393,6 +393,21 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 	currentIdx := 0 // Index of the first packet pending to be sent.
 	toWrite := 0    // Amount of packets pending to be sent.
 	for u.running.Load() {
+
+		// XXX(juagargi): open question: if the priority input queue is empty, how many best-effort
+		// packets should we read and then send? Two answers (to show my hesitation):
+		// 1. If too many, then while we are sending them new priority packets could arrive, and we
+		// would be adding latency for those priority packets to be read and sent.
+		// 2. If too little, then the forwarding process will not be very efficient.
+		//
+		// While the solution may affect jitter (or latency in general), it will not affect the
+		// reliability of the forwarding for priority packets: because we assume that the
+		// system is well configured, we don't have a higher rate of priority packets reception
+		// than emission; we assume this even taking into account the tolerable token buckets burst.
+		// In that case, unless batchSize was configured extremely high, we will not enqueue
+		// enough priority packets (without sending) them that would cause a bottleneck enough to
+		// stall the packet processors.
+
 		// Top-up our batch. Write onto the ring buffer, starting from the first free "bucket" and
 		// no more than the count of free buckets.
 		newBatchPktCount := readUpTo(
