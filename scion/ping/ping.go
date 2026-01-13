@@ -203,10 +203,17 @@ func (p *pinger) Ping(
 	go func() {
 		defer log.HandlePanic()
 		defer wg.Done()
-		for i := uint16(0); i < p.attempts; i++ {
+
+		i := p.attempts
+		for {
 			if err := p.send(remote, dPath, nextHop); err != nil {
 				errSend <- serrors.Wrap("sending", err)
 				return
+			}
+			i--
+			if i == 0 {
+				// Don't wait for the tick after we're done.
+				break
 			}
 			select {
 			case <-send.C:
