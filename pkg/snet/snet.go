@@ -90,7 +90,8 @@ type SCIONNetwork struct {
 	// SCMPHandler describes the network behaviour upon receiving SCMP traffic.
 	SCMPHandler       SCMPHandler
 	PacketConnMetrics SCIONPacketConnMetrics
-	STUNEnabled       bool
+	// STUNEnabled indicates whether STUN should be used for NAT traversal.
+	STUNEnabled bool
 }
 
 // OpenRaw returns a PacketConn which listens on the specified address.
