@@ -72,7 +72,7 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 	}
 
 	// assuming lower bound of per packet metadata of 64 bytes
-	maxNumPacket := max(rcvBufSize / 64, 10)
+	maxNumPacket := max(rcvBufSize/64, 10)
 
 	c := &stunConn{
 		sysPacketConn:        conn,
@@ -115,18 +115,21 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 					}
 				}
 			} else {
-				c.mutex.Lock()
-				pktLen := int64(len(buf[:n]))
-				if c.queuedBytes+pktLen <= c.maxQueuedBytes {
-					data := make([]byte, n)
-					copy(data, buf[:n])
-					select {
-					case c.recvChan <- dataPacket{data: data, addr: addr}:
-						c.queuedBytes += pktLen
-					default:
+				func() {
+					c.mutex.Lock()
+					defer c.mutex.Unlock()
+
+					pktLen := int64(len(buf[:n]))
+					if c.queuedBytes+pktLen <= c.maxQueuedBytes {
+						data := make([]byte, n)
+						copy(data, buf[:n])
+						select {
+						case c.recvChan <- dataPacket{data: data, addr: addr}:
+							c.queuedBytes += pktLen
+						default:
+						}
 					}
-				}
-				c.mutex.Unlock()
+				}()
 			}
 		}
 	}()
@@ -183,42 +186,45 @@ func (mapping *natMapping) isValid() bool {
 	return time.Since(mapping.lastUsed) < timeoutDuration
 }
 
-func (c *stunConn) mappedAddr(dest netip.AddrPort) (netip.AddrPort, error) {
-	c.mutex.Lock()
-	for {
-		// Check if mapping exists and is valid
-		if mapping, ok := c.mappings[dest]; ok {
-			if mapping.isValid() {
-				mapping.touch()
-				addr := mapping.mappedAddr
-				c.mutex.Unlock()
-				return addr, nil
-			}
-		}
-		// Check if STUN request is already happening concurrently
-		if c.pendingRequests[dest] {
-			// Wait() automatically releases the mutex, waits, then reacquires it before continuing
-			c.cond.Wait()
-			continue // Re-check mapping
-		}
+func (c *stunConn) mappedAddr(dest netip.AddrPort) (addr netip.AddrPort, err error) {
+	exists := func() bool {
+		c.mutex.Lock()
+		defer c.mutex.Unlock()
 
-		c.pendingRequests[dest] = true
-		break
+		for {
+			// Check if mapping exists and is valid
+			if mapping, ok := c.mappings[dest]; ok {
+				if mapping.isValid() {
+					mapping.touch()
+					addr = mapping.mappedAddr
+					return true
+				}
+			}
+			// Check if STUN request is already happening concurrently
+			if c.pendingRequests[dest] {
+				// Wait() automatically releases the mutex, waits, then reacquires it before continuing
+				c.cond.Wait()
+				continue // Re-check mapping
+			}
+
+			c.pendingRequests[dest] = true
+			return false
+		}
+	}()
+	if exists {
+		return addr, nil
 	}
 
-	c.mutex.Unlock()
 	mapping, err := c.makeSTUNRequest(dest)
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
 	delete(c.pendingRequests, dest)
 	c.cond.Broadcast()
 	if err != nil {
-		c.mutex.Unlock()
 		return netip.AddrPort{}, err
 	}
-	addr := mapping.mappedAddr
-	c.mutex.Unlock()
-	return addr, nil
+	return mapping.mappedAddr, nil
 }
 
 func (c *stunConn) makeSTUNRequest(dest netip.AddrPort) (*natMapping, error) {
