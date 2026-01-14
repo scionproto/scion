@@ -64,7 +64,7 @@ func main() {
 			continue
 		}
 
-		log.Printf("Received data: \"%v\" from %v:%v", string(pld.Payload), pkt.Source, pld.SrcPort)
+		log.Printf("Received data: %q from %v:%v", string(pld.Payload), pkt.Source, pld.SrcPort)
 
 		pkt.Destination, pkt.Source = pkt.Source, pkt.Destination
 

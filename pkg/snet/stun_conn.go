@@ -71,10 +71,8 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 		return nil, err
 	}
 
-	maxNumPacket := rcvBufSize / 64 // assuming lower bound of per packet metadata of 64 bytes
-	if maxNumPacket < 10 {
-		maxNumPacket = 10
-	}
+	// assuming lower bound of per packet metadata of 64 bytes
+	maxNumPacket := max(rcvBufSize / 64, 10)
 
 	c := &stunConn{
 		sysPacketConn:        conn,
@@ -248,7 +246,7 @@ func (c *stunConn) makeSTUNRequest(dest netip.AddrPort) (*natMapping, error) {
 	currentRTO := initialRTO
 
 STUNLoop:
-	for i := 0; i < Rc; i++ {
+	for i := range Rc {
 		_, err := c.WriteTo(stunRequest, net.UDPAddrFromAddrPort(dest))
 		if err != nil {
 			return nil, err
@@ -276,8 +274,6 @@ STUNLoop:
 					return nil, os.ErrDeadlineExceeded
 				}
 				deadlineExceeded = time.After(timeout)
-			} else {
-				deadlineExceeded = nil // no timeout
 			}
 
 			select {
