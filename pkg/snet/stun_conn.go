@@ -203,7 +203,8 @@ func (c *stunConn) mappedAddr(dest netip.AddrPort) (addr netip.AddrPort, err err
 			}
 			// Check if STUN request is already happening concurrently
 			if c.pendingRequests[dest] {
-				// Wait() automatically releases the mutex, waits, then reacquires it before continuing
+				// Wait() automatically releases the mutex, waits,
+				// then reacquires it before continuing
 				c.cond.Wait()
 				continue // Re-check mapping
 			}
