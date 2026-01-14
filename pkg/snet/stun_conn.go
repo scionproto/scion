@@ -138,22 +138,23 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 }
 
 func (c *stunConn) ReadFrom(b []byte) (int, net.Addr, error) {
+	deadlineTimer := time.NewTimer(0)
+	deadlineTimer.Stop()
+
 	for {
 		c.mutex.Lock()
 		deadline := c.readDeadline
 		deadlineChan := c.readDeadlineChanged
 		c.mutex.Unlock()
 
-		var timeoutChan <-chan time.Time
 		if !deadline.IsZero() {
 			timeout := time.Until(deadline)
 			if timeout <= 0 {
 				return 0, nil, os.ErrDeadlineExceeded
 			}
-			timeoutChan = time.After(timeout)
-		} else {
-			timeoutChan = nil // no timeout
+			deadlineTimer.Reset(timeout)
 		}
+
 		select {
 		case pkt, ok := <-c.recvChan:
 			if !ok {
@@ -164,7 +165,7 @@ func (c *stunConn) ReadFrom(b []byte) (int, net.Addr, error) {
 			c.mutex.Unlock()
 			n := copy(b, pkt.data)
 			return n, pkt.addr, nil
-		case <-timeoutChan:
+		case <-deadlineTimer.C:
 			return 0, nil, os.ErrDeadlineExceeded
 		case <-deadlineChan:
 			continue // read deadline changed, re-evaluate
@@ -248,6 +249,12 @@ func (c *stunConn) makeSTUNRequest(dest netip.AddrPort) (*natMapping, error) {
 		c.mutex.Unlock()
 	}()
 
+	retransmissionTimer := time.NewTimer(0)
+	retransmissionTimer.Stop()
+
+	deadlineTimer := time.NewTimer(0)
+	deadlineTimer.Stop()
+
 	var mappedAddr netip.AddrPort
 	currentRTO := initialRTO
 
@@ -265,7 +272,7 @@ STUNLoop:
 		} else {
 			waitDuration = Rm * initialRTO
 		}
-		retransmissionTimeout := time.After(waitDuration)
+		retransmissionTimer.Reset(waitDuration)
 
 		for {
 			c.mutex.Lock()
@@ -273,22 +280,21 @@ STUNLoop:
 			deadlineChanged := c.writeDeadlineChanged
 			c.mutex.Unlock()
 
-			var deadlineExceeded <-chan time.Time
 			if !deadline.IsZero() {
 				timeout := time.Until(deadline)
 				if timeout <= 0 {
 					return nil, os.ErrDeadlineExceeded
 				}
-				deadlineExceeded = time.After(timeout)
+				deadlineTimer.Reset(timeout)
 			}
 
 			select {
-			case <-retransmissionTimeout:
+			case <-retransmissionTimer.C:
 				if i == Rc-1 {
 					return nil, errors.New("STUN request timed out")
 				}
 				continue STUNLoop
-			case <-deadlineExceeded:
+			case <-deadlineTimer.C:
 				return nil, os.ErrDeadlineExceeded
 			case <-deadlineChanged:
 				continue // write deadline changed, re-evaluate
