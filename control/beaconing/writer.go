@@ -16,6 +16,8 @@ package beaconing
 
 import (
 	"context"
+	"crypto/rand"
+	"math/big"
 	"net"
 	"strconv"
 	"sync"
@@ -100,6 +102,8 @@ type WriteScheduler struct {
 	// Write is used to write the segments once the scheduling determines it is
 	// time to write.
 	Writer Writer
+	// Core TODO
+	Core bool
 
 	// Tick is mutable. It's used to determine when to call write.
 	Tick Tick
@@ -132,6 +136,22 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 		return err
 	}
 	peers := sortedIntfs(r.Intfs, topology.Peer)
+	// TODO: less hacky
+	if (r.Type == seg.TypeDown || r.Type == seg.TypeUp) && r.Core && len(peers) != 0 {
+		segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
+		if err != nil {
+			return err
+		}
+		b, err := seg.CreateSegment(time.Now(), uint16(segID.Uint64()))
+		if err != nil {
+			return err
+		}
+		segments[beacon.DefaultGroup] = append(segments[beacon.DefaultGroup], beacon.Beacon{
+			Segment: b,
+			InIfID:  0,
+		})
+	}
+
 	stats, err := r.Writer.Write(ctx, segments, peers)
 	if err != nil {
 		return err

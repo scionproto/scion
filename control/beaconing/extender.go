@@ -111,7 +111,8 @@ func (s *DefaultExtender) Extend(
 		return serrors.New("ingress must be zero in first hop", "ingress_interface", ingress)
 	}
 	if ingress == 0 && egress == 0 {
-		return serrors.New("ingress and egress must not be both 0")
+		// TODO(roos): This is actually allowed. Explain why
+		//return serrors.New("ingress and egress must not be both 0")
 	}
 	ts := pseg.Info.Timestamp
 

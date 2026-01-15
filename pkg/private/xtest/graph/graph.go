@@ -240,6 +240,64 @@ func (g *Graph) BeaconWithStaticInfo(ifIDs []uint16) *seg.PathSegment {
 	return g.beacon(ifIDs, true)
 }
 
+func (g *Graph) PeeringBeacon(ia addr.IA) *seg.PathSegment {
+	as, ok := g.ases[ia]
+	if !ok {
+		panic(fmt.Sprintf("AS %s not in graph", ia))
+	}
+
+	segment, err := seg.CreateSegment(time.Now(), uint16(rand.Int()))
+	if err != nil {
+		panic(err)
+	}
+
+	mac := [path.MacLen]byte{byte(0)}
+	asEntry := seg.ASEntry{
+		Local: ia,
+		Next:  0,
+		MTU:   2000,
+		HopEntry: seg.HopEntry{
+			HopField: seg.HopField{
+				ExpTime:     63,
+				ConsIngress: 0,
+				ConsEgress:  0,
+				MAC:         mac,
+			},
+			IngressMTU: 1280,
+		},
+	}
+
+	// use int to avoid implementing sort.Interface
+	var ifIDs []int
+	for peeringLocalIF := range as.IfIDs {
+		ifIDs = append(ifIDs, int(peeringLocalIF))
+	}
+	sort.Ints(ifIDs)
+
+	for _, intIfID := range ifIDs {
+		peeringLocalIF := uint16(intIfID)
+		if g.isPeer[peeringLocalIF] {
+			peeringRemoteIF := g.links[peeringLocalIF]
+			asEntry.PeerEntries = append(asEntry.PeerEntries, seg.PeerEntry{
+				Peer:          g.parents[peeringRemoteIF],
+				PeerInterface: peeringRemoteIF,
+				PeerMTU:       1280,
+				HopField: seg.HopField{
+					ExpTime:     63,
+					ConsIngress: peeringLocalIF,
+					ConsEgress:  0,
+					MAC:         mac,
+				},
+			})
+		}
+	}
+	// FIXME: add static info?
+	if err := segment.AddASEntry(context.Background(), asEntry, g.signers[ia]); err != nil {
+		panic(serrors.Wrap("adding AS entry", err))
+	}
+	return segment
+}
+
 // beacon constructs path segments across a series of egress ifIDs. The parent
 // AS of the first IfID is the origin of the beacon, and the beacon propagates
 // down to the parent AS of the remote counterpart of the last IfID. The

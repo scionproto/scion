@@ -217,6 +217,7 @@ func (t *TasksConfig) segmentWriter(
 		panic("segment registrars not initialized, call InitPlugins first")
 	}
 	r := &beaconing.WriteScheduler{
+		Core:     t.Core,
 		Provider: t.BeaconStore,
 		Intfs:    t.AllInterfaces,
 		Type:     policyType.SegmentType(),

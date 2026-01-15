@@ -68,7 +68,9 @@ func TestNonWorkingPeering(t *testing.T) {
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X_110_X}),
 			},
-			Downs: []*seg.PathSegment{},
+			Downs: []*seg.PathSegment{
+				g.PeeringBeacon(addr.MustParseIA("2-ff00:0:210")),
+			},
 		},
 	}
 	t.Log("TestNonWorkingPeering")
