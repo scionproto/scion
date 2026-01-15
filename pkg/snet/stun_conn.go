@@ -16,6 +16,7 @@ package snet
 
 import (
 	"errors"
+	"golang.org/x/sync/singleflight"
 	"net"
 	"net/netip"
 	"os"
@@ -34,12 +35,12 @@ type stunConn struct {
 	recvChan       chan dataPacket
 	maxQueuedBytes int64
 	mutex          sync.Mutex
+	sg             singleflight.Group
 
 	// the following fields are protected by mutex
 	queuedBytes          int64
 	stunChans            map[stun.TxID]chan stunResponse
 	mappings             map[netip.AddrPort]*natMapping
-	pendingRequests      map[netip.AddrPort]bool
 	readDeadline         time.Time
 	writeDeadline        time.Time
 	readDeadlineChanged  chan struct{}
@@ -80,7 +81,6 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 		maxQueuedBytes:       int64(rcvBufSize),
 		stunChans:            make(map[stun.TxID]chan stunResponse),
 		mappings:             make(map[netip.AddrPort]*natMapping),
-		pendingRequests:      make(map[netip.AddrPort]bool),
 		readDeadlineChanged:  make(chan struct{}),
 		writeDeadlineChanged: make(chan struct{}),
 	}
@@ -188,39 +188,26 @@ func (c *stunConn) mappedAddr(dest netip.AddrPort) (netip.AddrPort, error) {
 	addr, exists := func() (netip.AddrPort, bool) {
 		c.mutex.Lock()
 		defer c.mutex.Unlock()
-
-		for {
-			// Check if mapping exists and is valid
-			if mapping, ok := c.mappings[dest]; ok && mapping.isValid() {
-				mapping.touch()
-				return mapping.mappedAddr, true
-			}
-			// Check if STUN request is already happening concurrently
-			if c.pendingRequests[dest] {
-				// Wait() automatically releases the mutex, waits,
-				// then reacquires it before continuing
-				c.cond.Wait()
-				continue // Re-check mapping
-			}
-
-			c.pendingRequests[dest] = true
-			return netip.AddrPort{}, false
+		// Check if mapping exists and is valid
+		if mapping, ok := c.mappings[dest]; ok && mapping.isValid() {
+			mapping.touch()
+			return mapping.mappedAddr, true
 		}
+		return netip.AddrPort{}, false
 	}()
 	if exists {
 		return addr, nil
 	}
 
-	mapping, err := c.makeSTUNRequest(dest)
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	result, err, _ := c.sg.Do(dest.String(), func() (interface{}, error) {
+		return c.makeSTUNRequest(dest)
+	})
 
-	delete(c.pendingRequests, dest)
-	c.cond.Broadcast()
 	if err != nil {
 		return netip.AddrPort{}, err
 	}
-	return mapping.mappedAddr, nil
+
+	return result.(*natMapping).mappedAddr, nil
 }
 
 func (c *stunConn) makeSTUNRequest(dest netip.AddrPort) (*natMapping, error) {
