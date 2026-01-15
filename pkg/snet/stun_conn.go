@@ -100,11 +100,8 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 				}
 				continue
 			}
-			if stun.Is(buf[:n]) {
-				respTxID, mappedAddr, err := stun.ParseResponse(buf[:n])
-				if err != nil {
-					continue
-				}
+			respTxID, mappedAddr, err := stun.ParseResponse(buf[:n])
+			if err == nil {
 				c.mutex.Lock()
 				ch, ok := c.stunChans[respTxID]
 				c.mutex.Unlock()
@@ -114,7 +111,7 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 					default:
 					}
 				}
-			} else {
+			} else if errors.Is(err, stun.ErrNotSTUN) {
 				func() {
 					c.mutex.Lock()
 					defer c.mutex.Unlock()
@@ -130,7 +127,7 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 						}
 					}
 				}()
-			}
+			} // for all other errors, ignore the packet
 		}
 	}()
 
@@ -187,19 +184,18 @@ func (mapping *natMapping) isValid() bool {
 	return time.Since(mapping.lastUsed) < timeoutDuration
 }
 
-func (c *stunConn) mappedAddr(dest netip.AddrPort) (addr netip.AddrPort, err error) {
+func (c *stunConn) mappedAddr(dest netip.AddrPort) (netip.AddrPort, error) {
+	var addr netip.AddrPort
 	exists := func() bool {
 		c.mutex.Lock()
 		defer c.mutex.Unlock()
 
 		for {
 			// Check if mapping exists and is valid
-			if mapping, ok := c.mappings[dest]; ok {
-				if mapping.isValid() {
-					mapping.touch()
-					addr = mapping.mappedAddr
-					return true
-				}
+			if mapping, ok := c.mappings[dest]; ok && mapping.isValid() {
+				mapping.touch()
+				addr = mapping.mappedAddr
+				return true
 			}
 			// Check if STUN request is already happening concurrently
 			if c.pendingRequests[dest] {
@@ -259,7 +255,6 @@ func (c *stunConn) makeSTUNRequest(dest netip.AddrPort) (*natMapping, error) {
 	var mappedAddr netip.AddrPort
 	currentRTO := initialRTO
 
-STUNLoop:
 	for i := range Rc {
 		_, err := c.WriteTo(stunRequest, net.UDPAddrFromAddrPort(dest))
 		if err != nil {
@@ -275,7 +270,8 @@ STUNLoop:
 		}
 		retransmissionTimer.Reset(waitDuration)
 
-		for {
+		var timerExpired bool
+		for !timerExpired {
 			c.mutex.Lock()
 			deadline := c.writeDeadline
 			deadlineChanged := c.writeDeadlineChanged
@@ -291,10 +287,7 @@ STUNLoop:
 
 			select {
 			case <-retransmissionTimer.C:
-				if i == Rc-1 {
-					return nil, errors.New("STUN request timed out")
-				}
-				continue STUNLoop
+				timerExpired = true
 			case <-deadlineTimer.C:
 				return nil, os.ErrDeadlineExceeded
 			case <-deadlineChanged:
@@ -304,26 +297,26 @@ STUNLoop:
 					return nil, resp.err
 				}
 				mappedAddr = resp.addr
-				break STUNLoop
+				if !mappedAddr.IsValid() {
+					return nil, errors.New("invalid mapped address")
+				}
+
+				c.mutex.Lock()
+				mapping := c.mappings[dest]
+				if mapping == nil {
+					mapping = &natMapping{destination: dest}
+					c.mappings[dest] = mapping
+				}
+				mapping.mappedAddr = mappedAddr
+				mapping.touch()
+				c.mutex.Unlock()
+
+				return mapping, nil
 			}
 		}
 	}
 
-	if !mappedAddr.IsValid() {
-		return nil, errors.New("invalid mapped address")
-	}
-
-	c.mutex.Lock()
-	mapping := c.mappings[dest]
-	if mapping == nil {
-		mapping = &natMapping{destination: dest}
-		c.mappings[dest] = mapping
-	}
-	mapping.mappedAddr = mappedAddr
-	mapping.touch()
-	c.mutex.Unlock()
-
-	return mapping, nil
+	return nil, errors.New("STUN request timed out")
 }
 
 func (c *stunConn) SetDeadline(t time.Time) error {
