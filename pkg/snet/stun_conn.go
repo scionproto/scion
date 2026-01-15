@@ -185,8 +185,7 @@ func (mapping *natMapping) isValid() bool {
 }
 
 func (c *stunConn) mappedAddr(dest netip.AddrPort) (netip.AddrPort, error) {
-	var addr netip.AddrPort
-	exists := func() bool {
+	addr, exists := func() (netip.AddrPort, bool) {
 		c.mutex.Lock()
 		defer c.mutex.Unlock()
 
@@ -194,8 +193,7 @@ func (c *stunConn) mappedAddr(dest netip.AddrPort) (netip.AddrPort, error) {
 			// Check if mapping exists and is valid
 			if mapping, ok := c.mappings[dest]; ok && mapping.isValid() {
 				mapping.touch()
-				addr = mapping.mappedAddr
-				return true
+				return mapping.mappedAddr, true
 			}
 			// Check if STUN request is already happening concurrently
 			if c.pendingRequests[dest] {
@@ -206,7 +204,7 @@ func (c *stunConn) mappedAddr(dest netip.AddrPort) (netip.AddrPort, error) {
 			}
 
 			c.pendingRequests[dest] = true
-			return false
+			return netip.AddrPort{}, false
 		}
 	}()
 	if exists {
