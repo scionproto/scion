@@ -60,6 +60,9 @@ func (a AuthoritativeLookup) classify(ctx context.Context,
 	case src != a.LocalIA:
 		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 			"src", src, "dst", dst, "reason", "src must be local AS")
+	case src == dst:
+		// need to justify why
+		return seg.TypeDown, nil
 
 	case dst.ISD() == 0:
 		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,

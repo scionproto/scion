@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"slices"
 	"time"
@@ -116,7 +115,7 @@ func printDMG(g *dmg) {
 
 	for _, src := range srcs {
 		neighbors := g.Adjacencies[src]
-		fmt.Printf("%v Up %v#%v Down %v#%v\n", src.IA, src.UpIA, src.UpIfID, src.DownIA, src.DownIfID)
+		//fmt.Printf("%v Up %v#%v Down %v#%v\n", src.IA, src.UpIA, src.UpIfID, src.DownIA, src.DownIfID)
 
 		var dsts []vertex
 		for dst := range neighbors {
@@ -141,11 +140,11 @@ func printDMG(g *dmg) {
 				return bytes.Compare(a.ID(), b.ID())
 			})
 
-			for _, segment := range segments {
-				e := edgeList[segment]
-				fmt.Printf(" --(%v, shortcut=%d, peer=%d)--> %v\n",
-					segment.GetLoggingID(), e.Shortcut, e.Peer, dst.IA)
-			}
+			//for _, segment := range segments {
+			//e := edgeList[segment]
+			//fmt.Printf(" --(%v, shortcut=%d, peer=%d)--> %v\n",
+			//	segment.GetLoggingID(), e.Shortcut, e.Peer, dst.IA)
+			//}
 		}
 	}
 
@@ -390,14 +389,14 @@ type pathSolution struct {
 // Path builds the forwarding path with metadata by extracting it from a path
 // between source and destination in the DMG.
 func (solution *pathSolution) Path(hashState hashState) Path {
-	fmt.Println("PATH")
+	//fmt.Println("PATH")
 
 	mtu := ^uint16(0)
 	var segments segmentList
 	var epicPathAuths [][]byte
 	for _, solEdge := range solution.edges {
-		fmt.Println(solEdge.src, solEdge.dst)
-		fmt.Println(solEdge.edge.Shortcut)
+		//fmt.Println(solEdge.src, solEdge.dst)
+		//fmt.Println(solEdge.edge.Shortcut)
 		var hops []path.HopField
 		var intfs []snet.PathInterface
 		var pathASEntries []seg.ASEntry // ASEntries that on the path, eventually in path order.
@@ -413,7 +412,7 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
 			isShortcut := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Shortcut != 0
 			isPeer := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Peer != 0
-			fmt.Println("isShortcut", isShortcut, "isPeer", isPeer)
+			//fmt.Println("isShortcut", isShortcut, "isPeer", isPeer)
 			asEntry := asEntries[asEntryIdx]
 
 			var hopField path.HopField
@@ -463,7 +462,7 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 				})
 			}
 			hops = append(hops, hopField)
-			fmt.Println("intfs", intfs)
+			//fmt.Println("intfs", intfs)
 			pathASEntries = append(pathASEntries, asEntry)
 			epicSegAuths = append(epicSegAuths, epicAuth)
 			mtu = min(mtu, uint16(asEntry.MTU))
@@ -490,14 +489,14 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 			Interfaces: intfs,
 			ASEntries:  pathASEntries,
 		})
-		fmt.Println("hops:", len(intfs))
+		//fmt.Println("hops:", len(intfs))
 		epicPathAuths = append(epicPathAuths, epicSegAuths...)
 	}
-	fmt.Println("segments:", len(segments))
+	//fmt.Println("segments:", len(segments))
 
 	interfaces := segments.Interfaces()
 	asEntries := segments.ASEntries()
-	fmt.Println(interfaces)
+	//fmt.Println(interfaces)
 	staticInfo := collectMetadata(interfaces, asEntries)
 
 	path := Path{

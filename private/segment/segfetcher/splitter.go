@@ -16,7 +16,6 @@ package segfetcher
 
 import (
 	"context"
-
 	"github.com/scionproto/scion/pkg/addr"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/trust"
@@ -80,7 +79,12 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 			{Src: toWildCard(dst), Dst: dst, SegType: Down},
 		}, nil
 	default:
-		return Requests{{Src: src, Dst: dst, SegType: Core}}, nil
+		//fmt.Println("core-core case")
+		return Requests{
+			{Src: src, Dst: src, SegType: Up},
+			{Src: src, Dst: dst, SegType: Core},
+			{Src: dst, Dst: dst, SegType: Down},
+		}, nil
 	}
 }
 

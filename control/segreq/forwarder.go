@@ -16,7 +16,6 @@ package segreq
 
 import (
 	"context"
-
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -69,9 +68,15 @@ func (f ForwardingLookup) classify(ctx context.Context,
 
 	}
 	if dst == f.LocalIA {
-		// this could be an otherwise valid request, but probably the requester switched Src and Dst
-		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
-			"src", src, "dst", dst, "reason", "dst is local AS, confusion?")
+		isCore, err := f.CoreChecker.IsCore(ctx, dst)
+		if err != nil {
+			return 0, err
+		}
+		if !isCore {
+			// this could be an otherwise valid request, but probably the requester switched Src and Dst
+			return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
+				"src", src, "dst", dst, "reason", "dst is local AS, confusion?")
+		}
 
 	}
 	srcCore, err := f.CoreChecker.IsCore(ctx, src)

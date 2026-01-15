@@ -479,7 +479,7 @@ func (w *GroupWriter) processSegments(
 		processedGroup := make([]beacon.Beacon, 0, len(beacons))
 		for _, b := range beacons {
 			// If the beacon does not have a valid interface ID, skip it.
-			if w.Intfs != nil && w.Intfs.Get(b.InIfID) == nil {
+			if w.Intfs != nil && w.Intfs.Get(b.InIfID) == nil && b.InIfID != 0 {
 				continue
 			}
 			// Try to terminate the segment if an extender is configured.
