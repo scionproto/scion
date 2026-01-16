@@ -84,31 +84,16 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	}
 	listenHostPort := uint16(c.local.Host.Port)
 
-	// Rewrite source IP if STUN is in use
-	if scionPacketConn, ok := c.conn.(*SCIONPacketConn); ok {
-		if stunConn, ok := scionPacketConn.conn.(*stunConn); ok {
-			var sameIA bool
-			switch a := raddr.(type) {
-			case *UDPAddr:
-				sameIA = a.IA.Equal(c.local.IA)
-			case *SVCAddr:
-				sameIA = a.IA.Equal(c.local.IA)
-			}
-			if !sameIA {
-				nextHopIP, ok := netip.AddrFromSlice(nextHop.IP)
-				if !ok {
-					return 0, serrors.New("invalid next hop IP", "ip", nextHop.IP)
-				}
-				nextHopIP = nextHopIP.Unmap()
-				nextHopAddrPort := netip.AddrPortFrom(nextHopIP, uint16(nextHop.Port))
-				mappedAddr, err := stunConn.mappedAddr(nextHopAddrPort)
-				if err != nil {
-					return 0, serrors.New("Error getting mapped address for STUN", "stun", err)
-				}
-				listenHostIP = mappedAddr.Addr()
-				listenHostPort = mappedAddr.Port()
-			}
-		}
+	// Rewrite source address if STUN is in use
+	var err error
+	listenHostIP, listenHostPort, err = c.getSTUNMappedSource(
+		raddr,
+		nextHop,
+		listenHostIP,
+		listenHostPort,
+	)
+	if err != nil {
+		return 0, err
 	}
 
 	pkt := &Packet{
@@ -148,4 +133,51 @@ func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 
 func (c *scionConnWriter) isWithinRange(port int) bool {
 	return port >= int(c.dispatchedPortStart) && port <= int(c.dispatchedPortEnd)
+}
+
+// getSTUNMappedSource returns the NAT mapped address for the source if the connection is
+// using STUN and the destination is in a different IA. Otherwise, it returns the original
+// address unchanged.
+func (c *scionConnWriter) getSTUNMappedSource(
+	raddr net.Addr,
+	nextHop *net.UDPAddr,
+	listenHostIP netip.Addr,
+	listenHostPort uint16,
+) (netip.Addr, uint16, error) {
+
+	scionPacketConn, ok := c.conn.(*SCIONPacketConn)
+	if !ok {
+		return listenHostIP, listenHostPort, nil
+	}
+
+	stunConn, ok := scionPacketConn.conn.(*stunConn)
+	if !ok {
+		return listenHostIP, listenHostPort, nil
+	}
+
+	var sameIA bool
+	switch a := raddr.(type) {
+	case *UDPAddr:
+		sameIA = a.IA.Equal(c.local.IA)
+	case *SVCAddr:
+		sameIA = a.IA.Equal(c.local.IA)
+	}
+
+	if sameIA {
+		return listenHostIP, listenHostPort, nil
+	}
+
+	nextHopIP, ok := netip.AddrFromSlice(nextHop.IP)
+	if !ok {
+		return netip.Addr{}, 0, serrors.New("invalid next hop IP", "ip", nextHop.IP)
+	}
+	nextHopIP = nextHopIP.Unmap()
+	nextHopAddrPort := netip.AddrPortFrom(nextHopIP, uint16(nextHop.Port))
+
+	mappedAddr, err := stunConn.mappedAddr(nextHopAddrPort)
+	if err != nil {
+		return netip.Addr{}, 0, serrors.New("Error getting mapped address for STUN", "stun", err)
+	}
+
+	return mappedAddr.Addr(), mappedAddr.Port(), nil
 }
