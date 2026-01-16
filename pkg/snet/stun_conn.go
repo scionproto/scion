@@ -340,8 +340,3 @@ func (c *stunConn) SetWriteDeadline(t time.Time) error {
 	}
 	return err
 }
-
-func (c *SCIONPacketConn) isSTUNConn() bool {
-	_, ok := c.conn.(*stunConn)
-	return ok
-}

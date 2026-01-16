@@ -38,6 +38,9 @@ type scionConnReader struct {
 
 	mtx    sync.Mutex
 	buffer []byte
+
+	// hasSTUN indicates whether the conn has STUN enabled.
+	hasSTUN bool
 }
 
 // ReadFrom reads data into b, returning the length of copied data and the
@@ -109,8 +112,7 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		// whether the underlying connection is a stunConn, which indicates that NAT traversal
 		// is in use.
 		// TODO: Is it necessary to check that the address matches one of the mapped addresses?
-		scionConn, ok := c.conn.(*SCIONPacketConn)
-		if !ok || !scionConn.isSTUNConn() {
+		if !c.hasSTUN {
 			return 0, nil, serrors.New("packet is destined to a different host",
 				"local_isd_as", c.local.IA,
 				"local_host", c.local.Host,

@@ -36,6 +36,9 @@ type scionConnWriter struct {
 
 	mtx    sync.Mutex
 	buffer []byte
+
+	// hasSTUN indicates whether the conn has STUN enabled.
+	hasSTUN bool
 }
 
 // WriteTo sends b to raddr.
@@ -145,15 +148,12 @@ func (c *scionConnWriter) getSTUNMappedSource(
 	listenHostPort uint16,
 ) (netip.Addr, uint16, error) {
 
-	scionPacketConn, ok := c.conn.(*SCIONPacketConn)
-	if !ok {
+	if !c.hasSTUN {
 		return listenHostIP, listenHostPort, nil
 	}
 
-	stunConn, ok := scionPacketConn.conn.(*stunConn)
-	if !ok {
-		return listenHostIP, listenHostPort, nil
-	}
+	scionPacketConn := c.conn.(*SCIONPacketConn)
+	stunConn := scionPacketConn.conn.(*stunConn)
 
 	var sameIA bool
 	switch a := raddr.(type) {
