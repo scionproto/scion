@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slices"
@@ -351,7 +352,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	// possibility to have the same functionality, i.e. refresh, fetch all paths.
 	// https://github.com/scionproto/scion/issues/3348
 	allPaths, err := sdConn.Paths(ctx, dst, 0,
-		daemon.PathReqFlags{Refresh: cfg.Refresh})
+		daemontypes.PathReqFlags{Refresh: cfg.Refresh})
 	if err != nil {
 		return nil, serrors.Wrap("retrieving paths from the SCION Daemon", err)
 	}

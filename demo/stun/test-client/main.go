@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/snet"
 
 	"tailscale.com/net/stun"
@@ -53,7 +54,7 @@ func main() {
 		log.Fatalf("Failed to create SCION daemon connector: %v", err)
 	}
 
-	ps, err := dc.Paths(ctx, remoteAddr.IA, localAddr.IA, daemon.PathReqFlags{Refresh: true})
+	ps, err := dc.Paths(ctx, remoteAddr.IA, localAddr.IA, daemontypes.PathReqFlags{Refresh: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup paths: %v", err)
 	}
