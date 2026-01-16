@@ -85,10 +85,8 @@ func realMain() int {
 		clientArgs = append(clientArgs, "--features", features)
 		serverArgs = append(serverArgs, "--features", features)
 	}
-	if !*integration.Docker {
-		clientArgs = append(clientArgs, "-sciond", integration.Daemon)
-		serverArgs = append(serverArgs, "-sciond", integration.Daemon)
-	}
+	clientArgs = append(clientArgs, "-sciond", integration.Daemon)
+	serverArgs = append(serverArgs, "-sciond", integration.Daemon)
 
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	pairs, err := getPairs()
