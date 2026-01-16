@@ -16,7 +16,6 @@ package snet
 
 import (
 	"errors"
-	"golang.org/x/sync/singleflight"
 	"net"
 	"net/netip"
 	"os"
@@ -25,6 +24,8 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/stun"
+
+	"golang.org/x/sync/singleflight"
 )
 
 const timeoutDuration = 5 * time.Minute
