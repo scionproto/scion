@@ -89,7 +89,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 
 	// Rewrite source address if STUN is in use
 	var err error
-	listenHostIP, listenHostPort, err = c.getSTUNMappedSource(
+	listenHostIP, listenHostPort, err = c.stunMappedSource(
 		raddr,
 		nextHop,
 		listenHostIP,
@@ -138,10 +138,10 @@ func (c *scionConnWriter) isWithinRange(port int) bool {
 	return port >= int(c.dispatchedPortStart) && port <= int(c.dispatchedPortEnd)
 }
 
-// getSTUNMappedSource returns the NAT mapped address for the source if the connection is
+// stunMappedSource returns the NAT mapped address for the source if the connection is
 // using STUN and the destination is in a different IA. Otherwise, it returns the original
 // address unchanged.
-func (c *scionConnWriter) getSTUNMappedSource(
+func (c *scionConnWriter) stunMappedSource(
 	raddr net.Addr,
 	nextHop *net.UDPAddr,
 	listenHostIP netip.Addr,
