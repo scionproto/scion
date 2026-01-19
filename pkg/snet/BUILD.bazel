@@ -16,6 +16,7 @@ go_library(
         "snet.go",
         "sock_error_posix.go",
         "sock_error_windows.go",
+        "stun_conn.go",
         "svcaddr.go",
         "udpaddr.go",
         "writer.go",
@@ -37,9 +38,11 @@ go_library(
         "//pkg/slayers/path/epic:go_default_library",
         "//pkg/slayers/path/onehop:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
+        "//pkg/stun:go_default_library",
         "//private/topology:go_default_library",
         "//private/topology/underlay:go_default_library",
         "@com_github_gopacket_gopacket//:go_default_library",
+        "@org_golang_x_sync//singleflight:go_default_library",
     ] + select({
         "@rules_go//go/platform:windows": [
             "@org_golang_x_sys//windows:go_default_library",
