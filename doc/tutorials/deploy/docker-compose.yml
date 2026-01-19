@@ -1,6 +1,6 @@
 # This docker compose file defines the setup described in
 # https://docs.scion.org/en/latest/tutorials/deploy.html
-name: "SCION Tutorial"
+name: "scion-tutorial"
 
 services:
   scion01:
@@ -58,6 +58,54 @@ services:
     tmpfs:
       - /run
       - /run/lock
+
+  # =============================================================================
+  # MONITORING STACK (Optional)
+  # =============================================================================
+  # Enable with: docker compose --profile monitoring up
+  #
+  # WARNING: This configuration is for LOCAL DEVELOPMENT ONLY.
+  # DO NOT expose these ports to the internet:
+  #   - Anonymous access is enabled
+  #   - Default passwords are used
+  #   - No TLS/authentication configured
+  #
+  # For production monitoring, see: https://prometheus.io/docs/prometheus/latest/configuration/https/
+  #
+  # Ports:
+  #   9090 - Prometheus web UI and API
+  #   3000 - Grafana dashboards (login: admin/admin)
+  # =============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: scion-prometheus
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      transit_net:
+        ipv4_address: 10.100.0.90
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=1h'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: scion-grafana
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./monitoring/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      transit_net:
+        ipv4_address: 10.100.0.30
 
 networks:
   as_net_01:

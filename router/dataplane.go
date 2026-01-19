@@ -827,6 +827,15 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 		if !fwLink.Send(p) {
 			d.packetPool.Put(p)
 			metrics[sc].DroppedPacketsBusyForwarder.Inc()
+		} else {
+			// Count successful forwarding based on traffic type (only when profiling enabled)
+			if processingMetricsEnabled {
+				if p.trafficType == ttIn {
+					d.Metrics.incResult("delivered")
+				} else {
+					d.Metrics.incResult("forwarded")
+				}
+			}
 		}
 	}
 }
@@ -1183,6 +1192,11 @@ func (p *slowPathPacketProcessor) packSCMP(
 }
 
 func (p *scionPacketProcessor) parsePath() disposition {
+	var start time.Time
+	if processingMetricsEnabled {
+		start = time.Now()
+		defer p.d.Metrics.observeDuration("parse", start)
+	}
 	var err error
 	p.hopField, err = p.path.GetCurrentHopField()
 	if err != nil {
@@ -1459,8 +1473,16 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() disposition {
+	var start time.Time
+	if processingMetricsEnabled {
+		start = time.Now()
+		defer p.d.Metrics.observeDuration("mac_verify", start)
+	}
 	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macInputBuffer[:path.MACBufferSize])
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
+		if processingMetricsEnabled {
+			p.d.Metrics.incResult("mac_failed")
+		}
 		log.Debug("SCMP response", "cause", errMacVerificationFailed,
 			"expected", fullMac[:path.MacLen],
 			"actual", p.hopField.Mac[:path.MacLen],
@@ -1508,6 +1530,11 @@ func (p *scionPacketProcessor) resolveInbound() disposition {
 }
 
 func (p *scionPacketProcessor) processEgress() disposition {
+	var start time.Time
+	if processingMetricsEnabled {
+		start = time.Now()
+		defer p.d.Metrics.observeDuration("forward", start)
+	}
 	// We are the egress router and if we go in construction direction we
 	// need to update the SegID (unless we are effecting a peering hop).
 	// When we're at a peering hop, the SegID for this hop and for the next
@@ -1710,6 +1737,14 @@ func (p *scionPacketProcessor) validateSrcHost() disposition {
 }
 
 func (p *scionPacketProcessor) process() disposition {
+	// Processing metrics are gated by a compile-time constant (processingMetricsEnabled).
+	// When built without -tags router_profile, the constant is false and the compiler
+	// eliminates this entire block, resulting in zero overhead.
+	var processStart time.Time
+	if processingMetricsEnabled {
+		processStart = time.Now()
+		defer p.d.Metrics.observeDuration("total", processStart)
+	}
 	if disp := p.parsePath(); disp != pForward {
 		return disp
 	}

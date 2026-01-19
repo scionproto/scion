@@ -143,3 +143,35 @@ Service instance changes total
 removal of a service instance is accumulated.
 
 **Labels**: ``service`` and ``isd_as``.
+
+Processing duration
+-------------------
+
+**Name**: ``router_process_duration_seconds``
+
+**Type**: Histogram
+
+**Description**: Time spent processing packets, broken down by processing stage.
+Use this metric to identify performance bottlenecks in packet processing. The
+histogram buckets are tuned for microsecond-level measurements typical of
+high-speed packet processing.
+
+**Labels**: ``stage`` (one of: ``parse``, ``mac_verify``, ``forward``, ``total``)
+
+**Buckets**: 1µs, 5µs, 10µs, 50µs, 100µs, 500µs, 1ms, 5ms, 10ms
+
+Example PromQL queries:
+
+- P99 total processing latency: ``histogram_quantile(0.99, rate(router_process_duration_seconds_bucket{stage="total"}[1m]))``
+- MAC verification as % of total: ``sum(rate(router_process_duration_seconds_sum{stage="mac_verify"}[5m])) / sum(rate(router_process_duration_seconds_sum{stage="total"}[5m]))``
+
+Processing result
+-----------------
+
+**Name**: ``router_process_result_total``
+
+**Type**: Counter
+
+**Description**: Total packets processed, labeled by processing outcome.
+
+**Labels**: ``result`` (one of: ``forwarded``, ``delivered``, ``mac_failed``)

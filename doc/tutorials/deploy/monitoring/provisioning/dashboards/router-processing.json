@@ -1,0 +1,311 @@
+{
+  "annotations": { "list": [] },
+  "description": "Border router packet processing metrics. Shows where CPU time goes and whether MAC verification is a bottleneck.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "title": "Key Question: Is MAC Verification the Bottleneck?",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Time Spent per Processing Stage",
+      "description": "If mac_verify is >30%, optimization may be worthwhile. If <10%, look elsewhere.",
+      "type": "piechart",
+      "gridPos": { "h": 10, "w": 8, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "parse" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "mac_verify" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "forward" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }}]}
+        ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "values": ["percent"] }, "pieType": "pie" },
+      "targets": [
+        {
+          "expr": "sum(rate(router_process_duration_seconds_sum{stage=\"parse\"}[5m])) / sum(rate(router_process_duration_seconds_sum[5m]))",
+          "legendFormat": "parse",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(router_process_duration_seconds_sum{stage=\"mac_verify\"}[5m])) / sum(rate(router_process_duration_seconds_sum[5m]))",
+          "legendFormat": "mac_verify",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(router_process_duration_seconds_sum{stage=\"forward\"}[5m])) / sum(rate(router_process_duration_seconds_sum[5m]))",
+          "legendFormat": "forward",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "title": "Stage Time Over Time (stacked)",
+      "description": "Watch how time distribution changes with load",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 16, "x": 8, "y": 1 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "stacking": { "mode": "normal" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "parse" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "mac_verify" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "forward" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }}]}
+        ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } },
+      "targets": [
+        {
+          "expr": "sum(rate(router_process_duration_seconds_sum{stage=\"parse\"}[1m]))",
+          "legendFormat": "parse",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(router_process_duration_seconds_sum{stage=\"mac_verify\"}[1m]))",
+          "legendFormat": "mac_verify",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(router_process_duration_seconds_sum{stage=\"forward\"}[1m]))",
+          "legendFormat": "forward",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "title": "Latency & Throughput",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "collapsed": false
+    },
+    {
+      "title": "Processing Latency Percentiles",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(router_process_duration_seconds_bucket{stage=\"total\"}[1m])) by (le))",
+          "legendFormat": "P50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(router_process_duration_seconds_bucket{stage=\"total\"}[1m])) by (le))",
+          "legendFormat": "P95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(router_process_duration_seconds_bucket{stage=\"total\"}[1m])) by (le))",
+          "legendFormat": "P99",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "title": "Packets Per Second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "fieldConfig": {
+        "defaults": { "unit": "pps" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(router_processed_pkts_total[1m])) by (instance)",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "MAC Verification Latency (the target for optimization)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(router_process_duration_seconds_bucket{stage=\"mac_verify\"}[1m])) by (le))",
+          "legendFormat": "MAC P50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(router_process_duration_seconds_bucket{stage=\"mac_verify\"}[1m])) by (le))",
+          "legendFormat": "MAC P99",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Latency vs Throughput",
+      "description": "Does latency increase with load? Indicates capacity limits.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Latency P99" }, "properties": [{ "id": "custom.axisPlacement", "value": "left" }, { "id": "unit", "value": "s" }]},
+          { "matcher": { "id": "byName", "options": "Throughput" }, "properties": [{ "id": "custom.axisPlacement", "value": "right" }, { "id": "unit", "value": "pps" }]}
+        ]
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(router_process_duration_seconds_bucket{stage=\"total\"}[1m])) by (le))",
+          "legendFormat": "Latency P99",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(router_processed_pkts_total[1m]))",
+          "legendFormat": "Throughput",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Errors & Drops",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "collapsed": false
+    },
+    {
+      "title": "Processing Results",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 29 },
+      "fieldConfig": {
+        "defaults": { "unit": "pps" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "mac_failed" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" }}]}
+        ]
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(router_process_result_total[1m])) by (result)",
+          "legendFormat": "{{result}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Drops by Reason",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 29 },
+      "fieldConfig": {
+        "defaults": { "unit": "pps" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(router_dropped_pkts_total[1m])) by (reason)",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Summary Statistics",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
+      "collapsed": false
+    },
+    {
+      "title": "Average Time per Stage (last 5m)",
+      "type": "table",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 38 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "expr": "sum(rate(router_process_duration_seconds_sum[5m])) by (stage) / sum(rate(router_process_duration_seconds_count[5m])) by (stage)",
+          "format": "table",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        { "id": "organize", "options": { "renameByName": { "Value": "Avg Duration", "stage": "Stage" } } }
+      ]
+    },
+    {
+      "title": "MAC Verify % of Total (answer to 'should we optimize?')",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 38 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "orange", "value": 0.2 },
+              { "color": "red", "value": 0.3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value_and_name" },
+      "targets": [
+        {
+          "expr": "sum(rate(router_process_duration_seconds_sum{stage=\"mac_verify\"}[5m])) / sum(rate(router_process_duration_seconds_sum{stage=\"total\"}[5m]))",
+          "legendFormat": "MAC % of Total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Total Packets Processed",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 38 },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "expr": "sum(router_processed_pkts_total)",
+          "legendFormat": "Total Packets",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["scion", "router", "processing", "profiling"],
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(router_processed_pkts_total, instance)",
+        "multi": true,
+        "includeAll": true
+      }
+    ]
+  },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "SCION Router Processing Analysis",
+  "uid": "scion-router-processing",
+  "version": 1
+}
