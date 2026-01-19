@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -96,7 +97,7 @@ func TestNoLeak(t *testing.T) {
 	payloadLen := 22
 	batchSize := 10
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		require.NoError(t, sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)}))
 		sendPackets(t, sess, payloadLen, batchSize)
 
@@ -144,7 +145,7 @@ func sendPackets(t *testing.T, sess *Session, payloadSize int, pktCount int) {
 		Lazy:   true,
 	}
 	pkt := gopacket.NewPacket(bytes, layers.LayerTypeIPv4, decodeOptions)
-	for i := 0; i < pktCount; i++ {
+	for range pktCount {
 		sess.Write(pkt)
 	}
 }

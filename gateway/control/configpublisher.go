@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,32 +47,26 @@ func (n *ConfigPublisher) Publish(sp SessionPolicies, rp *routing.Policy) {
 	var wg sync.WaitGroup
 	if sp != nil {
 		n.sessionPolicies = sp.Copy()
-		wg.Add(len(n.sessionPoliciesSubscribers))
 		for _, c := range n.sessionPoliciesSubscribers {
-			go func() {
+			wg.Go(func() {
 				defer log.HandlePanic()
-				defer wg.Done()
 				c <- sp.Copy()
-			}()
+			})
 		}
-		wg.Add(len(n.remoteIAsSubscribers))
 		for _, c := range n.remoteIAsSubscribers {
-			go func() {
+			wg.Go(func() {
 				defer log.HandlePanic()
-				defer wg.Done()
 				c <- sp.RemoteIAs()
-			}()
+			})
 		}
 	}
 	if rp != nil {
 		n.routingPolicy = rp.Copy()
-		wg.Add(len(n.routingPoliciesSubscribers))
 		for _, c := range n.routingPoliciesSubscribers {
-			go func() {
+			wg.Go(func() {
 				defer log.HandlePanic()
-				defer wg.Done()
 				c <- rp.Copy()
-			}()
+			})
 		}
 	}
 	wg.Wait()
