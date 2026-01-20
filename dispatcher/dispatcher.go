@@ -197,19 +197,35 @@ func (s *Server) processMsgNextHop(
 	switch s.decoded[len(s.decoded)-1] {
 	case slayers.LayerTypeSCMP:
 		// send response to BR
-		if s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest ||
-			s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoRequest {
+		switch t := s.scmpLayer.TypeCode.Type(); t {
+		case slayers.SCMPTypeEchoRequest, slayers.SCMPTypeTracerouteRequest:
 			dstAddrPort = prevHop
-		} else { // relay to end application
-			dstAddrPort, err = s.getDstSCMP()
+		case slayers.SCMPTypeEchoReply, slayers.SCMPTypeTracerouteReply:
+			dstAddrPort, err = s.getSCMPInfoReplyDst(t)
 			if err != nil {
-				log.Error("Getting destination for SCMP message", "err", err)
+				log.Error("Getting destination for SCMPInfo reply", "err", err)
 				return nil, netip.AddrPort{}, nil
 			}
 			if dstAddrPort.Addr().Unmap().Compare(underlay.Unmap()) != 0 {
 				log.Error("UDP/IP addr destination different from UDP/SCION addr",
 					"UDP/IP:", underlay.Unmap().String(),
 					"UDP/SCION:", dstAddrPort.Addr().Unmap().String())
+				return nil, netip.AddrPort{}, nil
+			}
+		default:
+			dstAddrPort, err = s.getSCMPErrorDst(t)
+			if err != nil {
+				log.Debug("Getting destination for SCMP message",
+					"underlay", underlay,
+					"prev_hop", prevHop,
+					"err", err)
+				return nil, netip.AddrPort{}, nil
+			}
+			if dstAddrPort.Addr().Unmap().Compare(underlay.Unmap()) != 0 {
+				log.Debug("UDP/IP addr destination different from UDP/SCION addr",
+					"underlay_udp_ip", underlay.Unmap(),
+					"udp_scion", dstAddrPort.Addr().Unmap(),
+				)
 				return nil, netip.AddrPort{}, nil
 			}
 		}
@@ -221,8 +237,9 @@ func (s *Server) processMsgNextHop(
 		}
 		if dstAddrPort.Addr().Unmap().Compare(underlay.Unmap()) != 0 {
 			log.Error("UDP/IP addr destination different from UDP/SCION addr",
-				"UDP/IP:", underlay.Unmap().String(),
-				"UDP/SCION:", dstAddrPort.Addr().Unmap().String())
+				"underlay_udp_ip", underlay.Unmap(),
+				"udp_scion", dstAddrPort.Addr().Unmap(),
+			)
 			return nil, netip.AddrPort{}, nil
 		}
 	}
@@ -326,36 +343,41 @@ func (s *Server) reverseSCION() error {
 	return nil
 }
 
-func (s *Server) getDstSCMP() (netip.AddrPort, error) {
+func (s *Server) getSCMPInfoReplyDst(scmpType slayers.SCMPType) (netip.AddrPort, error) {
 	// Check if its SCMPEcho or SCMPTraceroute reply
-	if s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoReply {
+	switch scmpType {
+	case slayers.SCMPTypeEchoReply:
 		var scmpEcho slayers.SCMPEcho
 		err := scmpEcho.DecodeFromBytes(s.scmpLayer.Payload, gopacket.NilDecodeFeedback)
 		if err != nil {
 			return netip.AddrPort{}, err
 		}
 		return addrPortFromBytes(s.scionLayer.RawDstAddr, scmpEcho.Identifier)
-	}
-	if s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteReply {
+	case slayers.SCMPTypeTracerouteReply:
 		var scmpTraceroute slayers.SCMPTraceroute
 		err := scmpTraceroute.DecodeFromBytes(s.scmpLayer.Payload, gopacket.NilDecodeFeedback)
 		if err != nil {
 			return netip.AddrPort{}, err
 		}
 		return addrPortFromBytes(s.scionLayer.RawDstAddr, scmpTraceroute.Identifier)
+	default:
+		return netip.AddrPort{}, serrors.New("invalid code path")
 	}
+}
 
+func (s *Server) getSCMPErrorDst(errorType slayers.SCMPType) (netip.AddrPort, error) {
 	// Drop unknown SCMP error messages.
 	if s.scmpLayer.NextLayerType() == gopacket.LayerTypePayload {
 		return netip.AddrPort{}, serrors.New("unsupported SCMP error message",
-			"type", s.scmpLayer.TypeCode.Type())
+			"error_type", s.scmpLayer.TypeCode.Type())
 	}
 	l, err := decodeSCMP(&s.scmpLayer)
 	if err != nil {
 		return netip.AddrPort{}, err
 	}
 	if len(l) != 2 {
-		return netip.AddrPort{}, serrors.New("SCMP error message without payload")
+		return netip.AddrPort{},
+			serrors.New("SCMP error message without payload", "error_type", errorType)
 	}
 	gpkt := gopacket.NewPacket(*l[1].(*gopacket.Payload), slayers.LayerTypeSCION,
 		gopacket.DecodeOptions{
@@ -363,6 +385,12 @@ func (s *Server) getDstSCMP() (netip.AddrPort, error) {
 		},
 	)
 
+	// For debugging print 200 bytes of the quoted payload.
+	var payloadForDebug []byte
+	if log.Root().Enabled(log.DebugLevel) {
+		payloadForDebug = l[1].(*gopacket.Payload).LayerContents()
+		payloadForDebug = payloadForDebug[:min(len(payloadForDebug), 200)]
+	}
 	// If the offending packet was UDP/SCION, use the source port to deliver.
 	if udp := gpkt.Layer(slayers.LayerTypeSCIONUDP); udp != nil {
 		port := udp.(*slayers.UDP).SrcPort
@@ -371,7 +399,9 @@ func (s *Server) getDstSCMP() (netip.AddrPort, error) {
 		// they set the source port to 0. But there is no harm, since those
 		// packets are destined to be dropped anyway.
 		if port == 0 {
-			return netip.AddrPort{}, serrors.New("SCMP error with truncated UDP header")
+			return netip.AddrPort{},
+				serrors.New("SCMP error with truncated UDP header",
+					"error_type", errorType, "payload", payloadForDebug)
 		}
 		return addrPortFromBytes(s.scionLayer.RawDstAddr, port)
 	}
@@ -385,12 +415,14 @@ func (s *Server) getDstSCMP() (netip.AddrPort, error) {
 		if !tc.InfoMsg() {
 			return netip.AddrPort{},
 				serrors.New("SCMP error message in response to SCMP error message",
-					"type", tc.Type())
+					"error_type", errorType, "quote_type", tc.Type(), "payload", payloadForDebug)
 		}
 		// We only support echo and traceroute requests.
 		t := tc.Type()
 		if t != slayers.SCMPTypeEchoRequest && t != slayers.SCMPTypeTracerouteRequest {
-			return netip.AddrPort{}, serrors.New("unsupported SCMP info message", "type", t)
+			return netip.AddrPort{},
+				serrors.New("SCMP error contains unsupported SCMP info message",
+					"error_type", errorType, "quote_type", t, "payload", payloadForDebug)
 		}
 
 		var port uint16
@@ -400,7 +432,8 @@ func (s *Server) getDstSCMP() (netip.AddrPort, error) {
 		} else if tr := gpkt.Layer(slayers.LayerTypeSCMPTraceroute); tr != nil {
 			port = tr.(*slayers.SCMPTraceroute).Identifier
 		} else {
-			return netip.AddrPort{}, serrors.New("SCMP error with truncated payload")
+			return netip.AddrPort{}, serrors.New("SCMP error with truncated payload",
+				"error_type", errorType, "payload", payloadForDebug)
 		}
 		return addrPortFromBytes(s.scionLayer.RawDstAddr, port)
 	}
