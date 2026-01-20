@@ -49,7 +49,8 @@ func TestVerify(t *testing.T) {
 			ISD:    0,
 			Prepare: func(*testing.T) {
 				out := filepath.Join(dir, "base.pem")
-				require.NoError(t, runExtractCertificates("./testdata/admin/ISD1-B1-S1.trc", out))
+				require.NoError(t, runExtractCertificates("./testdata/admin/ISD1-B1-S1.trc",
+					out, nil, nil))
 			},
 			ErrAssertion: require.NoError,
 		},
@@ -78,7 +79,7 @@ func TestVerify(t *testing.T) {
 				sig[len(sig)-1] ^= 0xFF
 				raw, err := signed.Encode()
 				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(out, raw, 0666))
+				require.NoError(t, os.WriteFile(out, raw, 0o666))
 			},
 			ErrAssertion: require.Error,
 		},
