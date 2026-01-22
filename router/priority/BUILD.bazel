@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["priority.go"],
+    importpath = "github.com/scionproto/scion/router/priority",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "export_test.go",
+        "priority_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = ["@com_github_stretchr_testify//assert:go_default_library"],
+)

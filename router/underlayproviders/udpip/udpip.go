@@ -31,10 +31,12 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	sslices "github.com/scionproto/scion/pkg/slices"
 	"github.com/scionproto/scion/pkg/stun"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
+	pr "github.com/scionproto/scion/router/priority"
 )
 
 var (
@@ -204,10 +206,10 @@ func (u *provider) Stop() {
 // if sibling links are to have distinct connections).
 type udpConnection struct {
 	conn         router.BatchConn
-	name         string                     // for logs. It's more informative than ifID.
-	link         udpLink                    // Link with exclusive use of the connection.
-	links        map[netip.AddrPort]udpLink // Links that share this connection
-	queue        chan *router.Packet
+	name         string                             // for logs. It's more informative than ifID.
+	link         udpLink                            // Link with exclusive use of the connection.
+	links        map[netip.AddrPort]udpLink         // Links that share this connection
+	queues       [pr.QueueCount]chan *router.Packet // Packets to be sent, with priorities.
 	metrics      *router.InterfaceMetrics
 	receiverDone chan struct{}
 	senderDone   chan struct{}
@@ -246,10 +248,16 @@ func (u *udpConnection) stop() {
 	wasRunning := u.running.Swap(false)
 
 	if wasRunning {
-		u.conn.Close() // Unblock receiver
-		close(u.queue) // Unblock sender
+		u.conn.Close()  // Unblock receiver
+		u.closeQueues() // Unblock sender
 		<-u.receiverDone
 		<-u.senderDone
+	}
+}
+
+func (u *udpConnection) closeQueues() {
+	for _, q := range u.queues {
+		close(q)
 	}
 }
 
@@ -315,35 +323,64 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 	}
 }
 
-func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*router.Packet) int {
-	i := 0
-	if needsBlocking {
-		p, ok := <-queue
-		if !ok {
-			return i
+func readUpTo(
+	pktIter sslices.Iter[**router.Packet], // Where to write the packet pointer.
+	queues [pr.QueueCount]chan *router.Packet, // Packet pointer source.
+	needsBlocking bool,
+) int {
+	inQueues := typeCastIngressQueues(queues)
+
+	// This is the reading function pointer.
+	var read func(**router.Packet) bool
+
+	// This reading function implementation changes the function pointer to a
+	// simpler one after the first run. This allows to check for blocking behavior only once.
+	// After the first call to read(), read will always behave as readAsync.
+	read = func(ptr **router.Packet) bool {
+		readBlock := func(ptr **router.Packet) bool {
+			var ok bool
+			*ptr, ok = pr.ReadBlocking(inQueues)
+			return ok
 		}
-		pkts[i] = p
-		i++
+
+		readAsync := func(ptr **router.Packet) bool {
+			var ok bool
+			*ptr, ok = pr.ReadAsync(inQueues)
+			return ok
+		}
+
+		// Modify the function pointer to readAsync.
+		read = readAsync
+
+		// And for the first time and only time this function runs, call block or async.
+		var ok bool
+		if needsBlocking {
+			ok = readBlock(ptr)
+		} else {
+			ok = readAsync(ptr)
+		}
+		return ok
 	}
 
-	for ; i < n; i++ {
-		select {
-		case p, ok := <-queue:
-			if !ok {
-				return i
-			}
-			pkts[i] = p
-		default:
-			return i
+	pktCount := 0
+	for _, ptr := range pktIter {
+		if !read(ptr) {
+			break
 		}
+		pktCount++
 	}
-	return i
+	return pktCount
 }
 
 func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 	log.Debug("Send", "connection", u.name)
 
-	// We use this somewhat like a ring buffer.
+	// Ring buffer storing the packets.
+	// Using circular (modular) iterators to access this buffer.
+	// Depiction of the ring buffer:
+	//	 |x|x| | | | |x|x|
+	// With x meaning packet to be sent on that index.
+	// The buffer above has batchSize = 8, currentIdx = 6, toWrite = 4.
 	pkts := make([]*router.Packet, batchSize)
 
 	// We use this as a temporary buffer, but allocate it just once
@@ -353,47 +390,77 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 		msgs[i].Buffers = make([][]byte, 1)
 	}
 
-	queue := u.queue
-	conn := u.conn
-	metrics := u.metrics
-	toWrite := 0
-
+	currentIdx := 0 // Index of the first packet pending to be sent.
+	toWrite := 0    // Amount of packets pending to be sent.
 	for u.running.Load() {
-		// Top-up our batch.
-		toWrite += readUpTo(queue, batchSize-toWrite, toWrite == 0, pkts[toWrite:])
+
+		// XXX(juagargi): open question: if the priority input queue is empty, how many best-effort
+		// packets should we read and then send? Two answers (to show my hesitation):
+		// 1. If too many, then while we are sending them new priority packets could arrive, and we
+		// would be adding latency for those priority packets to be read and sent.
+		// 2. If too little, then the forwarding process will not be very efficient.
+		//
+		// While the solution may affect jitter (or latency in general), it will not affect the
+		// reliability of the forwarding for priority packets: because we assume that the
+		// system is well configured, we don't have a higher rate of priority packets reception
+		// than emission; we assume this even taking into account the tolerable token buckets burst.
+		// In that case, unless batchSize was configured extremely high, we will not enqueue
+		// enough priority packets (without sending) them that would cause a bottleneck enough to
+		// stall the packet processors.
+
+		// Top-up our batch. Write onto the ring buffer, starting from the first free "bucket" and
+		// no more than the count of free buckets.
+		newBatchPktCount := readUpTo(
+			sslices.CDIterator(pkts, currentIdx+toWrite, batchSize-toWrite),
+			u.queues,
+			toWrite == 0)
 
 		// Turn the packets into underlay messages that WriteBatch can send.
-		for i, p := range pkts[:toWrite] {
+		// Only packets stored from currentIdx+toWrite and onwards are new, copy only the new ones.
+		i := 0
+		for _, p := range sslices.CircularIterator(pkts, currentIdx, toWrite+newBatchPktCount) {
 			msgs[i].Buffers[0] = p.RawPacket
-			msgs[i].Addr = nil
-			// If we're using a connected socket we must not specify the address. It might cause
-			// redundant route queries and the address might not even be set in the packet.
-			// Otherwise, we must specify the address.
-			if !u.connected {
+			if u.connected {
+				// If we're using a connected socket we must not specify the address. It might cause
+				// redundant route queries and the address might not even be set in the packet.
+				msgs[i].Addr = nil
+			} else {
+				// Otherwise, we must specify the address.
 				msgs[i].Addr = (*net.UDPAddr)(p.RemoteAddr)
 			}
+			i++
 		}
 
-		written, _ := conn.WriteBatch(msgs[:toWrite], 0)
+		// Attempt to write the remaining packets from previous batches and this new one.
+		written, _ := u.conn.WriteBatch(msgs[:toWrite+newBatchPktCount], 0)
 		if written < 0 {
 			// WriteBatch returns -1 on error, we just consider this as
-			// 0 packets written
+			// 0 packets written.
 			written = 0
 		}
-		router.UpdateOutputMetrics(metrics, pkts[:written])
-		for _, p := range pkts[:written] {
+		iterator := sslices.ToValueIterator(
+			sslices.CircularIterator(pkts, currentIdx, written))
+		router.UpdateOutputMetrics(u.metrics, iterator)
+		// Return storage for all the written packets.
+		for p := range iterator {
 			pool.Put(p)
 		}
+		// The next packet to write is now the first one not written.
+		currentIdx = (currentIdx + written) % batchSize
+
+		// Compute the number of packets to still write for next iteration.
+		toWrite += newBatchPktCount
 		if written != toWrite {
-			// Only one is dropped at this time. We'll retry the rest.
-			sc := router.ClassOfSize(len(pkts[written].RawPacket))
-			metrics[sc].DroppedPacketsInvalid.Inc()
-			pool.Put(pkts[written])
+			// The batch was not completely written. We assume that the failure was caused by
+			// the first packet not being sent, i.e. with index = currentIdx.
+			taintedPktIndex := currentIdx
+			sc := router.ClassOfSize(len(pkts[taintedPktIndex].RawPacket))
+			u.metrics[sc].DroppedPacketsInvalid.Inc()
+			// Return storage for this bad packet.
+			pool.Put(pkts[taintedPktIndex])
+			// We drop the packet and try again with the rest.
+			currentIdx++
 			toWrite -= (written + 1)
-			// Shift the leftovers to the head of the buffers.
-			for i := 0; i < toWrite; i++ {
-				pkts[i] = pkts[i+written+1]
-			}
 		} else {
 			toWrite = 0
 		}
@@ -422,7 +489,7 @@ func makeHashSeed() uint32 {
 type connectedLink struct {
 	procQs     []chan *router.Packet
 	name       string // For logs
-	egressQ    chan<- *router.Packet
+	egressQs   [pr.QueueCount]chan<- *router.Packet
 	metrics    *router.InterfaceMetrics
 	pool       router.PacketPool
 	bfdSession *bfd.Session
@@ -476,22 +543,23 @@ func (u *provider) newConnectedLink(
 	if err != nil {
 		return nil, err
 	}
-	queue := make(chan *router.Packet, qSize)
+	queues := createQueues(qSize)
 	el := &connectedLink{
 		name:       remoteAddr.String(),
-		egressQ:    queue,
+		egressQs:   typeCastEgressQueues(queues),
 		metrics:    metrics,
 		bfdSession: bfd,
 		seed:       makeHashSeed(),
 		ifID:       ifID,
 		scope:      scope,
 	}
+
 	c := &udpConnection{
 		conn: conn,
 		name: el.name,
 		link: el,
 		// links: nil; no demux lookup ever for this connection
-		queue:        queue,
+		queues:       queues,
 		metrics:      metrics, // send() needs them :-(
 		receiverDone: make(chan struct{}),
 		senderDone:   make(chan struct{}),
@@ -500,6 +568,30 @@ func (u *provider) newConnectedLink(
 	u.allConnections = append(u.allConnections, c)
 	u.allLinks[remoteAddr] = el
 	return el, nil
+}
+
+func createQueues(qSize int) [pr.QueueCount]chan *router.Packet {
+	var queues [pr.QueueCount]chan *router.Packet
+	for i := range queues {
+		queues[i] = make(chan *router.Packet, qSize)
+	}
+	return queues
+}
+
+func typeCastEgressQueues(queues [pr.QueueCount]chan *router.Packet) [pr.QueueCount]chan<- *router.Packet {
+	var ret [pr.QueueCount]chan<- *router.Packet
+	for i := range queues {
+		ret[i] = queues[i]
+	}
+	return ret
+}
+
+func typeCastIngressQueues(queues [pr.QueueCount]chan *router.Packet) [pr.QueueCount]<-chan *router.Packet {
+	var ret [pr.QueueCount]<-chan *router.Packet
+	for i := range queues {
+		ret[i] = queues[i]
+	}
+	return ret
 }
 
 func (l *connectedLink) start(
@@ -556,7 +648,7 @@ func (l *connectedLink) Resolve(p *router.Packet, host addr.Host, port uint16) e
 
 func (l *connectedLink) Send(p *router.Packet) bool {
 	select {
-	case l.egressQ <- p:
+	case l.egressQs[p.PriorityLabel] <- p:
 	default:
 		return false
 	}
@@ -565,7 +657,7 @@ func (l *connectedLink) Send(p *router.Packet) bool {
 
 func (l *connectedLink) SendBlocking(p *router.Packet) {
 	// We use a bound and connected socket so we don't need to specify the destination.
-	l.egressQ <- p
+	l.egressQs[p.PriorityLabel] <- p
 }
 
 func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
@@ -598,7 +690,7 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 type detachedLink struct {
 	procQs     []chan *router.Packet
 	name       string // For logs
-	egressQ    chan<- *router.Packet
+	egressQs   [pr.QueueCount]chan<- *router.Packet
 	metrics    *router.InterfaceMetrics
 	pool       router.PacketPool
 	bfdSession *bfd.Session
@@ -660,7 +752,7 @@ func (u *provider) newDetachedLink(
 
 	sl := &detachedLink{
 		name:       remoteAddr.String(),
-		egressQ:    c.queue,
+		egressQs:   typeCastEgressQueues(c.queues),
 		metrics:    metrics,
 		bfdSession: bfd,
 		remote:     net.UDPAddrFromAddrPort(remoteAddr),
@@ -730,7 +822,7 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 	// is safe because we treat p.RemoteAddr as immutable and the router main code doesn't touch it.
 	p.RemoteAddr = unsafe.Pointer(l.remote)
 	select {
-	case l.egressQ <- p:
+	case l.egressQs[p.PriorityLabel] <- p:
 	default:
 		return false
 	}
@@ -740,7 +832,7 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 func (l *detachedLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the destination address.
 	p.RemoteAddr = unsafe.Pointer(l.remote)
-	l.egressQ <- p
+	l.egressQs[p.PriorityLabel] <- p
 }
 
 func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
@@ -770,9 +862,9 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 type internalLink struct {
 	procQ            chan *router.Packet
 	procQs           []chan *router.Packet
-	egressQ          chan *router.Packet
 	procStop         chan struct{}
 	procDone         chan struct{}
+	egressQs         [pr.QueueCount]chan<- *router.Packet
 	metrics          *router.InterfaceMetrics
 	pool             router.PacketPool
 	svc              *router.Services[netip.AddrPort]
@@ -807,9 +899,9 @@ func (u *provider) NewInternalLink(
 		return nil, err
 	}
 	u.internalHashSeed = makeHashSeed()
-	queue := make(chan *router.Packet, qSize)
+	queues := createQueues(qSize)
 	il := &internalLink{
-		egressQ:          queue,
+		egressQs:         typeCastEgressQueues(queues),
 		metrics:          metrics,
 		svc:              u.svc,
 		seed:             u.internalHashSeed,
@@ -822,7 +914,7 @@ func (u *provider) NewInternalLink(
 		name: "internal",
 		link: il,
 		// links: see below.
-		queue:        queue,
+		queues:       queues,
 		metrics:      metrics, // send() needs them :-(
 		receiverDone: make(chan struct{}),
 		senderDone:   make(chan struct{}),
@@ -996,7 +1088,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 // The packet's destination is already in the packet's meta-data.
 func (l *internalLink) Send(p *router.Packet) bool {
 	select {
-	case l.egressQ <- p:
+	case l.egressQs[p.PriorityLabel] <- p:
 	default:
 		return false
 	}
@@ -1005,7 +1097,7 @@ func (l *internalLink) Send(p *router.Packet) bool {
 
 // The packet's destination is already in the packet's meta-data.
 func (l *internalLink) SendBlocking(p *router.Packet) {
-	l.egressQ <- p
+	l.egressQs[p.PriorityLabel] <- p
 }
 
 func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
