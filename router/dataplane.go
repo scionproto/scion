@@ -204,8 +204,9 @@ func (p *Packet) init(buffer *[bufSize]byte) *Packet {
 // relative to the buffer, so there's enough headroom for any underlay headers.
 func (p *Packet) reset(headroom int) {
 	*p = Packet{
-		buffer:    p.buffer,            // keep the buffer
-		RawPacket: p.buffer[headroom:], // restore the full packet capacity (minus headroom).
+		buffer:        p.buffer,            // keep the buffer
+		RawPacket:     p.buffer[headroom:], // restore the full packet capacity (minus headroom).
+		PriorityLabel: pr.WithBestEffort,   // Default to best-effort.
 	}
 	// Everything else is reset to zero value.
 }
