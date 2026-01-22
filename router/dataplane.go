@@ -160,7 +160,7 @@ type Packet struct {
 	// of _pad). See notes for the Packet struct.
 	_ [_pad]byte
 	// Priority forwarding label: packets with more priority are forwarded first
-	QueueIndex pr.PriorityLabel
+	PriorityLabel pr.PriorityLabel
 }
 
 // alignHelperForPacket is only used to compute the initial size of the Packet struct without
@@ -2218,7 +2218,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	fwLink := b.dataPlane.interfaces[b.ifID]
 
 	// BFD packets are always marked as priority.
-	p.QueueIndex = pr.WithPriority
+	p.PriorityLabel = pr.WithPriority
 
 	if !fwLink.Send(p) {
 		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,

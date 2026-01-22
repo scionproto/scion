@@ -648,7 +648,7 @@ func (l *connectedLink) Resolve(p *router.Packet, host addr.Host, port uint16) e
 
 func (l *connectedLink) Send(p *router.Packet) bool {
 	select {
-	case l.egressQs[p.QueueIndex] <- p:
+	case l.egressQs[p.PriorityLabel] <- p:
 	default:
 		return false
 	}
@@ -657,7 +657,7 @@ func (l *connectedLink) Send(p *router.Packet) bool {
 
 func (l *connectedLink) SendBlocking(p *router.Packet) {
 	// We use a bound and connected socket so we don't need to specify the destination.
-	l.egressQs[p.QueueIndex] <- p
+	l.egressQs[p.PriorityLabel] <- p
 }
 
 func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
@@ -822,7 +822,7 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 	// is safe because we treat p.RemoteAddr as immutable and the router main code doesn't touch it.
 	p.RemoteAddr = unsafe.Pointer(l.remote)
 	select {
-	case l.egressQs[p.QueueIndex] <- p:
+	case l.egressQs[p.PriorityLabel] <- p:
 	default:
 		return false
 	}
@@ -832,7 +832,7 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 func (l *detachedLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the destination address.
 	p.RemoteAddr = unsafe.Pointer(l.remote)
-	l.egressQs[p.QueueIndex] <- p
+	l.egressQs[p.PriorityLabel] <- p
 }
 
 func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
@@ -1088,7 +1088,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 // The packet's destination is already in the packet's meta-data.
 func (l *internalLink) Send(p *router.Packet) bool {
 	select {
-	case l.egressQs[p.QueueIndex] <- p:
+	case l.egressQs[p.PriorityLabel] <- p:
 	default:
 		return false
 	}
@@ -1097,7 +1097,7 @@ func (l *internalLink) Send(p *router.Packet) bool {
 
 // The packet's destination is already in the packet's meta-data.
 func (l *internalLink) SendBlocking(p *router.Packet) {
-	l.egressQs[p.QueueIndex] <- p
+	l.egressQs[p.PriorityLabel] <- p
 }
 
 func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
