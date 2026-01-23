@@ -361,7 +361,7 @@ func TestVerify(t *testing.T) {
 				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				require.NoError(t, err)
 
-				hdrAndBody := &cryptopb.HeaderAndBodyInternal{
+				hdrAndBody := &cryptopb.HeaderAndBody{
 					Header: []byte("someweirdmalformedthingy"),
 					Body:   []byte("body"),
 				}
