@@ -72,6 +72,8 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
+				path.EXPECT().Destination().AnyTimes().Return(addr.MustParseIA("1-ff00:0:110"))
+				path.EXPECT().Metadata().AnyTimes().Return(nil)
 				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(path, nil)
 				return router
@@ -96,6 +98,8 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
+				path.EXPECT().Destination().AnyTimes().Return(addr.MustParseIA("1-ff00:0:110"))
+				path.EXPECT().Metadata().AnyTimes().Return(nil)
 				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(path, nil)
 				return router
@@ -120,6 +124,8 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
+				path.EXPECT().Destination().AnyTimes().Return(addr.MustParseIA("1-ff00:0:110"))
+				path.EXPECT().Metadata().AnyTimes().Return(nil)
 				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(path, nil)
 				return router

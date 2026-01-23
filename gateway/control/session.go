@@ -207,7 +207,8 @@ func (d pathSelectionDiff) hasDiff() bool {
 	}
 	for i, np := range d.new.Paths {
 		op := d.old.Paths[i]
-		if snet.Fingerprint(np).String() != snet.Fingerprint(op).String() {
+
+		if np.Metadata().Fingerprint() != op.Metadata().Fingerprint() {
 			return true
 		}
 	}

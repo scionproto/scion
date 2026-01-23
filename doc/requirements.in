@@ -10,6 +10,7 @@ sphinxcontrib-mermaid
 
 # Pinning the versions of the indirect requirements to fix Dependabot alerts.
 Jinja2 >= 3.1.6
-requests >= 2.32.0
-urllib3 >= 2.2.2
+requests >= 2.32.4
+urllib3 >= 2.6.3
 h11 >= 0.16.0
+starlette >= 0.49.1

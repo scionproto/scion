@@ -100,7 +100,7 @@ func (r *Registration) Get() Selection {
 	selection := r.pathSelector.Select(selectables, r.currentFingerprints)
 	r.currentFingerprints = make(FingerprintSet)
 	for _, path := range selection.Paths {
-		r.currentFingerprints[snet.Fingerprint(path)] = struct{}{}
+		r.currentFingerprints[path.Metadata().Fingerprint()] = struct{}{}
 	}
 	return selection
 }

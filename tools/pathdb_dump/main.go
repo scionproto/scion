@@ -56,7 +56,7 @@ func realMain() error {
 			return err
 		}
 	}
-	db, err := sqlite.New(*filename)
+	db, err := sqlite.New(*filename, nil)
 	if err != nil {
 		return err
 	}

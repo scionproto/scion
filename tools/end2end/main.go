@@ -37,6 +37,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -300,7 +301,7 @@ func (c *client) attemptRequest(n int) bool {
 	if err := c.pong(ctx); err != nil {
 		logger.Error("Error receiving pong", "err", withTag(err))
 		if path != nil {
-			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
+			c.errorPaths[path.Metadata().Fingerprint()] = struct{}{}
 		}
 		return false
 	}
@@ -349,7 +350,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	}
 
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
-		daemon.PathReqFlags{Refresh: n != 0})
+		daemontypes.PathReqFlags{Refresh: n != 0})
 	if err != nil {
 		return nil, withTag(serrors.Wrap("requesting paths", err))
 	}
@@ -360,7 +361,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	// Select first path that didn't error before.
 	var path snet.Path
 	for _, p := range paths {
-		if _, ok := c.errorPaths[snet.Fingerprint(p)]; ok {
+		if _, ok := c.errorPaths[p.Metadata().Fingerprint()]; ok {
 			continue
 		}
 		path = p

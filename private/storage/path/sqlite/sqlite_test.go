@@ -27,6 +27,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/private/storage/db"
 	pathdbtest "github.com/scionproto/scion/private/storage/path/dbtest"
 )
 
@@ -46,7 +48,10 @@ type TestPathDB struct {
 }
 
 func (b *TestPathDB) Prepare(t *testing.T, _ context.Context) {
-	db, err := New("file::memory:")
+	db, err := New(
+		xtest.SanitizedName(t),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 	b.Backend = db
 }
@@ -68,7 +73,7 @@ func TestOpenExisting(t *testing.T) {
 	pathdbtest.InsertSeg(t, ctx, b, pseg1, hpGroupIDs)
 	b.db.Close()
 	// Call
-	b, err := New(tmpF)
+	b, err := New(tmpF, nil)
 	require.NoError(t, err)
 	// Test
 	// Check that path segment is still there.
@@ -85,11 +90,11 @@ func TestOpenNewer(t *testing.T) {
 	b, tmpF := setupDB(t)
 	defer cleanup(tmpF)
 	// Write a newer version
-	_, err := b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
+	_, err := b.db.Full.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
 	require.NoError(t, err)
 	b.db.Close()
 	// Call
-	b, err = New(tmpF)
+	b, err = New(tmpF, nil)
 	// Test
 	assert.Error(t, err)
 	assert.Nil(t, b)
@@ -97,7 +102,7 @@ func TestOpenNewer(t *testing.T) {
 
 func setupDB(t *testing.T) (*Backend, string) {
 	tmpFile := tempFilename(t)
-	b, err := New(tmpFile)
+	b, err := New(tmpFile, nil)
 	require.NoError(t, err, "Failed to open DB")
 	return b, tmpFile
 }

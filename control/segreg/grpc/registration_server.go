@@ -17,6 +17,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc/codes"
@@ -88,16 +89,36 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		}
 	}
 
+	var remoteAddr net.Addr = &snet.SVCAddr{
+		IA:      peer.IA,
+		Path:    peer.Path,
+		NextHop: peer.NextHop,
+		SVC:     addr.SvcCS,
+	}
+
+	// Let's see if any of the segments has the remote CS address and if there
+	// is one, pick it.
+	for _, seg := range segs {
+		for _, asE := range seg.Segment.ASEntries {
+			if asE.Local != peer.IA {
+				continue
+			}
+			if disco := asE.Extensions.Discovery; disco != nil && len(disco.ControlServices) > 0 {
+				remoteAddr = &snet.UDPAddr{
+					IA:      peer.IA,
+					Path:    peer.Path,
+					NextHop: peer.NextHop,
+					Host:    net.UDPAddrFromAddrPort(disco.ControlServices[0]),
+				}
+			}
+		}
+	}
+
 	res := s.SegHandler.Handle(ctx,
 		seghandler.Segments{
 			Segs: segs,
 		},
-		&snet.SVCAddr{
-			IA:      peer.IA,
-			Path:    peer.Path,
-			NextHop: peer.NextHop,
-			SVC:     addr.SvcCS,
-		},
+		remoteAddr,
 	)
 	if err := res.Err(); err != nil {
 		s.failMetric(span, labels.WithResult(prom.ErrProcess), err)
