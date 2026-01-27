@@ -104,8 +104,9 @@ func NewSqlite(path string, cfg *SqliteConfig) (*Sqlite, error) {
 	// This is why you should start your transactions with BEGIN IMMEDIATE instead of only BEGIN. If
 	// the database is locked when the transaction starts, SQLite will respect busy_timeout.
 	//
-	// Per recommendation in https://github.com/mattn/go-sqlite3/issues/1179#issuecomment-1638083995,
-	// we enforce IMMEDIATE transactions only on the write connection level.
+	// Per recommendation in
+	// https://github.com/mattn/go-sqlite3/issues/1179#issuecomment-1638083995, we enforce
+	// IMMEDIATE transactions only on the write connection level.
 	connParams.Add("_txlock", "immediate")
 	writeUrl := path + "?" + connParams.Encode()
 
