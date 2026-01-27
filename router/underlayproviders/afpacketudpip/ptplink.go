@@ -325,15 +325,14 @@ func (l *ptpLink) sendBacklog() {
 	}
 }
 
-func (l *ptpLink) Send(p *router.Packet) {
-
+func (l *ptpLink) Send(p *router.Packet) bool {
 	// TODO(jiceatscion): The packet's destination is in the packet's meta-data; it was put there by
 	// Resolve() We need to craft a header in front of the packet.  May be resolve could do that,
 	// instead of just storing the destination in the packet structure. That would save us the
 	// allocation of address but requires some more changes to the dataplane code structure.
 	if !l.finishPacket(p) {
 		// The packet got put on the backlog (or discarded if the backlog is full).
-		return
+		return false
 	}
 	select {
 	case l.egressQ <- p:
@@ -341,7 +340,9 @@ func (l *ptpLink) Send(p *router.Packet) {
 		sc := router.ClassOfSize(len(p.RawPacket))
 		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
 		l.pool.Put(p)
+		return false
 	}
+	return true
 }
 
 // Only tests actually use this method, but since we have to have it, we might as well implement it

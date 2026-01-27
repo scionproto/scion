@@ -478,7 +478,6 @@ func (u *underlay) newConnectedLink(
 	metrics *router.InterfaceMetrics,
 	scope router.LinkScope, // Since this can be used for either Sibling or External
 ) (router.Link, error) {
-
 	conn, err := u.connOpener.Open(localAddr, remoteAddr,
 		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
 	if err != nil {
@@ -562,14 +561,16 @@ func (l *connectedLink) Resolve(p *router.Packet, host addr.Host, port uint16) e
 	return errResolveOnExternalLink
 }
 
-func (l *connectedLink) Send(p *router.Packet) {
+func (l *connectedLink) Send(p *router.Packet) bool {
 	select {
 	case l.egressQ <- p:
 	default:
 		sc := router.ClassOfSize(len(p.RawPacket))
 		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
 		l.pool.Put(p)
+		return false
 	}
+	return true
 }
 
 // Only tests actually use this method, but since we have to have it, we might as well implement it
@@ -662,7 +663,6 @@ func (u *underlay) newDetachedLink(
 	remoteAddr netip.AddrPort,
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
-
 	// All detached links re-use the internal connection.
 	c := u.internalConnection
 	if c == nil {
@@ -735,7 +735,7 @@ func (l *detachedLink) Resolve(p *router.Packet, host addr.Host, port uint16) er
 	return errResolveOnSiblingLink
 }
 
-func (l *detachedLink) Send(p *router.Packet) {
+func (l *detachedLink) Send(p *router.Packet) bool {
 	// We use an unbound connection but we offer a connection-oriented service. So, we need to
 	// supply the packet's destination address. Trying to reuse the packet's RemoteAddress storage
 	// is pointless: if we loan l.remote we avoid a copy and still discard at most one address. This
@@ -747,7 +747,9 @@ func (l *detachedLink) Send(p *router.Packet) {
 		sc := router.ClassOfSize(len(p.RawPacket))
 		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
 		l.pool.Put(p)
+		return false
 	}
+	return true
 }
 
 // Only tests actually use this method, but since we have to have it, we might as well implement it
@@ -901,7 +903,7 @@ func (l *internalLink) runProcessor() {
 			}
 			if !egressLink.Send(p) {
 				sc := router.ClassOfSize(len(p.RawPacket))
-				l.metrics[sc].DroppedPacketsBusyForwarder.Inc()
+				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
 				l.pool.Put(p)
 				continue
 			}
@@ -1009,7 +1011,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
-func (l *internalLink) Send(p *router.Packet) {
+func (l *internalLink) Send(p *router.Packet) bool {
 	// The packet's destination is in the packet's meta-data.
 	select {
 	case l.egressQ <- p:
@@ -1017,7 +1019,9 @@ func (l *internalLink) Send(p *router.Packet) {
 		sc := router.ClassOfSize(len(p.RawPacket))
 		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
 		l.pool.Put(p)
+		return false
 	}
+	return true
 }
 
 // Only tests actually use this method, but since we have to have it, we might as well implement it
