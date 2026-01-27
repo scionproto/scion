@@ -241,7 +241,7 @@
   "moduleExtensions": {
     "//:antlr.bzl%antlr": {
       "general": {
-        "bzlTransitiveDigest": "5XvXGtK4xIbJd9TfgGbSNCdMpU+eMrPzz404GgDb/D4=",
+        "bzlTransitiveDigest": "RES7NpV12lXIUZ53wkYAoJNKF9F09XklX2+arTCQ4nI=",
         "usagesDigest": "MYi7gCA2Rcv9xbxcCUXgWRLbup3cc3pAjZrw7P3G8M4=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
