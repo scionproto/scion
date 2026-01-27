@@ -64,20 +64,10 @@ func NewSqlite(path string, cfg *SqliteConfig) (*Sqlite, error) {
 	if strings.Contains(path, ":memory:") {
 		return nil, fmt.Errorf("use explicitly named memory database")
 	}
-	noFile, ok := strings.CutPrefix(path, "file:")
+	noFile, _ := strings.CutPrefix(path, "file:")
+	path = "file:" + noFile
 
 	connParams := make(url.Values)
-	// By default, SQLite starts transactions in DEFERRED mode: they are considered read only. They
-	// are upgraded to a write transaction that requires a database lock in-flight, when query
-	// containing a write/update/delete statement is issued.
-	//
-	// The problem is that by upgrading a transaction after it has started, SQLite will immediately
-	// return a SQLITE_BUSY error without respecting the busy_timeout previously mentioned, if the
-	// database is already locked by another connection.
-	//
-	// This is why you should start your transactions with BEGIN IMMEDIATE instead of only BEGIN. If
-	// the database is locked when the transaction starts, SQLite will respect busy_timeout.
-	connParams.Add("_txlock", "immediate")
 	// The WAL journal mode provides a [Write-Ahead Log](https://www.sqlite.org/wal.html) provides
 	// more concurrency as readers do not block writers and a writer does not block readers,
 	// contrary to the default mode where readers block writers and vice versa.
@@ -101,18 +91,31 @@ func NewSqlite(path string, cfg *SqliteConfig) (*Sqlite, error) {
 	}
 
 	// Construct the connection URL.
-	connUrl := path + "?" + connParams.Encode()
-	if !ok {
-		connUrl = "file:" + connUrl
-	}
+	readUrl := path + "?" + connParams.Encode()
 
-	write, err := sql.Open("sqlite", connUrl)
+	// By default, SQLite starts transactions in DEFERRED mode: they are considered read only. They
+	// are upgraded to a write transaction that requires a database lock in-flight, when query
+	// containing a write/update/delete statement is issued.
+	//
+	// The problem is that by upgrading a transaction after it has started, SQLite will immediately
+	// return a SQLITE_BUSY error without respecting the busy_timeout previously mentioned, if the
+	// database is already locked by another connection.
+	//
+	// This is why you should start your transactions with BEGIN IMMEDIATE instead of only BEGIN. If
+	// the database is locked when the transaction starts, SQLite will respect busy_timeout.
+	//
+	// Per recommendation in https://github.com/mattn/go-sqlite3/issues/1179#issuecomment-1638083995,
+	// we enforce IMMEDIATE transactions only on the write connection level.
+	connParams.Add("_txlock", "immediate")
+	writeUrl := path + "?" + connParams.Encode()
+
+	write, err := sql.Open("sqlite", writeUrl)
 	if err != nil {
 		return nil, fmt.Errorf("opening write database: %w", err)
 	}
 	write.SetMaxOpenConns(1)
 
-	read, err := sql.Open("sqlite", connUrl)
+	read, err := sql.Open("sqlite", readUrl)
 	if err != nil {
 		defer write.Close()
 		return nil, fmt.Errorf("opening read database: %w", err)
@@ -121,7 +124,7 @@ func NewSqlite(path string, cfg *SqliteConfig) (*Sqlite, error) {
 	// Set max open and idle connections for read DB.
 	{
 		if c.MaxOpenReadConns == 0 {
-			c.MaxOpenReadConns = max(4, runtime.NumCPU())
+			c.MaxOpenReadConns = max(4, runtime.GOMAXPROCS(0))
 		}
 		read.SetMaxOpenConns(c.MaxOpenReadConns)
 
