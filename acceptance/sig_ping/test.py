@@ -24,7 +24,8 @@ class Test(base.TestTopogen):
     """
 
     def _run(self):
-        time.sleep(20)
+        self.await_connectivity()
+        time.sleep(5)
 
         ping_test = self.get_executable("sig_ping_acceptance")
 

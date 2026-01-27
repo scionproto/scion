@@ -379,7 +379,7 @@ func TestDataPlaneRun(t *testing.T) {
 							// However, prepBaseMsg does pretend that there's a SCIONUDP Header.
 							// Remove that. Since the removal of the dispatcher, the router snoops
 							// into L4 and would mistake our payload for a broken SCION/UDP header.
-							spkt.NextHdr = slayers.L4None
+							spkt.NextHdr = slayers.ExperimentationAndTesting
 
 							err := gopacket.SerializeLayers(buffer,
 								gopacket.SerializeOptions{FixLengths: true},
