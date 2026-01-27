@@ -1,0 +1,12 @@
+load("//:scion.bzl", "scion_go_binary")
+load("//acceptance/common:topogen.bzl", "topogen_test")
+
+topogen_test(
+    name = "test",
+    src = "test.py",
+    args = [
+    ],
+    data = [
+    ],
+    topo = "//topology:tiny.topo",
+)
