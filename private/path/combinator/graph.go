@@ -100,56 +100,6 @@ func newDMG(ups, cores, downs []*seg.PathSegment) *dmg {
 	return g
 }
 
-func printDMG(g *dmg) {
-	var srcs []vertex
-	for src := range g.Adjacencies {
-		srcs = append(srcs, src)
-	}
-	slices.SortFunc(srcs, func(a, b vertex) int {
-		return cmp.Or(
-			cmp.Compare(a.IA, b.IA),
-			cmp.Compare(a.UpIA, b.UpIA),
-			cmp.Compare(a.DownIA, b.DownIA),
-		)
-	})
-
-	for _, src := range srcs {
-		neighbors := g.Adjacencies[src]
-		//fmt.Printf("%v Up %v#%v Down %v#%v\n", src.IA, src.UpIA, src.UpIfID, src.DownIA, src.DownIfID)
-
-		var dsts []vertex
-		for dst := range neighbors {
-			dsts = append(dsts, dst)
-		}
-		slices.SortFunc(dsts, func(a, b vertex) int {
-			return cmp.Or(
-				cmp.Compare(a.IA, b.IA),
-				cmp.Compare(a.UpIA, b.UpIA),
-				cmp.Compare(a.DownIA, b.DownIA),
-			)
-		})
-
-		for _, dst := range dsts {
-			edgeList := neighbors[dst]
-
-			var segments []*inputSegment
-			for segment := range edgeList {
-				segments = append(segments, segment)
-			}
-			slices.SortFunc(segments, func(a, b *inputSegment) int {
-				return bytes.Compare(a.ID(), b.ID())
-			})
-
-			//for _, segment := range segments {
-			//e := edgeList[segment]
-			//fmt.Printf(" --(%v, shortcut=%d, peer=%d)--> %v\n",
-			//	segment.GetLoggingID(), e.Shortcut, e.Peer, dst.IA)
-			//}
-		}
-	}
-
-}
-
 func (g *dmg) traverseSegment(segment *inputSegment) {
 	asEntries := segment.ASEntries
 
@@ -603,8 +553,15 @@ type solutionEdge struct {
 	segment *inputSegment
 }
 
+// isOneHopSegment returns true if the segment is a one-hop segment (single AS entry with peer entries).
+// One-hop segments represent core ASes with peering links and enable peering path discovery.
+func isOneHopSegment(seg *inputSegment) bool {
+	return len(seg.ASEntries) == 1 && len(seg.ASEntries[0].PeerEntries) > 0
+}
+
 // validNextSeg returns whether nextSeg is a valid next segment in a path from the given currSeg.
 // A path can only contain at most 1 up, 1 core, and 1 down segment.
+// Exception: one-hop segments (for core peering) can follow up segments.
 func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 	if currSeg == nil {
 		// If we have no segment any segment can be first.
@@ -612,6 +569,10 @@ func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 	}
 	switch currSeg.Type {
 	case proto.PathSegType_up:
+		// Allow transitioning to one-hop up segments for core peering
+		if nextSeg.Type == proto.PathSegType_up && isOneHopSegment(nextSeg) {
+			return true
+		}
 		return nextSeg.Type == proto.PathSegType_core || nextSeg.Type == proto.PathSegType_down
 	case proto.PathSegType_core:
 		return nextSeg.Type == proto.PathSegType_down

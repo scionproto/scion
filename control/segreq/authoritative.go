@@ -37,6 +37,14 @@ type AuthoritativeLookup struct {
 func (a AuthoritativeLookup) LookupSegments(
 	ctx context.Context, src, dst addr.IA,
 ) (segfetcher.Segments, error) {
+
+	// Special case: src == dst requests one-hop segments for core AS peering.
+	// Return both Up and Down types so the requester can use whichever direction
+	// is needed (Up for outgoing edges, Down for incoming edges).
+	if src == dst && src == a.LocalIA {
+		return getOneHopSegments(ctx, a.PathDB, a.LocalIA)
+	}
+
 	segType, err := a.classify(ctx, src, dst)
 	if err != nil {
 		return nil, err
@@ -109,6 +117,23 @@ func getDownSegments(ctx context.Context, pathDB pathdb.DB,
 		StartsAt: []addr.IA{localIA},
 		EndsAt:   []addr.IA{dstIA},
 		SegTypes: []seg.Type{seg.TypeDown},
+	})
+	if err != nil {
+		return segfetcher.Segments{}, err
+	}
+	return res.SegMetas(), nil
+}
+
+// getOneHopSegments loads one-hop segments (segments that start and end at the same AS)
+// for core AS peering support. Returns both Up and Down typed segments so the requester
+// can use whichever direction is needed for path construction.
+func getOneHopSegments(ctx context.Context, pathDB pathdb.DB,
+	localIA addr.IA,
+) (segfetcher.Segments, error) {
+	res, err := pathDB.Get(ctx, &query.Params{
+		StartsAt: []addr.IA{localIA},
+		EndsAt:   []addr.IA{localIA},
+		SegTypes: []seg.Type{seg.TypeUp, seg.TypeDown},
 	})
 	if err != nil {
 		return segfetcher.Segments{}, err

@@ -1,0 +1,140 @@
+SCION Peering Path Discovery - Code Review Summary
+==================================================
+
+PROBLEM
+-------
+SCION path discovery was not finding direct peering paths between ASes.
+For example, the peering link between AS 1-ff00:0:120 and AS 4-ff00:0:410
+was not being discovered - paths only went through the longer route via 310.
+
+ROOT CAUSE
+----------
+The path combinator builds paths using "up segments" and "down segments".
+For peering to work, ASes with peering links need "one-hop segments" -
+special segments with a single AS entry (ConsIngress=0, ConsEgress=0)
+plus PeerEntries listing peering interfaces. These were not being created,
+requested, or properly combined.
+
+SOLUTION OVERVIEW
+-----------------
+1. Create one-hop segments at core ASes with peering interfaces
+2. Store them with both Up and Down types (for bidirectional use)
+3. Handle one-hop segment requests in control service lookups
+4. Request one-hop segments when building paths (with recursion prevention)
+5. Allow segment type transitions needed for peering in the combinator
+
+DATA FLOW
+---------
+Creation -> Storage -> Lookup -> Fetching -> Combination
+
+FILES CHANGED (in review order)
+-------------------------------
+
+1. topology/testdata/big.topo - DONE
+   Added ISD 6 with complex peering scenarios for testing.
+
+2. control/tasks.go (+22 lines) - DONE
+   Core ASes now run Up segment writers if they have peering links.
+   Added hasPeeringInterfaces() helper.
+
+3. control/beacon/store.go (+8 lines) - DONE
+   CoreStore.SegmentsToRegister() returns empty map for Up/Down types
+   instead of error, allowing one-hop segment creation.
+
+4. control/beaconing/writer.go (+30 lines) - DONE
+   - WriteScheduler.run(): Creates one-hop segments for core ASes with peers
+   - LocalWriter.RegisterSegments(): Stores one-hop segments with both Up
+     and Down types for bidirectional peering
+   - Added isOneHopSegment() helper
+
+5. control/beaconing/extender.go (+1/-4 lines) - DONE
+   Allow ingress=0, egress=0 when peers exist (required for one-hop segments).
+
+6. private/storage/path/sqlite/sqlite.go (+8 lines) - DONE
+   Fixed bug: when storing same segment with second type, the <= version
+   check skipped the insert. Now properly adds type for same-version case.
+
+7. control/segreq/authoritative.go (+25 lines) - DONE
+   Handle src==dst==localIA requests at core ASes by returning one-hop
+   segments with both Up and Down types.
+
+8. control/segreq/forwarder.go (+30 lines) - DONE
+   Handle one-hop requests at non-core ASes:
+   - Local requests: return from local path DB
+   - Remote requests: classify as Down and forward
+
+9. control/cmd/control/main.go (+1 line) - DONE
+   Wire PathDB to ForwardingLookup.
+
+10. control/segreq/fetcher.go (+58 lines) - DONE
+    Route one-hop segment requests to remote ASes:
+    - Same-ISD: try corePath() then upPath()
+    - Cross-ISD: use router.AllRoutes() with SkipOneHopKey context
+
+11. private/segment/segfetcher/splitter.go (+60 lines) - DONE
+    - Added SkipOneHopKey context key for recursion prevention
+    - Each path query now requests one-hop segments for all cores in
+      source and destination ISDs
+    - Skips one-hop requests when SkipOneHopKey is set
+
+12. private/path/combinator/graph.go (+10/-50 lines)
+    - Added isOneHopSegment() helper
+    - Modified validNextSeg() to allow up->up transitions when second
+      segment is a one-hop segment (needed for peering vertices)
+    - Removed debug printDMG() function
+
+13. private/path/combinator/combinator.go (+3/-5 lines)
+    Minor cleanup, removed debug prints.
+
+TEST FILES
+----------
+- private/path/combinator/peering_test.go (NEW, 454 lines)
+  TestPeeringPathDiscovery: 14 test cases
+  TestPeeringPathSymmetry: 7 test cases
+
+- control/beaconing/writer_test.go
+  Fixed pre-existing bug with nil-segment beacons
+
+- private/path/combinator/combinator_test.go
+  Removed 3 debug tests that expected peering to fail
+
+- private/segment/segfetcher/splitter_test.go
+  Updated expected requests to include one-hop segments
+
+- private/path/combinator/BUILD.bazel
+  Added peering_test.go to test sources
+
+- test_peering_paths.sh (NEW)
+  Shell script for integration testing (25 test cases)
+
+TESTED SCENARIOS
+----------------
+All pass:
+- Core-to-core cross-ISD peering (120 <-> 410)
+- Non-core to core cross-ISD peering (123 <-> 410, 122 <-> 310, 111 <-> 210)
+- Non-core to non-core cross-ISD peering (123 <-> 411, 122 <-> 311, 111 <-> 211)
+- Same-ISD non-core peering (121 <-> 122, 611 <-> 612, 611 <-> 621)
+- Same-ISD non-core to core peering (611 <-> 620)
+- Indirect peering benefit (411 -> 120 via 410's peering)
+- Non-peering sanity checks (510 -> 410)
+
+KEY DESIGN DECISIONS
+--------------------
+1. One-hop segments stored with both Up and Down types because:
+   - Source AS needs it as Up (edges go OUT)
+   - Destination AS needs it as Down (edges come IN)
+
+2. SkipOneHopKey context prevents infinite recursion:
+   - Splitter creates one-hop requests
+   - Fetcher uses router to find path to remote core
+   - Router would trigger splitter again -> infinite loop
+   - SkipOneHopKey breaks the cycle
+
+3. Allowing up->up transitions in combinator is safe because:
+   - Only allowed when second segment is one-hop
+   - One-hop segments only provide access to peer entries
+   - Valley-free routing property preserved
+
+STATS
+-----
+Total: +816 / -221 lines across 18 files

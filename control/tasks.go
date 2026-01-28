@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/revcache"
+	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
 )
 
@@ -201,7 +202,15 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 // SegmentWriters starts periodic segment registration tasks.
 func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 	if t.Core {
-		return []*periodic.Runner{t.segmentWriter(beacon.RegPolicyTypeCore)}
+		// Core ASes register core segments. If the core AS has peering links,
+		// also start an Up segment writer to create one-hop segments for peering.
+		// Up segments are registered locally (unlike Down segments which are
+		// registered remotely), which is what we need for one-hop segments.
+		writers := []*periodic.Runner{t.segmentWriter(beacon.RegPolicyTypeCore)}
+		if hasPeeringInterfaces(t.AllInterfaces) {
+			writers = append(writers, t.segmentWriter(beacon.RegPolicyTypeUp))
+		}
+		return writers
 	}
 	return []*periodic.Runner{
 		t.segmentWriter(beacon.RegPolicyTypeDown),
@@ -398,4 +407,15 @@ type Store interface {
 	UpdatePolicy(ctx context.Context, policy beacon.Policy) error
 	// MaxExpTime returns the segment maximum expiration time for the given policy.
 	MaxExpTime(policyType beacon.PolicyType) uint8
+}
+
+// hasPeeringInterfaces returns true if the interface set contains at least one
+// peering interface.
+func hasPeeringInterfaces(intfs *ifstate.Interfaces) bool {
+	for _, intf := range intfs.All() {
+		if intf.TopoInfo().LinkType == topology.Peer {
+			return true
+		}
+	}
+	return false
 }

@@ -183,7 +183,47 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 			return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, err)
 		}
 		return up, nil
+	case seg.TypeUp:
+		// Up segment requests are normally resolved locally. The exception is
+		// one-hop segment requests (src == dst) for core ASes in our ISD, which
+		// are used for peering path discovery. Route these via up segment to
+		// the core AS.
+		if req.Src == req.Dst {
+			return p.upPath(ctx, dst)
+		}
+		// Regular up segment requests should have been resolved locally.
+		return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, nil,
+			"reason", "up segment should have been resolved locally",
+			"src", req.Src, "dst", req.Dst)
 	case seg.TypeDown:
+		// Special case: src == dst is a one-hop segment request (core AS peering).
+		if req.Src == req.Dst {
+			// Try simple paths first: core path (for core ASes) or up path (for non-core)
+			if p.localIA.ISD() == dst.ISD() {
+				if addr, err := p.corePath(ctx, dst); err == nil {
+					return addr, nil
+				}
+				if addr, err := p.upPath(ctx, dst); err == nil {
+					return addr, nil
+				}
+				// Simple paths failed (e.g., non-core AS reaching non-parent core).
+				// Fall through to use router with SkipOneHopKey.
+			}
+			// Use router to find path, but skip one-hop requests in the recursive
+			// lookup to avoid infinite recursion.
+			ctx = context.WithValue(ctx, segfetcher.SkipOneHopKey, true)
+			paths, err := p.router.AllRoutes(ctx, dst)
+			if err != nil {
+				return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, err,
+					"reason", "no path to core for one-hop request")
+			}
+			if len(paths) == 0 {
+				return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, nil,
+					"reason", "no path to core for one-hop request")
+			}
+			path = paths[rand.IntN(len(paths))]
+			return addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path), nil
+		}
 		// Select a random path (just like we choose a random segment above)
 		// Avoids potentially being stuck with a broken but not revoked path;
 		// allows clients to retry with possibly different path in case of failure.
@@ -198,11 +238,8 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		addr := addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path)
 		return addr, nil
 	default:
-		panic(
-			"unsupported segment type for request forwarding: " +
-				"up segment should have been resolved locally: " +
-				req.SegType.String(),
-		)
+		return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, nil,
+			"reason", "unsupported segment type", "type", req.SegType.String())
 	}
 
 }
@@ -212,5 +249,15 @@ func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (net.Addr, error)
 		StartsAt: []addr.IA{dst},
 		EndsAt:   []addr.IA{p.localIA},
 		SegTypes: []seg.Type{seg.TypeUp},
+	})
+}
+
+// corePath finds a path to the destination using core segments only.
+// Used for one-hop segment requests to remote core ASes to avoid recursion.
+func (p *dstProvider) corePath(ctx context.Context, dst addr.IA) (net.Addr, error) {
+	return p.segSelector.SelectSeg(ctx, &query.Params{
+		StartsAt: []addr.IA{dst},
+		EndsAt:   []addr.IA{p.localIA},
+		SegTypes: []seg.Type{seg.TypeCore},
 	})
 }

@@ -16,9 +16,12 @@ package segreq
 
 import (
 	"context"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/private/pathdb"
+	"github.com/scionproto/scion/private/pathdb/query"
 	"github.com/scionproto/scion/private/segment/segfetcher"
 )
 
@@ -30,6 +33,7 @@ type ForwardingLookup struct {
 	CoreChecker CoreChecker
 	Fetcher     *segfetcher.Fetcher
 	Expander    WildcardExpander
+	PathDB      pathdb.DB
 }
 
 // LookupSegments looks up the segments for the given request
@@ -39,6 +43,13 @@ type ForwardingLookup struct {
 //     and results are cached
 func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 	dst addr.IA) (segfetcher.Segments, error) {
+
+	// Special case: src == dst == localIA is a request for local one-hop segments.
+	// These are used for core AS peering. Return both Up and Down types so the
+	// requester can use whichever direction is needed for path construction.
+	if src == dst && src == f.LocalIA && f.PathDB != nil {
+		return f.getLocalOneHopSegments(ctx)
+	}
 
 	segType, err := f.classify(ctx, src, dst)
 	if err != nil {
@@ -58,6 +69,20 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 	return f.Fetcher.Fetch(ctx, reqs, false)
 }
 
+// getLocalOneHopSegments loads one-hop segments from the local path DB.
+// Returns segments with both Up and Down types for use in path construction.
+func (f ForwardingLookup) getLocalOneHopSegments(ctx context.Context) (segfetcher.Segments, error) {
+	res, err := f.PathDB.Get(ctx, &query.Params{
+		StartsAt: []addr.IA{f.LocalIA},
+		EndsAt:   []addr.IA{f.LocalIA},
+		SegTypes: []seg.Type{seg.TypeUp, seg.TypeDown},
+	})
+	if err != nil {
+		return segfetcher.Segments{}, err
+	}
+	return res.SegMetas(), nil
+}
+
 // classify validates the request and determines the segment type for the request
 func (f ForwardingLookup) classify(ctx context.Context,
 	src, dst addr.IA) (seg.Type, error) {
@@ -66,6 +91,11 @@ func (f ForwardingLookup) classify(ctx context.Context,
 		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 			"src", src, "dst", dst, "reason", "zero ISD src or dst")
 
+	}
+	// Special case: src == dst is a request for one-hop segments (core AS peering).
+	// Treat as Down segment to forward to that AS's control service.
+	if src == dst {
+		return seg.TypeDown, nil
 	}
 	if dst == f.LocalIA {
 		isCore, err := f.CoreChecker.IsCore(ctx, dst)

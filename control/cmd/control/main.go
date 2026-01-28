@@ -418,6 +418,7 @@ func realMain(ctx context.Context) error {
 				Inspector: inspector,
 				PathDB:    pathDB,
 			},
+			PathDB: pathDB,
 		},
 		RevCache:     revCache,
 		Requests:     libmetrics.NewPromCounter(metrics.SegmentLookupRequestsTotal),

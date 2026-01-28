@@ -16,10 +16,25 @@ package segfetcher
 
 import (
 	"context"
+
 	"github.com/scionproto/scion/pkg/addr"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/trust"
 )
+
+// ctxKey is used for context keys in this package.
+type ctxKey string
+
+// SkipOneHopKey is a context key that, when set, instructs the splitter to skip
+// creating one-hop segment requests. This is used to avoid infinite recursion
+// when the dstProvider needs to find a path to a remote core AS for forwarding
+// a one-hop segment request.
+const SkipOneHopKey ctxKey = "skipOneHop"
+
+// SkipOneHop returns true if one-hop segment requests should be skipped.
+func SkipOneHop(ctx context.Context) bool {
+	return ctx.Value(SkipOneHopKey) != nil
+}
 
 // Splitter splits a path request into set of segment requests.
 type Splitter interface {
@@ -49,6 +64,9 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 		return nil, err
 	}
 
+	// Check if we should skip one-hop segment requests (to avoid recursion in dstProvider)
+	skipOneHop := SkipOneHop(ctx)
+
 	switch {
 	case !srcCore && !dstCore:
 		if !singleCore.IsZero() {
@@ -57,34 +75,73 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 				{Src: singleCore, Dst: dst, SegType: Down},
 			}, nil
 		}
-		return Requests{
-			{Src: src, Dst: toWildCard(src), SegType: Up},
-			{Src: toWildCard(src), Dst: toWildCard(dst), SegType: Core},
-			{Src: toWildCard(dst), Dst: dst, SegType: Down},
-		}, nil
+		srcWildcard := toWildCard(src)
+		dstWildcard := toWildCard(dst)
+		reqs := Requests{
+			{Src: src, Dst: srcWildcard, SegType: Up},
+			{Src: srcWildcard, Dst: dstWildcard, SegType: Core},
+			{Src: dstWildcard, Dst: dst, SegType: Down},
+		}
+		// Add one-hop segment requests for peering path discovery (skip if in recursive lookup)
+		if !skipOneHop {
+			srcCores, _ := s.Inspector.ByAttributes(ctx, src.ISD(), trust.Core)
+			for _, c := range srcCores {
+				reqs = append(reqs, Request{Src: c, Dst: c, SegType: Up})
+			}
+			if src.ISD() != dst.ISD() {
+				dstCores, _ := s.Inspector.ByAttributes(ctx, dst.ISD(), trust.Core)
+				for _, c := range dstCores {
+					reqs = append(reqs, Request{Src: c, Dst: c, SegType: Down})
+				}
+			}
+		}
+		return reqs, nil
 	case !srcCore && dstCore:
 		if (src.ISD() == dst.ISD() && dst.IsWildcard()) || singleCore.Equal(dst) {
 			return Requests{{Src: src, Dst: dst, SegType: Up}}, nil
 		}
-		return Requests{
-			{Src: src, Dst: toWildCard(src), SegType: Up},
-			{Src: toWildCard(src), Dst: dst, SegType: Core},
-		}, nil
+		srcWildcard := toWildCard(src)
+		reqs := Requests{
+			{Src: src, Dst: srcWildcard, SegType: Up},
+			{Src: srcWildcard, Dst: dst, SegType: Core},
+		}
+		// Add one-hop segment requests for peering path discovery (skip if in recursive lookup)
+		if !skipOneHop {
+			reqs = append(reqs, Request{Src: dst, Dst: dst, SegType: Down})
+			srcCores, _ := s.Inspector.ByAttributes(ctx, src.ISD(), trust.Core)
+			for _, c := range srcCores {
+				reqs = append(reqs, Request{Src: c, Dst: c, SegType: Up})
+			}
+		}
+		return reqs, nil
 	case srcCore && !dstCore:
 		if singleCore.Equal(src) {
 			return Requests{{Src: src, Dst: dst, SegType: Down}}, nil
 		}
-		return Requests{
-			{Src: src, Dst: toWildCard(dst), SegType: Core},
-			{Src: toWildCard(dst), Dst: dst, SegType: Down},
-		}, nil
+		dstWildcard := toWildCard(dst)
+		reqs := Requests{
+			{Src: src, Dst: dstWildcard, SegType: Core},
+			{Src: dstWildcard, Dst: dst, SegType: Down},
+		}
+		// Add one-hop segment requests for peering path discovery (skip if in recursive lookup)
+		if !skipOneHop {
+			reqs = append(reqs, Request{Src: src, Dst: src, SegType: Up})
+			dstCores, _ := s.Inspector.ByAttributes(ctx, dst.ISD(), trust.Core)
+			for _, c := range dstCores {
+				reqs = append(reqs, Request{Src: c, Dst: c, SegType: Down})
+			}
+		}
+		return reqs, nil
 	default:
-		//fmt.Println("core-core case")
-		return Requests{
-			{Src: src, Dst: src, SegType: Up},
+		reqs := Requests{
 			{Src: src, Dst: dst, SegType: Core},
-			{Src: dst, Dst: dst, SegType: Down},
-		}, nil
+		}
+		// Add one-hop segment requests for peering path discovery (skip if in recursive lookup)
+		if !skipOneHop {
+			reqs = append(reqs, Request{Src: src, Dst: src, SegType: Up})
+			reqs = append(reqs, Request{Src: dst, Dst: dst, SegType: Down})
+		}
+		return reqs, nil
 	}
 }
 

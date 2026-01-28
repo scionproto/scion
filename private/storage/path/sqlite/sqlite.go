@@ -169,10 +169,18 @@ func insert(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
 		return pathdb.InsertStats{}, err
 	}
 	// If the segment is older than the one already present in the pathDB
-	if newLastHopVersion <= oldLastHopVersion {
+	if newLastHopVersion < oldLastHopVersion {
 		return pathdb.InsertStats{}, nil
 	}
-	// Update the existing segment
+	// If the segment version is the same, just add the type (if not already present).
+	// This supports storing the same segment with multiple types (e.g., Up and Down).
+	if newLastHopVersion == oldLastHopVersion {
+		if err := insertType(ctx, tx, meta.RowID, segMeta.Type); err != nil {
+			return pathdb.InsertStats{}, err
+		}
+		return pathdb.InsertStats{}, nil
+	}
+	// Update the existing segment (newLastHopVersion > oldLastHopVersion)
 	meta.Seg = pseg
 	meta.LastUpdated = time.Now()
 	err = updateExisting(ctx, tx, meta, []seg.Type{segMeta.Type}, newFullID, hpGroupIDs)

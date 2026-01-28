@@ -44,7 +44,7 @@ func TestRequestSplitter(t *testing.T) {
 				return ok, nil
 			},
 		).AnyTimes()
-		inspector.EXPECT().ByAttributes(gomock.Any(), addr.ISD(1), trust.Core).DoAndReturn(
+		inspector.EXPECT().ByAttributes(gomock.Any(), gomock.Any(), trust.Core).DoAndReturn(
 			func(_ context.Context, isd addr.ISD, _ trust.Attribute) ([]addr.IA, error) {
 				var result []addr.IA
 				for ia := range cores {
@@ -67,6 +67,11 @@ func TestRequestSplitter(t *testing.T) {
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: core_110},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Down, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Up, Src: core_120, Dst: core_120},
+					segfetcher.Request{SegType: Up, Src: core_130, Dst: core_130},
 				},
 			},
 			"Up wildcard": {
@@ -82,14 +87,25 @@ func TestRequestSplitter(t *testing.T) {
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: core_210},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Down, Src: core_210, Dst: core_210},
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Up, Src: core_120, Dst: core_120},
+					segfetcher.Request{SegType: Up, Src: core_130, Dst: core_130},
 				},
 			},
 			"Up Core non-local wildcard": {
+				// Wildcards are considered "core" by isCore(), so dstCore=true
 				LocalIA: non_core_111,
 				Dst:     isd2,
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
+					// One-hop requests for peering (!srcCore && dstCore adds dst->dst Down and srcCores Up)
+					segfetcher.Request{SegType: Down, Src: isd2, Dst: isd2},
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Up, Src: core_120, Dst: core_120},
+					segfetcher.Request{SegType: Up, Src: core_130, Dst: core_130},
 				},
 			},
 			"Down local": {
@@ -98,6 +114,11 @@ func TestRequestSplitter(t *testing.T) {
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Core, Src: core_110, Dst: isd1},
 					segfetcher.Request{SegType: Down, Src: isd1, Dst: non_core_111},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: core_120, Dst: core_120},
+					segfetcher.Request{SegType: Down, Src: core_130, Dst: core_130},
 				},
 			},
 			"Down non-local": {
@@ -106,6 +127,9 @@ func TestRequestSplitter(t *testing.T) {
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Core, Src: core_110, Dst: isd2},
 					segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: core_210, Dst: core_210},
 				},
 			},
 			"Core local": {
@@ -113,6 +137,9 @@ func TestRequestSplitter(t *testing.T) {
 				Dst:     core_130,
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Core, Src: core_110, Dst: core_130},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: core_130, Dst: core_130},
 				},
 			},
 			"Core non-local": {
@@ -120,13 +147,20 @@ func TestRequestSplitter(t *testing.T) {
 				Dst:     core_210,
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Core, Src: core_110, Dst: core_210},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: core_210, Dst: core_210},
 				},
 			},
 			"Core non-local wildcard": {
+				// Wildcards are considered "core" by isCore(), so this goes to default case
 				LocalIA: core_110,
 				Dst:     isd2,
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Core, Src: core_110, Dst: isd2},
+					// One-hop requests for peering (default case adds dst->dst Down)
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: isd2, Dst: isd2},
 				},
 			},
 			"Up down local": {
@@ -136,6 +170,10 @@ func TestRequestSplitter(t *testing.T) {
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: isd1},
 					segfetcher.Request{SegType: Down, Src: isd1, Dst: non_core_112},
+					// One-hop requests for peering (same ISD, no cross-ISD)
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Up, Src: core_120, Dst: core_120},
+					segfetcher.Request{SegType: Up, Src: core_130, Dst: core_130},
 				},
 			},
 			"Up down non-local": {
@@ -145,6 +183,11 @@ func TestRequestSplitter(t *testing.T) {
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
 					segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Up, Src: core_120, Dst: core_120},
+					segfetcher.Request{SegType: Up, Src: core_130, Dst: core_130},
+					segfetcher.Request{SegType: Down, Src: core_210, Dst: core_210},
 				},
 			},
 		}
@@ -164,7 +207,7 @@ func TestRequestSplitter(t *testing.T) {
 					assert.Contains(t, err.Error(), test.ExpectedErrMsg)
 				} else {
 					assert.NoError(t, err)
-					assert.Equal(t, test.ExpectedSet, requests)
+					assert.ElementsMatch(t, test.ExpectedSet, requests)
 				}
 			})
 		}
@@ -181,7 +224,7 @@ func TestRequestSplitter(t *testing.T) {
 				return ok, nil
 			},
 		).AnyTimes()
-		inspector.EXPECT().ByAttributes(gomock.Any(), addr.ISD(1), trust.Core).DoAndReturn(
+		inspector.EXPECT().ByAttributes(gomock.Any(), gomock.Any(), trust.Core).DoAndReturn(
 			func(_ context.Context, isd addr.ISD, _ trust.Attribute) ([]addr.IA, error) {
 				var result []addr.IA
 				for ia := range cores {
@@ -199,6 +242,7 @@ func TestRequestSplitter(t *testing.T) {
 			ExpectedErrMsg string
 		}{
 			"Up": {
+				// Single core in ISD1, returns early via singleCore path
 				LocalIA: non_core_111,
 				Dst:     core_110,
 				ExpectedSet: segfetcher.Requests{
@@ -218,17 +262,25 @@ func TestRequestSplitter(t *testing.T) {
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: core_210},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Down, Src: core_210, Dst: core_210},
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
 				},
 			},
 			"Up Core non-local wildcard": {
+				// Wildcards are considered "core" by isCore(), so dstCore=true
 				LocalIA: non_core_111,
 				Dst:     isd2,
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
+					// One-hop requests for peering (!srcCore && dstCore adds dst->dst Down and srcCores Up)
+					segfetcher.Request{SegType: Down, Src: isd2, Dst: isd2},
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
 				},
 			},
 			"Down local": {
+				// Single core in ISD1, returns early via singleCore path
 				LocalIA: core_110,
 				Dst:     non_core_111,
 				ExpectedSet: segfetcher.Requests{
@@ -241,6 +293,9 @@ func TestRequestSplitter(t *testing.T) {
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Core, Src: core_110, Dst: isd2},
 					segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: core_210, Dst: core_210},
 				},
 			},
 			"Core non-local": {
@@ -248,16 +303,24 @@ func TestRequestSplitter(t *testing.T) {
 				Dst:     core_210,
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Core, Src: core_110, Dst: core_210},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: core_210, Dst: core_210},
 				},
 			},
 			"Core non-local wildcard": {
+				// Wildcards are considered "core" by isCore(), so this goes to default case
 				LocalIA: core_110,
 				Dst:     isd2,
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Core, Src: core_110, Dst: isd2},
+					// One-hop requests for peering (default case adds dst->dst Down)
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: isd2, Dst: isd2},
 				},
 			},
 			"Up down local": {
+				// Single core in ISD1, returns early via singleCore path
 				LocalIA: non_core_111,
 				Dst:     non_core_112,
 				ExpectedSet: segfetcher.Requests{
@@ -272,6 +335,9 @@ func TestRequestSplitter(t *testing.T) {
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
 					segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
+					// One-hop requests for peering
+					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
+					segfetcher.Request{SegType: Down, Src: core_210, Dst: core_210},
 				},
 			},
 		}
@@ -289,7 +355,7 @@ func TestRequestSplitter(t *testing.T) {
 					assert.Contains(t, err.Error(), test.ExpectedErrMsg)
 				} else {
 					assert.NoError(t, err)
-					assert.Equal(t, test.ExpectedSet, requests)
+					assert.ElementsMatch(t, test.ExpectedSet, requests)
 				}
 			})
 		}

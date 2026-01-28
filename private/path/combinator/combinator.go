@@ -32,6 +32,8 @@ import (
 	"github.com/scionproto/scion/pkg/snet/path"
 )
 
+var DebugCombinator = false
+
 // Combine constructs paths between src and dst using the supplied
 // segments. All possible paths are first computed, and then filtered according
 // to filterLongPaths.
@@ -60,12 +62,7 @@ import (
 func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment,
 	findAllIdentical bool) []Path {
 
-	//fmt.Println("ups: ", ups)
-	//fmt.Println("cores: ", cores)
-	//fmt.Println("downs: ", downs)
-
 	g := newDMG(ups, cores, downs)
-	//printDMG(g)
 	solutions := g.GetPaths(vertexFromIA(src), vertexFromIA(dst))
 
 	paths := make([]Path, len(solutions))
