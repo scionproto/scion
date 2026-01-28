@@ -82,18 +82,8 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 			{Src: srcWildcard, Dst: dstWildcard, SegType: Core},
 			{Src: dstWildcard, Dst: dst, SegType: Down},
 		}
-		// Add one-hop segment requests for peering path discovery (skip if in recursive lookup)
 		if !skipOneHop {
-			srcCores, _ := s.Inspector.ByAttributes(ctx, src.ISD(), trust.Core)
-			for _, c := range srcCores {
-				reqs = append(reqs, Request{Src: c, Dst: c, SegType: Up})
-			}
-			if src.ISD() != dst.ISD() {
-				dstCores, _ := s.Inspector.ByAttributes(ctx, dst.ISD(), trust.Core)
-				for _, c := range dstCores {
-					reqs = append(reqs, Request{Src: c, Dst: c, SegType: Down})
-				}
-			}
+			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
 		}
 		return reqs, nil
 	case !srcCore && dstCore:
@@ -105,13 +95,8 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 			{Src: src, Dst: srcWildcard, SegType: Up},
 			{Src: srcWildcard, Dst: dst, SegType: Core},
 		}
-		// Add one-hop segment requests for peering path discovery (skip if in recursive lookup)
 		if !skipOneHop {
-			reqs = append(reqs, Request{Src: dst, Dst: dst, SegType: Down})
-			srcCores, _ := s.Inspector.ByAttributes(ctx, src.ISD(), trust.Core)
-			for _, c := range srcCores {
-				reqs = append(reqs, Request{Src: c, Dst: c, SegType: Up})
-			}
+			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
 		}
 		return reqs, nil
 	case srcCore && !dstCore:
@@ -123,23 +108,17 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 			{Src: src, Dst: dstWildcard, SegType: Core},
 			{Src: dstWildcard, Dst: dst, SegType: Down},
 		}
-		// Add one-hop segment requests for peering path discovery (skip if in recursive lookup)
 		if !skipOneHop {
-			reqs = append(reqs, Request{Src: src, Dst: src, SegType: Up})
-			dstCores, _ := s.Inspector.ByAttributes(ctx, dst.ISD(), trust.Core)
-			for _, c := range dstCores {
-				reqs = append(reqs, Request{Src: c, Dst: c, SegType: Down})
-			}
+			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
 		}
 		return reqs, nil
 	default:
+		// srcCore && dstCore
 		reqs := Requests{
 			{Src: src, Dst: dst, SegType: Core},
 		}
-		// Add one-hop segment requests for peering path discovery (skip if in recursive lookup)
 		if !skipOneHop {
-			reqs = append(reqs, Request{Src: src, Dst: src, SegType: Up})
-			reqs = append(reqs, Request{Src: dst, Dst: dst, SegType: Down})
+			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
 		}
 		return reqs, nil
 	}
@@ -177,6 +156,37 @@ func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IA) (bool, e
 		return false, err
 	}
 	return isCore, nil
+}
+
+// addOneHopRequests appends one-hop segment requests for peering path discovery.
+// These requests fetch segments that contain peer entries for core ASes.
+func (s *MultiSegmentSplitter) addOneHopRequests(
+	ctx context.Context,
+	reqs Requests,
+	src, dst addr.IA,
+	srcCore, dstCore bool,
+) Requests {
+	// Source side: request Up one-hop segments
+	if srcCore {
+		reqs = append(reqs, Request{Src: src, Dst: src, SegType: seg.TypeUp})
+	} else {
+		srcCores, _ := s.Inspector.ByAttributes(ctx, src.ISD(), trust.Core)
+		for _, c := range srcCores {
+			reqs = append(reqs, Request{Src: c, Dst: c, SegType: seg.TypeUp})
+		}
+	}
+
+	// Destination side: request Down one-hop segments
+	if dstCore {
+		reqs = append(reqs, Request{Src: dst, Dst: dst, SegType: seg.TypeDown})
+	} else if srcCore || src.ISD() != dst.ISD() {
+		dstCores, _ := s.Inspector.ByAttributes(ctx, dst.ISD(), trust.Core)
+		for _, c := range dstCores {
+			reqs = append(reqs, Request{Src: c, Dst: c, SegType: seg.TypeDown})
+		}
+	}
+
+	return reqs
 }
 
 func toWildCard(ia addr.IA) addr.IA {
