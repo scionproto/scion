@@ -21,13 +21,12 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/pathdb"
-	"github.com/scionproto/scion/private/pathdb/query"
 	"github.com/scionproto/scion/private/segment/segfetcher"
 )
 
-// ForwardingLookup handles path segment lookup requests in a non-core AS. If
-// segments are missing, the request is forwarded to the respective core ASes.
-// It should only be used in a non-core AS.
+// ForwardingLookup handles path segment lookup requests by forwarding to the
+// responsible core ASes if segments are missing. It is used for internal (intra-AS)
+// requests at all ASes, and for external requests at non-core ASes.
 type ForwardingLookup struct {
 	LocalIA     addr.IA
 	CoreChecker CoreChecker
@@ -48,7 +47,7 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 	// These are used for core AS peering. Return both Up and Down types so the
 	// requester can use whichever direction is needed for path construction.
 	if src == dst && src == f.LocalIA && f.PathDB != nil {
-		return f.getLocalOneHopSegments(ctx)
+		return getOneHopSegments(ctx, f.PathDB, f.LocalIA)
 	}
 
 	segType, err := f.classify(ctx, src, dst)
@@ -67,20 +66,6 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 		return nil, serrors.Wrap("expanding wildcard request", err)
 	}
 	return f.Fetcher.Fetch(ctx, reqs, false)
-}
-
-// getLocalOneHopSegments loads one-hop segments from the local path DB.
-// Returns segments with both Up and Down types for use in path construction.
-func (f ForwardingLookup) getLocalOneHopSegments(ctx context.Context) (segfetcher.Segments, error) {
-	res, err := f.PathDB.Get(ctx, &query.Params{
-		StartsAt: []addr.IA{f.LocalIA},
-		EndsAt:   []addr.IA{f.LocalIA},
-		SegTypes: []seg.Type{seg.TypeUp, seg.TypeDown},
-	})
-	if err != nil {
-		return segfetcher.Segments{}, err
-	}
-	return res.SegMetas(), nil
 }
 
 // classify validates the request and determines the segment type for the request
