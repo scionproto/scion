@@ -10,20 +10,13 @@
 #include <linux/ipv6.h>
 #include <linux/udp.h>
 #include <linux/if_ether.h>
+#include <linux/icmpv6.h>
 #include "bpf_helpers.h"
 
-// sockfilter: The socket-level filter. The purpose of this program is to ensure that the associated
-// AF_PACKET socket processes only the packets destined to selected address/port pairs. AF_PACKET
-// sockets receive cloned traffic; all of it. We drop everything we don't want. The traffic that we
-// do want also gets to the kernel networking stack. Another filter (kfilter.c) has to drop it.
-//
-// This is still not ideal because I have yet to find a way to dispatch traffic before it is
-// cloned for AF_PACKET handling but after it is turned into an SKB. To solve that problem we need
-// to go to XDP.
-//
-// This might not be as bad as it looks though: traffic is cloned via c-o-w and it might even not be
-// cloned until the AF_PACKET tap has made a drop/keep decision. The traffic that we keep is
-// definitely cloned; so...  dear cow, a third swiss industry is now counting on you.
+// sockfilter: XDP program that redirects packets to AF_XDP sockets.
+// The purpose of this program is to redirect packets destined to selected address/port pairs
+// directly to userspace via AF_XDP sockets, bypassing the kernel network stack entirely.
+// This provides zero-copy user-space packet processing with minimal latency.
 
 typedef struct {
   __u8 ip_addr[16];
@@ -32,11 +25,11 @@ typedef struct {
   __u8 padding; // just to make it clear what the real size of the struct is.
 } addrPort;
 
-// sock_map_flt tells our bpf program which address/port(s) go to the AF_PACKET socket (and not the
-// kernel). The ports must be in network byte order.
+// sock_map_flt tells our bpf program which address/port(s) should be redirected to AF_XDP sockets.
+// The ports must be in network byte order.
 //
 // This is the same data used by kfilter to perform the opposite filtering. We may have several
-// pairs to filter for a given raw socket. We could have several sockets, each with a one-pair
+// pairs to filter for a given AF_XDP socket. We could have several sockets, each with a one-pair
 // filter, but we do not want to be bound by that constraint (and it may be less efficient).
 // So we need a map with multiple pairs.
 struct {
@@ -46,53 +39,132 @@ struct {
   __uint(max_entries, 64);
 } sock_map_flt SEC(".maps");
 
-// This is a very simple classifier type of filter: it looks at the packet's protocol and dest
-// port. If it is UDP and if the port is found in sock_map_filt (or it is icmp), then the packet is
-// accepted Otherwise the regular networking stack will have a chance to process it. Note that icmp
-// packets are processed by both the regular kernel stack and AF_PACKETS sockets.
-SEC("socket")
-int bpf_sock_filter(struct __sk_buff *skb)
-{
-  __u16 ethtype;
-  bpf_skb_load_bytes(skb, 12, &ethtype, 2);
-  if (ethtype == 0x0608) {
-    return skb->len;
+// XSKMAP: Special eBPF map type used by AF_XDP.
+// Maps RX queue IDs to AF_XDP socket file descriptors.
+//
+// Key:   queue_id (u32)
+// Value: socket FD (u32)
+//
+// Userspace inserts entries so the kernel knows
+// which AF_XDP socket should receive packets for which queue.
+struct {
+  __uint(type, BPF_MAP_TYPE_XSKMAP);
+  __uint(max_entries, 64); // Maximum number of RX queues supported
+  __type(key, __u32);      // Queue index
+  __type(value, __u32);    // AF_XDP socket FD
+} xsks_map SEC(".maps");
+
+// Helper function to copy memory with bounds checking
+static __always_inline int safe_memcpy(
+  __u8 *dst, const void *src,
+  __u32 size,
+  const void *data_end
+) {
+  if ((void *)src + size > data_end)
+    return -1;
+
+  for (__u32 i = 0; i < size && i < 16; i++) {
+    dst[i] = *((__u8 *)src + i);
+  }
+  return 0;
+}
+
+// XDP program entrypoint.
+// This is a hot path that runs for every received packet (!).
+SEC("xdp")
+int bpf_sock_filter(struct xdp_md *ctx) {
+  void *data = (void *)(long)ctx->data;
+  void *data_end = (void *)(long)ctx->data_end;
+
+  // Parse Ethernet header
+  struct ethhdr *eth = data;
+  // Verify Ethernet header fits in packet bounds.
+  if ((void *)(eth + 1) > data_end)
+    return XDP_DROP;
+
+  __u16 ethtype = __builtin_bswap16(eth->h_proto);
+
+  // Accept ARP packets and pass them to the kernel.
+  if (ethtype == ETH_P_ARP) {
+    return XDP_PASS;
   }
 
   __u8 ipproto;
   addrPort key = {0};
 
-  if (ethtype == 0x0008) {
-    bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, protocol), &ipproto, 1);
-    if (ipproto != IPPROTO_UDP) {
-      return 0;
-    }
+  // IPv4
+  if (ethtype == ETH_P_IP) {
+    struct iphdr *ip = (void *)(eth + 1);
+    if ((void *)(ip + 1) > data_end)
+      return XDP_DROP;
+
+    ipproto = ip->protocol;
+
+    // Forward non-UDP packets to kernel.
+    if (ipproto != IPPROTO_UDP)
+      return XDP_PASS;
+
     key.type = 4;
-    bpf_skb_load_bytes(skb, 14 + offsetof(struct iphdr, daddr), key.ip_addr, 4);
-    bpf_skb_load_bytes(skb, 14 + sizeof(struct iphdr) + offsetof(struct udphdr, dest),
-        &key.port, 2);
-  } else if (ethtype == 0xDD86) {
-    bpf_skb_load_bytes(skb, 14 + offsetof(struct ipv6hdr, nexthdr), &ipproto, 1);
-    if (ipproto == IPPROTO_ICMPV6) {
-      return skb->len;
-    }
-    if (ipproto != IPPROTO_UDP) {
-      return 0;
-    }
+
+    // Copy destination IP address.
+    if (safe_memcpy(key.ip_addr, &ip->daddr, 4, data_end) < 0)
+      return XDP_DROP;
+
+    // Parse UDP header with variable IP header length.
+    __u32 ip_hdr_len = ip->ihl * 4;
+    if (ip_hdr_len < sizeof(struct iphdr))
+      return XDP_DROP;
+
+    struct udphdr *udp = (void *)((void *)ip + ip_hdr_len);
+    if ((void *)(udp + 1) > data_end)
+      return XDP_DROP;
+
+    key.port = udp->dest;
+  }
+  // IPv6
+  else if (ethtype == ETH_P_IPV6) {
+    struct ipv6hdr *ip6 = (void *)(eth + 1);
+    if ((void *)(ip6 + 1) > data_end)
+      return XDP_DROP;
+
+    ipproto = ip6->nexthdr;
+
+    // Accept ICMPv6 packets and pass them to kernel.
+    if (ipproto == IPPROTO_ICMPV6)
+      return XDP_PASS;
+
+    // Forward non-UDP packets to kernel.
+    if (ipproto != IPPROTO_UDP)
+      return XDP_PASS;
+
     key.type = 6;
-    bpf_skb_load_bytes(skb, 14 + offsetof(struct ipv6hdr, daddr), key.ip_addr, 16);
-    bpf_skb_load_bytes(skb, 14 + sizeof(struct ipv6hdr) + offsetof(struct udphdr, dest),
-		       &key.port, 2);
-  } else {
-    return 0;
+
+    // Copy destination IP address.
+    if (safe_memcpy(key.ip_addr, &ip6->daddr, 16, data_end) < 0)
+      return XDP_DROP;
+
+    struct udphdr *udp = (void *)(ip6 + 1);
+    if ((void *)(udp + 1) > data_end)
+      return XDP_DROP;
+
+    key.port = udp->dest;
+  }
+  else {
+    // Pass unknown ethertype to kernel.
+    return XDP_PASS;
   }
 
+  // Check if this address/port pair should be redirected to AF_XDP
   __u8 *allowed = bpf_map_lookup_elem(&sock_map_flt, &key);
   if (allowed == NULL) {
-      return 0;
+    // Not in our filter map - pass to kernel
+    return XDP_PASS;
   }
-  return skb->len;
+
+  // Redirect to AF_XDP socket for this queue
+  __u32 qid = ctx->rx_queue_index;
+  return bpf_redirect_map(&xsks_map, qid, 0);
 }
 
-// This program only uses non-gpl_only helpers. So we can use our normal license.
-char __license[] SEC("license") = "Apache-2.0";
+// GPL license required for bpf_redirect_map helper
+char __license[] SEC("license") = "GPL";

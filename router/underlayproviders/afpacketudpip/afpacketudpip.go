@@ -211,7 +211,6 @@ func (u *underlay) NumConnections() int {
 }
 
 func (u *underlay) Headroom() int {
-
 	// We advise of enough headroom for ethernet + max(ip) + udp headers on outgoing packets (we do
 	// not need to add extensions and do not use options). On receipt, we cannot predict if the IP
 	// header is v4 or v6 or has options or extensions. We align the packet with the assumtion that
@@ -314,7 +313,6 @@ func (u *underlay) getUdpConnection(
 	qSize int, local *netip.AddrPort,
 	metrics *router.InterfaceMetrics,
 ) (*udpConnection, error) {
-
 	localAddr := local.Addr()
 	localAddrStr := localAddr.String()
 

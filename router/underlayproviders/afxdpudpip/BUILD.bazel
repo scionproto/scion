@@ -1,0 +1,54 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "afxdpudpip.go",
+        "headers.go",
+        "internallink.go",
+        "neighbors.go",
+        "options.go",
+        "ptplink.go",
+        "udpconnection.go",
+    ],
+    importpath = "github.com/scionproto/scion/router/underlayproviders/afxdpudpip",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/private/serrors:go_default_library",
+    ] + select({
+        "@rules_go//go/platform:android": [
+            "//pkg/addr:go_default_library",
+            "//pkg/log:go_default_library",
+            "//pkg/slayers:go_default_library",
+            "//private/underlay/afxdp:go_default_library",
+            "//private/underlay/conn:go_default_library",
+            "//router:go_default_library",
+            "//router/bfd:go_default_library",
+            "@com_github_vishvananda_netlink//:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux": [
+            "//pkg/addr:go_default_library",
+            "//pkg/log:go_default_library",
+            "//pkg/slayers:go_default_library",
+            "//private/underlay/afxdp:go_default_library",
+            "//private/underlay/conn:go_default_library",
+            "//router:go_default_library",
+            "//router/bfd:go_default_library",
+            "@com_github_vishvananda_netlink//:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["options_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

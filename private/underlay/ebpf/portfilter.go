@@ -189,3 +189,9 @@ func BpfSFilter(afp *afpacket.TPacket) (*SFilterHandle, error) {
 	sf := &SFilterHandle{sObjs: coll}
 	return sf, nil
 }
+
+// LoadSockfilterSpec returns the eBPF collection spec for the sockfilter XDP program.
+// This is used by AF_XDP to load the XDP program and attach it to a network interface.
+func LoadSockfilterSpec() (*ebpf.CollectionSpec, error) {
+	return loadSockfilter()
+}
