@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/router/control"
 	api "github.com/scionproto/scion/router/mgmtapi"
 	_ "github.com/scionproto/scion/router/underlayproviders/afpacketudpip"
+	_ "github.com/scionproto/scion/router/underlayproviders/afxdpudpip"
 	_ "github.com/scionproto/scion/router/underlayproviders/udpip"
 )
 
