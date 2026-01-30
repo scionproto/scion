@@ -7,6 +7,7 @@ topogen_test(
     args = [
     ],
     data = [
+        "//demo/router_priority/sender",
     ],
     topo = "//topology:tiny.topo",
 )
