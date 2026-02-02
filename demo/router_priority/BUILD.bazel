@@ -13,6 +13,7 @@ topogen_test(
         "--executable=sender:$(location //demo/router_priority/sender)",
     ],
     data = [
+        "tc_setup.sh",
         "//demo/router_priority/sender",
     ],
     topo = "//topology:tiny.topo",
