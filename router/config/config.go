@@ -149,7 +149,7 @@ func (cfg *RouterConfig) InitDefaults() {
 		cfg.BFD.RequiredMinRxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
 	}
 	if cfg.PreferredUnderlays == nil {
-		cfg.PreferredUnderlays = map[string]string{"udpip": "afpacket"}
+		cfg.PreferredUnderlays = map[string]string{"udpip": "afxdp"}
 	}
 }
 

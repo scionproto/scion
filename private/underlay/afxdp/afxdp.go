@@ -751,16 +751,19 @@ func Open(conf SocketConfig, iface *Interface, preferHugepages, preferZerocopy b
 
 	zerocopy := preferZerocopy
 	if zerocopy {
-		sa.Flags = unix.XDP_ZEROCOPY | unix.XDP_USE_NEED_WAKEUP
+		sa.Flags = unix.XDP_ZEROCOPY
 	} else {
-		sa.Flags = unix.XDP_COPY | unix.XDP_USE_NEED_WAKEUP
+		sa.Flags = unix.XDP_COPY
 	}
 
 	err = rawBind(fd, sa)
 	if err != nil && zerocopy {
-		// If zerocopy is not supported for this queue, fall back to copy mode.
-		if errno, ok := err.(unix.Errno); ok && errno == unix.EPROTONOSUPPORT {
-			sa.Flags = unix.XDP_COPY | unix.XDP_USE_NEED_WAKEUP
+		// If zerocopy is not supported for this device/queue, fall back to copy mode.
+		// The kernel returns EPROTONOSUPPORT or EOPNOTSUPP depending on where the
+		// check fails (e.g. veth lacks ndo_xsk_wakeup → EOPNOTSUPP).
+		if errno, ok := err.(unix.Errno); ok &&
+			(errno == unix.EPROTONOSUPPORT || errno == unix.EOPNOTSUPP) {
+			sa.Flags = unix.XDP_COPY
 			zerocopy = false
 			err = rawBind(fd, sa)
 		}

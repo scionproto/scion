@@ -43,7 +43,7 @@ def sudo(command: str) -> str:
 # to resolve the ports that aren't there (because brload is using a raw socket) and sends
 # errors back.
 def create_veth(host: str, container: str, ip: str, mac: str, ns: str, neighbors: List[str]):
-    sudo("ip link add %s mtu 8000 type veth peer name %s mtu 8000" % (host, container))
+    sudo("ip link add %s mtu 3400 type veth peer name %s mtu 3400" % (host, container))
     sudo("sysctl -qw net.ipv6.conf.%s.disable_ipv6=1" % host)
     sudo("ip link set %s up" % host)
     sudo("ip link set %s netns %s" % (container, ns))
@@ -100,11 +100,13 @@ class RouterTest(base.TestBase):
         if self.bfd:
             exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
                         "--cap-add=NET_RAW --cap-add=NET_ADMIN --cap-add=BPF "
+                        "--cap-add=SYS_ADMIN --cap-add=IPC_LOCK "
                         "--network container:pause --name router "
                         "scion/router:latest")
         else:
             exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
                         "--cap-add=NET_RAW --cap-add=NET_ADMIN --cap-add=BPF "
+                        "--cap-add=SYS_ADMIN --cap-add=IPC_LOCK "
                         "--network container:pause --name router "
                         "scion/router:latest "
                         "--config /etc/scion/router_nobfd.toml")
@@ -112,10 +114,13 @@ class RouterTest(base.TestBase):
 
     def _run(self):
         braccept = self.get_executable("braccept")
-        bfd_arg = ""
+        args = ""
         if self.bfd:
-            bfd_arg = "--bfd"
-        sudo("%s --artifacts %s %s" % (braccept.executable, self.artifacts, bfd_arg))
+            args = "--bfd"
+        else:
+            # AF_XDP native mode on veth limits MTU to ~3492; skip jumbo test.
+            args = "--skip JumboPacket"
+        sudo("%s --artifacts %s %s" % (braccept.executable, self.artifacts, args))
 
     def teardown(self):
         cmd.docker["logs", "router"].run_fg(retcode=None)

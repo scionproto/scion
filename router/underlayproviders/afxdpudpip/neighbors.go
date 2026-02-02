@@ -50,13 +50,14 @@ type neighborCache struct {
 }
 
 // seekNeighbor ensures there is an entry for the given IP and attempts to populate
-// it from the kernel's neighbor table.
+// it from the kernel's neighbor table. If not found, it triggers ARP resolution
+// via the kernel by sending a UDP probe. The result will be picked up
+// asynchronously by watchNeighborUpdates.
 func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
 	if cache.isLoop {
 		return
 	}
 	cache.Lock()
-	defer cache.Unlock()
 
 	entry, exists := cache.mappings[*remoteIP]
 	if !exists {
@@ -68,6 +69,27 @@ func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
 		entry.mac = cache.queryKernelNeighbor(*remoteIP)
 	}
 	cache.mappings[*remoteIP] = entry
+	needsProbe := entry.mac == nil
+	cache.Unlock()
+
+	if needsProbe {
+		cache.probeNeighbor(*remoteIP)
+	}
+}
+
+// probeNeighbor triggers ARP/NDP resolution by sending a UDP packet via the kernel
+// network stack. The kernel handles neighbor resolution as a side effect. The probe
+// targets the discard port (9), so it is harmless to the remote host.
+func (cache *neighborCache) probeNeighbor(remoteIP netip.Addr) {
+	laddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(cache.localIP, 0))
+	raddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(remoteIP, 9))
+	conn, err := net.DialUDP("udp", laddr, raddr)
+	if err != nil {
+		log.Debug("Failed to probe neighbor", "cache", cache.name, "remote", remoteIP, "err", err)
+		return
+	}
+	conn.Write([]byte{0})
+	conn.Close()
 }
 
 // queryKernelNeighbor looks up an IP address in the kernel's neighbor table.
@@ -113,6 +135,9 @@ func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
 		}
 		entry.mac = cache.queryKernelNeighbor(ip)
 		cache.mappings[ip] = entry
+		if entry.mac == nil {
+			go cache.probeNeighbor(ip)
+		}
 	}
 
 	if entry.mac != nil {

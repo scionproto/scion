@@ -234,10 +234,10 @@ considers the following options.
 
          * "inet": An implementation based on AF_INET sockets and portable to many Unix-like
            platforms.
-         * "afpacket": An implementation based on AF_PACKET sockets and EBPF filtering, which
-           is less portable.
+         * "afxdp": An implementation based on AF_XDP sockets and eBPF filtering, which
+           is less portable and requires a Linux kernel version that supports it.
 
-         In the absence of ``preferred_underlays``, "afpacket" is preferred; falling back to
+         In the absence of ``preferred_underlays``, "afxdp" is preferred; falling back to
          "inet".
 
       .. option:: <underlay_protocol> = <string>
