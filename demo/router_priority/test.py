@@ -28,68 +28,23 @@ import yaml
 from plumbum import local
 
 
-# deleteme remove once we run this as a test.
-def selfdc(*args) -> str:
-    cmd = ["docker","compose", "-f", "gen/scion-dc.yml"] + list(args)
-    print(f"running {cmd}")
-
-    try:
-        output = subprocess.run(
-            cmd,
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"docker compose failed: {e.stderr}") from e
-    return output.stdout.strip()
-
-
-def get_service_info(service: str) -> Dict:
-    output = selfdc("ps", "--format", "json")
-    # Currently, `docker compose top --format json` does NOT return a valid json string, but a
-    # bunch of lines containing valid json strings. Split into lines and treat them separately.
-    output = output.splitlines()
-    service_dict = None
-    for line in output:
-        ps_out = json.loads(line)
-        if ps_out["Service"] == service:
-            service_dict = ps_out
-            break
-    # If we found the service, get its PID and add it to the dictionary.
-    if service_dict is not None:
-        try:
-            pid = subprocess.check_output(
-                ["docker", "inspect", "-f", "{{.State.Pid}}", service_dict["Name"]],
-                text=True,
-                stderr=subprocess.PIPE,
-            ).strip()
-        except subprocess.CalledProcessError as e:
-            if "No such object" in e.stderr:
-                raise RuntimeError(f"Container '{service_dict["Name"]}' does not exist") from e
-            raise RuntimeError("Docker inspect failed") from e
-        service_dict["PID"] = pid
-    return service_dict
-
-
-def get_interface_indices(service_name:str) -> List[int]:
+def get_interface_indices(service_info:Dict) -> List[int]:
     """
     Returns the equivalent of running:
     sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' container ) -n ip link
 
     :param container: Container name, e.g. scion-br1-ff00_0_111-1-1
     """
-    # Step 1: get PID: info["PID"].
-    service_info = get_service_info(service_name)
-    # Step 2: nsenter + ip link
+    # With nsenter, find the interfaces of the container.
     proc = subprocess.run(
         ["sudo", "nsenter", "-t", service_info["PID"], "-n", "ip", "link"],
         text=True,
         capture_output=True,
         check=True
     )
-    # Step 3: parse output: the output contains 2 lines per interface, like this:
-    # 2: eth0@if751: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default
+    # Parse output: the output contains 2 lines per interface, like this: (first line broken at \)
+    # 2: eth0@if751: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 \
+    # qdisc noqueue state UP mode DEFAULT group default
     #     link/ether 0e:40:6f:f3:6e:d7 brd ff:ff:ff:ff:ff:ff link-netnsid 0
     # We only need the first line, and only the second "field" of that line.
     iface_re = re.compile(r'^\s*\d+:\s+([^:]+):')
@@ -98,7 +53,7 @@ def get_interface_indices(service_name:str) -> List[int]:
         for line in proc.stdout.splitlines()
         if (m := iface_re.match(line))
     ]
-    # Step 4: strip eth0@if out of the name of the interface:
+    # Strip eth0@if out of the name of the interface:
     index_re = re.compile(r'^eth\d+@if(\d+)')
     indices = [
         int(m.group(1))
@@ -124,8 +79,6 @@ def get_host_bridge_interface(indices: Iterable[int], network_name:str) -> str:
     #   DEFAULT group default \    link/ether c2:b7:65:8b:c1:ef brd ff:ff:ff:ff:ff:ff
     # 871: vethf9d48a7@if2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue \
     #   master scn_003 state UP mode DEFAULT group default \    link/ether 86:e9:1d:77:c9:1f brd ff:ff:ff:ff:ff:ff link-netnsid 0
-    # bridges_re = re.compile(r"^\s*(\d+):\s+([^\s:]+):.*?(?:\bmaster\s+(\S+))?")
-    # bridges_re = re.compile(r"^\s*(\d+):\s+([^\s:]+):.*master\s+(\S+)")
     bridges_re = re.compile(r"^\s*(\d+):\s+([^\s@]+)@if\d+.*master\s+(\S+)")
     for line in lines:
         m = bridges_re.match(line)
@@ -141,17 +94,18 @@ def get_host_bridge_interface(indices: Iterable[int], network_name:str) -> str:
 
 
 def set_tc_limits(bridge:str, rate:str, burst:str, latency:str) -> None:
-    # try to reset the qdisc of the device.
+    # Try to reset the qdisc of the device.
     try:
-        proc = subprocess.run(
+        subprocess.run(
             ["sudo", "tc", "qdisc", "del", "dev", bridge, "root"],
-            check=True
+            check=True,
+            capture_output=True,
         )
     except subprocess.CalledProcessError as e:
-        # ignore failure (fails if not already set).
+        # Ignore failure (fails if not already set).
         pass
 
-    # set qdisc of the device to 1Mbps:
+    # Set qdisc of the device to 1Mbps:
     try:
         subprocess.run(
             ["sudo", "tc", "qdisc", "add", "dev", bridge,
@@ -194,7 +148,7 @@ def measure_br(url: str):
             continue
         metric = metrics[family.name]
         for sample in family.samples:
-            # each sample has .value and .labels
+            # Each sample has .value and .labels
             metric["total"] += sample.value
             # sample.labels is a dictionary like {'interface': '41', 'isd_as': '1-ff00:0:111'}
             for label, label_value in sample.labels.items():
@@ -203,153 +157,109 @@ def measure_br(url: str):
     return metrics
 
 
-def run_scion_ping(src_container:str, dst_endpoint:str, count:int, size:int, interval:str) -> float:
-    """Returns the loss rate 0..100"""
-    cmd = ["scion","ping","--format", "yaml",
-           "-c", str(count), "-s", str(size), "--interval", str(interval), dst_endpoint]
-    lines = selfdc("exec", src_container, *cmd)
-    ping = yaml.safe_load(lines)
-    stats = ping["statistics"]
-    return float(stats["packet_loss"])
-
-
-def increase_load(src_service:str, dst_endpoint: str, duration: str) -> None:
-    # go build -o sender ./demo/router_priority/sender/ &&   sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' scion-tester_1-ff00_0_111-1 ) -n ./sender -daemon 172.20.0.28:30255 -local 172.20.0.29:0 -remote 1-ff00:0:112,[fd00:f00d:cafe::7f00:15]:12345 -duration 60s
-    # deleteme run directly in the container after copying the binary with dc cp
-    service_info = get_service_info(src_service)
-    cmd = ["sudo", "nsenter", "-t", service_info["PID"], "-n",
-           "./sender", "-daemon", "172.20.0.28:30255", "-local", "172.20.0.29:0",
-           "-remote", dst_endpoint,
-           "-duration", duration ]
-    try:
-        subprocess.run(
-            cmd,
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"docker compose failed: {e.stderr}") from e
-
-
-
 class Test(base.TestTopogen):
     def setup_prepare(self):
         super().setup_prepare()
 
     def _run(self):
-        print("deleteme running router_priority test")
+        print("-------------------- running router_priority test")
         self.await_connectivity()
-
+        # Copy the sender binary to the tester-111 container (used to apply load).
         sender_bin = local["realpath"](self.get_executable("sender").executable).strip()
         self.dc("cp", sender_bin, "tester_1-ff00_0_111" + ":/bin/")
-        print(f"deleteme finished router_priority test")
 
+        # Get the BR-111 service information.
+        service_info = self._get_service_info("br1-ff00_0_111-1")
+        # List interfaces of the BR-111 container.
+        indices = get_interface_indices(service_info)
+        # Match those interfaces with one of the host interfaces.
+        bridge = get_host_bridge_interface(indices, "scn_000")
+        print(f"bridge is: {bridge}")
+        # Limit the BR-111 -> BR-110 interface to 1Mbps.
+        set_tc_limits(bridge, rate="512kbit", burst="32kbit", latency="400ms")
+        print(f"tc limits applied to host interface {bridge} (scn_000: BR-110 <-> BR-111)")
 
-def deleteme():
-    print("deleteme running priority test")
-    # sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' scion-br1-ff00_0_111-1-1 ) -n ip link
-    # List interfaces of the BR-111 container.
-    indices = get_interface_indices("br1-ff00_0_111-1")
-    # ip -o link show
-    # Get the network interface for BR-111 -> BR-110 (network is scn_000).
-    bridge = get_host_bridge_interface(indices, "scn_000")
-    print(f"bridge is: {bridge}")
-    # sudo tc qdisc add dev veth31e7685@if3 root tbf rate 1mbit burst 32kbit latency 400ms
-    # Limit the BR-111 -> BR-110 interface to 1Mbps.
-    set_tc_limits(bridge, rate="512kbit", burst="32kbit", latency="400ms")
+        # Measure ping loss before loading the BR:
+        loss = self._run_scion_ping("tester_1-ff00_0_111", "1-ff00:0:112,fd00:f00d:cafe::7f00:15",
+                                    count=3,size=1000,interval="1s")
+        print(f"initial ping loss is {loss}")
+        if loss > 90.0:
+            raise RuntimeError(f"The initial ping command has too high a loss ratio: {loss}")
+        # Measure BR-111 before increasing the load:
+        metrics_before = measure_br("http://172.20.0.26:30442/metrics")
 
-    # Measure ping loss before loading the BR:
-    loss = run_scion_ping("tester_1-ff00_0_111", "1-ff00:0:112,fd00:f00d:cafe::7f00:15",
-                          count=3,size=1000,interval="1s")
-    print(f"initial ping loss is {loss}")
-    if loss > 90.0:
-        raise RuntimeError(f"The initial ping command has too high a loss ratio: {loss}")
-    # Measure BR-111 before increasing the load:
-    metrics_before = measure_br("http://172.20.0.26:30442/metrics")
+        # Increase the load for 1 minute by blasting the destination with SCION UDP packets:
+        # result = self.dc.execute("tester_1-ff00_0_111",
+        result = self.dc("exec", "tester_1-ff00_0_111", "bash", "-c",
+            "sender -daemon 172.20.0.28:30255 -local 172.20.0.29:0 -duration 60s " +
+            "-remote 1-ff00:0:112,[fd00:f00d:cafe::7f00:15]:12345",
+        )
+        print(result)
 
-    # Increase the load for 1 minute by blasting the destination with SCION UDP packets:
-    increase_load("tester_1-ff00_0_111", "1-ff00:0:112,[fd00:f00d:cafe::7f00:15]:12345", "60s")
+        # Ping again.
+        loss = self._run_scion_ping("tester_1-ff00_0_111", "1-ff00:0:112,fd00:f00d:cafe::7f00:15",
+                                    count=3,size=1000,interval="1s")
+        print(f"final ping loss is {loss}")
+        if loss > 90.0:
+            print(f"The initial ping command has too high a loss ratio: {loss}")
+            sys.exit(1)
+        # Measure BR-111 after the load increase:
+        metrics_after = measure_br("http://172.20.0.26:30442/metrics")
+        bfd_changes = metrics_after["router_bfd_state_changes"]["total"] -\
+            metrics_before["router_bfd_state_changes"]["total"]
+        print(f"BFD state changes: {bfd_changes}")
+        if bfd_changes != 0:
+            print(f"BFD state should have not changed, but had {bfd_changes} changes.")
+            sys.exit(1)
+        busy_fwd = metrics_after["router_dropped_pkts"]["reason"]["busy_forwarder"] -\
+            metrics_before["router_dropped_pkts"]["reason"]["busy_forwarder"]
+        if busy_fwd == 0:
+            print(f"Insufficient load: no packet drop occurred.")
+            sys.exit(1)
+        print(f"router metrics follow.\n"
+            f"Before:\n-----8<-----\n{metrics_before}\n-----8<-----\n"
+            f"After: \n-----8<-----\n{metrics_after}\n-----8<-----")
+        print("Success.")
+        print(f"-------------------- finished router_priority test")
 
-    # Ping again.
-    loss = run_scion_ping("tester_1-ff00_0_111", "1-ff00:0:112,fd00:f00d:cafe::7f00:15",
-                          count=3,size=1000,interval="1s")
-    print(f"final ping loss is {loss}")
-    if loss > 90.0:
-        print(f"The initial ping command has too high a loss ratio: {loss}")
-        sys.exit(1)
+    def _get_service_info(self, service: str) -> Dict:
+        """Returns a dictionary with some information about the container.
+        This function additionally sets the PID of the container to the returned information."""
+        output = self.dc("ps", "--format", "json")
+        # Currently, `docker compose top --format json` does NOT return a valid json string, but a
+        # bunch of lines containing valid json strings. Split into lines and treat them separately.
+        output = output.splitlines()
+        service_dict = None
+        for line in output:
+            ps_out = json.loads(line)
+            if ps_out["Service"] == service:
+                service_dict = ps_out
+                break
+        # If we found the service, get its PID and add it to the dictionary.
+        if service_dict is not None:
+            try:
+                pid = subprocess.check_output(
+                    ["docker", "inspect", "-f", "{{.State.Pid}}", service_dict["Name"]],
+                    text=True,
+                    stderr=subprocess.PIPE,
+                ).strip()
+            except subprocess.CalledProcessError as e:
+                if "No such object" in e.stderr:
+                    raise RuntimeError(f"Container '{service_dict["Name"]}' does not exist") from e
+                raise RuntimeError("Docker inspect failed") from e
+            service_dict["PID"] = pid
+        return service_dict
 
-    # Measure BR-111 after the load increase:
-    metrics_after = measure_br("http://172.20.0.26:30442/metrics")
-    bfd_changes = metrics_after["router_bfd_state_changes"]["total"] -\
-        metrics_before["router_bfd_state_changes"]["total"]
-    print(f"BFD state changes: {bfd_changes}")
-    if bfd_changes != 0:
-        print(f"BFD state should have not changed, but had {bfd_changes} changes.")
-        sys.exit(1)
-    busy_fwd = metrics_after["router_dropped_pkts"]["reason"]["busy_forwarder"] -\
-        metrics_before["router_dropped_pkts"]["reason"]["busy_forwarder"]
-    if busy_fwd == 0:
-        print(f"Insufficient load: no packet drop occurred.")
-        sys.exit(1)
-    print(f"router metrics follow.\n"
-          f"Before: -----8<-----\n{metrics_before}\n-----8<-----\n"
-          f"After:  -----8<-----\n{metrics_after}\n-----8<-----")
-    print("Success.")
-
-
-
-
-
+    def _run_scion_ping(self, src_container:str, dst_endpoint:str,
+                       count:int, size:int, interval:str) -> float:
+        """Returns the loss rate 0..100"""
+        cmd = ["scion","ping","--format", "yaml",
+            "-c", str(count), "-s", str(size), "--interval", str(interval), dst_endpoint]
+        lines = self.dc("exec", src_container, *cmd)
+        ping = yaml.safe_load(lines)
+        stats = ping["statistics"]
+        return float(stats["packet_loss"])
 
 
 if __name__ == "__main__":
-    # base.main(Test)
-    deleteme()
-    # sudo tc qdisc add dev vethXYZ root tbf rate 1mbit burst 32kbit latency 400ms
-
-
-# We need the following pip extra packages:
-# - prometheus-client
-# - requests
-
-
-# docker compose -f gen/scion-dc.yml restart br1-ff00_0_111-1
-# OR
-# scion.sh stop ; make && make docker-images && ./scion.sh start && sleep 10 && ./bin/end2end_integration -d
-
-# ip -o link show | grep scn_000  # BR111->BR110
-# sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' scion-br1-ff00_0_111-1-1 ) -n ip address
-# sudo tc qdisc add dev vethfb8dc0d root tbf rate 1mbit burst 32kbit latency 400ms
-
-
-# docker compose -f gen/scion-dc.yml exec -it tester_1-ff00_0_111 bash
-
-# sudo tcpdump -i any 'udp' -w sender.pcap ; sudo chown juan:juan sender.pcap
-
-
-# docker compose -f gen/scion-dc.yml logs br1-ff00_0_111-1 -f
-# curl -s http://172.20.0.26:30442/metrics | grep bfd_sent
-# curl -s http://172.20.0.26:30442/metrics | grep bfd
-# curl -s http://172.20.0.26:30442/metrics | grep drop
-# curl -s http://172.20.0.26:30442/metrics  | grep processed_pkts
-
-# Blast the router with SCION UDP:
-# go build -o sender ./demo/router_priority/sender/ &&   sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' scion-tester_1-ff00_0_111-1 ) -n ./sender -daemon 172.20.0.28:30255 -local 172.20.0.29:0 -remote 1-ff00:0:112,[fd00:f00d:cafe::7f00:15]:12345 -duration 60s
-
-
-# Check that still works after the blast:
-# docker compose -f gen/scion-dc.yml exec tester_1-ff00_0_111 scion ping -c 3 1-ff00:0:112,fd00:f00d:cafe::7f00:15
-
-
-"""
-172.20.0.26 BR-1    @ 111
-172.20.0.27 disp CS @ 111
-172.20.0.28 daemon  @ 111
-172.20.0.29 tester  @ 111
-
-ip.addr == 172.20.0.0/16 and ip.src==172.20.0.3
-udp && scion && scion.next_hdr == 202 && scmp.type
-udp && scion && scion.src_host == "172.20.0.29" && scion.payload_len == 1108 && scion_udp.dst_port == 12345
-
-"""
+    base.main(Test)

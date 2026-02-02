@@ -88,23 +88,18 @@ func main() {
 	payload := make([]byte, payloadSize)
 	var packetCount int
 	t0 := time.Now()
-	tLastLog := time.Now()
 	for packetCount = 0; ; packetCount++ {
 		n, err := conn.Write(payload)
 		panicOnError(err)
 		if n != len(payload) {
 			panic(fmt.Errorf("only sent %d out of %d", n, len(payload)))
 		}
-		if time.Since(tLastLog) >= time.Second {
-			fmt.Printf("sent %d packets (%d bytes payload) to %s\n",
-				packetCount, len(payload), remote.String())
-			tLastLog = time.Now()
-		}
 		if time.Since(t0) >= duration {
 			break
 		}
 	}
-	fmt.Printf("sent %d packets in total.\n", packetCount)
+	fmt.Printf("sent %d packets (%d bytes payload) in total to %s.\n",
+		packetCount, len(payload), remote.String())
 }
 
 func panicOnError(err error) {

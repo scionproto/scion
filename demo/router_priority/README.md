@@ -16,7 +16,7 @@ in a controlled scenario:
 - The border router has enough processing capacity:
     - The test will limit the capacity of the network interfaces to a small bandwidth.
     - The test uses the very small `Tiny.topo` topology,
-        which needs a small number of processes, which in turn do not consume much CPU.
+        which needs a very small number of processes, which in turn do not consume much CPU.
 - The priority traffic does not exceed the egress capacity:
     - The amount of BFD traffic is configured in the test to be very small.
 
@@ -27,13 +27,15 @@ This test uses the tiny topology:
                         | AS 1-ff00:0:110 |
                         |                 |
                         +-----------------+
-
-
-
-
+                                 |
+            +--------------------+--------------------+
+            |                                         |
+            | <---- capped interface                  |
     +-----------------+                      +-----------------+
     |                 |                      |                 |
     | AS 1-ff00:0:111 |                      | AS 1-ff00:0:112 |
+    |                 |                      |                 |
+    |   tester-111    |                      |   tester-112    |
     |                 |                      |                 |
     +-----------------+                      +-----------------+
 ```
@@ -51,7 +53,7 @@ For a total of 19 docker containers.
 Additionally, the tiny topology defines 5 networks. Here is the list and the containers using them:
 - scn_000: Inter-AS 110 <-> 111
     - `br-1 @ 1-ff00:0:110`
-    - `br-1 @ 1-ff00:0:111` <--- This is the one we want to limit its capacity.
+    - `br-1 @ 1-ff00:0:111` <--- This is the one whose capacity we want to limit.
 - scn_001: Intra-AS 110
     - `br-1 @ 1-ff00:0:110`
     - `br-2 @ 1-ff00:0:110`
@@ -72,10 +74,13 @@ Additionally, the tiny topology defines 5 networks. Here is the list and the con
     - `disp-cs-1 @ 1-ff00:0:112`
     - `disp-tester @ 1-ff00:0:112`
 
-The test introduces some changes to the docker compose file (modified via `test.py`),
-so that `tc` is run to set bandwidth limits.
+The test requires a sender binary (automatically built if run with bazel).
+It is used at the tester-111 container to blast tester-112 with SCION UDP packets,
+without any kind of flow control.
+The regular `scion ping` does not work here, as it paces itself if responses are not received.
 
 
-## How to run the test
+## How to run the demo test
 
-TODO
+1. [Set up the development environment](https://docs.scion.org/en/latest/build/setup.html)
+2. `bazel test --test_output=streamed --cache_test_results=no //demo/router_priority:test`
