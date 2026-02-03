@@ -16,7 +16,6 @@ package connect
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -29,16 +28,21 @@ import (
 
 type Dialer = func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
 
+// BaseUrl constructs a URL suitable for connectrpc/HTTP3 requests.
+// The URL only needs to be syntactically valid; actual SCION routing is handled by
+// the pre-configured QUIC dialer which ignores the URL authority.
+// Full SCION addresses (e.g. "1-ff00:0:110,127.0.0.1:31000") contain colons that are
+// not valid in URL host components, so we extract just the underlay IP:port for
+// UDP addresses and use a synthetic hostname for SVC addresses.
 func BaseUrl(server net.Addr) string {
 	switch s := server.(type) {
 	case *snet.UDPAddr:
-		host := fmt.Sprintf("%s,%s", s.IA, s.Host.IP)
-		return "https://" + net.JoinHostPort(host, strconv.Itoa(s.Host.Port))
+		host := net.JoinHostPort(s.Host.IP.String(), strconv.Itoa(s.Host.Port))
+		return "https://" + host
 	case *snet.SVCAddr:
-		return fmt.Sprintf("https://[%s,%s]", s.IA, s.SVC.BaseString())
-	default:
-		return "https://" + server.String()
+		return "https://" + s.SVC.BaseString() + ".scion:443"
 	}
+	return "https://" + server.String()
 }
 
 type HTTPClient struct {
