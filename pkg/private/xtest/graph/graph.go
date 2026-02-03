@@ -265,7 +265,7 @@ func (g *Graph) beacon(ifIDs []uint16, addStaticInfo bool) *seg.PathSegment {
 	}
 
 	currIA = g.parents[ifIDs[0]]
-	for i := range len(ifIDs) {
+	for i := 0; i <= len(ifIDs); i++ {
 		switch {
 		case i < len(ifIDs):
 			var ok bool
