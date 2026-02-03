@@ -108,7 +108,7 @@ func (t *ReloadingTopology) Run(ctx context.Context, period time.Duration) {
 	defer ticker.Stop()
 
 	reload := func() {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		ctx, cancel := context.WithTimeout(ctx, defaultConnectionTimeout)
 		defer cancel()
 		if err := t.loadInterfaces(ctx); err != nil {
 			log.FromCtx(ctx).Error("Failed to reload interfaces", "err", err)
