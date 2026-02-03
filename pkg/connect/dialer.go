@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/quic-go/quic-go/http3"
 
@@ -29,18 +30,28 @@ import (
 type Dialer = func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
 
 // BaseUrl constructs a URL suitable for connectrpc/HTTP3 requests.
-// The URL only needs to be syntactically valid; actual SCION routing is handled by
-// the pre-configured QUIC dialer which ignores the URL authority.
-// Full SCION addresses (e.g. "1-ff00:0:110,127.0.0.1:31000") contain colons that are
-// not valid in URL host components, so we extract just the underlay IP:port for
-// UDP addresses and use a synthetic hostname for SVC addresses.
+// Full SCION addresses (e.g. "1-ff00:0:110,127.0.0.1:31000") are not RFC 3986 compliant.
+// We encode the full SCION address into a valid hostname by replacing
+// colons with dashes, dots with dashes, and the comma with an underscore:
+//
+//   - "1-ff00:0:110,10.0.0.1:31000" -> "https://scion4-1-ff00-0-110_10-0-0-1:31000"
+//   - "1-ff00:0:110,[::1]:31000"    -> "https://scion6-1-ff00-0-110_--1:31000"
+//   - "1-ff00:0:110,CS"             -> "https://scion-1-ff00-0-110_CS:443"
 func BaseUrl(server net.Addr) string {
 	switch s := server.(type) {
 	case *snet.UDPAddr:
-		host := net.JoinHostPort(s.Host.IP.String(), strconv.Itoa(s.Host.Port))
-		return "https://" + host
+		ia := strings.ReplaceAll(s.IA.String(), ":", "-")
+		ip := s.Host.IP.String()
+		port := strconv.Itoa(s.Host.Port)
+		if s.Host.IP.To4() != nil {
+			ip = strings.ReplaceAll(ip, ".", "-")
+			return "https://scion4-" + ia + "_" + ip + ":" + port
+		}
+		ip = strings.ReplaceAll(ip, ":", "-")
+		return "https://scion6-" + ia + "_" + ip + ":" + port
 	case *snet.SVCAddr:
-		return "https://" + s.SVC.BaseString() + ".scion:443"
+		ia := strings.ReplaceAll(s.IA.String(), ":", "-")
+		return "https://scion-" + ia + "_" + s.SVC.BaseString() + ":443"
 	}
 	return "https://" + server.String()
 }
