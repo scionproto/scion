@@ -36,7 +36,7 @@ type Dialer = func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
 //
 //   - "1-ff00:0:110,10.0.0.1:31000" -> "https://scion4-1-ff00-0-110_10-0-0-1:31000"
 //   - "1-ff00:0:110,[::1]:31000"    -> "https://scion6-1-ff00-0-110_--1:31000"
-//   - "1-ff00:0:110,CS"             -> "https://scion-1-ff00-0-110_CS:443"
+//   - "1-ff00:0:110,CS"             -> "https://scion-1-ff00-0-110_CS"
 func BaseUrl(server net.Addr) string {
 	switch s := server.(type) {
 	case *snet.UDPAddr:
@@ -51,7 +51,7 @@ func BaseUrl(server net.Addr) string {
 		return "https://scion6-" + ia + "_" + ip + ":" + port
 	case *snet.SVCAddr:
 		ia := strings.ReplaceAll(s.IA.String(), ":", "-")
-		return "https://scion-" + ia + "_" + s.SVC.BaseString() + ":443"
+		return "https://scion-" + ia + "_" + s.SVC.BaseString()
 	}
 	return "https://" + server.String()
 }
