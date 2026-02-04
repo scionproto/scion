@@ -32,8 +32,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet/path"
 )
 
-var DebugCombinator = false
-
 // Combine constructs paths between src and dst using the supplied
 // segments. All possible paths are first computed, and then filtered according
 // to filterLongPaths.
