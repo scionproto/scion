@@ -75,12 +75,10 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 				{Src: singleCore, Dst: dst, SegType: Down},
 			}, nil
 		}
-		srcWildcard := toWildCard(src)
-		dstWildcard := toWildCard(dst)
 		reqs := Requests{
-			{Src: src, Dst: srcWildcard, SegType: Up},
-			{Src: srcWildcard, Dst: dstWildcard, SegType: Core},
-			{Src: dstWildcard, Dst: dst, SegType: Down},
+			{Src: src, Dst: toWildCard(src), SegType: Up},
+			{Src: toWildCard(src), Dst: toWildCard(dst), SegType: Core},
+			{Src: toWildCard(dst), Dst: dst, SegType: Down},
 		}
 		if !skipOneHop {
 			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
@@ -90,10 +88,9 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 		if (src.ISD() == dst.ISD() && dst.IsWildcard()) || singleCore.Equal(dst) {
 			return Requests{{Src: src, Dst: dst, SegType: Up}}, nil
 		}
-		srcWildcard := toWildCard(src)
 		reqs := Requests{
-			{Src: src, Dst: srcWildcard, SegType: Up},
-			{Src: srcWildcard, Dst: dst, SegType: Core},
+			{Src: src, Dst: toWildCard(src), SegType: Up},
+			{Src: toWildCard(src), Dst: dst, SegType: Core},
 		}
 		if !skipOneHop {
 			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
@@ -103,10 +100,9 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 		if singleCore.Equal(src) {
 			return Requests{{Src: src, Dst: dst, SegType: Down}}, nil
 		}
-		dstWildcard := toWildCard(dst)
 		reqs := Requests{
-			{Src: src, Dst: dstWildcard, SegType: Core},
-			{Src: dstWildcard, Dst: dst, SegType: Down},
+			{Src: src, Dst: toWildCard(dst), SegType: Core},
+			{Src: toWildCard(dst), Dst: dst, SegType: Down},
 		}
 		if !skipOneHop {
 			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
