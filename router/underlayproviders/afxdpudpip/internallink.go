@@ -96,6 +96,9 @@ func (l *internalLink) packHeader() {
 }
 
 // finishPacket prepends headers and patches destination + lengths + checksums.
+// On success (true), the packet is ready to send and the caller owns it.
+// On failure (false), the packet has already been disposed of (backlogged or
+// returned to pool); the caller must not touch it.
 func (l *internalLink) finishPacket(p *router.Packet) bool {
 	dstIPBytes, dstPort := getRemoteAddr(p, l.is4)
 	dstIP, ok := netip.AddrFromSlice(dstIPBytes)

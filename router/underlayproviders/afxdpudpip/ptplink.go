@@ -97,7 +97,9 @@ func (l *ptpLink) buildHeader() chan *router.Packet {
 }
 
 // finishPacket prepends headers to the packet and fixes up length/checksum fields.
-// Returns false if the packet could not be finished (e.g. MAC not resolved).
+// On success (true), the packet is ready to send and the caller owns it.
+// On failure (false), the packet has already been disposed of (backlogged or
+// returned to pool); the caller must not touch it.
 func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	hdrp := l.header.Load()
 	if hdrp == nil {
