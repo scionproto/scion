@@ -100,7 +100,11 @@ func (l *internalLink) finishPacket(p *router.Packet) bool {
 	dstIPBytes, dstPort := getRemoteAddr(p, l.is4)
 	dstIP, ok := netip.AddrFromSlice(dstIPBytes)
 	if !ok {
-		panic("Broken remote address")
+		log.Debug("Dropping packet with broken remote address", "raw", dstIPBytes)
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsInvalid.Inc()
+		l.pool.Put(p)
+		return false
 	}
 
 	// Resolve destination MAC
