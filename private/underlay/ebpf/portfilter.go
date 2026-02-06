@@ -11,7 +11,6 @@ import (
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
-	"github.com/gopacket/gopacket/afpacket"
 )
 
 // For any of the below to work, the calling process must have the following capabilities:
@@ -107,87 +106,6 @@ func BpfKFilter(ifIndex int) (*KFilterHandle, error) {
 
 	kf := &KFilterHandle{kLink: l, kObjs: coll}
 	return kf, nil
-}
-
-// SFilterHandle holds the socket->application filter and keeps it alive until Closed. sObjs is the
-// SockFilter rsources; that is, the program and its map. As long as such an object exists, the
-// filter remains active.
-type SFilterHandle struct {
-	sObjs *ebpf.Collection
-}
-
-// Close causes the filter to go away.
-func (sf *SFilterHandle) Close() {
-	sf.sObjs.Close()
-}
-
-// Adds the given port to the map of the given filter. As a result UDP/IP packets destined to that
-// port will be delivered to the associated socket.
-func (sf *SFilterHandle) AddAddrPort(addrPort netip.AddrPort) {
-	// Now load the map and populate it with our port mapping.
-	myMap := sf.sObjs.Maps["sock_map_flt"]
-	if myMap == nil {
-		panic(fmt.Errorf("no map named sock_map_flt found"))
-	}
-
-	// map.Put plays crystal ball with key and value so it accepts either
-	// pointers or values.
-	var key [20]byte
-	addr := addrPort.Addr()
-	if addr.Is4() || addr.Is4In6() {
-		addrBytes := addr.As4()
-		copy(key[0:4], addrBytes[0:4])
-		key[18] = byte(4)
-	} else {
-		addrBytes := addr.As16()
-		copy(key[0:16], addrBytes[0:16])
-		key[18] = byte(6)
-	}
-	binary.BigEndian.PutUint16(key[16:18], addrPort.Port())
-	b := uint8(0)
-	if err := myMap.Put(key, b); err != nil {
-		panic(fmt.Sprintf("error sFilter AddPort: %v, key=%p\n", err, &key))
-	}
-}
-
-// BpfSockFilter attaches a SOCK_FILTER program to the raw socket "afp".  The SOCK_FILTER program
-// only allows traffic to specified ports to reach the socket referred to by "afp". Only the
-// following traffic is delivered to the socket:
-//
-// UDP/IP: only if the destination port has been added to the map.
-// ARP: all
-// ICMPv6: all
-//
-// Note this function replaces any SOCK_FILTER already attached to the socket. There can be only
-// one. To insert ports into the filter's map, use the AddPort method.
-//
-// Returns: a handle referring to the program and map. Calling the handle's Close() method will
-// discard both.
-func BpfSFilter(afp *afpacket.TPacket) (*SFilterHandle, error) {
-	spec, err := loadSockfilter()
-	if err != nil {
-		return nil, err
-	}
-	coll, err := ebpf.NewCollection(spec)
-	if err != nil {
-		return nil, err
-	}
-
-	// We keep the program, so the collection can be closed without closing the program.
-	prog := coll.Programs["bpf_sock_filter"]
-	if prog == nil {
-		panic("no program named pbf_sock_filter found")
-	}
-
-	err = afp.SetEBPF(int32(prog.FD()))
-	if err != nil {
-		prog.Close()
-		coll.Close()
-		return nil, err
-	}
-
-	sf := &SFilterHandle{sObjs: coll}
-	return sf, nil
 }
 
 // LoadSockfilterSpec returns the eBPF collection spec for the sockfilter XDP program.

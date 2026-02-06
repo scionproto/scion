@@ -94,9 +94,8 @@ func TestRawSocket(t *testing.T) {
 
 	// Make two raw sockets. One attached to each end of the veth.
 	// We will always send from A and we will receive at B in two different ways;
-	// depending on the port number. On side B we place a filter that lets only port 50000 reach
-	// the raw socket. We set the filter on side A too; just to verify that it does not interfere
-	// with sending.
+	// depending on the port number. On side B we place a TC (kFilter) that prevents port 50000
+	// from reaching the kernel networking stack.
 
 	// Side A
 	intfA, err := net.InterfaceByName("vethA")
@@ -114,9 +113,6 @@ func TestRawSocket(t *testing.T) {
 	kFilterA, err := ebpf.BpfKFilter(intfA.Index)
 	require.NoError(t, err)
 	kFilterA.AddAddrPort(rawAddrA.AddrPort())
-	sFilterA, err := ebpf.BpfSFilter(afpHandleA)
-	require.NoError(t, err)
-	sFilterA.AddAddrPort(rawAddrA.AddrPort())
 
 	// Side B
 	intfB, err := net.InterfaceByName("vethB")
@@ -134,9 +130,6 @@ func TestRawSocket(t *testing.T) {
 	kFilterB, err := ebpf.BpfKFilter(intfB.Index)
 	require.NoError(t, err)
 	kFilterB.AddAddrPort(rawAddrB.AddrPort()) // The destination that the kernel must *not* handle.
-	sFilterB, err := ebpf.BpfSFilter(afpHandleB)
-	require.NoError(t, err)
-	sFilterB.AddAddrPort(rawAddrB.AddrPort())
 
 	// On side B we expect packets to port 50000 at the raw socket and packets to port 50001 at the
 	// regular socket. We also listen on port 50000 with a regular socket and we do not expect it
@@ -171,21 +164,13 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(buf[:5]), "hello")
 
-	// The raw socket shouldn't have gotten anything (except a random ARP/NDP).
+	// Drain any stray packets (ARP/NDP) from the raw socket. Without a socket filter,
+	// the AF_PACKET socket sees all traffic, so we just drain before the next test.
 	for {
-		p, _, err := afpHandleB.ZeroCopyReadPacketData()
+		_, _, err := afpHandleB.ZeroCopyReadPacketData()
 		if errors.Is(err, afpacket.ErrTimeout) {
 			break
 		}
-		if p[12] == 0x06 && p[13] == 0x08 {
-			// ARP
-			continue
-		}
-		if p[12] == 0x86 && p[13] == 0xDD {
-			// IPv6 (likely NDP, since we didn't send any v6 packet).
-			continue
-		}
-		t.Fatalf("Received on raw socket: % X\n", p)
 	}
 
 	// To raw sockets; port 50000
@@ -214,8 +199,6 @@ func TestRawSocket(t *testing.T) {
 	connB.Close()
 	connB2.Close()
 	kFilterA.Close()
-	sFilterA.Close()
-	sFilterB.Close()
 	kFilterB.Close()
 }
 

@@ -131,7 +131,6 @@ go_library(
     deps = [
         "@com_github_cilium_ebpf//:go_default_library",
         "@com_github_cilium_ebpf//link:go_default_library",
-        "@com_github_gopacket_gopacket//afpacket:go_default_library",
     ],
 )
 
