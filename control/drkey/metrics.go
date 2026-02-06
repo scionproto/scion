@@ -1,4 +1,4 @@
-// Copyright 2019 Anapaya Systems
+// Copyright 2026 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cleaner_test
+package drkey
 
-import (
-	"context"
-	"testing"
+import "github.com/scionproto/scion/private/storage/cleaner"
 
-	"github.com/scionproto/scion/private/storage/cleaner"
-)
-
-// TestDoubleNew checks that two cleaning tasks with the same subsystem can be
-// initialized.
-func TestDoubleNew(t *testing.T) {
-	dummy := func(context.Context) (int, error) { return 0, nil }
-		cleaner.New(dummy, "same", cleaner.Metrics{})
-		cleaner.New(dummy, "same", cleaner.Metrics{})
+// ServiceCleanerMetrics contains the metrics for the DRKey service storage cleaners.
+type ServiceCleanerMetrics struct {
+	SecretValue cleaner.Metrics
+	Level1      cleaner.Metrics
 }

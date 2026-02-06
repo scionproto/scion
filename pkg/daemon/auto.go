@@ -30,6 +30,7 @@ type AutoConnectorOption func(*autoConnectorOptions)
 type autoConnectorOptions struct {
 	sciond    string
 	configDir string
+	metrics   Metrics
 }
 
 // WithDaemon sets the daemon address for a gRPC connector.
@@ -47,6 +48,12 @@ func WithDaemon(addr string) AutoConnectorOption {
 func WithConfigDir(dir string) AutoConnectorOption {
 	return func(o *autoConnectorOptions) {
 		o.configDir = dir
+	}
+}
+
+func AutoWithMetrics(metrics Metrics) AutoConnectorOption {
+	return func(o *autoConnectorOptions) {
+		o.metrics = metrics
 	}
 }
 
@@ -72,7 +79,7 @@ func NewAutoConnector(ctx context.Context, opts ...AutoConnectorOption) (Connect
 		}
 		ctx, cancel := context.WithTimeout(ctx, defaultConnectionTimeout)
 		defer cancel()
-		return NewService(options.sciond).Connect(ctx)
+		return NewService(options.sciond, options.metrics).Connect(ctx)
 	}
 
 	// Priority 2: Use provided config directory for standalone mode

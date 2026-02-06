@@ -21,10 +21,11 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	libmetrics "github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
-	"github.com/scionproto/scion/private/trust/internal/metrics"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 // KeyRing provides private keys.
@@ -37,6 +38,7 @@ type SignerGen struct {
 	IA      addr.IA
 	KeyRing KeyRing
 	DB      DB // FIXME(roosd): Eventually this should use a crypto provider
+	Metrics trustmetrics.Metrics
 
 	// ExtKeyUsage filters the available certificates for specific key usage types.
 	// If ExtKeyUsage is not ExtKeyUsageAny, Generate will return a Signer with
@@ -49,20 +51,24 @@ type SignerGen struct {
 // returned signer uses the private key which is backed by the certificate chain
 // with the highest expiration time.
 func (s SignerGen) Generate(ctx context.Context) ([]Signer, error) {
-	l := metrics.SignerLabels{}
+	record := func(result string) {
+		if s.Metrics.SignerGenerated != nil {
+			libmetrics.CounterInc(s.Metrics.SignerGenerated(result))
+		}
+	}
 	keys, err := s.KeyRing.PrivateKeys(ctx)
 	if err != nil {
-		metrics.Signer.Generate(l.WithResult(metrics.ErrKey)).Inc()
+		record(trustmetrics.ErrKey)
 		return nil, err
 	}
 	if len(keys) == 0 {
-		metrics.Signer.Generate(l.WithResult(metrics.ErrKey)).Inc()
+		record(trustmetrics.ErrKey)
 		return nil, serrors.New("no private key found")
 	}
 
 	trcs, res, err := activeTRCs(ctx, s.DB, s.IA.ISD())
 	if err != nil {
-		metrics.Signer.Generate(l.WithResult(res)).Inc()
+		record(res)
 		return nil, serrors.Wrap("loading TRC", err)
 	}
 
@@ -70,7 +76,7 @@ func (s SignerGen) Generate(ctx context.Context) ([]Signer, error) {
 	for _, key := range keys {
 		signer, err := s.bestForKey(ctx, key, trcs)
 		if err != nil {
-			metrics.Signer.Generate(l.WithResult(metrics.ErrDB)).Inc()
+			record(trustmetrics.ErrDB)
 			return nil, err
 		}
 		if signer == nil {
@@ -79,10 +85,10 @@ func (s SignerGen) Generate(ctx context.Context) ([]Signer, error) {
 		bests = append(bests, *signer)
 	}
 	if len(bests) == 0 {
-		metrics.Signer.Generate(l.WithResult(metrics.ErrNotFound)).Inc()
+		record(trustmetrics.ErrNotFound)
 		return nil, serrors.New("no certificate found", "num_private_keys", len(keys))
 	}
-	metrics.Signer.Generate(l.WithResult(metrics.Success)).Inc()
+	record(trustmetrics.Success)
 	return bests, nil
 }
 
@@ -158,6 +164,7 @@ func (s *SignerGen) bestForKey(
 			NotAfter:  chain[0].NotAfter,
 		},
 		InGrace: inGrace,
+		Signatures: s.Metrics.SignerSignatures,
 	}, nil
 }
 

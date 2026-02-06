@@ -40,7 +40,7 @@ func main() {
 
 	ctx := context.Background()
 
-	dc, err := daemon.NewService(daemonAddr).Connect(ctx)
+	dc, err := daemon.NewService(daemonAddr, daemon.Metrics{}).Connect(ctx)
 	if err != nil {
 		log.Fatalf("Failed to create SCION daemon connector: %v", err)
 	}

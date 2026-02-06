@@ -17,7 +17,6 @@ package beaconing
 import (
 	"context"
 	"net"
-	"strconv"
 	"sync"
 	"time"
 
@@ -26,7 +25,7 @@ import (
 	"github.com/scionproto/scion/control/segreg"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -159,10 +158,10 @@ func (r *WriteScheduler) logSummary(ctx context.Context, s *summary) {
 type LocalSegmentRegistrationPlugin struct {
 	// InternalErrors counts errors that happened before being able to store
 	// a segment in the local SegmentStore.
-	InternalErrors metrics.Counter
+	InternalErrors func(segType string) metrics.Counter
 	// Registered counts the amount of registered segments. A label is used to
 	// indicate the status of the registration.
-	Registered metrics.Counter
+	Registered func(startIA addr.IA, ingress uint16, segType string, result string) metrics.Counter
 	// Store is used to store the terminated segments.
 	Store SegmentStore
 }
@@ -184,13 +183,14 @@ func (p *LocalSegmentRegistrationPlugin) New(
 	config map[string]any,
 ) (segreg.SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
+	var internalErrors metrics.Counter
+	if p.InternalErrors != nil {
+		internalErrors = p.InternalErrors(segType.String())
+	}
 	return &LocalWriter{
 		LocalSegmentRegistrationPlugin: *p,
-		InternalErrors: metrics.CounterWith(
-			p.InternalErrors,
-			"seg_type", segType.String(),
-		),
-		Type: segType,
+		InternalErrors:                 internalErrors,
+		Type:                           segType,
 	}, nil
 }
 
@@ -240,21 +240,24 @@ func (r *LocalWriter) RegisterSegments(
 
 // updateMetricsFromStat is used to update the metrics for local DB inserts.
 func (r *LocalWriter) updateMetricsFromStats(s seghandler.SegStats, b map[string]beacon.Beacon) {
+	if r.Registered == nil {
+		return
+	}
 	for _, id := range s.InsertedSegs {
-		metrics.CounterInc(metrics.CounterWith(r.Registered, writerLabels{
-			StartIA: b[id].Segment.FirstIA(),
-			Ingress: b[id].InIfID,
-			SegType: r.Type.String(),
-			Result:  "ok_new",
-		}.Expand()...))
+		metrics.CounterInc(r.Registered(
+			b[id].Segment.FirstIA(),
+			b[id].InIfID,
+			r.Type.String(),
+			"ok_new",
+		))
 	}
 	for _, id := range s.UpdatedSegs {
-		metrics.CounterInc(metrics.CounterWith(r.Registered, writerLabels{
-			StartIA: b[id].Segment.FirstIA(),
-			Ingress: b[id].InIfID,
-			SegType: r.Type.String(),
-			Result:  "ok_updated",
-		}.Expand()...))
+		metrics.CounterInc(r.Registered(
+			b[id].Segment.FirstIA(),
+			b[id].InIfID,
+			r.Type.String(),
+			"ok_updated",
+		))
 	}
 }
 
@@ -262,10 +265,10 @@ type RemoteSegmentRegistrationPlugin struct {
 	// InternalErrors counts errors that happened before being able to send a
 	// segment to a remote. This can be during looking up the remote etc.
 	// If the counter is nil errors are not counted.
-	InternalErrors metrics.Counter
+	InternalErrors func(segType string) metrics.Counter
 	// Registered counts the amount of registered segments. A label is used to
 	// indicate the status of the segreg.
-	Registered metrics.Counter
+	Registered func(startIA addr.IA, ingress uint16, segType string, result string) metrics.Counter
 
 	// RPC is used to send the segment to a remote.
 	RPC RPC
@@ -290,13 +293,14 @@ func (p *RemoteSegmentRegistrationPlugin) New(
 	config map[string]any,
 ) (segreg.SegmentRegistrar, error) {
 	segType := policyType.SegmentType()
+	var internalErrors metrics.Counter
+	if p.InternalErrors != nil {
+		internalErrors = p.InternalErrors(segType.String())
+	}
 	return &RemoteWriter{
 		RemoteSegmentRegistrationPlugin: *p,
-		InternalErrors: metrics.CounterWith(
-			p.InternalErrors,
-			"seg_type", segType.String(),
-		),
-		Type: segType,
+		InternalErrors:                  internalErrors,
+		Type:                            segType,
 	}, nil
 }
 
@@ -382,48 +386,32 @@ func (r *remoteWriter) startSendSegReg(
 		defer log.HandlePanic()
 		defer r.wg.Done()
 
-		labels := writerLabels{
-			StartIA: bseg.Segment.FirstIA(),
-			Ingress: bseg.InIfID,
-			SegType: r.writer.Type.String(),
-		}
-
 		logger := log.FromCtx(ctx)
 		if err := r.rpc.RegisterSegment(ctx, reg, addr); err != nil {
 			logger.Error("Unable to register segment",
 				"seg_type", r.writer.Type, "addr", addr, "err", err)
-			metrics.CounterInc(metrics.CounterWith(r.writer.Registered,
-				labels.WithResult(prom.ErrNetwork).Expand()...))
+			if r.writer.Registered != nil {
+				metrics.CounterInc(r.writer.Registered(
+					bseg.Segment.FirstIA(),
+					bseg.InIfID,
+					r.writer.Type.String(),
+					prom.ErrNetwork,
+				))
+			}
 			return
 		}
 		r.summary.RecordSegment(bseg.Segment)
-
-		metrics.CounterInc(metrics.CounterWith(r.writer.Registered,
-			labels.WithResult(prom.Success).Expand()...))
+		if r.writer.Registered != nil {
+			metrics.CounterInc(r.writer.Registered(
+				bseg.Segment.FirstIA(),
+				bseg.InIfID,
+				r.writer.Type.String(),
+				prom.Success,
+			))
+		}
 		logger.Debug("Successfully registered segment", "seg_type", r.writer.Type,
 			"addr", addr, "seg", bseg.Segment)
 	}()
-}
-
-type writerLabels struct {
-	StartIA addr.IA
-	Ingress uint16
-	SegType string
-	Result  string
-}
-
-func (l writerLabels) Expand() []string {
-	return []string{
-		"start_isd_as", l.StartIA.String(),
-		"ingress_interface", strconv.Itoa(int(l.Ingress)),
-		"seg_type", l.SegType,
-		prom.LabelResult, l.Result,
-	}
-}
-
-func (l writerLabels) WithResult(result string) writerLabels {
-	l.Result = result
-	return l
 }
 
 // GroupWriter is a beaconing.Writer that terminates and writes beacons across multiple segment

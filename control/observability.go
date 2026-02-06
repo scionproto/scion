@@ -23,12 +23,11 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 
+	"github.com/scionproto/scion/control/drkey"
 	cstrust "github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/metrics"
-	metrics2 "github.com/scionproto/scion/pkg/metrics/v2"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -40,6 +39,7 @@ import (
 	"github.com/scionproto/scion/private/discovery"
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/service"
+	"github.com/scionproto/scion/private/storage/cleaner"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -83,103 +83,102 @@ type Metrics struct {
 	TrustTRCFileWritesTotal                *prometheus.CounterVec
 	SCIONNetworkMetrics                    snet.SCIONNetworkMetrics
 	SCIONPacketConnMetrics                 snet.SCIONPacketConnMetrics
-	SCMPErrors                             metrics2.Counter
+	SCMPErrors                             metrics.Counter
 	TopoLoader                             topology.LoaderMetrics
 	DRKeySecretValueQueriesTotal           *prometheus.CounterVec
 	DRKeyLevel1QueriesTotal                *prometheus.CounterVec
 	RenewalMetrics                         renewal.Metrics
+	CleanerMetrics                         CleanerMetrics
 }
 
-func NewMetrics() *Metrics {
-	scionPacketConnMetrics := snetmetrics.NewSCIONPacketConnMetrics()
+func NewMetrics(opts ...metrics.Option) *Metrics {
+	auto := metrics.ApplyOptions(opts...).Auto()
+	scionPacketConnMetrics := snetmetrics.NewSCIONPacketConnMetrics(opts...)
 
-	renewalActive := metrics.NewPromGauge(promauto.NewGaugeVec(
+	renewalActive := auto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "renewal_signer_active_boolean",
 			Help: "Whether the CA signer is active and can sign certificate chains",
 		},
-		[]string{},
-	))
-	renewalSigners := metrics.NewPromCounter(promauto.NewCounterVec(
+	)
+	renewalSigners := auto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "renewal_generated_signers_total",
 			Help: "Number of generated CA signers that sign certificate chains",
 		},
 		[]string{prom.LabelResult},
-	))
-	renewalChains := metrics.NewPromCounter(promauto.NewCounterVec(
+	)
+	renewalChains := auto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "renewal_signed_certificate_chains_total",
 			Help: "Number of certificate chains signed",
 		},
 		[]string{prom.LabelResult},
-	))
-	renewalGenerated := metrics.NewPromGauge(promauto.NewGaugeVec(
+	)
+	renewalGenerated := auto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "renewal_last_signer_generation_time_second",
 			Help: "The last time a signer for creating AS certificates was successfully generated",
 		},
-		[]string{},
-	))
-	renewalExpiration := metrics.NewPromGauge(promauto.NewGaugeVec(
+	)
+	renewalExpiration := auto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "renewal_signer_expiration_time_second",
 			Help: "The expiration time of the current CA signer",
 		},
-		[]string{},
-	))
+	)
 
 	return &Metrics{
-		BeaconDBQueriesTotal: promauto.NewCounterVec(
+		BeaconDBQueriesTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "beacondb_queries_total",
 				Help: "Total queries to the database",
 			},
 			[]string{"driver", "operation", prom.LabelResult},
 		),
-		BeaconingOriginatedTotal: promauto.NewCounterVec(
+		BeaconingOriginatedTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_originated_beacons_total",
 				Help: "Total number of beacons originated.",
 			},
 			[]string{"egress_interface", prom.LabelResult},
 		),
-		BeaconingPropagatedTotal: promauto.NewCounterVec(
+		BeaconingPropagatedTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_propagated_beacons_total",
 				Help: "Total number of beacons propagated.",
 			},
 			[]string{"start_isd_as", "ingress_interface", "egress_interface", prom.LabelResult},
 		),
-		BeaconingPropagatorInternalErrorsTotal: promauto.NewCounterVec(
+		BeaconingPropagatorInternalErrorsTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_propagator_internal_errors_total",
 				Help: "Total number of internal errors in the beacon propagator.",
 			},
 			[]string{},
 		),
-		BeaconingReceivedTotal: promauto.NewCounterVec(
+		BeaconingReceivedTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_received_beacons_total",
 				Help: "Total number of beacons received.",
 			},
 			[]string{"ingress_interface", prom.LabelNeighIA, prom.LabelResult},
 		),
-		BeaconingRegisteredTotal: promauto.NewCounterVec(
+		BeaconingRegisteredTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_registered_segments_total",
 				Help: "Total number of segments registered.",
 			},
 			[]string{"start_isd_as", "ingress_interface", "seg_type", prom.LabelResult},
 		),
-		BeaconingRegistrarInternalErrorsTotal: promauto.NewCounterVec(
+		BeaconingRegistrarInternalErrorsTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_registrar_internal_errors_total",
 				Help: "Total number of internal errors in the beacon registrar.",
 			},
 			[]string{"seg_type"},
 		),
-		CAHealth: promauto.NewGaugeVec(
+		CAHealth: auto.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "renewal_ca_health_status",
 				Help: "Exposes the status of the CA (available, unavailable, starting, stopping)," +
@@ -188,28 +187,28 @@ func NewMetrics() *Metrics {
 			},
 			[]string{"status"},
 		),
-		DiscoveryRequestsTotal: promauto.NewCounterVec(
+		DiscoveryRequestsTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "discovery_requests_total",
 				Help: "Total number of discovery requests served.",
 			},
 			discovery.Topology{}.RequestsLabels(),
 		),
-		PathDBQueriesTotal: promauto.NewCounterVec(
+		PathDBQueriesTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "pathdb_queries_total",
 				Help: "Total queries to the database",
 			},
 			[]string{"driver", "operation", prom.LabelResult},
 		),
-		RenewalServerRequestsTotal: promauto.NewCounterVec(
+		RenewalServerRequestsTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "renewal_received_requests_total",
 				Help: "Total number of renewal requests served.",
 			},
 			[]string{prom.LabelResult},
 		),
-		RenewalHandledRequestsTotal: promauto.NewCounterVec(
+		RenewalHandledRequestsTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "renewal_handled_requests_total",
 				Help: "Total number of renewal requests served by each handler type" +
@@ -217,35 +216,35 @@ func NewMetrics() *Metrics {
 			},
 			[]string{prom.LabelResult, "type"},
 		),
-		RenewalRegisteredHandlers: promauto.NewGaugeVec(
+		RenewalRegisteredHandlers: auto.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "renewal_registered_handlers",
 				Help: "Exposes which handler type (legacy, in-process, delegating) is registered.",
 			},
 			[]string{"type"},
 		),
-		SegmentLookupRequestsTotal: promauto.NewCounterVec(
+		SegmentLookupRequestsTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_segment_lookup_requests_total",
 				Help: "Total number of path segments requests received.",
 			},
 			[]string{"dst_isd", "seg_type", prom.LabelResult},
 		),
-		SegmentLookupSegmentsSentTotal: promauto.NewCounterVec(
+		SegmentLookupSegmentsSentTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_segment_lookup_segments_sent_total",
 				Help: "Total number of path segments sent in the replies.",
 			},
 			[]string{"dst_isd", "seg_type"},
 		),
-		SegmentRegistrationsTotal: promauto.NewCounterVec(
+		SegmentRegistrationsTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_segment_registry_segments_received_total",
 				Help: "Total number of path segments received through registrations.",
 			},
 			[]string{"src", "seg_type", prom.LabelResult},
 		),
-		SegmentExpirationDeficient: promauto.NewGaugeVec(
+		SegmentExpirationDeficient: auto.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "control_segment_expiration_deficient",
 				Help: "Indicates whether the expiration time of the segment is below the " +
@@ -254,52 +253,52 @@ func NewMetrics() *Metrics {
 			},
 			[]string{},
 		),
-		TrustDBQueriesTotal: promauto.NewCounterVec(
+		TrustDBQueriesTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "trustengine_db_queries_total",
 				Help: "Total queries to the database",
 			},
 			[]string{"driver", "operation", prom.LabelResult},
 		),
-		TrustLatestTRCNotBefore: promauto.NewGauge(
+		TrustLatestTRCNotBefore: auto.NewGauge(
 			prometheus.GaugeOpts{
 				Name: "trustengine_latest_trc_not_before_time_seconds",
 				Help: "The not_before time of the latest TRC for the local ISD " +
 					"in seconds since UNIX epoch.",
 			},
 		),
-		TrustLatestTRCNotAfter: promauto.NewGauge(
+		TrustLatestTRCNotAfter: auto.NewGauge(
 			prometheus.GaugeOpts{
 				Name: "trustengine_latest_trc_not_after_time_seconds",
 				Help: "The not_after time of the latest TRC for the local ISD " +
 					"in seconds since UNIX epoch.",
 			},
 		),
-		TrustLatestTRCSerial: promauto.NewGauge(
+		TrustLatestTRCSerial: auto.NewGauge(
 			prometheus.GaugeOpts{
 				Name: "trustengine_latest_trc_serial_number",
 				Help: "The serial number of the latest TRC for the local ISD.",
 			},
 		),
-		TrustTRCFileWritesTotal: promauto.NewCounterVec(
+		TrustTRCFileWritesTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "trustengine_trc_file_writes_total",
 				Help: "Total TRC filesystem file operations.",
 			},
 			[]string{prom.LabelResult},
 		),
-		SCIONNetworkMetrics:    snetmetrics.NewSCIONNetworkMetrics(),
+		SCIONNetworkMetrics:    snetmetrics.NewSCIONNetworkMetrics(opts...),
 		SCIONPacketConnMetrics: scionPacketConnMetrics,
 		SCMPErrors:             scionPacketConnMetrics.SCMPErrors,
-		TopoLoader:             loaderMetrics(),
-		DRKeySecretValueQueriesTotal: promauto.NewCounterVec(
+		TopoLoader:             loaderMetrics(auto),
+		DRKeySecretValueQueriesTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "drkey_secretdb_queries_total",
 				Help: "Total queries to the database",
 			},
 			[]string{"operation", prom.LabelResult},
 		),
-		DRKeyLevel1QueriesTotal: promauto.NewCounterVec(
+		DRKeyLevel1QueriesTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "drkey_level1db_queries_total",
 				Help: "Total queries to the database",
@@ -309,14 +308,60 @@ func NewMetrics() *Metrics {
 		RenewalMetrics: renewal.Metrics{
 			CAActive: renewalActive,
 			CASigners: func(result string) metrics.Counter {
-				return renewalSigners.With(prom.LabelResult, result)
+				return renewalSigners.With(prometheus.Labels{prom.LabelResult: result})
 			},
 			SignedChains: func(result string) metrics.Counter {
-				return renewalChains.With(prom.LabelResult, result)
+				return renewalChains.With(prometheus.Labels{prom.LabelResult: result})
 			},
 			LastGeneratedCA: renewalGenerated,
 			ExpirationCA:    renewalExpiration,
 		},
+		CleanerMetrics: NewCleanerMetrics(auto),
+	}
+}
+
+// CleanerMetrics contains the metrics for the storage cleaners.
+type CleanerMetrics struct {
+	BeaconStorage   cleaner.Metrics
+	PathStorage     cleaner.Metrics
+	PathSegments    cleaner.Metrics
+	PathRevocations cleaner.Metrics
+	DRKeyService    drkey.ServiceCleanerMetrics
+}
+
+// NewCleanerMetrics returns the metrics for the storage cleaners.
+func NewCleanerMetrics(auto metrics.Factory) CleanerMetrics {
+	return CleanerMetrics{
+		BeaconStorage:   newCleanerMetric(auto, "control_beaconstorage"),
+		PathStorage:     newCleanerMetric(auto, "control_pathstorage"),
+		PathSegments:    newCleanerMetric(auto, "control_pathstorage_segments"),
+		PathRevocations: newCleanerMetric(auto, "control_pathstorage_revocation"),
+		DRKeyService: drkey.ServiceCleanerMetrics{
+			SecretValue: newCleanerMetric(auto, "drkey_serv_secret_store"),
+			Level1:      newCleanerMetric(auto, "drkey_serv_level1_store"),
+		},
+	}
+}
+
+func newCleanerMetric(auto metrics.Factory, namespace string) cleaner.Metrics {
+	resultsTotal := auto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "cleaner_results_total",
+			Help:      "Results of running the cleaner, either ok or err",
+		},
+		[]string{prom.LabelResult},
+	)
+	return cleaner.Metrics{
+		ErrorsTotal: resultsTotal.With(prometheus.Labels{prom.LabelResult: "err"}),
+		RunsTotal:   resultsTotal.With(prometheus.Labels{prom.LabelResult: "ok"}),
+		DeletedTotal: auto.NewCounter(
+			prometheus.CounterOpts{
+				Namespace: namespace,
+				Name:      "cleaner_deleted_total",
+				Help:      "Number of deleted entries total.",
+			},
+		),
 	}
 }
 
@@ -466,22 +511,18 @@ func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
 	}
 }
 
-func loaderMetrics() topology.LoaderMetrics {
-	updates := prom.NewCounterVec("", "",
-		"topology_updates_total",
-		"The total number of updates.",
-		[]string{prom.LabelResult},
+func loaderMetrics(auto metrics.Factory) topology.LoaderMetrics {
+	updates := auto.NewCounterVec(prometheus.CounterOpts{
+		Name: "topology_updates_total",
+		Help: "The total number of updates.",
+	}, []string{prom.LabelResult},
 	)
 	return topology.LoaderMetrics{
-		ValidationErrors: metrics.NewPromCounter(updates).With(prom.LabelResult, "err_validate"),
-		ReadErrors:       metrics.NewPromCounter(updates).With(prom.LabelResult, "err_read"),
-		LastUpdate: metrics.NewPromGauge(
-			prom.NewGaugeVec("", "",
-				"topology_last_update_time",
-				"Timestamp of the last successful update.",
-				[]string{},
-			),
-		),
-		Updates: metrics.NewPromCounter(updates).With(prom.LabelResult, prom.Success),
+		Errors: updates.With(prometheus.Labels{prom.LabelResult: "error"}),
+		LastUpdate: auto.NewGauge(prometheus.GaugeOpts{
+			Name: "topology_last_update_time",
+			Help: "Timestamp of the last successful update.",
+		}),
+		Updates: updates.With(prometheus.Labels{prom.LabelResult: prom.Success}),
 	}
 }

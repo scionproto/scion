@@ -29,7 +29,6 @@ import (
 	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/drkey"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
-	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -51,47 +50,10 @@ const (
 )
 
 // NewService returns a SCION Daemon API connection factory.
-func NewService(name string) Service {
+func NewService(name string, metrics Metrics) Service {
 	return Service{
 		Address: name,
-		Metrics: Metrics{
-			Connects: libmetrics.NewPromCounter(
-				prom.NewCounterVecWithLabels(
-					"lib_sciond", "conn", "connections_total",
-					"The amount of SCIOND connection attempts.", promLabels{},
-				),
-			),
-			PathsRequests: libmetrics.NewPromCounter(
-				prom.NewCounterVecWithLabels(
-					"lib_sciond", "path", "requests_total",
-					"The amount of Path requests sent.", promLabels{},
-				),
-			),
-			ASRequests: libmetrics.NewPromCounter(
-				prom.NewCounterVecWithLabels(
-					"lib_sciond", "as_info", "requests_total",
-					"The amount of AS info requests sent.", promLabels{},
-				),
-			),
-			InterfacesRequests: libmetrics.NewPromCounter(
-				prom.NewCounterVecWithLabels(
-					"lib_sciond", "if_info", "requests_total",
-					"The amount of IF info requests sent.", promLabels{},
-				),
-			),
-			ServicesRequests: libmetrics.NewPromCounter(
-				prom.NewCounterVecWithLabels(
-					"lib_sciond", "service_info", "requests_total",
-					"The amount of SVC info requests sent.", promLabels{},
-				),
-			),
-			InterfaceDownNotifications: libmetrics.NewPromCounter(
-				prom.NewCounterVecWithLabels(
-					"lib_sciond", "revocation", "requests_total",
-					"The amount of Revocation requests sent.", promLabels{},
-				),
-			),
-		},
+		Metrics: metrics,
 	}
 }
 

@@ -20,14 +20,13 @@ import (
 	"math/big"
 	"net"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -68,7 +67,7 @@ type Originator struct {
 	AllInterfaces         *ifstate.Interfaces
 	OriginationInterfaces func() []*ifstate.Interface
 
-	Originated metrics.Counter
+	Originated func(egressIntf uint16, result string) metrics.Counter
 
 	// Tick is mutable.
 	Tick Tick
@@ -225,20 +224,15 @@ func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {
 }
 
 func (o *beaconOriginator) incrementMetrics(labels originatorLabels) {
-	if o.Originator.Originated == nil {
+	if o.Originated == nil {
 		return
 	}
-	o.Originator.Originated.With(labels.Expand()...).Add(1)
+	metrics.CounterInc(o.Originated(o.intf.TopoInfo().ID, labels.Result))
 }
 
 type originatorLabels struct {
 	intf   *ifstate.Interface
 	Result string
-}
-
-func (l originatorLabels) Expand() []string {
-	return []string{"egress_interface", strconv.Itoa(int(l.intf.TopoInfo().ID)),
-		prom.LabelResult, l.Result}
 }
 
 func (l originatorLabels) WithResult(result string) originatorLabels {

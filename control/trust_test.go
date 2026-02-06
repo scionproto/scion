@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/storage/db"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 )
 
@@ -45,6 +46,7 @@ func TestNewSigner(t *testing.T) {
 		addr.MustParseIA("1-ff00:0:110"),
 		db,
 		filepath.Join(dir, "/ISD1/ASff00_0_110"),
+		trustmetrics.Metrics{},
 	)
 
 	_, err = signer.Sign(context.Background(), []byte("message"))

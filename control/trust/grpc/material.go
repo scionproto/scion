@@ -24,7 +24,7 @@ import (
 	trustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -41,7 +41,7 @@ type MaterialServer struct {
 
 	// Requests aggregates all the incoming requests received by the handler. If
 	// it is not initialized, nothing is reported.
-	Requests metrics.Counter
+	Requests func(client, reqType, result string) metrics.Counter
 }
 
 func (s MaterialServer) Chains(ctx context.Context,
@@ -112,7 +112,7 @@ func (s MaterialServer) TRC(ctx context.Context, req *cppb.TRCRequest) (*cppb.TR
 
 func (s MaterialServer) updateMetric(span opentracing.Span, l requestLabels, err error) {
 	if s.Requests != nil {
-		s.Requests.With(l.Expand()...).Add(1)
+		metrics.CounterInc(s.Requests(l.Client, l.ReqType, l.Result))
 	}
 	if span != nil {
 		tracing.ResultLabel(span, l.Result)

@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/ca/renewal"
 	"github.com/scionproto/scion/private/trust"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 // LoadTrustMaterial loads the trust material from disk. The logger must not be nil.
@@ -71,16 +72,18 @@ func NewTLSCertificateLoader(
 	extKeyUsage x509.ExtKeyUsage,
 	db trust.DB,
 	cfgDir string,
+	metrics trustmetrics.Metrics,
 ) cstrust.TLSCertificateLoader {
 	return cstrust.TLSCertificateLoader{
-		SignerGen: newCachingSignerGen(ia, extKeyUsage, db, cfgDir),
+		SignerGen: newCachingSignerGen(ia, extKeyUsage, db, cfgDir, metrics),
 	}
 }
 
 // NewSigner creates a renewing signer backed by a certificate chain.
-func NewSigner(ctx context.Context, ia addr.IA, db trust.DB, cfgDir string) cstrust.RenewingSigner {
+func NewSigner(ctx context.Context, ia addr.IA, db trust.DB, cfgDir string,
+	metrics trustmetrics.Metrics) cstrust.RenewingSigner {
 	signer := cstrust.RenewingSigner{
-		SignerGen: newCachingSignerGen(ia, x509.ExtKeyUsageAny, db, cfgDir),
+		SignerGen: newCachingSignerGen(ia, x509.ExtKeyUsageAny, db, cfgDir, metrics),
 	}
 	if _, err := signer.SignerGen.Generate(ctx); err != nil {
 		log.Debug("Initial signer generation failed", "err", err)
@@ -96,6 +99,7 @@ func newCachingSignerGen(
 	extKeyUsage x509.ExtKeyUsage,
 	db trust.DB,
 	cfgDir string,
+	metrics trustmetrics.Metrics,
 ) *cstrust.CachingSignerGen {
 	gen := trust.SignerGen{
 		IA: ia,
@@ -108,6 +112,7 @@ func newCachingSignerGen(
 			Dir: filepath.Join(cfgDir, "crypto/as"),
 		},
 		ExtKeyUsage: extKeyUsage,
+		Metrics:     metrics,
 	}
 	return &cstrust.CachingSignerGen{
 		SignerGen: gen,

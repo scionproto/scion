@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
 	"github.com/scionproto/scion/private/topology"
@@ -50,7 +50,7 @@ type Topology struct {
 
 	// Requests aggregates all the incoming requests received by the handler.
 	// If it is not initialized, nothing is reported.
-	Requests metrics.Counter
+	Requests func(reqType, result string) metrics.Counter
 }
 
 // Gateways discovers gateways in this topology.
@@ -125,7 +125,7 @@ func (t Topology) RequestsLabels() []string {
 
 func (t Topology) updateTelemetry(span opentracing.Span, l requestLabels, err error) {
 	if t.Requests != nil {
-		t.Requests.With(l.Expand()...).Add(1)
+		metrics.CounterInc(t.Requests(l.ReqType, l.Result))
 	}
 	if span != nil {
 		tracing.ResultLabel(span, l.Result)
