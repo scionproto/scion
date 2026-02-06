@@ -15,7 +15,9 @@
 # limitations under the License.
 
 from acceptance.common import base
+import glob
 import time
+import toml
 import yaml
 from plumbum import local
 
@@ -23,6 +25,14 @@ from plumbum import local
 class Test(base.TestTopogen):
     def setup_prepare(self):
         super().setup_prepare()
+
+        # Disable AF_XDP for routers - AF_XDP does not currently support STUN.
+        for br_config_path in glob.glob(str(self.artifacts / "gen/AS*/br*.toml")):
+            with open(br_config_path, "r") as f:
+                br_config = toml.load(f)
+            br_config.setdefault("router", {})["preferred_underlays"] = {"udpip": "inet"}
+            with open(br_config_path, "w") as f:
+                toml.dump(br_config, f)
 
         # Modify test topology configuration by adding a separate NAT'ed docker network
         # (192.168.123.0/24).
