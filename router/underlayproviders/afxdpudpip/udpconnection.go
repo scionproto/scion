@@ -45,6 +45,7 @@ type udpConnection struct {
 	seed         uint32
 	running      atomic.Bool
 	queueID      uint32
+	ifIndex      int // Kernel interface index for neighbor filtering.
 }
 
 // start puts the connection in the running state.
@@ -346,5 +347,6 @@ func newUdpConnection(
 		receiverDone: make(chan struct{}),
 		senderDone:   make(chan struct{}),
 		queueID:      queueID,
+		ifIndex:      intf.Index,
 	}, nil
 }

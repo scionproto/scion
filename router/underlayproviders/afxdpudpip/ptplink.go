@@ -355,6 +355,7 @@ func newPtpLinkExternal(
 		"extTo_"+remoteAddr.String(),
 		conn.localMAC,
 		localAddr.Addr(),
+		conn.ifIndex,
 		func(netip.Addr) {
 			l.header.Store(nil)
 			select {
@@ -397,6 +398,7 @@ func newPtpLinkSibling(
 		"sibTo_"+remoteAddr.String(),
 		conn.localMAC,
 		localAddr.Addr(),
+		conn.ifIndex,
 		func(netip.Addr) {
 			l.header.Store(nil)
 			select {

@@ -30,6 +30,7 @@ var zeroMacAddr = [6]byte{0, 0, 0, 0, 0, 0}
 type neighbor struct {
 	mac     *[6]byte
 	backlog chan *router.Packet
+	probing bool // True while a probe is in-flight; prevents probe storms.
 }
 
 // neighborCache manages IP to MAC address mappings.
@@ -45,6 +46,7 @@ type neighborCache struct {
 	onUpdate func(netip.Addr) // Called (outside lock) when a tracked neighbor's MAC changes.
 	done     chan struct{}
 	running  atomic.Bool
+	ifIndex  int  // Kernel interface index for filtering neighbor entries.
 	is4      bool
 	isLoop   bool // If true, the cache is just a stub.
 }
@@ -95,7 +97,11 @@ func (cache *neighborCache) probeNeighbor(remoteIP netip.Addr) {
 // queryKernelNeighbor looks up an IP address in the kernel's neighbor table.
 // Returns the MAC address if found and reachable, nil otherwise.
 func (cache *neighborCache) queryKernelNeighbor(ip netip.Addr) *[6]byte {
-	neighbors, err := netlink.NeighList(0, 0) // All interfaces, all families
+	family := unix.AF_INET6
+	if cache.is4 {
+		family = unix.AF_INET
+	}
+	neighbors, err := netlink.NeighList(cache.ifIndex, family)
 	if err != nil {
 		log.Debug("Failed to list neighbors", "err", err)
 		return nil
@@ -122,6 +128,7 @@ func (cache *neighborCache) queryKernelNeighbor(ip netip.Addr) *[6]byte {
 
 // get returns the MAC address for the given IP, or nil if not resolved.
 // Returns a backlog channel for queuing packets while resolution is pending.
+// Caller must hold cache.Lock.
 func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
 	if cache.isLoop {
 		return &zeroMacAddr, nil
@@ -129,13 +136,22 @@ func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
 
 	entry, exists := cache.mappings[ip]
 	if !exists {
-		// New destination (e.g. internalLink). Create entry and try kernel lookup.
 		entry = neighbor{
 			backlog: make(chan *router.Packet, neighborMaxBacklog),
 		}
-		entry.mac = cache.queryKernelNeighbor(ip)
 		cache.mappings[ip] = entry
-		if entry.mac == nil {
+	}
+
+	if entry.mac == nil {
+		// Covers both new entries and previously-failed resolutions
+		// (e.g. seekNeighbor at startup before the peer was reachable).
+		entry.mac = cache.queryKernelNeighbor(ip)
+		if entry.mac != nil {
+			entry.probing = false
+			cache.mappings[ip] = entry
+		} else if !entry.probing {
+			entry.probing = true
+			cache.mappings[ip] = entry
 			go cache.probeNeighbor(ip)
 		}
 	}
@@ -147,6 +163,8 @@ func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
 }
 
 // getBacklog returns the backlog channel for the given IP.
+// Returns nil if the IP is not tracked.
+// Caller must hold cache.Lock.
 func (cache *neighborCache) getBacklog(ip netip.Addr) chan *router.Packet {
 	if cache.isLoop {
 		return nil
@@ -169,6 +187,10 @@ func (cache *neighborCache) watchNeighborUpdates() {
 	}
 
 	for update := range ch {
+		if update.LinkIndex != cache.ifIndex {
+			continue
+		}
+
 		ip, ok := netip.AddrFromSlice(update.IP)
 		if !ok {
 			continue
@@ -189,15 +211,29 @@ func (cache *neighborCache) watchNeighborUpdates() {
 				mac := [6]byte(update.HardwareAddr)
 				if entry.mac == nil || *entry.mac != mac {
 					entry.mac = &mac
+					entry.probing = false
 					cache.mappings[ip] = entry
 					changed = true
 				}
+			} else if update.State&netlink.NUD_FAILED != 0 {
+				// Clear probing so the next get() can re-probe.
+				entry.probing = false
+				if entry.mac != nil {
+					entry.mac = nil
+					cache.mappings[ip] = entry
+					changed = true
+				} else {
+					cache.mappings[ip] = entry
+				}
 			}
 		case unix.RTM_DELNEIGH:
+			entry.probing = false
 			if entry.mac != nil {
 				entry.mac = nil
 				cache.mappings[ip] = entry
 				changed = true
+			} else {
+				cache.mappings[ip] = entry
 			}
 		}
 		cache.Unlock()
@@ -217,6 +253,7 @@ func (cache *neighborCache) start(pool router.PacketPool) {
 	if cache.isLoop {
 		return
 	}
+	cache.done = make(chan struct{})
 	go func() {
 		defer log.HandlePanic()
 		cache.watchNeighborUpdates()
@@ -237,6 +274,7 @@ func newNeighborCache(
 	name string,
 	localMAC net.HardwareAddr,
 	localIP netip.Addr,
+	ifIndex int,
 	onUpdate func(netip.Addr),
 ) *neighborCache {
 	return &neighborCache{
@@ -246,6 +284,7 @@ func newNeighborCache(
 		mappings: make(map[netip.Addr]neighbor),
 		onUpdate: onUpdate,
 		done:     make(chan struct{}),
+		ifIndex:  ifIndex,
 		is4:      localIP.Is4(),
 		isLoop:   ([6]byte(localMAC) == zeroMacAddr),
 	}

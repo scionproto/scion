@@ -380,6 +380,7 @@ func newInternalLink(
 		"internal",
 		conn.localMAC,
 		localAddr.Addr(),
+		conn.ifIndex,
 		func(ip netip.Addr) {
 			select {
 			case il.backlogCheck <- ip:
