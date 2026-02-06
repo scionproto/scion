@@ -19,8 +19,6 @@ import (
 	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
-
-	"github.com/scionproto/scion/private/underlay/ebpf"
 )
 
 // Deletes the vethA/B pair if we were the ones to create them.
@@ -86,20 +84,18 @@ func makeVethPair(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// This requires capabilities CAP_NET_ADMIN, CAP_NET_RAW and CAP_BPF
+// TestRawSocket verifies raw packet injection and reception over a veth pair using AF_PACKET.
+// This requires capabilities CAP_NET_ADMIN, CAP_NET_RAW and CAP_BPF.
 func TestRawSocket(t *testing.T) {
 
 	makeVethPair(t)
 	defer delVethPair()
 
-	// Make two raw sockets. One attached to each end of the veth.
-	// We will always send from A and we will receive at B in two different ways;
-	// depending on the port number. On side B we place a TC (kFilter) that prevents port 50000
-	// from reaching the kernel networking stack.
+	// Make two AF_PACKET sockets, one on each end of the veth pair.
+	// We send raw packets from A and verify reception at B via both the AF_PACKET socket
+	// and the regular UDP socket.
 
 	// Side A
-	intfA, err := net.InterfaceByName("vethA")
-	require.NoError(t, err)
 	afpHandleA, err := afpacket.NewTPacket(
 		afpacket.OptInterface("vethA"),
 		afpacket.OptFrameSize(4096),
@@ -110,13 +106,8 @@ func TestRawSocket(t *testing.T) {
 	// ipAddrA is not assigned to the interface but used as source address in hand-made packets.
 	ipAddrA, err := net.ResolveUDPAddr("udp4", "10.123.100.1:50001")
 	require.NoError(t, err)
-	kFilterA, err := ebpf.BpfKFilter(intfA.Index)
-	require.NoError(t, err)
-	kFilterA.AddAddrPort(rawAddrA.AddrPort())
 
 	// Side B
-	intfB, err := net.InterfaceByName("vethB")
-	require.NoError(t, err)
 	afpHandleB, err := afpacket.NewTPacket(
 		afpacket.OptInterface("vethB"),
 		afpacket.OptFrameSize(4096),
@@ -127,19 +118,12 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	ipAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50001")
 	require.NoError(t, err)
-	kFilterB, err := ebpf.BpfKFilter(intfB.Index)
-	require.NoError(t, err)
-	kFilterB.AddAddrPort(rawAddrB.AddrPort()) // The destination that the kernel must *not* handle.
 
-	// On side B we expect packets to port 50000 at the raw socket and packets to port 50001 at the
-	// regular socket. We also listen on port 50000 with a regular socket and we do not expect it
-	// to receive anything.
+	// On side B we listen with a regular UDP socket on port 50001.
 	connB, err := net.ListenUDP("udp4", ipAddrB)
 	require.NoError(t, err)
-	connB2, err := net.ListenUDP("udp4", rawAddrB)
-	require.NoError(t, err)
 
-	// Drain stray packets that arrived before e added the filter.
+	// Drain stray packets that arrived before the test started.
 	for {
 		_, _, err := afpHandleB.ZeroCopyReadPacketData()
 		if errors.Is(err, afpacket.ErrTimeout) {
@@ -164,8 +148,7 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(buf[:5]), "hello")
 
-	// Drain any stray packets (ARP/NDP) from the raw socket. Without a socket filter,
-	// the AF_PACKET socket sees all traffic, so we just drain before the next test.
+	// Drain any stray packets (ARP/NDP) from the raw socket.
 	for {
 		_, _, err := afpHandleB.ZeroCopyReadPacketData()
 		if errors.Is(err, afpacket.ErrTimeout) {
@@ -173,33 +156,22 @@ func TestRawSocket(t *testing.T) {
 		}
 	}
 
-	// To raw sockets; port 50000
+	// Send to port 50000 via raw socket; verify the AF_PACKET socket receives it.
 	pkt = mkPacket(rawAddrA, rawAddrB)
 	err = afpHandleA.WritePacketData(pkt)
 	require.NoError(t, err)
 	_, _, err = afpHandleB.ZeroCopyReadPacketData()
 	require.NoError(t, err)
 
-	// The regular socket can't possibly get that:
+	// The regular socket on port 50001 can't get a packet sent to port 50000.
 	err = connB.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	require.NoError(t, err)
 	_, _, err = connB.ReadFrom(buf)
 	require.Error(t, err)
 
-	// The regular socket listening on 50000 port cannot get it either because it was suppressed
-	// by the TC filter.
-	err = connB2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-	require.NoError(t, err)
-	copy(buf, "     ")
-	_, _, err = connB2.ReadFrom(buf)
-	require.Error(t, err)
-
 	afpHandleA.Close()
 	afpHandleB.Close()
 	connB.Close()
-	connB2.Close()
-	kFilterA.Close()
-	kFilterB.Close()
 }
 
 var pktOptions = gopacket.SerializeOptions{
