@@ -19,9 +19,9 @@ import (
 	"github.com/scionproto/scion/router/bfd"
 )
 
-// internalLink is a link without a fixed remote address.
+// linkInternal is a link without a fixed remote address.
 // The destination is determined per-packet via Resolve().
-type internalLink struct {
+type linkInternal struct {
 	procQs           []chan *router.Packet
 	pool             router.PacketPool
 	localAddr        *netip.AddrPort
@@ -61,7 +61,7 @@ func setRemoteAddr(p *router.Packet, ip []byte, port uint16) {
 
 // packHeader builds the header template during initialization.
 // The destination MAC, IP, and port are left as zeros and patched per-packet.
-func (l *internalLink) packHeader() {
+func (l *linkInternal) packHeader() {
 	srcIP := l.localAddr.Addr()
 	srcPort := l.localAddr.Port()
 
@@ -99,7 +99,7 @@ func (l *internalLink) packHeader() {
 // On success (true), the packet is ready to send and the caller owns it.
 // On failure (false), the packet has already been disposed of (backlogged or
 // returned to pool); the caller must not touch it.
-func (l *internalLink) finishPacket(p *router.Packet) bool {
+func (l *linkInternal) finishPacket(p *router.Packet) bool {
 	dstIPBytes, dstPort := getRemoteAddr(p, l.is4)
 	dstIP, ok := netip.AddrFromSlice(dstIPBytes)
 	if !ok {
@@ -187,7 +187,7 @@ func (l *internalLink) finishPacket(p *router.Packet) bool {
 	return true
 }
 
-func (l *internalLink) start(
+func (l *linkInternal) start(
 	ctx context.Context,
 	procQs []chan *router.Packet,
 	pool router.PacketPool,
@@ -219,7 +219,7 @@ func (l *internalLink) start(
 	}()
 }
 
-func (l *internalLink) stop() {
+func (l *linkInternal) stop() {
 	wasRunning := l.running.Swap(false)
 	if wasRunning {
 		select {
@@ -231,28 +231,28 @@ func (l *internalLink) stop() {
 	l.neighbors.stop()
 }
 
-func (l *internalLink) IfID() uint16 {
+func (l *linkInternal) IfID() uint16 {
 	return 0
 }
 
-func (l *internalLink) Metrics() *router.InterfaceMetrics {
+func (l *linkInternal) Metrics() *router.InterfaceMetrics {
 	return l.metrics
 }
 
-func (l *internalLink) Scope() router.LinkScope {
+func (l *linkInternal) Scope() router.LinkScope {
 	return router.Internal
 }
 
-func (l *internalLink) BFDSession() *bfd.Session {
+func (l *linkInternal) BFDSession() *bfd.Session {
 	return nil
 }
 
-func (l *internalLink) IsUp() bool {
+func (l *linkInternal) IsUp() bool {
 	return true
 }
 
 // Resolve updates the packet's underlay destination according to the given SCION address.
-func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) error {
+func (l *linkInternal) Resolve(p *router.Packet, dst addr.Host, port uint16) error {
 	var dstAddr netip.Addr
 	switch dst.Type() {
 	case addr.HostTypeSVC:
@@ -283,7 +283,7 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
-func (l *internalLink) sendBacklog(dstAddr netip.Addr) {
+func (l *linkInternal) sendBacklog(dstAddr netip.Addr) {
 	l.neighbors.lock.Lock()
 	backlog := l.neighbors.getBacklog(dstAddr)
 	l.neighbors.lock.Unlock()
@@ -319,7 +319,7 @@ func (l *internalLink) sendBacklog(dstAddr netip.Addr) {
 	}
 }
 
-func (l *internalLink) Send(p *router.Packet) bool {
+func (l *linkInternal) Send(p *router.Packet) bool {
 	if !l.finishPacket(p) {
 		return false
 	}
@@ -334,13 +334,13 @@ func (l *internalLink) Send(p *router.Packet) bool {
 	return true
 }
 
-func (l *internalLink) SendBlocking(p *router.Packet) {
+func (l *linkInternal) SendBlocking(p *router.Packet) {
 	if l.finishPacket(p) {
 		l.conn.queue <- p
 	}
 }
 
-func (l *internalLink) receive(p *router.Packet) {
+func (l *linkInternal) receive(p *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
@@ -369,8 +369,8 @@ func newInternalLink(
 	svc *router.Services[netip.AddrPort],
 	dispatchStart, dispatchEnd, dispatchRedirect uint16,
 	metrics *router.InterfaceMetrics,
-) *internalLink {
-	il := &internalLink{
+) *linkInternal {
+	il := &linkInternal{
 		localAddr:        localAddr,
 		conn:             conn,
 		metrics:          metrics,
@@ -403,6 +403,6 @@ func newInternalLink(
 	return il
 }
 
-func (l *internalLink) String() string {
+func (l *linkInternal) String() string {
 	return fmt.Sprintf("Internal: local: %s", l.localAddr)
 }

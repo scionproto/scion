@@ -20,9 +20,9 @@ import (
 	"github.com/scionproto/scion/router/bfd"
 )
 
-// ptpLink is a point-to-point link using AF_XDP for packet I/O.
+// linkPTP is a point-to-point link using AF_XDP for packet I/O.
 // All links share a single AF_XDP socket per interface queue.
-type ptpLink struct {
+type linkPTP struct {
 	procQs          []chan *router.Packet
 	pool            router.PacketPool
 	localAddr       *netip.AddrPort
@@ -46,7 +46,7 @@ type ptpLink struct {
 
 // buildHeader constructs the Ethernet+IP+UDP header template.
 // Must be called with the neighbor cache locked.
-func (l *ptpLink) buildHeader() chan *router.Packet {
+func (l *linkPTP) buildHeader() chan *router.Packet {
 	dstIP := l.remoteAddr.Addr()
 
 	dstMac, backlog := l.neighbors.get(dstIP)
@@ -100,7 +100,7 @@ func (l *ptpLink) buildHeader() chan *router.Packet {
 // On success (true), the packet is ready to send and the caller owns it.
 // On failure (false), the packet has already been disposed of (backlogged or
 // returned to pool); the caller must not touch it.
-func (l *ptpLink) finishPacket(p *router.Packet) bool {
+func (l *linkPTP) finishPacket(p *router.Packet) bool {
 	hdrp := l.header.Load()
 	if hdrp == nil {
 		// Try to build header
@@ -170,7 +170,7 @@ func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	return true
 }
 
-func (l *ptpLink) start(
+func (l *linkPTP) start(
 	ctx context.Context,
 	procQs []chan *router.Packet,
 	pool router.PacketPool,
@@ -211,7 +211,7 @@ func (l *ptpLink) start(
 	}()
 }
 
-func (l *ptpLink) stop() {
+func (l *linkPTP) stop() {
 	if l.bfdSession != nil {
 		l.bfdSession.Close()
 	}
@@ -226,32 +226,32 @@ func (l *ptpLink) stop() {
 	l.neighbors.stop()
 }
 
-func (l *ptpLink) IfID() uint16 {
+func (l *linkPTP) IfID() uint16 {
 	return l.ifID
 }
 
-func (l *ptpLink) Metrics() *router.InterfaceMetrics {
+func (l *linkPTP) Metrics() *router.InterfaceMetrics {
 	return l.metrics
 }
 
-func (l *ptpLink) Scope() router.LinkScope {
+func (l *linkPTP) Scope() router.LinkScope {
 	return l.scope
 }
 
-func (l *ptpLink) BFDSession() *bfd.Session {
+func (l *linkPTP) BFDSession() *bfd.Session {
 	return l.bfdSession
 }
 
-func (l *ptpLink) IsUp() bool {
+func (l *linkPTP) IsUp() bool {
 	return l.bfdSession == nil || l.bfdSession.IsUp()
 }
 
-func (l *ptpLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
+func (l *linkPTP) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 	log.Debug("Trying to resolve inbound address on non-internal link")
 	return errResolveOnNonInternalLink
 }
 
-func (l *ptpLink) sendBacklog() {
+func (l *linkPTP) sendBacklog() {
 	dstAddr := l.remoteAddr.Addr()
 	l.neighbors.lock.Lock()
 	backlog := l.neighbors.getBacklog(dstAddr)
@@ -288,7 +288,7 @@ func (l *ptpLink) sendBacklog() {
 	}
 }
 
-func (l *ptpLink) Send(p *router.Packet) bool {
+func (l *linkPTP) Send(p *router.Packet) bool {
 	if !l.finishPacket(p) {
 		return false
 	}
@@ -303,13 +303,13 @@ func (l *ptpLink) Send(p *router.Packet) bool {
 	return true
 }
 
-func (l *ptpLink) SendBlocking(p *router.Packet) {
+func (l *linkPTP) SendBlocking(p *router.Packet) {
 	if l.finishPacket(p) {
 		l.conn.queue <- p
 	}
 }
 
-func (l *ptpLink) receive(p *router.Packet) {
+func (l *linkPTP) receive(p *router.Packet) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(len(p.RawPacket))
 	metrics[sc].InputPacketsTotal.Inc()
@@ -339,8 +339,8 @@ func newPtpLinkExternal(
 	bfd *bfd.Session,
 	ifID uint16,
 	metrics *router.InterfaceMetrics,
-) *ptpLink {
-	l := &ptpLink{
+) *linkPTP {
+	l := &linkPTP{
 		localAddr:       localAddr,
 		remoteAddr:      remoteAddr,
 		conn:            conn,
@@ -382,8 +382,8 @@ func newPtpLinkSibling(
 	conn *udpConnection,
 	bfd *bfd.Session,
 	metrics *router.InterfaceMetrics,
-) *ptpLink {
-	l := &ptpLink{
+) *linkPTP {
+	l := &linkPTP{
 		localAddr:       localAddr,
 		remoteAddr:      remoteAddr,
 		conn:            conn,
@@ -419,7 +419,7 @@ func newPtpLinkSibling(
 	return l
 }
 
-func (l *ptpLink) String() string {
+func (l *linkPTP) String() string {
 	scope := "External"
 	if l.scope == router.Sibling {
 		scope = "Sibling"

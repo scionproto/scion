@@ -6,10 +6,10 @@ go_library(
     srcs = [
         "afxdpudpip.go",
         "headers.go",
-        "internal_link.go",
+        "link_internal.go",
+        "link_ptp.go",
         "neighbors.go",
         "options.go",
-        "ptp_link.go",
         "udp_connection.go",
     ],
     importpath = "github.com/scionproto/scion/router/underlayproviders/afxdpudpip",
