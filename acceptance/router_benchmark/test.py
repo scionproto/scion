@@ -339,8 +339,9 @@ class RouterBMTest(base.TestBase, RouterBM):
             peer_mac = mac_for_ip(req.peer_ip)
             mac = mac_for_ip(req.ip)
             if doit:
-                sudo("ip", "link", "add", host_intf, "type", "veth", "peer", "name", br_intf)
-                sudo("ip", "link", "set", host_intf, "mtu", "9000")
+                # Create veth pair with MTU set at creation (like router_multi)
+                sudo("ip", "link", "add", host_intf, "mtu", "3400",
+                     "type", "veth", "peer", "name", br_intf, "mtu", "3400")
                 sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure real addr not used
 
                 # Do not assign the host addresses but create one link-local addr.
@@ -350,14 +351,17 @@ class RouterBMTest(base.TestBase, RouterBM):
                      "dev", host_intf, "scope", "link")
 
                 sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
-                sudo("ethtool", "-K", br_intf, "rx", "off", "tx", "off")
-                sudo("ip", "link", "set", br_intf, "mtu", "9000")
+                # Bring host interface up BEFORE moving container interface to namespace
+                sudo("ip", "link", "set", host_intf, "up")
+
                 sudo("ip", "link", "set", br_intf, "address", mac)
 
                 # The network namespace
                 sudo("ip", "link", "set", br_intf, "netns", ns)
                 sudo("ip", "netns", "exec", ns,
                      "sysctl", "-qw", f"net.ipv6.conf.{br_intf}.disable_ipv6=1")
+                sudo("ip", "netns", "exec", ns,
+                     "ethtool", "-K", br_intf, "rx", "off", "tx", "off")
                 sudo("ip", "netns", "exec", ns,
                      "sysctl", "-qw", "net.ipv4.conf.all.rp_filter=0")
                 sudo("ip", "netns", "exec", ns,
@@ -371,8 +375,7 @@ class RouterBMTest(base.TestBase, RouterBM):
                  ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False).broadcast_address,
                  "dev", br_intf)
 
-            # Fit for duty.
-            sudo("ip", "link", "set", host_intf, "up")
+            # Bring container interface up after all configuration
             sudo("ip", "netns", "exec", ns, "ip", "link", "set", br_intf, "up")
 
         # Ship it.
@@ -474,6 +477,8 @@ class RouterBMTest(base.TestBase, RouterBM):
                "--cap-add=NET_RAW",
                "--cap-add=NET_ADMIN",
                "--cap-add=BPF",
+               "--cap-add=SYS_ADMIN",
+               "--cap-add=IPC_LOCK",
                "-v", f"{self.artifacts}/conf:/etc/scion",
                "-d",
                "-e", f"GOMAXPROCS={len(self.router_cpus)}",
