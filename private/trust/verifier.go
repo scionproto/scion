@@ -26,15 +26,14 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/addr"
-	libmetrics "github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/prom"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
-	"github.com/scionproto/scion/private/trust/internal/metrics"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 const defaultCacheExpiration = time.Minute
@@ -52,11 +51,13 @@ type Verifier struct {
 	BoundValidity cppki.Validity
 	// Engine provides verified certificate chains.
 	Engine Provider
+	// Vertifications counts the number of signature verifications by result.
+	Verifications func(result string) metrics.Counter
 
 	// Cache keeps track of recently used certificates. If nil no cache is used.
 	// This API is experimental.
 	Cache              *cache.Cache
-	CacheHits          libmetrics.Counter
+	CacheHits          func(typ, result string) metrics.Counter
 	MaxCacheExpiration time.Duration
 }
 
@@ -64,33 +65,37 @@ type Verifier struct {
 func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	associatedData ...[]byte) (*signed.Message, error) {
 
-	l := metrics.VerifierLabels{}
+	record := func(result string) {
+		if v.Verifications != nil {
+			metrics.CounterInc(v.Verifications(result))
+		}
+	}
 	hdr, err := signed.ExtractUnverifiedHeader(signedMsg)
 	if err != nil {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		record(trustmetrics.ErrValidate)
 		return nil, err
 	}
 
 	var keyID cppb.VerificationKeyID
 	if err := proto.Unmarshal(hdr.VerificationKeyID, &keyID); err != nil {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		record(trustmetrics.ErrValidate)
 		return nil, serrors.Wrap("parsing verification key ID", err)
 	}
 	if len(keyID.SubjectKeyId) == 0 {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		record(trustmetrics.ErrValidate)
 		return nil, serrors.Wrap("subject key ID must be set", err)
 	}
 	ia := addr.IA(keyID.IsdAs)
 	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(ia) {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		record(trustmetrics.ErrValidate)
 		return nil, serrors.New("does not match bound ISD-AS", "expected", v.BoundIA, "actual", ia)
 	}
 	if ia.IsWildcard() {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		record(trustmetrics.ErrValidate)
 		return nil, serrors.New("ISD-AS must not contain wildcard", "isd_as", ia)
 	}
 	if v.Engine == nil {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
+		record(trustmetrics.ErrInternal)
 		return nil, serrors.New("nil engine that provides cert chains")
 	}
 	id := cppki.TRCID{ISD: ia.ISD(),
@@ -98,7 +103,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		Serial: scrypto.Version(keyID.TrcSerial), // nolint - name from published protobuf
 	}
 	if err := v.notifyTRC(ctx, id); err != nil {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
+		record(trustmetrics.ErrInternal)
 		return nil, serrors.Wrap("reporting TRC", err, "id", id)
 	}
 	query := ChainQuery{
@@ -108,7 +113,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	}
 	chains, err := v.getChains(ctx, query)
 	if err != nil {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
+		record(trustmetrics.ErrInternal)
 		return nil, serrors.Wrap("getting chains", err,
 			"query.isd_as", query.IA,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
@@ -118,11 +123,11 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	for _, c := range chains {
 		signedMsg, err := signed.Verify(signedMsg, c[0].PublicKey, associatedData...)
 		if err == nil {
-			metrics.Verifier.Verify(l.WithResult(metrics.Success)).Inc()
+			record(trustmetrics.Success)
 			return signedMsg, nil
 		}
 	}
-	metrics.Verifier.Verify(l.WithResult(metrics.ErrNotFound)).Inc()
+	record(trustmetrics.ErrNotFound)
 	return nil, serrors.New("no chain in database can verify signature",
 		"query.isd_as", query.IA,
 		"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
@@ -171,10 +176,9 @@ func (v *Verifier) cacheGet(key string, reqType string) (any, bool) {
 	if !ok {
 		resultValue = "miss"
 	}
-	libmetrics.CounterInc(libmetrics.CounterWith(v.CacheHits,
-		"type", reqType,
-		prom.LabelResult, resultValue,
-	))
+	if v.CacheHits != nil {
+		metrics.CounterInc(v.CacheHits(reqType, resultValue))
+	}
 
 	return result, ok
 }

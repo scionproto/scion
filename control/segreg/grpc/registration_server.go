@@ -26,7 +26,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -43,9 +43,9 @@ type RegistrationServer struct {
 	LocalIA    addr.IA
 	SegHandler seghandler.Handler
 
-	// Requests aggregates all the incoming registration requests. If it is not
+	// Registrations aggregates all the incoming registration requests. If it is not
 	// initialized, nothing is reported.
-	Registrations metrics.Counter
+	Registrations func(src, segType, result string) metrics.Counter
 }
 
 func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
@@ -131,7 +131,7 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 
 func (s *RegistrationServer) failMetric(span opentracing.Span, l requestLabels, err error) {
 	if s.Registrations != nil {
-		s.Registrations.With(l.Expand()...).Add(1)
+		metrics.CounterInc(s.Registrations(l.Source, l.Type, l.Result))
 	}
 	if span != nil {
 		tracing.ResultLabel(span, l.Result)
@@ -143,10 +143,14 @@ func (s *RegistrationServer) successMetric(span opentracing.Span, labels request
 	stats seghandler.Stats) {
 
 	if s.Registrations != nil {
-		s.Registrations.With(labels.WithResult("ok_new").Expand()...).Add(
-			float64(stats.SegsInserted()))
-		s.Registrations.With(labels.WithResult("ok_updated").Expand()...).Add(
-			float64(stats.SegsUpdated()))
+		okNew := labels.WithResult("ok_new")
+		metrics.CounterAdd(s.Registrations(okNew.Source, okNew.Type, okNew.Result),
+			float64(stats.SegsInserted()),
+		)
+		okUpdated := labels.WithResult("ok_updated")
+		metrics.CounterAdd(s.Registrations(okUpdated.Source, okUpdated.Type, okUpdated.Result),
+			float64(stats.SegsUpdated()),
+		)
 	}
 	if span != nil {
 		tracing.ResultLabel(span, prom.Success)
@@ -159,14 +163,6 @@ type requestLabels struct {
 	Source string
 	Type   string
 	Result string
-}
-
-func (l requestLabels) Expand() []string {
-	return []string{
-		"src", l.Source,
-		"seg_type", l.Type,
-		prom.LabelResult, l.Result,
-	}
 }
 
 func (l requestLabels) WithResult(result string) requestLabels {
