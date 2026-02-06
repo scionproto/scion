@@ -17,7 +17,8 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
-// addrPort is like netip.AddrPort but with mutable (for us) fields. This saves an address copy.
+// addrPort is like netip.AddrPort but with mutable (for us) fields.
+// This saves an address copy.
 type addrPort struct {
 	ip   netip.Addr
 	port uint16
@@ -38,7 +39,9 @@ type udpConnection struct {
 	name         string                // For logs.
 	ptpLinks     map[fourTuple]udpLink // Link map for specific remote addresses.
 	intLinks     map[addrPort]udpLink  // Link map for unknown remote addresses.
-	queue        chan *router.Packet   // Outgoing packet queue (packets with headers prepended)
+
+	// queue is the outgoing packet queue (packets with headers prepended)
+	queue        chan *router.Packet
 	metrics      *router.InterfaceMetrics
 	receiverDone chan struct{}
 	senderDone   chan struct{}

@@ -136,7 +136,10 @@ func (l *linkPTP) finishPacket(p *router.Packet) bool {
 		binary.BigEndian.PutUint16(p.RawPacket[ethLen+2:], uint16(ipTotalLen))
 
 		// Fix UDP length
-		binary.BigEndian.PutUint16(p.RawPacket[ethLen+ipv4Len+4:], uint16(udpLen+payloadLen))
+		binary.BigEndian.PutUint16(
+			p.RawPacket[ethLen+ipv4Len+4:],
+			uint16(udpLen+payloadLen),
+		)
 
 		// Recompute IPv4 header checksum
 		p.RawPacket[ethLen+10] = 0
@@ -205,8 +208,11 @@ func (l *linkPTP) start(
 	}
 	go func() {
 		defer log.HandlePanic()
-		if err := l.bfdSession.Run(ctx); err != nil && !errors.Is(err, bfd.ErrAlreadyRunning) {
-			log.Error("BFD session failed to start", "remote address", l.remoteAddr, "err", err)
+		if err := l.bfdSession.Run(ctx); err != nil &&
+			!errors.Is(err, bfd.ErrAlreadyRunning) {
+			log.Error("BFD session failed to start",
+				"remote address", l.remoteAddr,
+				"err", err)
 		}
 	}()
 }

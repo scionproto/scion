@@ -11,14 +11,14 @@ import "encoding/binary"
 // buildIPv4Header writes a 20-byte IPv4 header (no options) into buf.
 // totalLen is the IPv4 total length (header + payload).
 func buildIPv4Header(buf []byte, srcIP, dstIP [4]byte, totalLen int) {
-	buf[0] = 0x45                                            // Version (4) + IHL (5)
-	buf[1] = 0                                               // DSCP + ECN
-	binary.BigEndian.PutUint16(buf[2:4], uint16(totalLen))   // Total length
-	binary.BigEndian.PutUint16(buf[4:6], 0)                  // Identification
-	binary.BigEndian.PutUint16(buf[6:8], 0x4000)             // Flags (DF) + Fragment offset
-	buf[8] = 64                                              // TTL
-	buf[9] = 17                                              // Protocol (UDP)
-	buf[10] = 0                                              // Checksum (computed below)
+	buf[0] = 0x45                                          // Version (4) + IHL (5)
+	buf[1] = 0                                             // DSCP + ECN
+	binary.BigEndian.PutUint16(buf[2:4], uint16(totalLen)) // Total length
+	binary.BigEndian.PutUint16(buf[4:6], 0)                // Identification
+	binary.BigEndian.PutUint16(buf[6:8], 0x4000)           // Flags (DF) + Fragment offset
+	buf[8] = 64                                            // TTL
+	buf[9] = 17                                            // Protocol (UDP)
+	buf[10] = 0                                            // Checksum (computed below)
 	buf[11] = 0
 	copy(buf[12:16], srcIP[:])
 	copy(buf[16:20], dstIP[:])

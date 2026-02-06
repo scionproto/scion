@@ -147,7 +147,9 @@ func (l *linkInternal) finishPacket(p *router.Packet) bool {
 		binary.BigEndian.PutUint16(p.RawPacket[ethLen+ipv4Len+2:], dstPort)
 
 		// Fix UDP length
-		binary.BigEndian.PutUint16(p.RawPacket[ethLen+ipv4Len+4:], uint16(udpLen+payloadLen))
+		binary.BigEndian.PutUint16(
+			p.RawPacket[ethLen+ipv4Len+4:], uint16(udpLen+payloadLen),
+		)
 
 		// Recompute IPv4 header checksum
 		p.RawPacket[ethLen+10] = 0

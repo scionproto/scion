@@ -41,10 +41,12 @@ const (
 )
 
 var (
-	errResolveOnNonInternalLink = errors.New("unsupported address resolution on link not internal")
-	errInvalidServiceAddress    = errors.New("invalid service address")
-	errShortPacket              = errors.New("packet is too short")
-	errDuplicateRemote          = errors.New("duplicate remote address")
+	errResolveOnNonInternalLink = errors.New(
+		"unsupported address resolution on link not internal",
+	)
+	errInvalidServiceAddress = errors.New("invalid service address")
+	errShortPacket           = errors.New("packet is too short")
+	errDuplicateRemote       = errors.New("duplicate remote address")
 )
 
 // connectionKey uniquely identifies an AF_XDP connection by interface index and queue ID.
@@ -53,10 +55,14 @@ type connectionKey struct {
 	queueID uint32
 }
 
-// ConnOpener is an interface to enable unit testing of this specific underlay implementation.
+// ConnOpener is an interface to enable unit testing of
+// this specific underlay implementation.
 type ConnOpener interface {
 	// Open creates an AF_XDP socket on the given interface and queue.
-	Open(ifIndex int, queueID uint32, xdpInterface *afxdp.Interface) (*afxdp.Socket, error)
+	Open(
+		ifIndex int, queueID uint32,
+		xdpInterface *afxdp.Interface,
+	) (*afxdp.Socket, error)
 }
 
 // udpOpener is the default ConnOpener: opens an AF_XDP socket.
@@ -90,14 +96,17 @@ func (uo udpOpener) Open(
 	return socket, nil
 }
 
-// underlay implements router.Underlay using AF_XDP sockets for high-performance packet I/O.
-// ARP/NDP is handled by the kernel via XDP_PASS in the sockfilter BPF program.
+// underlay implements router.Underlay in AF_XDP sockets for high-performance packet I/O.
+// ARP/NDP is handled by the kernel via XDP_PASS in the sockfilter eBPF program.
 type underlay struct {
-	mu                sync.Mutex // Prevents race between adding connections and Start/Stop.
-	batchSize         int
-	allLinks          map[netip.AddrPort]udpLink
-	allConnections    map[connectionKey]*udpConnection // One per (interface, queue) pair.
-	connOpener        ConnOpener                       // udpOpener{}, except for unit tests
+	mu        sync.Mutex // Prevents race between adding connections and Start/Stop.
+	batchSize int
+	allLinks  map[netip.AddrPort]udpLink
+
+	// allConnections maps one per (interface, queue) pair.
+	allConnections map[connectionKey]*udpConnection
+	// connOpener is udpOpener{}, except for unit tests
+	connOpener        ConnOpener
 	svc               *router.Services[netip.AddrPort]
 	receiveBufferSize int
 	sendBufferSize    int
@@ -144,8 +153,8 @@ func (underlayProvider) New(
 	}
 }
 
-// SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
-// panic will ensue. Only for use in unit tests.
+// SetConnOpener installs the given opener. opener must be an implementation of
+// ConnOpener or panic will ensue. Only for use in unit tests.
 func (u *underlay) SetConnOpener(opener any) {
 	u.connOpener = opener.(ConnOpener)
 }
@@ -248,8 +257,8 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	return s % uint32(numProcRoutines), nil
 }
 
-// getUdpConnection returns the appropriate udpConnection; creating it if it doesn't exist yet.
-// The queueID specifies which NIC queue to bind the AF_XDP socket to.
+// getUdpConnection returns the appropriate udpConnection; creating it if it doesn't
+// exist yet. The queueID specifies which NIC queue to bind the AF_XDP socket to.
 func (u *underlay) getUdpConnection(
 	qSize int, local *netip.AddrPort, queueID uint32,
 	metrics *router.InterfaceMetrics,
@@ -272,9 +281,13 @@ func (u *underlay) getUdpConnection(
 						key := connectionKey{ifIndex: intf.Index, queueID: queueID}
 						c := u.allConnections[key]
 						if c == nil {
-							log.Debug("New AF_XDP connection created", "addr", localAddrStr,
-								"interface", intf.Name, "queue", queueID)
-							c, err = newUdpConnection(intf, queueID, qSize, u.connOpener, metrics)
+							log.Debug("New AF_XDP connection created",
+								"addr", localAddrStr,
+								"interface", intf.Name,
+								"queue", queueID)
+							c, err = newUdpConnection(
+								intf, queueID, qSize, u.connOpener, metrics,
+							)
 							if err != nil {
 								return nil, err
 							}
@@ -389,7 +402,8 @@ func (u *underlay) NewInternalLink(
 	}
 
 	il := newInternalLink(
-		&localAddr, c, u.svc, u.dispatchStart, u.dispatchEnd, u.dispatchRedirect, metrics)
+		&localAddr, c, u.svc, u.dispatchStart, u.dispatchEnd, u.dispatchRedirect, metrics,
+	)
 	u.allLinks[netip.AddrPort{}] = il
 	return il, nil
 }
