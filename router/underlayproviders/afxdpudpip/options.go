@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -24,6 +25,9 @@ func parseOptions(options string) (queueID uint32, err error) {
 					return 0, serrors.Wrap("invalid queue option", err, "value", value)
 				}
 				queueID = uint32(v)
+			default:
+				log.Info("Ignoring unknown AF_XDP underlay option",
+					"key", key, "value", value)
 			}
 		}
 	}
