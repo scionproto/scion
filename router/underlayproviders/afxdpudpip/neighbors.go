@@ -19,10 +19,9 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
-// Neighbor cache parameters.
-const (
-	neighborMaxBacklog = 3 // Number of packets pending resolution.
-)
+// NeighborCacheMaxBacklog is the maximum number of packets that can be queued
+// while waiting for ARP/NDP resolution for a given neighbor.
+var NeighborCacheMaxBacklog = 3
 
 var zeroMacAddr = [6]byte{0, 0, 0, 0, 0, 0}
 
@@ -37,7 +36,8 @@ type neighbor struct {
 // It queries the kernel's neighbor table on first use and subscribes to
 // netlink notifications (RTM_NEWNEIGH / RTM_DELNEIGH) for subsequent updates.
 type neighborCache struct {
-	sync.Mutex
+	lock sync.Mutex
+
 	name     string
 	localMAC net.HardwareAddr
 	localIP  netip.Addr
@@ -46,7 +46,7 @@ type neighborCache struct {
 	onUpdate func(netip.Addr) // Called (outside lock) when a tracked neighbor's MAC changes.
 	done     chan struct{}
 	running  atomic.Bool
-	ifIndex  int  // Kernel interface index for filtering neighbor entries.
+	ifIndex  int // Kernel interface index for filtering neighbor entries.
 	is4      bool
 	isLoop   bool // If true, the cache is just a stub.
 }
@@ -59,12 +59,12 @@ func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
 	if cache.isLoop {
 		return
 	}
-	cache.Lock()
+	cache.lock.Lock()
 
 	entry, exists := cache.mappings[*remoteIP]
 	if !exists {
 		entry = neighbor{
-			backlog: make(chan *router.Packet, neighborMaxBacklog),
+			backlog: make(chan *router.Packet, NeighborCacheMaxBacklog),
 		}
 	}
 	if entry.mac == nil {
@@ -72,7 +72,7 @@ func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
 	}
 	cache.mappings[*remoteIP] = entry
 	needsProbe := entry.mac == nil
-	cache.Unlock()
+	cache.lock.Unlock()
 
 	if needsProbe {
 		cache.probeNeighbor(*remoteIP)
@@ -128,7 +128,7 @@ func (cache *neighborCache) queryKernelNeighbor(ip netip.Addr) *[6]byte {
 
 // get returns the MAC address for the given IP, or nil if not resolved.
 // Returns a backlog channel for queuing packets while resolution is pending.
-// Caller must hold cache.Lock.
+// Caller must hold cache.lock.
 func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
 	if cache.isLoop {
 		return &zeroMacAddr, nil
@@ -137,7 +137,7 @@ func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
 	entry, exists := cache.mappings[ip]
 	if !exists {
 		entry = neighbor{
-			backlog: make(chan *router.Packet, neighborMaxBacklog),
+			backlog: make(chan *router.Packet, NeighborCacheMaxBacklog),
 		}
 		cache.mappings[ip] = entry
 	}
@@ -164,7 +164,7 @@ func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
 
 // getBacklog returns the backlog channel for the given IP.
 // Returns nil if the IP is not tracked.
-// Caller must hold cache.Lock.
+// Caller must hold cache.lock.
 func (cache *neighborCache) getBacklog(ip netip.Addr) chan *router.Packet {
 	if cache.isLoop {
 		return nil
@@ -196,10 +196,10 @@ func (cache *neighborCache) watchNeighborUpdates() {
 			continue
 		}
 
-		cache.Lock()
+		cache.lock.Lock()
 		entry, tracked := cache.mappings[ip]
 		if !tracked {
-			cache.Unlock()
+			cache.lock.Unlock()
 			continue
 		}
 
@@ -236,7 +236,7 @@ func (cache *neighborCache) watchNeighborUpdates() {
 				cache.mappings[ip] = entry
 			}
 		}
-		cache.Unlock()
+		cache.lock.Unlock()
 
 		if changed && cache.onUpdate != nil {
 			cache.onUpdate(ip)

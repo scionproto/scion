@@ -104,9 +104,9 @@ func (l *internalLink) finishPacket(p *router.Packet) bool {
 	}
 
 	// Resolve destination MAC
-	l.neighbors.Lock()
+	l.neighbors.lock.Lock()
 	dstMac, backlog := l.neighbors.get(dstIP)
-	l.neighbors.Unlock()
+	l.neighbors.lock.Unlock()
 
 	if dstMac == nil {
 		select {
@@ -277,9 +277,9 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 }
 
 func (l *internalLink) sendBacklog(dstAddr netip.Addr) {
-	l.neighbors.Lock()
+	l.neighbors.lock.Lock()
 	backlog := l.neighbors.getBacklog(dstAddr)
-	l.neighbors.Unlock()
+	l.neighbors.lock.Unlock()
 
 	if backlog == nil {
 		return

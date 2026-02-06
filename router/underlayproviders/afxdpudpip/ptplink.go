@@ -102,10 +102,10 @@ func (l *ptpLink) finishPacket(p *router.Packet) bool {
 	hdrp := l.header.Load()
 	if hdrp == nil {
 		// Try to build header
-		l.neighbors.Lock()
+		l.neighbors.lock.Lock()
 		backlog := l.buildHeader()
 		hdrp = l.header.Load()
-		l.neighbors.Unlock()
+		l.neighbors.lock.Unlock()
 
 		if hdrp == nil {
 			if backlog != nil {
@@ -251,9 +251,9 @@ func (l *ptpLink) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 
 func (l *ptpLink) sendBacklog() {
 	dstAddr := l.remoteAddr.Addr()
-	l.neighbors.Lock()
+	l.neighbors.lock.Lock()
 	backlog := l.neighbors.getBacklog(dstAddr)
-	l.neighbors.Unlock()
+	l.neighbors.lock.Unlock()
 
 	if backlog == nil {
 		return
