@@ -23,7 +23,10 @@ import (
 // while waiting for ARP/NDP resolution for a given neighbor.
 var NeighborCacheMaxBacklog = 3
 
-var zeroMacAddr = [6]byte{0, 0, 0, 0, 0, 0}
+var (
+	zeroMacAddr = [6]byte{0, 0, 0, 0, 0, 0}
+	probeBuf    = []byte{0}
+)
 
 // neighbor represents one neighbor entry.
 type neighbor struct {
@@ -87,10 +90,13 @@ func (cache *neighborCache) probeNeighbor(remoteIP netip.Addr) {
 	raddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(remoteIP, 9))
 	conn, err := net.DialUDP("udp", laddr, raddr)
 	if err != nil {
-		log.Debug("Failed to probe neighbor", "cache", cache.name, "remote", remoteIP, "err", err)
+		log.Debug("Failed to probe neighbor",
+			"cache", cache.name, "remote", remoteIP, "err", err)
 		return
 	}
-	conn.Write([]byte{0})
+	// The write forces the kernel to perform ARP/NDP resolution for remoteIP.
+	// The payload is irrelevant; the side effect is what matters.
+	conn.Write(probeBuf)
 	conn.Close()
 }
 
