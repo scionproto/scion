@@ -98,7 +98,9 @@ func NewMetrics(opts ...metrics.Option) Metrics {
 		Interfaces: newRequestMetric(auto, "interfaces", "interfaces"),
 		Paths: PathRequestMetrics{
 			Requests: func(result string, dst addr.ISD) metrics.Counter {
-				return pathReq.With(prometheus.Labels{prom.LabelResult: result, prom.LabelDst: dst.String()})
+				return pathReq.With(
+					prometheus.Labels{prom.LabelResult: result, prom.LabelDst: dst.String()},
+				)
 			},
 			Latency: func(result string) metrics.Histogram {
 				return pathLatency.With(prometheus.Labels{prom.LabelResult: result})

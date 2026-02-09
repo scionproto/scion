@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
-	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
@@ -56,12 +55,6 @@ func NewService(name string, metrics Metrics) Service {
 		Metrics: metrics,
 	}
 }
-
-// promLabels implements prom.Labels for result label.
-type promLabels struct{}
-
-func (promLabels) Labels() []string { return []string{prom.LabelResult} }
-func (promLabels) Values() []string { return []string{""} }
 
 // Service exposes the API to connect to a SCION daemon service.
 type Service struct {

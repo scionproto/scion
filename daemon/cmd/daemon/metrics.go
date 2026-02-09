@@ -16,6 +16,7 @@ package main
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/private/drkey"
 	"github.com/scionproto/scion/private/storage/cleaner"

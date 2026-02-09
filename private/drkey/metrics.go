@@ -18,7 +18,7 @@ import "github.com/scionproto/scion/private/storage/cleaner"
 
 // ClientCleanerMetrics contains the metrics for the DRKey client storage cleaners.
 type ClientCleanerMetrics struct {
-	ASHost  cleaner.Metrics
-	HostAS  cleaner.Metrics
+	ASHost   cleaner.Metrics
+	HostAS   cleaner.Metrics
 	HostHost cleaner.Metrics
 }

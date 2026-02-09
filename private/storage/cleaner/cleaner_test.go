@@ -25,6 +25,6 @@ import (
 // initialized.
 func TestDoubleNew(t *testing.T) {
 	dummy := func(context.Context) (int, error) { return 0, nil }
-		cleaner.New(dummy, "same", cleaner.Metrics{})
-		cleaner.New(dummy, "same", cleaner.Metrics{})
+	cleaner.New(dummy, "same", cleaner.Metrics{})
+	cleaner.New(dummy, "same", cleaner.Metrics{})
 }

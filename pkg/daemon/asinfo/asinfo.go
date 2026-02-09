@@ -18,6 +18,7 @@ import (
 	"net"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"

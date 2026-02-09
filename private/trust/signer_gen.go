@@ -163,7 +163,7 @@ func (s *SignerGen) bestForKey(
 			NotBefore: chain[0].NotBefore,
 			NotAfter:  chain[0].NotAfter,
 		},
-		InGrace: inGrace,
+		InGrace:    inGrace,
 		Signatures: s.Metrics.SignerSignatures,
 	}, nil
 }

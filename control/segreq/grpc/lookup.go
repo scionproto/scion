@@ -92,7 +92,9 @@ func (s LookupServer) Segments(ctx context.Context,
 	logger.Debug("Replied with segments", "count", len(segs))
 	s.updateMetric(span, labels.WithResult(prom.Success), nil)
 	if s.SegmentsSent != nil {
-		metrics.CounterAdd(s.SegmentsSent(labels.Desc.SegType, labels.Desc.DstISD), float64(len(segs)))
+		metrics.CounterAdd(
+			s.SegmentsSent(labels.Desc.SegType, labels.Desc.DstISD), float64(len(segs)),
+		)
 	}
 	return &cppb.SegmentsResponse{
 		Segments: m,

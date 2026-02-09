@@ -103,6 +103,7 @@ import (
 	"github.com/scionproto/scion/private/mgmtapi/jwtauth"
 	segapi "github.com/scionproto/scion/private/mgmtapi/segments/api"
 	"github.com/scionproto/scion/private/periodic"
+	"github.com/scionproto/scion/private/segment/segfetcher"
 	segfetcherconnect "github.com/scionproto/scion/private/segment/segfetcher/connect"
 	segfetchergrpc "github.com/scionproto/scion/private/segment/segfetcher/grpc"
 	segfetcherhappy "github.com/scionproto/scion/private/segment/segfetcher/happy"
@@ -381,6 +382,7 @@ func realMain(ctx context.Context) error {
 		},
 		Inspector: inspector,
 		Verifier:  verifier,
+		Metrics:   segfetcher.NewMetrics(),
 	}
 	provider.Router = trust.AuthRouter{
 		ISD:    topo.IA().ISD(),
@@ -545,15 +547,21 @@ func realMain(ctx context.Context) error {
 			IA:        topo.IA(),
 			CMSSigner: signer,
 			Metrics: renewalgrpc.RenewalServerMetrics{
-				Success:       metrics.RenewalServerRequestsTotal.With(prometheus.Labels{prom.LabelResult: prom.Success}),
-				BackendErrors: metrics.RenewalServerRequestsTotal.With(prometheus.Labels{prom.LabelResult: prom.StatusErr}),
+				Success: metrics.RenewalServerRequestsTotal.With(
+					prometheus.Labels{prom.LabelResult: prom.Success},
+				),
+				BackendErrors: metrics.RenewalServerRequestsTotal.With(
+					prometheus.Labels{prom.LabelResult: prom.StatusErr},
+				),
 			},
 		}
 
 		switch globalCfg.CA.Mode {
 		case config.InProcess:
 			regHandlers.With(prometheus.Labels{"type": "in-process"}).Set(1)
-			cmsCtr := metrics.RenewalHandledRequestsTotal.MustCurryWith(prometheus.Labels{"type": "in-process"})
+			cmsCtr := metrics.RenewalHandledRequestsTotal.MustCurryWith(
+				prometheus.Labels{"type": "in-process"},
+			)
 			chainBuilder = cs.NewChainBuilder(
 				cs.ChainBuilderConfig{
 					IA:                   topo.IA(),
@@ -574,15 +582,21 @@ func realMain(ctx context.Context) error {
 				Metrics: renewalgrpc.CMSHandlerMetrics{
 					Success:       cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.Success}),
 					DatabaseError: cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrDB}),
-					InternalError: cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrInternal}),
-					NotFoundError: cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrNotFound}),
-					ParseError:    cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrParse}),
-					VerifyError:   cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrVerify}),
+					InternalError: cmsCtr.With(
+						prometheus.Labels{prom.LabelResult: prom.ErrInternal},
+					),
+					NotFoundError: cmsCtr.With(
+						prometheus.Labels{prom.LabelResult: prom.ErrNotFound},
+					),
+					ParseError:  cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrParse}),
+					VerifyError: cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrVerify}),
 				},
 			}
 		case config.Delegating:
 			regHandlers.With(prometheus.Labels{"type": "delegating"}).Set(1)
-			delCtr := metrics.RenewalHandledRequestsTotal.MustCurryWith(prometheus.Labels{"type": "delegating"})
+			delCtr := metrics.RenewalHandledRequestsTotal.MustCurryWith(
+				prometheus.Labels{"type": "delegating"},
+			)
 			sharedSecret := caconfig.NewPEMSymmetricKey(globalCfg.CA.Service.SharedSecret)
 			subject := globalCfg.General.ID
 			if globalCfg.CA.Service.ClientID != "" {
@@ -692,8 +706,12 @@ func realMain(ctx context.Context) error {
 					log.Info("Cannot resolve TRC for local ISD", "err", err)
 					return
 				}
-				libmetrics.GaugeSetTimestamp(metrics.TrustLatestTRCNotBefore, trc.TRC.Validity.NotBefore)
-				libmetrics.GaugeSetTimestamp(metrics.TrustLatestTRCNotAfter, trc.TRC.Validity.NotAfter)
+				libmetrics.GaugeSetTimestamp(
+					metrics.TrustLatestTRCNotBefore, trc.TRC.Validity.NotBefore,
+				)
+				libmetrics.GaugeSetTimestamp(
+					metrics.TrustLatestTRCNotAfter, trc.TRC.Validity.NotAfter,
+				)
 				metrics.TrustLatestTRCSerial.Set(float64(trc.TRC.ID.Serial))
 			},
 		},
@@ -1061,24 +1079,26 @@ func realMain(ctx context.Context) error {
 	}
 
 	var internalErr func(segType string) libmetrics.Counter
-	var registered func(startIA addr.IA, ingress uint16, segType string, result string) libmetrics.Counter
-	if metrics != nil {
-		if metrics.BeaconingRegistrarInternalErrorsTotal != nil {
-			internalErr = func(segType string) libmetrics.Counter {
-				return metrics.BeaconingRegistrarInternalErrorsTotal.With(prometheus.Labels{
-					"seg_type": segType,
-				})
-			}
+	var registered func(
+		startIA addr.IA, ingress uint16, segType string, result string,
+	) libmetrics.Counter
+	if metrics != nil && metrics.BeaconingRegistrarInternalErrorsTotal != nil {
+		internalErr = func(segType string) libmetrics.Counter {
+			return metrics.BeaconingRegistrarInternalErrorsTotal.With(prometheus.Labels{
+				"seg_type": segType,
+			})
 		}
-		if metrics.BeaconingRegisteredTotal != nil {
-			registered = func(startIA addr.IA, ingress uint16, segType string, result string) libmetrics.Counter {
-				return metrics.BeaconingRegisteredTotal.With(prometheus.Labels{
-					"start_isd_as":      startIA.String(),
-					"ingress_interface": strconv.Itoa(int(ingress)),
-					"seg_type":          segType,
-					prom.LabelResult:    result,
-				})
-			}
+	}
+	if metrics != nil && metrics.BeaconingRegisteredTotal != nil {
+		registered = func(
+			startIA addr.IA, ingress uint16, segType string, result string,
+		) libmetrics.Counter {
+			return metrics.BeaconingRegisteredTotal.With(prometheus.Labels{
+				"start_isd_as":      startIA.String(),
+				"ingress_interface": strconv.Itoa(int(ingress)),
+				"seg_type":          segType,
+				prom.LabelResult:    result,
+			})
 		}
 	}
 

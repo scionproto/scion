@@ -23,7 +23,7 @@ type Option func(*Options)
 // Options configures the metrics Factory, construct it using the ApplyOptions
 // function.
 type Options struct {
-	registry prometheus.Registerer
+	registry            prometheus.Registerer
 	collectorCustomizer func(string, prometheus.Collector) prometheus.Collector
 }
 
@@ -34,13 +34,14 @@ func (o Options) registerer() prometheus.Registerer {
 	return prometheus.DefaultRegisterer
 }
 
-
 // WithCollectorCustomizer sets a customizer function that is called for each
 // collector before it is registered. The function receives the fully qualified
 // name of the collector and the collector itself, and must return the collector
 // to be registered (which can be the same as the input collector or a wrapped
 // version).
-func WithCollectorCustomizer(customizer func(string, prometheus.Collector) prometheus.Collector) Option {
+func WithCollectorCustomizer(
+	customizer func(string, prometheus.Collector) prometheus.Collector,
+) Option {
 	return func(o *Options) {
 		o.collectorCustomizer = customizer
 	}
@@ -59,8 +60,6 @@ func ApplyOptions(options ...Option) Options {
 	}
 	return opts
 }
-
-
 
 // Auto creates a Factory that uses the provided Options as registry. If no
 // explicit registry is set the default registry is used.

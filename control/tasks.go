@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/drkey"
@@ -199,22 +200,22 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		AllowIsdLoop:          t.AllowIsdLoop,
 		Tick:                  beaconing.NewTick(t.PropagationInterval),
 	}
-	if t.Metrics != nil {
-		if t.Metrics.BeaconingPropagatedTotal != nil {
-			p.Propagated = func(startIA addr.IA, ingress, egress uint16, result string) metrics.Counter {
-				return t.Metrics.BeaconingPropagatedTotal.With(prometheus.Labels{
-					"start_isd_as":      startIA.String(),
-					"ingress_interface": strconv.Itoa(int(ingress)),
-					"egress_interface":  strconv.Itoa(int(egress)),
-					prom.LabelResult:    result,
-				})
-			}
+	if t.Metrics != nil && t.Metrics.BeaconingPropagatedTotal != nil {
+		p.Propagated = func(
+			startIA addr.IA, ingress, egress uint16, result string,
+		) metrics.Counter {
+			return t.Metrics.BeaconingPropagatedTotal.With(prometheus.Labels{
+				"start_isd_as":      startIA.String(),
+				"ingress_interface": strconv.Itoa(int(ingress)),
+				"egress_interface":  strconv.Itoa(int(egress)),
+				prom.LabelResult:    result,
+			})
 		}
-		if t.Metrics.BeaconingPropagatorInternalErrorsTotal != nil {
-			p.InternalErrors = t.Metrics.BeaconingPropagatorInternalErrorsTotal.With(
-				prometheus.Labels{},
-			)
-		}
+	}
+	if t.Metrics != nil && t.Metrics.BeaconingPropagatorInternalErrorsTotal != nil {
+		p.InternalErrors = t.Metrics.BeaconingPropagatorInternalErrorsTotal.With(
+			prometheus.Labels{},
+		)
 	}
 	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(p, 500*time.Millisecond, t.PropagationInterval)

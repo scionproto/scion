@@ -16,6 +16,7 @@ package daemon
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/pkg/daemon/private/standalone"
 	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/private/storage/cleaner"

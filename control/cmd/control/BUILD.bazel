@@ -71,6 +71,7 @@ go_library(
         "//private/mgmtapi/jwtauth:go_default_library",
         "//private/mgmtapi/segments/api:go_default_library",
         "//private/periodic:go_default_library",
+        "//private/segment/segfetcher:go_default_library",
         "//private/segment/segfetcher/connect:go_default_library",
         "//private/segment/segfetcher/grpc:go_default_library",
         "//private/segment/segfetcher/happy:go_default_library",
