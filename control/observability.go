@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
@@ -61,7 +62,7 @@ type Metrics struct {
 	BeaconDBQueriesTotal                   *prometheus.CounterVec
 	BeaconingOriginatedTotal               *prometheus.CounterVec
 	BeaconingPropagatedTotal               *prometheus.CounterVec
-	BeaconingPropagatorInternalErrorsTotal *prometheus.CounterVec
+	BeaconingPropagatorInternalErrorsTotal prometheus.Counter
 	BeaconingReceivedTotal                 *prometheus.CounterVec
 	BeaconingRegisteredTotal               *prometheus.CounterVec
 	BeaconingRegistrarInternalErrorsTotal  *prometheus.CounterVec
@@ -74,8 +75,11 @@ type Metrics struct {
 	SegmentLookupRequestsTotal             *prometheus.CounterVec
 	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
 	SegmentRegistrationsTotal              *prometheus.CounterVec
-	SegmentExpirationDeficient             *prometheus.GaugeVec
+	SegmentExpirationDeficient             prometheus.Gauge
 	TrustDBQueriesTotal                    *prometheus.CounterVec
+	TrustEngineRequestsTotal               *prometheus.CounterVec
+	TrustEngineLastSignerGeneration        prometheus.Gauge
+	TrustEngineSignerExpiration            prometheus.Gauge
 	TrustLatestTRCNotBefore                prometheus.Gauge
 	TrustLatestTRCNotAfter                 prometheus.Gauge
 	TrustLatestTRCSerial                   prometheus.Gauge
@@ -149,12 +153,11 @@ func NewMetrics(opts ...metrics.Option) *Metrics {
 			},
 			[]string{"start_isd_as", "ingress_interface", "egress_interface", prom.LabelResult},
 		),
-		BeaconingPropagatorInternalErrorsTotal: auto.NewCounterVec(
+		BeaconingPropagatorInternalErrorsTotal: auto.NewCounter(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_propagator_internal_errors_total",
 				Help: "Total number of internal errors in the beacon propagator.",
 			},
-			[]string{},
 		),
 		BeaconingReceivedTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
@@ -243,14 +246,13 @@ func NewMetrics(opts ...metrics.Option) *Metrics {
 			},
 			[]string{"src", "seg_type", prom.LabelResult},
 		),
-		SegmentExpirationDeficient: auto.NewGaugeVec(
+		SegmentExpirationDeficient: auto.NewGauge(
 			prometheus.GaugeOpts{
 				Name: "control_segment_expiration_deficient",
 				Help: "Indicates whether the expiration time of the segment is below the " +
 					"configured maximum. This happens when the signer expiration time is lower " +
 					"than the maximum segment expiration time.",
 			},
-			[]string{},
 		),
 		TrustDBQueriesTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
@@ -258,6 +260,26 @@ func NewMetrics(opts ...metrics.Option) *Metrics {
 				Help: "Total queries to the database",
 			},
 			[]string{"driver", "operation", prom.LabelResult},
+		),
+		TrustEngineRequestsTotal: auto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "trustengine_received_requests_total",
+				Help: "Number of requests served by the trust engine",
+			},
+			[]string{"client", "req_type", prom.LabelResult},
+		),
+		TrustEngineLastSignerGeneration: auto.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "trustengine_last_signer_generation_time_second",
+				Help: "The last time a signer for control plane messages was successfully " +
+					"generated",
+			},
+		),
+		TrustEngineSignerExpiration: auto.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "trustengine_signer_expiration_time_second",
+				Help: "The expiration time of the current signer",
+			},
 		),
 		TrustLatestTRCNotBefore: auto.NewGauge(
 			prometheus.GaugeOpts{
@@ -316,6 +338,52 @@ func NewMetrics(opts ...metrics.Option) *Metrics {
 			ExpirationCA:    renewalExpiration,
 		},
 		CleanerMetrics: NewCleanerMetrics(auto),
+	}
+}
+
+func (m *Metrics) TaskMetrics() TaskMetrics {
+	return TaskMetrics{
+		BeaconingOriginatedTotal: func(egressIntf uint16, result string) metrics.Counter {
+			if m.BeaconingOriginatedTotal == nil {
+				return nil
+			}
+			return m.BeaconingOriginatedTotal.With(
+				prometheus.Labels{
+					"egress_interface": strconv.Itoa(int(egressIntf)),
+					"result":           result,
+				})
+		},
+		BeaconingPropagatedTotal: func(
+			startIA addr.IA,
+			ingress uint16,
+			egress uint16,
+			result string,
+		) metrics.Counter {
+			if m.BeaconingPropagatedTotal == nil {
+				return nil
+			}
+			return m.BeaconingPropagatedTotal.With(
+				prometheus.Labels{
+					"start_isd_as":      startIA.String(),
+					"ingress_interface": strconv.Itoa(int(ingress)),
+					"egress_interface":  strconv.Itoa(int(egress)),
+					"result":            result,
+				})
+		},
+		BeaconingPropagatorInternalErrorsTotal: m.BeaconingPropagatorInternalErrorsTotal,
+		BeaconingRegistrarInternalErrorsTotal: func(segType string) metrics.Counter {
+			if m.BeaconingRegistrarInternalErrorsTotal == nil {
+				return nil
+			}
+			return m.BeaconingRegistrarInternalErrorsTotal.With(
+				prometheus.Labels{
+					"seg_type": segType,
+				})
+		},
+		SegmentExpirationDeficient: m.SegmentExpirationDeficient,
+		DRKeyServiceCleanerMetrics: m.CleanerMetrics.DRKeyService,
+		PathStorageCleanerMetrics:  m.CleanerMetrics.PathStorage,
+		RevocationCleanerMetrics:   m.CleanerMetrics.PathRevocations,
 	}
 }
 

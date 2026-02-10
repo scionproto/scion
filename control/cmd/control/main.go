@@ -65,7 +65,6 @@ import (
 	cstrust "github.com/scionproto/scion/control/trust"
 	cstrustconnect "github.com/scionproto/scion/control/trust/connect"
 	cstrustgrpc "github.com/scionproto/scion/control/trust/grpc"
-	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/connect/happy"
@@ -243,6 +242,10 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 
+	signerGenMetrics := cstrust.SignerGenMetrics{
+		SignerLastGenerated: metrics.TrustEngineLastSignerGeneration,
+		SignerExpiration:    metrics.TrustEngineSignerExpiration,
+	}
 	// FIXME: readability would be improved if we could be consistent with address
 	// representations in NetworkConfig (string or cooked, chose one).
 	nc := infraenv.NetworkConfig{
@@ -252,11 +255,11 @@ func realMain(ctx context.Context) error {
 			TLSVerifier: trust.NewTLSCryptoVerifier(trustDB),
 			GetCertificate: cs.NewTLSCertificateLoader(
 				topo.IA(), x509.ExtKeyUsageServerAuth, trustDB, globalCfg.General.ConfigDir,
-				trustMetrics,
+				trustMetrics, signerGenMetrics,
 			).GetCertificate,
 			GetClientCertificate: cs.NewTLSCertificateLoader(
 				topo.IA(), x509.ExtKeyUsageClientAuth, trustDB, globalCfg.General.ConfigDir,
-				trustMetrics,
+				trustMetrics, signerGenMetrics,
 			).GetClientCertificate,
 		},
 		SVCResolver: topo,
@@ -403,11 +406,11 @@ func realMain(ctx context.Context) error {
 		Provider: provider,
 		IA:       topo.IA(),
 		Requests: func(client, reqType, result string) libmetrics.Counter {
-			return cstrustmetrics.Handler.Requests.WithLabelValues(
-				client,
-				reqType,
-				result,
-			)
+			return metrics.TrustEngineRequestsTotal.With(prometheus.Labels{
+				"client":   client,
+				"req_type": reqType,
+				"result":   result,
+			})
 		},
 	}
 	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
@@ -533,7 +536,7 @@ func realMain(ctx context.Context) error {
 	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 	signer := cs.NewSigner(ctxSigner, topo.IA(), trustDB, globalCfg.General.ConfigDir,
-		trustMetrics)
+		trustMetrics, signerGenMetrics)
 
 	var chainBuilder renewal.ChainBuilder
 	var caClient *caapi.Client
@@ -1051,7 +1054,7 @@ func realMain(ctx context.Context) error {
 			return r, nil
 		}),
 		Inspector:   inspector,
-		Metrics:     metrics,
+		Metrics:     metrics.TaskMetrics(),
 		DRKeyEngine: drkeyEngine,
 		MACGen:      macGen,
 		NextHopper:  topo,

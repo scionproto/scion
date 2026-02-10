@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cs "github.com/scionproto/scion/control"
+	cstrust "github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/app/command"
@@ -47,6 +48,7 @@ func TestNewSigner(t *testing.T) {
 		db,
 		filepath.Join(dir, "/ISD1/ASff00_0_110"),
 		trustmetrics.Metrics{},
+		cstrust.SignerGenMetrics{},
 	)
 
 	_, err = signer.Sign(context.Background(), []byte("message"))

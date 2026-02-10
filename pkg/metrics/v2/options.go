@@ -27,7 +27,9 @@ type Options struct {
 	collectorCustomizer func(string, prometheus.Collector) prometheus.Collector
 }
 
-func (o Options) registerer() prometheus.Registerer {
+// Registry returns the registry to use for registering metrics. If no registry is set, the default
+// registry is returned.
+func (o Options) Registry() prometheus.Registerer {
 	if o.registry != nil {
 		return o.registry
 	}
@@ -74,7 +76,7 @@ type Factory struct {
 }
 
 func (f Factory) register(fqName string, c prometheus.Collector) {
-	reg := f.opts.registerer()
+	reg := f.opts.Registry()
 	if f.opts.collectorCustomizer != nil {
 		c = f.opts.collectorCustomizer(fqName, c)
 	}
