@@ -11,6 +11,7 @@ User=scion
 Group=scion
 ExecStart=/usr/bin/scion-router --config /etc/scion/%i.toml
 Restart=on-failure
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_BPF
 
 [Install]
 WantedBy=multi-user.target
