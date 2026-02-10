@@ -724,7 +724,7 @@ func realMain(ctx context.Context) error {
 		Information: topo,
 		Requests: func(reqType, result string) libmetrics.Counter {
 			return metrics.DiscoveryRequestsTotal.With(prometheus.Labels{
-				"request_type":   reqType,
+				"req_type":       reqType,
 				prom.LabelResult: result,
 			})
 		},

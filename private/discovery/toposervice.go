@@ -118,11 +118,6 @@ func (t Topology) HiddenSegmentServices(ctx context.Context,
 	return response, nil
 }
 
-// RequestsLabels exposes the labels required by the Requests metric.
-func (t Topology) RequestsLabels() []string {
-	return []string{"req_type", prom.LabelResult}
-}
-
 func (t Topology) updateTelemetry(span opentracing.Span, l requestLabels, err error) {
 	if t.Requests != nil {
 		metrics.CounterInc(t.Requests(l.ReqType, l.Result))
@@ -136,13 +131,6 @@ func (t Topology) updateTelemetry(span opentracing.Span, l requestLabels, err er
 type requestLabels struct {
 	ReqType string
 	Result  string
-}
-
-func (l requestLabels) Expand() []string {
-	return []string{
-		"req_type", l.ReqType,
-		prom.LabelResult, l.Result,
-	}
 }
 
 func (l requestLabels) WithResult(result string) requestLabels {

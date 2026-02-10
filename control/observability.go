@@ -36,7 +36,6 @@ import (
 	snetmetrics "github.com/scionproto/scion/pkg/snet/metrics"
 	"github.com/scionproto/scion/private/ca/renewal"
 	"github.com/scionproto/scion/private/config"
-	"github.com/scionproto/scion/private/discovery"
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/service"
 	"github.com/scionproto/scion/private/storage/cleaner"
@@ -192,7 +191,7 @@ func NewMetrics(opts ...metrics.Option) *Metrics {
 				Name: "discovery_requests_total",
 				Help: "Total number of discovery requests served.",
 			},
-			discovery.Topology{}.RequestsLabels(),
+			[]string{"req_type", prom.LabelResult},
 		),
 		PathDBQueriesTotal: auto.NewCounterVec(
 			prometheus.CounterOpts{
