@@ -18,7 +18,6 @@ import (
 	"context"
 	"net"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 
@@ -26,7 +25,7 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -61,7 +60,7 @@ type Propagator struct {
 	PropagationInterfaces func() []*ifstate.Interface
 	AllowIsdLoop          bool
 
-	Propagated     metrics.Counter
+	Propagated     func(startIA addr.IA, ingress, egress uint16, result string) metrics.Counter
 	InternalErrors metrics.Counter
 
 	// Tick is mutable.
@@ -232,7 +231,7 @@ func (p *Propagator) logCandidateBeacons(
 type propagator struct {
 	extender      Extender
 	senderFactory SenderFactory
-	propagated    metrics.Counter
+	propagated    func(startIA addr.IA, ingress, egress uint16, result string) metrics.Counter
 
 	now     time.Time
 	silent  bool
@@ -339,10 +338,5 @@ func (p *propagator) incMetric(startIA addr.IA, ingress, egress uint16, result s
 	if p.propagated == nil {
 		return
 	}
-	p.propagated.With(
-		"start_isd_as", startIA.String(),
-		"ingress_interface", strconv.Itoa(int(ingress)),
-		"egress_interface", strconv.Itoa(int(egress)),
-		prom.LabelResult, result,
-	).Add(1)
+	metrics.CounterInc(p.propagated(startIA, ingress, egress, result))
 }

@@ -119,7 +119,7 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	scionLayer := parseSCION(&layersCfg)
 
 	ctx := app.WithSignal(context.Background(), os.Kill)
-	sdConn, err := daemon.NewService(cfg.daemon).Connect(ctx)
+	sdConn, err := daemon.NewService(cfg.daemon, daemon.Metrics{}).Connect(ctx)
 	if err != nil {
 		return serrors.Wrap("connecting to SCION daemon", err)
 	}

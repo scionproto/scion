@@ -23,11 +23,11 @@ import (
 )
 
 // NewCleaner creates a cleaner task that deletes expired revocations.
-func NewCleaner(rc RevCache, s string) *cleaner.Cleaner {
+func NewCleaner(rc RevCache, s string, metrics cleaner.Metrics) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		cnt, err := rc.DeleteExpired(ctx)
 		return int(cnt), err
-	}, s)
+	}, s, metrics)
 }
 
 // NoRevokedHopIntf returns true if there is no on-segment revocation.

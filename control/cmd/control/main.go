@@ -24,6 +24,7 @@ import (
 	_ "net/http/pprof"
 	"net/netip"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/spf13/cobra"
@@ -63,14 +65,13 @@ import (
 	cstrust "github.com/scionproto/scion/control/trust"
 	cstrustconnect "github.com/scionproto/scion/control/trust/connect"
 	cstrustgrpc "github.com/scionproto/scion/control/trust/grpc"
-	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/connect/happy"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
-	libmetrics "github.com/scionproto/scion/pkg/metrics"
+	libmetrics "github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -101,6 +102,7 @@ import (
 	"github.com/scionproto/scion/private/mgmtapi/jwtauth"
 	segapi "github.com/scionproto/scion/private/mgmtapi/segments/api"
 	"github.com/scionproto/scion/private/periodic"
+	"github.com/scionproto/scion/private/segment/segfetcher"
 	segfetcherconnect "github.com/scionproto/scion/private/segment/segfetcher/connect"
 	segfetchergrpc "github.com/scionproto/scion/private/segment/segfetcher/grpc"
 	segfetcherhappy "github.com/scionproto/scion/private/segment/segfetcher/happy"
@@ -140,6 +142,7 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
+	trustMetrics := trustmetrics.New()
 	metrics := cs.NewMetrics()
 	topo, err := topology.NewLoader(topology.LoaderCfg{
 		File:      globalCfg.General.Topology(),
@@ -182,13 +185,19 @@ func realMain(ctx context.Context) error {
 
 	revCache := storage.NewRevocationStorage()
 	defer revCache.Close()
-	pathDB, err := storage.NewPathStorage(globalCfg.PathDB)
+	pathDB, err := storage.NewPathStorage(globalCfg.PathDB, metrics.CleanerMetrics.PathStorage)
 	if err != nil {
 		return serrors.Wrap("initializing path storage", err)
 	}
 	pathDB = pathstoragemetrics.WrapDB(pathDB, pathstoragemetrics.Config{
-		Driver:       string(storage.BackendSqlite),
-		QueriesTotal: libmetrics.NewPromCounter(metrics.PathDBQueriesTotal),
+		Driver: string(storage.BackendSqlite),
+		QueriesTotal: func(driver, operation, result string) libmetrics.Counter {
+			return metrics.PathDBQueriesTotal.With(prometheus.Labels{
+				"driver":         driver,
+				"operation":      operation,
+				prom.LabelResult: result,
+			})
+		},
 	})
 	defer pathDB.Close()
 
@@ -202,35 +211,41 @@ func realMain(ctx context.Context) error {
 		return serrors.Wrap("initializing trust storage", err)
 	}
 	defer trustDB.Close()
-	fileWrites := libmetrics.NewPromCounter(metrics.TrustTRCFileWritesTotal)
 	trustDB = truststoragefspersister.WrapDB(
 		trustDB,
 		truststoragefspersister.Config{
 			TRCDir: filepath.Join(globalCfg.General.ConfigDir, "certs"),
 			Metrics: truststoragefspersister.Metrics{
-				TRCFileWriteSuccesses: fileWrites.With(
-					prom.LabelResult,
-					truststoragefspersister.WriteSuccess,
-				),
-				TRCFileWriteErrors: fileWrites.With(
-					prom.LabelResult,
-					truststoragefspersister.WriteError,
-				),
-				TRCFileStatErrors: fileWrites.With(
-					prom.LabelResult,
-					truststoragefspersister.StatError,
-				),
+				TRCFileWriteSuccesses: metrics.TrustTRCFileWritesTotal.With(prometheus.Labels{
+					prom.LabelResult: truststoragefspersister.WriteSuccess,
+				}),
+				TRCFileWriteErrors: metrics.TrustTRCFileWritesTotal.With(prometheus.Labels{
+					prom.LabelResult: truststoragefspersister.WriteError,
+				}),
+				TRCFileStatErrors: metrics.TrustTRCFileWritesTotal.With(prometheus.Labels{
+					prom.LabelResult: truststoragefspersister.StatError,
+				}),
 			},
 		},
 	)
 	trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
-		Driver:       string(storage.BackendSqlite),
-		QueriesTotal: libmetrics.NewPromCounter(metrics.TrustDBQueriesTotal),
+		Driver: string(storage.BackendSqlite),
+		QueriesTotal: func(driver, operation, result string) libmetrics.Counter {
+			return metrics.TrustDBQueriesTotal.With(prometheus.Labels{
+				"driver":         driver,
+				"operation":      operation,
+				prom.LabelResult: result,
+			})
+		},
 	})
 	if err := cs.LoadTrustMaterial(ctx, globalCfg.General.ConfigDir, trustDB); err != nil {
 		return err
 	}
 
+	signerGenMetrics := cstrust.SignerGenMetrics{
+		SignerLastGenerated: metrics.TrustEngineLastSignerGeneration,
+		SignerExpiration:    metrics.TrustEngineSignerExpiration,
+	}
 	// FIXME: readability would be improved if we could be consistent with address
 	// representations in NetworkConfig (string or cooked, chose one).
 	nc := infraenv.NetworkConfig{
@@ -240,9 +255,11 @@ func realMain(ctx context.Context) error {
 			TLSVerifier: trust.NewTLSCryptoVerifier(trustDB),
 			GetCertificate: cs.NewTLSCertificateLoader(
 				topo.IA(), x509.ExtKeyUsageServerAuth, trustDB, globalCfg.General.ConfigDir,
+				trustMetrics, signerGenMetrics,
 			).GetCertificate,
 			GetClientCertificate: cs.NewTLSCertificateLoader(
 				topo.IA(), x509.ExtKeyUsageClientAuth, trustDB, globalCfg.General.ConfigDir,
+				trustMetrics, signerGenMetrics,
 			).GetClientCertificate,
 		},
 		SVCResolver: topo,
@@ -267,14 +284,21 @@ func realMain(ctx context.Context) error {
 		Dialer: quicStack.InsecureDialer,
 	}
 
-	beaconDB, err := storage.NewBeaconStorage(globalCfg.BeaconDB, topo.IA())
+	beaconDB, err := storage.NewBeaconStorage(globalCfg.BeaconDB, topo.IA(),
+		metrics.CleanerMetrics.BeaconStorage)
 	if err != nil {
 		return serrors.Wrap("initializing beacon storage", err)
 	}
 	defer beaconDB.Close()
 	beaconDB = beaconstoragemetrics.WrapDB(beaconDB, beaconstoragemetrics.Config{
-		Driver:       string(storage.BackendSqlite),
-		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
+		Driver: string(storage.BackendSqlite),
+		QueriesTotal: func(driver, operation, result string) libmetrics.Counter {
+			return metrics.BeaconDBQueriesTotal.With(prometheus.Labels{
+				"driver":         driver,
+				"operation":      operation,
+				prom.LabelResult: result,
+			})
+		},
 	})
 
 	policies, err := loadPolicies(topo.Core(), globalCfg.BS.Policies)
@@ -287,6 +311,7 @@ func realMain(ctx context.Context) error {
 		trust.FetchingProvider{
 			DB:       trustDB,
 			Recurser: trust.NeverRecurser{},
+			Requests: trustMetrics.ProviderRequests,
 			// XXX(roosd): Do not set fetcher or router because they are not
 			// used and we rather panic if they are reached due to a implementation
 			// bug.
@@ -297,7 +322,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	trustengineCache := globalCfg.TrustEngine.Cache.New()
-	cacheHits := libmetrics.NewPromCounter(trustmetrics.CacheHitsTotal)
+	cacheHits := trustMetrics.CacheHits
 	inspector := trust.CachingInspector{
 		Inspector: trust.DBInspector{
 			DB: trustDB,
@@ -320,11 +345,12 @@ func realMain(ctx context.Context) error {
 			Grpc: trustgrpc.Fetcher{
 				IA:       topo.IA(),
 				Dialer:   dialer,
-				Requests: libmetrics.NewPromCounter(trustmetrics.RPC.Fetches),
+				Requests: trustMetrics.RPCFetches,
 			},
 			RpcConfig: rpcClientConfig,
 		},
 		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
+		Requests: trustMetrics.ProviderRequests,
 		// XXX(roosd): cyclic dependency on router. It is set below.
 	}
 	verifier := compat.Verifier{
@@ -333,6 +359,7 @@ func realMain(ctx context.Context) error {
 			CacheHits:          cacheHits,
 			MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
 			Cache:              trustengineCache,
+			Verifications:      trustMetrics.VerifierSignatures,
 		},
 	}
 	fetcherCfg := segreq.FetcherConfig{
@@ -358,6 +385,7 @@ func realMain(ctx context.Context) error {
 		},
 		Inspector: inspector,
 		Verifier:  verifier,
+		Metrics:   segfetcher.NewMetrics(),
 	}
 	provider.Router = trust.AuthRouter{
 		ISD:    topo.IA().ISD(),
@@ -377,7 +405,13 @@ func realMain(ctx context.Context) error {
 	trustServer := &cstrustgrpc.MaterialServer{
 		Provider: provider,
 		IA:       topo.IA(),
-		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
+		Requests: func(client, reqType, result string) libmetrics.Counter {
+			return metrics.TrustEngineRequestsTotal.With(prometheus.Labels{
+				"client":   client,
+				"req_type": reqType,
+				"result":   result,
+			})
+		},
 	}
 	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
 	connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{
@@ -390,11 +424,18 @@ func realMain(ctx context.Context) error {
 	// Handle beaconing.
 	segmentCreationServer := &beaconinggrpc.SegmentCreationServer{
 		Handler: &beaconing.Handler{
-			LocalIA:        topo.IA(),
-			Inserter:       beaconStore,
-			Interfaces:     intfs,
-			Verifier:       verifier,
-			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
+			LocalIA:    topo.IA(),
+			Inserter:   beaconStore,
+			Interfaces: intfs,
+			Verifier:   verifier,
+			BeaconsHandled: func(ingressInterface uint16, neighborIA addr.IA,
+				result string) libmetrics.Counter {
+				return metrics.BeaconingReceivedTotal.With(prometheus.Labels{
+					"ingress_interface": strconv.Itoa(int(ingressInterface)),
+					prom.LabelNeighIA:   neighborIA.String(),
+					prom.LabelResult:    result,
+				})
+			},
 		},
 	}
 	cppb.RegisterSegmentCreationServiceServer(quicServer, segmentCreationServer)
@@ -411,9 +452,20 @@ func realMain(ctx context.Context) error {
 			CoreChecker: segreq.CoreChecker{Inspector: inspector},
 			PathDB:      pathDB,
 		},
-		RevCache:     revCache,
-		Requests:     libmetrics.NewPromCounter(metrics.SegmentLookupRequestsTotal),
-		SegmentsSent: libmetrics.NewPromCounter(metrics.SegmentLookupSegmentsSentTotal),
+		RevCache: revCache,
+		Requests: func(segType string, dstISD addr.ISD, result string) libmetrics.Counter {
+			return metrics.SegmentLookupRequestsTotal.With(prometheus.Labels{
+				"dst_isd":        dstISD.String(),
+				"seg_type":       segType,
+				prom.LabelResult: result,
+			})
+		},
+		SegmentsSent: func(segType string, dstISD addr.ISD) libmetrics.Counter {
+			return metrics.SegmentLookupSegmentsSentTotal.With(prometheus.Labels{
+				"dst_isd":  dstISD.String(),
+				"seg_type": segType,
+			})
+		},
 	}
 	forwardingLookupServer := &segreqgrpc.LookupServer{
 		Lookuper: segreq.ForwardingLookup{
@@ -427,9 +479,20 @@ func realMain(ctx context.Context) error {
 				PathDB:    pathDB,
 			},
 		},
-		RevCache:     revCache,
-		Requests:     libmetrics.NewPromCounter(metrics.SegmentLookupRequestsTotal),
-		SegmentsSent: libmetrics.NewPromCounter(metrics.SegmentLookupSegmentsSentTotal),
+		RevCache: revCache,
+		Requests: func(segType string, dstISD addr.ISD, result string) libmetrics.Counter {
+			return metrics.SegmentLookupRequestsTotal.With(prometheus.Labels{
+				"dst_isd":        dstISD.String(),
+				"seg_type":       segType,
+				prom.LabelResult: result,
+			})
+		},
+		SegmentsSent: func(segType string, dstISD addr.ISD) libmetrics.Counter {
+			return metrics.SegmentLookupSegmentsSentTotal.With(prometheus.Labels{
+				"dst_isd":  dstISD.String(),
+				"seg_type": segType,
+			})
+		},
 	}
 
 	// Always register a forwarding lookup for AS internal requests.
@@ -456,7 +519,13 @@ func realMain(ctx context.Context) error {
 					RevCache: revCache,
 				},
 			},
-			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
+			Registrations: func(src, segType, result string) libmetrics.Counter {
+				return metrics.SegmentRegistrationsTotal.With(prometheus.Labels{
+					"src":            src,
+					"seg_type":       segType,
+					prom.LabelResult: result,
+				})
+			},
 		}
 		cppb.RegisterSegmentRegistrationServiceServer(quicServer, registrationServer)
 		connectInter.Handle(cpconnect.NewSegmentRegistrationServiceHandler(
@@ -466,32 +535,35 @@ func realMain(ctx context.Context) error {
 
 	ctxSigner, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	signer := cs.NewSigner(ctxSigner, topo.IA(), trustDB, globalCfg.General.ConfigDir)
+	signer := cs.NewSigner(ctxSigner, topo.IA(), trustDB, globalCfg.General.ConfigDir,
+		trustMetrics, signerGenMetrics)
 
 	var chainBuilder renewal.ChainBuilder
 	var caClient *caapi.Client
 	var caHealthCached *cachedCAHealth
 	if globalCfg.CA.Mode != config.Disabled {
-		renewalGauges := libmetrics.NewPromGauge(metrics.RenewalRegisteredHandlers)
-		libmetrics.GaugeWith(renewalGauges, "type", "legacy").Set(0)
-		libmetrics.GaugeWith(renewalGauges, "type", "in-process").Set(0)
-		libmetrics.GaugeWith(renewalGauges, "type", "delegating").Set(0)
-		srvCtr := libmetrics.NewPromCounter(metrics.RenewalServerRequestsTotal)
+		regHandlers := metrics.RenewalRegisteredHandlers
+		regHandlers.With(prometheus.Labels{"type": "legacy"}).Set(0)
+		regHandlers.With(prometheus.Labels{"type": "in-process"}).Set(0)
+		regHandlers.With(prometheus.Labels{"type": "delegating"}).Set(0)
 		renewalServer := &renewalgrpc.RenewalServer{
 			IA:        topo.IA(),
 			CMSSigner: signer,
 			Metrics: renewalgrpc.RenewalServerMetrics{
-				Success:       srvCtr.With(prom.LabelResult, prom.Success),
-				BackendErrors: srvCtr.With(prom.LabelResult, prom.StatusErr),
+				Success: metrics.RenewalServerRequestsTotal.With(
+					prometheus.Labels{prom.LabelResult: prom.Success},
+				),
+				BackendErrors: metrics.RenewalServerRequestsTotal.With(
+					prometheus.Labels{prom.LabelResult: prom.StatusErr},
+				),
 			},
 		}
 
 		switch globalCfg.CA.Mode {
 		case config.InProcess:
-			libmetrics.GaugeWith(renewalGauges, "type", "in-process").Set(1)
-			cmsCtr := libmetrics.CounterWith(
-				libmetrics.NewPromCounter(metrics.RenewalHandledRequestsTotal),
-				"type", "in-process",
+			regHandlers.With(prometheus.Labels{"type": "in-process"}).Set(1)
+			cmsCtr := metrics.RenewalHandledRequestsTotal.MustCurryWith(
+				prometheus.Labels{"type": "in-process"},
 			)
 			chainBuilder = cs.NewChainBuilder(
 				cs.ChainBuilderConfig{
@@ -511,19 +583,22 @@ func realMain(ctx context.Context) error {
 					TRCFetcher: trustDB,
 				},
 				Metrics: renewalgrpc.CMSHandlerMetrics{
-					Success:       cmsCtr.With(prom.LabelResult, prom.Success),
-					DatabaseError: cmsCtr.With(prom.LabelResult, prom.ErrDB),
-					InternalError: cmsCtr.With(prom.LabelResult, prom.ErrInternal),
-					NotFoundError: cmsCtr.With(prom.LabelResult, prom.ErrNotFound),
-					ParseError:    cmsCtr.With(prom.LabelResult, prom.ErrParse),
-					VerifyError:   cmsCtr.With(prom.LabelResult, prom.ErrVerify),
+					Success:       cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.Success}),
+					DatabaseError: cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrDB}),
+					InternalError: cmsCtr.With(
+						prometheus.Labels{prom.LabelResult: prom.ErrInternal},
+					),
+					NotFoundError: cmsCtr.With(
+						prometheus.Labels{prom.LabelResult: prom.ErrNotFound},
+					),
+					ParseError:  cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrParse}),
+					VerifyError: cmsCtr.With(prometheus.Labels{prom.LabelResult: prom.ErrVerify}),
 				},
 			}
 		case config.Delegating:
-			libmetrics.GaugeWith(renewalGauges, "type", "delegating").Set(1)
-			delCtr := libmetrics.CounterWith(
-				libmetrics.NewPromCounter(metrics.RenewalHandledRequestsTotal),
-				"type", "delegating",
+			regHandlers.With(prometheus.Labels{"type": "delegating"}).Set(1)
+			delCtr := metrics.RenewalHandledRequestsTotal.MustCurryWith(
+				prometheus.Labels{"type": "delegating"},
 			)
 			sharedSecret := caconfig.NewPEMSymmetricKey(globalCfg.CA.Service.SharedSecret)
 			subject := globalCfg.General.ID
@@ -541,19 +616,22 @@ func realMain(ctx context.Context) error {
 				),
 			}
 			caHealthCached = &cachedCAHealth{status: api.Unavailable}
-			caHealthGauge := libmetrics.NewPromGauge(metrics.CAHealth)
-			updateCAHealthMetrics(caHealthGauge, api.Unavailable)
+			updateCAHealthMetrics(metrics.CAHealth, api.Unavailable)
 			renewalServer.CMSHandler = &renewalgrpc.DelegatingHandler{
 				Client: caClient,
 				Metrics: renewalgrpc.DelegatingHandlerMetrics{
-					BadRequests: libmetrics.CounterWith(delCtr,
-						prom.LabelResult, prom.ErrInvalidReq),
-					InternalError: libmetrics.CounterWith(delCtr,
-						prom.LabelResult, prom.ErrInternal),
-					Unavailable: libmetrics.CounterWith(delCtr,
-						prom.LabelResult, prom.ErrUnavailable),
-					Success: libmetrics.CounterWith(delCtr,
-						prom.LabelResult, prom.Success),
+					BadRequests: delCtr.With(prometheus.Labels{
+						prom.LabelResult: prom.ErrInvalidReq,
+					}),
+					InternalError: delCtr.With(prometheus.Labels{
+						prom.LabelResult: prom.ErrInternal,
+					}),
+					Unavailable: delCtr.With(prometheus.Labels{
+						prom.LabelResult: prom.ErrUnavailable,
+					}),
+					Success: delCtr.With(prometheus.Labels{
+						prom.LabelResult: prom.Success,
+					}),
 				},
 			}
 			// Periodically check the connection to the CA backend
@@ -569,11 +647,11 @@ func realMain(ctx context.Context) error {
 								"err", err,
 								"server", caClient.Server,
 							)
-							updateCAHealthMetrics(caHealthGauge, api.Unavailable)
+							updateCAHealthMetrics(metrics.CAHealth, api.Unavailable)
 							caHealthCached.SetStatus(api.Unavailable)
 							return
 						}
-						updateCAHealthMetrics(caHealthGauge, status)
+						updateCAHealthMetrics(metrics.CAHealth, status)
 						caHealthCached.SetStatus(status)
 					},
 				},
@@ -631,9 +709,12 @@ func realMain(ctx context.Context) error {
 					log.Info("Cannot resolve TRC for local ISD", "err", err)
 					return
 				}
-				metrics.TrustLatestTRCNotBefore.Set(
-					libmetrics.Timestamp(trc.TRC.Validity.NotBefore))
-				metrics.TrustLatestTRCNotAfter.Set(libmetrics.Timestamp(trc.TRC.Validity.NotAfter))
+				libmetrics.GaugeSetTimestamp(
+					metrics.TrustLatestTRCNotBefore, trc.TRC.Validity.NotBefore,
+				)
+				libmetrics.GaugeSetTimestamp(
+					metrics.TrustLatestTRCNotAfter, trc.TRC.Validity.NotAfter,
+				)
 				metrics.TrustLatestTRCSerial.Set(float64(trc.TRC.ID.Serial))
 			},
 		},
@@ -644,7 +725,12 @@ func realMain(ctx context.Context) error {
 
 	ds := discovery.Topology{
 		Information: topo,
-		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
+		Requests: func(reqType, result string) libmetrics.Counter {
+			return metrics.DiscoveryRequestsTotal.With(prometheus.Labels{
+				"req_type":       reqType,
+				prom.LabelResult: result,
+			})
+		},
 	}
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
 	connectInter.Handle(
@@ -680,15 +766,14 @@ func realMain(ctx context.Context) error {
 		if err != nil {
 			return serrors.Wrap("initializing Secret Value DB", err)
 		}
-		svCounter := libmetrics.NewPromCounter(metrics.DRKeySecretValueQueriesTotal)
 		svDB := &secret.Database{
 			Backend: svBackend,
 			Metrics: &secret.Metrics{
 				QueriesTotal: func(op, label string) libmetrics.Counter {
-					return libmetrics.CounterWith(
-						svCounter,
-						"operation", op,
-						prom.LabelResult, label)
+					return metrics.DRKeySecretValueQueriesTotal.With(prometheus.Labels{
+						"operation":      op,
+						prom.LabelResult: label,
+					})
 				},
 			},
 		}
@@ -697,15 +782,14 @@ func realMain(ctx context.Context) error {
 		if err != nil {
 			return serrors.Wrap("initializing DRKey DB", err)
 		}
-		lvl1Counter := libmetrics.NewPromCounter(metrics.DRKeyLevel1QueriesTotal)
 		level1DB := &level1.Database{
 			Backend: level1Backend,
 			Metrics: &level1.Metrics{
 				QueriesTotal: func(op, label string) libmetrics.Counter {
-					return libmetrics.CounterWith(
-						lvl1Counter,
-						"operation", op,
-						prom.LabelResult, label)
+					return metrics.DRKeyLevel1QueriesTotal.With(prometheus.Labels{
+						"operation":      op,
+						prom.LabelResult: label,
+					})
 				},
 			},
 		}
@@ -970,7 +1054,7 @@ func realMain(ctx context.Context) error {
 			return r, nil
 		}),
 		Inspector:   inspector,
-		Metrics:     metrics,
+		Metrics:     metrics.TaskMetrics(),
 		DRKeyEngine: drkeyEngine,
 		MACGen:      macGen,
 		NextHopper:  topo,
@@ -997,10 +1081,28 @@ func realMain(ctx context.Context) error {
 		EPIC:                      globalCfg.BS.EPIC,
 	}
 
-	var internalErr, registered libmetrics.Counter
-	if metrics != nil {
-		internalErr = libmetrics.NewPromCounter(metrics.BeaconingRegistrarInternalErrorsTotal)
-		registered = libmetrics.NewPromCounter(metrics.BeaconingRegisteredTotal)
+	var internalErr func(segType string) libmetrics.Counter
+	var registered func(
+		startIA addr.IA, ingress uint16, segType string, result string,
+	) libmetrics.Counter
+	if metrics != nil && metrics.BeaconingRegistrarInternalErrorsTotal != nil {
+		internalErr = func(segType string) libmetrics.Counter {
+			return metrics.BeaconingRegistrarInternalErrorsTotal.With(prometheus.Labels{
+				"seg_type": segType,
+			})
+		}
+	}
+	if metrics != nil && metrics.BeaconingRegisteredTotal != nil {
+		registered = func(
+			startIA addr.IA, ingress uint16, segType string, result string,
+		) libmetrics.Counter {
+			return metrics.BeaconingRegisteredTotal.With(prometheus.Labels{
+				"start_isd_as":      startIA.String(),
+				"ingress_interface": strconv.Itoa(int(ingress)),
+				"seg_type":          segType,
+				prom.LabelResult:    result,
+			})
+		}
 	}
 
 	pather := addrutil.Pather{
@@ -1283,17 +1385,17 @@ func getCAHealth(
 	return api.CAHealthStatus(r.Status), nil
 }
 
-func updateCAHealthMetrics(caHealthGauge libmetrics.Gauge, caStatus api.CAHealthStatus) {
+func updateCAHealthMetrics(caHealthGauge *prometheus.GaugeVec, caStatus api.CAHealthStatus) {
 	potentialCAStatus := []string{
 		"available",
 		"unavailable",
 		"starting",
 		"stopping",
 	}
-	libmetrics.GaugeWith(caHealthGauge, "status", string(caStatus)).Set(1)
+	caHealthGauge.With(prometheus.Labels{"status": string(caStatus)}).Set(1)
 	for _, status := range potentialCAStatus {
 		if strings.ToLower(string(caStatus)) != status {
-			libmetrics.GaugeWith(caHealthGauge, "status", status).Set(0)
+			caHealthGauge.With(prometheus.Labels{"status": status}).Set(0)
 		}
 	}
 }

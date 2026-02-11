@@ -19,7 +19,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -29,7 +30,7 @@ type Metrics struct {
 	LocalIA       RequestMetric
 	PortRange     RequestMetric
 	Interfaces    RequestMetric
-	Paths         RequestMetric
+	Paths         PathRequestMetrics
 	ASInfo        RequestMetric
 	SVCInfo       RequestMetric
 	InterfaceDown RequestMetric
@@ -40,17 +41,32 @@ type Metrics struct {
 
 // RequestMetric contains the metrics for a given request type.
 type RequestMetric struct {
-	Requests metrics.Counter
-	Latency  metrics.Histogram
+	Requests func(result string) metrics.Counter
+	Latency  func(result string) metrics.Histogram
 }
 
-func (m RequestMetric) Observe(err error, latency time.Duration, extraLabels ...string) {
+func (m RequestMetric) Observe(err error, latency time.Duration) {
 	result := standaloneResultFromErr(err)
 	if m.Requests != nil {
-		m.Requests.With(append([]string{prom.LabelResult, result}, extraLabels...)...).Add(1)
+		metrics.CounterInc(m.Requests(result))
 	}
 	if m.Latency != nil {
-		m.Latency.With(prom.LabelResult, result).Observe(latency.Seconds())
+		metrics.HistogramObserve(m.Latency(result), float64(latency.Seconds()))
+	}
+}
+
+type PathRequestMetrics struct {
+	Requests func(result string, dst addr.ISD) metrics.Counter
+	Latency  func(result string) metrics.Histogram
+}
+
+func (m PathRequestMetrics) Observe(err error, dstISD addr.ISD, latency time.Duration) {
+	result := standaloneResultFromErr(err)
+	if m.Requests != nil {
+		metrics.CounterInc(m.Requests(result, dstISD))
+	}
+	if m.Latency != nil {
+		metrics.HistogramObserve(m.Latency(result), float64(latency.Seconds()))
 	}
 }
 
@@ -64,46 +80,69 @@ func standaloneResultFromErr(err error) string {
 	return prom.ErrNotClassified
 }
 
-// NewStandaloneMetrics creates metrics for StandaloneDaemon operations.
-func NewStandaloneMetrics() Metrics {
-	resultLabels := []string{prom.LabelResult}
-	pathLabels := []string{prom.LabelResult, prom.LabelDst}
+// NewMetrics creates metrics for StandaloneDaemon operations.
+func NewMetrics(opts ...metrics.Option) Metrics {
+	auto := metrics.ApplyOptions(opts...).Auto()
+	pathReq := auto.NewCounterVec(prometheus.CounterOpts{
+		Name: "standalone_daemon_paths_requests_total",
+		Help: "The amount of path requests.",
+	}, []string{prom.LabelResult, prom.LabelDst})
+	pathLatency := auto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "standalone_daemon_paths_request_duration_seconds",
+		Help:    "Time to handle path requests.",
+		Buckets: prom.DefaultLatencyBuckets,
+	}, []string{prom.LabelResult})
 	return Metrics{
-		LocalIA:    newRequestMetric("local_ia", "local IA", resultLabels),
-		PortRange:  newRequestMetric("port_range", "port range", resultLabels),
-		Interfaces: newRequestMetric("interfaces", "interfaces", resultLabels),
-		Paths:      newRequestMetric("paths", "path", pathLabels),
-		ASInfo:     newRequestMetric("as_info", "AS info", resultLabels),
-		SVCInfo:    newRequestMetric("svc_info", "SVC info", resultLabels),
+		LocalIA:    newRequestMetric(auto, "local_ia", "local IA"),
+		PortRange:  newRequestMetric(auto, "port_range", "port range"),
+		Interfaces: newRequestMetric(auto, "interfaces", "interfaces"),
+		Paths: PathRequestMetrics{
+			Requests: func(result string, dst addr.ISD) metrics.Counter {
+				return pathReq.With(
+					prometheus.Labels{prom.LabelResult: result, prom.LabelDst: dst.String()},
+				)
+			},
+			Latency: func(result string) metrics.Histogram {
+				return pathLatency.With(prometheus.Labels{prom.LabelResult: result})
+			},
+		},
+		ASInfo:  newRequestMetric(auto, "as_info", "AS info"),
+		SVCInfo: newRequestMetric(auto, "svc_info", "SVC info"),
 		InterfaceDown: newRequestMetric(
-			"interface_down", "interface down notification", resultLabels,
+			auto, "interface_down", "interface down notification",
 		),
-		DRKeyASHost:   newRequestMetric("drkey_as_host", "DRKey AS-Host", resultLabels),
-		DRKeyHostAS:   newRequestMetric("drkey_host_as", "DRKey Host-AS", resultLabels),
-		DRKeyHostHost: newRequestMetric("drkey_host_host", "DRKey Host-Host", resultLabels),
+		DRKeyASHost:   newRequestMetric(auto, "drkey_as_host", "DRKey AS-Host"),
+		DRKeyHostAS:   newRequestMetric(auto, "drkey_host_as", "DRKey Host-AS"),
+		DRKeyHostHost: newRequestMetric(auto, "drkey_host_host", "DRKey Host-Host"),
 	}
 }
 
-func newRequestMetric(subsystem, description string, labels []string) RequestMetric {
+func newRequestMetric(auto metrics.Factory, subsystem, description string) RequestMetric {
+	requests := auto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "standalone_daemon",
+			Subsystem: subsystem,
+			Name:      "requests_total",
+			Help:      "The amount of " + description + " requests.",
+		},
+		[]string{prom.LabelResult},
+	)
+	latency := auto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "standalone_daemon",
+			Subsystem: subsystem,
+			Name:      "request_duration_seconds",
+			Help:      "Time to handle " + description + " requests.",
+			Buckets:   prom.DefaultLatencyBuckets,
+		},
+		[]string{prom.LabelResult},
+	)
 	return RequestMetric{
-		Requests: metrics.NewPromCounterFrom(
-			prometheus.CounterOpts{
-				Namespace: "standalone_daemon",
-				Subsystem: subsystem,
-				Name:      "requests_total",
-				Help:      "The amount of " + description + " requests.",
-			},
-			labels,
-		),
-		Latency: metrics.NewPromHistogramFrom(
-			prometheus.HistogramOpts{
-				Namespace: "standalone_daemon",
-				Subsystem: subsystem,
-				Name:      "request_duration_seconds",
-				Help:      "Time to handle " + description + " requests.",
-				Buckets:   prom.DefaultLatencyBuckets,
-			},
-			[]string{prom.LabelResult},
-		),
+		Requests: func(result string) metrics.Counter {
+			return requests.With(prometheus.Labels{prom.LabelResult: result})
+		},
+		Latency: func(result string) metrics.Histogram {
+			return latency.With(prometheus.Labels{prom.LabelResult: result})
+		},
 	}
 }

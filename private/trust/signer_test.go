@@ -25,17 +25,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/metrics/v2"
+	"github.com/scionproto/scion/pkg/private/prom"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	"github.com/scionproto/scion/private/trust"
-	"github.com/scionproto/scion/private/trust/internal/metrics"
 )
 
 func TestSignerSign(t *testing.T) {
@@ -53,7 +55,17 @@ func TestSignerSign(t *testing.T) {
 			Curve: elliptic.P521(),
 		},
 	}
-	metrics.Signer.Signatures.Reset()
+	signerSignatures := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "trustengine_created_signatures_total",
+			Help: "Number of signatures created with a signer backed by the trust engine",
+		},
+		[]string{prom.LabelResult},
+	)
+	signatures := func(result string) metrics.Counter {
+		return signerSignatures.WithLabelValues(result)
+	}
+
 	msg := []byte("some trustworthy message")
 	t.Run("cases", func(t *testing.T) {
 		for name, tc := range testCases {
@@ -74,6 +86,7 @@ func TestSignerSign(t *testing.T) {
 					},
 					SubjectKeyID: []byte{0, 1, 2, 3, 4, 5, 6, 7},
 					Expiration:   time.Now().Add(2 * time.Hour),
+					Signatures:   signatures,
 				}
 				signedMsg, err := signer.Sign(context.Background(), msg)
 				require.NoError(t, err)
@@ -100,7 +113,7 @@ func TestSignerSign(t *testing.T) {
 			# TYPE %s counter
 			trustengine_created_signatures_total{result="ok_success"} %d
 			`, "trustengine_created_signatures_total", "trustengine_created_signatures_total", 3)
-		err := testutil.CollectAndCompare(metrics.Signer.Signatures, strings.NewReader(want))
+		err := testutil.CollectAndCompare(signerSignatures, strings.NewReader(want))
 		require.NoError(t, err)
 	})
 

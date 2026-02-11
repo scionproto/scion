@@ -28,7 +28,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -205,18 +205,25 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			ctr := metrics.NewTestCounter()
+			counters := map[string]metrics.Counter{
+				"err_database": metrics.NewTestCounter(),
+				"err_internal": metrics.NewTestCounter(),
+				"err_notfound": metrics.NewTestCounter(),
+				"err_parse":    metrics.NewTestCounter(),
+				"err_verify":   metrics.NewTestCounter(),
+				"ok_success":   metrics.NewTestCounter(),
+			}
 			s := &grpc.CMS{
 				Verifier:     tc.Verifier(ctrl),
 				ChainBuilder: tc.ChainBuilder(ctrl),
 				IA:           tc.IA,
 				Metrics: grpc.CMSHandlerMetrics{
-					DatabaseError: ctr.With("result", "err_database"),
-					InternalError: ctr.With("result", "err_internal"),
-					NotFoundError: ctr.With("result", "err_notfound"),
-					ParseError:    ctr.With("result", "err_parse"),
-					VerifyError:   ctr.With("result", "err_verify"),
-					Success:       ctr.With("result", "ok_success"),
+					DatabaseError: counters["err_database"],
+					InternalError: counters["err_internal"],
+					NotFoundError: counters["err_notfound"],
+					ParseError:    counters["err_parse"],
+					VerifyError:   counters["err_verify"],
+					Success:       counters["ok_success"],
 				},
 			}
 			_, err := s.HandleCMSRequest(context.Background(), tc.Request(t))
@@ -225,7 +232,6 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			for _, res := range []string{
 				"err_database",
 				"err_internal",
-				"err_unavailable",
 				"err_notfound",
 				"err_parse",
 				"err_verify",
@@ -235,7 +241,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 				if res == tc.Metric {
 					expected = 1
 				}
-				assert.Equal(t, expected, metrics.CounterValue(ctr.With("result", res)), res)
+				assert.Equal(t, expected, metrics.CounterValue(counters[res]), res)
 			}
 		})
 	}
