@@ -20,14 +20,14 @@ linter.configure(
 use_repo(linter, "apple_linters")
 
 # Bazel rules for Golang
-bazel_dep(name = "rules_go", version = "0.59.0")
+bazel_dep(name = "rules_go", version = "0.60.0")
 single_version_override(
     module_name = "rules_go",
     patches = ["//patches:rules_go/import.patch"],
 )
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.download(version = "1.25.6")
+go_sdk.download(version = "1.26.0")
 use_repo(go_sdk, "go_toolchains")
 
 register_toolchains("@go_toolchains//:all")
