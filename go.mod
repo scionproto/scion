@@ -1,11 +1,11 @@
 module github.com/scionproto/scion
 
-go 1.24.2
+go 1.25.6
 
 require (
 	connectrpc.com/connect v1.18.1
 	github.com/antlr4-go/antlr/v4 v4.13.1
-	github.com/bazelbuild/rules_go v0.53.0
+	github.com/bazelbuild/rules_go v0.59.0
 	github.com/buildkite/go-buildkite/v4 v4.1.0
 	github.com/cilium/ebpf v0.18.0
 	github.com/dchest/cmac v1.0.0
@@ -36,7 +36,7 @@ require (
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/procfs v0.16.0
 	github.com/quic-go/quic-go v0.57.0
-	github.com/sergi/go-diff v1.3.1
+	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
@@ -106,6 +106,7 @@ require (
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect

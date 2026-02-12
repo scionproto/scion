@@ -11,6 +11,7 @@ go_library(
     deps = [
         "//pkg/addr:go_default_library",
         "//pkg/daemon:go_default_library",
+        "//pkg/daemon/types:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/segment/iface:go_default_library",
         "//pkg/slices:go_default_library",

@@ -148,12 +148,24 @@ func TestValidateASHost(t *testing.T) {
 			LocalIA:   ia112,
 			assertErr: assert.Error,
 		},
+		"invalid proto": {
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
+			req: drkey.ASHostMeta{
+				SrcIA:   ia111,
+				DstIA:   ia112,
+				DstHost: tcpHost1.Addr().String(),
+				ProtoId: drkey.Generic,
+			},
+			LocalIA:   ia112,
+			assertErr: assert.Error,
+		},
 		"valid host": {
 			peerAddr: net.TCPAddrFromAddrPort(tcpHost2),
 			req: drkey.ASHostMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
 				DstHost: tcpHost2.Addr().String(),
+				ProtoId: drkey.SCMP,
 			},
 			LocalIA:   ia112,
 			assertErr: assert.NoError,
@@ -202,12 +214,24 @@ func TestValidateHostASReq(t *testing.T) {
 			LocalIA:   ia111,
 			assertErr: assert.Error,
 		},
+		"invalid proto": {
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
+			req: drkey.HostASMeta{
+				SrcIA:   ia111,
+				DstIA:   ia112,
+				SrcHost: tcpHost1.Addr().String(),
+				ProtoId: drkey.Generic,
+			},
+			LocalIA:   ia111,
+			assertErr: assert.Error,
+		},
 		"valid src": {
 			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.HostASMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
 				SrcHost: tcpHost1.Addr().String(),
+				ProtoId: drkey.SCMP,
 			},
 			LocalIA:   ia111,
 			assertErr: assert.NoError,
@@ -258,6 +282,18 @@ func TestValidateHostHostReq(t *testing.T) {
 			LocalIA:   ia111,
 			assertErr: assert.Error,
 		},
+		"invalid proto": {
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
+			req: drkey.HostHostMeta{
+				SrcIA:   ia111,
+				DstIA:   ia112,
+				SrcHost: tcpHost1.Addr().String(),
+				DstHost: tcpHost2.Addr().String(),
+				ProtoId: drkey.Generic,
+			},
+			LocalIA:   ia111,
+			assertErr: assert.Error,
+		},
 		"valid src": {
 			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.HostHostMeta{
@@ -265,6 +301,7 @@ func TestValidateHostHostReq(t *testing.T) {
 				DstIA:   ia112,
 				SrcHost: tcpHost1.Addr().String(),
 				DstHost: tcpHost2.Addr().String(),
+				ProtoId: drkey.SCMP,
 			},
 			LocalIA:   ia111,
 			assertErr: assert.NoError,
@@ -276,6 +313,7 @@ func TestValidateHostHostReq(t *testing.T) {
 				DstIA:   ia112,
 				SrcHost: tcpHost1.Addr().String(),
 				DstHost: tcpHost2.Addr().String(),
+				ProtoId: drkey.SCMP,
 			},
 			LocalIA:   ia112,
 			assertErr: assert.NoError,
