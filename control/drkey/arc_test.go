@@ -1,4 +1,5 @@
 // Copyright 2022 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -87,8 +88,8 @@ func TestLevel1ARC(t *testing.T) {
 			cache, err := cs_drkey.NewLevel1ARC(tc.size)
 			require.NoError(t, err)
 
-			for j := 0; j < 2; j++ {
-				for i := 0; i < tc.lengthASes; i++ {
+			for range 2 {
+				for i := range tc.lengthASes {
 					cacheKey := cs_drkey.Level1PrefetchInfo{
 						IA:    addr.MustIAFrom(1, addr.AS(i)),
 						Proto: drkey.Protocol(0),

@@ -269,7 +269,7 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 		// collect packets.
 
 		// Give a new buffer to the msgs elements that have been used in the previous loop.
-		for i := 0; i < batchSize-numReusable; i++ {
+		for i := range batchSize - numReusable {
 			p := pool.Get()
 			packets[i] = p
 			msgs[i].Buffers[0] = p.RawPacket
@@ -391,7 +391,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			pool.Put(pkts[written])
 			toWrite -= (written + 1)
 			// Shift the leftovers to the head of the buffers.
-			for i := 0; i < toWrite; i++ {
+			for i := range toWrite {
 				pkts[i] = pkts[i+written+1]
 			}
 		} else {
@@ -470,7 +470,6 @@ func (u *provider) newConnectedLink(
 	metrics *router.InterfaceMetrics,
 	scope router.LinkScope, // Since this can be used for either Sibling or External
 ) (router.Link, error) {
-
 	conn, err := u.connOpener.Open(localAddr, remoteAddr,
 		&conn.Config{ReceiveBufferSize: u.receiveBufferSize, SendBufferSize: u.sendBufferSize})
 	if err != nil {
@@ -650,7 +649,6 @@ func (u *provider) newDetachedLink(
 	remoteAddr netip.AddrPort,
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
-
 	// All detached links re-use the internal connection.
 	c := u.internalConnection
 	if c == nil {

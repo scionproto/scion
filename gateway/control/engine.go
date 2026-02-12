@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -392,14 +393,12 @@ func (e *Engine) initWorkers(ctx context.Context) error {
 					e.Metrics.SessionMonitorMetrics.StateChanges, labels...),
 			},
 		}
-		e.workerBase.WG.Add(1)
-		go func() {
+		e.workerBase.WG.Go(func() {
 			defer log.HandlePanic()
-			defer e.workerBase.WG.Done()
 			if err := sessionMonitor.Run(ctx); err != nil {
 				panic(err) // application can't recover from this
 			}
-		}()
+		})
 
 		session := &Session{
 			ID:                      config.ID,
@@ -413,14 +412,12 @@ func (e *Engine) initWorkers(ctx context.Context) error {
 				metrics.CounterWith(e.Metrics.SessionMetrics.PathChanges, labels...),
 			},
 		}
-		e.workerBase.WG.Add(1)
-		go func() {
+		e.workerBase.WG.Go(func() {
 			defer log.HandlePanic()
-			defer e.workerBase.WG.Done()
 			if err := session.Run(ctx); err != nil {
 				panic(err) // application can't recover from an error here
 			}
-		}()
+		})
 
 		e.dataplaneSessions[config.ID] = dataplaneSession
 		e.sessions = append(e.sessions, session)
@@ -441,14 +438,12 @@ func (e *Engine) initWorkers(ctx context.Context) error {
 		Events:              e.eventNotifications,
 		Metrics:             e.Metrics.RouterMetrics,
 	}
-	e.workerBase.WG.Add(1)
-	go func() {
+	e.workerBase.WG.Go(func() {
 		defer log.HandlePanic()
-		defer e.workerBase.WG.Done()
 		if err := e.router.Run(ctx); err != nil {
 			panic(err) // application can't recover from an error here
 		}
-	}()
+	})
 
 	return nil
 }

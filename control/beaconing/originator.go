@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -106,7 +107,6 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 
 	s := newSummary()
 	var wg sync.WaitGroup
-	wg.Add(len(intfs))
 	for _, intf := range intfs {
 		b := beaconOriginator{
 			Originator: o,
@@ -115,15 +115,14 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 			summary:    s,
 			peers:      peers,
 		}
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
 
 			if err := b.originateBeacon(ctx); err != nil {
 				logger.Info("Unable to originate on interface",
 					"egress_interface", b.intf.TopoInfo().ID, "err", err)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	o.logSummary(logger, s)
@@ -237,8 +236,10 @@ type originatorLabels struct {
 }
 
 func (l originatorLabels) Expand() []string {
-	return []string{"egress_interface", strconv.Itoa(int(l.intf.TopoInfo().ID)),
-		prom.LabelResult, l.Result}
+	return []string{
+		"egress_interface", strconv.Itoa(int(l.intf.TopoInfo().ID)),
+		prom.LabelResult, l.Result,
+	}
 }
 
 func (l originatorLabels) WithResult(result string) originatorLabels {

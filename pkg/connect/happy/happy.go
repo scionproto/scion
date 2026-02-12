@@ -128,10 +128,8 @@ func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config
 	defer cancel()
 
 	if !cfg.NoPreferred {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
 			rep, err := preferred.Invoke(abortCtx)
 			if err == nil {
 				reps[idxPreferred] = rep
@@ -141,17 +139,16 @@ func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config
 				logger.Debug("Failed to receive via connect", "type", preferred.Type(), "err", err)
 			}
 			errs[idxPreferred] = err
-		}()
+		})
 	} else {
 		logger.Debug("Skipping preferred caller", "type", preferred.Type())
 		errs[idxPreferred] = serrors.New("preferred caller is disabled")
 	}
 
 	if !cfg.NoFallback {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
+
 			select {
 			case <-abortCtx.Done():
 				return
@@ -166,7 +163,7 @@ func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config
 				logger.Debug("Failed to receive on grpc", "type", fallback.Type(), "err", err)
 			}
 			errs[idxFallback] = err
-		}()
+		})
 	} else {
 		logger.Debug("Skipping fallback caller", "type", fallback.Type())
 		errs[idxFallback] = serrors.New("fallback caller is disabled")

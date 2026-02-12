@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,11 +54,11 @@ func (h *Handler) Handle(ctx context.Context, recs Segments, server net.Addr) *P
 }
 
 func (h *Handler) verifyAndStore(ctx context.Context,
-	verifiedCh <-chan segverifier.UnitResult, units int) *ProcessedResult {
-
+	verifiedCh <-chan segverifier.UnitResult, units int,
+) *ProcessedResult {
 	result := &ProcessedResult{}
 	verifiedUnits := make([]segverifier.UnitResult, 0, units)
-	for u := 0; u < units; u++ {
+	for range units {
 		verifiedUnits = append(verifiedUnits, <-verifiedCh)
 	}
 	verifyErrs, err := h.storeResults(ctx, verifiedUnits, &result.stats)
@@ -73,8 +74,8 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 }
 
 func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.UnitResult,
-	stats *Stats) ([]error, error) {
-
+	stats *Stats,
+) ([]error, error) {
 	var verifyErrs []error
 	segs := make([]*seg.Meta, 0, len(verifiedUnits))
 	for _, unit := range verifiedUnits {
