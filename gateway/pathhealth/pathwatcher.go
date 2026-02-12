@@ -188,12 +188,12 @@ func (w *pathWatcher) UpdatePath(path snet.Path) {
 	w.pathMtx.Lock()
 	defer w.pathMtx.Unlock()
 
-	if w.path.fingerprint != snet.Fingerprint(path) {
+	if fp := path.Metadata().Fingerprint(); w.path.fingerprint != fp {
 		log.Error("UpdatePath with new fingerprint is invalid (BUG)",
 			"current_path", fmt.Sprint(w.path.Path),
 			"current_fingerprint", w.path.fingerprint,
 			"new_path", fmt.Sprint(path),
-			"new_fingerprint", snet.Fingerprint(path),
+			"new_fingerprint", fp,
 		)
 		return
 	}
@@ -336,7 +336,7 @@ type pathWrap struct {
 func createPathWrap(path snet.Path) pathWrap {
 	p := pathWrap{
 		Path:        path,
-		fingerprint: snet.Fingerprint(path),
+		fingerprint: path.Metadata().Fingerprint(),
 		expiry:      path.Metadata().Expiry,
 	}
 

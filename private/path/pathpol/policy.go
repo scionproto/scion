@@ -162,12 +162,12 @@ func (p *Policy) evalOptions(paths []snet.Path, opts FilterOptions) []snet.Path 
 		currWeight = option.Weight
 		subPaths := option.Policy.FilterOpt(paths, opts)
 		for _, path := range subPaths {
-			subPolicySet[snet.Fingerprint(path)] = struct{}{}
+			subPolicySet[path.Metadata().Fingerprint()] = struct{}{}
 		}
 	}
 	result := []snet.Path{}
 	for _, path := range paths {
-		if _, ok := subPolicySet[snet.Fingerprint(path)]; ok {
+		if _, ok := subPolicySet[path.Metadata().Fingerprint()]; ok {
 			result = append(result, path)
 		}
 	}

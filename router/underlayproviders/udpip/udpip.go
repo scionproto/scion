@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/stun"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
@@ -40,7 +41,6 @@ var (
 	errResolveOnSiblingLink  = errors.New("unsupported address resolution on sibling link")
 	errResolveOnExternalLink = errors.New("unsupported address resolution on external link")
 	errInvalidServiceAddress = errors.New("invalid service address")
-	errShortPacket           = errors.New("packet is too short")
 	errDuplicateRemote       = errors.New("duplicate remote address")
 )
 
@@ -573,17 +573,17 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-	if err != nil {
-		log.Debug("Error while computing procID", "err", err)
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsInvalid.Inc()
-		return
-	}
 
 	p.Link = l
 	// The src address does not need to be recorded in the packet. The link has all the relevant
 	// information.
+
+	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
+	if !ok {
+		l.pool.Put(p)
+		metrics[sc].DroppedPacketsInvalid.Inc()
+		return
+	}
 	select {
 	case l.procQs[procID] <- p:
 	default:
@@ -748,17 +748,17 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-	if err != nil {
-		log.Debug("Error while computing procID", "err", err)
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsInvalid.Inc()
-		return
-	}
 
 	p.Link = l
 	// The src address does not need to be recorded in the packet. The link has all the relevant
 	// information.
+
+	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
+	if !ok {
+		l.pool.Put(p)
+		metrics[sc].DroppedPacketsInvalid.Inc()
+		return
+	}
 	select {
 	case l.procQs[procID] <- p:
 	default:
@@ -768,8 +768,11 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 }
 
 type internalLink struct {
+	procQ            chan *router.Packet
 	procQs           []chan *router.Packet
 	egressQ          chan *router.Packet
+	procStop         chan struct{}
+	procDone         chan struct{}
 	metrics          *router.InterfaceMetrics
 	pool             router.PacketPool
 	svc              *router.Services[netip.AddrPort]
@@ -843,13 +846,86 @@ func (l *internalLink) start(
 	procQs []chan *router.Packet,
 	pool router.PacketPool,
 ) {
+	maxCap := 0
+	for _, q := range procQs {
+		maxCap = max(maxCap, cap(q))
+	}
+	l.procQ = make(chan *router.Packet, maxCap)
+	l.procStop = make(chan struct{})
+	l.procDone = make(chan struct{})
+
 	// procQs and pool are never known before all configured links have been instantiated. So we
 	// get them only now. We didn't need it earlier since the connections have not been started yet.
 	l.procQs = procQs
 	l.pool = pool
+
+	go func() {
+		defer log.HandlePanic()
+		l.runProcessor()
+	}()
+}
+
+func (l *internalLink) runProcessor() {
+	for {
+		select {
+		case p := <-l.procQ:
+			err := l.processPacket(p)
+			if err != nil {
+				log.Debug("Error processing packet", "err", err)
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsInvalid.Inc()
+				l.pool.Put(p)
+				continue
+			}
+			egressLink := p.Link
+			if egressLink == nil {
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsInvalid.Inc()
+				l.pool.Put(p)
+				continue
+			}
+			if !egressLink.Send(p) {
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder.Inc()
+				l.pool.Put(p)
+				continue
+			}
+		case <-l.procStop:
+			for {
+				select {
+				case p := <-l.procQ:
+					sc := router.ClassOfSize(len(p.RawPacket))
+					l.metrics[sc].DroppedPacketsBusyProcessor.Inc()
+					l.pool.Put(p)
+				default:
+					close(l.procDone)
+					return
+				}
+			}
+		}
+	}
+}
+
+func (l *internalLink) processPacket(pkt *router.Packet) error {
+	if stun.Is(pkt.RawPacket) {
+		// Process STUN packet
+		txid, err := stun.ParseBindingRequest(pkt.RawPacket)
+		if err != nil {
+			return serrors.Wrap("processing STUN packet", err)
+		}
+		resp := stun.Response(txid, (*net.UDPAddr)(pkt.RemoteAddr).AddrPort())
+		pkt.RawPacket = pkt.RawPacket[:len(resp)]
+		copy(pkt.RawPacket, resp)
+		return nil
+	}
+	// Drop packet
+	pkt.Link = nil
+	return nil
 }
 
 func (l *internalLink) stop() {
+	close(l.procStop)
+	<-l.procDone
 }
 
 func (l *internalLink) IfID() uint16 {
@@ -937,40 +1013,53 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
 	metrics[sc].InputBytesTotal.Add(float64(size))
-	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-	if err != nil {
-		log.Debug("Error while computing procID", "err", err)
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsInvalid.Inc()
-		return
-	}
 
 	p.Link = l
-	// This is a connected link. We must record the src address in case the packet is turned around
-	// by SCMP.
-
-	// One of RemoteAddr or srcAddr becomes garbage. Keeping srcAddr doesn't require copying.
-	// Keeping RemoteAddr does and has no advantage: it could only be further reused if this packet
-	// left via this link and required resolve(). That case doesn't occur.
+	// This is an unconnected link. We must record the src address in case the packet is turned
+	// around, e.g., by SCMP.
 	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
+	var q chan *router.Packet
+	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
+	if ok {
+		q = l.procQs[procID]
+	} else {
+		q = l.procQ
+	}
 	select {
-	case l.procQs[procID] <- p:
+	case q <- p:
 	default:
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
 }
 
-func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, error) {
+// computeProcID computes the processor ID for a given packet provided by the slice data. It assumes
+// that numProcRoutines is non-negative and not larger than 4294967295. hashSeed is used for hash
+// computation. If data is clearly not a valid SCION packet, it returns ok=false. Otherwise, it
+// returns a processor ID smaller than numProcRoutines and ok=true.
+// Specifically for STUN packets, the check for valid SCION packets fails since the part of the STUN
+// header that overlaps with the SCION common header NextHdr field contains value 0x21, which is not
+// a valid L4 protocol type. Therefore, STUN packets will always result in ok=false.
+// If we ever have a protocol type assigned to value 0x21, we need to revisit this function.
+func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, bool) {
 	if len(data) < slayers.CmnHdrLen {
-		return 0, errShortPacket
+		return uint32(numProcRoutines), false
 	}
+
+	switch slayers.L4ProtocolType(data[4]) {
+	case slayers.L4TCP, slayers.L4UDP, slayers.L4SCMP, slayers.L4BFD,
+		slayers.HopByHopClass, slayers.End2EndClass,
+		slayers.ExperimentationAndTesting, slayers.ExperimentationAndTesting2:
+	default:
+		return uint32(numProcRoutines), false
+	}
+
 	dstHostAddrLen := slayers.AddrType(data[9] >> 4 & 0xf).Length()
 	srcHostAddrLen := slayers.AddrType(data[9] & 0xf).Length()
 	addrHdrLen := 2*addr.IABytes + srcHostAddrLen + dstHostAddrLen
 	if len(data) < slayers.CmnHdrLen+addrHdrLen {
-		return 0, errShortPacket
+		return uint32(numProcRoutines), false
 	}
 
 	s := hashSeed
@@ -986,5 +1075,5 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 		s = hashFNV1a(s, c)
 	}
 
-	return s % uint32(numProcRoutines), nil
+	return s % uint32(numProcRoutines), true
 }

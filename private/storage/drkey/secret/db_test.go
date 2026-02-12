@@ -57,7 +57,7 @@ func newSecretValueDatabase(t *testing.T) *sqlite.Backend {
 	name := file.Name()
 	err = file.Close()
 	require.NoError(t, err)
-	db, err := sqlite.NewBackend(name)
+	db, err := sqlite.NewBackend(name, nil)
 	require.NoError(t, err)
 	return db
 }

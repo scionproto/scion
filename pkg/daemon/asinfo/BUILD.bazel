@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["asinfo.go"],
+    importpath = "github.com/scionproto/scion/pkg/daemon/asinfo",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/metrics:go_default_library",
+        "//pkg/private/prom:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//private/topology:go_default_library",
+    ],
+)

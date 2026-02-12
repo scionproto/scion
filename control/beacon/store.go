@@ -28,26 +28,25 @@ type usager interface {
 }
 
 type storeOptions struct {
-	chainChecker ChainProvider
+	selectionAlgo SelectionAlgorithm
 }
 
 type StoreOption interface {
 	apply(o *storeOptions)
 }
 
-type chainCheckerOption struct{ ChainProvider }
+type applyFunc func(o *storeOptions)
 
-func (c chainCheckerOption) apply(o *storeOptions) {
-	o.chainChecker = c.ChainProvider
+func (f applyFunc) apply(o *storeOptions) {
+	f(o)
 }
 
-// WithCheckChain ensures that only beacons for which all the required
-// certificate chains are available are returned. This can be paired with a
-// chain provider that only returns locally available chains to ensure that
-// beacons are verifiable with cryptographic material available in the local
-// trust store.
-func WithCheckChain(p ChainProvider) StoreOption {
-	return chainCheckerOption{p}
+// WithSelectionAlgorithm sets the selection algorithm used to select the best
+// beacons according to the configured policies.
+func WithSelectionAlgorithm(algo SelectionAlgorithm) StoreOption {
+	return applyFunc(func(o *storeOptions) {
+		o.selectionAlgo = algo
+	})
 }
 
 func applyStoreOptions(opts []StoreOption) storeOptions {
@@ -56,6 +55,44 @@ func applyStoreOptions(opts []StoreOption) storeOptions {
 		f.apply(&o)
 	}
 	return o
+}
+
+// GroupedBeacons is a map where the key is the registration policy name and the value is a
+// slice of beacons that should be handled by that registration policy.
+type GroupedBeacons map[string][]Beacon
+
+// DefaultGroup defines the default beacon group.
+// This means that if a policy does not define any registration policies,
+// all the beacons should be put into this group.
+//
+// This should also correspond to the ID of the default plugin.
+const DefaultGroup string = "default"
+
+// groupBeacons takes a slice of beacons and groups them according to the registration policies
+// defined in the provided policy.
+//
+// The beacons that do not match any registration policy are dropped.
+//
+// If the policy defines no registration policy, all the beacons will be put into
+// the default group, indexed by DefaultGroup.
+func groupBeacons(beacons []Beacon, policy *Policy) GroupedBeacons {
+	if len(policy.RegistrationPolicies) == 0 {
+		return map[string][]Beacon{
+			DefaultGroup: beacons,
+		}
+	}
+	// Go through every beacon, and group it into the first registration
+	// policy that matches it.
+	beaconBuckets := make(GroupedBeacons)
+	for _, b := range beacons {
+		for _, regPolicy := range policy.RegistrationPolicies {
+			if regPolicy.Matcher.Match(b) {
+				beaconBuckets[regPolicy.Name] = append(beaconBuckets[regPolicy.Name], b)
+				break
+			}
+		}
+	}
+	return beaconBuckets
 }
 
 // Store provides abstracted access to the beacon database in a non-core AS.
@@ -91,18 +128,27 @@ func (s *Store) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
-// SegmentsToRegister returns a channel that provides all beacons to register at
-// the time of the call. The selections are based on the configured policy for
-// the requested segment type.
-func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
+// SegmentsToRegister returns a GroupedBeacons that provides all beacons to register
+// at the time of the call. The selections are based on the configured policy for the
+// requested segment type.
+func (s *Store) SegmentsToRegister(
+	ctx context.Context,
+	segType seg.Type,
+) (GroupedBeacons, error) {
+	var policy *Policy
 	switch segType {
 	case seg.TypeDown:
-		return s.getBeacons(ctx, &s.policies.DownReg)
+		policy = &s.policies.DownReg
 	case seg.TypeUp:
-		return s.getBeacons(ctx, &s.policies.UpReg)
+		policy = &s.policies.UpReg
 	default:
 		return nil, serrors.New("Unsupported segment type", "type", segType)
 	}
+	beacons, err := s.getBeacons(ctx, policy)
+	if err != nil {
+		return nil, err
+	}
+	return groupBeacons(beacons, policy), nil
 }
 
 // getBeacons fetches the candidate beacons from the database and serves the
@@ -162,14 +208,20 @@ func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
-// SegmentsToRegister returns a slice of all beacons to register at the time of the call.
+// SegmentsToRegister returns a GroupedBeacons to register at the time of the call.
 // The selection is based on the configured policy for the requested segment type.
-func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
-
+func (s *CoreStore) SegmentsToRegister(
+	ctx context.Context,
+	segType seg.Type,
+) (GroupedBeacons, error) {
 	if segType != seg.TypeCore {
 		return nil, serrors.New("Unsupported segment type", "type", segType)
 	}
-	return s.getBeacons(ctx, &s.policies.CoreReg)
+	beacons, err := s.getBeacons(ctx, &s.policies.CoreReg)
+	if err != nil {
+		return nil, err
+	}
+	return groupBeacons(beacons, &s.policies.CoreReg), nil
 }
 
 // getBeacons fetches the candidate beacons from the database and serves the
@@ -209,7 +261,7 @@ func (s *CoreStore) MaxExpTime(policyType PolicyType) uint8 {
 type baseStore struct {
 	db     DB
 	usager usager
-	algo   selectionAlgorithm
+	algo   SelectionAlgorithm
 }
 
 // PreFilter indicates whether the beacon will be filtered on insert by
@@ -236,9 +288,12 @@ func (s *baseStore) UpdatePolicy(ctx context.Context, policy Policy) error {
 	return serrors.New("policy update not supported")
 }
 
-func selectAlgo(o storeOptions) selectionAlgorithm {
-	if o.chainChecker != nil {
-		return newChainsAvailableAlgo(o.chainChecker)
+func selectAlgo(o storeOptions) SelectionAlgorithm {
+	var algo SelectionAlgorithm
+	if o.selectionAlgo != nil {
+		algo = o.selectionAlgo
+	} else {
+		algo = DefaultSelectionAlgorithm()
 	}
-	return baseAlgo{}
+	return algo
 }

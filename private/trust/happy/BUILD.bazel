@@ -1,0 +1,13 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["fetcher.go"],
+    importpath = "github.com/scionproto/scion/private/trust/happy",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/connect/happy:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
+        "//private/trust:go_default_library",
+    ],
+)

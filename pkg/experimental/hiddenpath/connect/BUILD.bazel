@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["lookup.go"],
+    importpath = "github.com/scionproto/scion/pkg/experimental/hiddenpath/connect",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/experimental/hiddenpath/grpc:go_default_library",
+        "//pkg/proto/hidden_segment:go_default_library",
+        "@com_connectrpc_connect//:go_default_library",
+        "@com_github_scionproto_scion//pkg/proto/hidden_segment/v1/hidden_segmentconnect:go_default_library",
+    ],
+)

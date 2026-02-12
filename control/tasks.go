@@ -24,18 +24,22 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/drkey"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/control/segreg"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/revcache"
-	"github.com/scionproto/scion/private/segment/seghandler"
 	"github.com/scionproto/scion/private/trust"
 )
+
+var ErrDefaultSegmentRegPlugin = serrors.New("default segment registration plugin not registered")
 
 // TasksConfig holds the necessary configuration to start the periodic tasks a
 // CS is expected to run.
@@ -61,8 +65,9 @@ type TasksConfig struct {
 	Metrics               *Metrics
 	DRKeyEngine           *drkey.ServiceEngine
 
-	MACGen     func() hash.Hash
-	StaticInfo func() *beaconing.StaticInfoCfg
+	MACGen        func() hash.Hash
+	StaticInfo    func() *beaconing.StaticInfoCfg
+	DiscoveryInfo func() *discovery.Extension
 
 	OriginationInterval  time.Duration
 	PropagationInterval  time.Duration
@@ -76,6 +81,76 @@ type TasksConfig struct {
 	AllowIsdLoop bool
 
 	EPIC bool
+
+	registrars segreg.SegmentRegistrars
+}
+
+// InitPlugins initializes the segment registration plugins based on the provided
+// registration policies. This must be called before starting the tasks.
+func (t *TasksConfig) InitPlugins(ctx context.Context, regPolicies []beacon.Policy) error {
+	logger := log.FromCtx(ctx)
+	if t.registrars != nil {
+		return nil
+	}
+	// Initialize the segment registrars.
+	segmentRegistrars := make(segreg.SegmentRegistrars)
+	for _, policy := range regPolicies {
+		polType, ok := policy.Type.RegPolicyType()
+		if !ok {
+			logger.Error("Unsupported policy type for segment registration plugin",
+				"policy_type", policy.Type)
+			continue
+		}
+		for _, regPolicy := range policy.RegistrationPolicies {
+			plugin, ok := segreg.GetSegmentRegPlugin(regPolicy.Plugin)
+			if !ok {
+				return serrors.New("unknown segment registration plugin",
+					"plugin", regPolicy.Plugin)
+			}
+			registrar, err := plugin.New(
+				ctx, polType, regPolicy.PluginConfig,
+			)
+			if err != nil {
+				return serrors.Wrap("creating segment registrar", err)
+			}
+			if err := segmentRegistrars.RegisterSegmentRegistrar(
+				polType, regPolicy.Name, registrar,
+			); err != nil {
+				return serrors.Wrap("registering segment registrar", err,
+					"policy_type", policy.Type, "registration_policy", regPolicy.Name)
+			}
+		}
+	}
+	// For the policy types that do not have any plugins registered, we construct a registrar from
+	// the default plugin.
+	// This is done for the sake of backward compatibility.
+	defaultPlugin, ok := segreg.GetDefaultSegmentRegPlugin()
+	if !ok {
+		return ErrDefaultSegmentRegPlugin
+	}
+	for _, polType := range []beacon.RegPolicyType{
+		beacon.RegPolicyTypeUp,
+		beacon.RegPolicyTypeDown,
+		beacon.RegPolicyTypeCore,
+	} {
+		if _, ok := segmentRegistrars[polType]; !ok {
+			defaultRegistrar, err := defaultPlugin.New(
+				ctx, polType, nil,
+			)
+			if err != nil {
+				return serrors.Wrap("creating default segment registrar", err,
+					"policy_type", polType)
+			}
+			if err := segmentRegistrars.RegisterDefaultSegmentRegistrar(
+				polType, defaultRegistrar,
+			); err != nil {
+				return serrors.Wrap("registering default segment registrar", err,
+					"policy_type", polType)
+			}
+		}
+	}
+	t.registrars = segmentRegistrars
+	return nil
 }
 
 // Originator starts a periodic beacon origination task. For non-core ASes, no
@@ -126,75 +201,39 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 // SegmentWriters starts periodic segment registration tasks.
 func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 	if t.Core {
-		return []*periodic.Runner{t.segmentWriter(seg.TypeCore, beacon.CoreRegPolicy)}
+		return []*periodic.Runner{t.segmentWriter(beacon.RegPolicyTypeCore)}
 	}
 	return []*periodic.Runner{
-		t.segmentWriter(seg.TypeDown, beacon.DownRegPolicy),
-		t.segmentWriter(seg.TypeUp, beacon.UpRegPolicy),
+		t.segmentWriter(beacon.RegPolicyTypeDown),
+		t.segmentWriter(beacon.RegPolicyTypeUp),
 	}
 }
 
-func (t *TasksConfig) segmentWriter(segType seg.Type,
-	policyType beacon.PolicyType) *periodic.Runner {
-
-	var internalErr, registered metrics.Counter
-	if t.Metrics != nil {
-		internalErr = metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
-		registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
-	}
-	var writer beaconing.Writer
-	switch {
-	case segType != seg.TypeDown:
-		writer = &beaconing.LocalWriter{
-			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
-			Registered:     registered,
-			Type:           segType,
-			Intfs:          t.AllInterfaces,
-			Extender: t.extender("registrar", t.IA, t.MTU, func() uint8 {
-				return t.BeaconStore.MaxExpTime(policyType)
-			}),
-			Store: &seghandler.DefaultStorage{PathDB: t.PathDB},
-		}
-
-	case t.HiddenPathRegistrationCfg != nil:
-		writer = &hiddenpath.BeaconWriter{
-			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
-			Registered:     registered,
-			Intfs:          t.AllInterfaces,
-			Extender: t.extender("registrar", t.IA, t.MTU, func() uint8 {
-				return t.BeaconStore.MaxExpTime(policyType)
-			}),
-			RPC: t.HiddenPathRegistrationCfg.RPC,
-			Pather: addrutil.Pather{
-				NextHopper: t.NextHopper,
-			},
-			RegistrationPolicy: t.HiddenPathRegistrationCfg.Policy,
-			AddressResolver: hiddenpath.RegistrationResolver{
-				Router:     t.HiddenPathRegistrationCfg.Router,
-				Discoverer: t.HiddenPathRegistrationCfg.Discoverer,
-			},
-		}
-	default:
-		writer = &beaconing.RemoteWriter{
-			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
-			Registered:     registered,
-			Type:           segType,
-			Intfs:          t.AllInterfaces,
-			Extender: t.extender("registrar", t.IA, t.MTU, func() uint8 {
-				return t.BeaconStore.MaxExpTime(policyType)
-			}),
-			RPC: t.SegmentRegister,
-			Pather: addrutil.Pather{
-				NextHopper: t.NextHopper,
-			},
-		}
+// segmentWriter starts a periodic segment registration task for the given policy type.
+func (t *TasksConfig) segmentWriter(
+	policyType beacon.RegPolicyType,
+) *periodic.Runner {
+	if t.registrars == nil {
+		panic("segment registrars not initialized, call InitPlugins first")
 	}
 	r := &beaconing.WriteScheduler{
 		Provider: t.BeaconStore,
 		Intfs:    t.AllInterfaces,
-		Type:     segType,
-		Writer:   writer,
-		Tick:     beaconing.NewTick(t.RegistrationInterval),
+		Type:     policyType.SegmentType(),
+		Writer: &beaconing.GroupWriter{
+			PolicyType: policyType,
+			Registrars: t.registrars,
+			Intfs:      t.AllInterfaces,
+			Extender: t.extender("segment_writer", t.IA, t.MTU, func() uint8 {
+				return t.BeaconStore.MaxExpTime(policyType.PolicyType())
+			}),
+			InternalErrors: metrics.CounterWith(
+				metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal),
+				"seg_type",
+				policyType.SegmentType().String(),
+			),
+		},
+		Tick: beaconing.NewTick(t.RegistrationInterval),
 	}
 	// The period of the task is short because we want to retry quickly
 	// if we fail fast. So during one interval we'll make as many attempts
@@ -213,15 +252,16 @@ func (t *TasksConfig) extender(
 ) beaconing.Extender {
 
 	return &beaconing.DefaultExtender{
-		IA:         ia,
-		SignerGen:  t.SignerGen,
-		MAC:        t.MACGen,
-		Intfs:      t.AllInterfaces,
-		MTU:        mtu,
-		MaxExpTime: func() uint8 { return maxExp() },
-		StaticInfo: t.StaticInfo,
-		Task:       task,
-		EPIC:       t.EPIC,
+		IA:                   ia,
+		SignerGen:            t.SignerGen,
+		MAC:                  t.MACGen,
+		Intfs:                t.AllInterfaces,
+		MTU:                  mtu,
+		MaxExpTime:           func() uint8 { return maxExp() },
+		StaticInfo:           t.StaticInfo,
+		DiscoveryInformation: t.DiscoveryInfo,
+		Task:                 task,
+		EPIC:                 t.EPIC,
 		SegmentExpirationDeficient: func() metrics.Gauge {
 			if t.Metrics == nil {
 				return nil
@@ -346,11 +386,10 @@ type Store interface {
 	// potentially could be empty when no beacon is found) and no error.
 	// The selection is based on the configured propagation policy.
 	BeaconsToPropagate(ctx context.Context) ([]beacon.Beacon, error)
-	// SegmentsToRegister returns an error and an empty slice if an error (e.g., connection or
-	// parsing error) occurs; otherwise, it returns a slice containing the beacons (which
-	// potentially could be empty when no beacon is found) and no error.
-	// The selections is based on the configured propagation policy for the requested segment type.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.Beacon, error)
+	// SegmentsToRegister returns an error if for example connection or parsing error occurs;
+	// otherwise it returns grouped beacons (which is empty when no beacon is found). The
+	// selection is based on the configured propagation policy for the requested segment type.
+	SegmentsToRegister(ctx context.Context, segType seg.Type) (beacon.GroupedBeacons, error)
 	// InsertBeacon adds a verified beacon to the store, ignoring revocations.
 	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
 	// UpdatePolicy updates the policy. Beacons that are filtered by all

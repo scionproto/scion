@@ -56,7 +56,11 @@ func (cfg *DRKeyConfig) Enabled() bool {
 
 // Validate validates that all values are parsable.
 func (cfg *DRKeyConfig) Validate() error {
-	return config.ValidateAll(&cfg.Level1DB, &cfg.SecretValueDB, &cfg.Delegation)
+	return config.ValidateAll(
+		cfg.Level1DB.WithAllowEmptyConn(),
+		cfg.SecretValueDB.WithAllowEmptyConn(),
+		&cfg.Delegation,
+	)
 }
 
 // Sample writes a config sample to the writer.

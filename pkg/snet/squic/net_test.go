@@ -19,6 +19,7 @@ package squic_test
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net"
 	"os"
 	"sync"
@@ -206,11 +207,40 @@ func TestEstablishConnection(t *testing.T) {
 	})
 }
 
+type DelegatingListener struct {
+	quic  *quic.Listener
+	conns chan<- *quic.Conn
+	squic *squic.ConnListener
+}
+
+func (d *DelegatingListener) Accept() (net.Conn, error) {
+	conn, err := d.quic.Accept(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	d.conns <- conn
+	return d.squic.Accept()
+}
+
+func (d *DelegatingListener) Close() error {
+	return errors.Join(d.quic.Close(), d.squic.Close())
+}
+
+func (d *DelegatingListener) Addr() net.Addr {
+	return d.squic.Addr()
+}
+
 func netListener(t *testing.T) (net.Listener, *net.UDPConn) {
 	srvConn := newConn(t)
 	listener, err := quic.Listen(srvConn, tlsConfig(t), nil)
 	require.NoError(t, err)
-	return squic.NewConnListener(listener), srvConn
+
+	c := make(chan *quic.Conn, 1)
+	return &DelegatingListener{
+		quic:  listener,
+		conns: c,
+		squic: squic.NewConnListener(c, listener.Addr()),
+	}, srvConn
 }
 
 func connDialer(t *testing.T) *squic.ConnDialer {

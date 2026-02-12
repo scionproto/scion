@@ -20,14 +20,14 @@ linter.configure(
 use_repo(linter, "apple_linters")
 
 # Bazel rules for Golang
-bazel_dep(name = "rules_go", version = "0.53.0")
+bazel_dep(name = "rules_go", version = "0.59.0")
 single_version_override(
     module_name = "rules_go",
     patches = ["//patches:rules_go/import.patch"],
 )
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.download(version = "1.24.2")
+go_sdk.download(version = "1.25.6")
 use_repo(go_sdk, "go_toolchains")
 
 register_toolchains("@go_toolchains//:all")
@@ -58,6 +58,7 @@ use_repo(
     "com_github_getkin_kin_openapi",
     "com_github_go_chi_chi_v5",
     "com_github_go_chi_cors",
+    "com_github_go_viper_mapstructure_v2",
     "com_github_golang_mock",
     "com_github_google_go_cmp",
     "com_github_gopacket_gopacket",
@@ -68,7 +69,6 @@ use_repo(
     "com_github_iancoleman_strcase",
     "com_github_lestrrat_go_jwx_v3",
     "com_github_mattn_go_isatty",
-    "com_github_mattn_go_sqlite3",
     "com_github_mdlayher_arp",
     "com_github_mdlayher_ethernet",
     "com_github_oapi_codegen_oapi_codegen_v2",
@@ -89,7 +89,7 @@ use_repo(
     "com_github_stretchr_testify",
     "com_github_uber_jaeger_client_go",
     "com_github_vishvananda_netlink",
-    "in_gopkg_yaml_v2",
+    "in_gopkg_yaml_v3",
     "org_go4_netipx",
     "org_golang_google_grpc",
     "org_golang_google_grpc_examples",

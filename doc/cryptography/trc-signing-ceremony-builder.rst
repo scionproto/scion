@@ -66,9 +66,12 @@ TRC Signing Ceremony - Script Builder
                     commonName: $persist(''),
                     notBefore: $persist(''),
                     notAfter: $persist(''),
-                    defaultSuffix: ' High Security Voting Certificate',
+                    defaultSuffix: ' Sensitive Voting Certificate',
                     kms: $persist('file'),
                     keyLabel: $persist(''),
+                    keyAwsRegion: $persist(''),
+                    keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
                 regularVoting: {
                     key: $persist('$KEYDIR/regular-voting.key'),
@@ -79,6 +82,9 @@ TRC Signing Ceremony - Script Builder
                     defaultSuffix: ' Regular Voting Certificate',
                     kms: $persist('file'),
                     keyLabel: $persist(''),
+                    keyAwsRegion: $persist(''),
+                    keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
                 root: {
                     key: $persist('$KEYDIR/cp-root.key'),
@@ -89,6 +95,9 @@ TRC Signing Ceremony - Script Builder
                     defaultSuffix: ' High Security Root Certificate',
                     kms: $persist('file'),
                     keyLabel: $persist(''),
+                    keyAwsRegion: $persist(''),
+                    keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
             },
             signatures: {
@@ -96,16 +105,25 @@ TRC Signing Ceremony - Script Builder
                     key: $persist('$PREV_KEYDIR/sensitive-voting.key'),
                     cert: $persist('$PREV_PUBDIR/sensitive-voting.crt'),
                     kms: $persist('file'),
+                    keyAwsRegion: $persist(''),
+                    keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
                 regularVote: {
                     key: $persist('$PREV_KEYDIR/regular-voting.key'),
                     cert: $persist('$PREV_PUBDIR/regular-voting.crt'),
                     kms: $persist('file'),
+                    keyAwsRegion: $persist(''),
+                    keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
                 rootApproval: {
                     key: $persist('$PREV_KEYDIR/cp-root.key'),
                     cert: $persist('$PREV_PUBDIR/cp-root.crt'),
                     kms: $persist('file'),
+                    keyAwsRegion: $persist(''),
+                    keyAzureVault: $persist(''),
+                    keyPkcs11: $persist(''),
                 },
             },
 
@@ -244,9 +262,12 @@ TRC Signing Ceremony - Script Builder
                     title: 'Show Proof-of-Possession for the Sensitive Voting Key',
                     verifyTitle: 'Verify Proof-of-Possession for the Sensitive Voting Key',
                     crt: form.cert,
-                    key: form.kms === 'file' ? form.key : form.keyLabel,
+                    key:  ['awskms', 'azurekms', 'cloudkms', 'pkcs11'].includes(form.kms) ? form.key : form.kms === 'file' ? form.key : form.keyLabel,
                     signed: this.trcPrefix+'.sensitive.pop.trc',
                     kms: form.kms,
+                    keyAwsRegion: form.keyAwsRegion,
+                    keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             if (this.createRegular) {
@@ -255,9 +276,12 @@ TRC Signing Ceremony - Script Builder
                     title: 'Show Proof-of-Possession for the Regular Voting Key',
                     verifyTitle: 'Verify Proof-of-Possession for the Regular Voting Key',
                     crt: form.cert,
-                    key: form.kms === 'file' ? form.key : form.keyLabel,
+                    key:  ['awskms', 'azurekms', 'cloudkms', 'pkcs11'].includes(form.kms) ? form.key : form.kms === 'file' ? form.key : form.keyLabel,
                     signed: this.trcPrefix+'.regular.pop.trc',
                     kms: form.kms,
+                    keyAwsRegion: form.keyAwsRegion,
+                    keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             if (this.castRootApproval) {
@@ -266,9 +290,12 @@ TRC Signing Ceremony - Script Builder
                     title: 'Show approval for the Root Certificate Change',
                     verifyTitle: 'Verify approval for the Root Certificate Change',
                     crt: form.cert,
-                    key: form.key,
+                    key:  ['awskms', 'azurekms', 'cloudkms', 'pkcs11'].includes(form.kms) ? form.key : form.kms === 'file' ? form.key : form.keyLabel,
                     signed: this.trcPrefix+'.root.approval.trc',
                     kms: form.kms,
+                    keyAwsRegion: form.keyAwsRegion,
+                    keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             if (this.castSensitiveVote) {
@@ -280,6 +307,9 @@ TRC Signing Ceremony - Script Builder
                     key: form.key,
                     signed: this.trcPrefix+'.sensitive.vote.trc',
                     kms: form.kms,
+                    keyAwsRegion: form.keyAwsRegion,
+                    keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             if (this.castRegularVote) {
@@ -291,6 +321,9 @@ TRC Signing Ceremony - Script Builder
                     key: form.key,
                     signed: this.trcPrefix+'.regular.vote.trc',
                     kms: form.kms,
+                    keyAwsRegion: form.keyAwsRegion,
+                    keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
                 })
             }
             return signatures
@@ -563,8 +596,26 @@ TRC Signing Ceremony - Script Builder
                             </select>
                         </td>
                     </tr>
+                    <tr x-show="tool === 'scion-pki'">
+                        <td class="px-4 py-2 border-b">Key Management System</td>
+                        <td class="px-4 py-2 border-b">
+                            <select id="scion-pki-kms" x-model="v.form.kms" class="block w-full border rounded-lg px-4 py-2">
+                                <option value="file">file</option>
+                                <option value="awskms">AWS KMS</option>
+                                <option value="azurekms">Azure Key Vault</option>
+                                <option value="cloudkms">Google Cloud KMS</option>
+                                <option value="pkcs11">PKCS#11</option>
+                            </select>
+                        </td>
+                    </tr>
                     <tr>
-                        <td class="px-4 py-2 border-b">Private Key <span x-show="tool === 'openssl' && v.form.kms !== 'file'"> (URI)</span></td>
+                        <td class="px-4 py-2 border-b">Private Key
+                            <span x-show="tool === 'openssl' && v.form.kms !== 'file'"> (URI)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'awskms'"> (UUID)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'azurekms'"> (Name)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'cloudkms'"> (<a href="https://cloud.google.com/kms/docs/getting-resource-ids" class="underline text-blue-600">ID</a> including version)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'pkcs11'"> (<a href="https://github.com/smallstep/step-kms-plugin?tab=readme-ov-file#general-usage" class="underline text-blue-600">ID</a>)</span>
+                        </td>
                         <td class="px-4 py-2 border-b">
                             <input type="text" x-model="v.form.key" class="block w-full border rounded-lg px-4 py-2">
                         </td>
@@ -573,6 +624,24 @@ TRC Signing Ceremony - Script Builder
                         <td class="px-4 py-2 border-b">Private Key (Label for CMS)</td>
                         <td class="px-4 py-2 border-b">
                             <input type="text" x-model="v.form.keyLabel" class="block w-full border rounded-lg px-4 py-2">
+                        </td>
+                    </tr>
+                    <tr x-show="tool === 'scion-pki' && v.form.kms === 'awskms'">
+                        <td class="px-4 py-2 border-b">Private Key (AWS Region)</td>
+                        <td class="px-4 py-2 border-b">
+                            <input type="text" x-model="v.form.keyAwsRegion" class="block w-full border rounded-lg px-4 py-2">
+                        </td>
+                    </tr>
+                    <tr x-show="tool === 'scion-pki' && v.form.kms === 'azurekms'">
+                        <td class="px-4 py-2 border-b">Private Key (Azure Vault Name)</td>
+                        <td class="px-4 py-2 border-b">
+                            <input type="text" x-model="v.form.keyAzureVault" class="block w-full border rounded-lg px-4 py-2">
+                        </td>
+                    </tr>
+                    <tr x-show="tool === 'scion-pki' && v.form.kms === 'pkcs11'">
+                        <td class="px-4 py-2 border-b">Private Key (<a href="https://github.com/smallstep/step-kms-plugin?tab=readme-ov-file#general-usage" class="underline text-blue-600">URI</a>)</td>
+                        <td class="px-4 py-2 border-b">
+                            <input type="text" x-model="v.form.keyPkcs11" class="block w-full border rounded-lg px-4 py-2">
                         </td>
                     </tr>
                     <tr>
@@ -614,10 +683,46 @@ TRC Signing Ceremony - Script Builder
                             </select>
                         </td>
                     </tr>
+                    <tr x-show="tool === 'scion-pki'">
+                        <td class="px-4 py-2 border-b">Key Management System</td>
+                        <td class="px-4 py-2 border-b">
+                            <select id="scion-pki-kms" x-model="v.form.kms" class="block w-full border rounded-lg px-4 py-2">
+                                <option value="file">file</option>
+                                <option value="awskms">AWS KMS</option>
+                                <option value="azurekms">Azure Key Vault</option>
+                                <option value="cloudkms">Google Cloud KMS</option>
+                                <option value="pkcs11">PKCS#11</option>
+                            </select>
+                        </td>
+                    </tr>
                     <tr>
-                        <td class="px-4 py-2 border-b">Private Key <span x-show="tool === 'openssl' && v.form.kms !== 'file'"> (Label for CMS)</span></td>
+                        <td class="px-4 py-2 border-b">Private Key
+                            <span x-show="tool === 'openssl' && v.form.kms !== 'file'"> (Label for CMS)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'awskms'"> (UUID)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'azurekms'"> (Name)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'cloudkms'"> (<a href="https://cloud.google.com/kms/docs/getting-resource-ids" class="underline text-blue-600">ID</a> including version)</span>
+                            <span x-show="tool === 'scion-pki' && v.form.kms === 'pkcs11'"> (<a href="https://github.com/smallstep/step-kms-plugin?tab=readme-ov-file#general-usage" class="underline text-blue-600">ID</a>)</span>
+                        </td>
                         <td class="px-4 py-2 border-b">
                             <input type="text" x-model="v.form.key" class="block w-full border rounded-lg px-4 py-2">
+                        </td>
+                    </tr>
+                    <tr x-show="tool === 'scion-pki' && v.form.kms === 'awskms'">
+                        <td class="px-4 py-2 border-b">Private Key (AWS Region)</td>
+                        <td class="px-4 py-2 border-b">
+                            <input type="text" x-model="v.form.keyAwsRegion" class="block w-full border rounded-lg px-4 py-2">
+                        </td>
+                    </tr>
+                    <tr x-show="tool === 'scion-pki' && v.form.kms === 'azurekms'">
+                        <td class="px-4 py-2 border-b">Private Key (Azure Vault Name)</td>
+                        <td class="px-4 py-2 border-b">
+                            <input type="text" x-model="v.form.keyAzureVault" class="block w-full border rounded-lg px-4 py-2">
+                        </td>
+                    </tr>
+                    <tr x-show="tool === 'scion-pki' && v.form.kms === 'pkcs11'">
+                        <td class="px-4 py-2 border-b">Private Key (<a href="https://github.com/smallstep/step-kms-plugin?tab=readme-ov-file#general-usage">URI</a>)</td>
+                        <td class="px-4 py-2 border-b">
+                            <input type="text" x-model="v.form.keyPkcs11" class="block w-full border rounded-lg px-4 py-2">
                         </td>
                     </tr>
                     <tr>
@@ -679,10 +784,26 @@ TRC Signing Ceremony - Script Builder
         --profile <span x-text="cert.profile"></span> \
         --not-before <span x-text="cert.notBefore"></span> \
         --not-after <span x-text="cert.notAfter"></span> \
-        --common-name "<span x-text="cert.commonName"></span>" \
+        --common-name "<span x-text="cert.commonName"></span>" \<template x-if="cert.kms === 'awskms'">
+        <span>
+        --key "awskms:key-id=<span x-text="cert.key"></span>" \
+        --kms "awskms:region=<span x-text="cert.keyAwsRegion"></span>" \</span>
+        </template><template x-if="cert.kms === 'azurekms'">
+        <span>
+        --key "azurekms:vault=<span x-text="cert.keyAzureVault"></span>;name=<span x-text="cert.key"></span>" \
+        --kms "azurekms" \</span>
+        </template><template x-if="cert.kms === 'cloudkms'">
+        <span>
+        --key "<span x-text="cert.key"></span>" \
+        --kms "cloudkms:" \</span>
+        </template><template x-if="cert.kms === 'pkcs11'">
+        <span>
+        --key "pkcs11:<span x-text="cert.key"></span>" \
+        --kms "pkcs11:<span x-text="cert.keyPkcs11"></span>" \</span>
+        </template>
         <span x-text="form.paths.workingDir"></span>/subject.tmpl \
-        <span x-text="cert.key"></span> \
-        <span x-text="cert.cert"></span></div></pre></div>
+        <span x-text="cert.cert"></span><template x-if="cert.kms === 'file'"><span> \
+        <span x-text="cert.key"></span></span></template></div></pre></div>
             </div></template>
         </div></template>
 
@@ -906,8 +1027,26 @@ TRC Signing Ceremony - Script Builder
                 <h3 x-text="(index + 1) + '. ' + v.title"></h3>
                 <template x-if="tool === 'scion-pki'">
                     <div class="highlight"><pre><div>scion-pki trc sign <span x-text="trcPayload"></span> \
-        <span x-text="v.crt"></span> \
-        <span x-text="v.key"></span> \
+        <span x-text="v.crt"></span> \<template x-if="v.kms === 'awskms'">
+        <span>
+        "awskms:key-id=<span x-text="v.key"></span>" \
+        --kms "awskms:region=<span x-text="v.keyAwsRegion"></span>" \</span>
+        </template><template x-if="v.kms === 'azurekms'">
+        <span>
+        "azurekms:vault=<span x-text="v.keyAzureVault"></span>;name=<span x-text="v.key"></span>" \
+        --kms "azurekms" \</span>
+        </template><template x-if="v.kms === 'cloudkms'">
+        <span>
+        "<span x-text="v.key"></span>" \
+        --kms "cloudkms:" \</span>
+        </template><template x-if="v.kms === 'pkcs11'">
+        <span>
+        "pkcs11:<span x-text="v.key"></span>" \
+        --kms "pkcs11:<span x-text="v.keyPkcs11"></span>" \</span>
+        </template><template x-if="v.kms === 'file'">
+        <span>
+        <span x-text="v.key"></span> \</span>
+        </template>
         -o <span x-text="v.signed"></span></div></pre></div>
                 </template>
                 <template x-if="tool === 'openssl'"><div>

@@ -39,7 +39,7 @@ Quickstart
       ./scion.sh topology -c topology/tiny.topo
 
 
-   .. Attention:: The certificates created by this command expire after 3 days if the
+   .. Attention:: The certificates created by this command expire after 365 days if the
       infrastructure is not running for automatic renewal.
 
 #. To start the infrastructure we just generated, run:
