@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/pkg/spao"
+	pr "github.com/scionproto/scion/router/priority"
 	"github.com/scionproto/scion/router/tokenbucket"
 )
 
@@ -70,7 +71,7 @@ func (p *scionPacketProcessor) parseHbirdPath() disposition {
 		return errorDiscard("error", err)
 	}
 	if p.flyoverField.Flyover {
-		p.hasPriority = true
+		p.pkt.PriorityLabel = pr.WithPriority
 	}
 
 	return pForward
@@ -343,8 +344,8 @@ func (p *scionPacketProcessor) validatePathMetaTimestamp() {
 		time.Duration(p.hbirdPath.PathMeta.HighResTS>>22) * time.Millisecond)
 	// TODO: make a configurable value instead of using a flat 1 seconds
 	if time.Until(timestamp).Abs() > time.Duration(1)*time.Second {
-		// Hummingbird specification explicitly says to forward best-effort is timestamp too old
-		p.hasPriority = false
+		// Forward with best-effort is timestamp is too old.
+		p.pkt.PriorityLabel = pr.WithBestEffort
 	}
 }
 
@@ -357,9 +358,9 @@ func convertResBw(bw uint16) float64 {
 }
 
 func (p *scionPacketProcessor) checkReservationBandwidth() disposition {
-	// Only check bandwidth if packet is given priority
-	// Bandwidth check is NOT performed for late packets that have flyover but no priority
-	if !p.hasPriority {
+	// Only check bandwidth if packet is given priority.
+	// Bandwidth check is NOT performed for late packets that have flyover but no priority.
+	if p.pkt.PriorityLabel != pr.WithPriority {
 		return pForward
 	}
 	// resID only has to be unique per interface pair
@@ -390,12 +391,12 @@ func (p *scionPacketProcessor) checkReservationBandwidth() disposition {
 		tb.SetRate(resBw)
 		tb.SetBurstSize(resBw)
 	}
-	if tb.Apply(int(p.scionLayer.PayloadLen), time.Now()) {
-		return pForward
-	}
-	// TODO: introduce priorities
-	return pForward
 
+	// Up to this point the packet is flagged with priority. Remove the priority if too much BW:
+	if !tb.Apply(int(p.scionLayer.PayloadLen), time.Now()) {
+		p.pkt.PriorityLabel = pr.WithBestEffort
+	}
+	return pForward
 }
 
 func (p *scionPacketProcessor) handleHbirdIngressRouterAlert() disposition {

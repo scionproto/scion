@@ -1047,7 +1047,6 @@ func (p *scionPacketProcessor) reset() error {
 	// Hummingbird:
 	p.hbirdPath = nil
 	p.flyoverField = hbird.FlyoverHopField{}
-	p.hasPriority = false
 	p.isFlyoverXover = false
 	return nil
 }
@@ -1197,7 +1196,6 @@ type scionPacketProcessor struct {
 	prf            cipher.Block          // Hummingbird authentication key derivation
 	hbirdPath      *hbird.Raw            // Raw Hummingbird path. Will be set during processing
 	flyoverField   hbird.FlyoverHopField // Hummingbird flyover field
-	hasPriority    bool                  // Determines Hummingbird priority
 	isFlyoverXover bool                  // True if this is a Hummingbird xover flyover
 	hbirdXkbuffer  []uint32              // Reusable buffer for Hummingbird MAC
 }
