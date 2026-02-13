@@ -463,7 +463,7 @@ Server-side
 ^^^^^^^^^^^
 
 It is to be decided, how support for both APIs is implemented, e.g., both APIs (former
-daemon API and new endhost API) may share backend logic 
+daemon API and new endhost API) may share backend logic
 (path segment storage, trust material, DRKey derivation).
 
 
