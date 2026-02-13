@@ -432,7 +432,7 @@ libraries and their current status:
 - **jpan** (Java) -- supports daemon and daemon-less operation.
 - **snet** (Go) -- supports daemon and daemon-less operation.
 - **scion-sdk (Rust)** -- supports new endhost API only.
-- **csnet** -- uses a direct control service interface.
+- **csnet (C)** -- uses a direct control service interface.
 
 
 API Versioning Strategy
