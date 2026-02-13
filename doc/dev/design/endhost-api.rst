@@ -35,7 +35,7 @@ segments and serves pre-computed end-to-end paths. Several limitations motivate
 a redesign:
 
 1. **Multiple underlays.** The current API assumes a single UDP/IP underlay.
-   Future deployments may use additional transport underlays (e.g., 
+   Future deployments may use additional transport underlays (e.g.,
    SNAP underlay). The API must support discovering and selecting among
    multiple underlay types.
 
@@ -108,7 +108,7 @@ border router addresses, interface identifiers, and dispatched port ranges.
 RPC path: ``/scion.endhost.v1.UnderlayService/ListUnderlays``
 
 This replaces the daemon ``Interfaces`` and ``PortRange`` RPCs. The ``AS``
-RPC is also removed: if `isd_as` is left empty or set to 0,
+RPC is also removed: if ``isd_as`` is left empty or set to 0,
 it indicates that the requester wants the underlay information for all possible local SCION ASes
 
 .. code-block:: protobuf
@@ -252,13 +252,13 @@ Ordering
 """"""""
 
 Segments are ordered by **priority**: higher-priority (more desirable)
-segments are returned first. 
+segments are returned first.
 
-Priority (desirability) is defined by server policy considering what client population is being served. 
-A typical policy (for average clients) returns the shortest and maximally diverse paths first. 
+Priority (desirability) is defined by server policy considering what client population is being served.
+A typical policy (for average clients) returns the shortest and maximally diverse paths first.
 
-The server may maintain different rankings for different client populations. 
-The first page contains the segments needed to construct the most desirable 
+The server may maintain different rankings for different client populations.
+The first page contains the segments needed to construct the most desirable
 end-to-end paths (for that client population).
 
 
@@ -366,7 +366,7 @@ Why ConnectRPC
 
 Note that ConnectRPC support was added to the control service in PR :issue:`4788`.
 The motivation for it was described in the issue :issue:`4434`.
-Most of the benefits described in the issue apply to the inter-AS RPCs, however as stated in the PR description, 
+Most of the benefits described in the issue apply to the inter-AS RPCs, however as stated in the PR description,
 intra-AS RPCs were moved to ConnectRPC on the server side, but client remained using gRPC/TCP since it was less urgent.
 
 Now that we will implement a new API for endhosts, we have the opportunity to design it with ConnectRPC from the start, to:
@@ -397,8 +397,8 @@ Making each page self-sufficient (containing enough segments to build complete
 paths independently) simplifies client implementation. Clients do not need to
 retain state from previous pages, and each page can be processed and discarded
 in isolation. The trade-off is some segment repetition across pages, which will
-cause some additional bandwidth usage and more complexity on clients which 
-want to discover additional paths. 
+cause some additional bandwidth usage and more complexity on clients which
+want to discover additional paths.
 
 Fast Common Case
 ^^^^^^^^^^^^^^^^
@@ -464,7 +464,7 @@ Server-side
 
 It is to be decided, how support for both APIs is implemented, e.g., both APIs (former
 daemon API and new endhost API) may share backend logic 
-(path segment storage, trust material, DRKey derivation). 
+(path segment storage, trust material, DRKey derivation).
 
 
 Client-side
