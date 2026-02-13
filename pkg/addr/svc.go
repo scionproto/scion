@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +gobra
+
 package addr
 
 import (
@@ -46,7 +48,9 @@ type SVC uint16
 // SVC addresses, use CS_A and DS_A; shorthand versions without
 // the _A suffix (e.g., CS) also return anycast SVC addresses. For multicast,
 // use CS_M, and DS_M.
-func ParseSVC(str string) (SVC, error) {
+// @ ensures err != nil ==> err.ErrorMem()
+// @ decreases
+func ParseSVC(str string) (res SVC, err error) {
 	var m SVC
 	switch {
 	case strings.HasSuffix(str, "_A"):
@@ -68,20 +72,24 @@ func ParseSVC(str string) (SVC, error) {
 }
 
 // IsMulticast returns the value of the multicast flag.
+// @ decreases
 func (h SVC) IsMulticast() bool {
 	return (h & SVCMcast) != 0
 }
 
 // Base returns the SVC identifier with the multicast flag unset.
+// @ decreases
 func (h SVC) Base() SVC {
 	return h & ^SVCMcast
 }
 
 // Multicast returns the SVC identifier with the multicast flag set.
+// @ decreases
 func (h SVC) Multicast() SVC {
 	return h | SVCMcast
 }
 
+// @ decreases
 func (h SVC) String() string {
 	s := h.BaseString()
 	if h.IsMulticast() {
@@ -92,6 +100,7 @@ func (h SVC) String() string {
 
 // BaseString returns the upper case name of the service. For unrecognized services, it
 // returns "<SVC:Hex-Value>".
+// @ decreases
 func (h SVC) BaseString() string {
 	switch h.Base() {
 	case SvcDS:

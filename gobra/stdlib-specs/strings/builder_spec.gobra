@@ -1,0 +1,62 @@
+// Copyright 2025 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// +gobra
+
+// This file contains a minimal specification of the type Builder. This
+// specification is concerned only with memory safety, crash-freedom and termination.
+// No functional properties are specified.
+
+package strings
+
+import "github.com/scionproto/scion/gobra/utils"
+
+// A Builder is used to efficiently build a string using Write methods.
+// It minimizes memory copying. The zero value is ready to use.
+// Do not copy a non-zero Builder.
+type Builder struct {
+	privateFields utils.PrivateField
+}
+
+pred (b *Builder) Mem()
+
+// String returns the accumulated string.
+preserves b.Mem()
+decreases
+func (b *Builder) String() string
+
+requires  0 <= n
+preserves b.Mem()
+decreases
+func (b *Builder) Grow(n int)
+
+preserves b.Mem()
+// The documentation guarantees that calls to WriteString
+// never return non-nil errors.
+// (https://pkg.go.dev/strings#Builder.WriteString)
+ensures   n == len(s) && err == nil
+decreases
+func (b *Builder) WriteString(s string) (n int, err error)
+
+// This ghost method captures the natural-language sentence
+// "The zero value is ready to use". Formally speaking, we may
+// "give-up" the ownership of all the fields of b when b is
+// freshly allocated, to obtain the ownership of resource b.Mem(),
+// which allows us to call the operations specified above on b.
+ghost
+requires acc(b)
+requires *b === Builder{}
+ensures  b.Mem()
+decreases
+func (b *Builder) ZeroBuilderIsReadyToUse()

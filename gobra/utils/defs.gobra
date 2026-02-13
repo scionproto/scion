@@ -1,0 +1,46 @@
+// Copyright 2025 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// +gobra
+
+package utils
+
+// This type is used to mark the existence of private fields in
+// the specification of types from specified (but not verified) imported
+// libraries like the Go standard library.
+type PrivateField int
+
+const (
+	// Constants of the form RX stand for permission amounts smaller than 1,
+	// and thus, stand for "read" but not "write" permissions. If both exist,
+	// RX+1 is half of RX.
+	R0 perm = 1/(2 << iota)
+	R1
+	R2
+	R3
+	R4
+	R5
+	R6
+	R7
+	R8
+	R9
+	R10
+	// Small permission amount commonly used as a place-holder for read permissions.
+	ReadPerm
+)
+
+// Short-hand for the ownership of an entire slice of bytes.
+pred ByteSlice(s []byte) {
+	forall i int :: { &s[i] } 0 <= i && i < len(s) ==> acc(&s[i])
+}
