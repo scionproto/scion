@@ -35,7 +35,10 @@ data = [
 raw_test(
     name = "test_afxdp",
     src = "test.py",
-    args = args + ["--underlay", "afxdp"],
+    args = args + [
+        "--underlay",
+        "afxdp",
+    ],
     data = data,
     homedir = "$(rootpath //docker:router.tarball)",
     # This test uses sudo and accesses /var/run/netns.
@@ -46,7 +49,10 @@ raw_test(
 raw_test(
     name = "test_inet",
     src = "test.py",
-    args = args + ["--underlay", "inet"],
+    args = args + [
+        "--underlay",
+        "inet",
+    ],
     data = data,
     homedir = "$(rootpath //docker:router.tarball)",
     # This test uses sudo and accesses /var/run/netns.
@@ -56,7 +62,10 @@ raw_test(
 
 test_suite(
     name = "test",
-    tests = [":test_afxdp", ":test_inet"],
+    tests = [
+        ":test_afxdp",
+        ":test_inet",
+    ],
 )
 
 py_library(

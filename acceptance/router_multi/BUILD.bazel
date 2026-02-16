@@ -25,7 +25,11 @@ data = [
 raw_test(
     name = "test_bfd_afxdp",
     src = "test.py",
-    args = args + ["--bfd", "--underlay", "afxdp"],
+    args = args + [
+        "--bfd",
+        "--underlay",
+        "afxdp",
+    ],
     data = data,
     homedir = "$(rootpath :conf)",
     # This test uses sudo and accesses /var/run/netns.
@@ -35,7 +39,11 @@ raw_test(
 raw_test(
     name = "test_bfd_inet",
     src = "test.py",
-    args = args + ["--bfd", "--underlay", "inet"],
+    args = args + [
+        "--bfd",
+        "--underlay",
+        "inet",
+    ],
     data = data,
     homedir = "$(rootpath :conf)",
     # This test uses sudo and accesses /var/run/netns.
@@ -45,7 +53,10 @@ raw_test(
 raw_test(
     name = "test_nobfd_afxdp",
     src = "test.py",
-    args = args + ["--underlay", "afxdp"],
+    args = args + [
+        "--underlay",
+        "afxdp",
+    ],
     data = data,
     homedir = "$(rootpath :conf)",
     # This test uses sudo and accesses /var/run/netns.
@@ -55,7 +66,10 @@ raw_test(
 raw_test(
     name = "test_nobfd_inet",
     src = "test.py",
-    args = args + ["--underlay", "inet"],
+    args = args + [
+        "--underlay",
+        "inet",
+    ],
     data = data,
     homedir = "$(rootpath :conf)",
     # This test uses sudo and accesses /var/run/netns.
@@ -64,10 +78,16 @@ raw_test(
 
 test_suite(
     name = "test_bfd",
-    tests = [":test_bfd_afxdp", ":test_bfd_inet"],
+    tests = [
+        ":test_bfd_afxdp",
+        ":test_bfd_inet",
+    ],
 )
 
 test_suite(
     name = "test_nobfd",
-    tests = [":test_nobfd_afxdp", ":test_nobfd_inet"],
+    tests = [
+        ":test_nobfd_afxdp",
+        ":test_nobfd_inet",
+    ],
 )
