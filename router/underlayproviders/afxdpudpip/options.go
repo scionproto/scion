@@ -1,3 +1,5 @@
+// Copyright 2026 SCION Association
+
 package afxdpudpip
 
 import (

@@ -1,4 +1,4 @@
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // SPDX-License-Identifier: Apache-2.0
 
@@ -118,8 +118,8 @@ func (cache *neighborCache) probeNeighbor(remoteIP netip.Addr) {
 	}
 	// The write forces the kernel to perform ARP/NDP resolution for remoteIP.
 	// The payload is irrelevant; the side effect is what matters.
-	conn.Write(probeBuf)
-	conn.Close()
+	_, _ = conn.Write(probeBuf)
+	_ = conn.Close()
 }
 
 // queryKernelNeighbor looks up an IP address in the kernel's neighbor table.

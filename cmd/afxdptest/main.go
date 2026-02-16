@@ -79,7 +79,7 @@ func run(ifName string, mtu int, noCreate bool) error {
 	conf := afxdp.SocketConfig{QueueID: 0}
 	sock, err := afxdp.Open(conf, xdpIface, false, false)
 	if err != nil {
-		return fmt.Errorf("Open: %w", err)
+		return fmt.Errorf("open: %w", err)
 	}
 	defer sock.Close()
 	fmt.Printf("  AF_XDP socket opened (zerocopy=%v, hugepages=%v)\n",

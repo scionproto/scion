@@ -1,4 +1,4 @@
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // SPDX-License-Identifier: Apache-2.0
 

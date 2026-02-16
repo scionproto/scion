@@ -1,3 +1,5 @@
+// Copyright 2026 SCION Association
+
 //go:build linux
 
 // Package afxdp implements AF_XDP zero-copy capable sockets.
@@ -21,9 +23,10 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/scionproto/scion/private/underlay/ebpf"
+
 	ciliumebpf "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
-	"github.com/scionproto/scion/private/underlay/ebpf"
 	"golang.org/x/sys/unix"
 )
 
@@ -576,11 +579,13 @@ func (s *Socket) FreeFrames() uint32 {
 	return uint32(len(s.freeFrames))
 }
 
-// Open creates and initializes an AF_XDP socket.
-// It allocates UMEM, maps rings, configures kernel structures,
-// binds to the target NIC queue and registers the socket in xsks_map.
-// The iface parameter must be a properly initialized Interface with the XDP program attached.
-func Open(conf SocketConfig, iface *Interface, preferHugepages, preferZerocopy bool) (*Socket, error) {
+// Open creates and initializes an AF_XDP socket. It allocates UMEM, maps rings,
+// configures kernel structures, binds to the target NIC queue and registers the
+// socket in xsks_map. The iface parameter must be a properly initialized
+// Interface with the XDP program attached.
+func Open(
+	conf SocketConfig, iface *Interface, preferHugepages, preferZerocopy bool,
+) (*Socket, error) {
 	// Apply defaults if necessary.
 	if err := conf.ValidateAndSetDefaults(); err != nil {
 		return nil, err
@@ -915,7 +920,7 @@ func (s *Socket) Receive(buffer []Frame) []Frame {
 }
 
 // Release returns a received frame to the fill queue for reuse.
-func (s *Socket) Release(frame Frame) error {
+func (s *Socket) Release(frame Frame) {
 	// Single producer: for every packet we receive, we return one buffer.
 	// This keeps FQ occupancy bounded without fancy accounting.
 	prod := atomic.LoadUint32(s.fq.prod)
@@ -923,8 +928,6 @@ func (s *Socket) Release(frame Frame) error {
 
 	s.fq.addrs[idx] = frame.Addr
 	atomic.StoreUint32(s.fq.prod, prod+1)
-
-	return nil
 }
 
 // ReleaseBatch returns a batch of received frames to the fill queue for reuse.
@@ -984,10 +987,7 @@ func (s *Socket) Submit(addr uint64, length uint32) error {
 	var idx uint32
 
 	// Reserve one descriptor; spin until we get space.
-	for {
-		if reserveTx(s.tx, 1, &idx) > 0 {
-			break
-		}
+	for reserveTx(s.tx, 1, &idx) <= 0 {
 		// Ring full: try to reclaim and wake up the NIC.
 		if s.PollCompletions(s.conf.BatchSize) == 0 {
 			if err := wakeupTxQueue(s.fd); err != nil {
