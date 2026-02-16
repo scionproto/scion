@@ -22,6 +22,8 @@ import shutil
 import time
 import os
 
+import toml
+
 from acceptance.common import base
 from benchmarklib import Intf, RouterBM
 from collections import defaultdict, namedtuple
@@ -438,6 +440,16 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         # get the config where the router can find it.
         shutil.copytree("acceptance/router_benchmark/conf/", self.artifacts / "conf")
+
+        if self.underlay is not None:
+            config_path = self.artifacts / "conf" / "router.toml"
+            with open(config_path, "r") as f:
+                config = toml.load(f)
+            config.setdefault("router", {})["preferred_underlays"] = {
+                "udpip": self.underlay,
+            }
+            with open(config_path, "w") as f:
+                toml.dump(config, f)
 
         # We need a custom network so can create veth interfaces of our own chosing.
         docker("network", "create",  "-d", "bridge", "benchmark")

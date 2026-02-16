@@ -22,6 +22,8 @@ from typing import List
 from plumbum import cli
 from plumbum import cmd
 
+import toml
+
 from acceptance.common import base
 
 import logging
@@ -42,8 +44,9 @@ def sudo(command: str) -> str:
 # Can't assign the host-side addresses to the interfaces. If we do that the kernel tries
 # to resolve the ports that aren't there (because brload is using a raw socket) and sends
 # errors back.
-def create_veth(host: str, container: str, ip: str, mac: str, ns: str, neighbors: List[str]):
-    sudo("ip link add %s mtu 3400 type veth peer name %s mtu 3400" % (host, container))
+def create_veth(host: str, container: str, ip: str, mac: str, ns: str, neighbors: List[str],
+                mtu: int = 3400):
+    sudo("ip link add %s mtu %d type veth peer name %s mtu %d" % (host, mtu, container, mtu))
     sudo("sysctl -qw net.ipv6.conf.%s.disable_ipv6=1" % host)
     sudo("ip link set %s up" % host)
     sudo("ip link set %s netns %s" % (container, ns))
@@ -83,6 +86,18 @@ class RouterTest(base.TestBase):
         super().setup_prepare()
 
         shutil.copytree("acceptance/router_multi/conf/", self.artifacts / "conf")
+
+        if self.underlay is not None:
+            for config_name in ["router.toml", "router_nobfd.toml"]:
+                config_path = self.artifacts / "conf" / config_name
+                with open(config_path, "r") as f:
+                    config = toml.load(f)
+                config.setdefault("router", {})["preferred_underlays"] = {
+                    "udpip": self.underlay,
+                }
+                with open(config_path, "w") as f:
+                    toml.dump(config, f)
+
         sudo("mkdir -p /var/run/netns")
 
         pause_image = exec_docker("image load -q -i %s" % self.pause_tar).rsplit(' ', 1)[1]
@@ -117,7 +132,7 @@ class RouterTest(base.TestBase):
         args = ""
         if self.bfd:
             args = "--bfd"
-        else:
+        elif self.underlay != "inet":
             # AF_XDP native mode on veth limits MTU to ~3492; skip jumbo test.
             args = "--skip JumboPacket"
         sudo("%s --artifacts %s %s" % (braccept.executable, self.artifacts, args))
@@ -133,17 +148,20 @@ class RouterTest(base.TestBase):
         # from router will match the expected value.
         sudo("ip netns exec %s sysctl -w net.ipv4.ip_default_ttl=64" % ns)
 
+        # AF_XDP native mode on veth limits MTU to ~3492; use 9000 for inet.
+        mtu = 3400 if self.underlay != "inet" else 9000
+
         create_veth("veth_int_host", "veth_int", "192.168.0.11/24", "f0:0d:ca:fe:00:01", ns,
                     ["192.168.0.12", "192.168.0.13", "192.168.0.14", "192.168.0.51", "192.168.0.61",
-                        "192.168.0.71"])
+                        "192.168.0.71"], mtu)
         create_veth("veth_121_host", "veth_121", "192.168.12.2/31", "f0:0d:ca:fe:00:12", ns,
-                    ["192.168.12.3"])
+                    ["192.168.12.3"], mtu)
         create_veth("veth_131_host", "veth_131", "192.168.13.2/31", "f0:0d:ca:fe:00:13", ns,
-                    ["192.168.13.3"])
+                    ["192.168.13.3"], mtu)
         create_veth("veth_141_host", "veth_141", "192.168.14.2/31", "f0:0d:ca:fe:00:14", ns,
-                    ["192.168.14.3"])
+                    ["192.168.14.3"], mtu)
         create_veth("veth_151_host", "veth_151", "192.168.15.2/31", "f0:0d:ca:fe:00:15", ns,
-                    ["192.168.15.3"])
+                    ["192.168.15.3"], mtu)
 
 
 if __name__ == "__main__":

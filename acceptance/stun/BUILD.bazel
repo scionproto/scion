@@ -13,4 +13,6 @@ topogen_test(
         "//acceptance/stun/test-server",
     ],
     topo = "//topology:tiny.topo",
+    # AF_XDP does not currently support STUN.
+    underlay = "inet",
 )
