@@ -39,9 +39,7 @@ const (
 	udpLen  = 8
 	portLen = 2
 
-	// AF_XDP specific defaults
-	defaultNumFrames = 4096
-	defaultFrameSize = 2048
+	// AF_XDP specific default for connection receive batch size.
 	defaultBatchSize = 64
 )
 
@@ -74,6 +72,12 @@ type ConnOpener interface {
 type udpOpener struct {
 	preferZerocopy  bool
 	preferHugepages bool
+	numFrames       uint32
+	frameSize       uint32
+	rxSize          uint32
+	txSize          uint32
+	cqSize          uint32
+	batchSize       uint32
 }
 
 func (uo udpOpener) Open(
@@ -81,12 +85,12 @@ func (uo udpOpener) Open(
 ) (*afxdp.Socket, error) {
 	conf := afxdp.SocketConfig{
 		QueueID:   queueID,
-		NumFrames: defaultNumFrames,
-		FrameSize: defaultFrameSize,
-		RxSize:    2048,
-		TxSize:    2048,
-		CqSize:    2048,
-		BatchSize: defaultBatchSize,
+		NumFrames: uo.numFrames,
+		FrameSize: uo.frameSize,
+		RxSize:    uo.rxSize,
+		TxSize:    uo.txSize,
+		CqSize:    uo.cqSize,
+		BatchSize: uo.batchSize,
 	}
 
 	socket, err := afxdp.Open(conf, xdpInterface, uo.preferHugepages, uo.preferZerocopy)
@@ -179,20 +183,46 @@ func (u *underlay) Headroom() int {
 // applyPreferences updates the connOpener with preferences from the given options.
 // Only affects udpOpener; test openers are left untouched. Caller must hold u.mu.
 func (u *underlay) applyPreferences(opts Options) {
-	if opts.PreferZerocopy == nil && opts.PreferHugepages == nil {
-		return
-	}
 	opener, ok := u.connOpener.(udpOpener)
 	if !ok {
 		return
 	}
+	changed := false
 	if opts.PreferZerocopy != nil {
 		opener.preferZerocopy = *opts.PreferZerocopy
+		changed = true
 	}
 	if opts.PreferHugepages != nil {
 		opener.preferHugepages = *opts.PreferHugepages
+		changed = true
 	}
-	u.connOpener = opener
+	if opts.NumFrames != nil {
+		opener.numFrames = *opts.NumFrames
+		changed = true
+	}
+	if opts.FrameSize != nil {
+		opener.frameSize = *opts.FrameSize
+		changed = true
+	}
+	if opts.RxSize != nil {
+		opener.rxSize = *opts.RxSize
+		changed = true
+	}
+	if opts.TxSize != nil {
+		opener.txSize = *opts.TxSize
+		changed = true
+	}
+	if opts.CqSize != nil {
+		opener.cqSize = *opts.CqSize
+		changed = true
+	}
+	if opts.BatchSize != nil {
+		opener.batchSize = *opts.BatchSize
+		changed = true
+	}
+	if changed {
+		u.connOpener = opener
+	}
 }
 
 func (u *underlay) SetDispatchPorts(start, end, redirect uint16) {
@@ -426,7 +456,8 @@ func (u *underlay) getUdpConnections(
 
 // NewExternalLink returns an external link over the UDP/IP underlay.
 // The options string is a JSON object that may contain "queue", "prefer_zerocopy",
-// and "prefer_hugepages" fields. If no queue is specified, all available queues
+// "prefer_hugepages", "num_frames", "frame_size", "rx_size", "tx_size", "cq_size",
+// and "batch_size" fields. If no queue is specified, all available queues
 // are auto-detected.
 func (u *underlay) NewExternalLink(
 	qSize int,
@@ -469,7 +500,8 @@ func (u *underlay) NewExternalLink(
 
 // NewSiblingLink returns a sibling link over the UDP/IP underlay.
 // The options string is a JSON object that may contain "queue", "prefer_zerocopy",
-// and "prefer_hugepages" fields. If no queue is specified, all available queues
+// "prefer_hugepages", "num_frames", "frame_size", "rx_size", "tx_size", "cq_size",
+// and "batch_size" fields. If no queue is specified, all available queues
 // are auto-detected.
 func (u *underlay) NewSiblingLink(
 	qSize int,
