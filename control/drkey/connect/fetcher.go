@@ -76,7 +76,7 @@ func (f *Fetcher) Level1(
 	// explicitly keeping track of the path health.
 	var errList serrors.List
 	clear(f.errorPaths)
-	for i := 0; i < f.MaxRetries; i++ {
+	for i := range f.MaxRetries {
 		rep, err := f.getLevel1Key(ctx, meta.SrcIA, req)
 		if errors.Is(err, errNotReachable) {
 			return drkey.Level1Key{}, serrors.New(
@@ -100,7 +100,6 @@ func (f *Fetcher) Level1(
 	return drkey.Level1Key{}, serrors.Wrap(
 		"reached max retry attempts fetching level1 key",
 		errList)
-
 }
 
 func (f *Fetcher) getLevel1Key(
@@ -108,7 +107,6 @@ func (f *Fetcher) getLevel1Key(
 	srcIA addr.IA,
 	req *cppb.DRKeyLevel1Request,
 ) (*cppb.DRKeyLevel1Response, error) {
-
 	path, err := f.pathToDst(ctx, srcIA)
 	if err != nil {
 		return nil, err

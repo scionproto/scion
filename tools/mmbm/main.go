@@ -1,4 +1,4 @@
-// Copyright 2024 SCION Association
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -67,8 +67,8 @@ func nextPair(max int) (int, int) {
 // writeBuf: prevents go from taking possible advantage of the buffers being all zero.
 // This also allocates the memory pages and primes the cache as if in steady state.
 func writeBuf(numBufs int, cpSize int) {
-	for i := 0; i < numBufs; i++ {
-		for j := 0; j < 172; j++ {
+	for i := range numBufs {
+		for j := range 172 {
 			buf[i].page.packet[j] = uint8(j % 256)
 		}
 		for j := 172; j < cpSize; j++ {
