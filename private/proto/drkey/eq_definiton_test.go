@@ -1,4 +1,5 @@
 // Copyright 2022 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,7 +64,7 @@ func TestEqualHostHostResponse(t *testing.T) {
 
 func checkEquals(t *testing.T, controlFields, daemonFields protoreflect.FieldDescriptors) {
 	require.Equal(t, controlFields.Len(), daemonFields.Len())
-	for i := 0; i < controlFields.Len(); i++ {
+	for i := range controlFields.Len() {
 		assert.Equal(t, controlFields.Get(i).Name(),
 			daemonFields.Get(i).Name())
 		assert.Equal(t, controlFields.Get(i).Cardinality(),
