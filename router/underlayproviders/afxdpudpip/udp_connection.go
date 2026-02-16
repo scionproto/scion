@@ -32,6 +32,8 @@ type fourTuple struct {
 
 // udpConnection manages an AF_XDP socket bound to a specific interface and queue.
 // It handles RX/TX packet processing with zero-copy UMEM frames.
+// The xdpInterface is shared across connections on the same NIC and is NOT
+// owned by this connection (closed by the underlay).
 type udpConnection struct {
 	localMAC     net.HardwareAddr
 	xdpInterface *afxdp.Interface
@@ -74,6 +76,7 @@ func (u *udpConnection) start(batchSize int, pool router.PacketPool) {
 }
 
 // stop puts the connection in the stopped state.
+// Only closes the socket; the shared xdpInterface is closed by the underlay.
 func (u *udpConnection) stop() {
 	wasRunning := u.running.Swap(false)
 
@@ -83,9 +86,6 @@ func (u *udpConnection) stop() {
 		<-u.senderDone
 		if u.socket != nil {
 			u.socket.Close()
-		}
-		if u.xdpInterface != nil {
-			u.xdpInterface.Close()
 		}
 	}
 }
@@ -310,23 +310,20 @@ func makeHashSeed() uint32 {
 	return hashSeed
 }
 
+// newUdpConnection creates a new AF_XDP connection on the given interface and queue.
+// The xdpInterface is shared across connections on the same NIC and must not be
+// closed by this connection.
 func newUdpConnection(
 	intf net.Interface,
 	queueID uint32,
 	qSize int,
 	connOpener ConnOpener,
+	xdpInterface *afxdp.Interface,
 	metrics *router.InterfaceMetrics,
 ) (*udpConnection, error) {
-	// Create XDP interface (attaches XDP program).
-	xdpInterface, err := afxdp.NewInterface(intf.Name)
-	if err != nil {
-		return nil, err
-	}
-
 	// Open AF_XDP socket on the specified queue.
 	socket, err := connOpener.Open(intf.Index, queueID, xdpInterface)
 	if err != nil {
-		xdpInterface.Close()
 		return nil, err
 	}
 

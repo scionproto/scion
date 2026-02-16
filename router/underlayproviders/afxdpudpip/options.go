@@ -1,35 +1,45 @@
 package afxdpudpip
 
 import (
-	"strconv"
+	"encoding/json"
 	"strings"
 
-	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// parseOptions parses the link options string and extracts the queue ID.
-// Options format: "queue=N" where N is the queue number (default 0).
-// Multiple options can be separated by commas, e.g., "queue=2,other=value".
-func parseOptions(options string) (queueID uint32, err error) {
+// Options represents the parsed JSON configuration for an AF_XDP underlay link.
+type Options struct {
+	Queue           []uint32 `json:"queue,omitempty"`
+	PreferZerocopy  *bool    `json:"prefer_zerocopy,omitempty"`
+	PreferHugepages *bool    `json:"prefer_hugepages,omitempty"`
+}
+
+// parseOptions parses the JSON options string.
+// Returns zero-value Options if the string is empty.
+func parseOptions(options string) (Options, error) {
 	if options == "" {
-		return 0, nil
+		return Options{}, nil
 	}
-	for opt := range strings.SplitSeq(options, ",") {
-		opt = strings.TrimSpace(opt)
-		if key, value, found := strings.Cut(opt, "="); found {
-			switch strings.TrimSpace(key) {
-			case "queue":
-				v, err := strconv.ParseUint(strings.TrimSpace(value), 10, 32)
-				if err != nil {
-					return 0, serrors.Wrap("invalid queue option", err, "value", value)
-				}
-				queueID = uint32(v)
-			default:
-				log.Info("Ignoring unknown AF_XDP underlay option",
-					"key", key, "value", value)
+	dec := json.NewDecoder(strings.NewReader(options))
+	dec.DisallowUnknownFields()
+	var opts Options
+	if err := dec.Decode(&opts); err != nil {
+		return Options{}, serrors.Wrap("invalid options JSON", err)
+	}
+	if opts.Queue != nil && len(opts.Queue) == 0 {
+		return Options{}, serrors.New("empty queue list")
+	}
+	// Deduplicate queue IDs while preserving order.
+	if len(opts.Queue) > 1 {
+		seen := make(map[uint32]bool, len(opts.Queue))
+		deduped := opts.Queue[:0]
+		for _, q := range opts.Queue {
+			if !seen[q] {
+				seen[q] = true
+				deduped = append(deduped, q)
 			}
 		}
+		opts.Queue = deduped
 	}
-	return queueID, nil
+	return opts, nil
 }

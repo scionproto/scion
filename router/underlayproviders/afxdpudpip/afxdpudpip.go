@@ -9,10 +9,15 @@ package afxdpudpip
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"net"
 	"net/netip"
+	"os"
 	"slices"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -105,6 +110,9 @@ type underlay struct {
 
 	// allConnections maps one per (interface, queue) pair.
 	allConnections map[connectionKey]*udpConnection
+	// allInterfaces maps one XDP interface per NIC (keyed by ifIndex).
+	// Multiple connections on the same NIC share one XDP interface.
+	allInterfaces map[int]*afxdp.Interface
 	// connOpener is udpOpener{}, except for unit tests
 	connOpener        ConnOpener
 	svc               *router.Services[netip.AddrPort]
@@ -113,8 +121,6 @@ type underlay struct {
 	dispatchStart     uint16
 	dispatchEnd       uint16
 	dispatchRedirect  uint16
-	preferZerocopy    bool
-	preferHugepages   bool
 }
 
 type udpLink interface {
@@ -144,12 +150,11 @@ func (underlayProvider) New(
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
 		allConnections:    make(map[connectionKey]*udpConnection),
+		allInterfaces:     make(map[int]*afxdp.Interface),
 		connOpener:        udpOpener{preferZerocopy: true, preferHugepages: true},
 		svc:               router.NewServices[netip.AddrPort](),
 		receiveBufferSize: receiveBufferSize,
 		sendBufferSize:    sendBufferSize,
-		preferZerocopy:    true,
-		preferHugepages:   true,
 	}
 }
 
@@ -169,6 +174,25 @@ func (u *underlay) Headroom() int {
 	// Enough headroom for ethernet + max(ip) + udp headers on outgoing packets.
 	// We add src address + port for internal links (packet.HeadBytes storage).
 	return ethLen + ipv6Len + udpLen + ipv6AddrLen + portLen
+}
+
+// applyPreferences updates the connOpener with preferences from the given options.
+// Only affects udpOpener; test openers are left untouched. Caller must hold u.mu.
+func (u *underlay) applyPreferences(opts Options) {
+	if opts.PreferZerocopy == nil && opts.PreferHugepages == nil {
+		return
+	}
+	opener, ok := u.connOpener.(udpOpener)
+	if !ok {
+		return
+	}
+	if opts.PreferZerocopy != nil {
+		opener.preferZerocopy = *opts.PreferZerocopy
+	}
+	if opts.PreferHugepages != nil {
+		opener.preferHugepages = *opts.PreferHugepages
+	}
+	u.connOpener = opener
 }
 
 func (u *underlay) SetDispatchPorts(start, end, redirect uint16) {
@@ -223,6 +247,7 @@ func (u *underlay) Stop() {
 	u.mu.Lock()
 	connSnapshot := slices.Collect(maps.Values(u.allConnections))
 	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
+	ifaceSnapshot := slices.Collect(maps.Values(u.allInterfaces))
 	u.mu.Unlock()
 
 	for _, c := range connSnapshot {
@@ -230,6 +255,10 @@ func (u *underlay) Stop() {
 	}
 	for _, l := range linkSnapshot {
 		l.stop()
+	}
+	// Close shared XDP interfaces after all sockets are closed.
+	for _, xi := range ifaceSnapshot {
+		xi.Close()
 	}
 }
 
@@ -257,12 +286,78 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	return s % uint32(numProcRoutines), nil
 }
 
-// getUdpConnection returns the appropriate udpConnection; creating it if it doesn't
-// exist yet. The queueID specifies which NIC queue to bind the AF_XDP socket to.
-func (u *underlay) getUdpConnection(
-	qSize int, local *netip.AddrPort, queueID uint32,
+// computeConnIdx hashes the SCION flow ID and addresses to select a connection
+// for TX. This ensures packets from the same flow always use the same queue,
+// preventing reordering.
+func computeConnIdx(data []byte, numConns int, seed uint32) int {
+	if numConns <= 1 {
+		return 0
+	}
+	idx, err := computeProcID(data, numConns, seed)
+	if err != nil {
+		return 0
+	}
+	return int(idx)
+}
+
+// detectQueues reads sysfs to discover available RX queues for a network interface.
+// Returns the sorted list of queue IDs. Falls back to [0] if detection fails.
+func detectQueues(ifName string) []uint32 {
+	entries, err := os.ReadDir(fmt.Sprintf("/sys/class/net/%s/queues", ifName))
+	if err != nil {
+		log.Debug("Cannot read NIC queues from sysfs, using queue 0",
+			"interface", ifName, "err", err)
+		return []uint32{0}
+	}
+
+	var queues []uint32
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, "rx-") {
+			id, err := strconv.ParseUint(strings.TrimPrefix(name, "rx-"), 10, 32)
+			if err != nil {
+				continue
+			}
+			queues = append(queues, uint32(id))
+		}
+	}
+
+	if len(queues) == 0 {
+		log.Debug("No RX queues found in sysfs, using queue 0",
+			"interface", ifName)
+		return []uint32{0}
+	}
+
+	sort.Slice(queues, func(i, j int) bool { return queues[i] < queues[j] })
+	log.Debug("Auto-detected NIC RX queues",
+		"interface", ifName, "queues", queues)
+	return queues
+}
+
+// getOrCreateInterface returns the shared XDP interface for the given NIC,
+// creating and attaching the XDP program if this is the first use.
+// Caller must hold u.mu.
+func (u *underlay) getOrCreateInterface(intf net.Interface) (*afxdp.Interface, error) {
+	xi := u.allInterfaces[intf.Index]
+	if xi != nil {
+		return xi, nil
+	}
+	xi, err := afxdp.NewInterface(intf.Name)
+	if err != nil {
+		return nil, serrors.Wrap("creating XDP interface", err,
+			"interface", intf.Name)
+	}
+	u.allInterfaces[intf.Index] = xi
+	return xi, nil
+}
+
+// getUdpConnections returns the appropriate udpConnections for the given address
+// and queue IDs; creating them if they don't exist. If queueIDs is nil, queues
+// are auto-detected from sysfs for the matching interface.
+func (u *underlay) getUdpConnections(
+	qSize int, local *netip.AddrPort, queueIDs []uint32,
 	metrics *router.InterfaceMetrics,
-) (*udpConnection, error) {
+) ([]*udpConnection, error) {
 	localAddr := local.Addr()
 	localAddrStr := localAddr.String()
 
@@ -278,26 +373,48 @@ func (u *underlay) getUdpConnection(
 					if ipNet.IP.String() == localAddrStr ||
 						(localAddr.IsLoopback() && intf.Name == "lo") {
 
-						key := connectionKey{ifIndex: intf.Index, queueID: queueID}
-						c := u.allConnections[key]
-						if c == nil {
-							log.Debug("New AF_XDP connection created",
-								"addr", localAddrStr,
-								"interface", intf.Name,
-								"queue", queueID)
-							c, err = newUdpConnection(
-								intf, queueID, qSize, u.connOpener, metrics,
-							)
-							if err != nil {
-								return nil, err
-							}
-							u.allConnections[key] = c
+						// Auto-detect queues if not explicitly specified.
+						if len(queueIDs) == 0 {
+							queueIDs = detectQueues(intf.Name)
 						}
+
+						// Get or create the shared XDP interface for this NIC.
+						xi, err := u.getOrCreateInterface(intf)
+						if err != nil {
+							return nil, err
+						}
+
 						// Add the destination address/port to the XDP filter.
-						if err := c.xdpInterface.AddAddrPort(*local); err != nil {
-							return nil, serrors.Wrap("adding address to XDP filter", err)
+						if err := xi.AddAddrPort(*local); err != nil {
+							return nil, serrors.Wrap(
+								"adding address to XDP filter", err)
 						}
-						return c, nil
+
+						// Create/reuse a connection for each queue.
+						conns := make([]*udpConnection, len(queueIDs))
+						for i, qID := range queueIDs {
+							key := connectionKey{
+								ifIndex: intf.Index,
+								queueID: qID,
+							}
+							c := u.allConnections[key]
+							if c == nil {
+								log.Debug("New AF_XDP connection created",
+									"addr", localAddrStr,
+									"interface", intf.Name,
+									"queue", qID)
+								c, err = newUdpConnection(
+									intf, qID, qSize,
+									u.connOpener, xi, metrics,
+								)
+								if err != nil {
+									return nil, err
+								}
+								u.allConnections[key] = c
+							}
+							conns[i] = c
+						}
+						return conns, nil
 					}
 				}
 			}
@@ -308,7 +425,9 @@ func (u *underlay) getUdpConnection(
 }
 
 // NewExternalLink returns an external link over the UDP/IP underlay.
-// The options string can contain "queue=N" to specify the NIC queue for AF_XDP.
+// The options string is a JSON object that may contain "queue", "prefer_zerocopy",
+// and "prefer_hugepages" fields. If no queue is specified, all available queues
+// are auto-detected.
 func (u *underlay) NewExternalLink(
 	qSize int,
 	bfd *bfd.Session,
@@ -326,7 +445,7 @@ func (u *underlay) NewExternalLink(
 	if err != nil {
 		return nil, serrors.Wrap("resolving remote address", err)
 	}
-	queueID, err := parseOptions(options)
+	opts, err := parseOptions(options)
 	if err != nil {
 		return nil, serrors.Wrap("parsing options", err)
 	}
@@ -334,20 +453,24 @@ func (u *underlay) NewExternalLink(
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
+	u.applyPreferences(opts)
+
 	if l := u.allLinks[remoteAddr]; l != nil {
 		return nil, serrors.Join(errDuplicateRemote, nil, "addr", remote)
 	}
-	c, err := u.getUdpConnection(qSize, &localAddr, queueID, metrics)
+	conns, err := u.getUdpConnections(qSize, &localAddr, opts.Queue, metrics)
 	if err != nil {
 		return nil, err
 	}
-	l := newPtpLinkExternal(&localAddr, &remoteAddr, c, bfd, ifID, metrics)
+	l := newPtpLinkExternal(&localAddr, &remoteAddr, conns, bfd, ifID, metrics)
 	u.allLinks[remoteAddr] = l
 	return l, nil
 }
 
 // NewSiblingLink returns a sibling link over the UDP/IP underlay.
-// The options string can contain "queue=N" to specify the NIC queue for AF_XDP.
+// The options string is a JSON object that may contain "queue", "prefer_zerocopy",
+// and "prefer_hugepages" fields. If no queue is specified, all available queues
+// are auto-detected.
 func (u *underlay) NewSiblingLink(
 	qSize int,
 	bfd *bfd.Session,
@@ -364,7 +487,7 @@ func (u *underlay) NewSiblingLink(
 	if err != nil {
 		return nil, serrors.Wrap("resolving remote address", err)
 	}
-	queueID, err := parseOptions(options)
+	opts, err := parseOptions(options)
 	if err != nil {
 		return nil, serrors.Wrap("parsing options", err)
 	}
@@ -372,14 +495,16 @@ func (u *underlay) NewSiblingLink(
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
+	u.applyPreferences(opts)
+
 	if l := u.allLinks[remoteAddr]; l != nil {
 		return l, nil
 	}
-	c, err := u.getUdpConnection(qSize, &localAddr, queueID, metrics)
+	conns, err := u.getUdpConnections(qSize, &localAddr, opts.Queue, metrics)
 	if err != nil {
 		return nil, err
 	}
-	l := newPtpLinkSibling(&localAddr, &remoteAddr, c, bfd, metrics)
+	l := newPtpLinkSibling(&localAddr, &remoteAddr, conns, bfd, metrics)
 	u.allLinks[remoteAddr] = l
 	return l, nil
 }
@@ -396,13 +521,16 @@ func (u *underlay) NewInternalLink(
 	if err != nil {
 		return nil, serrors.Wrap("resolving local address", err)
 	}
-	c, err := u.getUdpConnection(qSize, &localAddr, 0, metrics)
+	conns, err := u.getUdpConnections(
+		qSize, &localAddr, []uint32{0}, metrics,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	il := newInternalLink(
-		&localAddr, c, u.svc, u.dispatchStart, u.dispatchEnd, u.dispatchRedirect, metrics,
+		&localAddr, conns, u.svc,
+		u.dispatchStart, u.dispatchEnd, u.dispatchRedirect, metrics,
 	)
 	u.allLinks[netip.AddrPort{}] = il
 	return il, nil

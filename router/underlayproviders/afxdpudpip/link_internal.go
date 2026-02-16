@@ -21,11 +21,13 @@ import (
 
 // linkInternal is a link without a fixed remote address.
 // The destination is determined per-packet via Resolve().
+// Multiple AF_XDP sockets (one per NIC queue) are used for parallel TX/RX.
+// TX packets are routed to sockets via a flow hash to prevent reordering.
 type linkInternal struct {
 	procQs           []chan *router.Packet
 	pool             router.PacketPool
 	localAddr        *netip.AddrPort
-	conn             *udpConnection
+	conns            []*udpConnection
 	metrics          *router.InterfaceMetrics
 	neighbors        *neighborCache
 	svc              *router.Services[netip.AddrPort]
@@ -70,7 +72,7 @@ func (l *linkInternal) packHeader() {
 
 		// Ethernet: src MAC, zero dst MAC, IPv4 ethertype
 		copy(l.header[0:6], zeroMacAddr[:])
-		copy(l.header[6:12], l.conn.localMAC)
+		copy(l.header[6:12], l.conns[0].localMAC)
 		binary.BigEndian.PutUint16(l.header[12:14], 0x0800)
 
 		// IPv4 header template
@@ -84,7 +86,7 @@ func (l *linkInternal) packHeader() {
 
 		// Ethernet: src MAC, zero dst MAC, IPv6 ethertype
 		copy(l.header[0:6], zeroMacAddr[:])
-		copy(l.header[6:12], l.conn.localMAC)
+		copy(l.header[6:12], l.conns[0].localMAC)
 		binary.BigEndian.PutUint16(l.header[12:14], 0x86DD)
 
 		// IPv6 header template
@@ -304,12 +306,14 @@ func (l *linkInternal) sendBacklog(dstAddr netip.Addr) {
 				l.pool.Put(p)
 				continue
 			}
+			// Compute connection index BEFORE finishPacket prepends headers.
+			connIdx := computeConnIdx(p.RawPacket, len(l.conns), l.seed)
 			if !l.finishPacket(p) {
 				givenup = true
 				continue
 			}
 			select {
-			case l.conn.queue <- p:
+			case l.conns[connIdx].queue <- p:
 			default:
 				sc := router.ClassOfSize(len(p.RawPacket))
 				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
@@ -322,11 +326,13 @@ func (l *linkInternal) sendBacklog(dstAddr netip.Addr) {
 }
 
 func (l *linkInternal) Send(p *router.Packet) bool {
+	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
+	connIdx := computeConnIdx(p.RawPacket, len(l.conns), l.seed)
 	if !l.finishPacket(p) {
 		return false
 	}
 	select {
-	case l.conn.queue <- p:
+	case l.conns[connIdx].queue <- p:
 	default:
 		sc := router.ClassOfSize(len(p.RawPacket))
 		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
@@ -337,8 +343,10 @@ func (l *linkInternal) Send(p *router.Packet) bool {
 }
 
 func (l *linkInternal) SendBlocking(p *router.Packet) {
+	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
+	connIdx := computeConnIdx(p.RawPacket, len(l.conns), l.seed)
 	if l.finishPacket(p) {
-		l.conn.queue <- p
+		l.conns[connIdx].queue <- p
 	}
 }
 
@@ -367,19 +375,19 @@ func (l *linkInternal) receive(p *router.Packet) {
 
 func newInternalLink(
 	localAddr *netip.AddrPort,
-	conn *udpConnection,
+	conns []*udpConnection,
 	svc *router.Services[netip.AddrPort],
 	dispatchStart, dispatchEnd, dispatchRedirect uint16,
 	metrics *router.InterfaceMetrics,
 ) *linkInternal {
 	il := &linkInternal{
 		localAddr:        localAddr,
-		conn:             conn,
+		conns:            conns,
 		metrics:          metrics,
 		svc:              svc,
 		backlogCheck:     make(chan netip.Addr, 1),
 		sendBacklogDone:  make(chan struct{}),
-		seed:             conn.seed,
+		seed:             conns[0].seed,
 		dispatchStart:    dispatchStart,
 		dispatchEnd:      dispatchEnd,
 		dispatchRedirect: dispatchRedirect,
@@ -387,9 +395,9 @@ func newInternalLink(
 	}
 	il.neighbors = newNeighborCache(
 		"internal",
-		conn.localMAC,
+		conns[0].localMAC,
 		localAddr.Addr(),
-		conn.ifIndex,
+		conns[0].ifIndex,
 		func(ip netip.Addr) {
 			select {
 			case il.backlogCheck <- ip:
@@ -398,13 +406,19 @@ func newInternalLink(
 		},
 	)
 	il.packHeader()
-	conn.intLinks[addrPort{ip: localAddr.Addr(), port: localAddr.Port()}] = il
+
+	// Register this link in ALL connections so any RX queue can dispatch to it.
+	ap := addrPort{ip: localAddr.Addr(), port: localAddr.Port()}
+	for _, c := range conns {
+		c.intLinks[ap] = il
+	}
 
 	log.Debug("***** AF_XDP Link", "scope", "internal", "local", localAddr,
-		"localMAC", conn.localMAC)
+		"localMAC", conns[0].localMAC, "queues", len(conns))
 	return il
 }
 
 func (l *linkInternal) String() string {
-	return fmt.Sprintf("Internal: local: %s", l.localAddr)
+	return fmt.Sprintf("Internal: local: %s queues: %d",
+		l.localAddr, len(l.conns))
 }
