@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/pkg/proto/hbird";
+
+package proto.hbird.v1;
+
+import "google/protobuf/empty.proto";
+
+service HBirdService {
+    // Redeem redeems the flyovers using the asset tokens.
+    rpc Redeem(RedemptionRequests) returns (RedemptionResponses) {}
+    // Status gets the status of the Hbird service
+    rpc Status(google.protobuf.Empty) returns (StatusResponse) {}
+}
+
+message RedemptionRequests {
+    // RedemptionRequest contains the reservation info (except the res_id), ingress and egress token.
+    repeated RedemptionRequest redemption = 1;
+    // Client public key. 64 bytes.
+    bytes client_key = 2;
+}
+
+message RedemptionRequest {
+    RedemptionInfo red_info = 1;
+    // The asset redemption token for the ingress reservation. 16 bytes.
+    bytes ingress_token = 2;
+    // The asset redemption token for the egress reservation. 16 bytes.
+    bytes egress_token = 3;
+}
+
+message Flyover {
+    RedemptionInfo red_info = 1;
+
+    Reservation reservation = 2;
+}
+
+message RedemptionInfo {
+    // Ingress ID. 16 bits.
+    uint32 ingress = 1;
+    // Egress ID. 16 bits.
+    uint32 egress = 2;
+
+    // Bandwidth. 16 bits.
+    uint32 bw = 3;
+    // The unix timestamp when the reservation starts. 32 bits.
+    uint32 start_time = 4;
+    // Duration in seconds. 16 bits.
+    uint32 duration = 5;
+}
+
+message RedemptionResponses {
+    repeated Reservation reservation = 1;
+}
+
+message Reservation {
+    // The ISD-AS for which the reservation is valid. 64 bits.
+    uint64 ia = 1;
+    // Reservation ID, unique per AS. 32 bits.
+    uint32 res_id = 2;
+    // The derived authentication key for the reservation. 16 bytes.
+    bytes auth_key = 3;
+}
+
+message StatusResponse {
+   uint32 version = 1;
+}
