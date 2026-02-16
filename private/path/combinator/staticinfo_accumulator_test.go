@@ -1,4 +1,5 @@
 // Copyright 2020 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -126,38 +127,38 @@ func TestStaticinfo(t *testing.T) {
 }
 
 func checkLatency(t *testing.T, g *graph.Graph,
-	path []snet.PathInterface, latency []time.Duration) {
-
+	path []snet.PathInterface, latency []time.Duration,
+) {
 	if len(path) == 0 {
 		assert.Empty(t, latency)
 		return
 	}
 
 	expected := []time.Duration{}
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		expected = append(expected, g.Latency(uint16(path[i].ID), uint16(path[i+1].ID)))
 	}
 	assert.Equal(t, expected, latency)
 }
 
 func checkBandwidth(t *testing.T, g *graph.Graph,
-	path []snet.PathInterface, bandwidth []uint64) {
-
+	path []snet.PathInterface, bandwidth []uint64,
+) {
 	if len(path) == 0 {
 		assert.Empty(t, bandwidth)
 		return
 	}
 
 	expected := []uint64{}
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		expected = append(expected, g.Bandwidth(uint16(path[i].ID), uint16(path[i+1].ID)))
 	}
 	assert.Equal(t, expected, bandwidth)
 }
 
 func checkInternalHops(t *testing.T, g *graph.Graph,
-	path []snet.PathInterface, internalHops []uint32) {
-
+	path []snet.PathInterface, internalHops []uint32,
+) {
 	if len(path) == 0 {
 		assert.Empty(t, internalHops)
 		return
@@ -189,8 +190,8 @@ func checkGeo(t *testing.T, g *graph.Graph, path []snet.PathInterface, geos []sn
 }
 
 func checkLinkType(t *testing.T, g *graph.Graph,
-	path []snet.PathInterface, linkTypes []snet.LinkType) {
-
+	path []snet.PathInterface, linkTypes []snet.LinkType,
+) {
 	if len(path) == 0 {
 		assert.Empty(t, linkTypes)
 		return
@@ -203,8 +204,8 @@ func checkLinkType(t *testing.T, g *graph.Graph,
 		)
 	}
 	assert.Equal(t, expected, linkTypes)
-
 }
+
 func checkNotes(t *testing.T, g *graph.Graph, path []snet.PathInterface, notes []string) {
 	if len(path) == 0 {
 		assert.Empty(t, notes)
@@ -227,8 +228,8 @@ func checkNotes(t *testing.T, g *graph.Graph, path []snet.PathInterface, notes [
 }
 
 func concatBeaconASEntries(g *graph.Graph,
-	upIfIDs, coreIfIDs, downIfIDs []uint16) []seg.ASEntry {
-
+	upIfIDs, coreIfIDs, downIfIDs []uint16,
+) []seg.ASEntry {
 	r := []seg.ASEntry{}
 	for _, ifIDs := range [][]uint16{upIfIDs, coreIfIDs, downIfIDs} {
 		seg := g.BeaconWithStaticInfo(ifIDs)

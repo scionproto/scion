@@ -1,5 +1,6 @@
 // Copyright 2017 ETH Zurich
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,8 +54,8 @@ type worker struct {
 }
 
 func newWorker(remote *snet.UDPAddr, sessID uint8,
-	tunIO io.WriteCloser, metrics IngressMetrics) *worker {
-
+	tunIO io.WriteCloser, metrics IngressMetrics,
+) *worker {
 	worker := &worker{
 		Remote:  remote,
 		SessID:  sessID,
@@ -84,7 +85,7 @@ func (w *worker) Run(ctx context.Context) {
 		if n < 0 {
 			break
 		}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			frame := frames[i].(*frameBuf)
 			w.processFrame(ctx, frame)
 			frames[i] = nil

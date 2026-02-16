@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,7 +80,6 @@ func (w *BeaconWriter) Write(
 	beacons beacon.GroupedBeacons,
 	peers []uint16,
 ) (beaconing.WriteStats, error) {
-
 	logger := log.FromCtx(ctx)
 	summary := newSummary()
 	var expected int
@@ -122,12 +122,10 @@ func (w *BeaconWriter) Write(
 						return w.Pather.GetPath(addr.SvcCS, seg)
 					}
 				}
-				wg.Add(1)
-				go func(bseg beacon.Beacon) {
+				wg.Go(func() {
 					defer log.HandlePanic()
-					defer wg.Done()
-					rw.run(ctx, bseg)
-				}(b)
+					rw.run(ctx, b)
+				})
 			}
 		}
 	}
@@ -302,7 +300,6 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 	beacons []beacon.Beacon,
 	peers []uint16,
 ) *segreg.RegistrationSummary {
-
 	logger := log.FromCtx(ctx)
 	summary := segreg.NewSummary()
 	var expected int
@@ -337,12 +334,11 @@ func (w *HiddenSegmentRegistrar) RegisterSegments(
 						return w.Pather.GetPath(addr.SvcCS, seg)
 					}
 				}
-				wg.Add(1)
-				go func(bseg beacon.Beacon) {
+				wg.Go(func() {
 					defer log.HandlePanic()
-					defer wg.Done()
-					rw.run(ctx, bseg, status)
-				}(b)
+
+					rw.run(ctx, b, status)
+				})
 			}
 		}
 	}
