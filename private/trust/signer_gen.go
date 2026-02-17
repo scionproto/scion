@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -134,13 +135,13 @@ func (s *SignerGen) bestForKey(
 		}
 		inGrace = true
 	}
-	expiry := min(chain[0].NotAfter, trcs[0].TRC.Validity.NotAfter)
+	expiry := minTime(chain[0].NotAfter, trcs[0].TRC.Validity.NotAfter)
 	if inGrace {
 		// In the grace period the expiry is the minimum of the chain expiry,
 		// the grace period defined in the new TRC, and the expiry of the
 		// previous TRC.
-		expiry = min(
-			min(chain[0].NotAfter, trcs[0].TRC.GracePeriodEnd()),
+		expiry = minTime(
+			minTime(chain[0].NotAfter, trcs[0].TRC.GracePeriodEnd()),
 			trcs[1].TRC.Validity.NotAfter,
 		)
 	}
@@ -188,7 +189,7 @@ func bestChain(trc *cppki.TRC, chains [][]*x509.Certificate) []*x509.Certificate
 	return best
 }
 
-func min(a, b time.Time) time.Time {
+func minTime(a, b time.Time) time.Time {
 	if a.Before(b) {
 		return a
 	}

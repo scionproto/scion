@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -67,8 +68,8 @@ type TestablePathDB interface {
 // one test method that calls this test-suite.
 func TestPathDB(t *testing.T, db TestablePathDB) {
 	testWrapper := func(test func(*testing.T,
-		pathdb.ReadWrite)) func(t *testing.T) {
-
+		pathdb.ReadWrite),
+	) func(t *testing.T) {
 		return func(t *testing.T) {
 			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
@@ -102,8 +103,8 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 		testWrapper(testNextQuery))
 
 	txTestWrapper := func(test func(*testing.T,
-		pathdb.ReadWrite)) func(t *testing.T) {
-
+		pathdb.ReadWrite),
+	) func(t *testing.T) {
 		return func(t *testing.T) {
 			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 			defer cancelF()
@@ -468,9 +469,8 @@ func testRollback(t *testing.T, pathDB pathdb.DB) {
 }
 
 func AllocPathSegment(t *testing.T, ifs []uint64, infoTS uint32) (*seg.PathSegment, []byte) {
-
 	hops := make([]seg.HopField, 0, len(ifs)/2)
-	for i := 0; i < len(ifs)/2; i++ {
+	for i := range len(ifs) / 2 {
 		hops = append(hops, seg.HopField{
 			ConsIngress: uint16(ifs[2*i]),
 			ConsEgress:  uint16(ifs[2*i+1]),
@@ -528,8 +528,8 @@ func AllocPathSegment(t *testing.T, ifs []uint64, infoTS uint32) (*seg.PathSegme
 }
 
 func InsertSeg(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite,
-	pseg *seg.PathSegment, hpGroupIDs []uint64) pathdb.InsertStats {
-
+	pseg *seg.PathSegment, hpGroupIDs []uint64,
+) pathdb.InsertStats {
 	inserted, err := pathDB.InsertWithHPGroupIDs(ctx,
 		&seg.Meta{
 			Segment: pseg,
@@ -542,8 +542,8 @@ func InsertSeg(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite,
 }
 
 func checkResult(t *testing.T, results query.Results, expectedSeg *seg.PathSegment,
-	hpCfgsIds []uint64) {
-
+	hpCfgsIds []uint64,
+) {
 	require.Equal(t, 1, len(results), "Expect one result")
 
 	assert.Equal(t, expectedSeg.Info.Timestamp, results[0].Seg.Info.Timestamp)
@@ -578,8 +578,8 @@ func checkSameHpCfgs(t *testing.T, msg string, actual, expected []uint64) {
 }
 
 func checkInterfacesPresent(t *testing.T, ctx context.Context,
-	expectedHopEntries []seg.ASEntry, pathDB pathdb.ReadWrite) {
-
+	expectedHopEntries []seg.ASEntry, pathDB pathdb.ReadWrite,
+) {
 	for _, asEntry := range expectedHopEntries {
 		hopFields := []seg.HopField{asEntry.HopEntry.HopField}
 		for _, peer := range asEntry.PeerEntries {
@@ -597,8 +597,8 @@ func checkInterfacesPresent(t *testing.T, ctx context.Context,
 }
 
 func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifID uint16,
-	pathDB pathdb.ReadWrite, present bool) {
-
+	pathDB pathdb.ReadWrite, present bool,
+) {
 	r, err := pathDB.Get(ctx, &query.Params{
 		Intfs: []*query.IntfSpec{
 			{

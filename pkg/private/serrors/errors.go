@@ -1,5 +1,5 @@
-// Copyright 2016 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -105,7 +105,7 @@ func IsTemporary(err error) bool {
 func mkErrorInfo(cause error, addStack bool, errCtx ...any) errorInfo {
 	np := len(errCtx) / 2
 	ctx := make([]ctxPair, np)
-	for i := 0; i < np; i++ {
+	for i := range np {
 		k := errCtx[2*i]
 		v := errCtx[2*i+1]
 		ctx[i] = ctxPair{Key: fmt.Sprint(k), Value: v}
@@ -332,7 +332,7 @@ func encodeContext(buf io.Writer, pairs []ctxPair) {
 }
 
 func (s *stack) MarshalLogArray(enc zapcore.ArrayEncoder) error {
-	for i := 0; i < len(*s); i++ {
+	for i := range len(*s) {
 		f := Frame((*s)[i])
 		t, err := f.MarshalText()
 		if err != nil {
