@@ -29,7 +29,7 @@ rm -rf $DSTDIR
     fi
     dst=$DSTDIR/$(dirname $clean_path)
     mkdir -p $dst
-    cp $EXECROOT/external/$path $dst
+    cp -r $EXECROOT/external/$path $dst
 done
 
 # Bazel tools are used only for building.
@@ -48,6 +48,10 @@ rm -rf $DSTDIR/com_github_google_certificate_transparency_go/scripts
 rm -rf $DSTDIR/python_3_12_x86_64-unknown-linux-gnu/
 rm -rf $DSTDIR/org_modernc_memory/LICENSE-LOGO
 rm -rf $DSTDIR/npm__*/
+rm -rf $DSTDIR/org_modernc_libc/testdata
+rm -rf $DSTDIR/com_github_getkin_kin_openapi/openapi3/license.go
+rm -rf $DSTDIR/rules_python/tests
+rm -rf $DSTDIR/aspect_rules_js/npm/private/test
 find $DSTDIR/ -name "*.go" -type f -delete
 find $DSTDIR/ -name "*.sh" -type f -delete
 find $DSTDIR/ -path "*/testdata/*" -type f -delete
