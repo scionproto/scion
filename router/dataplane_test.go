@@ -359,7 +359,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 					func(m conn.Messages) (int, error) {
 						// 10 scion messages to external
-						for i := 0; i < totalCount; i++ {
+						for i := range totalCount {
 							spkt, dpath := prepBaseMsg(time.Now())
 							spkt.DstIA = local
 							spkt.RawDstAddr = []byte{192, 168, 1, 1}

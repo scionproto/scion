@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -84,7 +85,7 @@ func featureMap(featureSet any) map[string]int {
 	if fields.Kind() == reflect.Ptr {
 		fields = fields.Elem()
 	}
-	for i := 0; i < fields.NumField(); i++ {
+	for i := range fields.NumField() {
 		if fields.Field(i).Type.Kind() != reflect.Bool {
 			continue
 		}
