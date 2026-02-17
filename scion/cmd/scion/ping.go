@@ -97,6 +97,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		Example: fmt.Sprintf(`  %[1]s ping 1-ff00:0:110,10.0.0.1
   %[1]s ping 1-ff00:0:110,10.0.0.1 -c 5`, pather.CommandPath()),
 		Long: fmt.Sprintf(`'ping' test connectivity to a remote SCION host using SCMP echo packets.
+Use 'scion address' on the remote SCION host to determine the ISD-AS and pingable IP address.
 
 When the \--count option is set, ping sends the specified number of SCMP echo packets
 and reports back the statistics.
