@@ -31,8 +31,10 @@ Options
 
 ::
 
-  -h, --help         help for certificates
-  -o, --out string   Output file (required)
+  -h, --help                     help for certificates
+  -o, --out string               Output file (optional)
+      --subject.isd-as strings   Filter certificates by ISD-AS of the subject (e.g., 1-ff00:0:110)
+      --type strings             Filter certificates by type (any|cp-as|cp-ca|cp-root|regular-voting|sensitive-voting)
 
 SEE ALSO
 ~~~~~~~~
