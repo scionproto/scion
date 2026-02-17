@@ -1,4 +1,5 @@
 // Copyright 2022 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,7 +72,6 @@ func ComputeAuthCMAC(
 	auxBuffer []byte,
 	outBuffer []byte,
 ) ([]byte, error) {
-
 	cmac, err := initCMAC(input.Key)
 	if err != nil {
 		return nil, err
@@ -110,7 +110,6 @@ func serializeAuthenticatedData(
 	pldType slayers.L4ProtocolType,
 	pld []byte,
 ) (int, error) {
-
 	_ = buf[MACBufferSize-1]
 
 	hdrLen := slayers.CmnHdrLen + s.AddrHdrLen() + s.Path.Len()
@@ -194,13 +193,13 @@ func zeroOutWithBase(base scion.Base, buf []byte) {
 	offset := 0
 	buf[offset] = 0
 	offset += 4
-	for i := 0; i < base.NumINF; i++ {
+	for range base.NumINF {
 		// Zero out IF.SegID
 		binary.BigEndian.PutUint16(buf[offset+2:], 0)
 		offset += 8
 	}
-	for i := 0; i < base.NumINF; i++ {
-		for j := 0; j < int(base.PathMeta.SegLen[i]); j++ {
+	for i := range base.NumINF {
+		for range base.PathMeta.SegLen[i] {
 			// Zero out HF.Flags&&Alerts
 			buf[offset] = 0
 			offset += 12

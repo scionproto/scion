@@ -1,4 +1,5 @@
 // Copyright 2018 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,10 +54,8 @@ const (
 	DaemonAddressesFile = "sciond_addresses.json"
 )
 
-var (
-	// LoadedASList exposes the ASList loaded during Init
-	LoadedASList *ASList
-)
+// LoadedASList exposes the ASList loaded during Init
+var LoadedASList *ASList
 
 type iaArgs []addr.IA
 
@@ -148,7 +147,8 @@ func validateFlags() error {
 			Level:           logConsole,
 			StacktraceLevel: "none",
 			DisableCaller:   true,
-		}}
+		},
+	}
 	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 		flag.Usage()
@@ -303,8 +303,8 @@ func StartServer(in Integration, dst *snet.UDPAddr) (io.Closer, error) {
 // RunClient runs a client on the given IAPair.
 // If the client does not finish until timeout it is killed.
 func RunClient(in Integration, pair IAPair, timeout time.Duration,
-	checkOutput func([]byte) error) error {
-
+	checkOutput func([]byte) error,
+) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	c, err := in.StartClient(ctx, pair.Src, pair.Dst)
@@ -364,8 +364,8 @@ func GroupBySource(pairs []IAPair) map[*snet.UDPAddr][]*snet.UDPAddr {
 // RunUnaryTests runs the client for each IAPair.
 // In case of an error the function is terminated immediately.
 func RunUnaryTests(in Integration, pairs []IAPair,
-	timeout time.Duration, checkOutput func([]byte) error) error {
-
+	timeout time.Duration, checkOutput func([]byte) error,
+) error {
 	if timeout == 0 {
 		timeout = DefaultRunTimeout
 	}
@@ -385,8 +385,8 @@ func RunUnaryTests(in Integration, pairs []IAPair,
 
 // runTests runs the testF for all the given IAPairs in parallel.
 func runTests(in Integration, pairs []IAPair, maxGoRoutines int,
-	testF func(int, IAPair) error) error {
-
+	testF func(int, IAPair) error,
+) error {
 	return ExecuteTimed(in.Name(), func() error {
 		errors := make(chan error, len(pairs))
 		workChan := make(chan workFunc, len(pairs))
@@ -406,17 +406,15 @@ type workFunc func() error
 func workInParallel(workChan chan workFunc, errors chan error, maxGoRoutines int) error {
 	var wg sync.WaitGroup
 	for i := 1; i <= maxGoRoutines; i++ {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
 			for work := range workChan {
 				err := work()
 				if err != nil {
 					errors <- err
 				}
 			}
-		}()
+		})
 	}
 	close(workChan)
 	wg.Wait()
