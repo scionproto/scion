@@ -28,7 +28,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -36,9 +35,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
-var (
-	testKey = []byte("testkey_xxxxxxxx")
-)
+var testKey = []byte("testkey_xxxxxxxx")
 
 func computeMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopField) [path.MacLen]byte {
 	mac, err := scrypto.InitMac(key)
@@ -114,7 +111,7 @@ func TestComputeProcId(t *testing.T) {
 
 	// this helper returns the procID as the router actually makes it by using the extraction
 	// from dataplane.computeProcID() along with hashFNV1a() for the seed.
-	computeProcIDHelper := func(payload []byte, s *slayers.SCION) (uint32, error) {
+	computeProcIDHelper := func(payload []byte, s *slayers.SCION) (uint32, bool) {
 		buffer := gopacket.NewSerializeBuffer()
 		err := gopacket.SerializeLayers(buffer,
 			gopacket.SerializeOptions{FixLengths: true},
@@ -142,7 +139,7 @@ func TestComputeProcId(t *testing.T) {
 		},
 		"different payload does not affect hashing": func(t *testing.T) []ret {
 			rets := make([]ret, 10)
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				rets[i].payload = make([]byte, 100)
 				_, err := rand.Read(rets[i].payload)
 				spkt := prepBaseMsg(t, 1)
@@ -154,7 +151,7 @@ func TestComputeProcId(t *testing.T) {
 		"flowID is extracted correctly independing of trafficId": func(t *testing.T) []ret {
 			rets := make([]ret, 16)
 			payload := make([]byte, 100)
-			for i := 0; i < 16; i++ {
+			for i := range 16 {
 				rets[i].payload = payload
 				spkt := prepBaseMsg(t, 1)
 				spkt.TrafficClass = uint8(i)
@@ -218,9 +215,8 @@ func TestComputeProcId(t *testing.T) {
 			}
 			expected := referenceHash(rets[0].s)
 			for _, r := range rets {
-				actual, err := computeProcIDHelper(r.payload, r.s)
-				// this tests do not test errors, hence no errors should occur
-				assert.NoError(t, err)
+				actual, ok := computeProcIDHelper(r.payload, r.s)
+				assert.True(t, ok)
 				assert.Equal(t, expected, actual)
 			}
 		})
@@ -229,37 +225,41 @@ func TestComputeProcId(t *testing.T) {
 
 func TestComputeProcIdErrorCases(t *testing.T) {
 	type test struct {
-		data          []byte
-		expectedError error
+		data            []byte
+		expectedSuccess bool
 	}
 	testCases := map[string]test{
 		"packet shorter than common header len": {
-			data:          make([]byte, 10),
-			expectedError: serrors.New("packet is too short"),
+			data: []byte{
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0,
+			},
+			expectedSuccess: false,
 		},
 		"packet len = CmnHdrLen + addrHdrLen": {
 			data: []byte{
-				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0xfe, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0,
 			},
-			expectedError: nil,
+			expectedSuccess: true,
 		},
 		"packet len < CmnHdrLen + addrHdrLen": {
 			data: []byte{
-				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0xfe, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0,
 			},
-			expectedError: serrors.New("packet is too short"),
+			expectedSuccess: false,
 		},
 		"packet len = CmnHdrLen + addrHdrLen (16IP)": {
 			data: []byte{
-				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0xfe, 0, 0, 0,
 				0, 0x33, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
@@ -268,11 +268,11 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0,
 			},
-			expectedError: nil,
+			expectedSuccess: true,
 		},
 		"packet len < CmnHdrLen + addrHdrLen (16IP)": {
 			data: []byte{
-				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0xfe, 0, 0, 0,
 				0, 0x33, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0,
@@ -281,18 +281,38 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0,
 			},
-			expectedError: serrors.New("packet is too short"),
+			expectedSuccess: false,
+		},
+		"Simple STUN packet": {
+			data: []byte{
+				0x00, 0x00, 0x00, 0x00, 0x21, 0x12, 0xa4, 0x42,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+			},
+			expectedSuccess: false,
+		},
+		"'foo' STUN packet": {
+			data: []byte{
+				0x00, 0x00, 0x00, 0x00, 0x21, 0x12, 0xa4, 0x42,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x66, 0x6f, 0x6f,
+			},
+			expectedSuccess: false,
+		},
+		"Non-zero first byte STUN packet": {
+			data: []byte{
+				0x20, 0x00, 0x00, 0x00, 0x21, 0x12, 0xa4, 0x42,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+			},
+			expectedSuccess: false,
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			randomValue := uint32(1234) // not a proper hash seed, but hash result is irrelevant.
-			_, actualErr := computeProcID(tc.data, 10000, randomValue)
-			if tc.expectedError != nil {
-				assert.Equal(t, tc.expectedError.Error(), actualErr.Error())
-			} else {
-				assert.NoError(t, actualErr)
-			}
+			_, ok := computeProcID(tc.data, 10000, randomValue)
+			assert.Equal(t, tc.expectedSuccess, ok)
 		})
 	}
 }
