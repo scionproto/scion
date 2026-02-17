@@ -18,8 +18,8 @@ github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZx
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
-github.com/buildkite/go-buildkite/v4 v4.1.0 h1:n1f3EAe8/64ju9QjSWJYMjD8++mn1pOLK/tZscD5DKo=
-github.com/buildkite/go-buildkite/v4 v4.1.0/go.mod h1:xlYVIETMCk46KUkmfRoztoIf888KwdY5uZXNinZ1PX0=
+github.com/buildkite/go-buildkite/v4 v4.14.1 h1:qAnVhGZWbSxP6JGoysG6Iv0wdVC/0DkpS85wpqcJ080=
+github.com/buildkite/go-buildkite/v4 v4.14.1/go.mod h1:VutoY8MvXYKNLzbobBouiBGHx/UdhBr9K2sWBWNGK+Q=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

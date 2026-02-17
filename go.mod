@@ -6,7 +6,7 @@ require (
 	connectrpc.com/connect v1.18.1
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bazelbuild/rules_go v0.60.0
-	github.com/buildkite/go-buildkite/v4 v4.1.0
+	github.com/buildkite/go-buildkite/v4 v4.14.1
 	github.com/cilium/ebpf v0.18.0
 	github.com/dchest/cmac v1.0.0
 	github.com/fatih/color v1.18.0
