@@ -40,10 +40,10 @@ bazel_dep(name = "gazelle", version = "0.47.0")
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
 go_deps.gazelle_override(
-    path = "google.golang.org/grpc/examples",
     directives = [
         "gazelle:proto disable",
     ],
+    path = "google.golang.org/grpc/examples",
 )
 
 # go_deps.module() is needed for tools dependencies (previously tool_deps.bzl) that can't be added to go.mod
