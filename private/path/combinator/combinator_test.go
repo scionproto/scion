@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,9 +40,7 @@ import (
 	"github.com/scionproto/scion/private/path/combinator"
 )
 
-var (
-	update = xtest.UpdateGoldenFiles()
-)
+var update = xtest.UpdateGoldenFiles()
 
 func TestBadPeering(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -138,7 +137,8 @@ func TestMiscPeering(t *testing.T) {
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{
-					graph.If_220_X_210_X, graph.If_210_X_110_X, graph.If_110_X_130_A}),
+					graph.If_220_X_210_X, graph.If_210_X_110_X, graph.If_110_X_130_A,
+				}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_220_X_221_X}),
@@ -558,8 +558,10 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    addr.MustParseIA("1-ff00:0:133"),
 			DstIA:    addr.MustParseIA("1-ff00:0:131"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X,
-					graph.If_132_X_133_X}),
+				g.Beacon([]uint16{
+					graph.If_130_A_131_X, graph.If_131_X_132_X,
+					graph.If_132_X_133_X,
+				}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
@@ -571,8 +573,10 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    addr.MustParseIA("1-ff00:0:133"),
 			DstIA:    addr.MustParseIA("1-ff00:0:132"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X,
-					graph.If_132_X_133_X}),
+				g.Beacon([]uint16{
+					graph.If_130_A_131_X, graph.If_131_X_132_X,
+					graph.If_132_X_133_X,
+				}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_130_A_131_X, graph.If_131_X_132_X}),
@@ -683,10 +687,14 @@ func TestComputePath(t *testing.T) {
 			DstIA:    addr.MustParseIA("2-ff00:0:210"),
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X_110_X, graph.If_110_X_130_A}),
-				g.Beacon([]uint16{graph.If_210_X_110_X, graph.If_110_X_120_A,
-					graph.If_120_A_130_B}),
-				g.Beacon([]uint16{graph.If_210_X_220_X, graph.If_220_X_120_B,
-					graph.If_120_A_110_X, graph.If_110_X_130_A}),
+				g.Beacon([]uint16{
+					graph.If_210_X_110_X, graph.If_110_X_120_A,
+					graph.If_120_A_130_B,
+				}),
+				g.Beacon([]uint16{
+					graph.If_210_X_220_X, graph.If_220_X_120_B,
+					graph.If_120_A_110_X, graph.If_110_X_130_A,
+				}),
 			},
 		},
 	}
@@ -705,6 +713,7 @@ func TestComputePath(t *testing.T) {
 		})
 	}
 }
+
 func TestFilterDuplicates(t *testing.T) {
 	// Define three different path interface sequences for the test cases below.
 	// These look somewhat valid, but that doesn't matter at all -- we only look
@@ -831,7 +840,6 @@ func TestFilterDuplicates(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-
 			filtered := combinator.FilterDuplicates(tc.Paths)
 			// extract IDs hidden in the raw paths:
 			filteredIds := make([]uint32, len(filtered))
@@ -865,7 +873,7 @@ func writeTestString(p combinator.Path, w io.Writer) {
 	for i := range sp.InfoFields {
 		fmt.Fprintf(w, "    %s\n", fmtIF(sp.InfoFields[i]))
 		numHops := int(sp.PathMeta.SegLen[i])
-		for h := 0; h < numHops; h++ {
+		for range numHops {
 			fmt.Fprintf(w, "      %s\n", fmtHF(sp.HopFields[hopIdx]))
 			hopIdx++
 		}

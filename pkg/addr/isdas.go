@@ -1,5 +1,6 @@
 // Copyright 2016 ETH Zurich
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -101,7 +102,7 @@ func parseAS(as string, sep string) (AS, error) {
 		return 0, serrors.New("wrong number of separators", "sep", sep, "value", as)
 	}
 	var parsed AS
-	for i := 0; i < asParts; i++ {
+	for i := range asParts {
 		parsed <<= asPartBits
 		v, err := strconv.ParseUint(parts[i], asPartBase, asPartBits)
 		if err != nil {
