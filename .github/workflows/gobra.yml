@@ -34,6 +34,11 @@ jobs:
           # Explicitly set to preserve previous behavior; the default
           # changed from VSWITHSILICON to SILICON in gobra-action v25.09.
           viperBackend: 'VSWITHSILICON'
+          # Work around JDK cgroup v2 NullPointerException on GitHub Actions
+          # runners by disabling container support detection. The extra flag
+          # is injected via javaXss because the action has no dedicated input
+          # for arbitrary JVM flags.
+          javaXss: '128m -XX:-UseContainerSupport'
           statsFile: ${{ env.statsFile }}
       - name: Upload the verification report
         uses: actions/upload-artifact@v6
