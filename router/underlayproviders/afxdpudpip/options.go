@@ -17,6 +17,7 @@ package afxdpudpip
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -105,6 +106,12 @@ func parseOptions(options string) (Options, error) {
 		return Options{}, serrors.New(
 			fmt.Sprintf("frame_size must be >= %d (default), got %d",
 				afxdp.DefaultFrameSize, *opts.FrameSize),
+		)
+	}
+	if opts.FrameSize != nil && *opts.FrameSize > uint32(os.Getpagesize()) {
+		return Options{}, serrors.New(
+			fmt.Sprintf("frame_size must be <= system page size (%d), got %d",
+				os.Getpagesize(), *opts.FrameSize),
 		)
 	}
 	return opts, nil

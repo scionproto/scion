@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
 	"sync/atomic"
 	"unsafe"
 
@@ -196,6 +197,10 @@ func (c *SocketConfig) ValidateAndSetDefaults() error {
 	// in copy-mode; AF_XDP works best with modest batches.
 	if c.BatchSize > 256 {
 		c.BatchSize = 256
+	}
+	if pageSize := uint32(os.Getpagesize()); c.FrameSize > pageSize {
+		return fmt.Errorf("frame_size %d exceeds system page size (%d)",
+			c.FrameSize, pageSize)
 	}
 	if c.NumFrames < c.TxSize+c.RxSize {
 		return ErrNumFramesTooSmall
