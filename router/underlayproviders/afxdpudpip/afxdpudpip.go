@@ -268,6 +268,7 @@ func (u *underlay) Start(
 ) {
 	u.mu.Lock()
 	if len(procQs) == 0 {
+		u.mu.Unlock()
 		return
 	}
 	connSnapshot := slices.Collect(maps.Values(u.allConnections))
