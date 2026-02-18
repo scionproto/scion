@@ -199,6 +199,8 @@ func (t trafficType) String() string {
 		return "out_transit"
 	case ttBrTransit:
 		return "br_transit"
+	case ttSlowPath:
+		return "slow_path"
 	}
 	return "other"
 }
