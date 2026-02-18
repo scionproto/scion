@@ -4,10 +4,11 @@ Router Benchmark
 
 :program:`acceptance/router_benchmark/benchmark.py` is a tool to benchmark an external router.
 
-The usage is simply: ``acceptance/router_benchmark/benchmark.py``.
+The usage is simply: ``bazel run acceptance/router_benchmark:benchmark``.
 
 Without any options, the tool outputs instructions. Those instructions comprise how to configure
-the subject router and how to re-execute the tool so it actually carries the measurement.
+the subject router and how to re-execute the tool so it actually carries the measurement. Remember
+to precede the added arguments with '--' so that these arguments are not consumed by `bazel run`.
 
 In order to accomplish the tool's instructions one will need to:
 
@@ -24,4 +25,5 @@ results available for pickup by :program:`benchmark.py`.
 
 Otherwise these operations still have to be carried out manually. The :program:`mmbm` and
 :program:`coremark` tools can be found in: ``bazel-bin/tools/mmbm/mmbm_/mmbm`` and
-``bazel-bin/tools/coremark/coremark``.
+``bazel-bin/tools/coremark/coremark``. The proper configuration of the subject router is the
+set of files in `acceptance/router_benchmark/config`.
