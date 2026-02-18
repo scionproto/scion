@@ -281,8 +281,11 @@ of the individual fields below.
             that is, the address that the router should bind to.
 
       .. option:: options
+
          Arbitrary string. Format and semantics are defined by each underlay
-         protocol.
+         protocol. For the ``udpip`` protocol with the ``afxdp`` implementation,
+         see :ref:`router-afxdp-options`.
+
       .. option:: bfd, optional
 
          :term:`Bidirectional Forwarding Detection (BFD) <BFD>` is used to determine
