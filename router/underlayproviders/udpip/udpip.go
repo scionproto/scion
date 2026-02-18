@@ -399,7 +399,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			toWrite -= written
 			// Shift the leftovers to the head of the buffers.
 			for i := range toWrite {
-				pkts[i] = pkts[i+written+1]
+				pkts[i] = pkts[i+written]
 			}
 		} else {
 			toWrite = 0
