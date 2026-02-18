@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -198,10 +199,8 @@ func (p *pinger) Ping(
 	}()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		defer log.HandlePanic()
-		defer wg.Done()
 
 		i := p.attempts
 		for {
@@ -221,9 +220,9 @@ func (p *pinger) Ping(
 			}
 		}
 		time.AfterFunc(p.timeout, cancel)
-	}()
+	})
 
-	for i := uint16(0); i < p.attempts; i++ {
+	for range p.attempts {
 		select {
 		case <-ctx.Done():
 			return p.stats, nil

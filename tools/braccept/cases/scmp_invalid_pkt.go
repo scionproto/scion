@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -262,7 +263,7 @@ func SCMPQuoteCut(artifactsDir string, mac hash.Hash) runner.Case {
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := make([]byte, slayers.MaxSCMPPacketLen)
-	for i := 0; i < slayers.MaxSCMPPacketLen; i++ {
+	for i := range slayers.MaxSCMPPacketLen {
 		// Use random values A-Z.
 		payload[i] = byte((i % 25) + 65)
 	}

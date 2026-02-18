@@ -275,7 +275,7 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 		// collect packets.
 
 		// Give a new buffer to the msgs elements that have been used in the previous loop.
-		for i := 0; i < batchSize-numReusable; i++ {
+		for i := range batchSize - numReusable {
 			p := pool.Get()
 			packets[i] = p
 			msgs[i].Buffers[0] = p.RawPacket
@@ -398,8 +398,8 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			written++ // Not to-be-written any more
 			toWrite -= written
 			// Shift the leftovers to the head of the buffers.
-			for i := 0; i < toWrite; i++ {
-				pkts[i] = pkts[i+written]
+			for i := range toWrite {
+				pkts[i] = pkts[i+written+1]
 			}
 		} else {
 			toWrite = 0

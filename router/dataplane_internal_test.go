@@ -70,7 +70,7 @@ func TestReceiver(t *testing.T) {
 		}).AnyTimes()
 	mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 		func(m underlayconn.Messages) (int, error) {
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				payload := bytes.Repeat([]byte("actualpayloadbytes"), i)
 				raw := serializedBaseMsg(t, payload, 0)
 				copy(m[i].Buffers[0], raw)
@@ -99,7 +99,7 @@ func TestReceiver(t *testing.T) {
 	dp.setRunning()
 	dp.underlays["udpip"].Start(context.Background(), dp.packetPool, procCh)
 	ptrMap := make(map[uintptr]struct{})
-	for i := 0; i < 21; i++ {
+	for i := range 21 {
 		select {
 		case pkt := <-procCh[0]:
 			// make sure that the pool size has decreased
@@ -235,7 +235,7 @@ func TestForwarder(t *testing.T) {
 	dp.setRunning()
 	dp.underlays["udpip"].Start(context.Background(), dp.packetPool, procQs)
 	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
-	for i := 0; i < 255; i++ {
+	for i := range 255 {
 		pkt := dp.packetPool.Get()
 		pkt.RawPacket = pkt.RawPacket[:1]
 		pkt.RawPacket[0] = byte(i)

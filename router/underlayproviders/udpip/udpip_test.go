@@ -36,9 +36,7 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
-var (
-	testKey = []byte("testkey_xxxxxxxx")
-)
+var testKey = []byte("testkey_xxxxxxxx")
 
 func computeMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopField) [path.MacLen]byte {
 	mac, err := scrypto.InitMac(key)
@@ -142,7 +140,7 @@ func TestComputeProcId(t *testing.T) {
 		},
 		"different payload does not affect hashing": func(t *testing.T) []ret {
 			rets := make([]ret, 10)
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				rets[i].payload = make([]byte, 100)
 				_, err := rand.Read(rets[i].payload)
 				spkt := prepBaseMsg(t, 1)
@@ -154,7 +152,7 @@ func TestComputeProcId(t *testing.T) {
 		"flowID is extracted correctly independing of trafficId": func(t *testing.T) []ret {
 			rets := make([]ret, 16)
 			payload := make([]byte, 100)
-			for i := 0; i < 16; i++ {
+			for i := range 16 {
 				rets[i].payload = payload
 				spkt := prepBaseMsg(t, 1)
 				spkt.TrafficClass = uint8(i)

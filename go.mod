@@ -1,12 +1,12 @@
 module github.com/scionproto/scion
 
-go 1.25.6
+go 1.26.0
 
 require (
 	connectrpc.com/connect v1.18.1
 	github.com/antlr4-go/antlr/v4 v4.13.1
-	github.com/bazelbuild/rules_go v0.59.0
-	github.com/buildkite/go-buildkite/v4 v4.1.0
+	github.com/bazelbuild/rules_go v0.60.0
+	github.com/buildkite/go-buildkite/v4 v4.14.1
 	github.com/cilium/ebpf v0.20.0
 	github.com/dchest/cmac v1.0.0
 	github.com/fatih/color v1.18.0
@@ -54,7 +54,7 @@ require (
 	golang.org/x/tools v0.39.0
 	google.golang.org/grpc v1.71.1
 	google.golang.org/grpc/examples v0.0.0-20240321213419-eb5828bae753
-	google.golang.org/protobuf v1.36.6
+	google.golang.org/protobuf v1.36.10
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.40.1
 	zgo.at/zcache/v2 v2.1.0

@@ -1,4 +1,3 @@
-// Copyright 2016 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
 // Copyright 2023 SCION Association
 //
@@ -111,7 +110,6 @@ func (cfg *RouterConfig) Validate() error {
 }
 
 func (cfg *RouterConfig) InitDefaults() {
-
 	// NumProcessors is the number of goroutines used to handle the processing queue.
 	// It has been observed that allowing the packet processors starve the other tasks was
 	// counterproductive. We get much better results by setting two cores aside for other go
