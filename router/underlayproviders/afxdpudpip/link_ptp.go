@@ -229,9 +229,6 @@ func (l *linkPTP) start(
 }
 
 func (l *linkPTP) stop() {
-	if l.bfdSession != nil {
-		l.bfdSession.Close()
-	}
 	wasRunning := l.running.Swap(false)
 	if wasRunning {
 		select {
@@ -239,6 +236,9 @@ func (l *linkPTP) stop() {
 		default:
 		}
 		<-l.sendBacklogDone
+	}
+	if l.bfdSession != nil {
+		l.bfdSession.Close()
 	}
 	l.neighbors.stop()
 }
