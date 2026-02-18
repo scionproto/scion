@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -72,7 +73,6 @@ func (f *DefaultPathWatcherFactory) New(
 	remote addr.IA,
 	path snet.Path,
 ) (PathWatcher, error) {
-
 	pktChan := make(chan traceroutePkt, 10)
 	createCounter := func(
 		create func(addr.IA) metrics.Counter, remote addr.IA,
@@ -154,13 +154,11 @@ func (w *pathWatcher) Run(ctx context.Context) {
 		"id", w.id,
 	)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		defer log.HandlePanic()
-		defer wg.Done()
 
 		w.drainConn(ctx)
-	}()
+	})
 
 	logger.Info("Starting path watcher", "path", fmt.Sprint(w.path.Path))
 	defer logger.Info("Stopped path watcher")

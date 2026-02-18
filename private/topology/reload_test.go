@@ -1,4 +1,5 @@
 // Copyright 2021 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -217,7 +218,7 @@ func TestLoader(t *testing.T) {
 		reloadCh <- struct{}{}
 		// the Updates channel can be filled in any order so the code below has to be
 		// order independent.
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			select {
 			case <-sub1.Updates:
 				t.Log("sub1 update received")

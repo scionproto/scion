@@ -1,5 +1,6 @@
 // Copyright 2017 ETH Zurich
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -327,7 +328,7 @@ func (ps *PathSegment) VerifyASEntry(ctx context.Context, verifier Verifier, idx
 func (ps *PathSegment) associatedData(idx int) [][]byte {
 	associatedData := make([][]byte, 0, 1+(idx*2))
 	associatedData = append(associatedData, ps.Info.Raw)
-	for i := 0; i < idx; i++ {
+	for i := range idx {
 		associatedData = append(associatedData,
 			ps.ASEntries[i].Signed.HeaderAndBody,
 			ps.ASEntries[i].Signed.Signature,

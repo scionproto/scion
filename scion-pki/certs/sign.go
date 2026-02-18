@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/app/flag"
 	scionpki "github.com/scionproto/scion/scion-pki"
@@ -96,7 +97,7 @@ and not to \--not-before.
 
 			cmd.SilenceUsage = true
 
-			csrRaw, err := os.ReadFile(args[0])
+			csrRaw, err := app.ReadFileOrStdin(args[0])
 			if err != nil {
 				return serrors.Wrap("loading CSR", err)
 			}

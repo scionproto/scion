@@ -19,12 +19,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/command"
 )
 
@@ -46,7 +46,7 @@ request (CSR) in human readable format.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
-			raw, err := os.ReadFile(args[0])
+			raw, err := app.ReadFileOrStdin(args[0])
 			if err != nil {
 				return serrors.Wrap("loading file", err)
 			}
