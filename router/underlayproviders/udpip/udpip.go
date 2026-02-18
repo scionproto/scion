@@ -901,12 +901,8 @@ func (l *internalLink) runProcessor() {
 				l.pool.Put(p)
 				continue
 			}
-			if !egressLink.Send(p) {
-				sc := router.ClassOfSize(len(p.RawPacket))
-				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-				l.pool.Put(p)
-				continue
-			}
+			// Send always consumes the packet (returns it to pool on drop).
+			egressLink.Send(p)
 		case <-l.procStop:
 			for {
 				select {
