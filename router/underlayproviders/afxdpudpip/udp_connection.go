@@ -271,7 +271,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 				// No free frames; drop remaining packets.
 				for j := i; j < toWrite; j++ {
 					sc := router.ClassOfSize(len(pkts[j].RawPacket))
-					metrics[sc].DroppedPacketsInvalid.Inc()
+					metrics[sc].DroppedPacketsBusyForwarder[pkts[j].TrafficType].Inc()
 					pool.Put(pkts[j])
 				}
 				break
