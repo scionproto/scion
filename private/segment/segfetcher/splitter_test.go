@@ -101,7 +101,8 @@ func TestRequestSplitter(t *testing.T) {
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
-					// One-hop requests for peering (!srcCore && dstCore adds dst->dst Down and srcCores Up)
+					// One-hop requests for peering
+					// (!srcCore && dstCore adds dst->dst Down and srcCores Up)
 					segfetcher.Request{SegType: Down, Src: isd2, Dst: isd2},
 					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
 					segfetcher.Request{SegType: Up, Src: core_120, Dst: core_120},
@@ -274,7 +275,8 @@ func TestRequestSplitter(t *testing.T) {
 				ExpectedSet: segfetcher.Requests{
 					segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 					segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
-					// One-hop requests for peering (!srcCore && dstCore adds dst->dst Down and srcCores Up)
+					// One-hop requests for peering
+					// (!srcCore && dstCore adds dst->dst Down and srcCores Up)
 					segfetcher.Request{SegType: Down, Src: isd2, Dst: isd2},
 					segfetcher.Request{SegType: Up, Src: core_110, Dst: core_110},
 				},

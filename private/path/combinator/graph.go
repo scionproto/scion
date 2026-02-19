@@ -545,8 +545,9 @@ type solutionEdge struct {
 	segment *inputSegment
 }
 
-// isOneHopSegment returns true if the segment is a one-hop segment (single AS entry with peer entries).
-// One-hop segments represent core ASes with peering links and enable peering path discovery.
+// isOneHopSegment returns true if the segment is a one-hop segment.
+// One-hop segments (single AS entry with peer entries) represent core ASes with peering links
+// and enable peering path discovery.
 func isOneHopSegment(seg *inputSegment) bool {
 	return len(seg.ASEntries) == 1 && len(seg.ASEntries[0].PeerEntries) > 0
 }

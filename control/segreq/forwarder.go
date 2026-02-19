@@ -88,7 +88,8 @@ func (f ForwardingLookup) classify(ctx context.Context,
 			return 0, err
 		}
 		if !isCore {
-			// this could be an otherwise valid request, but probably the requester switched Src and Dst
+			// this could be an otherwise valid request,
+			// but probably the requester switched Src and Dst
 			return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 				"src", src, "dst", dst, "reason", "dst is local AS, confusion?")
 		}
