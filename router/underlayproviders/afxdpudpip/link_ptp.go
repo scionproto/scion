@@ -122,14 +122,12 @@ func (l *linkPTP) finishPacket(p *router.Packet) bool {
 		l.neighbors.lock.Unlock()
 
 		if hdrp == nil {
-			if backlog != nil {
-				select {
-				case backlog <- p:
-				default:
-					sc := router.ClassOfSize(len(p.RawPacket))
-					l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-					l.pool.Put(p)
-				}
+			select {
+			case backlog <- p:
+			default:
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+				l.pool.Put(p)
 			}
 			return false
 		}
