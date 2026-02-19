@@ -703,7 +703,7 @@ func Open(
 		fd, unix.SOL_XDP, unix.XDP_MMAP_OFFSETS,
 		unsafe.Pointer(&offs), unsafe.Sizeof(offs),
 	); err != nil {
-		return nil, fail("setsockopt XDP_MMAP_OFFSETS: %w", err)
+		return nil, fail("getsockopt XDP_MMAP_OFFSETS: %w", err)
 	}
 
 	// Map TX ring (descriptors).
