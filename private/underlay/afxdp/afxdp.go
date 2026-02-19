@@ -44,6 +44,7 @@ import (
 )
 
 var (
+	ErrRXRegionIsEmpty   = errors.New("rx region is empty")
 	ErrTXRegionIsEmpty   = errors.New("tx region is empty")
 	ErrCQRegionIsEmpty   = errors.New("cq region is empty")
 	ErrNumFramesTooSmall = errors.New("NumFrames must be >= TxSize + RxSize")
@@ -386,7 +387,10 @@ func makeQueue(
 	region []byte, off unix.XDPRingOffset, size uint32, isTx bool,
 ) (*xdpUQueue, error) {
 	if len(region) == 0 {
-		return nil, ErrTXRegionIsEmpty
+		if isTx {
+			return nil, ErrTXRegionIsEmpty
+		}
+		return nil, ErrRXRegionIsEmpty
 	}
 	base := unsafe.Pointer(&region[0])
 
