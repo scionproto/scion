@@ -53,7 +53,7 @@ type RouterConfig struct {
 	// and adapt the acceptance tests.
 	DispatchedPortStart *int              `toml:"dispatched_port_start,omitempty"`
 	DispatchedPortEnd   *int              `toml:"dispatched_port_end,omitempty"`
-	PreferredUnderlays  map[string]string `toml:"preferred_underlays, omitempty"`
+	PreferredUnderlays  map[string]string `toml:"preferred_underlays,omitempty"`
 }
 
 // BFD configuration. Unfortunately cannot be shared with topology.BFD
