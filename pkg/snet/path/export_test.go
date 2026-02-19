@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hummingbird_test
+package path
 
-import "testing"
+import (
+	"github.com/scionproto/scion/pkg/addr"
+	dphumm "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
+)
 
-func TestNewWithNow(t *testing.T) {
-
+func (r *Reservation) AccessDstIA() *addr.IA {
+	return &r.DstIA
 }
 
-func TestNewWithMinBW(t *testing.T) {
-
+func (r *Reservation) AccessDec() *dphumm.Decoded {
+	return r.Dec
 }

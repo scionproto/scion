@@ -15,34 +15,308 @@
 package path
 
 import (
+	"encoding/binary"
+	"fmt"
+	"time"
+
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
+	dphum "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
-type Hummingbird struct {
-	// Raw is the raw representation of this path. This data should not be
-	// modified because it is potentially shared.
-	Raw []byte
+// Reservation is the snet path for a Reservation path type.
+// When creating a packet with a Reservation path, the flyover fields must contain the MAC that
+// was computed using the correct payload size.
+// This path represents a possibly partially reserved path, with zero or more flyovers.
+type Reservation struct {
+	DstIA addr.IA        // Destination IA of the path.
+	Dec   *dphum.Decoded // The Hummingbird path.
+	Hops  []*FlyoverData // len(Hops) == len(Dec.Hopfields). Hops[i]==nil iff no flyover at i.
+	Now   time.Time      // The current time.
+	MinBW uint16         // The minimum required bandwidth for the flyovers.
+
+	counter uint32 // duplicate detection counter
 }
 
-var _ snet.DataplanePath = (*Hummingbird)(nil)
+var _ snet.DataplanePath = (*Reservation)(nil)
 
-func NewHummingbirdDataplanePath(d *hummingbird.Decoded) (*Hummingbird, error) {
-	buf := make([]byte, d.Len())
-	if err := d.SerializeTo(buf); err != nil {
-		return &Hummingbird{}, serrors.Wrap("serializing decoded Hummingbird path", err)
+// NewReservation builds a new Hummingbird Reservation based on the destination IA and the
+// options passed.
+func NewReservation(opts ...ReservationModFcn) (*Reservation, error) {
+	r := &Reservation{
+		Now: time.Now(),
+		Dec: &dphum.Decoded{},
 	}
-	return &Hummingbird{Raw: buf}, nil
+	// Run all options on this object.
+	for _, fcn := range opts {
+		if err := fcn(r); err != nil {
+			return nil, err
+		}
+	}
+
+	if len(r.Hops) != len(r.Dec.HopFields) {
+		return nil, fmt.Errorf("wrong number of flyover hops %d, expected %d from path",
+			len(r.Hops), len(r.Dec.HopFields))
+	}
+
+	if r.DstIA == 0 {
+		return nil, serrors.New("unset destination IA")
+	}
+
+	return r, nil
 }
 
 // SetPath sets the path into the passed-by-pointer scion headers.
-func (p Hummingbird) SetPath(s *slayers.SCION) error {
-	var sp hummingbird.Raw
-	if err := sp.DecodeFromBytes(p.Raw); err != nil {
-		return err
-	}
-	s.Path, s.PathType = &sp, sp.Type()
+// When called, the scion layer has its fields (e.g. payload length, src IA, etc.) already set up.
+func (r Reservation) SetPath(s *slayers.SCION) error {
+	dec := r.DeriveDataPlanePath(s.PayloadLen, r.Now)
+	s.Path, s.PathType = dec, dec.Type()
 	return nil
+}
+
+// DeriveDataPlanePath sets pathmeta timestamps and increments duplicate detection counter and
+// updates MACs of all flyoverfields.
+func (r Reservation) DeriveDataPlanePath(
+	pktLen uint16,
+	timeStamp time.Time,
+) *dphum.Decoded {
+
+	// Update timestamps
+	secs := uint32(timeStamp.Unix())
+	millis := uint32(timeStamp.Nanosecond()/1000) << 22
+	millis |= r.counter
+	r.Dec.Base.PathMeta.BaseTS = secs
+	r.Dec.Base.PathMeta.HighResTS = millis
+	// increment counter for next packet
+	r.counter++
+	r.counter %= 1 << 22
+
+	// compute Macs for Flyovers
+	var byteBuffer [hummingbird.FlyoverMacBufferSize]byte
+	var xkbuffer [hummingbird.XkBufferSize]uint32
+	for i, h := range r.Hops {
+		if h == nil {
+			continue
+		}
+		hf := &r.Dec.HopFields[i]
+		hf.ResStartTime = uint16(secs - h.StartTime)
+		flyovermac := hummingbird.FullFlyoverMac(
+			h.Ak[:],
+			r.DstIA,
+			pktLen,
+			hf.ResStartTime,
+			millis,
+			byteBuffer[:],
+			xkbuffer[:],
+		)
+
+		binary.BigEndian.PutUint32(hf.HopField.Mac[:4],
+			binary.BigEndian.Uint32(flyovermac[:4])^binary.BigEndian.Uint32(hf.HopField.Mac[:4]))
+		binary.BigEndian.PutUint16(hf.HopField.Mac[4:],
+			binary.BigEndian.Uint16(flyovermac[4:])^binary.BigEndian.Uint16(hf.HopField.Mac[4:]))
+	}
+	return r.Dec
+}
+
+// ReservationModFcn is a options setting function for a reservation.
+type ReservationModFcn func(*Reservation) error
+
+// WithNow modifies the current point in time for this reservation. It is useful to filter
+// the different flyovers that can be passed to WithScionPath.
+func WithNow(now time.Time) ReservationModFcn {
+	return func(r *Reservation) error {
+		r.Now = now
+		return nil
+	}
+}
+
+// WithMinBW modifies the minimum bandwidth required when filtering flyovers at the time of
+// reservation creation.
+func WithMinBW(bw uint16) ReservationModFcn {
+	return func(r *Reservation) error {
+		r.MinBW = bw
+		return nil
+	}
+}
+
+// WithDstIA changes the destination IA of the reservation.
+func WithDstIA(dstIA addr.IA) ReservationModFcn {
+	return func(r *Reservation) error {
+		r.DstIA = dstIA
+		return nil
+	}
+}
+
+// func WithHummingbirdPath(p *hummingbird.Decoded, flyoverData []*FlyoverData) ReservationModFcn {
+// 	return func(r *Reservation) error {
+// 		r.Dec = p
+// 		r.Hops = flyoverData
+// 		return nil
+// 	}
+// }
+
+// // WithScionDecoded builds a Reservation from a SCION decoded path and the sequence of
+// // flyover data. The length of flyovers must be the same as the number of hops in the scion path.
+// func WithScionDecoded(p *scion.Decoded, flyovers []*FlyoverData) ReservationModFcn {
+// 	return func(r *Reservation) error {
+// 		r.Dec = &dphum.Decoded{}
+// 		r.Dec.ConvertFromScionDecoded(p)
+
+// 		// Create as many hops as non nil flyovers.
+// 		for i, flyover := range flyovers {
+// 			if flyover == nil {
+// 				continue
+// 			}
+// 			r.SetFlyover(uint8(i), flyover)
+// 		}
+// 		return nil
+// 	}
+// }
+
+// WithScionPath allows to build a Reservation based on the SCION path and flyovers passed as
+// arguments. If no flyover is found for a hop, that hop will not have priority.
+// The flyover map is modified by removing those flyovers that were used during the reservation.
+func WithScionPath(p snet.Path, flyoverMap FlyoverMap) ReservationModFcn {
+	return func(r *Reservation) error {
+		switch p := p.Dataplane().(type) {
+		case SCION:
+			scion := &scion.Decoded{}
+			if err := scion.DecodeFromBytes(p.Raw); err != nil {
+				return serrors.Join(err, serrors.New("failed to Prepare Hummingbird Path"))
+			}
+			r.Dec = &hummingbird.Decoded{}
+			r.Dec.ConvertFromScionDecoded(scion)
+		default:
+			return serrors.New("Unsupported path type")
+		}
+		// Extend the number of hops to that of the path.
+		r.Hops = make([]*FlyoverData, len(r.Dec.HopFields))
+
+		// We use the path metadata to get the IAs and interface ID sequence from it.
+		// This sequence of interfaces does not include the crossover interfaces in the core ASes.
+		interfaces := p.Metadata().Interfaces
+
+		// Set the destination IA from the path metadata:
+		r.DstIA = interfaces[len(interfaces)-1].IA
+
+		// Hummingbird requires its crossover hop between segments seg1->seg2 to contain the
+		// flyover at the first hop, which is the last hop of seg1.
+		// Add the first hop of the first segment now.
+		baseHop := BaseHop{
+			IA:      interfaces[0].IA,
+			Ingress: 0,
+			Egress:  uint16(interfaces[0].ID),
+		}
+		flyover, ok := flyoverMap[baseHop]
+		if ok {
+			flyover.IsFlyover = true    // Ensure this will be used as a flyover.
+			delete(flyoverMap, baseHop) // Remove it from the local map to not use it again.
+		} else {
+			flyover = &FlyoverData{
+				BaseHop:   baseHop,
+				IsFlyover: false,
+			}
+		}
+		r.SetFlyover(0, flyover)
+
+		// Do each segment at a time to ignore the first hop of every segment.
+		metadataIdx := 1 // the index of the interfaces (no cross overs).
+		hopIdx := 0      // The index of the current hop in r.Hops.
+		for segIdx := 0; segIdx < r.Dec.NumINF; segIdx++ {
+			// Get the number of hops in the path:
+			hopCount := int(r.Dec.Base.PathMeta.SegLen[segIdx]) / hummingbird.HopLines
+			// We skip the first hop of the segment, skip that r.Hops element too:
+			hopIdx++
+			for i := 1; i < hopCount; i++ {
+				ia := interfaces[metadataIdx*2-1].IA
+				in := uint16(interfaces[metadataIdx*2-1].ID)
+				eg := uint16(0)
+				if metadataIdx*2 < len(interfaces) {
+					eg = uint16(interfaces[metadataIdx*2].ID)
+				}
+				baseHop = BaseHop{
+					IA:      ia,
+					Ingress: in,
+					Egress:  eg,
+				}
+				flyover, ok = flyoverMap[baseHop]
+				if ok {
+					flyover.IsFlyover = true
+					delete(flyoverMap, baseHop)
+				} else {
+					flyover = &FlyoverData{
+						BaseHop:   baseHop,
+						IsFlyover: false,
+					}
+				}
+				r.SetFlyover(uint8(hopIdx), flyover)
+				// Increment the index of the metadata interface information.
+				metadataIdx++
+				hopIdx++
+			}
+		}
+		return nil
+	}
+}
+
+// BaseHop describes a pair of Ingress and Egress interfaces in a specific AS
+type BaseHop struct {
+	IA      addr.IA
+	Ingress uint16
+	Egress  uint16
+}
+
+type FlyoverData struct {
+	BaseHop
+
+	IsFlyover bool     // If false, the rest of the fields in this struct are moot.
+	ResID     uint32   // Unique per AS.
+	Ak        [16]byte // Authentication key.
+	Bw        uint16
+	StartTime uint32 // Unix timestamp for the start of the reservation.
+	Duration  uint16 // Duration of the reservation in seconds.
+}
+
+func (r *Reservation) SetFlyover(
+	hfIdx uint8,
+	flyover *FlyoverData,
+) {
+	r.Hops[hfIdx] = flyover
+	if !flyover.IsFlyover {
+		return
+	}
+
+	// Find the hop field from its index.
+	hf := &r.Dec.HopFields[hfIdx]
+
+	if !hf.Flyover {
+		// Because we are setting a plain hop field as a flyover, it will use two more lines.
+		r.Dec.NumLines += 2
+		r.Dec.PathMeta.SegLen[r.Dec.InfIndexForHFIndex(hfIdx)] += 2
+		hf.Flyover = true
+	}
+
+	hf.Bw = flyover.Bw
+	hf.Duration = flyover.Duration
+	hf.ResID = flyover.ResID
+}
+
+// FlyoverMap is a map between a flyover <IA,ingress,egress> and its corresponding data.
+type FlyoverMap map[BaseHop]*FlyoverData
+
+func FlyoversToMap(flyovers []*FlyoverData) FlyoverMap {
+	ret := make(FlyoverMap)
+	for _, flyover := range flyovers {
+		k := BaseHop{
+			IA:      flyover.IA,
+			Ingress: flyover.Ingress,
+			Egress:  flyover.Egress,
+		}
+		ret[k] = flyover
+	}
+	return ret
 }
