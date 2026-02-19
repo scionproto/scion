@@ -144,6 +144,9 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 			// Parse the packet and dispatch to appropriate link.
 			if u.dispatchPacket(p, data) {
 				p = pool.Get() // Need a fresh packet buffer
+			} else {
+				sc := router.ClassOfSize(len(data))
+				u.metrics[sc].DroppedPacketsInvalid.Inc()
 			}
 		}
 	}
