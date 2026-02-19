@@ -26,7 +26,8 @@ import (
 
 // Options represents the parsed JSON configuration for an AF_XDP underlay link.
 type Options struct {
-	Queue           []uint32 `json:"queue,omitempty"`
+	RxQueues        []uint32 `json:"rx_queuess,omitempty"`
+	TxQueues        []uint32 `json:"tx_queuess,omitempty"`
 	PreferZerocopy  *bool    `json:"prefer_zerocopy,omitempty"`
 	PreferHugepages *bool    `json:"prefer_hugepages,omitempty"`
 	NumFrames       *uint32  `json:"num_frames,omitempty"`
@@ -55,6 +56,23 @@ func validateNonZero(name string, v *uint32) error {
 	return nil
 }
 
+// deduplicateQueues removes duplicate queue IDs while preserving order.
+// Returns nil if the input is nil.
+func deduplicateQueues(queues []uint32) []uint32 {
+	if len(queues) <= 1 {
+		return queues
+	}
+	seen := make(map[uint32]struct{}, len(queues))
+	deduped := make([]uint32, 0, len(queues))
+	for _, q := range queues {
+		if _, ok := seen[q]; !ok {
+			seen[q] = struct{}{}
+			deduped = append(deduped, q)
+		}
+	}
+	return deduped
+}
+
 // parseOptions parses the JSON options string.
 // Returns zero-value Options if the string is empty.
 func parseOptions(options string) (Options, error) {
@@ -67,21 +85,15 @@ func parseOptions(options string) (Options, error) {
 	if err := dec.Decode(&opts); err != nil {
 		return Options{}, serrors.Wrap("invalid options JSON", err)
 	}
-	if opts.Queue != nil && len(opts.Queue) == 0 {
-		return Options{}, serrors.New("empty queue list")
+	if opts.RxQueues != nil && len(opts.RxQueues) == 0 {
+		return Options{}, serrors.New("empty rx_queues list")
+	}
+	if opts.TxQueues != nil && len(opts.TxQueues) == 0 {
+		return Options{}, serrors.New("empty tx_queues list")
 	}
 	// Deduplicate queue IDs while preserving order.
-	if len(opts.Queue) > 1 {
-		seen := make(map[uint32]struct{}, len(opts.Queue))
-		deduped := make([]uint32, 0, len(opts.Queue))
-		for _, q := range opts.Queue {
-			if _, ok := seen[q]; !ok {
-				seen[q] = struct{}{}
-				deduped = append(deduped, q)
-			}
-		}
-		opts.Queue = deduped
-	}
+	opts.RxQueues = deduplicateQueues(opts.RxQueues)
+	opts.TxQueues = deduplicateQueues(opts.TxQueues)
 
 	// Validate ring/frame sizes: must be non-zero and power of two.
 	for _, check := range []struct {

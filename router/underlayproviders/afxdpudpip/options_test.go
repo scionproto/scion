@@ -26,7 +26,8 @@ import (
 func TestParseOptions(t *testing.T) {
 	tests := map[string]struct {
 		options       string
-		wantQueue     []uint32
+		wantRxQueues   []uint32
+		wantTxQueues   []uint32
 		wantZerocopy  *bool
 		wantHugepages *bool
 		wantNumFrames *uint32
@@ -42,22 +43,6 @@ func TestParseOptions(t *testing.T) {
 		},
 		"empty object": {
 			options: `{}`,
-		},
-		"single queue": {
-			options:   `{"queue": [5]}`,
-			wantQueue: []uint32{5},
-		},
-		"multiple queues": {
-			options:   `{"queue": [0, 1, 2, 3]}`,
-			wantQueue: []uint32{0, 1, 2, 3},
-		},
-		"duplicate queues deduplicated": {
-			options:   `{"queue": [1, 2, 1, 3, 2]}`,
-			wantQueue: []uint32{1, 2, 3},
-		},
-		"max uint32 queue value": {
-			options:   `{"queue": [4294967295]}`,
-			wantQueue: []uint32{4294967295},
 		},
 		"prefer_zerocopy true": {
 			options:      `{"prefer_zerocopy": true}`,
@@ -99,9 +84,31 @@ func TestParseOptions(t *testing.T) {
 			options:       `{"batch_size": 128}`,
 			wantBatchSize: ptr.To(uint32(128)),
 		},
+		"rx_queues only": {
+			options:     `{"rx_queuess": [0, 1, 2, 3]}`,
+			wantRxQueues: []uint32{0, 1, 2, 3},
+		},
+		"tx_queues only": {
+			options:     `{"tx_queuess": [0, 1]}`,
+			wantTxQueues: []uint32{0, 1},
+		},
+		"rx_queues and tx_queues": {
+			options:     `{"rx_queuess": [0, 1, 2, 3], "tx_queuess": [0, 1]}`,
+			wantRxQueues: []uint32{0, 1, 2, 3},
+			wantTxQueues: []uint32{0, 1},
+		},
+		"rx_queues deduplicated": {
+			options:     `{"rx_queuess": [1, 2, 1, 3]}`,
+			wantRxQueues: []uint32{1, 2, 3},
+		},
+		"tx_queues deduplicated": {
+			options:     `{"tx_queuess": [0, 1, 0]}`,
+			wantTxQueues: []uint32{0, 1},
+		},
 		"all options": {
 			options: `{
-				"queue": [0, 1],
+				"rx_queuess": [0, 1],
+				"tx_queuess": [0, 1],
 				"prefer_zerocopy": false,
 				"prefer_hugepages": true,
 				"num_frames": 8192,
@@ -111,7 +118,8 @@ func TestParseOptions(t *testing.T) {
 				"cq_size": 4096,
 				"batch_size": 128
 			}`,
-			wantQueue:     []uint32{0, 1},
+			wantRxQueues:   []uint32{0, 1},
+			wantTxQueues:   []uint32{0, 1},
 			wantZerocopy:  ptr.To(false),
 			wantHugepages: ptr.To(true),
 			wantNumFrames: ptr.To(uint32(8192)),
@@ -121,16 +129,16 @@ func TestParseOptions(t *testing.T) {
 			wantCqSize:    ptr.To(uint32(4096)),
 			wantBatchSize: ptr.To(uint32(128)),
 		},
-		"err exceeds uint32 range": {
-			options: `{"queue": [4294967296]}`,
+		"err empty rx_queues list": {
+			options: `{"rx_queuess": []}`,
 			wantErr: true,
 		},
-		"err negative queue value": {
-			options: `{"queue": [-1]}`,
+		"err empty tx_queues list": {
+			options: `{"tx_queuess": []}`,
 			wantErr: true,
 		},
-		"err empty queue list": {
-			options: `{"queue": []}`,
+		"err unknown queue field rejected": {
+			options: `{"queue": [0]}`,
 			wantErr: true,
 		},
 		"err num_frames zero": {
@@ -199,7 +207,8 @@ func TestParseOptions(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.wantQueue, opts.Queue)
+			assert.Equal(t, tt.wantRxQueues, opts.RxQueues)
+			assert.Equal(t, tt.wantTxQueues, opts.TxQueues)
 			assert.Equal(t, tt.wantZerocopy, opts.PreferZerocopy)
 			assert.Equal(t, tt.wantHugepages, opts.PreferHugepages)
 			assert.Equal(t, tt.wantNumFrames, opts.NumFrames)

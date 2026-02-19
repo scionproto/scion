@@ -38,7 +38,8 @@ type linkPTP struct {
 	pool            router.PacketPool
 	localAddr       *netip.AddrPort
 	remoteAddr      *netip.AddrPort
-	conns           []*udpConnection
+	rxConns         []*udpConnection
+	txConns         []*udpConnection
 	metrics         *router.InterfaceMetrics
 	bfdSession      *bfd.Session
 	neighbors       *neighborCache
@@ -75,7 +76,7 @@ func (l *linkPTP) buildHeader() chan *router.Packet {
 
 		// Ethernet header
 		copy(hdr[0:6], dstMac[:])
-		copy(hdr[6:12], l.conns[0].localMAC)
+		copy(hdr[6:12], l.txConns[0].localMAC)
 		binary.BigEndian.PutUint16(hdr[12:14], 0x0800) // IPv4
 
 		// IPv4 header template (lengths/checksum patched per-packet)
@@ -91,7 +92,7 @@ func (l *linkPTP) buildHeader() chan *router.Packet {
 
 		// Ethernet header
 		copy(hdr[0:6], dstMac[:])
-		copy(hdr[6:12], l.conns[0].localMAC)
+		copy(hdr[6:12], l.txConns[0].localMAC)
 		binary.BigEndian.PutUint16(hdr[12:14], 0x86DD) // IPv6
 
 		// IPv6 header template
@@ -289,13 +290,13 @@ func (l *linkPTP) sendBacklog() {
 				continue
 			}
 			// Compute connection index BEFORE finishPacket prepends headers.
-			connIdx := computeConnIdx(p.RawPacket, len(l.conns), l.seed)
+			connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 			if !l.finishPacket(p) {
 				givenup = true
 				continue
 			}
 			select {
-			case l.conns[connIdx].queue <- p:
+			case l.txConns[connIdx].queue <- p:
 			default:
 				sc := router.ClassOfSize(len(p.RawPacket))
 				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
@@ -309,12 +310,12 @@ func (l *linkPTP) sendBacklog() {
 
 func (l *linkPTP) Send(p *router.Packet) bool {
 	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
-	connIdx := computeConnIdx(p.RawPacket, len(l.conns), l.seed)
+	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if !l.finishPacket(p) {
 		return false
 	}
 	select {
-	case l.conns[connIdx].queue <- p:
+	case l.txConns[connIdx].queue <- p:
 	default:
 		sc := router.ClassOfSize(len(p.RawPacket))
 		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
@@ -326,9 +327,9 @@ func (l *linkPTP) Send(p *router.Packet) bool {
 
 func (l *linkPTP) SendBlocking(p *router.Packet) {
 	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
-	connIdx := computeConnIdx(p.RawPacket, len(l.conns), l.seed)
+	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if l.finishPacket(p) {
-		l.conns[connIdx].queue <- p
+		l.txConns[connIdx].queue <- p
 	}
 }
 
@@ -358,7 +359,7 @@ func (l *linkPTP) receive(p *router.Packet) {
 func newPtpLinkExternal(
 	localAddr *netip.AddrPort,
 	remoteAddr *netip.AddrPort,
-	conns []*udpConnection,
+	rxConns, txConns []*udpConnection,
 	bfd *bfd.Session,
 	ifID uint16,
 	metrics *router.InterfaceMetrics,
@@ -366,21 +367,22 @@ func newPtpLinkExternal(
 	l := &linkPTP{
 		localAddr:       localAddr,
 		remoteAddr:      remoteAddr,
-		conns:           conns,
+		rxConns:         rxConns,
+		txConns:         txConns,
 		metrics:         metrics,
 		bfdSession:      bfd,
 		backlogCheck:    make(chan struct{}, 1),
 		sendBacklogDone: make(chan struct{}),
 		scope:           router.External,
-		seed:            conns[0].seed,
+		seed:            txConns[0].seed,
 		ifID:            ifID,
 		is4:             localAddr.Addr().Is4(),
 	}
 	l.neighbors = newNeighborCache(
 		"extTo_"+remoteAddr.String(),
-		conns[0].localMAC,
+		txConns[0].localMAC,
 		localAddr.Addr(),
-		conns[0].ifIndex,
+		txConns[0].ifIndex,
 		func(netip.Addr) {
 			l.header.Store(nil)
 			select {
@@ -390,46 +392,47 @@ func newPtpLinkExternal(
 		},
 	)
 
-	// Register this link in ALL connections so any RX queue can dispatch to it.
+	// Register this link in all RX connections so any RX queue can dispatch to it.
 	ft := fourTuple{
 		src: addrPort{ip: remoteAddr.Addr(), port: remoteAddr.Port()},
 		dst: addrPort{ip: localAddr.Addr(), port: localAddr.Port()},
 	}
-	for _, c := range conns {
+	for _, c := range rxConns {
 		c.ptpLinks[ft] = l
 	}
 
 	log.Debug("***** AF_XDP Link", "scope", "external", "local", localAddr,
-		"localMAC", conns[0].localMAC, "remote", remoteAddr,
-		"queues", len(conns))
+		"localMAC", txConns[0].localMAC, "remote", remoteAddr,
+		"rx_queues", len(rxConns), "tx_queues", len(txConns))
 	return l
 }
 
 func newPtpLinkSibling(
 	localAddr *netip.AddrPort,
 	remoteAddr *netip.AddrPort,
-	conns []*udpConnection,
+	rxConns, txConns []*udpConnection,
 	bfd *bfd.Session,
 	metrics *router.InterfaceMetrics,
 ) *linkPTP {
 	l := &linkPTP{
 		localAddr:       localAddr,
 		remoteAddr:      remoteAddr,
-		conns:           conns,
+		rxConns:         rxConns,
+		txConns:         txConns,
 		metrics:         metrics,
 		bfdSession:      bfd,
 		backlogCheck:    make(chan struct{}, 1),
 		sendBacklogDone: make(chan struct{}),
 		scope:           router.Sibling,
-		seed:            conns[0].seed,
+		seed:            txConns[0].seed,
 		ifID:            0,
 		is4:             localAddr.Addr().Is4(),
 	}
 	l.neighbors = newNeighborCache(
 		"sibTo_"+remoteAddr.String(),
-		conns[0].localMAC,
+		txConns[0].localMAC,
 		localAddr.Addr(),
-		conns[0].ifIndex,
+		txConns[0].ifIndex,
 		func(netip.Addr) {
 			l.header.Store(nil)
 			select {
@@ -439,18 +442,18 @@ func newPtpLinkSibling(
 		},
 	)
 
-	// Register this link in ALL connections so any RX queue can dispatch to it.
+	// Register this link in all RX connections so any RX queue can dispatch to it.
 	ft := fourTuple{
 		src: addrPort{ip: remoteAddr.Addr(), port: remoteAddr.Port()},
 		dst: addrPort{ip: localAddr.Addr(), port: localAddr.Port()},
 	}
-	for _, c := range conns {
+	for _, c := range rxConns {
 		c.ptpLinks[ft] = l
 	}
 
 	log.Debug("***** AF_XDP Link", "scope", "sibling", "local", localAddr,
-		"localMAC", conns[0].localMAC, "remote", remoteAddr,
-		"queues", len(conns))
+		"localMAC", txConns[0].localMAC, "remote", remoteAddr,
+		"rx_queues", len(rxConns), "tx_queues", len(txConns))
 	return l
 }
 
@@ -459,6 +462,6 @@ func (l *linkPTP) String() string {
 	if l.scope == router.Sibling {
 		scope = "Sibling"
 	}
-	return fmt.Sprintf("%s: local: %s remote: %s queues: %d",
-		scope, l.localAddr, l.remoteAddr, len(l.conns))
+	return fmt.Sprintf("%s: local: %s remote: %s rx_queues: %d tx_queues: %d",
+		scope, l.localAddr, l.remoteAddr, len(l.rxConns), len(l.txConns))
 }

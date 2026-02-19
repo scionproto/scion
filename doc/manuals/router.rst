@@ -306,7 +306,8 @@ are optional; defaults are chosen for general-purpose use.
    :caption: Example ``underlay.options`` for AF_XDP tuning.
 
    {
-      "queue": [0, 1, 2, 3],
+      "rx_queues": [0, 1, 2, 3],
+      "tx_queues": [0, 1],
       "prefer_zerocopy": true,
       "prefer_hugepages": true,
       "num_frames": 4096,
@@ -319,14 +320,27 @@ are optional; defaults are chosen for general-purpose use.
 
 .. program:: router-afxdp-options
 
-.. option:: queue = [<uint32>, ...]
+.. option:: rx_queues = [<uint32>, ...]
 
-   Explicit list of NIC receive queue IDs to bind AF_XDP sockets to.
-   Each queue gets its own socket and a dedicated pair of goroutines (one for
-   receiving, one for sending).
+   Explicit list of NIC queue IDs to use for receiving packets. Each listed
+   queue gets an AF_XDP socket with a receiver goroutine, and incoming packets
+   on that queue are dispatched to the appropriate link.
 
-   If omitted, all available receive queues are auto-detected from
-   ``/sys/class/net/<interface>/queues/``.
+   Can be combined with ``tx_queues`` to configure RX and TX independently
+   (e.g. when a NIC has more RX queues than TX queues).
+
+   If omitted, RX queues are auto-detected from
+   ``/sys/class/net/<interface>/queues/rx-*``.
+
+.. option:: tx_queues = [<uint32>, ...]
+
+   Explicit list of NIC queue IDs to use for sending packets. Outgoing packets
+   are distributed across these queues via a flow hash to prevent reordering.
+
+   Can be combined with ``rx_queues`` to configure RX and TX independently.
+
+   If omitted, TX queues are auto-detected from
+   ``/sys/class/net/<interface>/queues/tx-*``.
 
 .. option:: prefer_zerocopy = <bool> (Default: true)
 
