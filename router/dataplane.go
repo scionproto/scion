@@ -117,13 +117,17 @@ func underlayProvider(protocol string, preferrence map[string]string) (UnderlayP
 	// See if there's an underlay with no specified implementation that matches the protocol.
 	u, found = underlayProviders[protocol]
 	if found {
+		log.Info("Preferred underlay not available, using fallback",
+			"wanted", wanted, "fallback", protocol)
 		return u, true
 	}
 
 	// Ok, got to do it the hard way
-	wanted = protocol + ":"
+	prefix := protocol + ":"
 	for k, v := range underlayProviders {
-		if strings.HasPrefix(k, wanted) {
+		if strings.HasPrefix(k, prefix) {
+			log.Info("Preferred underlay not available, using fallback",
+				"wanted", wanted, "fallback", k)
 			return v, true
 		}
 	}

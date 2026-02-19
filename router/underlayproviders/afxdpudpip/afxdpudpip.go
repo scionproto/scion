@@ -108,6 +108,14 @@ func (uo udpOpener) Open(
 		return nil, serrors.Wrap("opening AF_XDP socket", err)
 	}
 
+	if uo.preferZerocopy && !socket.IsZerocopy() {
+		log.Info("AF_XDP zerocopy not supported, falling back to copy mode",
+			"queue", queueID)
+	}
+	if uo.preferHugepages && !socket.IsHugepages() {
+		log.Info("AF_XDP hugepages not available, falling back to normal pages",
+			"queue", queueID)
+	}
 	log.Debug("Opened AF_XDP socket",
 		"queue", queueID,
 		"zerocopy", socket.IsZerocopy(),
