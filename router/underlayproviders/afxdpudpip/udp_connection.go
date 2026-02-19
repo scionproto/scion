@@ -130,6 +130,8 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 
 			// Copy frame data to packet buffer.
 			if len(frame.Buf) > len(data) {
+				sc := router.ClassOfSize(len(frame.Buf))
+				u.metrics[sc].DroppedPacketsInvalid.Inc()
 				u.socket.Release(frame)
 				continue
 			}
