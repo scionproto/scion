@@ -85,30 +85,30 @@ func TestParseOptions(t *testing.T) {
 			wantBatchSize: ptr.To(uint32(128)),
 		},
 		"rx_queues only": {
-			options:     `{"rx_queuess": [0, 1, 2, 3]}`,
+			options:     `{"rx_queues": [0, 1, 2, 3]}`,
 			wantRxQueues: []uint32{0, 1, 2, 3},
 		},
 		"tx_queues only": {
-			options:     `{"tx_queuess": [0, 1]}`,
+			options:     `{"tx_queues": [0, 1]}`,
 			wantTxQueues: []uint32{0, 1},
 		},
 		"rx_queues and tx_queues": {
-			options:     `{"rx_queuess": [0, 1, 2, 3], "tx_queuess": [0, 1]}`,
+			options:     `{"rx_queues": [0, 1, 2, 3], "tx_queues": [0, 1]}`,
 			wantRxQueues: []uint32{0, 1, 2, 3},
 			wantTxQueues: []uint32{0, 1},
 		},
 		"rx_queues deduplicated": {
-			options:     `{"rx_queuess": [1, 2, 1, 3]}`,
+			options:     `{"rx_queues": [1, 2, 1, 3]}`,
 			wantRxQueues: []uint32{1, 2, 3},
 		},
 		"tx_queues deduplicated": {
-			options:     `{"tx_queuess": [0, 1, 0]}`,
+			options:     `{"tx_queues": [0, 1, 0]}`,
 			wantTxQueues: []uint32{0, 1},
 		},
 		"all options": {
 			options: `{
-				"rx_queuess": [0, 1],
-				"tx_queuess": [0, 1],
+				"rx_queues": [0, 1],
+				"tx_queues": [0, 1],
 				"prefer_zerocopy": false,
 				"prefer_hugepages": true,
 				"num_frames": 8192,
@@ -130,11 +130,11 @@ func TestParseOptions(t *testing.T) {
 			wantBatchSize: ptr.To(uint32(128)),
 		},
 		"err empty rx_queues list": {
-			options: `{"rx_queuess": []}`,
+			options: `{"rx_queues": []}`,
 			wantErr: true,
 		},
 		"err empty tx_queues list": {
-			options: `{"tx_queuess": []}`,
+			options: `{"tx_queues": []}`,
 			wantErr: true,
 		},
 		"err unknown queue field rejected": {

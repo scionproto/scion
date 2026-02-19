@@ -26,8 +26,8 @@ import (
 
 // Options represents the parsed JSON configuration for an AF_XDP underlay link.
 type Options struct {
-	RxQueues        []uint32 `json:"rx_queuess,omitempty"`
-	TxQueues        []uint32 `json:"tx_queuess,omitempty"`
+	RxQueues        []uint32 `json:"rx_queues,omitempty"`
+	TxQueues        []uint32 `json:"tx_queues,omitempty"`
 	PreferZerocopy  *bool    `json:"prefer_zerocopy,omitempty"`
 	PreferHugepages *bool    `json:"prefer_hugepages,omitempty"`
 	NumFrames       *uint32  `json:"num_frames,omitempty"`
