@@ -110,8 +110,8 @@ func (s *DefaultExtender) Extend(
 	if ingress != 0 && firstHop {
 		return serrors.New("ingress must be zero in first hop", "ingress_interface", ingress)
 	}
-	if ingress == 0 && egress == 0 {
-		return serrors.New("ingress and egress must not be both 0")
+	if ingress == 0 && egress == 0 && len(peers) == 0 {
+		return serrors.New("ingress and egress must not be both 0 without peers")
 	}
 	ts := pseg.Info.Timestamp
 

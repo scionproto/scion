@@ -6,17 +6,17 @@
   "dispatched_ports": "31000-32767",
   "control_service": {
     "cs2-ff00_0_211-1": {
-      "addr": "127.0.0.123:31062"
+      "addr": "127.0.0.147:31066"
     }
   },
   "discovery_service": {
     "cs2-ff00_0_211-1": {
-      "addr": "127.0.0.123:31062"
+      "addr": "127.0.0.147:31066"
     }
   },
   "border_routers": {
     "br2-ff00_0_211-1": {
-      "internal_addr": "127.0.0.121:31064",
+      "internal_addr": "127.0.0.145:31068",
       "interfaces": {
         "3520": {
           "underlay": {
@@ -31,12 +31,12 @@
       }
     },
     "br2-ff00_0_211-2": {
-      "internal_addr": "127.0.0.122:31066",
+      "internal_addr": "127.0.0.146:31070",
       "interfaces": {
         "3521": {
           "underlay": {
-            "local": "127.0.0.35:50000",
-            "remote": "127.0.0.34:50000"
+            "local": "127.0.0.37:50000",
+            "remote": "127.0.0.36:50000"
           },
           "isd_as": "2-ff00:0:210",
           "link_to": "parent",

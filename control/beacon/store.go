@@ -210,18 +210,26 @@ func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 
 // SegmentsToRegister returns a GroupedBeacons to register at the time of the call.
 // The selection is based on the configured policy for the requested segment type.
+// For TypeDown or TypeUp, returns an empty map (core ASes don't have up/down beacons,
+// but the caller may add one-hop segments for core-to-core peering).
 func (s *CoreStore) SegmentsToRegister(
 	ctx context.Context,
 	segType seg.Type,
 ) (GroupedBeacons, error) {
-	if segType != seg.TypeCore {
+	switch segType {
+	case seg.TypeCore:
+		beacons, err := s.getBeacons(ctx, &s.policies.CoreReg)
+		if err != nil {
+			return nil, err
+		}
+		return groupBeacons(beacons, &s.policies.CoreReg), nil
+	case seg.TypeDown, seg.TypeUp:
+		// Core ASes don't have up/down beacons from the beacon store, but the
+		// caller may add one-hop segments for core-to-core peering. Return empty.
+		return make(GroupedBeacons), nil
+	default:
 		return nil, serrors.New("Unsupported segment type", "type", segType)
 	}
-	beacons, err := s.getBeacons(ctx, &s.policies.CoreReg)
-	if err != nil {
-		return nil, err
-	}
-	return groupBeacons(beacons, &s.policies.CoreReg), nil
 }
 
 // getBeacons fetches the candidate beacons from the database and serves the

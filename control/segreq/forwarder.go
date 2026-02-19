@@ -20,17 +20,19 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/segment/segfetcher"
 )
 
-// ForwardingLookup handles path segment lookup requests in a non-core AS. If
-// segments are missing, the request is forwarded to the respective core ASes.
-// It should only be used in a non-core AS.
+// ForwardingLookup handles path segment lookup requests by forwarding to the
+// responsible core ASes if segments are missing. It is used for internal (intra-AS)
+// requests at all ASes, and for external requests at non-core ASes.
 type ForwardingLookup struct {
 	LocalIA     addr.IA
 	CoreChecker CoreChecker
 	Fetcher     *segfetcher.Fetcher
 	Expander    WildcardExpander
+	PathDB      pathdb.DB
 }
 
 // LookupSegments looks up the segments for the given request
@@ -40,6 +42,13 @@ type ForwardingLookup struct {
 //     and results are cached
 func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 	dst addr.IA) (segfetcher.Segments, error) {
+
+	// Special case: src == dst == localIA is a request for local one-hop segments.
+	// These are used for core AS peering. Return both Up and Down types so the
+	// requester can use whichever direction is needed for path construction.
+	if src == dst && src == f.LocalIA && f.PathDB != nil {
+		return getOneHopSegments(ctx, f.PathDB, f.LocalIA)
+	}
 
 	segType, err := f.classify(ctx, src, dst)
 	if err != nil {
@@ -68,10 +77,22 @@ func (f ForwardingLookup) classify(ctx context.Context,
 			"src", src, "dst", dst, "reason", "zero ISD src or dst")
 
 	}
+	// Special case: src == dst is a request for one-hop segments (core AS peering).
+	// Treat as Down segment to forward to that AS's control service.
+	if src == dst {
+		return seg.TypeDown, nil
+	}
 	if dst == f.LocalIA {
-		// this could be an otherwise valid request, but probably the requester switched Src and Dst
-		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
-			"src", src, "dst", dst, "reason", "dst is local AS, confusion?")
+		isCore, err := f.CoreChecker.IsCore(ctx, dst)
+		if err != nil {
+			return 0, err
+		}
+		if !isCore {
+			// this could be an otherwise valid request,
+			// but probably the requester switched Src and Dst
+			return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
+				"src", src, "dst", dst, "reason", "dst is local AS, confusion?")
+		}
 
 	}
 	srcCore, err := f.CoreChecker.IsCore(ctx, src)

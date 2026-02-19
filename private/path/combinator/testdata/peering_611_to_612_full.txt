@@ -1,0 +1,24 @@
+Path #0:
+  Weight: 1
+  Fields:
+    IF .P
+      HF InIF=4344 OutIF=0
+    IF CP
+      HF InIF=4443 OutIF=0
+  Interfaces:
+    6-ff00:0:611#4344
+    6-ff00:0:612#4443
+Path #1:
+  Weight: 2
+  Fields:
+    IF ..
+      HF InIF=4342 OutIF=0
+      HF InIF=0 OutIF=4243
+    IF C.
+      HF InIF=0 OutIF=4244
+      HF InIF=4442 OutIF=0
+  Interfaces:
+    6-ff00:0:611#4342
+    6-ff00:0:610#4243
+    6-ff00:0:610#4244
+    6-ff00:0:612#4442

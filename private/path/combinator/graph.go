@@ -545,8 +545,16 @@ type solutionEdge struct {
 	segment *inputSegment
 }
 
+// isOneHopSegment returns true if the segment is a one-hop segment.
+// One-hop segments (single AS entry with peer entries) represent core ASes with peering links
+// and enable peering path discovery.
+func isOneHopSegment(seg *inputSegment) bool {
+	return len(seg.ASEntries) == 1 && len(seg.ASEntries[0].PeerEntries) > 0
+}
+
 // validNextSeg returns whether nextSeg is a valid next segment in a path from the given currSeg.
 // A path can only contain at most 1 up, 1 core, and 1 down segment.
+// Exception: one-hop segments (for core peering) can follow up segments.
 func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 	if currSeg == nil {
 		// If we have no segment any segment can be first.
@@ -554,6 +562,10 @@ func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 	}
 	switch currSeg.Type {
 	case proto.PathSegType_up:
+		// Allow transitioning to one-hop up segments for core peering
+		if nextSeg.Type == proto.PathSegType_up && isOneHopSegment(nextSeg) {
+			return true
+		}
 		return nextSeg.Type == proto.PathSegType_core || nextSeg.Type == proto.PathSegType_down
 	case proto.PathSegType_core:
 		return nextSeg.Type == proto.PathSegType_down
