@@ -172,6 +172,7 @@ func realMain(ctx context.Context) error {
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
 		Metrics:                  gateway.NewMetrics(localIA),
+		RpcConfig:                globalCfg.RPC,
 	}
 
 	g.Go(func() error {

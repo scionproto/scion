@@ -60,5 +60,5 @@ func (b Beacon) String() string {
 }
 
 func link(entry seg.ASEntry) (addr.IA, uint16) {
-	return entry.Local, entry.HopEntry.HopField.ConsIngress
+	return entry.Local, entry.HopEntry.HopField.ConsEgress
 }

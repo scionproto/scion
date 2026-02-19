@@ -262,3 +262,54 @@ func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) 
 		jaegercfg.Extractor(opentracing.Binary, bp),
 		jaegercfg.Injector(opentracing.Binary, bp))
 }
+
+var _ config.Config = (*RPC)(nil)
+
+type RPC struct {
+	ClientProtocol string `toml:"client_protocol,omitempty"`
+	ServerProtocol string `toml:"server_protocol,omitempty"`
+	// Cooked values
+	GrpcClientDisabled       bool
+	ConnectrpcClientDisabled bool
+	GrpcServerDisabled       bool
+	ConnectrpcServerDisabled bool
+}
+
+func (cfg *RPC) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, rpcSample)
+}
+
+func (cfg *RPC) ConfigName() string {
+	return "rpc"
+}
+
+func (cfg *RPC) InitDefaults() {
+	if cfg.ClientProtocol == "" {
+		cfg.ClientProtocol = "all"
+	}
+	if cfg.ServerProtocol == "" {
+		cfg.ServerProtocol = "all"
+	}
+}
+
+func (cfg *RPC) Validate() error {
+	switch cfg.ClientProtocol {
+	case "all":
+	case "grpc":
+		cfg.ConnectrpcClientDisabled = true
+	case "connectrpc":
+		cfg.GrpcClientDisabled = true
+	default:
+		return fmt.Errorf("invalid value: %s", cfg.ClientProtocol)
+	}
+	switch cfg.ServerProtocol {
+	case "all":
+	case "grpc":
+		cfg.ConnectrpcServerDisabled = true
+	case "connectrpc":
+		cfg.GrpcServerDisabled = true
+	default:
+		return fmt.Errorf("invalid value: %s", cfg.ServerProtocol)
+	}
+	return nil
+}

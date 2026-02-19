@@ -62,8 +62,10 @@ set. The token must have the following permissions:
 
 			b, _, err := client.Builds.Get(
 				cmd.Context(), flags.org, flags.pipeline, build,
-				&bk.BuildsListOptions{
-					IncludeRetriedJobs: true,
+				&bk.BuildGetOptions{
+					BuildsListOptions: bk.BuildsListOptions{
+						IncludeRetriedJobs: true,
+					},
 				})
 			if err != nil {
 				return serrors.Wrap("fetching build", err)

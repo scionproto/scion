@@ -45,7 +45,7 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	beaconingconnect "github.com/scionproto/scion/control/beaconing/connect"
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
-	"github.com/scionproto/scion/control/beaconing/happy"
+	beaconinghappy "github.com/scionproto/scion/control/beaconing/happy"
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
 	drkeyconnect "github.com/scionproto/scion/control/drkey/connect"
@@ -66,6 +66,7 @@ import (
 	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
+	"github.com/scionproto/scion/pkg/connect/happy"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
@@ -121,7 +122,9 @@ import (
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
-var globalCfg config.Config
+var (
+	globalCfg config.Config
+)
 
 func main() {
 	application := launcher.Application{
@@ -138,7 +141,6 @@ func main() {
 
 func realMain(ctx context.Context) error {
 	metrics := cs.NewMetrics()
-
 	topo, err := topology.NewLoader(topology.LoaderCfg{
 		File:      globalCfg.General.Topology(),
 		Reload:    app.SIGHUPChannel(ctx),
@@ -147,6 +149,10 @@ func realMain(ctx context.Context) error {
 	})
 	if err != nil {
 		return serrors.Wrap("creating topology loader", err)
+	}
+	rpcClientConfig := happy.Config{
+		NoPreferred: globalCfg.RPC.ConnectrpcClientDisabled,
+		NoFallback:  globalCfg.RPC.GrpcClientDisabled,
 	}
 	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -316,6 +322,7 @@ func realMain(ctx context.Context) error {
 				Dialer:   dialer,
 				Requests: libmetrics.NewPromCounter(trustmetrics.RPC.Fetches),
 			},
+			RpcConfig: rpcClientConfig,
 		},
 		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
 		// XXX(roosd): cyclic dependency on router. It is set below.
@@ -347,6 +354,7 @@ func realMain(ctx context.Context) error {
 			Grpc: &segfetchergrpc.Requester{
 				Dialer: dialer,
 			},
+			RpcConfig: rpcClientConfig,
 		},
 		Inspector: inspector,
 		Verifier:  verifier,
@@ -579,9 +587,9 @@ func realMain(ctx context.Context) error {
 		}
 
 		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
-		connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
-			RenewalServer: renewalServer,
-		}))
+		connectInter.Handle(cpconnect.NewChainRenewalServiceHandler(
+			renewalconnect.RenewalServer{RenewalServer: renewalServer},
+		))
 		connectIntra.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{
 			RenewalServer: renewalServer,
 		}))
@@ -722,6 +730,7 @@ func realMain(ctx context.Context) error {
 				Router:     segreq.NewRouter(fetcherCfg),
 				MaxRetries: 20,
 			},
+			RpcConfig: rpcClientConfig,
 		}
 		prefetchKeeper, err := drkey.NewLevel1ARC(globalCfg.DRKey.PrefetchEntries)
 		if err != nil {
@@ -755,10 +764,6 @@ func realMain(ctx context.Context) error {
 	promgrpc.Register(quicServer)
 
 	var cleanup app.Cleanup
-	connectServer := http3.Server{
-		Handler: libconnect.AttachPeer(connectInter),
-	}
-
 	grpcConns := make(chan *quic.Conn)
 	//nolint:contextcheck // false positive.
 	g.Go(func() error {
@@ -778,23 +783,29 @@ func realMain(ctx context.Context) error {
 					grpcConns <- conn
 					return
 				}
-
-				if err := connectServer.ServeQUICConn(conn); err != nil {
-					log.Debug("Error handling connectrpc connection", "err", err)
+				if !globalCfg.RPC.ConnectrpcServerDisabled {
+					connectServer := http3.Server{
+						Handler: libconnect.AttachPeer(connectInter),
+					}
+					if err := connectServer.ServeQUICConn(conn); err != nil {
+						log.Debug("Error handling connectrpc connection", "err", err)
+					}
 				}
 			}()
 		}
 	})
 
-	g.Go(func() error {
-		defer log.HandlePanic()
-		grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
-		if err := quicServer.Serve(grpcListener); err != nil {
-			return serrors.Wrap("serving gRPC/SCION API", err)
-		}
-		return nil
-	})
-	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+	if !globalCfg.RPC.GrpcServerDisabled {
+		g.Go(func() error {
+			defer log.HandlePanic()
+			grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
+			if err := quicServer.Serve(grpcListener); err != nil {
+				return serrors.Wrap("serving gRPC/SCION API", err)
+			}
+			return nil
+		})
+		cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+	}
 
 	intraServer := http.Server{
 		Handler: h2c.NewHandler(libconnect.AttachPeer(connectIntra), &http2.Server{}),
@@ -896,7 +907,7 @@ func realMain(ctx context.Context) error {
 		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
-	rpc := &happy.Registrar{
+	rpc := &beaconinghappy.Registrar{
 		Connect: beaconingconnect.Registrar{
 			Dialer: (&squic.EarlyDialerFactory{
 				Transport: quicStack.InsecureDialer.Transport,
@@ -908,7 +919,8 @@ func realMain(ctx context.Context) error {
 				Rewriter: dialer.Rewriter,
 			}).NewDialer,
 		},
-		Grpc: beaconinggrpc.Registrar{Dialer: dialer},
+		Grpc:      beaconinggrpc.Registrar{Dialer: dialer},
+		RpcConfig: rpcClientConfig,
 	}
 	tc := cs.TasksConfig{
 		IA:            topo.IA(),
@@ -925,7 +937,7 @@ func realMain(ctx context.Context) error {
 		TrustDB:  trustDB,
 		PathDB:   pathDB,
 		RevCache: revCache,
-		BeaconSenderFactory: &happy.BeaconSenderFactory{
+		BeaconSenderFactory: &beaconinghappy.BeaconSenderFactory{
 			Connect: &beaconingconnect.BeaconSenderFactory{
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
@@ -940,6 +952,7 @@ func realMain(ctx context.Context) error {
 			Grpc: &beaconinggrpc.BeaconSenderFactory{
 				Dialer: dialer,
 			},
+			RpcConfig: rpcClientConfig,
 		},
 		SegmentRegister: rpc,
 		BeaconStore:     beaconStore,
@@ -1114,11 +1127,17 @@ func createBeaconStore(
 	switch {
 	case policies.CorePolicies != nil:
 		policies := policies.CorePolicies
-		store, err := beacon.NewCoreBeaconStore(*policies, db, beacon.WithCheckChain(provider))
+		selectionAlgo := beacon.NewChainsAvailableAlgo(provider, beacon.DefaultSelectionAlgorithm())
+		store, err := beacon.NewCoreBeaconStore(*policies, db,
+			beacon.WithSelectionAlgorithm(selectionAlgo),
+		)
 		return store, *policies.Prop.Filter.AllowIsdLoop, err
 	case policies.NonCorePolicies != nil:
 		policies := policies.NonCorePolicies
-		store, err := beacon.NewBeaconStore(*policies, db, beacon.WithCheckChain(provider))
+		selectionAlgo := beacon.NewChainsAvailableAlgo(provider, beacon.DefaultSelectionAlgorithm())
+		store, err := beacon.NewBeaconStore(*policies, db,
+			beacon.WithSelectionAlgorithm(selectionAlgo),
+		)
 		return store, *policies.Prop.Filter.AllowIsdLoop, err
 	default:
 		return nil, false, serrors.New("no policies loaded")

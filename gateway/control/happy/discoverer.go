@@ -22,8 +22,9 @@ import (
 )
 
 type Discoverer struct {
-	Connect control.Discoverer
-	Grpc    control.Discoverer
+	Connect   control.Discoverer
+	Grpc      control.Discoverer
+	RpcConfig happy.Config
 }
 
 func (d Discoverer) Gateways(ctx context.Context) ([]control.Gateway, error) {
@@ -37,6 +38,6 @@ func (d Discoverer) Gateways(ctx context.Context) ([]control.Gateway, error) {
 			Call: d.Grpc.Gateways,
 			Typ:  "discovery.v1.DiscoveryService.Gateways",
 		},
-		happy.Config{},
+		d.RpcConfig,
 	)
 }

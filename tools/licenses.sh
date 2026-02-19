@@ -24,8 +24,8 @@ rm -rf $DSTDIR
         # paths like ./zlib+/contrib/dotzlib/LICENSE_1_0.txt
         clean_path=$(echo "$path" | sed 's|^\./||' | sed 's/+//')
     fi
-    if [[ "$clean_path" =~ "scion__download_0" ]]; then
-        clean_path=$(echo "$clean_path" | sed 's/scion__download_0/go_sdk/')
+    if [[ "$clean_path" =~ "main___download_0" ]]; then
+        clean_path=$(echo "$clean_path" | sed 's/main___download_0/go_sdk/')
     fi
     dst=$DSTDIR/$(dirname $clean_path)
     mkdir -p $dst

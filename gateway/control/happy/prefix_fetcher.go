@@ -23,8 +23,9 @@ import (
 )
 
 type PrefixFetcher struct {
-	Connect control.SimplePrefixFetcher
-	Grpc    control.SimplePrefixFetcher
+	Connect   control.SimplePrefixFetcher
+	Grpc      control.SimplePrefixFetcher
+	RpcConfig happy.Config
 }
 
 func (f PrefixFetcher) Prefixes(ctx context.Context, gateway *net.UDPAddr) ([]*net.IPNet, error) {
