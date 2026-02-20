@@ -851,33 +851,31 @@ func (s *Socket) Close() error {
 	// Explicitly unmap UMEM and ring regions.
 	if s.txRegion != nil {
 		if err := unix.Munmap(s.txRegion); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("munmap TX ring: %w", err))
 		}
 		s.txRegion = nil
 	}
 	if s.rxRegion != nil {
 		if err := unix.Munmap(s.rxRegion); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("munmap RX ring: %w", err))
 		}
 		s.rxRegion = nil
 	}
-
 	if s.cqRegion != nil {
 		if err := unix.Munmap(s.cqRegion); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("munmap CQ ring: %w", err))
 		}
 		s.cqRegion = nil
 	}
 	if s.fqRegion != nil {
 		if err := unix.Munmap(s.fqRegion); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("munmap FQ ring: %w", err))
 		}
 		s.fqRegion = nil
 	}
-
 	if s.umem != nil {
 		if err := unix.Munmap(s.umem); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("munmap UMEM: %w", err))
 		}
 		s.umem = nil
 	}
