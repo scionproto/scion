@@ -28,8 +28,8 @@ import (
 func TestParseOptions(t *testing.T) {
 	tests := map[string]struct {
 		options       string
-		wantRxQueues   []uint32
-		wantTxQueues   []uint32
+		wantRxQueues  []uint32
+		wantTxQueues  []uint32
 		wantZerocopy  *bool
 		wantHugepages *bool
 		wantNumFrames *uint32
@@ -87,24 +87,24 @@ func TestParseOptions(t *testing.T) {
 			wantBatchSize: ptr.To(uint32(128)),
 		},
 		"rx_queues only": {
-			options:     `{"rx_queues": [0, 1, 2, 3]}`,
+			options:      `{"rx_queues": [0, 1, 2, 3]}`,
 			wantRxQueues: []uint32{0, 1, 2, 3},
 		},
 		"tx_queues only": {
-			options:     `{"tx_queues": [0, 1]}`,
+			options:      `{"tx_queues": [0, 1]}`,
 			wantTxQueues: []uint32{0, 1},
 		},
 		"rx_queues and tx_queues": {
-			options:     `{"rx_queues": [0, 1, 2, 3], "tx_queues": [0, 1]}`,
+			options:      `{"rx_queues": [0, 1, 2, 3], "tx_queues": [0, 1]}`,
 			wantRxQueues: []uint32{0, 1, 2, 3},
 			wantTxQueues: []uint32{0, 1},
 		},
 		"rx_queues deduplicated": {
-			options:     `{"rx_queues": [1, 2, 1, 3]}`,
+			options:      `{"rx_queues": [1, 2, 1, 3]}`,
 			wantRxQueues: []uint32{1, 2, 3},
 		},
 		"tx_queues deduplicated": {
-			options:     `{"tx_queues": [0, 1, 0]}`,
+			options:      `{"tx_queues": [0, 1, 0]}`,
 			wantTxQueues: []uint32{0, 1},
 		},
 		"all options": {
@@ -120,8 +120,8 @@ func TestParseOptions(t *testing.T) {
 				"cq_size": 4096,
 				"batch_size": 128
 			}`,
-			wantRxQueues:   []uint32{0, 1},
-			wantTxQueues:   []uint32{0, 1},
+			wantRxQueues:  []uint32{0, 1},
+			wantTxQueues:  []uint32{0, 1},
 			wantZerocopy:  ptr.To(false),
 			wantHugepages: ptr.To(true),
 			wantNumFrames: ptr.To(uint32(8192)),
