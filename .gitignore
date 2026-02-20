@@ -107,6 +107,3 @@ logger.log
 # Vagrant
 #########
 .vagrant
-
-# Generated eBPF binary files
-private/underlay/ebpf/*_bpfel.o
