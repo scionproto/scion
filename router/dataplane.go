@@ -103,11 +103,11 @@ func AddUnderlayProvider(name string, newProv UnderlayProvider) {
 	underlayProviders[name] = newProv
 }
 
-func underlayProvider(protocol string, preferrence map[string]string) (UnderlayProvider, bool) {
+func underlayProvider(protocol string, preference map[string]string) (UnderlayProvider, bool) {
 	// The preference map gives us an implementation name for a protocol name.
 	// Underlay implementations register with a name of the form "protocol[:implementation]".
 	//
-	wanted := protocol + ":" + preferrence[protocol]
+	wanted := protocol + ":" + preference[protocol]
 	u, found := underlayProviders[wanted]
 	if found {
 		return u, true
@@ -209,7 +209,7 @@ func (p *Packet) reset(headroom int) {
 }
 
 // WithHeader returns a slice of the underlying packet buffer that represents the same bytes as
-// p.rawPacket[:] plus the n prededing bytes. This slice is meant to be used when receiving a raw
+// p.rawPacket[:] plus the n preceding bytes. This slice is meant to be used when receiving a raw
 // packet with an n bytes header, such that the payload is exactly at p.rawPacket[0:]. p.RawPacket
 // is *not* modified. This method panics if n is greater than the available headroom in the packet
 // buffer.
@@ -2235,7 +2235,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 
 	// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
 	// the solution is to use BFD's demand-mode. To be considered in a future refactoring.
-	// TODO(jiceatscion): the underlay will still count a dropped packet. We migh want to avoid
+	// TODO(jiceatscion): the underlay will still count a dropped packet. We might want to avoid
 	// that.
 	fwLink.Send(p)
 	return nil

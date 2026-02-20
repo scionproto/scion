@@ -52,10 +52,10 @@ func newMpktSender(tp *afpacket.TPacket) *mpktSender {
 	// This is to make sure that tp cannot be finalized before we're done abusing its file desc.
 	sender.tp = tp
 
-	// Try and bypass queing discipline. If that doesn't work, we'll survive.
+	// Try and bypass queuing discipline. If that doesn't work, we'll survive.
 	err := unix.SetsockoptInt(sender.fd, unix.SOL_PACKET, unix.PACKET_QDISC_BYPASS, 1)
 	if err != nil {
-		log.Info("Could not bypass queing discipline", "err", err)
+		log.Info("Could not bypass queuing discipline", "err", err)
 	}
 
 	// If we're going to send, we need to make sure we're not receiving our own stuff. The default

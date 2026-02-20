@@ -125,7 +125,7 @@ func (c *RunConfig) handleArp(
 		return
 	}
 	if slices.Equal(req.SourceProtAddress, net.IPv4zero.To4()) {
-		// Probe. Respond if we have the target address. Since i'm not sure it's legal to
+		// Probe. Respond if we have the target address. Since I'm not sure it's legal to
 		// respond with the unspecified address as the target, use ours. Which is technically
 		// the correct value anyway.
 		req.SourceProtAddress = localIP // will become dstProtAddress in the response.
