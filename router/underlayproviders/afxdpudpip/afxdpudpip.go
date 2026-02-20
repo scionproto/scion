@@ -188,7 +188,7 @@ func (u *underlay) SetConnOpener(opener any) {
 func (u *underlay) NumConnections() int {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	return len(u.allLinks)
+	return len(u.allConnections)
 }
 
 func (u *underlay) Headroom() int {
