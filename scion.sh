@@ -174,7 +174,7 @@ glob_docker() {
     matches=
     for proc in $(./tools/dc scion config --services); do
         for spec in "$@"; do
-            if glob_match $proc "scion_$spec"; then
+            if glob_match $proc "$spec"; then
                 matches="$matches $proc"
                 break
             fi
