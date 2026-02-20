@@ -25,7 +25,6 @@ import (
 	"net/netip"
 	"os"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -387,8 +386,8 @@ func detectQueues(ifName string) (rx, tx []uint32) {
 		tx = []uint32{0}
 	}
 
-	sort.Slice(rx, func(i, j int) bool { return rx[i] < rx[j] })
-	sort.Slice(tx, func(i, j int) bool { return tx[i] < tx[j] })
+	slices.Sort(rx)
+	slices.Sort(tx)
 	log.Debug("Auto-detected NIC queues",
 		"interface", ifName, "rx_queues", rx, "tx_queues", tx)
 	return rx, tx
