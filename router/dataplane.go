@@ -94,7 +94,7 @@ type BatchConn interface {
 // dataplane instances can co-exist (as is routinely done by tests).
 var underlayProviders map[string]UnderlayProvider
 
-// AddUnderlayImpl registers a underlay implementation.
+// AddUnderlayProvider registers an underlay implementation.
 // If a provider by the same name is already registered, we keep the new one.
 func AddUnderlayProvider(name string, newProv UnderlayProvider) {
 	if underlayProviders == nil {
