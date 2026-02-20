@@ -332,26 +332,7 @@ func (l *linkPTP) SendBlocking(p *router.Packet) {
 }
 
 func (l *linkPTP) receive(p *router.Packet) {
-	metrics := l.metrics
-	sc := router.ClassOfSize(len(p.RawPacket))
-	metrics[sc].InputPacketsTotal.Inc()
-	metrics[sc].InputBytesTotal.Add(float64(len(p.RawPacket)))
-	procID, err := computeProcID(p.RawPacket, len(l.procQs), l.seed)
-	if err != nil {
-		log.Debug("Error while computing procID", "err", err)
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsInvalid.Inc()
-		return
-	}
-
-	p.Link = l
-
-	select {
-	case l.procQs[procID] <- p:
-	default:
-		l.pool.Put(p)
-		metrics[sc].DroppedPacketsBusyProcessor.Inc()
-	}
+	receivePacket(p, l, l.metrics, l.procQs, l.seed, l.pool)
 }
 
 func newPtpLinkExternal(

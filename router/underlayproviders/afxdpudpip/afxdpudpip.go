@@ -310,6 +310,37 @@ func (u *underlay) Stop() {
 	}
 }
 
+// receivePacket updates input metrics, hashes the packet to a processor queue,
+// and enqueues it.
+func receivePacket(
+	p *router.Packet,
+	link router.Link,
+	metrics *router.InterfaceMetrics,
+	procQs []chan *router.Packet,
+	seed uint32,
+	pool router.PacketPool,
+) {
+	sc := router.ClassOfSize(len(p.RawPacket))
+	metrics[sc].InputPacketsTotal.Inc()
+	metrics[sc].InputBytesTotal.Add(float64(len(p.RawPacket)))
+	procID, err := computeProcID(p.RawPacket, len(procQs), seed)
+	if err != nil {
+		log.Debug("Error while computing procID", "err", err)
+		pool.Put(p)
+		metrics[sc].DroppedPacketsInvalid.Inc()
+		return
+	}
+
+	p.Link = link
+
+	select {
+	case procQs[procID] <- p:
+	default:
+		pool.Put(p)
+		metrics[sc].DroppedPacketsBusyProcessor.Inc()
+	}
+}
+
 // computeProcID hashes the SCION flow ID and addresses to determine the processor queue.
 func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, error) {
 	if len(data) < slayers.CmnHdrLen {
