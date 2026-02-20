@@ -15,10 +15,13 @@
 package path_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/private/util"
 	dppath "github.com/scionproto/scion/pkg/slayers/path"
 	dphumm "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
@@ -91,7 +94,7 @@ func TestWithScionPath(t *testing.T) {
 	referenceTime := util.SecsToTime(referenceEpochTime)
 
 	p := createSnetScionPath(t, referenceTime)
-	flyoverMap := createFlyovers(referenceEpochTime)
+	flyoverMap := createFlyovers(t, referenceEpochTime)
 	require.Len(t, flyoverMap, 3) // Original flyovers are three.
 	r, err := path.NewReservation(path.WithScionPath(p, flyoverMap))
 	require.NoError(t, err)
@@ -112,58 +115,19 @@ func TestWithScionPath(t *testing.T) {
 	checkHop(t, r.Hops[3], "1-ff00:0:112", 1, 0, true)
 }
 
-// // createScionPath creates a mock scion path between the tiny topology's 111 AS and 112 one.
-// func createScionPath(iniTime time.Time) *scion.Decoded {
-// 	const hfValidity = 8
-// 	dec := &scion.Decoded{
-// 		Base: scion.Base{
-// 			PathMeta: scion.MetaHdr{
-// 				SegLen: [3]uint8{2, 2, 0},
-// 			},
-// 			NumINF:  2,
-// 			NumHops: 4,
-// 		},
-// 		InfoFields: []dppath.InfoField{
-// 			// up
-// 			{
-// 				ConsDir:   false,
-// 				Timestamp: util.TimeToSecs(iniTime),
-// 			},
-// 			// down
-// 			{
-// 				ConsDir:   true,
-// 				Timestamp: util.TimeToSecs(iniTime),
-// 			},
-// 		},
-// 		HopFields: []dppath.HopField{
-// 			// 111: 0->41 up
-// 			{
-// 				ConsIngress: 41,
-// 				ConsEgress:  0,
-// 				ExpTime:     hfValidity,
-// 			},
-// 			// 110: 1->0  up
-// 			{
-// 				ConsIngress: 0,
-// 				ConsEgress:  1,
-// 				ExpTime:     hfValidity,
-// 			},
-// 			// 110: 0->2  down
-// 			{
-// 				ConsIngress: 0,
-// 				ConsEgress:  2,
-// 				ExpTime:     hfValidity,
-// 			},
-// 			// 112: 1->0  down
-// 			{
-// 				ConsIngress: 1,
-// 				ConsEgress:  0,
-// 				ExpTime:     hfValidity,
-// 			},
-// 		},
-// 	}
-// 	return dec
-// }
+func TestFlyoversForPath(t *testing.T) {
+	const referenceEpochTime uint32 = 123456
+	referenceTime := util.SecsToTime(referenceEpochTime)
+
+	p := createSnetScionPath(t, referenceTime)
+	require.NotNil(t, p)
+
+	flyovers := getFlyoversForPath(t, p, referenceEpochTime)
+	require.Len(t, flyovers, 3)
+
+	expectedFlyovers := createFlyovers(t, referenceEpochTime)
+	require.EqualValues(t, expectedFlyovers, flyovers)
+}
 
 // createHummingbirdPath creates a valid Hummingbird path between 111 and 112 from the tiny topo.
 // This path contains no flyovers.
@@ -321,86 +285,34 @@ func createSnetScionPath(t *testing.T, iniTime time.Time) path.Path {
 }
 
 // createFlyovers creates all the flyovers for the path 111->112 of the tiny topology.
-func createFlyovers(startTime uint32) path.FlyoverMap {
+func createFlyovers(t *testing.T, startTime uint32) path.FlyoverMap {
 	m := make(path.FlyoverMap)
 	{ // 111: 0 -> 41
-		flyoverData := path.FlyoverData{
-			BaseHop: path.BaseHop{
-				IA:      addr.MustParseIA("1-ff00:0:111"),
-				Ingress: 0,
-				Egress:  41,
-			},
-			IsFlyover: true,
-			ResID:     1,
-			StartTime: startTime,
-			Duration:  10,
-			Bw:        64,
-			Ak:        [16]byte{}, // all zeroes
+		hop := path.BaseHop{
+			IA:      addr.MustParseIA("1-ff00:0:111"),
+			Ingress: 0,
+			Egress:  41,
 		}
-		m[flyoverData.BaseHop] = &flyoverData
+		m[hop] = redeemFlyover(t, hop, startTime)
 	}
 	{ // 110: 1 ->  2
-		flyoverData := path.FlyoverData{
-			BaseHop: path.BaseHop{
-				IA:      addr.MustParseIA("1-ff00:0:110"),
-				Ingress: 1,
-				Egress:  2,
-			},
-			IsFlyover: true,
-			ResID:     1,
-			StartTime: startTime,
-			Duration:  10,
-			Bw:        64,
-			Ak:        [16]byte{}, // all zeroes
+		hop := path.BaseHop{
+			IA:      addr.MustParseIA("1-ff00:0:110"),
+			Ingress: 1,
+			Egress:  2,
 		}
-		m[flyoverData.BaseHop] = &flyoverData
+		m[hop] = redeemFlyover(t, hop, startTime)
 	}
 	{ // 112: 1 ->  0
-		flyoverData := path.FlyoverData{
-			BaseHop: path.BaseHop{
-				IA:      addr.MustParseIA("1-ff00:0:112"),
-				Ingress: 1,
-				Egress:  0,
-			},
-			IsFlyover: true,
-			ResID:     1,
-			StartTime: startTime,
-			Duration:  10,
-			Bw:        64,
-			Ak:        [16]byte{}, // all zeroes
+		hop := path.BaseHop{
+			IA:      addr.MustParseIA("1-ff00:0:112"),
+			Ingress: 1,
+			Egress:  0,
 		}
-		m[flyoverData.BaseHop] = &flyoverData
+		m[hop] = redeemFlyover(t, hop, startTime)
 	}
 	return m
 }
-
-// // checkSamePath checks that the scion decoded path, and the snet Hummingbird path are the same
-// // in terms of the interfaces it traverses, and how it would traverse them (best effort,
-// // no flyover).
-// func checkSamePath(t *testing.T, s *scion.Decoded, snetHum *Reservation) {
-// 	require.Equal(t, len(s.InfoFields), len(snetHum.Dec.InfoFields))
-// 	require.Equal(t, len(s.HopFields), len(snetHum.Dec.HopFields))
-// 	for i := range s.InfoFields {
-// 		require.Equal(t, s.InfoFields[i].ConsDir, snetHum.Dec.InfoFields[i].ConsDir)
-// 		require.Equal(t, s.InfoFields[i].Peer, snetHum.Dec.InfoFields[i].Peer)
-// 		require.Equal(t, s.InfoFields[i].SegID, snetHum.Dec.InfoFields[i].SegID)
-// 		require.Equal(t, s.InfoFields[i].Timestamp, snetHum.Dec.InfoFields[i].Timestamp)
-// 	}
-// 	for i := range s.HopFields {
-// 		require.Equal(t, s.HopFields[i].ConsIngress,
-// 			snetHum.Dec.HopFields[i].HopField.ConsIngress)
-// 		require.Equal(t, s.HopFields[i].ConsEgress,
-// 			snetHum.Dec.HopFields[i].HopField.ConsEgress)
-// 		require.Equal(t, s.HopFields[i].IngressRouterAlert,
-// 			snetHum.Dec.HopFields[i].HopField.IngressRouterAlert)
-// 		require.Equal(t, s.HopFields[i].EgressRouterAlert,
-// 			snetHum.Dec.HopFields[i].HopField.EgressRouterAlert)
-// 		require.Equal(t, s.HopFields[i].ExpTime,
-// 			snetHum.Dec.HopFields[i].HopField.ExpTime)
-// 		require.Equal(t, s.HopFields[i].Mac,
-// 			snetHum.Dec.HopFields[i].HopField.Mac)
-// 	}
-// }
 
 func checkHop(t *testing.T, hop *path.FlyoverData, ia string, in uint16, eg uint16, isFlyover bool) {
 	if isFlyover {
@@ -413,4 +325,70 @@ func checkHop(t *testing.T, hop *path.FlyoverData, ia string, in uint16, eg uint
 	require.Equal(t, addr.MustParseIA(ia), hop.IA)
 	require.Equal(t, in, hop.Ingress)
 	require.Equal(t, eg, hop.Egress)
+}
+
+func getPaths(t *testing.T, srcIA addr.IA, dstIA addr.IA) []snet.Path {
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+	daemonLocation := ""
+	configDir := ""
+	sd, err := daemon.NewAutoConnector(ctx,
+		daemon.WithDaemon(daemonLocation),
+		daemon.WithConfigDir(configDir),
+	)
+	require.NoError(t, err)
+	paths, err := sd.Paths(ctx, dstIA, srcIA, types.PathReqFlags{})
+	require.NoError(t, err)
+	return paths
+}
+
+func getFlyoversForPath(t *testing.T, p snet.Path, startTime uint32) path.FlyoverMap {
+	// Get the sequence of ingress->egress interfaces for each on-path AS.
+	// Use p.Metadata().Interfaces for this. Include the initial 0->egress for the source AS,
+	// and the final ingress->0 for the destination AS.
+	t.Helper()
+	flyovers := make(path.FlyoverMap)
+	intfs := p.Metadata().Interfaces
+	require.NotEmpty(t, intfs)
+
+	baseHop := path.BaseHop{
+		IA:      intfs[0].IA,
+		Ingress: 0,
+		Egress:  uint16(intfs[0].ID),
+	}
+	// For each found triplet <AS,ingress,egress> call redeemFlyover and store the result.
+	flyover := redeemFlyover(t, baseHop, startTime)
+	flyovers[baseHop] = flyover
+
+	for i := 1; i < len(intfs); i += 2 {
+		egress := uint16(0)
+		if i+1 < len(intfs) {
+			egress = uint16(intfs[i+1].ID)
+		}
+		baseHop = path.BaseHop{
+			IA:      intfs[i].IA,
+			Ingress: uint16(intfs[i].ID),
+			Egress:  egress,
+		}
+		flyover = redeemFlyover(t, baseHop, startTime)
+		flyovers[baseHop] = flyover
+	}
+
+	return flyovers
+}
+
+// redeemFlyover mocks the redemption of a flyover for a given AS, ingress, and egress interfaces.
+// The real function will require a daemon.Connector to find a path to the given AS, or the path
+// to the given AS.
+func redeemFlyover(t *testing.T, baseHop path.BaseHop, startTime uint32) *path.FlyoverData {
+	t.Helper()
+	return &path.FlyoverData{
+		BaseHop:   baseHop,
+		IsFlyover: true,
+		ResID:     1,
+		StartTime: startTime,
+		Duration:  10,
+		Bw:        64,
+		Ak:        [16]byte{},
+	}
 }
