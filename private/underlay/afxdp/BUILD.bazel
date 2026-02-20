@@ -6,13 +6,25 @@ go_library(
     importpath = "github.com/scionproto/scion/private/underlay/afxdp",
     visibility = ["//visibility:public"],
     deps = select({
-        "@rules_go//go/platform:android": [
+        "@rules_go//go/platform:android_amd64": [
             "//private/underlay/ebpf:go_default_library",
             "@com_github_cilium_ebpf//:go_default_library",
             "@com_github_cilium_ebpf//link:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
-        "@rules_go//go/platform:linux": [
+        "@rules_go//go/platform:android_arm64": [
+            "//private/underlay/ebpf:go_default_library",
+            "@com_github_cilium_ebpf//:go_default_library",
+            "@com_github_cilium_ebpf//link:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_amd64": [
+            "//private/underlay/ebpf:go_default_library",
+            "@com_github_cilium_ebpf//:go_default_library",
+            "@com_github_cilium_ebpf//link:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_arm64": [
             "//private/underlay/ebpf:go_default_library",
             "@com_github_cilium_ebpf//:go_default_library",
             "@com_github_cilium_ebpf//link:go_default_library",
