@@ -360,7 +360,7 @@ are optional; defaults are chosen for general-purpose use.
 
    Total number of UMEM frames. Must be a power of two and at least
    ``rx_size + tx_size``.
-   
+
    Each frame holds one packet. The total UMEM memory
    consumed per queue is ``num_frames * frame_size`` bytes. Increasing this
    value allows more packets to be in-flight simultaneously, which helps
@@ -370,7 +370,7 @@ are optional; defaults are chosen for general-purpose use.
 
    Size of each UMEM frame in bytes. Must be a power of two, at least 2048,
    and at most the system page size (typically 4096).
-   
+
    Each frame must be large enough to hold a full SCION packet including the
    underlay (Ethernet, IP, and UDP) headers. The default of 2048 is sufficient for
    standard MTU traffic.
@@ -378,7 +378,7 @@ are optional; defaults are chosen for general-purpose use.
 .. option:: rx_size = <uint32> (Default: 2048)
 
    Number of descriptors in the RX ring. Must be a power of two.
-   
+
    A larger ring absorbs incoming traffic bursts without dropping packets when the
    application is temporarily slow to consume them. Requires more UMEM frames
    to be available (see ``num_frames``).
@@ -386,7 +386,7 @@ are optional; defaults are chosen for general-purpose use.
 .. option:: tx_size = <uint32> (Default: 2048)
 
    Number of descriptors in the TX ring. Must be a power of two.
-   
+
    A larger ring allows more outgoing packets to be queued before the NIC completes
    transmission, reducing backpressure to the packet processors under
    bursty forwarding loads. Requires more UMEM frames to be available (see
@@ -395,7 +395,7 @@ are optional; defaults are chosen for general-purpose use.
 .. option:: cq_size = <uint32> (Default: 2048)
 
    Number of descriptors in the completion ring. Must be a power of two.
-   
+
    The completion ring returns transmitted frame addresses back to userspace.
    A larger ring prevents TX stalls when the NIC takes longer to complete
    transmissions, at the cost of additional kernel memory. Should generally
@@ -405,7 +405,7 @@ are optional; defaults are chosen for general-purpose use.
 
    Number of packets batched per TX submission. Must be non-zero.
    Values above 256 are capped to 256.
-   
+
    Larger batches amortize per-syscall overhead but increase per-packet latency.
    Values that are too large can cause latency spikes, especially in copy mode.
 
