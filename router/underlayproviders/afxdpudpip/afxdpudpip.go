@@ -243,7 +243,7 @@ func (u *underlay) applyPreferences(opts Options) {
 }
 
 func (u *underlay) SetDispatchPorts(start, end, redirect uint16) {
-	log.Debug("SetDispatcherPorts", "start", start, "end", end, "redirect", redirect)
+	log.Debug("SetDispatchPorts", "start", start, "end", end, "redirect", redirect)
 	u.dispatchStart = start
 	u.dispatchEnd = end
 	u.dispatchRedirect = redirect
