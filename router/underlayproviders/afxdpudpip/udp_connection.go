@@ -293,6 +293,10 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			copy(frame.Buf[:len(raw)], raw)
 			if err := u.socket.Submit(frame.Addr, uint32(len(raw))); err != nil {
 				log.Debug("AF_XDP submit error", "err", err)
+				sc := router.ClassOfSize(len(raw))
+				metrics[sc].DroppedPacketsBusyForwarder[pkts[i].TrafficType].Inc()
+				pool.Put(pkts[i])
+				continue
 			}
 			sent = append(sent, pkts[i])
 		}
