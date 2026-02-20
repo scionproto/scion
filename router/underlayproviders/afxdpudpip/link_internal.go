@@ -81,7 +81,7 @@ func (l *linkInternal) packHeader() {
 	if l.is4 {
 		l.header = make([]byte, ethLen+ipv4Len+udpLen)
 
-		// Ethernet: src MAC, zero dst MAC, IPv4 ethertype
+		// Ethernet: dst MAC (zero, patched later), src MAC, IPv4 ethertype
 		copy(l.header[0:6], zeroMacAddr[:])
 		copy(l.header[6:12], l.txConns[0].localMAC)
 		binary.BigEndian.PutUint16(l.header[12:14], 0x0800)
@@ -95,7 +95,7 @@ func (l *linkInternal) packHeader() {
 	} else {
 		l.header = make([]byte, ethLen+ipv6Len+udpLen)
 
-		// Ethernet: src MAC, zero dst MAC, IPv6 ethertype
+		// Ethernet: dst MAC (zero, patched later), src MAC, IPv6 ethertype
 		copy(l.header[0:6], zeroMacAddr[:])
 		copy(l.header[6:12], l.txConns[0].localMAC)
 		binary.BigEndian.PutUint16(l.header[12:14], 0x86DD)
