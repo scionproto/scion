@@ -16,6 +16,7 @@ package path_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -327,7 +328,7 @@ func checkHop(t *testing.T, hop *path.FlyoverData, ia string, in uint16, eg uint
 	require.Equal(t, eg, hop.Egress)
 }
 
-func getPaths(t *testing.T, srcIA addr.IA, dstIA addr.IA) []snet.Path {
+func getPaths(srcIA addr.IA, dstIA addr.IA) ([]snet.Path, error) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	daemonLocation := ""
@@ -336,9 +337,51 @@ func getPaths(t *testing.T, srcIA addr.IA, dstIA addr.IA) []snet.Path {
 		daemon.WithDaemon(daemonLocation),
 		daemon.WithConfigDir(configDir),
 	)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 	paths, err := sd.Paths(ctx, dstIA, srcIA, types.PathReqFlags{})
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
+	return paths, nil
+}
+
+// getPathsToTransitASes returns one path to each on-path AS of the passes snet.Path.
+func getPathsToTransitASes(t *testing.T, p snet.Path) []snet.Path {
+	t.Helper()
+	intfs := p.Metadata().Interfaces
+	require.NotEmpty(t, intfs)
+	// Find all on-path ASes.
+	ases := make([]addr.IA, 0, len(intfs)/2+1)
+	ases = append(ases, intfs[0].IA)
+	for i := 1; i < len(intfs); i += 2 {
+		ases = append(ases, intfs[i].IA)
+	}
+
+	// For each AS, find a path to it and store it.
+	paths := make([]snet.Path, len(ases))
+	errs := make([]error, len(ases))
+	resolved := make([][]snet.Path, len(ases))
+	srcIA := p.Source()
+	var wg sync.WaitGroup
+	wg.Add(len(ases))
+	for i, as := range ases {
+		go func(i int, as addr.IA) {
+			defer wg.Done()
+			asPaths, err := getPaths(srcIA, as)
+			errs[i] = err
+			resolved[i] = asPaths
+		}(i, as)
+	}
+	wg.Wait()
+
+	for i := range ases {
+		require.NoError(t, errs[i])
+		require.NotEmpty(t, resolved[i])
+		paths[i] = resolved[i][0]
+	}
+
 	return paths
 }
 
@@ -347,31 +390,43 @@ func getFlyoversForPath(t *testing.T, p snet.Path, startTime uint32) path.Flyove
 	// Use p.Metadata().Interfaces for this. Include the initial 0->egress for the source AS,
 	// and the final ingress->0 for the destination AS.
 	t.Helper()
-	flyovers := make(path.FlyoverMap)
 	intfs := p.Metadata().Interfaces
 	require.NotEmpty(t, intfs)
 
-	baseHop := path.BaseHop{
+	baseHops := make([]path.BaseHop, 0, len(intfs)/2+1)
+	baseHops = append(baseHops, path.BaseHop{
 		IA:      intfs[0].IA,
 		Ingress: 0,
 		Egress:  uint16(intfs[0].ID),
-	}
-	// For each found triplet <AS,ingress,egress> call redeemFlyover and store the result.
-	flyover := redeemFlyover(t, baseHop, startTime)
-	flyovers[baseHop] = flyover
+	})
 
 	for i := 1; i < len(intfs); i += 2 {
 		egress := uint16(0)
 		if i+1 < len(intfs) {
 			egress = uint16(intfs[i+1].ID)
 		}
-		baseHop = path.BaseHop{
+		baseHops = append(baseHops, path.BaseHop{
 			IA:      intfs[i].IA,
 			Ingress: uint16(intfs[i].ID),
 			Egress:  egress,
-		}
-		flyover = redeemFlyover(t, baseHop, startTime)
-		flyovers[baseHop] = flyover
+		})
+	}
+
+	// For each found triplet <AS,ingress,egress> call redeemFlyover and store the result.
+	redeemed := make([]*path.FlyoverData, len(baseHops))
+	var wg sync.WaitGroup
+	wg.Add(len(baseHops))
+	for i := range baseHops {
+		go func(i int) {
+			defer wg.Done()
+			redeemed[i] = redeemFlyover(t, baseHops[i], startTime)
+		}(i)
+	}
+	wg.Wait()
+
+	flyovers := make(path.FlyoverMap, len(baseHops))
+	for i, baseHop := range baseHops {
+		flyovers[baseHop] = redeemed[i]
 	}
 
 	return flyovers
