@@ -57,6 +57,7 @@ func NewConnector(config config.RouterConfig, features env.Features) *Connector 
 				BatchSize:             config.BatchSize,
 				ReceiveBufferSize:     config.ReceiveBufferSize,
 				SendBufferSize:        config.SendBufferSize,
+				PreferredUnderlays:    config.PreferredUnderlays,
 			},
 			features.ExperimentalSCMPAuthentication,
 		),
@@ -82,7 +83,7 @@ func (c *Connector) CreateIACtx(ia addr.IA) error {
 
 // AddInternalInterface adds the internal interface.
 func (c *Connector) AddInternalInterface(
-	ia addr.IA, localHost addr.Host, provider, localAddr string) error {
+	ia addr.IA, localHost addr.Host, protocol, localAddr string) error {
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
@@ -92,10 +93,10 @@ func (c *Connector) AddInternalInterface(
 	}
 	c.internalInterfaces = append(c.internalInterfaces, control.InternalInterface{
 		IA:       ia,
-		Provider: provider,
+		Protocol: protocol,
 		Addr:     localAddr,
 	})
-	return c.DataPlane.AddInternalInterface(localHost, provider, localAddr)
+	return c.DataPlane.AddInternalInterface(localHost, protocol, localAddr)
 }
 
 // AddExternalInterface adds a link between the local and remote address.
@@ -108,6 +109,7 @@ func (c *Connector) AddExternalInterface(
 	log.Debug("Adding external interface", "interface", localIfID,
 		"local_isd_as", link.Local.IA, "local_addr", link.Local.Addr,
 		"remote_isd_as", link.Remote.IA, "remote_addr", link.Remote.Addr,
+		"link_options", link.Options,
 		"owned", owned,
 		"link_bfd_configured", link.BFD.Disable != nil,
 		"link_bfd_enabled", link.BFD.Disable == nil || !*link.BFD.Disable,
@@ -151,7 +153,7 @@ func (c *Connector) AddExternalInterface(
 func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, p uint16) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a)
+	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a, "port", p)
 	if !c.ia.Equal(ia) {
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", a)
 	}

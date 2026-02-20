@@ -1,17 +1,18 @@
+load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_go//go:def.bzl", "go_library")
 load("//tools:go.bzl", "go_test")
 
 genrule(
-    # The generated file is bazel-bin/private/underlay/ebpf/portfilter_bpfel.go
-    name = "gen_bpf_filter_go",
+    # The generated file is bazel-bin/private/underlay/ebpf/sockfilter_bpfel.go
+    name = "gen_bpf_sock_filter_go",
     srcs = [
-        "portfilter.c",
+        "sockfilter.c",
         "bpf_helpers.h",
         "bpf_helper_defs.h",
     ],
     outs = [
-        "portfilter_bpfel.go",
-        "portfilter_bpfel.o",
+        "sockfilter_bpfel.go",
+        "sockfilter_bpfel.o",
     ],
     cmd = """
         ARCH=$$(uname -m)
@@ -24,10 +25,10 @@ genrule(
             exit 1
         fi
         GOPACKAGE=ebpf $(execpath @com_github_cilium_ebpf//cmd/bpf2go) \
-            -output-dir $$(dirname $(location portfilter_bpfel.go)) \
+            -output-dir $$(dirname $(location sockfilter_bpfel.go)) \
             -tags linux \
             --cflags="-I$$INC" \
-            portfilter $(location portfilter.c)
+            sockfilter $(location sockfilter.c)
     """,
     tools = ["@com_github_cilium_ebpf//cmd/bpf2go"],
 )
@@ -38,15 +39,88 @@ go_library(
         "bpf_helper_defs.h",
         "bpf_helpers.h",
         "portfilter.go",
-        "portfilter_bpfel.go",
-        "portfilter_lint.go",  # keep
+        "sockfilter_bpfel.go",
     ],
-    embedsrcs = [
-        "portfilter_bpfel.o",  #keep
-    ],
+    embedsrcs = select({
+        "@rules_go//go/platform:android_386": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:android_amd64": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:android_arm": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:android_arm64": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:linux_386": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:linux_amd64": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:linux_arm": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:linux_arm64": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:linux_mips64le": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:linux_mipsle": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:linux_ppc64le": [
+            "sockfilter_bpfel.o",
+        ],
+        "@rules_go//go/platform:linux_riscv64": [
+            "sockfilter_bpfel.o",
+        ],
+        "//conditions:default": [],
+    }),
     importpath = "github.com/scionproto/scion/private/underlay/ebpf",
     visibility = ["//visibility:public"],
-    deps = ["@com_github_cilium_ebpf//:go_default_library"],
+    deps = select({
+        "@rules_go//go/platform:android_386": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:android_amd64": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:android_arm": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:android_arm64": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_386": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_amd64": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_arm": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_arm64": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_mips64le": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_mipsle": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_ppc64le": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_riscv64": [
+            "@com_github_cilium_ebpf//:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 # Builds the portfilter test; but it will be missing the required capabilities; so we must not
@@ -57,7 +131,6 @@ go_test(
     srcs = ["portfilter_test.go"],
     tags = ["manual"],
     deps = [
-        ":go_default_library",
         "@com_github_gopacket_gopacket//:go_default_library",
         "@com_github_gopacket_gopacket//afpacket:go_default_library",
         "@com_github_gopacket_gopacket//layers:go_default_library",

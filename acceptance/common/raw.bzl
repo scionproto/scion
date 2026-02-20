@@ -51,7 +51,7 @@ def raw_test(
     py_binary(
         name = "%s_teardown" % name,
         srcs = [src],
-        args = ["teardown"],
+        args = ["teardown"] + args,
         main = src,
         deps = [":%s_lib" % name],
         imports = imports,
