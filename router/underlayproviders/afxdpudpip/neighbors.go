@@ -266,22 +266,18 @@ func (cache *neighborCache) watchNeighborUpdates() {
 				entry.probing = false
 				if entry.mac != nil {
 					entry.mac = nil
-					cache.mappings[ip] = entry
 					changed = true
-				} else {
-					cache.mappings[ip] = entry
 				}
+				cache.mappings[ip] = entry
 			}
 		case unix.RTM_DELNEIGH:
 			// Neighbor removed from kernel table (GC, manual flush, etc.).
 			entry.probing = false
 			if entry.mac != nil {
 				entry.mac = nil
-				cache.mappings[ip] = entry
 				changed = true
-			} else {
-				cache.mappings[ip] = entry
 			}
+			cache.mappings[ip] = entry
 		default:
 			log.Debug("Unexpected netlink message type",
 				"cache", cache.name, "type", update.Type)
