@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "observability.go",
+        "resid.go",
+    ],
+    importpath = "github.com/scionproto/scion/hbird",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/metrics:go_default_library",
+        "//pkg/private/prom:go_default_library",
+        "//private/topology:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "coloring_test.go",
+        "resid_test.go",
+    ],
+    embed = [":go_default_library"],
+)

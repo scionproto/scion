@@ -50,6 +50,7 @@ use_repo(
     go_deps,
     "at_zgo_zcache_v2",
     "com_connectrpc_connect",
+    "com_connectrpc_validate",
     "com_github_antlr4_go_antlr_v4",
     "com_github_buildkite_go_buildkite_v4",
     "com_github_cilium_ebpf",

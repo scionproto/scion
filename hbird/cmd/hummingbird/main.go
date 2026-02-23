@@ -38,6 +38,7 @@ import (
 	//libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+
 	//"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app"
 	//infraenv "github.com/scionproto/scion/private/app/appnet"
@@ -322,7 +323,7 @@ func (s *HBirdServer) redeem(_ context.Context,
 ) (*hbirdv1.RedemptionResponses,
 	error) {
 
-	log.Debug("Redeem request message:", req.Msg)
+	log.Debug("Redeem request message", "message", req.Msg)
 	isdAs := s.topo.IA()
 	clientKey := req.Msg.ClientKey
 
@@ -402,7 +403,7 @@ func realMain(ctx context.Context) error {
 		return topo.Run(errCtx)
 	})
 
-	masterKey := loadHBMasterSecret(".test_config/dummy_keys")
+	masterKey := loadHBMasterSecret("configuration/dummy_keys")
 
 	// Create the service
 	svc := NewHummingbirdKeyDerivationService(masterKey)
@@ -447,7 +448,7 @@ func realMain(ctx context.Context) error {
 // Hummingbird authentication key derivation service
 func ExampleHbirdAuthKeyDerivation() {
 	//_ = chdirSrvRoot()
-	path := ".test_config/dummy_keys"
+	path := "testdata/configuration/dummy_keys"
 	masterKey := loadHBMasterSecret(path)
 
 	// Create the service

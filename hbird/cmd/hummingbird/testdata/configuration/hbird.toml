@@ -1,0 +1,15 @@
+[general]
+id = 'hb-1'
+config_dir = 'configuration'
+
+[log]
+[log.console]
+level = 'debug'
+format = 'human'
+stacktrace_level = 'none'
+
+[hummingbird]
+reservation_duration = '5s'
+min_bandwidth = 100
+max_bandwidth = 100000
+min_cost = 1

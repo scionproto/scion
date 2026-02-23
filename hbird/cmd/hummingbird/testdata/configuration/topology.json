@@ -1,0 +1,44 @@
+
+{
+  "isd_as": "1-100",
+  "mtu": 1472,
+  "attributes": [],
+  "dispatched_ports": "31000-32767",
+  "border_routers": {
+    "br1-100-1": {
+      "internal_addr": "127.0.0.20:30042",
+      "ctrl_addr": "127.0.0..20:30242",
+      "interfaces": {
+        "1": {
+          "underlay": {
+            "public": "169.254.1.2:30042",
+            "remote": "169.254.1.1:30042"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-200",
+          "link_to": "PARENT",
+          "mtu": 1472
+        }
+      }
+    }
+  },
+  "control_service": {
+    "cs1-100-1": {
+      "addr": "127.0.0.20:30252"
+    },
+    "cs1-100-2": {
+      "addr": "127.0.0.35:30252"
+    }
+  },
+  "discovery_service": {
+    "ds1-100-1": {
+      "addr": "127.0.0.20:30252"
+    }
+  },
+  "sigs": {
+    "sig64-2_0_9-1": {
+      "ctrl_addr": "127.0.0.19:30256",
+      "data_addr": "127.0.0.19:30056"
+    }
+  }
+}
