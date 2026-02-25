@@ -17,6 +17,7 @@ package path
 import (
 	"encoding/binary"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -199,68 +200,65 @@ func WithScionPath(p snet.Path, flyoverMap FlyoverMap) ReservationModFcn {
 		// We use the path metadata to get the IAs and interface ID sequence from it.
 		// This sequence of interfaces does not include the crossover interfaces in the core ASes.
 		interfaces := p.Metadata().Interfaces
+		baseHops := interfacesToBaseHops(interfaces)
 
 		// Set the destination IA from the path metadata:
-		r.DstIA = interfaces[len(interfaces)-1].IA
+		r.DstIA = baseHops[len(baseHops)-1].IA
 
-		// Hummingbird requires its crossover hop between segments seg1->seg2 to contain the
-		// flyover at the first hop, which is the last hop of seg1.
-		// Add the first hop of the first segment now.
-		baseHop := BaseHop{
-			IA:      interfaces[0].IA,
-			Ingress: 0,
-			Egress:  uint16(interfaces[0].ID),
+		hfIndices := reservationHopFieldIndicesForFlyovers(r.Dec)
+		if len(hfIndices) != len(baseHops) {
+			return serrors.New("inconsistent path metadata to hop-field mapping",
+				"base_hops", len(baseHops), "hop_fields", len(hfIndices))
 		}
-		flyover, ok := flyoverMap[baseHop]
-		if ok {
-			flyover.IsFlyover = true    // Ensure this will be used as a flyover.
-			delete(flyoverMap, baseHop) // Remove it from the local map to not use it again.
-		} else {
-			flyover = &FlyoverData{
-				BaseHop:   baseHop,
-				IsFlyover: false,
-			}
+		for i, baseHop := range baseHops {
+			r.SetFlyover(hfIndices[i], consumeFlyover(flyoverMap, baseHop))
 		}
-		r.SetFlyover(0, flyover)
 
-		// Do each segment at a time to ignore the first hop of every segment.
-		metadataIdx := 1 // the index of the interfaces (no cross overs).
-		hopIdx := 0      // The index of the current hop in r.Hops.
-		for segIdx := 0; segIdx < r.Dec.NumINF; segIdx++ {
-			// Get the number of hops in the path:
-			hopCount := int(r.Dec.Base.PathMeta.SegLen[segIdx]) / hummingbird.HopLines
-			// We skip the first hop of the segment, skip that r.Hops element too:
-			hopIdx++
-			for i := 1; i < hopCount; i++ {
-				ia := interfaces[metadataIdx*2-1].IA
-				in := uint16(interfaces[metadataIdx*2-1].ID)
-				eg := uint16(0)
-				if metadataIdx*2 < len(interfaces) {
-					eg = uint16(interfaces[metadataIdx*2].ID)
-				}
-				baseHop = BaseHop{
-					IA:      ia,
-					Ingress: in,
-					Egress:  eg,
-				}
-				flyover, ok = flyoverMap[baseHop]
-				if ok {
-					flyover.IsFlyover = true
-					delete(flyoverMap, baseHop)
-				} else {
-					flyover = &FlyoverData{
-						BaseHop:   baseHop,
-						IsFlyover: false,
-					}
-				}
-				r.SetFlyover(uint8(hopIdx), flyover)
-				// Increment the index of the metadata interface information.
-				metadataIdx++
-				hopIdx++
-			}
-		}
 		return nil
 	}
+}
+
+func consumeFlyover(flyoverMap FlyoverMap, baseHop BaseHop) *FlyoverData {
+	if flyover, ok := flyoverMap[baseHop]; ok {
+		flyover.IsFlyover = true
+		delete(flyoverMap, baseHop)
+		return flyover
+	}
+	return &FlyoverData{
+		BaseHop:   baseHop,
+		IsFlyover: false,
+	}
+}
+
+// reservationHopFieldIndicesForFlyovers returns the hop field indices in the Hummingbird path
+// where flyovers would be written.
+// I.e., Hummingbird requires its crossover hop between segments seg1->seg2
+// to contain the flyover at the first hop, which is the last hop of seg1. Not all hop fields can
+// contain flyovers.
+func reservationHopFieldIndicesForFlyovers(dec *hummingbird.Decoded) []uint8 {
+	indices := make([]uint8, 0, len(dec.HopFields))
+	if dec.NumINF == 0 {
+		return indices
+	}
+
+	segmentStart := 0
+
+	// Segment 0: include all hops.
+	hopCount := int(dec.Base.PathMeta.SegLen[0]) / hummingbird.HopLines
+	for hopInSegment := 0; hopInSegment < hopCount; hopInSegment++ {
+		indices = append(indices, uint8(segmentStart+hopInSegment))
+	}
+	segmentStart += hopCount
+
+	// Remaining segments: skip the first hop in each segment.
+	for segIdx := 1; segIdx < dec.NumINF; segIdx++ {
+		hopCount = int(dec.Base.PathMeta.SegLen[segIdx]) / hummingbird.HopLines
+		for hopInSegment := 1; hopInSegment < hopCount; hopInSegment++ {
+			indices = append(indices, uint8(segmentStart+hopInSegment))
+		}
+		segmentStart += hopCount
+	}
+	return indices
 }
 
 // BaseHop describes a pair of Ingress and Egress interfaces in a specific AS
@@ -305,6 +303,14 @@ func (r *Reservation) SetFlyover(
 	hf.ResID = flyover.ResID
 }
 
+// func (r *Reservation) RedeemFlyovers(startTime uint32) {
+// 	baseHops := make([]BaseHop, len(r.Hops))
+// 	for i := range baseHops {
+// 		baseHops[i] = r.Hops[i].BaseHop
+// 	}
+// 	flyoverMap, err := getFlyoversForHops(baseHops, startTime)
+// }
+
 // FlyoverMap is a map between a flyover <IA,ingress,egress> and its corresponding data.
 type FlyoverMap map[BaseHop]*FlyoverData
 
@@ -319,4 +325,76 @@ func FlyoversToMap(flyovers []*FlyoverData) FlyoverMap {
 		ret[k] = flyover
 	}
 	return ret
+}
+
+func interfacesToBaseHops(ifaces []snet.PathInterface) []BaseHop {
+	baseHops := make([]BaseHop, 0, len(ifaces)/2+1)
+	baseHops = append(baseHops, BaseHop{
+		IA:      ifaces[0].IA,
+		Ingress: 0,
+		Egress:  uint16(ifaces[0].ID),
+	})
+
+	for i := 1; i < len(ifaces); i += 2 {
+		egress := uint16(0)
+		if i+1 < len(ifaces) {
+			egress = uint16(ifaces[i+1].ID)
+		}
+		baseHops = append(baseHops, BaseHop{
+			IA:      ifaces[i].IA,
+			Ingress: uint16(ifaces[i].ID),
+			Egress:  egress,
+		})
+	}
+	return baseHops
+}
+
+// GetFlyoversForPath returns a FlyoverMap with all returned flyovers for the given path.
+// This function will query paths to on-path ASes and perform a redemption to all of them.
+func GetFlyoversForPath(p snet.Path, startTime uint32) (FlyoverMap, error) {
+	// Get the sequence of ingress->egress interfaces for each on-path AS.
+	// Use p.Metadata().Interfaces for this. Include the initial 0->egress for the source AS,
+	// and the final ingress->0 for the destination AS.
+	interfaces := p.Metadata().Interfaces
+	if len(interfaces) == 0 {
+		return FlyoverMap{}, nil
+	}
+	baseHops := interfacesToBaseHops(interfaces)
+	return getFlyoversForHops(baseHops, startTime)
+}
+
+func getFlyoversForHops(baseHops []BaseHop, startTime uint32) (FlyoverMap, error) {
+	// For each found triplet <AS,ingress,egress> call redeemFlyover and store the result.
+	redeemed := make([]*FlyoverData, len(baseHops))
+	var wg sync.WaitGroup
+	wg.Add(len(baseHops))
+	for i := range baseHops {
+		go func(i int) {
+			defer wg.Done()
+			redeemed[i] = redeemFlyover(baseHops[i], startTime)
+		}(i)
+	}
+	wg.Wait()
+
+	flyovers := make(FlyoverMap, len(baseHops))
+	for i, baseHop := range baseHops {
+		flyovers[baseHop] = redeemed[i]
+	}
+
+	return flyovers, nil
+}
+
+// redeemFlyover mocks the redemption of a flyover for a given AS, ingress, and egress interfaces.
+// The real function will require a daemon.Connector to find a path to the given AS, or the path
+// to the given AS.
+func redeemFlyover(baseHop BaseHop, startTime uint32) *FlyoverData {
+	return &FlyoverData{
+		BaseHop:   baseHop,
+		IsFlyover: true,
+		ResID:     1,
+		StartTime: startTime,
+		Duration:  10,
+		Bw:        64,
+		Ak:        [16]byte{},
+	}
 }

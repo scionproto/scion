@@ -100,6 +100,7 @@ func TestWithScionPath(t *testing.T) {
 	r, err := path.NewReservation(path.WithScionPath(p, flyoverMap))
 	require.NoError(t, err)
 	require.NotNil(t, r)
+	require.Equal(t, addr.MustParseIA("1-ff00:0:112"), r.DstIA)
 	require.Len(t, flyoverMap, 0) // All flyovers were used.
 
 	// The path contains two segments, i.e. one xover hop.
@@ -123,7 +124,8 @@ func TestFlyoversForPath(t *testing.T) {
 	p := createSnetScionPath(t, referenceTime)
 	require.NotNil(t, p)
 
-	flyovers := getFlyoversForPath(t, p, referenceEpochTime)
+	flyovers, err := path.GetFlyoversForPath(p, referenceEpochTime)
+	require.NoError(t, err)
 	require.Len(t, flyovers, 3)
 
 	expectedFlyovers := createFlyovers(t, referenceEpochTime)
@@ -294,7 +296,7 @@ func createFlyovers(t *testing.T, startTime uint32) path.FlyoverMap {
 			Ingress: 0,
 			Egress:  41,
 		}
-		m[hop] = redeemFlyover(t, hop, startTime)
+		m[hop] = createFlyover(t, hop, startTime)
 	}
 	{ // 110: 1 ->  2
 		hop := path.BaseHop{
@@ -302,7 +304,7 @@ func createFlyovers(t *testing.T, startTime uint32) path.FlyoverMap {
 			Ingress: 1,
 			Egress:  2,
 		}
-		m[hop] = redeemFlyover(t, hop, startTime)
+		m[hop] = createFlyover(t, hop, startTime)
 	}
 	{ // 112: 1 ->  0
 		hop := path.BaseHop{
@@ -310,9 +312,25 @@ func createFlyovers(t *testing.T, startTime uint32) path.FlyoverMap {
 			Ingress: 1,
 			Egress:  0,
 		}
-		m[hop] = redeemFlyover(t, hop, startTime)
+		m[hop] = createFlyover(t, hop, startTime)
 	}
 	return m
+}
+
+// createFlyover mocks the redemption of a flyover for a given AS, ingress, and egress interfaces.
+// The real function will require a daemon.Connector to find a path to the given AS, or the path
+// to the given AS.
+func createFlyover(t *testing.T, baseHop path.BaseHop, startTime uint32) *path.FlyoverData {
+	t.Helper()
+	return &path.FlyoverData{
+		BaseHop:   baseHop,
+		IsFlyover: true,
+		ResID:     1,
+		StartTime: startTime,
+		Duration:  10,
+		Bw:        64,
+		Ak:        [16]byte{},
+	}
 }
 
 func checkHop(t *testing.T, hop *path.FlyoverData, ia string, in uint16, eg uint16, isFlyover bool) {
@@ -383,67 +401,4 @@ func getPathsToTransitASes(t *testing.T, p snet.Path) []snet.Path {
 	}
 
 	return paths
-}
-
-func getFlyoversForPath(t *testing.T, p snet.Path, startTime uint32) path.FlyoverMap {
-	// Get the sequence of ingress->egress interfaces for each on-path AS.
-	// Use p.Metadata().Interfaces for this. Include the initial 0->egress for the source AS,
-	// and the final ingress->0 for the destination AS.
-	t.Helper()
-	intfs := p.Metadata().Interfaces
-	require.NotEmpty(t, intfs)
-
-	baseHops := make([]path.BaseHop, 0, len(intfs)/2+1)
-	baseHops = append(baseHops, path.BaseHop{
-		IA:      intfs[0].IA,
-		Ingress: 0,
-		Egress:  uint16(intfs[0].ID),
-	})
-
-	for i := 1; i < len(intfs); i += 2 {
-		egress := uint16(0)
-		if i+1 < len(intfs) {
-			egress = uint16(intfs[i+1].ID)
-		}
-		baseHops = append(baseHops, path.BaseHop{
-			IA:      intfs[i].IA,
-			Ingress: uint16(intfs[i].ID),
-			Egress:  egress,
-		})
-	}
-
-	// For each found triplet <AS,ingress,egress> call redeemFlyover and store the result.
-	redeemed := make([]*path.FlyoverData, len(baseHops))
-	var wg sync.WaitGroup
-	wg.Add(len(baseHops))
-	for i := range baseHops {
-		go func(i int) {
-			defer wg.Done()
-			redeemed[i] = redeemFlyover(t, baseHops[i], startTime)
-		}(i)
-	}
-	wg.Wait()
-
-	flyovers := make(path.FlyoverMap, len(baseHops))
-	for i, baseHop := range baseHops {
-		flyovers[baseHop] = redeemed[i]
-	}
-
-	return flyovers
-}
-
-// redeemFlyover mocks the redemption of a flyover for a given AS, ingress, and egress interfaces.
-// The real function will require a daemon.Connector to find a path to the given AS, or the path
-// to the given AS.
-func redeemFlyover(t *testing.T, baseHop path.BaseHop, startTime uint32) *path.FlyoverData {
-	t.Helper()
-	return &path.FlyoverData{
-		BaseHop:   baseHop,
-		IsFlyover: true,
-		ResID:     1,
-		StartTime: startTime,
-		Duration:  10,
-		Bw:        64,
-		Ak:        [16]byte{},
-	}
 }
