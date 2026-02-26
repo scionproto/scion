@@ -200,7 +200,7 @@ func WithScionPath(p snet.Path, flyoverMap FlyoverMap) ReservationModFcn {
 		// We use the path metadata to get the IAs and interface ID sequence from it.
 		// This sequence of interfaces does not include the crossover interfaces in the core ASes.
 		interfaces := p.Metadata().Interfaces
-		baseHops := interfacesToBaseHops(interfaces)
+		baseHops := InterfacesToBaseHops(interfaces)
 
 		// Set the destination IA from the path metadata:
 		r.DstIA = baseHops[len(baseHops)-1].IA
@@ -303,14 +303,6 @@ func (r *Reservation) SetFlyover(
 	hf.ResID = flyover.ResID
 }
 
-// func (r *Reservation) RedeemFlyovers(startTime uint32) {
-// 	baseHops := make([]BaseHop, len(r.Hops))
-// 	for i := range baseHops {
-// 		baseHops[i] = r.Hops[i].BaseHop
-// 	}
-// 	flyoverMap, err := getFlyoversForHops(baseHops, startTime)
-// }
-
 // FlyoverMap is a map between a flyover <IA,ingress,egress> and its corresponding data.
 type FlyoverMap map[BaseHop]*FlyoverData
 
@@ -327,7 +319,11 @@ func FlyoversToMap(flyovers []*FlyoverData) FlyoverMap {
 	return ret
 }
 
-func interfacesToBaseHops(ifaces []snet.PathInterface) []BaseHop {
+// InterfacesToBaseHops maps path metadata interfaces to per-AS ingress/egress hop tuples.
+func InterfacesToBaseHops(ifaces []snet.PathInterface) []BaseHop {
+	if len(ifaces) == 0 {
+		return nil
+	}
 	baseHops := make([]BaseHop, 0, len(ifaces)/2+1)
 	baseHops = append(baseHops, BaseHop{
 		IA:      ifaces[0].IA,
@@ -351,6 +347,7 @@ func interfacesToBaseHops(ifaces []snet.PathInterface) []BaseHop {
 
 // GetFlyoversForPath returns a FlyoverMap with all returned flyovers for the given path.
 // This function will query paths to on-path ASes and perform a redemption to all of them.
+// deleteme the startTime should not be a parameter of this call, but a field in FlyoverData.
 func GetFlyoversForPath(p snet.Path, startTime uint32) (FlyoverMap, error) {
 	// Get the sequence of ingress->egress interfaces for each on-path AS.
 	// Use p.Metadata().Interfaces for this. Include the initial 0->egress for the source AS,
@@ -359,7 +356,7 @@ func GetFlyoversForPath(p snet.Path, startTime uint32) (FlyoverMap, error) {
 	if len(interfaces) == 0 {
 		return FlyoverMap{}, nil
 	}
-	baseHops := interfacesToBaseHops(interfaces)
+	baseHops := InterfacesToBaseHops(interfaces)
 	return getFlyoversForHops(baseHops, startTime)
 }
 

@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/segment/iface"
+	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/private/topology"
 )
 
@@ -138,7 +139,7 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 		if err := dp.SetKey(cfg.IA, 0, key0); err != nil {
 			return err
 		}
-		keyHbird := deriveHbirdSecretValue(cfg.MasterKeys.Key0)
+		keyHbird := hummingbird.DeriveSecretValue(cfg.MasterKeys.Key0)
 		if err := dp.SetHbirdKey(cfg.IA, 0, keyHbird); err != nil {
 			return err
 		}
@@ -301,15 +302,4 @@ func confServices(dp Dataplane, cfg *Config) error {
 		}
 	}
 	return nil
-}
-
-// deriveHbirdSecretValue derives hummingbird AS secret value from the given key
-func deriveHbirdSecretValue(k []byte) []byte {
-	if len(k) == 0 {
-		panic("empty key")
-	}
-	hbirdSalt := []byte("Derive hbird sv")
-	// This uses 16B keys with 1000 hash iterations, which is the same as the
-	// defaults used by pycrypto.
-	return pbkdf2.Key(k, hbirdSalt, 1000, 16, sha256.New)
 }

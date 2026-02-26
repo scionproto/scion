@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/private/util"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	dppath "github.com/scionproto/scion/pkg/slayers/path"
 	dphumm "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
@@ -46,6 +47,25 @@ func TestNewWithMinBW(t *testing.T) {
 		path.WithDstIA(addr.MustParseIA("1-ff00:0:112")))
 	require.NoError(t, err)
 	require.Equal(t, referenceBw, r.MinBW)
+}
+
+// TestInterfacesToBaseHops checks that the InterfacesToBaseHops function correctly maps the
+// path individual interfaces to a BaseHop sequence. We use tiny topo's 111->112 path here.
+func TestInterfacesToBaseHops(t *testing.T) {
+	t.Parallel()
+	ifaces := []snet.PathInterface{
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.ID(41)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(1)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(2)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.ID(1)},
+	}
+	expected := []path.BaseHop{
+		{IA: addr.MustParseIA("1-ff00:0:111"), Ingress: 0, Egress: 41},
+		{IA: addr.MustParseIA("1-ff00:0:110"), Ingress: 1, Egress: 2},
+		{IA: addr.MustParseIA("1-ff00:0:112"), Ingress: 1, Egress: 0},
+	}
+	got := path.InterfacesToBaseHops(ifaces)
+	require.Equal(t, expected, got)
 }
 
 func TestSetFlyover(t *testing.T) {

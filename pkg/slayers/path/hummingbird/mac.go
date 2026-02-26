@@ -18,7 +18,9 @@ package hummingbird
 
 import (
 	"crypto/cipher"
+	"crypto/sha256"
 	"encoding/binary"
+	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -50,6 +52,8 @@ func expandKeyAsm(nr int, key *byte, enc *uint32)
 
 const (
 	PathType = 5
+	// SecretValueDerivationSalt is the PBKDF2 salt used to derive the Hummingbird AS secret value.
+	SecretValueDerivationSalt = "Derive hbird sv"
 
 	aesRounds            = 10
 	AkBufferSize         = 16
@@ -58,6 +62,16 @@ const (
 	// Total MAC buffer size:
 	MACBufferSize = path.MACBufferSize + FlyoverMacBufferSize + AkBufferSize
 )
+
+// DeriveSecretValue derives the Hummingbird AS secret value from the master secret.
+func DeriveSecretValue(masterSecret []byte) []byte {
+	if len(masterSecret) == 0 {
+		panic("empty key")
+	}
+	// This uses 16B keys with 1000 hash iterations, which is the same as the
+	// defaults used by pycrypto.
+	return pbkdf2.Key(masterSecret, []byte(SecretValueDerivationSalt), 1000, 16, sha256.New)
+}
 
 // Derive authentication key A_k
 // block is expected to be initialized beforehand with aes.NewCipher(sv),
