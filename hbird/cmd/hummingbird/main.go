@@ -16,29 +16,36 @@ package main
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
-	"encoding/binary"
-	"errors"
 	"fmt"
-	"math"
-	"math/bits"
+	"net"
 	"net/http"
+	"net/netip"
+	"path/filepath"
 	"time"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/validate"
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
+	cs "github.com/scionproto/scion/control"
+	hbirdconnect "github.com/scionproto/scion/hbird/hbserver/connect"
+	hbirdgrpc "github.com/scionproto/scion/hbird/hbserver/grpc"
+	libconnect "github.com/scionproto/scion/pkg/connect"
+	libgrpc "github.com/scionproto/scion/pkg/grpc"
+	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/squic"
+	infraenv "github.com/scionproto/scion/private/app/appnet"
+	"github.com/scionproto/scion/private/storage"
+	"github.com/scionproto/scion/private/trust"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/grpc"
 
 	//libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-
 	//"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app"
 	//infraenv "github.com/scionproto/scion/private/app/appnet"
@@ -60,215 +67,7 @@ var globalCfg config.Config
 const (
 	// Server constants
 	serverPort = 30258
-	// Wire format constants
-	BW_BITS          = 10
-	BW_EXP_BITS      = 5
-	RESID_BITS       = 22
-	MAX_DURATION_SEC = math.MaxUint16
 )
-
-// Bandwidth in kbps
-type Bandwidth struct {
-	kbps uint64
-}
-
-// FromKbps
-func FromKbps(kbps uint64) Bandwidth {
-	return Bandwidth{kbps: kbps}
-}
-
-// AsKbps
-func (b Bandwidth) AsKbps() uint64 {
-	return b.kbps
-}
-
-// ToWireFormat convert bandwidth in kbps to wire format encoding
-func (b Bandwidth) ToWireFormat() (uint16, error) {
-	significandBits := BW_BITS - BW_EXP_BITS
-	significandValues := uint64(1 << significandBits)
-	// Special case: exponent = 0
-	if b.kbps < significandValues {
-		return uint16(b.kbps), nil
-	}
-
-	// exponent offset by 1 to account for above case
-	exponent := uint(bits.Len64(b.kbps)) - uint(significandBits)
-	if exponent >= (1 << BW_EXP_BITS) {
-		return 0, fmt.Errorf("bandwidth too large, cannot convert to wire format: %v", b.kbps)
-	}
-
-	// compute significand
-	// shift right by (exponent - 1), then subtract the implicit prepended '1'
-	significand := (b.kbps >> (exponent - 1)) - significandValues
-
-	return (uint16(exponent) << significandBits) | uint16(significand), nil
-}
-
-// FromWireFormat decodes wire format to integer bandwidth in kbps
-func FromWireFormat(wireFormat uint16) (Bandwidth, error) {
-	significandBits := BW_BITS - BW_EXP_BITS
-	// Check total bit-size
-	if (16 - bits.LeadingZeros16(wireFormat)) > BW_BITS {
-		return Bandwidth{}, errors.New("bandwidth could not be converted, value too large")
-	}
-
-	exponent := wireFormat >> significandBits
-	significand := wireFormat & ((1 << significandBits) - 1)
-	if exponent == 0 {
-		return Bandwidth{kbps: uint64(significand)}, nil
-	}
-
-	return Bandwidth{
-		kbps: (uint64(significand) + (1 << significandBits)) << (exponent - 1),
-	}, nil
-}
-
-// ResInfo
-type ResInfo struct {
-	IA               addr.IA
-	IngressInterface uint16
-	EgressInterface  uint16
-	ResID            uint32
-	Bandwidth        Bandwidth
-	StartTime        time.Time
-	Duration         time.Duration
-}
-
-// NewResInfo
-func NewResInfo(
-	isd_as addr.IA,
-	ingress, egress uint16,
-	bw Bandwidth,
-	start time.Time,
-	duration time.Duration,
-) ResInfo {
-	return ResInfo{
-		IA:               isd_as,
-		IngressInterface: ingress,
-		EgressInterface:  egress,
-		Bandwidth:        bw,
-		StartTime:        start,
-		Duration:         duration,
-	}
-}
-
-// WithResID checks that the given resID fits in RESID_BITS bits
-func (r ResInfo) WithResID(resID uint32) (ResInfo, error) {
-	// We check that no bits above RESID_BITS are set.
-	masked := ^(uint32(1)<<(RESID_BITS) - 1)
-	if resID&masked != 0 {
-		return ResInfo{}, fmt.Errorf("the assigned ResId is too long: %d", resID)
-	}
-	r.ResID = resID
-	return r, nil
-}
-
-func (r ResInfo) Check() error {
-	expired := time.Unix(100_000, 0).After(r.StartTime.Add(r.Duration))
-	identity, _ := addr.ParseIA("1-0:0:0110")
-	validIA := r.IA == identity
-	maxFreeBW := uint64(2000)
-	validBW := r.Bandwidth.AsKbps() < maxFreeBW
-	currIF := uint16(2)
-	validIF := r.EgressInterface == currIF || r.IngressInterface == currIF
-	if expired || !validIA || !validBW || !validIF {
-		fmt.Println("expired, !validIA, !validBW, !validIF",
-			expired, !validIA, !validBW, !validIF)
-		return errors.New("Invalid ResInfo")
-	}
-	return nil
-}
-
-// TimeBandwidthProductKb is the product of bandwidth and duration in kb.
-func (r ResInfo) TimeBandwidthProductKb() uint64 {
-	seconds := uint64(r.Duration.Seconds())
-	return r.Bandwidth.AsKbps() * seconds
-}
-
-// CompleteReservation
-type CompleteReservation struct {
-	ResInfo           ResInfo
-	AuthenticationKey []byte
-}
-
-// HummingbirdKeyDerivationService holds the AES master key
-// and can encrypt a single 16-byte block to produce the auth key.
-type HummingbirdKeyDerivationService struct {
-	masterKey [16]byte
-}
-
-// NewHummingbirdKeyDerivationService
-func NewHummingbirdKeyDerivationService(key [16]byte) *HummingbirdKeyDerivationService {
-	return &HummingbirdKeyDerivationService{masterKey: key}
-}
-
-// AssignAuthenticationKey runs single-block AES-128 encryption
-func (h *HummingbirdKeyDerivationService) AssignAuthenticationKey(
-	r ResInfo,
-) (*CompleteReservation, error) {
-	block, err := ComputeAuthenticationKey(r, h.masterKey)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build final reservation.
-	return &CompleteReservation{
-		ResInfo:           r,
-		AuthenticationKey: block[:],
-	}, nil
-}
-
-func ComputeAuthenticationKey(r ResInfo, masterKey [16]byte) (*[16]byte, error) {
-	// Create AES cipher.
-	blockCipher, err := aes.NewCipher(masterKey[:])
-	if err != nil {
-		return nil, fmt.Errorf("failed to create AES-128 cipher: %w", err)
-	}
-	// Combine res_id and bandwidth bits:
-	bwVal, err := r.Bandwidth.ToWireFormat()
-	if err != nil {
-		return nil, err
-	}
-	resIDConcatBW := (r.ResID << BW_BITS) | uint32(bwVal)
-
-	// Build the 16-byte block.
-	// Indices:
-	//   [0..2] = ingress (u16 big-endian)
-	//   [2..4] = egress (u16 big-endian)
-	//   [4..8] = resIDConcatBW (u32 big-endian)
-	//   [8..12] = start_time (u32 big-endian)
-	//   [12..14] = duration (u16 big-endian)
-	var block [16]byte
-
-	binary.BigEndian.PutUint16(block[0:2], r.IngressInterface)
-	binary.BigEndian.PutUint16(block[2:4], r.EgressInterface)
-	binary.BigEndian.PutUint32(block[4:8], resIDConcatBW)
-
-	// StartTime as 32-bit Unix time
-	unixStart := uint32(r.StartTime.Unix())
-	binary.BigEndian.PutUint32(block[8:12], unixStart)
-
-	// Duration in seconds as a 16-bit
-	durSeconds := uint16(r.Duration.Seconds())
-	binary.BigEndian.PutUint16(block[12:14], durSeconds)
-	// [14..16] is zero
-
-	// Encrypt the block in-place
-	blockCipher.Encrypt(block[:], block[:])
-	return &block, nil
-}
-
-func clientEncrypt(clientPublicKey []byte, payload []byte) (cipher []byte, err error) {
-	pubKey, err := x509.ParsePKCS1PublicKey(clientPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	cipher, err = rsa.EncryptOAEP(sha256.New(), rand.Reader, pubKey, payload, nil)
-	if err != nil {
-		return nil, err
-	}
-	return cipher, nil
-}
 
 func loadHBMasterSecret(path string) (masterKey [16]byte) {
 	masterKeys, err := keyconf.LoadMaster(path)
@@ -291,100 +90,6 @@ func main() {
 	application.Run()
 }
 
-type HBirdServer struct {
-	topo      *topology.Loader
-	hbService *HummingbirdKeyDerivationService
-	icm       *hb.IntervalColorMap
-}
-
-func (s *HBirdServer) Status(_ context.Context, _ *connect.Request[emptypb.Empty]) (
-	*connect.Response[hbirdv1.StatusResponse],
-	error) {
-	res := &hbirdv1.StatusResponse{Version: 1}
-	return connect.NewResponse(res), nil
-}
-
-func (s *HBirdServer) Redeem(
-	ctx context.Context,
-	req *connect.Request[hbirdv1.RedemptionRequests],
-) (
-	*connect.Response[hbirdv1.RedemptionResponses],
-	error) {
-
-	res, err := s.redeem(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(res), nil
-}
-
-func (s *HBirdServer) redeem(_ context.Context,
-	req *connect.Request[hbirdv1.RedemptionRequests],
-) (*hbirdv1.RedemptionResponses,
-	error) {
-
-	log.Debug("Redeem request message", "message", req.Msg)
-	isdAs := s.topo.IA()
-	clientKey := req.Msg.ClientKey
-
-	response := &hbirdv1.RedemptionResponses{
-		Reservation: []*hbirdv1.Reservation{},
-	}
-	for _, redReq := range req.Msg.Redemption {
-		dur, err := time.ParseDuration(fmt.Sprintf("%ds", redReq.RedInfo.Duration))
-		if err != nil {
-			return nil, err
-		}
-
-		resInfo := NewResInfo(
-			isdAs,
-			uint16(redReq.RedInfo.Ingress),
-			uint16(redReq.RedInfo.Egress),
-			FromKbps(uint64(redReq.RedInfo.Bw)),
-			time.Unix(int64(redReq.RedInfo.StartTime), 0),
-			dur,
-		)
-
-		err = resInfo.Check()
-		err = nil // XXX: skipping check for now
-		if err != nil {
-			return nil, err
-		}
-
-		low := int(redReq.RedInfo.StartTime) % s.icm.NUnitIntervals
-		high := int(dur.Seconds())
-		resID, err := s.icm.AssignColor(low, high)
-		if err != nil {
-			return nil, err
-		}
-		reserving, err := resInfo.WithResID(resID)
-		if err != nil {
-			return nil, err
-		}
-
-		reserved, err := s.hbService.AssignAuthenticationKey(reserving)
-		if err != nil {
-			return nil, err
-		}
-		log.Debug("redeem processing", "clientKey:",
-			base64.StdEncoding.EncodeToString(clientKey), "reserved.AuthenticationKey:",
-			base64.StdEncoding.EncodeToString(reserved.AuthenticationKey))
-		encryptedAk, err := clientEncrypt(clientKey, reserved.AuthenticationKey)
-		if err != nil {
-			return nil, fmt.Errorf("invalid client info")
-		}
-		res := hbirdv1.Reservation{
-			Ia:      uint64(reserved.ResInfo.IA),
-			ResId:   reserved.ResInfo.ResID,
-			AuthKey: encryptedAk,
-		}
-		log.Debug("redeem reservation", "Ia:", res.Ia, "ResId:", res.ResId,
-			"AuthKey", base64.StdEncoding.EncodeToString(res.AuthKey))
-		response.Reservation = append(response.Reservation, &res)
-	}
-	return response, nil
-}
-
 func realMain(ctx context.Context) error {
 	metrics := hb.NewMetrics()
 
@@ -403,38 +108,148 @@ func realMain(ctx context.Context) error {
 		return topo.Run(errCtx)
 	})
 
-	masterKey := loadHBMasterSecret("configuration/dummy_keys")
+	trustDB, err := storage.NewTrustStorage(storage.DBConfig{Connection: "/run/cs-1.trust.db"})
+	if err != nil {
+		return serrors.Wrap("initializing trust storage", err)
+	}
+	defer trustDB.Close()
+	nc := infraenv.NetworkConfig{
+		IA:     topo.IA(),
+		Public: &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: serverPort},
+		QUIC: infraenv.QUIC{
+			TLSVerifier: trust.NewTLSCryptoVerifier(trustDB),
+			GetCertificate: cs.NewTLSCertificateLoader(
+				topo.IA(), x509.ExtKeyUsageServerAuth, trustDB, globalCfg.General.ConfigDir,
+			).GetCertificate,
+			GetClientCertificate: cs.NewTLSCertificateLoader(
+				topo.IA(), x509.ExtKeyUsageClientAuth, trustDB, globalCfg.General.ConfigDir,
+			).GetClientCertificate,
+		},
+		SVCResolver:            topo,
+		SCMPHandler:            snet.DefaultSCMPHandler{},
+		SCIONNetworkMetrics:    snet.SCIONNetworkMetrics{},
+		SCIONPacketConnMetrics: snet.SCIONPacketConnMetrics{},
+		MTU:                    topo.MTU(),
+		Topology: func(topo *topology.Loader) snet.Topology {
+			start, end := topo.PortRange()
+			return snet.Topology{
+				LocalIA: topo.IA(),
+				PortRange: snet.TopologyPortRange{
+					Start: start,
+					End:   end,
+				},
+				Interface: func(ifID uint16) (netip.AddrPort, bool) {
+					a := topo.UnderlayNextHop(ifID)
+					if a == nil {
+						return netip.AddrPort{}, false
+					}
+					return a.AddrPort(), true
+				},
+			}
+		}(topo),
+	}
+
+	quicStack, err := nc.QUICStack(ctx)
+	if err != nil {
+		return serrors.Wrap("initializing QUIC stack", err)
+	}
+
+	quicServer := grpc.NewServer(
+		grpc.Creds(libgrpc.PassThroughCredentials{}),
+		libgrpc.UnaryServerInterceptor(),
+		libgrpc.DefaultMaxConcurrentStreams(),
+	)
+	// distinguish between inter and intra AS request origin
+	connectInter := http.NewServeMux()
+	connectIntra := http.NewServeMux()
+
+	masterKey := loadHBMasterSecret(filepath.Join(globalCfg.General.ConfigDir, "dummy_keys"))
 
 	// Create the service
-	svc := NewHummingbirdKeyDerivationService(masterKey)
+	svc := hbirdconnect.NewHummingbirdKeyDerivationService(masterKey)
 	icm := hb.NewIntervalColorMap(10)
-	hbs := &HBirdServer{topo: topo, hbService: svc, icm: icm}
+	hbs := &hbirdgrpc.HBirdServer{Topo: topo, HbService: svc, Icm: icm}
 
-	mux := http.NewServeMux()
-	path, handler := hbirdv1connect.NewHBirdServiceHandler(
-		hbs,
-		// Validation via Protovalidate
-		connect.WithInterceptors(validate.NewInterceptor()),
+	hbirdv1.RegisterHBirdServiceServer(quicServer, hbs)
+	connectInter.Handle(
+		hbirdv1connect.NewHBirdServiceHandler(&hbirdconnect.HBirdServer{
+			HbService: svc,
+		}, connect.WithInterceptors(validate.NewInterceptor())),
 	)
-	mux.Handle(path, handler)
-	p := new(http.Protocols)
-	p.SetHTTP1(true)
-	p.SetUnencryptedHTTP2(true)
-	s := http.Server{
-		Addr:      "localhost:30258",
-		Handler:   mux,
-		Protocols: p,
-	}
-	g.Go(func() error {
-		return s.ListenAndServe()
-	})
+	connectIntra.Handle(
+		hbirdv1connect.NewHBirdServiceHandler(&hbirdconnect.HBirdServer{
+			HbService: svc,
+		}, connect.WithInterceptors(validate.NewInterceptor())),
+	)
 
 	var cleanup app.Cleanup
-	cleanup.Add(func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		return s.Shutdown(ctx)
+	connectServer := http3.Server{
+		Handler: libconnect.AttachPeer(connectInter),
+	}
+
+	grpcConns := make(chan *quic.Conn)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		listener := quicStack.Listener
+		for {
+			conn, err := listener.Accept(context.Background())
+			if err == quic.ErrServerClosed {
+				return http.ErrServerClosed
+			}
+			if err != nil {
+				return err
+			}
+			go func() {
+				defer log.HandlePanic()
+				if conn.ConnectionState().TLS.NegotiatedProtocol != "h3" {
+					log.Debug("NegotiatedProtocol not h3, switching to grpc",
+						"proto", conn.ConnectionState().TLS.NegotiatedProtocol)
+					grpcConns <- conn
+					return
+				}
+
+				if err := connectServer.ServeQUICConn(conn); err != nil {
+					log.Debug("Error handling connectrpc connection", "err", err)
+				}
+			}()
+		}
 	})
+
+	g.Go(func() error {
+		defer log.HandlePanic()
+		grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
+		if err := quicServer.Serve(grpcListener); err != nil {
+			return serrors.Wrap("serving gRPC/SCION API", err)
+		}
+		return nil
+	})
+	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+
+	intraServer := http.Server{
+		Handler: h2c.NewHandler(libconnect.AttachPeer(connectIntra), &http2.Server{}),
+	}
+
+	g.Go(func() error {
+		defer log.HandlePanic()
+		tcpListener, err := nc.TCPStack()
+		if err != nil {
+			return serrors.Wrap("initializing TCP stack", err)
+		}
+		if err := intraServer.Serve(tcpListener); err != nil {
+			return serrors.Wrap("serving connect/TCP API", err)
+		}
+		return nil
+	})
+
+	cleanup.Add(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		if err := intraServer.Shutdown(ctx); err != nil && ctx.Err() == nil {
+			return err
+		}
+		return nil
+	})
+
 	g.Go(func() error {
 		defer log.HandlePanic()
 		<-errCtx.Done()
@@ -448,19 +263,19 @@ func realMain(ctx context.Context) error {
 // Hummingbird authentication key derivation service
 func ExampleHbirdAuthKeyDerivation() {
 	//_ = chdirSrvRoot()
-	path := "testdata/configuration/dummy_keys"
+	path := ".test_config/dummy_keys"
 	masterKey := loadHBMasterSecret(path)
 
 	// Create the service
-	svc := NewHummingbirdKeyDerivationService(masterKey)
+	svc := hbirdconnect.NewHummingbirdKeyDerivationService(masterKey)
 
 	// Create a ResInfo
-	bw := FromKbps(1200) // 1.2 Mbps
+	bw := hbirdconnect.FromKbps(1200) // 1.2 Mbps
 	start := time.Unix(100_000, 0)
 	dur := 3600 * time.Second
 	isdAs := addr.MustParseIA("1-0000:0000:0110")
 
-	res := NewResInfo(isdAs, 2, 5, bw, start, dur)
+	res := hbirdconnect.NewResInfo(isdAs, 2, 5, bw, start, dur)
 
 	// Check ResInfo
 	err := res.Check()
