@@ -45,7 +45,7 @@ SCION components rely on a structured port allocation scheme to handle underlay 
 +-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
 | Control Plane Intra-AS                  | any        | UDP/TCP 30252   | AS-wide              | `Control Port Table <../manuals/control.html#port-table>`_                                                                        |
 +-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Control Plane Inter-AS                  | any        | Dynamic         | AS-wide              | `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_ |
+| Control Plane Inter-AS                  | any        | Dynamic         | AS-wide              | `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_   |
 +-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
 
 
