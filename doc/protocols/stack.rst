@@ -34,73 +34,77 @@ Ports Overview
 
 SCION components rely on a structured port allocation scheme to handle underlay (UDP/IP) and service communications. The following table summarizes the common default ports and their configuration scopes:
 
-+--------------------------------+----------------------------------+---------------+------------------------+
-| Description                    | Port Range                       | Default Value | Configuration Scope    |
-+================================+==================================+===============+========================+
-| UDP underlay default port / SCMP Daemon | UDP 30041               | UDP 30041         | Global / End Hosts     |
-+--------------------------------+----------------------------------+---------------+------------------------+
-| UDP underlay dispatched ports  | UDP any       | UDP 31000-32767   | AS-wide (``topology.json``) |
-+--------------------------------+----------------------------------+---------------+------------------------+
-| Router Internal Interfaces     | 30100-30199 (UDP/IP)             | 30100         | AS-wide      |
-+--------------------------------+----------------------------------+---------------+------------------------+
-| Router External Interfaces     | 31000-39999 (UDP/IP)             | 31000         | Link            |
-+--------------------------------+----------------------------------+---------------+------------------------+
-| Control Plane Intra-AS         | 40000-40099 (TCP/IP & UDP/SCION) | 40000         | AS                     |
-+--------------------------------+----------------------------------+---------------+------------------------+
-| Control Plane Inter-AS         | Dynamic (QUIC/SCION)             | Dynamic       | AS / Service           |
-+--------------------------------+----------------------------------+---------------+------------------------+
++-----------------------------------------+------------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+| Description                             | Port Range       | Default Value   | Scope                | Configured in                                                                                                                     |
++=========================================+==================+=================+======================+===================================================================================================================================+
+| UDP underlay default port / SCMP Daemon | Fixed            | UDP 30041       | Global all end-hosts | Hardcoded                                                                                                                         |
++-----------------------------------------+------------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+| UDP underlay dispatched ports           | any              | UDP 31000-32767 | AS-wide              | :doc:`topology.json <../manuals/common>`                                                                                          |
++-----------------------------------------+------------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+| Router Internal Interfaces              | any              | UDP 30100-30199 | Router-wide          | :doc:`topology.json <../manuals/common>`                                                                                           |
++-----------------------------------------+------------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+| Router External Interfaces              | any              | UDP 31000-39999 | Link                 | :doc:`topology.json <../manuals/common>`                                                                                          |
++-----------------------------------------+------------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+| Control Plane Intra-AS                  | any              | UDP/TCP 30252   | AS-wide              | `Control Port Table <../manuals/control.html#port-table>`_                                                                        |
++-----------------------------------------+------------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+| Control Plane Inter-AS                  | any              | Dynamic         | AS-wide        | `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_ |
++-----------------------------------------+------------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
 
 
-Endpoints and Port Mapping
+Traffic to End-hosts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Historically, SCION end hosts relied on a user-space "dispatcher" process listening on default port UDP 30041 to route incoming packets to the correct application socket. In the modern "dispatcherless" design (see :doc:`Router Port Dispatch <../dev/design/router-port-dispatch>`), applications open a UDP/IP underlay socket directly.
+From routers to endpoints, the SCION UDP/IP underlay generally uses the same destination port in the SCION payload also in the underlay.
 
-When a packet arrives at the destination AS, the ingress router inspects the Layer 4 UDP/SCION destination port to determine the correct underlay UDP/IP destination port for the end host.
+In the modern "dispatcherless" design (see :doc:`Router Port Dispatch <../dev/design/router-port-dispatch>`), applications open a UDP/IP underlay socket directly. To ensure that traffic goes to the correct application, the ingress router at the destination AS MUST select the underlay destination port as follows:
 
-* **Dispatched Ports**: A specific port range (e.g., ``31000-32767``) can be configured as ``dispatched_ports`` in the AS's ``topology.json``. If the calculated destination port falls within this range, the router forwards the packet directly to that underlay port on the end host.
-* **Default Fallback**: If the port falls outside the configured range, or if the system is handling legacy fallback traffic, the router forwards the packet to the default end-host data port: **30041**.
+* inspects the Layer 4 destination port from the TCP/SCION, UDP/SCION or SCMP Error payload.
+* **Dispatched Ports**: If the port falls in the dispatched ports range, forward the packet on the same UDP underlay destination port to the end host.
+* **UDP underlay default port**: If the port falls outside the configured range, or if the system is handling legacy fallback traffic* (how does the router determines that?), forwards the packet to the default end-host data port: **30041**.
+* **SCMP**: for SCMP informational messages, or if the port cannot be extracted, forward on the default end-host port **30041**.
+
+*Note that historically, SCION end hosts relied on a user-space "dispatcher" process listening on default port UDP 30041 to route incoming packets to the correct application socket (see https://docs.scion.org/en/latest/manuals/dispatcher.html ). 
+
+The SCMP Daemon (``scmpd``) MUST listen on the UDP underlay default port and process and reply to informational SCMP messages, such as echo requests (pings) and traceroutes.
+
+
+Traffic from End-hosts
+~~~~~~~~~~~~~~~~~~~~~~
+
+End-hosts send traffic to the SCION router's Internal Interface address and port. This port must be configured on endpoints via the topology.json file.
+
+STUN Support and NAT Address Discovery
+--------------------------------------
+
+End hosts located behind a Network Address Translation (NAT) device face a unique challenge: the source address they encode must be the external IP and port visible to the first-hop border router, rather than their internal local address.
+
+To resolve this, SCION incorporates a :doc:`NAT IP/port discovery mechanism <../dev/design/NAT-address-discovery>` conceptually similar to the STUN (Session Traversal Utilities for NAT) protocol, operating directly between clients and border routers. The border router acts as a detector; when the client sends a discovery request, the border router observes the NAT-mapped IP and port and reports it back to the client.
+
+The end host can then reliably inject this public, border-router-visible IP and port into the SCION source address fields of its outbound packets. This guarantees that return traffic from the remote destination can be successfully routed back through the NAT to the client.
 
 Routers
 ~~~~~~~
 
 SCION border routers utilize specific underlay ports to process and forward traffic:
 
-* **Internal Interfaces**: Used for intra-AS communication, defaulting to UDP/IP port **30100** (or the range ``30100-30199`` for multiple interfaces).
-* **External Interfaces**: Used for inter-AS links facing neighboring SCION ASes. These are typically assigned UDP/IP ports in the range **31000-39999**.
+* **Internal Interfaces**: Used for intra-AS communication between routers and with end-hosts. A range of ports can be used for multiple interfaces.
+* **External Interfaces**: Used for inter-AS links facing neighboring SCION ASes. These can be arbitrarily configured with the neighbor router.
 
 Control Plane Instances
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Control plane components require service ports for topology synchronization, beaconing, and PKI tasks:
 
-* **Intra-AS**: Control services typically communicate over TCP/IP and UDP/SCION on ports **40000-40099**.
-* **Inter-AS**: Control plane traffic across AS boundaries relies on QUIC/SCION, with the exact ports dynamically chosen by the service.
+* **Control Plane Intra-AS**: Control services typically communicate over TCP/IP and UDP/SCION on ports **40000-40099**.
+* **Control Plane Inter-AS**: Control plane traffic across AS boundaries relies on QUIC/SCION, with the exact ports dynamically chosen by the service.
 
-For a comprehensive list of default ports, refer to the `Anapaya Port Allocation documentation <https://learn.anapaya.net/docs/technical-documentation/anapaya-appliance/operations/port-allocation/>`_.
+Ports are described in https://docs.scion.org/en/latest/manuals/control.html#port-table 
 
-SCMP Processing
----------------
-
-The SCION Control Message Protocol (SCMP) handles routing errors and informational requests across the network.
-
-For informational messages like **SCMP Echo Requests (ping)** and **Traceroute Requests**, the traffic is directed to the default end-host port **30041**. A dedicated, lightweight "SCMP Daemon" (``scmpd``) running on the end host listens on this port to process and reply to these requests. This daemon will also catch malformed packets where an appropriate destination port could not be determined.
-
-For SCMP error messages generated in response to an offending UDP/SCION packet, the router parses the quoted offending packet and uses its original source port as the new underlay destination port. This ensures the error message reaches the exact application socket that originated the traffic.
-
-STUN Support and NAT Address Discovery
---------------------------------------
-
-Because SCION is path-aware, packet headers must embed a source address to which return packets can be sent. End hosts located behind a Network Address Translation (NAT) device face a unique challenge: the source address they encode must be the external IP and port visible to the first-hop border router, rather than their internal local address.
-
-To resolve this, SCION incorporates a :doc:`NAT IP/port discovery mechanism <../dev/design/NAT-address-discovery>` conceptually similar to the STUN (Session Traversal Utilities for NAT) protocol, operating directly between clients and border routers. The border router acts as a detector; when the client sends a discovery request, the border router observes the NAT-mapped IP and port and reports it back to the client.
-
-The end host can then reliably inject this public, border-router-visible IP and port into the SCION source address fields of its outbound packets. This guarantees that return traffic from the remote destination can be successfully routed back through the NAT to the client.
 
 Protocol Stack Summary
 --------------------------------------
 
-This document provides a visual summary of the SCION overall protocol stack. 
+A visual summary of the SCION overall protocol stack is below:
 
 .. figure:: fig/stack.excalidraw.png
 
