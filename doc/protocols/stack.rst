@@ -7,7 +7,7 @@ IP/UDP underlay
 Introduction
 ------------
 
-SCION strongly emphasizes the separation between inter-domain routing and intra-domain forwarding. This allows it to easily reuse existing intra-domain network fabrics to provide connectivity among SCION infrastructure services, routers, and endpoints. To maximize compatibility with current network infrastructures and avoid requiring full inter-domain forwarding tables on internal routers, most implementations encapsulate the SCION header inside a standard UDP/IPv6 or UDP/IPv4 packet. In such cases, SCION packets are enclosed within the standard IP/UDP protocol stack:
+SCION strongly emphasizes the separation between inter-domain routing and intra-domain forwarding. This allows it to easily reuse existing intra-domain network fabrics to provide connectivity among SCION infrastructure services, routers, and end-hosts. To maximize compatibility with current network infrastructures, most implementations encapsulate the SCION header inside a standard UDP/IPv6 or UDP/IPv4 packet. In such cases, SCION packets are enclosed within the standard IP/UDP protocol stack:
 
 .. code-block:: text
 
@@ -43,11 +43,6 @@ SCION components rely on a structured port allocation scheme to handle underlay 
 +-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
 | Router External Interfaces              | any        | UDP 31000-39999 | Link                 | :doc:`topology.json <../manuals/common>`                                                                                          |
 +-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Control Plane Intra-AS                  | any        | UDP/TCP 30252   | AS-wide              | `Control Port Table <../manuals/control.html#port-table>`_                                                                        |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Control Plane Inter-AS                  | any        | Dynamic         | AS-wide              | `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_   |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-
 
 Traffic to End-hosts
 ~~~~~~~~~~~~~~~~~~~~
@@ -85,18 +80,16 @@ Routers
 
 SCION border routers utilize specific underlay ports to process and forward traffic:
 
-* **Internal Interfaces**: Used for intra-AS communication between routers and with end hosts. A range of ports can be used for multiple interfaces.
-* **External Interfaces**: Used for inter-AS links facing neighboring SCION ASes. Underlay and ports can be freely configured to match the neighboring router's requirements.
+* **Internal Interfaces**: Used for intra-AS communication to receive traffic from end-hosts. Operators can choose the port freely. The same port must be configured on endpoints so that they can send outbound traffic. Routers with multiple internal interfaces can use a range of ports.
+* **External Interfaces**: Used for inter-AS links towards neighboring SCION ASes. Note that the choice of underlay protocol and UDP port is per link. It is independent from other links and intra-AS underlay. 
 
 Control Plane Instances
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Control plane components require service ports for topology synchronization, beaconing, and PKI tasks:
+Control plane components communicate  through RPC messages that are transported via Connect RPC. This protocol carries messages over HTTP/3, that uses a QUIC transport layer.  Identification of the relevant addresses and ports for inter-domain queries is provided by  `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_. 
 
-* **Control Plane Intra-AS**: Control services typically communicate over TCP/IP and UDP/SCION on ports **40000-40099**.
-* **Control Plane Inter-AS**: Control plane traffic across AS boundaries relies on QUIC/SCION, with the exact ports dynamically chosen by the service.
+For intra-domain control service instances, the operator may use arbitrary ports, that have to be communicated to endpoints. For a comprehensive list of ports used by this implementation, refer to the `Control Port Table <../manuals/control.html#port-table>`_.
 
-For a comprehensive list of ports, refer to the `Control Port Table <../manuals/control.html#port-table>`_.
 
 
 Protocol Stack Summary
@@ -106,5 +99,5 @@ A visual summary of the overall SCION protocol stack is shown below:
 
 .. figure:: fig/stack.excalidraw.png
 
-The current implementation supports an UDP/IP underlay. However, other underlay protocols (e.g., MPLS) are possible in principle.
+The current implementation supports an UDP/IP underlay. However, other underlay protocols (e.g., MPLS) can be used within an AS and for each inter-AS link.
 
