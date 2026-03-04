@@ -86,7 +86,7 @@ Routers
 SCION border routers utilize specific underlay ports to process and forward traffic:
 
 * **Internal Interfaces**: Used for intra-AS communication between routers and with end hosts. A range of ports can be used for multiple interfaces.
-* **External Interfaces**: Used for inter-AS links facing neighboring SCION ASes. These can be arbitrarily configured to match the neighboring router's requirements.
+* **External Interfaces**: Used for inter-AS links facing neighboring SCION ASes. Underlay and ports can be freely configured to match the neighboring router's requirements.
 
 Control Plane Instances
 ~~~~~~~~~~~~~~~~~~~~~~~
