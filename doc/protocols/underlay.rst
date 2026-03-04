@@ -2,7 +2,7 @@
 IP/UDP underlay
 ***************
 
-.. _stack:
+.. _underlay:
 
 Introduction
 ------------
