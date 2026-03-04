@@ -2,7 +2,7 @@
 IP/UDP underlay
 ***************
 
-.. _underlay:
+.. _stack:
 
 Introduction
 ------------
@@ -73,7 +73,7 @@ End hosts located behind a Network Address Translation (NAT) device face a uniqu
 
 To resolve this, SCION incorporates a :doc:`NAT IP/port discovery mechanism <../dev/design/NAT-address-discovery>` conceptually similar to the STUN (Session Traversal Utilities for NAT) protocol, operating directly between clients and border routers. The border router acts as a detector; when the client sends a discovery request, the border router observes the NAT-mapped IP and port and reports it back to the client.
 
-The end host can then reliably inject this public border-router-visible IP and port into the SCION source address fields of its outbound packets. This enables return traffic to traverse the NAT from the remote destination back to the client.
+The end host can then reliably inject this public, border-router-visible IP and port into the SCION source address fields of its outbound packets. This guarantees that return traffic from the remote destination can be successfully routed back through the NAT to the client.
 
 Routers
 ~~~~~~~
