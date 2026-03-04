@@ -106,4 +106,5 @@ A visual summary of the overall SCION protocol stack is shown below:
 
 .. figure:: fig/stack.excalidraw.png
 
-The current implementation supports an IP/UDP underlay. However, other underlay protocols (e.g., MPLS) are possible in principle.
+The current implementation supports an UDP/IP underlay. However, other underlay protocols (e.g., MPLS) are possible in principle.
+
