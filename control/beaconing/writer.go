@@ -474,7 +474,8 @@ func (w *GroupWriter) processSegments(
 					// the chance we will get a working signer during this run is
 					// very low.
 					w.signerLogThrottle.Do(func(suppressedCount int) {
-						logger.Error("Unable to terminate beacon due to signer generation error, breaking loop",
+						logger.Error("Unable to terminate beacon due to signer generation error,"+
+							" breaking loop",
 							"beacon", b,
 							"err", err,
 							"next_gen", signerGenError.NextGen,
