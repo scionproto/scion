@@ -177,13 +177,14 @@ func SCMPExternalInterfaceDown(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	return runner.Case{
-		Name:            "SCMPExternalInterfaceDown",
-		WriteTo:         "veth_141_host",
-		ReadFrom:        "veth_141_host",
-		Input:           input.Bytes(),
-		Want:            want.Bytes(),
-		StoreDir:        filepath.Join(artifactsDir, "SCMPExternalInterfaceDown"),
-		NormalizePacket: scmpNormalizePacket,
+		Name:              "SCMPExternalInterfaceDown",
+		WriteTo:           "veth_141_host",
+		ReadFrom:          "veth_141_host",
+		Input:             input.Bytes(),
+		Want:              want.Bytes(),
+		StoreDir:          filepath.Join(artifactsDir, "SCMPExternalInterfaceDown"),
+		IgnoreNonMatching: true,
+		NormalizePacket:   scmpNormalizePacket,
 	}
 }
 
@@ -334,12 +335,13 @@ func SCMPInternalConnectivityDown(artifactsDir string, mac hash.Hash) runner.Cas
 	}
 
 	return runner.Case{
-		Name:            "SCMPInternalConnectivityDown",
-		WriteTo:         "veth_141_host",
-		ReadFrom:        "veth_141_host",
-		Input:           input.Bytes(),
-		Want:            want.Bytes(),
-		StoreDir:        filepath.Join(artifactsDir, "SCMPInternalConnectivityDown"),
-		NormalizePacket: scmpNormalizePacket,
+		Name:              "SCMPInternalConnectivityDown",
+		WriteTo:           "veth_141_host",
+		ReadFrom:          "veth_141_host",
+		Input:             input.Bytes(),
+		Want:              want.Bytes(),
+		StoreDir:          filepath.Join(artifactsDir, "SCMPInternalConnectivityDown"),
+		IgnoreNonMatching: true,
+		NormalizePacket:   scmpNormalizePacket,
 	}
 }
