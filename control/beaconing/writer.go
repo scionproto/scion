@@ -17,6 +17,7 @@ package beaconing
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strconv"
 	"sync"
@@ -25,6 +26,7 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/control/segreg"
+	"github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -440,6 +442,9 @@ type GroupWriter struct {
 	// InternalErrors counts the errors during segment termination.
 	// If the counter is nil, errors are not counted.
 	InternalErrors metrics.Counter
+
+	signerLogThrottle    log.Throttle
+	terminateLogThrottle log.Throttle
 }
 
 var _ Writer = (*GroupWriter)(nil)
@@ -455,7 +460,7 @@ func (w *GroupWriter) processSegments(
 	processed := make(beacon.GroupedBeacons, len(beacons))
 	for group, beacons := range beacons {
 		processedGroup := make([]beacon.Beacon, 0, len(beacons))
-		for _, b := range beacons {
+		for i, b := range beacons {
 			// If the beacon does not have a valid interface ID, skip it.
 			if w.Intfs != nil && w.Intfs.Get(b.InIfID) == nil {
 				continue
@@ -463,8 +468,31 @@ func (w *GroupWriter) processSegments(
 			// Try to terminate the segment if an extender is configured.
 			if w.Extender != nil {
 				err := w.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
+				var signerGenError trust.SignerGenError
+				if errors.As(err, &signerGenError) {
+					// In case of a signer generation error, we can break the loop,
+					// the chance we will get a working signer during this run is
+					// very low.
+					w.signerLogThrottle.Do(func(suppressedCount int) {
+						logger.Error("Unable to terminate beacon due to signer generation error, breaking loop",
+							"beacon", b,
+							"err", err,
+							"next_gen", signerGenError.NextGen,
+						)
+					})
+					// Keep old behavior regarding metrics:
+					metrics.CounterAdd(w.InternalErrors, float64(len(beacons)-i))
+					break
+				}
 				if err != nil {
-					logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
+					// Throttle error logging here.
+					w.terminateLogThrottle.Do(func(suppressedCount int) {
+						logger.Error("Unable to terminate beacon",
+							"beacon", b,
+							"err", err,
+							"suppressed", suppressedCount,
+						)
+					})
 					metrics.CounterInc(w.InternalErrors)
 					continue
 				}
