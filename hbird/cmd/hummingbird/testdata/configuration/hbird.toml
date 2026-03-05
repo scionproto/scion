@@ -10,6 +10,7 @@ stacktrace_level = 'none'
 
 [hummingbird]
 reservation_duration = '5s'
+trust_db_path = '/run/cs-1.trust.db'
 min_bandwidth = 100
 max_bandwidth = 100000
 min_cost = 1

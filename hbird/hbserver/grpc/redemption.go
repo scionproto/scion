@@ -4,12 +4,11 @@ import (
 	"context"
 	"math"
 
-	"github.com/golang/protobuf/ptypes/empty"
-
 	hb "github.com/scionproto/scion/hbird"
 	hbirdconnect "github.com/scionproto/scion/hbird/hbserver/connect"
 	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
 	"github.com/scionproto/scion/private/topology"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -32,7 +31,7 @@ func (H HBirdServer) Redeem(ctx context.Context, requests *hbirdv1.RedemptionReq
 	panic("implement me")
 }
 
-func (H HBirdServer) Status(ctx context.Context, empty *empty.Empty) (*hbirdv1.StatusResponse, error) {
+func (H HBirdServer) Status(ctx context.Context, empty *emptypb.Empty) (*hbirdv1.StatusResponse, error) {
 	res := &hbirdv1.StatusResponse{Version: 0}
 	return res, nil
 }

@@ -24,11 +24,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -36,14 +38,24 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/scionproto/scion/hbird/hbserver/connect"
+	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/private/config"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	hbconfig "github.com/scionproto/scion/hbird/config"
+	hbirdconnect "github.com/scionproto/scion/hbird/hbserver/connect"
 	"github.com/scionproto/scion/pkg/addr"
 	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
 	hbirdv1connect "github.com/scionproto/scion/pkg/proto/hbird/v1/hbirdconnect"
-	"github.com/scionproto/scion/private/config"
 )
+
+const (
+	configurationDirName     = "configuration"
+	testdataConfigurationDir = "testdata/" + configurationDirName
+)
+
+var update = xtest.UpdateGoldenFiles()
 
 func TestBwToWireFormatConversion(t *testing.T) {
 	testCases := []struct {
@@ -65,40 +77,16 @@ func TestBwToWireFormatConversion(t *testing.T) {
 		{7247757312, 0x396},
 		{2885681152, 0x36b},
 	}
-	BwToWireFormat(t, testCases)
-	BwFromWireFormat(t, testCases)
-}
 
-func BwToWireFormat(t *testing.T, testCases []struct {
-	kbps       uint64
-	wireFormat uint16
-}) {
 	for _, tc := range testCases {
 		got, err := connect.FromKbps(tc.kbps).ToWireFormat()
-		if err != nil {
-			t.Fatalf("FromKbps(%d).ToWireFormat() failed: %v", tc.kbps, err)
-		}
-		if got != tc.wireFormat {
-			t.Errorf("FromKbps(%d).ToWireFormat() = 0x%x; want 0x%x",
-				tc.kbps, got, tc.wireFormat)
-		}
-	}
-}
+		require.NoError(t, err)
+		require.Equal(t, tc.wireFormat, got)
 
-func BwFromWireFormat(t *testing.T, testCases []struct {
-	kbps       uint64
-	wireFormat uint16
-}) {
-	for _, tc := range testCases {
 		gotBW, err := connect.FromWireFormat(tc.wireFormat)
-		if err != nil {
-			t.Fatalf("FromWireFormat(0x%x) failed: %v", tc.wireFormat, err)
-		}
+		require.NoError(t, err)
 		expected := connect.FromKbps(tc.kbps)
-		if gotBW != expected {
-			t.Errorf("FromWireFormat(0x%x) = %v kbps; want %v kbps",
-				tc.wireFormat, gotBW.AsKbps(), expected.AsKbps())
-		}
+		require.Equal(t, expected, gotBW)
 	}
 }
 
@@ -119,8 +107,10 @@ func TestResIDBoundCheck(t *testing.T) {
 	for _, tc := range testCases {
 		r := connect.ResInfo{}
 		r, err := r.WithResID(tc.resID)
-		if tc.valid != (err == nil) {
-			t.Errorf("WithResID(0x%x) got %v; want %v", tc.resID, err == nil, tc.valid)
+		if tc.valid {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
 		}
 	}
 }
@@ -138,50 +128,51 @@ func TestBandwidthEncodingOverflow(t *testing.T) {
 	for _, tc := range testCases {
 		bandwidth := connect.FromKbps(tc.bw)
 		wf, err := bandwidth.ToWireFormat()
-		if tc.valid != (err == nil) {
-			t.Errorf("Bandwidth overflow not handled for %v, got valid %v; want %v",
-				tc.bw, err == nil, tc.valid)
-		}
-		if err != nil {
+		if !tc.valid {
+			require.Error(t, err)
 			_, err = connect.FromWireFormat(1<<16 - 1)
-			if err == nil {
-				t.Errorf("Bandwidth wireformat overflow not handled for %v,"+
-					" got valid %v; want %v", tc.bw, err == nil, tc.valid)
-			}
+			require.Error(t, err)
 			// Catch invalid BW in Ak computation
-			masterKey, _ := base64.StdEncoding.DecodeString(dummy_keys_master0)
+			masterKey, err := base64.StdEncoding.DecodeString(dummy_keys_master0)
+			require.NoError(t, err)
 			_, err = connect.ComputeAuthenticationKey(connect.ResInfo{
 				Bandwidth: connect.FromKbps(tc.bw)},
 				([16]byte)(masterKey))
-			if err == nil {
-				t.Errorf("Bandwidth overflow not handled by ComputeAuthenticationKey for %v,"+
-					" got valid %v; want %v", tc.bw, err == nil, tc.valid)
-			}
+			require.Error(t, err)
 			continue
 		}
+		require.NoError(t, err)
 		// convert back
 		bandwidth2, err := connect.FromWireFormat(wf)
-		if err != nil {
-			t.Errorf("Bandwidth conversion from wire format not handled: %v", err)
-		} else if bandwidth != bandwidth2 {
-			t.Errorf("Bandwidth conversion from wire format incorrect, got %v; want %v",
-				bandwidth2, bandwidth)
-		}
+		require.NoError(t, err)
+		require.Equal(t, bandwidth, bandwidth2)
 	}
-	return
 }
 
 func TestSampleConfig(t *testing.T) {
-	_ = chdirSrvRoot()
-	err := setupTestConfig()
-	if err != nil {
-		t.Fatalf("hummingbird config test setupTestConfig() failed: %v", err)
+	generatedRoot := t.TempDir()
+	generatedDir := filepath.Join(generatedRoot, configurationDirName)
+	require.NoError(t, os.MkdirAll(generatedDir, 0o744))
+	files := map[string](func(*testing.T, string, string)){
+		"hbird.toml":              writeHbird,
+		"topology.json":           writeTopo,
+		"dummy_keys/master0.key":  writeDummyKey,
+		"dummy_keys/master1.key":  writeDummyKey,
+		"dummy_keys2/master0.key": writeDummyKey2,
+		"dummy_keys2/master1.key": writeDummyKey2,
 	}
+	for name, wFun := range files {
+		path := filepath.Join(generatedDir, name)
+		wFun(t, path, generatedDir)
+	}
+	if *update {
+		copyDir(t, generatedDir, testdataConfigurationDir)
+	}
+	compareDirs(t, testdataConfigurationDir, generatedDir)
 }
 
 func TestAuthKeyComputation(t *testing.T) {
-	_ = chdirSrvRoot()
-	path := ".test_config/dummy_keys2"
+	path := filepath.Join(testdataConfigurationDir, "dummy_keys2")
 	masterKey := loadHBMasterSecret(path)
 
 	// Create the service
@@ -197,21 +188,15 @@ func TestAuthKeyComputation(t *testing.T) {
 
 	// Check ResInfo
 	err := res.Check()
-	if err != nil {
-		t.Fatalf("res.Check() failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Compute ResID
 	res, err = res.WithResID(0x123) // in range for 22 bits
-	if err != nil {
-		t.Fatalf("res.WithResID(0x123) failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Compute A_k authentication key
 	completeReservation, err := svc.AssignAuthenticationKey(res)
-	if err != nil {
-		t.Fatalf("svc.AssignAuthenticationKey(res) failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	expectedAk := []byte{0x32, 0x1e, 0xcb, 0x05, 0x69, 0xaf, 0x49, 0x2f, 0x58, 0x4b, 0x59, 0xc6,
 		0x60, 0x4f, 0x78, 0xe2}
@@ -233,21 +218,13 @@ func TestRedemption(t *testing.T) {
 
 func TestClientEncryption(t *testing.T) {
 	authenticationKey, err := base64.StdEncoding.DecodeString(testAuthKey)
-	if err != nil {
-		t.Fatalf("loading Ak failed: %v", err)
-	}
+	require.NoError(t, err)
 	clientKey, err := base64.StdEncoding.DecodeString(testClientPublicKey)
-	if err != nil {
-		t.Fatalf("loading clientKey failed: %v", err)
-	}
+	require.NoError(t, err)
 	encryptedAk, err := connect.ClientEncrypt(clientKey, authenticationKey)
-	if err != nil {
-		t.Fatalf("clientEncrypt(Ak) failed: %v", err)
-	}
+	require.NoError(t, err)
 	decryptedAk, err := _clientDecryptTesting(encryptedAk)
-	if err != nil {
-		t.Fatalf("_clientDecryptTesting failed: %v", err)
-	}
+	require.NoError(t, err)
 	if !bytes.Equal(authenticationKey, decryptedAk) {
 		t.Errorf("_clientDecryptTesting(clientEncrypt(Ak)) = %v ; want %v ",
 			decryptedAk, authenticationKey)
@@ -268,41 +245,71 @@ func _clientDecryptTesting(cipher []byte) (plaintext []byte, err error) {
 }
 
 func TestExample(t *testing.T) {
-	ExampleHbirdAuthKeyDerivation()
+	path := filepath.Join(testdataConfigurationDir, "dummy_keys")
+	masterKey := loadHBMasterSecret(path)
+
+	// Create the service
+	svc := hbirdconnect.NewHummingbirdKeyDerivationService(masterKey)
+
+	// Create a ResInfo
+	bw := hbirdconnect.FromKbps(1200) // 1.2 Mbps
+	start := time.Unix(100_000, 0)
+	dur := 3600 * time.Second
+	isdAs := addr.MustParseIA("1-0000:0000:0110")
+
+	res := hbirdconnect.NewResInfo(isdAs, 2, 5, bw, start, dur)
+
+	// Check ResInfo
+	err := res.Check()
+
+	// Set ResID
+	res, err = res.WithResID(0x123) // in range for 22 bits
+	if err != nil {
+		panic(err)
+	}
+
+	// Compute A_k authentication key
+	completeReservation, err := svc.AssignAuthenticationKey(res)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Derived auth key: %x\n", completeReservation.AuthenticationKey)
+	fmt.Printf("Time x bandwidth product: %d kb\n",
+		completeReservation.ResInfo.TimeBandwidthProductKb())
 }
 
 func TestLocalServerClientIntegration(t *testing.T) {
-	err := chdirSrvRoot()
-	if err != nil {
-		t.Fatalf("failed to initialize test config dir: %v", err)
-	}
-	if err := config.LoadFile("./.test_config/hbird.toml", &globalCfg); err != nil {
-		fmt.Println(err)
-	}
+	withWorkDir(t, "testdata")
+	err := config.LoadFile(filepath.Join(configurationDirName, "hbird.toml"), &globalCfg)
+	require.NoError(t, err)
+	globalCfg.HB.TrustDBPath = filepath.Join(t.TempDir(), "cs-1.trust.db")
 	done := make(chan struct{}, 1)
-	var ctx context.Context
-	var srvCancel context.CancelFunc
+	serverErr := make(chan error, 1)
+	ctx, srvCancel := context.WithCancel(context.Background())
 	// Run server
 	go func() {
-		ctx, srvCancel = context.WithCancel(context.Background())
 		err := realMain(ctx)
 		if err != nil && err != http.ErrServerClosed {
-			t.Fatalf("hummingbird service realMain() failed: %v", err)
+			serverErr <- fmt.Errorf("hummingbird service realMain() failed: %w", err)
+			return
 		}
 		fmt.Println("Server canceled.")
 		<-done
 		fmt.Println("Server terminated.")
-		return
 	}()
 	time.Sleep(2 * time.Second)
+	select {
+	case err := <-serverErr:
+		t.Fatal(err)
+	default:
+	}
 	// Client queries here:
 
 	// Status
 	fmt.Println("Checking status")
 	err = checkStatus()
-	if err != nil {
-		t.Fatalf("client status request failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Redeem
 	fmt.Printf("\nChecking redemption\n\n")
@@ -324,9 +331,7 @@ func TestLocalServerClientIntegration(t *testing.T) {
 	}
 	marshaler := protojson.MarshalOptions{UseProtoNames: true}
 	jsonRedemptionReq, err := marshaler.Marshal(rreqs)
-	if err != nil {
-		t.Fatalf("RedemptionRequest encoding failed: %v", err)
-	}
+	require.NoError(t, err)
 	reqBody := bytes.NewBuffer(jsonRedemptionReq)
 
 	if strings.Replace(reqBody.String(), " ", "", -1) != testRedemptionBodyStr {
@@ -335,9 +340,7 @@ func TestLocalServerClientIntegration(t *testing.T) {
 	}
 
 	resp, err := sendRedeem(reqBody.String())
-	if err != nil {
-		t.Fatalf("client redeem request failed: %v", err)
-	}
+	require.NoError(t, err)
 	rresp := &hbirdv1.RedemptionResponses{
 		Reservation: []*hbirdv1.Reservation{
 			&hbirdv1.Reservation{
@@ -347,12 +350,10 @@ func TestLocalServerClientIntegration(t *testing.T) {
 			},
 		},
 	}
-	protojson.Unmarshal(resp, rresp)
+	err = protojson.Unmarshal(resp, rresp)
+	require.NoError(t, err)
 	decryptedAuthKey, err := _clientDecryptTesting(rresp.Reservation[0].AuthKey)
-	if err != nil {
-		t.Fatalf("RedemptionRequest AuthenticationKey does not decrypt"+
-			" under client key: %v", err)
-	}
+	require.NoError(t, err)
 	if base64.StdEncoding.EncodeToString(decryptedAuthKey) != testAuthKey {
 		t.Fatalf("RedemptionRequest unexptected AuthenticationKey in response: got %v;want %v",
 			resp, testRedemptionResp)
@@ -369,10 +370,7 @@ func TestLocalServerClientIntegration(t *testing.T) {
 	}
 	masterKey, _ := base64.StdEncoding.DecodeString(dummy_keys_master0)
 	recomputedAk, err := checkResInfo(resInfo, ([16]byte)(masterKey))
-	if err != nil {
-		t.Fatalf("Recomputing auth key for reservation info failed: %v",
-			err)
-	}
+	require.NoError(t, err)
 	if !bytes.Equal(recomputedAk[:], decryptedAuthKey) {
 		t.Fatalf("RedemptionRequest reservation info does not match auth key: got %v;want %v",
 			recomputedAk, decryptedAuthKey)
@@ -382,25 +380,23 @@ func TestLocalServerClientIntegration(t *testing.T) {
 	// Check invalid client key
 	rreqs.ClientKey = []byte{0}
 	jsonRedemptionReq, err = marshaler.Marshal(rreqs)
-	if err != nil {
-		t.Fatalf("RedemptionRequest encoding failed: %v", err)
-	}
+	require.NoError(t, err)
 	reqBody = bytes.NewBuffer(jsonRedemptionReq)
 	resp, err = sendRedeem(reqBody.String())
-	if err == nil {
-		t.Fatalf("client redeem succeeded with invalid client key: %v", err)
-	}
+	require.Error(t, err, "client redeem succeeded with invalid client key")
 
 	// Check not implemented
 	fmt.Printf("\nChecking not implemented\n")
 	err = checkNotImplementedProcedure()
-	if err == nil || !strings.HasSuffix(err.Error(), fmt.Sprint(http.StatusNotFound)) {
+	require.Error(t, err, "missing procedure should fail")
+	if !strings.HasSuffix(err.Error(), fmt.Sprint(http.StatusNotFound)) {
 		t.Fatalf("Client request to missing procedure did not return "+
 			"expected error : %v; want %v", err, http.StatusNotFound)
 	}
 	fmt.Printf("\nChecking wrong endpoint\n")
 	err = checkNotImplementedEndpoint()
-	if err == nil || !strings.HasSuffix(err.Error(), fmt.Sprint(http.StatusNotFound)) {
+	require.Error(t, err, "missing endpoint should fail")
+	if !strings.HasSuffix(err.Error(), fmt.Sprint(http.StatusNotFound)) {
 		t.Fatalf("Client request to missing endpoint did not return "+
 			"expected error : %v; want %v", err, http.StatusNotFound)
 	}
@@ -417,7 +413,8 @@ func TestLocalServerClientIntegration(t *testing.T) {
 	err = checkStatus()
 	var urlError *url.Error
 	var syscallError *os.SyscallError
-	if !(err != nil && errors.As(err, &urlError) &&
+	require.Error(t, err, "querying status after shutdown should fail")
+	if !(errors.As(err, &urlError) &&
 		errors.As(err, &syscallError) && syscallError.Err == syscall.ECONNREFUSED) {
 		t.Fatalf("Client request to shudown server did not return "+
 			"expected error : %v; want %v", syscallError.Err, syscall.ECONNREFUSED)
@@ -503,74 +500,98 @@ func mustParseDuration(i uint64) time.Duration {
 	return duration
 }
 
-func setupTestConfig() error {
-	currentDir, _ := os.Getwd()
-	testConfigDir := filepath.Join(currentDir, ".test_config")
-	if _, err := os.Stat(testConfigDir); err != nil {
-		err = os.Mkdir(testConfigDir, 0744)
-		if err != nil {
-			return err
-		}
-	}
-
-	files := map[string](func(string, string) error){
-		"hbird.toml":              writeHbird,
-		"topology.json":           writeTopo,
-		"dummy_keys/master0.key":  writeDummyKey,
-		"dummy_keys/master1.key":  writeDummyKey,
-		"dummy_keys2/master0.key": writeDummyKey2,
-		"dummy_keys2/master1.key": writeDummyKey2,
-	}
-	for name, wFun := range files {
-		path := filepath.Join(testConfigDir, name)
-		if _, err := os.Stat(path); err != nil {
-			err = wFun(path, testConfigDir)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+func withWorkDir(t *testing.T, dir string) {
+	t.Helper()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(dir))
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
 }
 
-func writeHbird(path, testConfigDir string) error {
-	cfg, err := generateHBSampleConfig()
-	if err != nil {
-		return err
+func copyDir(t *testing.T, src, dst string) {
+	err := os.RemoveAll(dst)
+	require.NoError(t, err)
+	err = os.MkdirAll(dst, 0o755)
+	require.NoError(t, err)
+	err = filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		require.NoError(t, err)
+		rel, err := filepath.Rel(src, path)
+		require.NoError(t, err)
+		if rel == "." {
+			return nil
+		}
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		return os.WriteFile(target, data, 0o644)
+	})
+	require.NoError(t, err)
+}
+
+func compareDirs(t *testing.T, expected, actual string) {
+	expectedFiles := readDirFiles(t, expected)
+	actualFiles := readDirFiles(t, actual)
+	require.Equal(t, expectedFiles, actualFiles)
+	for _, rel := range expectedFiles {
+		expectedContent, err := os.ReadFile(filepath.Join(expected, rel))
+		require.NoError(t, err)
+		actualContent, err := os.ReadFile(filepath.Join(actual, rel))
+		require.NoError(t, err)
+		require.Equal(t, expectedContent, actualContent)
 	}
+}
+
+func readDirFiles(t *testing.T, root string) []string {
+	var files []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		require.NoError(t, err)
+		if d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		require.NoError(t, err)
+		files = append(files, rel)
+		return nil
+	})
+	require.NoError(t, err)
+	sort.Strings(files)
+	return files
+}
+
+func writeHbird(t *testing.T, path, testConfigDir string) {
+	cfg := generateHBSampleConfig(t)
 	// update config for tests
 	cfg.Logging.Console.Level = "debug"
-	cfg.General.ConfigDir = testConfigDir
+	cfg.General.ConfigDir = configurationDirName
 
 	// write out HB config
 	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
+	require.NoError(t, err)
 	defer f.Close()
 	var sample bytes.Buffer
 	err = toml.NewEncoder(&sample).Encode(cfg)
-	if err != nil {
-		return err
-	}
+	require.NoError(t, err)
 	_, err = f.Write(sample.Bytes())
-	return err
+	require.NoError(t, err)
 }
 
-func writeTopo(path, _ string) error {
+func writeTopo(t *testing.T, path, _ string) {
 	// write out topo file
 	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
+	require.NoError(t, err)
 	defer f.Close()
 	var b bytes.Buffer
 	b.WriteString(sampleTopology)
 	_, err = f.Write(b.Bytes())
-	return err
+	require.NoError(t, err)
 }
 
-func writeDummyKey(path, testConfigDir string) error {
+func writeDummyKey(t *testing.T, path, testConfigDir string) {
 	dummyKeysDir := filepath.Join(testConfigDir, "dummy_keys")
 	var payload string
 	if strings.HasSuffix(path, "master0.key") {
@@ -579,10 +600,10 @@ func writeDummyKey(path, testConfigDir string) error {
 	if strings.HasSuffix(path, "master1.key") {
 		payload = dummy_keys_master1
 	}
-	return writeDummyKeys(path, dummyKeysDir, payload)
+	writeDummyKeys(t, path, dummyKeysDir, payload)
 }
 
-func writeDummyKey2(path, testConfigDir string) error {
+func writeDummyKey2(t *testing.T, path, testConfigDir string) {
 	dummyKeysDir := filepath.Join(testConfigDir, "dummy_keys2")
 	var payload string
 	if strings.HasSuffix(path, "master0.key") {
@@ -591,30 +612,26 @@ func writeDummyKey2(path, testConfigDir string) error {
 	if strings.HasSuffix(path, "master1.key") {
 		payload = dummy_keys2_master1
 	}
-	return writeDummyKeys(path, dummyKeysDir, payload)
+	writeDummyKeys(t, path, dummyKeysDir, payload)
+
 }
 
-func writeDummyKeys(path, dummyKeysDir, payload string) error {
+func writeDummyKeys(t *testing.T, path, dummyKeysDir, payload string) {
 	if _, err := os.Stat(dummyKeysDir); err != nil {
 		err = os.Mkdir(dummyKeysDir, 0744)
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
 	}
 	// write out dummy key
 	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
+	require.NoError(t, err)
 	defer f.Close()
 	var b bytes.Buffer
 	b.WriteString(payload)
 	_, err = f.Write(b.Bytes())
-
-	return err
+	require.NoError(t, err)
 }
 
-func generateHBSampleConfig() (hbconfig.Config, error) {
+func generateHBSampleConfig(t *testing.T) hbconfig.Config {
 	var sample bytes.Buffer
 	var sampleCfg hbconfig.Config
 	cfg := &sampleCfg
@@ -622,25 +639,8 @@ func generateHBSampleConfig() (hbconfig.Config, error) {
 	cfg.Sample(&sample, nil, nil)
 
 	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).DisallowUnknownFields().Decode(&cfg)
-	return sampleCfg, err
-}
-
-func chdirSrvRoot() error {
-	currentDir, _ := os.Getwd()
-	if !strings.HasSuffix(currentDir, "/hbird") || strings.Contains(currentDir, "/cmd/hummingbird") {
-		err := os.Chdir(filepath.Dir(filepath.Dir(currentDir)))
-		if err != nil {
-			return err
-		}
-		currentDir, err = os.Getwd()
-		if err != nil {
-			return err
-		}
-		if _, err = os.Stat(currentDir); err != nil {
-			return err
-		}
-	}
-	return nil
+	require.NoError(t, err)
+	return sampleCfg
 }
 
 const testRedemptionBodyStr = "{\"redemption\":[{\"red_info\":" +

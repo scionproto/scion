@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"crypto/x509"
-	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
@@ -46,12 +45,13 @@ import (
 	//libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+
 	//"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app"
 	//infraenv "github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/topology"
 	//"github.com/scionproto/scion/private/trust"
-	"github.com/scionproto/scion/pkg/addr"
+
 	"github.com/scionproto/scion/private/app/launcher"
 	"github.com/scionproto/scion/private/keyconf"
 
@@ -66,7 +66,8 @@ var globalCfg config.Config
 
 const (
 	// Server constants
-	serverPort = 30258
+	serverPort     = 30258
+	defaultTrustDB = "/run/cs-1.trust.db"
 )
 
 func loadHBMasterSecret(path string) (masterKey [16]byte) {
@@ -77,6 +78,13 @@ func loadHBMasterSecret(path string) (masterKey [16]byte) {
 	}
 	copy(masterKey[:], masterKeys.Key0[0:16])
 	return
+}
+
+func trustDBPath() string {
+	if globalCfg.HB.TrustDBPath != "" {
+		return globalCfg.HB.TrustDBPath
+	}
+	return defaultTrustDB
 }
 
 func main() {
@@ -108,7 +116,7 @@ func realMain(ctx context.Context) error {
 		return topo.Run(errCtx)
 	})
 
-	trustDB, err := storage.NewTrustStorage(storage.DBConfig{Connection: "/run/cs-1.trust.db"})
+	trustDB, err := storage.NewTrustStorage(storage.DBConfig{Connection: trustDBPath()})
 	if err != nil {
 		return serrors.Wrap("initializing trust storage", err)
 	}
@@ -169,17 +177,20 @@ func realMain(ctx context.Context) error {
 	svc := hbirdconnect.NewHummingbirdKeyDerivationService(masterKey)
 	icm := hb.NewIntervalColorMap(10)
 	hbs := &hbirdgrpc.HBirdServer{Topo: topo, HbService: svc, Icm: icm}
+	connectSrv := &hbirdconnect.HBirdServer{Topo: topo, HbService: svc, Icm: icm}
 
 	hbirdv1.RegisterHBirdServiceServer(quicServer, hbs)
 	connectInter.Handle(
-		hbirdv1connect.NewHBirdServiceHandler(&hbirdconnect.HBirdServer{
-			HbService: svc,
-		}, connect.WithInterceptors(validate.NewInterceptor())),
+		hbirdv1connect.NewHBirdServiceHandler(
+			connectSrv,
+			connect.WithInterceptors(validate.NewInterceptor()),
+		),
 	)
 	connectIntra.Handle(
-		hbirdv1connect.NewHBirdServiceHandler(&hbirdconnect.HBirdServer{
-			HbService: svc,
-		}, connect.WithInterceptors(validate.NewInterceptor())),
+		hbirdv1connect.NewHBirdServiceHandler(
+			connectSrv,
+			connect.WithInterceptors(validate.NewInterceptor()),
+		),
 	)
 
 	var cleanup app.Cleanup
@@ -257,42 +268,4 @@ func realMain(ctx context.Context) error {
 	})
 
 	return g.Wait()
-}
-
-// ExampleHbirdAuthKeyDerivation provides a small usage example for the
-// Hummingbird authentication key derivation service
-func ExampleHbirdAuthKeyDerivation() {
-	//_ = chdirSrvRoot()
-	path := ".test_config/dummy_keys"
-	masterKey := loadHBMasterSecret(path)
-
-	// Create the service
-	svc := hbirdconnect.NewHummingbirdKeyDerivationService(masterKey)
-
-	// Create a ResInfo
-	bw := hbirdconnect.FromKbps(1200) // 1.2 Mbps
-	start := time.Unix(100_000, 0)
-	dur := 3600 * time.Second
-	isdAs := addr.MustParseIA("1-0000:0000:0110")
-
-	res := hbirdconnect.NewResInfo(isdAs, 2, 5, bw, start, dur)
-
-	// Check ResInfo
-	err := res.Check()
-
-	// Set ResID
-	res, err = res.WithResID(0x123) // in range for 22 bits
-	if err != nil {
-		panic(err)
-	}
-
-	// Compute A_k authentication key
-	completeReservation, err := svc.AssignAuthenticationKey(res)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Derived auth key: %x\n", completeReservation.AuthenticationKey)
-	fmt.Printf("Time x bandwidth product: %d kb\n",
-		completeReservation.ResInfo.TimeBandwidthProductKb())
 }

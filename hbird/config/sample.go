@@ -20,6 +20,8 @@ const idSample = "hb-1"
 const hbSample = `
 # The duration XXX. (default 5s)
 reservation_duration = "5s"
+# Path to the trust DB used by hummingbird. (default: "/run/cs-1.trust.db")
+trust_db_path = "/run/cs-1.trust.db"
 # The minimum bandwidth per hummingbird allocation. (default: 100)
 min_bandwidth = 100
 # The maximum bandwidth per hummingbird allocation. (default: 100000)

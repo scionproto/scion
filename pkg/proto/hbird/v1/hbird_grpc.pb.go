@@ -8,10 +8,10 @@ package hbirdv1
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -31,7 +31,7 @@ type HBirdServiceClient interface {
 	// Redeem redeems the flyovers using the asset tokens.
 	Redeem(ctx context.Context, in *RedemptionRequests, opts ...grpc.CallOption) (*RedemptionResponses, error)
 	// Status gets the status of the Hbird service
-	Status(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StatusResponse, error)
+	Status(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StatusResponse, error)
 }
 
 type hBirdServiceClient struct {
@@ -51,7 +51,7 @@ func (c *hBirdServiceClient) Redeem(ctx context.Context, in *RedemptionRequests,
 	return out, nil
 }
 
-func (c *hBirdServiceClient) Status(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StatusResponse, error) {
+func (c *hBirdServiceClient) Status(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StatusResponse, error) {
 	out := new(StatusResponse)
 	err := c.cc.Invoke(ctx, HBirdService_Status_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -67,7 +67,7 @@ type HBirdServiceServer interface {
 	// Redeem redeems the flyovers using the asset tokens.
 	Redeem(context.Context, *RedemptionRequests) (*RedemptionResponses, error)
 	// Status gets the status of the Hbird service
-	Status(context.Context, *empty.Empty) (*StatusResponse, error)
+	Status(context.Context, *emptypb.Empty) (*StatusResponse, error)
 	mustEmbedUnimplementedHBirdServiceServer()
 }
 
@@ -78,7 +78,7 @@ type UnimplementedHBirdServiceServer struct {
 func (UnimplementedHBirdServiceServer) Redeem(context.Context, *RedemptionRequests) (*RedemptionResponses, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Redeem not implemented")
 }
-func (UnimplementedHBirdServiceServer) Status(context.Context, *empty.Empty) (*StatusResponse, error) {
+func (UnimplementedHBirdServiceServer) Status(context.Context, *emptypb.Empty) (*StatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
 }
 func (UnimplementedHBirdServiceServer) mustEmbedUnimplementedHBirdServiceServer() {}
@@ -113,7 +113,7 @@ func _HBirdService_Redeem_Handler(srv interface{}, ctx context.Context, dec func
 }
 
 func _HBirdService_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func _HBirdService_Status_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: HBirdService_Status_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HBirdServiceServer).Status(ctx, req.(*empty.Empty))
+		return srv.(HBirdServiceServer).Status(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }

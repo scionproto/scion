@@ -79,6 +79,8 @@ var _ config.Config = (*HBConfig)(nil)
 type HBConfig struct {
 	// DefaultReservationDuration is the duration of a hummingbird reservation.
 	ReservationDuration util.DurWrap `toml:"reservation_duration,omitempty"`
+	// TrustDBPath is the path to the trust sqlite DB used by the service.
+	TrustDBPath string `toml:"trust_db_path,omitempty"`
 	MinBandwidth        int          `toml:"min_bandwidth,omitempty"`
 	MaxBandwidth        int          `toml:"max_bandwidth,omitempty"`
 	MinCost             int          `toml:"min_cost,omitempty"`

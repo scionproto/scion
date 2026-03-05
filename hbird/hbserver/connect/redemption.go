@@ -65,7 +65,7 @@ func (s *HBirdServer) redeem(_ context.Context,
 ) (*hbirdv1.RedemptionResponses,
 	error) {
 
-	log.Debug("Redeem request message:", req.Msg)
+	log.Debug("Redeem request message", "request", req.Msg)
 	isdAs := s.Topo.IA()
 	clientKey := req.Msg.ClientKey
 

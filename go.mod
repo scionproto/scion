@@ -16,7 +16,6 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/golang/mock v1.7.0-rc.1
-	github.com/golang/protobuf v1.5.4
 	github.com/google/go-cmp v0.7.0
 	github.com/gopacket/gopacket v1.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
