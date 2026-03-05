@@ -17,6 +17,7 @@ go_library(
         "parent_to_internal.go",
         "peer_to_child.go",
         "scmp.go",
+        "scmp_conn_down.go",
         "scmp_dest_unreachable.go",
         "scmp_expired_hop.go",
         "scmp_invalid_hop.go",
