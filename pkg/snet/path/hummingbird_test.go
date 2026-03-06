@@ -152,6 +152,25 @@ func TestFlyoversForPath(t *testing.T) {
 	require.EqualValues(t, expectedFlyovers, flyovers)
 }
 
+func TestSupportsHumm(t *testing.T) {
+	example := `
+	{
+			"hummingbird-v0": {
+					"supported": true,
+					"min-cost": 102,
+					"min-bw": 14,
+					"max-bw": 14,
+					"markets": {
+							"market1": "https://example.com/api/v0/info",
+							"market2": "https://www.example.net/info",
+							"brokerA": "https://example.org/api/v0/exchange"
+					}
+			}
+	}`
+	got := path.SupportsHumm(example)
+	require.True(t, got)
+}
+
 // createHummingbirdPath creates a valid Hummingbird path between 111 and 112 from the tiny topo.
 // This path contains no flyovers.
 func createHummingbirdPath(iniTime time.Time) *dphumm.Decoded {
