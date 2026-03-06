@@ -7,6 +7,7 @@ go_library(
         "empty.go",
         "epic.go",
         "hummingbird.go",
+        "hummingbird_redemption.go",
         "onehop.go",
         "path.go",
         "scion.go",
