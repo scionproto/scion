@@ -1,3 +1,17 @@
+// Copyright 2026 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
@@ -12,7 +26,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	emptypb "github.com/golang/protobuf/ptypes/empty"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	libconnect "github.com/scionproto/scion/pkg/connect"
@@ -24,10 +37,12 @@ import (
 	"github.com/scionproto/scion/private/svc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/connect/happy"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
+
 	//slog "github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/squic"
