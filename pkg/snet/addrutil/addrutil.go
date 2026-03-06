@@ -188,12 +188,9 @@ func ExtractDestinationServiceAddress(a addr.SVC, path snet.Path) net.Addr {
 	}
 }
 
-// ExtractDstSvcUdpAddr extracts the destination service UDP address
-// from the provided path. If the path contains discovery information, it will
-// use a random available control or discovery service address based on the
-// provided service type (addr.SvcCS or addr.SvcDS). If no discovery information
-// is available, it will return a SVC address with the destination IA and the
-// path's underlay next hop.
+// ExtractDstSvcUdpAddr attempts to extract service UDP address
+// from the provided path metadata and reports whether the extraction was successful.
+// If successful one of the available addresses is selected at random.
 // The caller must ensure that the path is not nil.
 func ExtractDstSvcUdpAddr(a addr.SVC, path snet.Path) (net.UDPAddr, bool) {
 	if path == nil {
