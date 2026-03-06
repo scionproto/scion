@@ -171,7 +171,34 @@ func ExtractDestinationServiceAddress(a addr.SVC, path snet.Path) net.Addr {
 	if path == nil {
 		panic("path is nil")
 	}
+	if udpAddr, ok := ExtractDstSvcUdpAddr(a, path); ok {
+		return &snet.UDPAddr{
+			IA:      path.Destination(),
+			Path:    path.Dataplane(),
+			NextHop: path.UnderlayNextHop(),
+			Host:    &udpAddr,
+		}
+	}
 
+	return &snet.SVCAddr{
+		IA:      path.Destination(),
+		Path:    path.Dataplane(),
+		NextHop: path.UnderlayNextHop(),
+		SVC:     a,
+	}
+}
+
+// ExtractDstSvcUdpAddr extracts the destination service UDP address
+// from the provided path. If the path contains discovery information, it will
+// use a random available control or discovery service address based on the
+// provided service type (addr.SvcCS or addr.SvcDS). If no discovery information
+// is available, it will return a SVC address with the destination IA and the
+// path's underlay next hop.
+// The caller must ensure that the path is not nil.
+func ExtractDstSvcUdpAddr(a addr.SVC, path snet.Path) (net.UDPAddr, bool) {
+	if path == nil {
+		panic("path is nil")
+	}
 	destination := path.Destination()
 	if metadata := path.Metadata(); metadata != nil {
 		disco, hasDiscoveryInfo := metadata.DiscoveryInformation[destination]
@@ -179,35 +206,12 @@ func ExtractDestinationServiceAddress(a addr.SVC, path snet.Path) net.Addr {
 		case a == addr.SvcCS && hasDiscoveryInfo && len(disco.ControlServices) > 0:
 			// Use any control service if available
 			cs := disco.ControlServices[rand.IntN(len(disco.ControlServices))]
-			ret := &snet.UDPAddr{
-				IA:      destination,
-				Path:    path.Dataplane(),
-				NextHop: path.UnderlayNextHop(),
-				Host: &net.UDPAddr{
-					IP:   cs.Addr().AsSlice(),
-					Port: int(cs.Port()),
-				},
-			}
-			return ret
+			return net.UDPAddr{IP: cs.Addr().AsSlice(), Port: int(cs.Port())}, true
 		case a == addr.SvcDS && hasDiscoveryInfo && len(disco.DiscoveryServices) > 0:
 			// Use any discovery service if available
 			ds := disco.DiscoveryServices[rand.IntN(len(disco.DiscoveryServices))]
-			ret := &snet.UDPAddr{
-				IA:      destination,
-				Path:    path.Dataplane(),
-				NextHop: path.UnderlayNextHop(),
-				Host: &net.UDPAddr{
-					IP:   ds.Addr().AsSlice(),
-					Port: int(ds.Port()),
-				},
-			}
-			return ret
+			return net.UDPAddr{IP: ds.Addr().AsSlice(), Port: int(ds.Port())}, true
 		}
 	}
-	return &snet.SVCAddr{
-		IA:      destination,
-		Path:    path.Dataplane(),
-		NextHop: path.UnderlayNextHop(),
-		SVC:     a,
-	}
+	return net.UDPAddr{}, false
 }

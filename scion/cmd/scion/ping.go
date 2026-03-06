@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/app/path"
 	"github.com/scionproto/scion/private/path/pathpol"
+	"github.com/scionproto/scion/private/svc"
 	"github.com/scionproto/scion/private/tracing"
 	"github.com/scionproto/scion/scion/ping"
 )
@@ -99,6 +100,10 @@ func newPing(pather CommandPather) *cobra.Command {
 		Long: fmt.Sprintf(`'ping' test connectivity to a remote SCION host using SCMP echo packets.
 Use 'scion address' on the remote SCION host to determine the ISD-AS and pingable IP address.
 
+You can also ping SCION control plane services in the remote AS by using the SVC address of the
+service, e.g., '1-ff00:0:110,CS' to ping a control service (the first resolved address).
+In this case, ping will first perform SVC resolution to determine the service IP address.
+
 When the \--count option is set, ping sends the specified number of SCMP echo packets
 and reports back the statistics.
 
@@ -139,7 +144,7 @@ On other errors, ping will exit with code 2.
 
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
-			span.SetTag("dst.host", remote.Host.IP())
+			span.SetTag("dst.host", remote.Host)
 			defer span.Finish()
 
 			sd, err := daemon.NewAutoConnector(traceCtx,
@@ -205,15 +210,67 @@ On other errors, ping will exit with code 2.
 
 			// Resolve local IP based on underlay next hop
 			if localIP == nil {
-				target := remote.Host.IP().AsSlice()
+				var target net.IP
 				if nextHop != nil {
 					target = nextHop.IP
+				} else {
+					if remote.Host.Type() != addr.HostTypeIP {
+						return serrors.New(
+							"cannot resolve local address: remote host is not an IP address and " +
+								"no underlay next hop is available",
+						)
+					}
+					target = remote.Host.IP().AsSlice()
 				}
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.Wrap("resolving local address", err)
 				}
 				printf("Resolved local address:\n  %s\n", localIP)
 			}
+
+			// Resolve remote Addr if it's an SVC address
+
+			if remote.Host.Type() == addr.HostTypeSVC {
+				if udpAddr, ok := addrutil.ExtractDstSvcUdpAddr(remote.Host.SVC(), path); ok {
+					_ = remote.Host.Set(udpAddr.IP.String())
+					fmt.Printf("Resolved remote SVC address from path:\n  %s\n", remote.Host)
+				} else {
+					var resolver = svc.Resolver{
+						Network: &snet.SCIONNetwork{
+							Topology: topo,
+						},
+						LocalIA: topo.LocalIA,
+						LocalIP: localIP,
+					}
+					reply, err := resolver.LookupSVC(traceCtx, path, remote.Host.SVC())
+					if err != nil {
+						return serrors.Wrap("resolving remote SVC address", err)
+					}
+					var remoteIP net.IP
+					for _, addrString := range reply.Transports {
+						host, _, err := net.SplitHostPort(addrString)
+						if err != nil {
+							continue
+						}
+						parsedIP := net.ParseIP(host)
+						if parsedIP == nil {
+							continue
+						}
+						remoteIP = parsedIP
+						break
+					}
+					if remoteIP == nil {
+						return serrors.New(
+							"no valid ip address found in SVC resolution reply",
+						)
+					}
+					if err := remote.Host.Set(remoteIP.String()); err != nil {
+						return serrors.Wrap("setting resolved remote IP", err)
+					}
+					fmt.Printf("Resolved remote SVC address:\n  %s\n", remote.Host)
+				}
+			}
+
 			printf("Using path:\n  %s\n\n", path)
 			span.SetTag("src.host", localIP)
 			asNetipAddr, ok := netip.AddrFromSlice(localIP)
@@ -305,7 +362,7 @@ On other errors, ping will exit with code 2.
 						State:    update.State.String(),
 					})
 					printf("%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
-						update.Size, update.Source.IA, update.Source.Host.IP(), update.Sequence,
+						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
 						durationMillis(update.RTT), additional)
 				},
 			})
@@ -317,7 +374,7 @@ On other errors, ping will exit with code 2.
 			switch flags.format {
 			case "human":
 				s := res.Statistics.Stats
-				printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP())
+				printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host)
 				printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
 					s.Sent, s.Received, res.Statistics.Loss,
 					res.Statistics.Time,
