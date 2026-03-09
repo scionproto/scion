@@ -53,10 +53,10 @@ In the modern "dispatcherless" design (see :doc:`Router Port Dispatch <../dev/de
 
 * **Dispatched Ports**: If the port falls within the configured dispatched ports range, the router forwards the packet to the end host using that same port as the UDP underlay destination port.
 * **UDP underlay default port**: If the port falls outside the configured range, or if the system is handling legacy fallback traffic (i.e., traffic from older clients that do not support dynamic port mapping), the router forwards the packet to the default end-host data port: **30041**.
-* **SCMP**: 
+* **SCMP**:
 
-  * For SCMP informational request messages, the router forwards the packet to the default end-host port: **30041**. 
-  * For SCMP informational response messages, the router extracts the destination port from the identifier field of the SCMP message, subject to dispatched port settings and the default underlay port. 
+  * For SCMP informational request messages, the router forwards the packet to the default end-host port: **30041**.
+  * For SCMP informational response messages, the router extracts the destination port from the identifier field of the SCMP message, subject to dispatched port settings and the default underlay port.
   * For SCMP error messages, the router tries to extract the end-host port and sends the packet to the endhost, subject to dispatched port settings and the default underlay port. If the port cannot be extracted, the packet is dropped.
 
 .. note::
@@ -85,23 +85,11 @@ Routers
 SCION border routers utilize specific underlay ports to process and forward traffic:
 
 * **Internal Interfaces**: Used for intra-AS communication to receive traffic from end-hosts. Operators can choose the port freely. The same port must be configured on endpoints so that they can send outbound traffic. Routers with multiple internal interfaces can use a range of ports.
-* **External Interfaces**: Used for inter-AS links towards neighboring SCION ASes. Note that the choice of underlay protocol and UDP port is per link. It is independent from other links and intra-AS underlay. 
+* **External Interfaces**: Used for inter-AS links towards neighboring SCION ASes. Note that the choice of underlay protocol and UDP port is per link. It is independent from other links and intra-AS underlay.
 
 Control Plane Instances
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Control plane components of different ASes communicate with each other through RPC messages that are transported via Connect RPC. This protocol carries messages over HTTP/3, that uses a QUIC transport layer.  Identification of the relevant addresses and ports for inter-domain queries is provided by  `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_. 
+Control plane components of different ASes communicate with each other through RPC messages that are transported via Connect RPC. This protocol carries messages over HTTP/3, that uses a QUIC transport layer.  Identification of the relevant addresses and ports for inter-domain queries is provided by  `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_.
 
 For intra-domain communication of endpoints with service instances, the operator may use arbitrary ports, that have to be communicated to endpoints. For a comprehensive list of ports used by this implementation, refer to the `Control Port Table <../manuals/control.html#port-table>`_.
-
-
-
-Protocol Stack Summary
-----------------------
-
-A visual summary of the overall SCION protocol stack is shown below:
-
-.. figure:: fig/stack.excalidraw.png
-
-The current implementation supports an UDP/IP underlay. However, other underlay protocols (e.g., MPLS) can be used within an AS and for each inter-AS link.
-
