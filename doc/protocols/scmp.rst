@@ -451,6 +451,10 @@ SCMP Informational Messages
 
 .. _echo-request:
 
+Informational messages have an Identifier field.
+Implementations SHOULD set the Identifier to the source port of the sending
+application to enable proper demultiplexing of replies by the router.
+
 Echo Request
 ------------
 
@@ -473,7 +477,7 @@ Echo Request
 +--------------+---------------------------------------------------------------+
 | Code         | 0                                                             |
 +--------------+---------------------------------------------------------------+
-| Source Port  | The 16-bit source port of the request                         |
+| Identifier   | A 16-bit identifier to aid matching replies with requests     |
 +--------------+---------------------------------------------------------------+
 | Sequence Nr. | A 16-bit sequence number to aid matching replies with requests|
 +--------------+---------------------------------------------------------------+
@@ -507,7 +511,7 @@ Echo Reply
 +--------------+---------------------------------------------------------------+
 | Code         | 0                                                             |
 +--------------+---------------------------------------------------------------+
-| Source Port  | The 16-bit source port of the request                         |
+| Identifier   | The identifier of the Echo Request                            |
 +--------------+---------------------------------------------------------------+
 | Sequence Nr. | The sequence number of the Echo Request                       |
 +--------------+---------------------------------------------------------------+
@@ -550,7 +554,7 @@ Traceroute Request
 +--------------+---------------------------------------------------------------+
 | Code         | 0                                                             |
 +--------------+---------------------------------------------------------------+
-| Source Port  | The 16-bit source port of the request                         |
+| Identifier   | A 16-bit identifier to aid matching replies with requests     |
 +--------------+---------------------------------------------------------------+
 | Sequence Nr. | A 16-bit sequence number to aid matching replies with request |
 +--------------+---------------------------------------------------------------+
@@ -595,7 +599,7 @@ Traceroute Reply
 +--------------+----------------------------------------------------------------+
 | Code         | 0                                                              |
 +--------------+----------------------------------------------------------------+
-| Source Port  | The 16-bit source port of the request                          |
+| Identifier   | The identifier set in the Traceroute Request                   |
 +--------------+----------------------------------------------------------------+
 | Sequence Nr. | The sequence number of the Traceroute Request                  |
 +--------------+----------------------------------------------------------------+
