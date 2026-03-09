@@ -53,7 +53,11 @@ In the modern "dispatcherless" design (see :doc:`Router Port Dispatch <../dev/de
 
 * **Dispatched Ports**: If the port falls within the configured dispatched ports range, the router forwards the packet to the end host using that same port as the UDP underlay destination port.
 * **UDP underlay default port**: If the port falls outside the configured range, or if the system is handling legacy fallback traffic (i.e., traffic from older clients that do not support dynamic port mapping), the router forwards the packet to the default end-host data port: **30041**.
-* **SCMP**: For SCMP informational messages, the router forwards the packet to the default end-host port: **30041**. For SCMP error messages, the router tries to extract the end-host port and sends the packet to the endhost, subject to dispatched port settings and the default underlay port. If the port cannot be extracted, the packet is dropped.
+* **SCMP**: 
+
+  * For SCMP informational request messages, the router forwards the packet to the default end-host port: **30041**. 
+  * For SCMP informational response messages, the router extracts the destination port from the identifier field of the SCMP message, subject to dispatched port settings and the default underlay port. 
+  * For SCMP error messages, the router tries to extract the end-host port and sends the packet to the endhost, subject to dispatched port settings and the default underlay port. If the port cannot be extracted, the packet is dropped.
 
 .. note::
    Historically, SCION end hosts relied on a user-space "dispatcher" process listening on the default port UDP 30041 to route incoming packets to the correct application socket. For more details, see the :doc:`Dispatcher Manual <../manuals/dispatcher>`.
