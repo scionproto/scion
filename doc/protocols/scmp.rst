@@ -473,7 +473,7 @@ Echo Request
 +--------------+---------------------------------------------------------------+
 | Code         | 0                                                             |
 +--------------+---------------------------------------------------------------+
-| Identifier   | A 16-bit identifier to aid matching replies with requests     |
+| Source Port  | The 16-bit source port of the request                         |
 +--------------+---------------------------------------------------------------+
 | Sequence Nr. | A 16-bit sequence number to aid matching replies with requests|
 +--------------+---------------------------------------------------------------+
@@ -507,7 +507,7 @@ Echo Reply
 +--------------+---------------------------------------------------------------+
 | Code         | 0                                                             |
 +--------------+---------------------------------------------------------------+
-| Identifier   | The identifier of the Echo Request                            |
+| Source Port  | The 16-bit source port of the request                         |
 +--------------+---------------------------------------------------------------+
 | Sequence Nr. | The sequence number of the Echo Request                       |
 +--------------+---------------------------------------------------------------+
@@ -550,7 +550,7 @@ Traceroute Request
 +--------------+---------------------------------------------------------------+
 | Code         | 0                                                             |
 +--------------+---------------------------------------------------------------+
-| Identifier   | A 16-bit identifier to aid matching replies with requests     |
+| Source Port  | The 16-bit source port of the request                         |
 +--------------+---------------------------------------------------------------+
 | Sequence Nr. | A 16-bit sequence number to aid matching replies with request |
 +--------------+---------------------------------------------------------------+
@@ -595,7 +595,7 @@ Traceroute Reply
 +--------------+----------------------------------------------------------------+
 | Code         | 0                                                              |
 +--------------+----------------------------------------------------------------+
-| Identifier   | The identifier set in the Traceroute Request                   |
+| Source Port  | The 16-bit source port of the request                          |
 +--------------+----------------------------------------------------------------+
 | Sequence Nr. | The sequence number of the Traceroute Request                  |
 +--------------+----------------------------------------------------------------+
