@@ -449,6 +449,9 @@ func (c *client) configureRemotePath(path snet.Path) error {
 }
 
 func (c *client) buildReservation(path snet.Path, now time.Time) (*snetpath.Reservation, error) {
+	returnNow := func() time.Time {
+		return now
+	}
 	baseHops := snetpath.InterfacesToBaseHops(path.Metadata().Interfaces)
 	flyovers := make([]*snetpath.FlyoverData, 0, len(baseHops))
 	startTime := uint32(now.Add(hummStartOffset).Unix())
@@ -491,7 +494,7 @@ func (c *client) buildReservation(path snet.Path, now time.Time) (*snetpath.Rese
 		})
 	}
 	return snetpath.NewReservation(
-		snetpath.WithNow(now),
+		snetpath.WithNow(returnNow),
 		snetpath.WithScionPath(path, snetpath.FlyoversToMap(flyovers)),
 	)
 }

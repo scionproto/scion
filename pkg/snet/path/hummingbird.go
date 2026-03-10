@@ -34,12 +34,12 @@ import (
 // was computed using the correct payload size.
 // This path represents a possibly partially reserved path, with zero or more flyovers.
 type Reservation struct {
-	DstIA    addr.IA            // Destination IA of the path.
-	Dec      *dphum.Decoded     // The Hummingbird path.
-	metadata *snet.PathMetadata // Set at construction time.
-	Hops     []*FlyoverData     // Same length as `Dec`. Hops[i]==nil iff no flyover at i.
-	Now      time.Time          // The current time.
-	MinBW    uint16             // The minimum required bandwidth for the flyovers.
+	Now        func() time.Time   // The current time.
+	DstIA      addr.IA            // Destination IA of the path.
+	Dec        *dphum.Decoded     // The Hummingbird path.
+	metadata   *snet.PathMetadata // Set at construction time.
+	Hops       []*FlyoverData     // Same length as `Dec`. Hops[i]==nil iff no flyover at i.
+	redemption RedemptionConfig
 
 	counter uint32 // duplicate detection counter
 }
@@ -50,8 +50,9 @@ var _ snet.DataplanePath = (*Reservation)(nil)
 // options passed.
 func NewReservation(opts ...ReservationModFcn) (*Reservation, error) {
 	r := &Reservation{
-		Now: time.Now(),
-		Dec: &dphum.Decoded{},
+		Now:        time.Now,
+		Dec:        &dphum.Decoded{},
+		redemption: newFlyoverRedemptionConfig(0, 0, nil),
 	}
 	// Run all options on this object.
 	for _, fcn := range opts {
@@ -69,20 +70,24 @@ func NewReservation(opts ...ReservationModFcn) (*Reservation, error) {
 		return nil, serrors.New("unset destination IA")
 	}
 
+	if r.metadata == nil {
+		return nil, serrors.New("missing path metadata")
+	}
+
 	return r, nil
 }
 
 // SetPath sets the path into the passed-by-pointer scion headers.
 // When called, the scion layer has its fields (e.g. payload length, src IA, etc.) already set up.
 func (r Reservation) SetPath(s *slayers.SCION) error {
-	dec := r.DeriveDataPlanePath(s.PayloadLen, r.Now)
+	dec := r.deriveDataPlanePath(s.PayloadLen, r.Now())
 	s.Path, s.PathType = dec, dec.Type()
 	return nil
 }
 
 // DeriveDataPlanePath sets pathmeta timestamps and increments duplicate detection counter and
 // updates MACs of all flyoverfields.
-func (r Reservation) DeriveDataPlanePath(
+func (r Reservation) deriveDataPlanePath(
 	pktLen uint16,
 	timeStamp time.Time,
 ) *dphum.Decoded {
@@ -129,18 +134,9 @@ type ReservationModFcn func(*Reservation) error
 
 // WithNow modifies the current point in time for this reservation. It is useful to filter
 // the different flyovers that can be passed to WithScionPath.
-func WithNow(now time.Time) ReservationModFcn {
+func WithNow(now func() time.Time) ReservationModFcn {
 	return func(r *Reservation) error {
 		r.Now = now
-		return nil
-	}
-}
-
-// WithMinBW modifies the minimum bandwidth required when filtering flyovers at the time of
-// reservation creation.
-func WithMinBW(bw uint16) ReservationModFcn {
-	return func(r *Reservation) error {
-		r.MinBW = bw
 		return nil
 	}
 }
@@ -322,7 +318,7 @@ func InterfacesToBaseHops(ifaces []snet.PathInterface) []BaseHop {
 
 // GetFlyoversForPath returns a FlyoverMap with all returned flyovers for the given path.
 // Compatibility wrapper: keeps the old mocked behavior.
-// TODO remove this temporary function and modify tests.
+// deleteme! TODO remove this temporary function and modify tests.
 func GetFlyoversForPath(p snet.Path, startTime uint32) (FlyoverMap, error) {
 	interfaces := p.Metadata().Interfaces
 	if len(interfaces) == 0 {

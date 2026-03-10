@@ -35,18 +35,15 @@ import (
 
 func TestNewWithNow(t *testing.T) {
 	const referenceEpochTime uint32 = 123456
-	r, err := path.NewReservation(path.WithNow(util.SecsToTime(referenceEpochTime)),
-		path.WithDstIA(addr.MustParseIA("1-ff00:0:112")))
+	r, err := path.NewReservation(
+		path.WithNow(func() time.Time {
+			return util.SecsToTime(referenceEpochTime)
+		}),
+		path.WithDstIA(addr.MustParseIA("1-ff00:0:112")),
+		path.WithMetadata(&snet.PathMetadata{}), // Skip metadata errors in this test.
+	)
 	require.NoError(t, err)
-	require.Equal(t, referenceEpochTime, util.TimeToSecs(r.Now))
-}
-
-func TestNewWithMinBW(t *testing.T) {
-	const referenceBw uint16 = 42
-	r, err := path.NewReservation(path.WithMinBW(referenceBw),
-		path.WithDstIA(addr.MustParseIA("1-ff00:0:112")))
-	require.NoError(t, err)
-	require.Equal(t, referenceBw, r.MinBW)
+	require.Equal(t, referenceEpochTime, util.TimeToSecs(r.Now()))
 }
 
 // TestInterfacesToBaseHops checks that the InterfacesToBaseHops function correctly maps the
@@ -74,8 +71,7 @@ func TestSetFlyover(t *testing.T) {
 	r := path.Reservation{
 		DstIA: addr.MustParseIA("1-ff00:0:112"),
 		Dec:   createHummingbirdPath(referenceTime),
-		Now:   referenceTime,
-		MinBW: 1,
+		Now:   func() time.Time { return referenceTime },
 	}
 	r.Hops = make([]*path.FlyoverData, len(r.Dec.HopFields))
 	// There are 4 hops in the path:
