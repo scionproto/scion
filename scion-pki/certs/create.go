@@ -538,7 +538,12 @@ func parseCertificate(raw []byte) (*x509.Certificate, error) {
 	return nil, serrors.New("no certificate found")
 }
 
-func CreateCSR(certType cppki.CertType, subject pkix.Name, priv key.PrivateKey, opts ...Option) ([]byte, error) {
+func CreateCSR(
+	certType cppki.CertType,
+	subject pkix.Name,
+	priv key.PrivateKey,
+	opts ...Option,
+) ([]byte, error) {
 	skid, err := subjectKeyID(priv.Public())
 	if err != nil {
 		return nil, err
@@ -662,7 +667,10 @@ func CreateCertificate(params CertParams, opts ...Option) ([]byte, error) {
 		tmpl.ExtKeyUsage = append(slices.Clone(tmpl.ExtKeyUsage), x509.ExtKeyUsageAny)
 	}
 	if len(o.UnknownExtKeyUsage) > 0 {
-		tmpl.UnknownExtKeyUsage = append(slices.Clone(tmpl.UnknownExtKeyUsage), o.UnknownExtKeyUsage...)
+		tmpl.UnknownExtKeyUsage = append(
+			slices.Clone(tmpl.UnknownExtKeyUsage),
+			o.UnknownExtKeyUsage...,
+		)
 	}
 
 	cert, err := x509.CreateCertificate(
