@@ -20,7 +20,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/netip"
 	"os"
 	"strings"
 	"time"
@@ -30,11 +29,10 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/daemon/types"
 	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
 	"github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/app/flag"
-	"github.com/scionproto/scion/private/svc"
+	"github.com/scionproto/scion/private/app/path"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -46,8 +44,6 @@ import (
 	//slog "github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/squic"
-	"github.com/scionproto/scion/private/app"
-	"github.com/scionproto/scion/private/topology"
 
 	//hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
 	hbirdv1connect "github.com/scionproto/scion/pkg/proto/hbird/v1/hbirdconnect"
@@ -97,6 +93,7 @@ func main() {
 		}
 		log.Println("Status response:", res.Msg.Version)
 	}
+
 	if remoteAS != "" {
 		testSCION(remoteAS, rpcType)
 	}
@@ -104,53 +101,57 @@ func main() {
 
 func testSCION(remoteAS, rpcType string) {
 	ctx := context.Background()
-	topo, err := topology.NewLoader(topology.LoaderCfg{
-		File:   "/etc/scion/topology.json",
-		Reload: app.SIGHUPChannel(ctx),
-	})
+
+	// topo, err := topology.NewLoader(topology.LoaderCfg{
+	// 	File:   "/etc/scion/topology.json",
+	// 	Reload: app.SIGHUPChannel(ctx),
+	// })
+	// if err != nil {
+	// 	fmt.Println("Error creating topology loader", err)
+	// 	return
+	// }
+
+	var envFlags flag.SCIONEnvironment
+	err := envFlags.LoadExternalVars()
 	if err != nil {
-		fmt.Println("Error creating topology loader", err)
+		fmt.Printf("loading external variables: %s\n", err)
+	}
+	daemonAddr := envFlags.Daemon()
+	fmt.Printf("scion daemon at %s\n", daemonAddr)
+	sd, err := daemon.NewService(daemonAddr).Connect(ctx)
+	if err != nil {
+		fmt.Println("connecting to SCION Daemon", err)
+		return
+	}
+	defer sd.Close()
+
+	localIA, err := sd.LocalIA(ctx)
+	if err != nil {
+		fmt.Printf("getting local IA: %s\n", err)
+	}
+	fmt.Printf("local IA = %s\n", localIA)
+
+	topo, err := daemon.LoadTopology(ctx, sd)
+	if err != nil {
+		fmt.Printf("loading topology: %s\n", err)
 		return
 	}
 
 	clientNet := &snet.SCIONNetwork{
-		Topology: func(topo *topology.Loader) snet.Topology {
-			start, end := topo.PortRange()
-			return snet.Topology{
-				LocalIA: topo.IA(),
-				PortRange: snet.TopologyPortRange{
-					Start: start,
-					End:   end,
-				},
-				Interface: func(ifID uint16) (netip.AddrPort, bool) {
-					a := topo.UnderlayNextHop(ifID)
-					if a == nil {
-						return netip.AddrPort{}, false
-					}
-					return a.AddrPort(), true
-				},
-			}
-		}(topo),
+		Topology: topo,
 	}
 	clientAddr := &net.UDPAddr{
 		IP: net.IPv4(127, 0, 0, 1),
 	}
-	rewriter := &appnet.AddressRewriter{
-		Router: &snet.BaseRouter{
-			Querier: appnet.IntraASPathQuerier{
-				IA:  topo.IA(),
-				MTU: topo.MTU()}},
-		SVCRouter: topo,
-		Resolver: &svc.Resolver{
-			LocalIA: topo.IA(),
-			Network: &snet.SCIONNetwork{
-				Topology:    clientNet.Topology,
-				SCMPHandler: nil,
-			},
-			LocalIP: clientAddr.IP,
-		},
-	}
+
+	rewriter := passThroughRewriter{}
+
 	client, err := clientNet.Listen(ctx, "udp", clientAddr)
+	if err != nil {
+		fmt.Println("Error creating SCION client socket", err)
+		return
+	}
+	defer client.Close()
 	ephemeralTLSConfig, err := appnet.GenerateTLSConfig()
 	if err != nil {
 		fmt.Println("Error generating TLS config", err)
@@ -200,55 +201,21 @@ func testSCION(remoteAS, rpcType string) {
 	}
 	fmt.Printf("Redemption server at %s\n", destSAddr.String())
 
-	var envFlags flag.SCIONEnvironment
-	err = envFlags.LoadExternalVars()
-	if err != nil {
-		fmt.Printf("loading external variables: %s\n", err)
+	opts := []path.Option{
+		// //path.WithRefresh(true),
+		// path.WithSequence("0* 71-1916#3 0*"),
+		// /*path.WithProbing(&path.ProbeConfig{
+		// 	LocalIA: topo.IA(),
+		// 	LocalIP: clientAddr.IP,
+		// }),*/
 	}
-	daemonAddr := envFlags.Daemon()
-	fmt.Printf("scion daemon at %s\n", daemonAddr)
-	sd, err := daemon.NewService(daemonAddr).Connect(ctx)
+
+	path, err := path.Choose(ctx, sd, destSAddr.IA, opts...)
 	if err != nil {
-		fmt.Println("connecting to SCION Daemon", err)
+		fmt.Printf("choosing paths: %s\n", err)
 		return
 	}
-	defer sd.Close()
-
-	localIA, err := sd.LocalIA(ctx)
-	if err != nil {
-		fmt.Printf("getting local IA: %s\n", err)
-	}
-	fmt.Printf("local IA = %s\n", localIA)
-
-	paths, err := sd.Paths(ctx, destSAddr.IA, localIA, types.PathReqFlags{})
-	if err != nil {
-		fmt.Printf("cannot get paths: %s\n", err)
-		return
-	}
-	if len(paths) == 0 {
-		fmt.Println("no path is available")
-		return
-	}
-	fmt.Printf("# paths found: %d\n", len(paths))
-	path := paths[0]
-
-	// opts := []path.Option{
-	// 	path.WithInteractive(false),
-	// 	//path.WithRefresh(true),
-	// 	path.WithSequence("0* 71-1916#3 0*"),
-	// 	/*path.WithProbing(&path.ProbeConfig{
-	// 		LocalIA: topo.IA(),
-	// 		LocalIP: clientAddr.IP,
-	// 	}),*/
-	// }
-
-	// path, err := path.Choose(context.TODO(), sd, destSAddr.IA, opts...)
-	// if err != nil {
-	// 	// fmt.Println(err)
-	// 	fmt.Printf("choosing paths: %s\n", err)
-	// 	return
-	// }
-	//fmt.Println("control plane path:", path)
+	fmt.Println("control plane path:", path)
 	destSAddr.Path = path.Dataplane()
 	destSAddr.NextHop = path.UnderlayNextHop()
 	// fmt.Println("dataplane path:", destSAddr.Path)
@@ -336,8 +303,11 @@ type RPC interface {
 	Status(ctx context.Context, req emptypb.Empty, dst net.Addr) (hbirdv1.StatusResponse, error)
 }
 
-func (f *Requester) Status(ctx context.Context, req emptypb.Empty,
-	server net.Addr) (hbirdv1.StatusResponse, error) {
+func (f *Requester) Status(
+	ctx context.Context,
+	req emptypb.Empty,
+	server net.Addr,
+) (hbirdv1.StatusResponse, error) {
 
 	hconfig := happy.Config{}
 	// specifically use only one rpc method for testing
@@ -366,4 +336,10 @@ func (f *Requester) Status(ctx context.Context, req emptypb.Empty,
 		hconfig,
 	)
 	return resp, err
+}
+
+type passThroughRewriter struct{}
+
+func (passThroughRewriter) RedirectToQUIC(_ context.Context, address net.Addr) (net.Addr, error) {
+	return address, nil
 }
