@@ -110,6 +110,8 @@ Options
       --common-name string   The common name that replaces the common name in the subject template
       --csr                  Generate a certificate signing request instead of a certificate
       --curve string         The elliptic curve to use (P-256|P-384|P-521) (default "P-256")
+      --eku strings          Additionally add extended key usages (ASN1 Object Identifier)
+      --eku-any              Additionally add ExtKeyUsageAny
       --force                Force overwriting existing files
   -h, --help                 help for create
       --key string           The path to the existing private key to use instead of creating a new one
