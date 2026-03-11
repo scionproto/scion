@@ -58,6 +58,7 @@ go_test(
         "//pkg/proto/hbird/v1:go_default_library",
         "//pkg/proto/hbird/v1/hbirdconnect:go_default_library",
         "//private/config:go_default_library",
+        "//private/topology:go_default_library",
         "@com_github_pelletier_go_toml_v2//:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
         "@org_golang_google_protobuf//encoding/protojson:go_default_library",

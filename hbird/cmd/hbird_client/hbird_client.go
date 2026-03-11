@@ -20,6 +20,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"strings"
 	"time"
@@ -48,6 +49,8 @@ import (
 	//hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
 	hbirdv1connect "github.com/scionproto/scion/pkg/proto/hbird/v1/hbirdconnect"
 )
+
+const RedemptionPort = 30258
 
 func main() {
 	os.Setenv("QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING", "true")
@@ -81,7 +84,7 @@ func main() {
 	if !skipIP {
 		client := hbirdv1connect.NewHBirdServiceClient(
 			http.DefaultClient,
-			"http://localhost:30258",
+			fmt.Sprintf("http://localhost:%d", RedemptionPort),
 		)
 		res, err := client.Status(
 			context.Background(),
@@ -192,15 +195,6 @@ func testSCION(remoteAS, rpcType string) {
 		},
 	}
 
-	destAddr := clientAddr
-	destAddr.Port = 30258
-	var destSAddr *snet.UDPAddr
-	destSAddr, err = snet.ParseUDPAddr(remoteAS + "," + destAddr.String())
-	if err != nil {
-		fmt.Println("Error parsing destination address", err)
-	}
-	fmt.Printf("Redemption server at %s\n", destSAddr.String())
-
 	opts := []path.Option{
 		// //path.WithRefresh(true),
 		// path.WithSequence("0* 71-1916#3 0*"),
@@ -209,13 +203,31 @@ func testSCION(remoteAS, rpcType string) {
 		// 	LocalIP: clientAddr.IP,
 		// }),*/
 	}
-
-	path, err := path.Choose(ctx, sd, destSAddr.IA, opts...)
+	dstIA, err := addr.ParseIA(remoteAS)
+	if err != nil {
+		fmt.Printf("parsing the remote IA \"%s\": %s\n", remoteAS, err)
+	}
+	path, err := path.Choose(ctx, sd, dstIA, opts...)
 	if err != nil {
 		fmt.Printf("choosing paths: %s\n", err)
 		return
 	}
 	fmt.Println("control plane path:", path)
+
+	// IP address of the CS in the dstIA.
+	ipAddr, err := findCsIpAddr(path, dstIA)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	// Change its port to that of the redemption server.
+	ipAddr = netip.AddrPortFrom(ipAddr.Addr(), RedemptionPort)
+	destSAddr, err := snet.ParseUDPAddr(remoteAS + "," + ipAddr.String())
+	if err != nil {
+		fmt.Println("Error parsing destination address", err)
+	}
+
+	fmt.Printf("Redemption server at %s\n", destSAddr.String())
 	destSAddr.Path = path.Dataplane()
 	destSAddr.NextHop = path.UnderlayNextHop()
 	// fmt.Println("dataplane path:", destSAddr.Path)
@@ -338,6 +350,20 @@ func (f *Requester) Status(
 	return resp, err
 }
 
+// findCsIpAddr finds the IP address of the CS inside the dstIA, using discovery information of
+// the meta-information of the path.
+func findCsIpAddr(p snet.Path, dstIA addr.IA) (netip.AddrPort, error) {
+	v, ok := p.Metadata().DiscoveryInformation[dstIA]
+	if !ok {
+		return netip.AddrPort{}, fmt.Errorf("no discovery information found for IA %s", dstIA)
+	}
+	if len(v.ControlServices) == 0 {
+		return netip.AddrPort{}, fmt.Errorf("no control service discovery info for IA %s", dstIA)
+	}
+	return v.ControlServices[0], nil
+}
+
+// passThroughRewriter is a noop rewriter, just returns the same address it was passed.
 type passThroughRewriter struct{}
 
 func (passThroughRewriter) RedirectToQUIC(_ context.Context, address net.Addr) (net.Addr, error) {
