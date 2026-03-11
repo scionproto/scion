@@ -27,6 +27,7 @@ from topology.util import write_file
 from topology.common import (
     ArgsTopoDicts,
     DISP_CONFIG_NAME,
+    HBIRD_CONFIG_NAME,
     SD_CONFIG_NAME,
 )
 
@@ -67,6 +68,7 @@ class SupervisorGenerator(object):
         entries = []
         entries.extend(self._br_entries(topo, "bin/router", base))
         entries.extend(self._control_service_entries(topo, base))
+        entries.extend(self._hummingbird_entries(topo_id, topo, base))
         entries.append(self._sciond_entry(topo_id, base))
         return entries
 
@@ -96,6 +98,18 @@ class SupervisorGenerator(object):
             os.path.join(conf_dir, SD_CONFIG_NAME)
         ]
         return (sd_name, self._common_entry(sd_name, cmd_args))
+
+    def _hummingbird_entries(self, topo_id, topo, base):
+        entries = []
+        if not topo.get("control_service", {}):
+            return entries
+        name = "hbird%s" % topo_id.file_fmt()
+        cmd_args = [
+            "bin/hummingbird", "--config",
+            os.path.join(base, HBIRD_CONFIG_NAME),
+        ]
+        entries.append((name, self._common_entry(name, cmd_args)))
+        return entries
 
     def _add_dispatcher(self, config):
         name, entry = self._dispatcher_entry()

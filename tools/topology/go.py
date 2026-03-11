@@ -26,6 +26,7 @@ from topology.util import write_file
 from topology.common import (
     ArgsBase,
     DISP_CONFIG_NAME,
+    HBIRD_CONFIG_NAME,
     docker_host,
     prom_addr,
     prom_addr_dispatcher,
@@ -61,6 +62,12 @@ class GoGenArgs(ArgsBase):
 
 
 class GoGenerator(object):
+    HBIRD_DUMMY_KEYS = ("master0.key", "master1.key")
+    HBIRD_DUMMY_KEY_PAYLOADS = {
+        "master0.key": "Q7dc0ap9/VeSjqJNbFI5Hw==",
+        "master1.key": "7ncpfi4DmIa08XeI1EMGmg==",
+    }
+
     def __init__(self, args):
         """
         :param GoGenArgs args: Contains the passed command line arguments and topo dicts.
@@ -107,6 +114,19 @@ class GoGenerator(object):
                     write_file(os.path.join(base, "%s.toml" % elem_id),
                                toml.dumps(bs_conf))
 
+    def generate_hummingbird(self):
+        if self.args.docker:
+            return
+        for topo_id, topo in self.args.topo_dicts.items():
+            for elem_id in topo.get("control_service", {}):
+                if not elem_id.endswith("-1"):
+                    continue
+                base = topo_id.base_dir(self.args.output_dir)
+                hb_conf = self._build_hummingbird_conf(base, topo_id, elem_id)
+                write_file(os.path.join(base, HBIRD_CONFIG_NAME), toml.dumps(hb_conf))
+                self._write_hummingbird_dummy_keys(base)
+                break
+
     def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem, ca):
         config_dir = '/etc/scion' if self.args.docker else base
         raw_entry = {
@@ -136,6 +156,33 @@ class GoGenerator(object):
         if ca:
             raw_entry['ca'] = {'mode': 'in-process'}
         return raw_entry
+
+    def _build_hummingbird_conf(self, base, topo_id, cs_name):
+        config_dir = '/etc/scion' if self.args.docker else base
+        return {
+            'general': {
+                'id': self._hummingbird_name(topo_id),
+                'config_dir': config_dir,
+            },
+            'log': self._log_entry(self._hummingbird_name(topo_id)),
+            'hummingbird': {
+                'reservation_duration': '5s',
+                'trust_db_path': os.path.join(self.db_dir, '%s.trust.db' % cs_name),
+                'min_bandwidth': 100,
+                'max_bandwidth': 100000,
+                'min_cost': 1,
+            },
+        }
+
+    def _write_hummingbird_dummy_keys(self, base):
+        for key_name in self.HBIRD_DUMMY_KEYS:
+            write_file(
+                os.path.join(base, 'dummy_keys', key_name),
+                self.HBIRD_DUMMY_KEY_PAYLOADS[key_name],
+            )
+
+    def _hummingbird_name(self, topo_id):
+        return 'hbird%s' % topo_id.file_fmt()
 
     def generate_sciond(self):
         for topo_id, topo in self.args.topo_dicts.items():
