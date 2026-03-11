@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/hbird/hbserver/connect"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/config"
+	"github.com/scionproto/scion/private/topology"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 
@@ -53,6 +54,7 @@ import (
 const (
 	configurationDirName     = "configuration"
 	testdataConfigurationDir = "testdata/" + configurationDirName
+	testServerIP             = "127.0.0.20"
 )
 
 var update = xtest.UpdateGoldenFiles()
@@ -169,6 +171,29 @@ func TestSampleConfig(t *testing.T) {
 		copyDir(t, generatedDir, testdataConfigurationDir)
 	}
 	compareDirs(t, testdataConfigurationDir, generatedDir)
+}
+
+func TestServiceBindAddrUsesControlServiceIP(t *testing.T) {
+	topoPath := filepath.Join(t.TempDir(), "topology.json")
+	err := os.WriteFile(topoPath, []byte(`{
+  "isd_as": "1-100",
+  "mtu": 1472,
+  "attributes": [],
+  "dispatched_ports": "31000-32767",
+  "control_service": {
+    "cs1-100-1": {
+      "addr": "127.0.0.20:30252"
+    }
+  }
+}`), 0o644)
+	require.NoError(t, err)
+
+	topo, err := topology.NewLoader(topology.LoaderCfg{File: topoPath})
+	require.NoError(t, err)
+
+	addr, err := serviceBindAddr(topo)
+	require.NoError(t, err)
+	require.Equal(t, "127.0.0.20:30258", addr.String())
 }
 
 func TestAuthKeyComputation(t *testing.T) {
@@ -425,7 +450,8 @@ func TestLocalServerClientIntegration(t *testing.T) {
 }
 
 func checkStatus() error {
-	requestURL := fmt.Sprintf("http://localhost:%d%s",
+	requestURL := fmt.Sprintf("http://%s:%d%s",
+		testServerIP,
 		serverPort, hbirdv1connect.HBirdServiceStatusProcedure)
 	bodyStr := `{}`
 	_, err := query(requestURL, bodyStr, false)
@@ -433,7 +459,8 @@ func checkStatus() error {
 }
 
 func checkNotImplementedProcedure() error {
-	requestURL := fmt.Sprintf("http://localhost:%d%s2",
+	requestURL := fmt.Sprintf("http://%s:%d%s2",
+		testServerIP,
 		serverPort, hbirdv1connect.HBirdServiceStatusProcedure)
 	bodyStr := `{}`
 	_, err := query(requestURL, bodyStr, false)
@@ -441,7 +468,7 @@ func checkNotImplementedProcedure() error {
 }
 
 func checkNotImplementedEndpoint() error {
-	requestURL := fmt.Sprintf("http://localhost:%d/Status", serverPort)
+	requestURL := fmt.Sprintf("http://%s:%d/Status", testServerIP, serverPort)
 	bodyStr := `{}`
 	_, err := query(requestURL, bodyStr, false)
 	return err
@@ -452,7 +479,8 @@ func checkResInfo(resInfo connect.ResInfo, masterKey [16]byte) (*[16]byte, error
 }
 
 func sendRedeem(redeemBody string) ([]byte, error) {
-	requestURL := fmt.Sprintf("http://localhost:%d%s",
+	requestURL := fmt.Sprintf("http://%s:%d%s",
+		testServerIP,
 		serverPort, hbirdv1connect.HBirdServiceRedeemProcedure)
 	bodyStr := redeemBody
 	return query(requestURL, bodyStr, true)

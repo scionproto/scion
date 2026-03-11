@@ -17,10 +17,12 @@ package main
 import (
 	"context"
 	"crypto/x509"
+	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"connectrpc.com/connect"
@@ -87,6 +89,27 @@ func trustDBPath() string {
 	return defaultTrustDB
 }
 
+func serviceBindAddr(topo *topology.Loader) (*net.UDPAddr, error) {
+	csAddrs := topo.ControlServiceAddresses()
+	addrs := make([]*net.UDPAddr, 0, len(csAddrs))
+	for _, addr := range csAddrs {
+		if addr != nil {
+			addrs = append(addrs, addr)
+		}
+	}
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("no control service address in topology")
+	}
+	sort.Slice(addrs, func(i, j int) bool {
+		return addrs[i].String() < addrs[j].String()
+	})
+	return &net.UDPAddr{
+		IP:   append(net.IP(nil), addrs[0].IP...),
+		Port: serverPort,
+		Zone: addrs[0].Zone,
+	}, nil
+}
+
 func main() {
 	application := launcher.Application{
 		ApplicationBase: launcher.ApplicationBase{
@@ -121,9 +144,13 @@ func realMain(ctx context.Context) error {
 		return serrors.Wrap("initializing trust storage", err)
 	}
 	defer trustDB.Close()
+	publicAddr, err := serviceBindAddr(topo)
+	if err != nil {
+		return serrors.Wrap("resolving hummingbird bind address", err)
+	}
 	nc := infraenv.NetworkConfig{
 		IA:     topo.IA(),
-		Public: &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: serverPort},
+		Public: publicAddr,
 		QUIC: infraenv.QUIC{
 			TLSVerifier: trust.NewTLSCryptoVerifier(trustDB),
 			GetCertificate: cs.NewTLSCertificateLoader(
