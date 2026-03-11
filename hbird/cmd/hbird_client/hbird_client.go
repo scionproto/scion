@@ -30,10 +30,10 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/types"
 	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
 	"github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/app/flag"
-	"github.com/scionproto/scion/private/app/path"
 	"github.com/scionproto/scion/private/svc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
@@ -77,6 +77,11 @@ func main() {
 		}
 		return os.Args[3]
 	}(os.Args)
+
+	fmt.Printf("remoteAS = %s\n", remoteAS)
+	fmt.Printf("skipIP   = %v\n", skipIP)
+	fmt.Printf("rcpType  = %s\n", rpcType)
+
 	if !skipIP {
 		client := hbirdv1connect.NewHBirdServiceClient(
 			http.DefaultClient,
@@ -92,8 +97,9 @@ func main() {
 		}
 		log.Println("Status response:", res.Msg.Version)
 	}
-
-	testSCION(remoteAS, rpcType)
+	if remoteAS != "" {
+		testSCION(remoteAS, rpcType)
+	}
 }
 
 func testSCION(remoteAS, rpcType string) {
@@ -192,33 +198,60 @@ func testSCION(remoteAS, rpcType string) {
 	if err != nil {
 		fmt.Println("Error parsing destination address", err)
 	}
+	fmt.Printf("Redemption server at %s\n", destSAddr.String())
 
 	var envFlags flag.SCIONEnvironment
+	err = envFlags.LoadExternalVars()
+	if err != nil {
+		fmt.Printf("loading external variables: %s\n", err)
+	}
 	daemonAddr := envFlags.Daemon()
+	fmt.Printf("scion daemon at %s\n", daemonAddr)
 	sd, err := daemon.NewService(daemonAddr).Connect(ctx)
 	if err != nil {
 		fmt.Println("connecting to SCION Daemon", err)
 		return
 	}
 	defer sd.Close()
-	opts := []path.Option{
-		path.WithInteractive(false),
-		//path.WithRefresh(true),
-		path.WithSequence("0* 71-1916#3 0*"),
-		/*path.WithProbing(&path.ProbeConfig{
-			LocalIA: topo.IA(),
-			LocalIP: clientAddr.IP,
-		}),*/
-	}
-	path, err := path.Choose(context.TODO(), sd, destSAddr.IA, opts...)
+
+	localIA, err := sd.LocalIA(ctx)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("getting local IA: %s\n", err)
+	}
+	fmt.Printf("local IA = %s\n", localIA)
+
+	paths, err := sd.Paths(ctx, destSAddr.IA, localIA, types.PathReqFlags{})
+	if err != nil {
+		fmt.Printf("cannot get paths: %s\n", err)
 		return
 	}
+	if len(paths) == 0 {
+		fmt.Println("no path is available")
+		return
+	}
+	fmt.Printf("# paths found: %d\n", len(paths))
+	path := paths[0]
+
+	// opts := []path.Option{
+	// 	path.WithInteractive(false),
+	// 	//path.WithRefresh(true),
+	// 	path.WithSequence("0* 71-1916#3 0*"),
+	// 	/*path.WithProbing(&path.ProbeConfig{
+	// 		LocalIA: topo.IA(),
+	// 		LocalIP: clientAddr.IP,
+	// 	}),*/
+	// }
+
+	// path, err := path.Choose(context.TODO(), sd, destSAddr.IA, opts...)
+	// if err != nil {
+	// 	// fmt.Println(err)
+	// 	fmt.Printf("choosing paths: %s\n", err)
+	// 	return
+	// }
 	//fmt.Println("control plane path:", path)
 	destSAddr.Path = path.Dataplane()
 	destSAddr.NextHop = path.UnderlayNextHop()
-	//fmt.Println("dataplane path:", destSAddr.Path)
+	// fmt.Println("dataplane path:", destSAddr.Path)
 
 	nCtx := context.Background()
 	if rpcType != "" {
