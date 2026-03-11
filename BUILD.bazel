@@ -169,6 +169,7 @@ pkg_tar(
         "//daemon/cmd/daemon",
         "//dispatcher/cmd/dispatcher",
         "//gateway/cmd/gateway",
+        "//hbird/cmd/hummingbird",
         "//router/cmd/router",
         "//scion-pki/cmd/scion-pki",
         "//scion/cmd/scion",
