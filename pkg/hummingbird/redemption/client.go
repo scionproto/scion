@@ -16,7 +16,9 @@ package redemption
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/netip"
 
 	"connectrpc.com/connect"
 
@@ -24,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
 	hbirdv1connect "github.com/scionproto/scion/pkg/proto/hbird/v1/hbirdconnect"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 type RedemptionClient struct {
@@ -50,4 +53,15 @@ func RedeemHop(ctx context.Context) {
 
 func RedeemFullPath() {
 
+}
+
+func findCsIpAddr(p snet.Path, dstIA addr.IA) (netip.AddrPort, error) {
+	v, ok := p.Metadata().DiscoveryInformation[dstIA]
+	if !ok {
+		return netip.AddrPort{}, fmt.Errorf("no discovery information found for IA %s", dstIA)
+	}
+	if len(v.ControlServices) == 0 {
+		return netip.AddrPort{}, fmt.Errorf("no control service discovery info for IA %s", dstIA)
+	}
+	return v.ControlServices[0], nil
 }

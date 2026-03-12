@@ -25,6 +25,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
+	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/types"
@@ -46,12 +47,24 @@ func TestRedeemHopLocal(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 
+	const redemptionServerPort = 30258
+	const localScionDaemonAddr = "127.0.0.19:30255" // As in 111
+
+	// Connect to the daemon.
+	sdConn := buildSdConn(ctx, t, localScionDaemonAddr)
+	// Find the address of the local CS.
+	topo := daemon.TopoQuerier{Connector: sdConn}
+	csAddr, err := topo.UnderlayAnycast(ctx, addr.SvcCS)
+	require.NoError(t, err)
+	// Build the redemption server's address using the CS's one.
+	dstRedemptionServer := fmt.Sprintf("http://%s:%d", csAddr.IP.String(), redemptionServerPort)
+
 	// The connect client is built differently depending on whether the connection is intra- or
 	// inter-AS.
 	// The creation of the request and request itself is the same.
 	client := hbirdv1connect.NewHBirdServiceClient(
 		http.DefaultClient,
-		"http://127.0.0.1:30258",
+		dstRedemptionServer,
 	)
 
 	request := &hbirdv1.RedemptionRequests{}
@@ -71,26 +84,37 @@ func TestRedeemHopInterAS(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 
-	// const redemptionServerAddr = "127.0.0.11"
-	const redemptionServerAddr = "127.0.0.1" // For a local server running in the host.
 	const redemptionServerPort = 30258
-	const as110 = "1-ff00:0:110"
 	const localScionDaemonAddr = "127.0.0.19:30255" // As in 111
 
-	dstAddr, err := snet.ParseUDPAddr(
-		fmt.Sprintf("%s,%s:%d", as110, redemptionServerAddr, redemptionServerPort))
-	require.NoError(t, err)
-	// TODO we need a path in dstAddr to the destination, TAL hbird_client.go:220
-
+	dstIA := addr.MustParseIA("1-ff00:0:110")
 	sdConn := buildSdConn(ctx, t, localScionDaemonAddr)
+	localIA, err := sdConn.LocalIA(ctx)
+	require.NoError(t, err)
+	paths, err := sdConn.Paths(ctx, dstIA, localIA, types.PathReqFlags{})
+	require.NoError(t, err)
+	chosenPath := paths[0]
+
+	// Construct the redemption server's address based on that of the CS.
+	csIpAddr, err := findCsIpAddr(chosenPath, dstIA)
+	require.NoError(t, err)
+	dstAddr := &snet.UDPAddr{
+		IA: dstIA,
+		Host: &net.UDPAddr{
+			IP:   net.IP(csIpAddr.Addr().AsSlice()),
+			Port: redemptionServerPort,
+		},
+		Path:    chosenPath.Dataplane(),
+		NextHop: chosenPath.UnderlayNextHop(),
+	}
 	scionNetwork := buildScionNetwork(ctx, t, sdConn)
 	factory := buildFactory(ctx, t, scionNetwork)
 	dialerGenerator := factory.NewDialer
 	// var dialer libconnect.Dialer
 	peer := make(chan net.Addr, 1)
 
-	// Before getting the dialer, attach a path to the destination address.
-	attachScionPath(ctx, t, sdConn, dstAddr)
+	dstAddr.Path = chosenPath.Dataplane()
+	dstAddr.NextHop = chosenPath.UnderlayNextHop()
 
 	readyDialer := dialerGenerator(dstAddr,
 		squic.WithDialTimeout(time.Second),
@@ -199,24 +223,6 @@ func buildFactory(
 		Rewriter:  dialer.Rewriter,
 	}
 	return factory
-}
-
-func attachScionPath(
-	ctx context.Context,
-	t *testing.T,
-	sdConn daemon.Connector,
-	dstAddr *snet.UDPAddr,
-) {
-	localIA, err := sdConn.LocalIA(ctx)
-	require.NoError(t, err)
-
-	paths, err := sdConn.Paths(ctx, dstAddr.IA, localIA, types.PathReqFlags{})
-	require.NoError(t, err)
-	require.Greater(t, len(paths), 0)
-
-	p := paths[0]
-	dstAddr.Path = p.Dataplane()
-	dstAddr.NextHop = p.UnderlayNextHop()
 }
 
 type passThroughRewriter struct{}
