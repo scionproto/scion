@@ -18,17 +18,9 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 )
 
-func SupportsHumm(note string) bool {
-	return supportsHumm(note)
-}
-
 func WithMetadata(metadata *snet.PathMetadata) ReservationModFcn {
 	return func(r *Reservation) error {
 		r.metadata = metadata
 		return nil
 	}
-}
-
-func (r *Reservation) GetRedemptionConfig() *RedemptionConfig {
-	return &r.redemption
 }

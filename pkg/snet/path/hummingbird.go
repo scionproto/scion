@@ -17,7 +17,6 @@ package path
 import (
 	"encoding/binary"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -34,12 +33,11 @@ import (
 // was computed using the correct payload size.
 // This path represents a possibly partially reserved path, with zero or more flyovers.
 type Reservation struct {
-	Now        func() time.Time   // The current time.
-	DstIA      addr.IA            // Destination IA of the path.
-	Dec        *dphum.Decoded     // The Hummingbird path.
-	metadata   *snet.PathMetadata // Set at construction time.
-	Hops       []*FlyoverData     // Same length as `Dec`. Hops[i]==nil iff no flyover at i.
-	redemption RedemptionConfig
+	Now      func() time.Time   // The current time.
+	DstIA    addr.IA            // Destination IA of the path.
+	Dec      *dphum.Decoded     // The Hummingbird path.
+	metadata *snet.PathMetadata // Set at construction time.
+	Hops     []*Hop             // Same length as `Dec`. Hops[i]==nil iff no hop at i (eg. xover hop).
 
 	counter uint32 // duplicate detection counter
 }
@@ -50,9 +48,8 @@ var _ snet.DataplanePath = (*Reservation)(nil)
 // options passed.
 func NewReservation(opts ...ReservationModFcn) (*Reservation, error) {
 	r := &Reservation{
-		Now:        time.Now,
-		Dec:        &dphum.Decoded{},
-		redemption: newFlyoverRedemptionConfig(0, 0, nil),
+		Now: time.Now,
+		Dec: &dphum.Decoded{},
 	}
 	// Run all options on this object.
 	for _, fcn := range opts {
@@ -106,13 +103,15 @@ func (r Reservation) deriveDataPlanePath(
 	var byteBuffer [hummingbird.FlyoverMacBufferSize]byte
 	var xkbuffer [hummingbird.XkBufferSize]uint32
 	for i, h := range r.Hops {
-		if h == nil {
+		// Check if hop is xover (no hop) or non flyover (just best effort)
+		if h == nil || h.Flyover == nil {
 			continue
 		}
+		f := h.Flyover
 		hf := &r.Dec.HopFields[i]
-		hf.ResStartTime = uint16(secs - h.StartTime)
+		hf.ResStartTime = uint16(secs - f.StartTime)
 		flyovermac := hummingbird.FullFlyoverMac(
-			h.Ak[:],
+			f.Ak[:],
 			r.DstIA,
 			pktLen,
 			hf.ResStartTime,
@@ -166,7 +165,7 @@ func WithScionPath(p snet.Path, flyoverMap FlyoverMap) ReservationModFcn {
 			return serrors.New("Unsupported path type")
 		}
 		// Extend the number of hops to that of the path.
-		r.Hops = make([]*FlyoverData, len(r.Dec.HopFields))
+		r.Hops = make([]*Hop, len(r.Dec.HopFields))
 
 		// We use the path metadata to get the IAs and interface ID sequence from it.
 		r.metadata = p.Metadata()
@@ -182,19 +181,19 @@ func WithScionPath(p snet.Path, flyoverMap FlyoverMap) ReservationModFcn {
 				"base_hops", len(baseHops), "hop_fields", len(hfIndices))
 		}
 		for i, baseHop := range baseHops {
-			r.SetFlyover(hfIndices[i], consumeFlyover(flyoverMap, baseHop))
+			r.SetHopAndFlyover(hfIndices[i], consumeFlyover(flyoverMap, baseHop))
 		}
 
 		return nil
 	}
 }
 
-func (r *Reservation) SetFlyover(
+func (r *Reservation) SetHopAndFlyover(
 	hfIdx uint8,
-	flyover *FlyoverData,
+	hop *Hop,
 ) {
-	r.Hops[hfIdx] = flyover
-	if !flyover.IsFlyover {
+	r.Hops[hfIdx] = hop
+	if hop.Flyover == nil {
 		return
 	}
 
@@ -208,20 +207,19 @@ func (r *Reservation) SetFlyover(
 		hf.Flyover = true
 	}
 
-	hf.Bw = flyover.Bw
-	hf.Duration = flyover.Duration
-	hf.ResID = flyover.ResID
+	hf.Bw = hop.Flyover.Bw
+	hf.Duration = hop.Flyover.Duration
+	hf.ResID = hop.Flyover.ResID
 }
 
-func consumeFlyover(flyoverMap FlyoverMap, baseHop BaseHop) *FlyoverData {
-	if flyover, ok := flyoverMap[baseHop]; ok {
-		flyover.IsFlyover = true
+func consumeFlyover(flyoverMap FlyoverMap, baseHop BaseHop) *Hop {
+	flyover, ok := flyoverMap[baseHop]
+	if ok {
 		delete(flyoverMap, baseHop)
-		return flyover
 	}
-	return &FlyoverData{
-		BaseHop:   baseHop,
-		IsFlyover: false,
+	return &Hop{
+		BaseHop: baseHop,
+		Flyover: flyover,
 	}
 }
 
@@ -263,10 +261,12 @@ type BaseHop struct {
 	Egress  uint16
 }
 
-type FlyoverData struct {
+type Hop struct {
 	BaseHop
+	Flyover *FlyoverData // nil if this hop is not reserved (just best effort)
+}
 
-	IsFlyover bool     // If false, the rest of the fields in this struct are moot.
+type FlyoverData struct {
 	ResID     uint32   // Unique per AS.
 	Ak        [16]byte // Authentication key.
 	Bw        uint16
@@ -277,15 +277,11 @@ type FlyoverData struct {
 // FlyoverMap is a map between a flyover <IA,ingress,egress> and its corresponding data.
 type FlyoverMap map[BaseHop]*FlyoverData
 
-func FlyoversToMap(flyovers []*FlyoverData) FlyoverMap {
+func FlyoversToMap(hops []*Hop) FlyoverMap {
 	ret := make(FlyoverMap)
-	for _, flyover := range flyovers {
-		k := BaseHop{
-			IA:      flyover.IA,
-			Ingress: flyover.Ingress,
-			Egress:  flyover.Egress,
-		}
-		ret[k] = flyover
+	for _, hop := range hops {
+		k := hop.BaseHop
+		ret[k] = hop.Flyover
 	}
 	return ret
 }
@@ -314,52 +310,4 @@ func InterfacesToBaseHops(ifaces []snet.PathInterface) []BaseHop {
 		})
 	}
 	return baseHops
-}
-
-// GetFlyoversForPath returns a FlyoverMap with all returned flyovers for the given path.
-// Compatibility wrapper: keeps the old mocked behavior.
-// deleteme! TODO remove this temporary function and modify tests.
-func GetFlyoversForPath(p snet.Path, startTime uint32) (FlyoverMap, error) {
-	interfaces := p.Metadata().Interfaces
-	if len(interfaces) == 0 {
-		return FlyoverMap{}, nil
-	}
-	baseHops := InterfacesToBaseHops(interfaces)
-	return getFlyoversForHops(baseHops, startTime)
-}
-
-func getFlyoversForHops(baseHops []BaseHop, startTime uint32) (FlyoverMap, error) {
-	// For each found triplet <AS,ingress,egress> call redeemFlyover and store the result.
-	redeemed := make([]*FlyoverData, len(baseHops))
-	var wg sync.WaitGroup
-	wg.Add(len(baseHops))
-	for i := range baseHops {
-		go func(i int) {
-			defer wg.Done()
-			redeemed[i] = redeemFlyover(baseHops[i], startTime)
-		}(i)
-	}
-	wg.Wait()
-
-	flyovers := make(FlyoverMap, len(baseHops))
-	for i, baseHop := range baseHops {
-		flyovers[baseHop] = redeemed[i]
-	}
-
-	return flyovers, nil
-}
-
-// redeemFlyover mocks the redemption of a flyover for a given AS, ingress, and egress interfaces.
-// The real function will require a daemon.Connector to find a path to the given AS, or the path
-// to the given AS.
-func redeemFlyover(baseHop BaseHop, startTime uint32) *FlyoverData {
-	return &FlyoverData{
-		BaseHop:   baseHop,
-		IsFlyover: true,
-		ResID:     1,
-		StartTime: startTime,
-		Duration:  10,
-		Bw:        64,
-		Ak:        [16]byte{},
-	}
 }

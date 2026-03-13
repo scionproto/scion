@@ -73,30 +73,31 @@ func TestSetFlyover(t *testing.T) {
 		Dec:   createHummingbirdPath(referenceTime),
 		Now:   func() time.Time { return referenceTime },
 	}
-	r.Hops = make([]*path.FlyoverData, len(r.Dec.HopFields))
+	r.Hops = make([]*path.Hop, len(r.Dec.HopFields))
 	// There are 4 hops in the path:
 	require.Equal(t, 4, len(r.Hops))
 
 	// Mock a flyover in AS 110 between ingress 1 and egress 2.
-	flyoverData := path.FlyoverData{
+	flyoverData := path.Hop{
 		BaseHop: path.BaseHop{
 			IA:      addr.MustParseIA("1-ff00:0:110"),
 			Ingress: 1,
 			Egress:  2,
 		},
-		IsFlyover: true,
-		ResID:     1,
-		Bw:        1,
-		StartTime: referenceEpochTime,
-		Duration:  10,
-		// Ak: [16]byte{},
+		Flyover: &path.FlyoverData{
+			ResID:     1,
+			Bw:        1,
+			StartTime: referenceEpochTime,
+			Duration:  10,
+			// Ak: [16]byte{},
+		},
 	}
 	// Set the flyover to the first hop of the xover hop. Hops are:
 	// - [0] 111[0] -> 111[41]
 	// - [1] 110[1] -> 110[0]
 	// - [2] 110[0] -> 110[2]
 	// - [3] 112[1] -> 112[0]
-	r.SetFlyover(1, &flyoverData)
+	r.SetHopAndFlyover(1, &flyoverData)
 
 	// Check that the hop indeed has the flyover.
 	require.NotNil(t, r.Hops[1])
@@ -140,31 +141,12 @@ func TestFlyoversForPath(t *testing.T) {
 	p := createSnetScionPath(t, referenceTime)
 	require.NotNil(t, p)
 
-	flyovers, err := path.GetFlyoversForPath(p, referenceEpochTime)
+	flyovers, err := getFlyoversForPath(p, referenceEpochTime)
 	require.NoError(t, err)
 	require.Len(t, flyovers, 3)
 
 	expectedFlyovers := createFlyovers(t, referenceEpochTime)
 	require.EqualValues(t, expectedFlyovers, flyovers)
-}
-
-func TestSupportsHumm(t *testing.T) {
-	example := `
-	{
-			"hummingbird-v0": {
-					"supported": true,
-					"min-cost": 102,
-					"min-bw": 14,
-					"max-bw": 14,
-					"markets": {
-							"market1": "https://example.com/api/v0/info",
-							"market2": "https://www.example.net/info",
-							"brokerA": "https://example.org/api/v0/exchange"
-					}
-			}
-	}`
-	got := path.SupportsHumm(example)
-	require.True(t, got)
 }
 
 // createHummingbirdPath creates a valid Hummingbird path between 111 and 112 from the tiny topo.
@@ -331,7 +313,7 @@ func createFlyovers(t *testing.T, startTime uint32) path.FlyoverMap {
 			Ingress: 0,
 			Egress:  41,
 		}
-		m[hop] = createFlyover(t, hop, startTime)
+		m[hop] = createFlyover(t, startTime)
 	}
 	{ // 110: 1 ->  2
 		hop := path.BaseHop{
@@ -339,7 +321,7 @@ func createFlyovers(t *testing.T, startTime uint32) path.FlyoverMap {
 			Ingress: 1,
 			Egress:  2,
 		}
-		m[hop] = createFlyover(t, hop, startTime)
+		m[hop] = createFlyover(t, startTime)
 	}
 	{ // 112: 1 ->  0
 		hop := path.BaseHop{
@@ -347,7 +329,7 @@ func createFlyovers(t *testing.T, startTime uint32) path.FlyoverMap {
 			Ingress: 1,
 			Egress:  0,
 		}
-		m[hop] = createFlyover(t, hop, startTime)
+		m[hop] = createFlyover(t, startTime)
 	}
 	return m
 }
@@ -355,11 +337,9 @@ func createFlyovers(t *testing.T, startTime uint32) path.FlyoverMap {
 // createFlyover mocks the redemption of a flyover for a given AS, ingress, and egress interfaces.
 // The real function will require a daemon.Connector to find a path to the given AS, or the path
 // to the given AS.
-func createFlyover(t *testing.T, baseHop path.BaseHop, startTime uint32) *path.FlyoverData {
+func createFlyover(t *testing.T, startTime uint32) *path.FlyoverData {
 	t.Helper()
 	return &path.FlyoverData{
-		BaseHop:   baseHop,
-		IsFlyover: true,
 		ResID:     1,
 		StartTime: startTime,
 		Duration:  10,
@@ -368,10 +348,10 @@ func createFlyover(t *testing.T, baseHop path.BaseHop, startTime uint32) *path.F
 	}
 }
 
-func checkHop(t *testing.T, hop *path.FlyoverData, ia string, in uint16, eg uint16, isFlyover bool) {
-	if isFlyover {
+func checkHop(t *testing.T, hop *path.Hop, ia string, in uint16, eg uint16, expectHop bool) {
+	if expectHop {
 		require.NotNil(t, hop)
-		require.Equal(t, isFlyover, hop.IsFlyover)
+		require.NotNil(t, hop.Flyover)
 	} else {
 		require.Nil(t, hop)
 		return
@@ -436,4 +416,43 @@ func getPathsToTransitASes(t *testing.T, p snet.Path) []snet.Path {
 	}
 
 	return paths
+}
+
+// getFlyoversForPath returns a FlyoverMap with all returned flyovers for the given path.
+// Compatibility wrapper: keeps the old mocked behavior.
+// deleteme! TODO remove this temporary function and modify tests.
+func getFlyoversForPath(p snet.Path, startTime uint32) (path.FlyoverMap, error) {
+	interfaces := p.Metadata().Interfaces
+	if len(interfaces) == 0 {
+		return path.FlyoverMap{}, nil
+	}
+	baseHops := path.InterfacesToBaseHops(interfaces)
+	return getFlyoversForHops(baseHops, startTime)
+}
+
+func getFlyoversForHops(baseHops []path.BaseHop, startTime uint32) (path.FlyoverMap, error) {
+	// For each found triplet <AS,ingress,egress> call redeemFlyover and store the result.
+	redeemed := make([]*path.Hop, len(baseHops))
+
+	for i := range baseHops {
+		redeemed[i] = redeemFlyover(baseHops[i], startTime)
+	}
+
+	return path.FlyoversToMap(redeemed), nil
+}
+
+// redeemFlyover mocks the redemption of a flyover for a given AS, ingress, and egress interfaces.
+// The real function will require a daemon.Connector to find a path to the given AS, or the path
+// to the given AS.
+func redeemFlyover(baseHop path.BaseHop, startTime uint32) *path.Hop {
+	return &path.Hop{
+		BaseHop: baseHop,
+		Flyover: &path.FlyoverData{
+			ResID:     1,
+			StartTime: startTime,
+			Duration:  10,
+			Bw:        64,
+			Ak:        [16]byte{},
+		},
+	}
 }
