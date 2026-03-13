@@ -44,7 +44,7 @@ var (
 	cmd         string
 	features    string
 	epic        bool
-	hummingbird bool
+	hummingbird string
 	useSciond   bool
 )
 
@@ -78,7 +78,7 @@ func realMain() int {
 		"-local", "[" + integration.SrcAddrPattern + "]:0",
 		"-remote", "[" + integration.DstAddrPattern + "]:" + integration.ServerPortReplace,
 		fmt.Sprintf("-epic=%t", epic),
-		fmt.Sprintf("-hummingbird=%t", hummingbird),
+		fmt.Sprintf("-hummingbird=%s", hummingbird),
 	}
 	serverArgs := []string{
 		"-mode", "server",
@@ -96,9 +96,6 @@ func realMain() int {
 		// Use standalone daemon by default (with topology file)
 		clientArgs = append(clientArgs, "-topoDir", integration.TopoDir)
 		serverArgs = append(serverArgs, "-topoDir", integration.TopoDir)
-	}
-	if hummingbird {
-		clientArgs = append(clientArgs, "-hummKeysDir", integration.TopoDir)
 	}
 
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
@@ -130,7 +127,7 @@ func addFlags() {
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
-	flag.BoolVar(&hummingbird, "hummingbird", false, "Enable Hummingbird.")
+	flag.StringVar(&hummingbird, "hummingbird", "", "Enable Hummingbird with BW,dur (e.g. '3,5s')")
 	flag.BoolVar(&useSciond, "sciond", false,
 		"Use remote SCION daemon instead of standalone daemon. "+
 			"By default, standalone daemon with topology file is used.")
@@ -311,7 +308,7 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-local", "[" + integration.SrcAddrPattern + "]:0",
 			"-remote", "[" + integration.DstAddrPattern + "]:" + integration.ServerPortReplace,
 			fmt.Sprintf("-epic=%t", epic),
-			fmt.Sprintf("-hummingbird=%t", hummingbird),
+			fmt.Sprintf("-hummingbird=%s", hummingbird),
 		},
 	}
 	if len(features) != 0 {
@@ -326,9 +323,6 @@ func clientTemplate(progressSock string) integration.Cmd {
 	} else {
 		// Use standalone daemon by default (with topology file)
 		cmd.Args = append(cmd.Args, "-topoDir", integration.TopoDir)
-	}
-	if hummingbird {
-		cmd.Args = append(cmd.Args, "-hummKeysDir", integration.TopoDir)
 	}
 	return cmd
 }

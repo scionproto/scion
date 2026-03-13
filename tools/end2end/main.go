@@ -30,9 +30,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -41,6 +44,8 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
+	hummpkg "github.com/scionproto/scion/pkg/hummingbird"
+	"github.com/scionproto/scion/pkg/hummingbird/redemption"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -83,8 +88,9 @@ var (
 	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
 	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
 	epic                   bool
-	hummingbird            bool
-	hummKeysDir            string
+	hummingbird            string                // e.g. for BW=1, duration=5s do "1,5s"
+	hummKeysDir            string                // deleteme for testing purposes only
+	hummParams             hummingbirdParameters // derived from the string in hummingbird
 )
 
 func main() {
@@ -121,16 +127,16 @@ func addFlags() {
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC")
-	flag.BoolVar(&hummingbird, "hummingbird", false, "Enable Hummingbird reservation paths")
+	flag.StringVar(&hummingbird, "hummingbird", "", "Enable Hummingbird with BW,dur (e.g. '3,5s')")
 	flag.StringVar(&hummKeysDir, "hummKeysDir", "./gen",
 		"Root directory containing AS*/keys/master0.key files for Hummingbird")
 }
 
 func validateFlags() {
-	if epic && hummingbird {
+	if epic && hummingbird != "" {
 		integration.LogFatal("EPIC and Hummingbird modes are mutually exclusive")
 	}
-	if hummingbird && hummKeysDir == "" {
+	if hummingbird != "" && hummKeysDir == "" {
 		integration.LogFatal("Missing hummKeysDir in hummingbird mode")
 	}
 	if integration.Mode == integration.ModeClient {
@@ -142,6 +148,33 @@ func validateFlags() {
 		}
 		if timeout.Duration == 0 {
 			integration.LogFatal("Invalid timeout provided", "timeout", timeout)
+		}
+	}
+	if hummingbird != "" {
+		// Parse bandwidth and duration.
+
+		re := regexp.MustCompile(`(\d),(.+)`)
+		matches := re.FindSubmatch([]byte(hummingbird))
+		if len(matches) != 3 {
+			integration.LogFatal("bad BW,duration in hummingbird flag")
+		}
+		bw, err := strconv.ParseUint(string(matches[1]), 10, 16)
+		if err != nil {
+			integration.LogFatal("bad hummingbird bandwidth",
+				"value", string(matches[1]), "err", err)
+		}
+		dur, err := time.ParseDuration(string(matches[2]))
+		if err != nil {
+			integration.LogFatal("bad hummingbird duration",
+				"value", string(matches[2]), "err", err)
+		}
+		if dur.Seconds() > math.MaxUint16 {
+			integration.LogFatal("hummingbird duration too long. Must fit in 16 bits in seconds",
+				"value", dur.Seconds())
+		}
+		hummParams = hummingbirdParameters{
+			BW:       uint16(bw),
+			Duration: uint16(dur.Seconds()),
 		}
 	}
 	log.Info("Flags", "timeout", timeout, "epic", epic, "hummingbird", hummingbird,
@@ -257,6 +290,7 @@ type client struct {
 	// Specific to Hummingbird:
 	useHummingbird bool
 	hummKeysDir    string
+	hummParams     hummingbirdParameters
 	hummSVByIA     map[addr.IA][]byte
 }
 
@@ -283,8 +317,9 @@ func (c *client) run() int {
 		PacketConnMetrics: scionPacketConnMetrics,
 		Topology:          topo,
 	}
-	c.useHummingbird = hummingbird
+	c.useHummingbird = hummingbird != ""
 	c.hummKeysDir = hummKeysDir
+	c.hummParams = hummParams
 	c.hummSVByIA = make(map[addr.IA][]byte)
 	log.Info("Send", "local",
 		fmt.Sprintf("%v,[%v] -> %v,[%v]",
@@ -311,7 +346,7 @@ func (c *client) attemptRequest(n int) bool {
 		logger.Error("Could not get remote", "err", err)
 		return false
 	}
-	if err := c.configureRemotePath(path); err != nil {
+	if err := c.configureRemotePath(ctx, path); err != nil {
 		logger.Error("Could not configure path", "err", err)
 		if path != nil {
 			c.errorPaths[path.Metadata().Fingerprint()] = struct{}{}
@@ -416,7 +451,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 // configureRemotePath sets remote.Path/remote.NextHop for the selected SCION path.
 // Depending on flags, it uses the raw SCION dataplane path, wraps it as EPIC,
 // or builds a Hummingbird reservation path derived from per-AS keys.
-func (c *client) configureRemotePath(path snet.Path) error {
+func (c *client) configureRemotePath(ctx context.Context, path snet.Path) error {
 	if path == nil {
 		remote.Path = snetpath.Empty{}
 		remote.NextHop = nil
@@ -436,7 +471,7 @@ func (c *client) configureRemotePath(path snet.Path) error {
 		}
 		remote.Path = epicPath
 	} else if c.useHummingbird {
-		reservation, err := c.buildReservation(path, time.Now())
+		reservation, err := c.buildReservationWithSecretValues(ctx, path, time.Now())
 		if err != nil {
 			return err
 		}
@@ -448,12 +483,46 @@ func (c *client) configureRemotePath(path snet.Path) error {
 	return nil
 }
 
-func (c *client) buildReservation(path snet.Path, now time.Time) (*snetpath.Reservation, error) {
+func (c *client) buildReservationWithRedemptions(
+	ctx context.Context,
+	path snet.Path,
+	now time.Time,
+) (*snetpath.Reservation, error) {
+	returnNow := func() time.Time {
+		return now
+	}
+	// Build a redemption client.
+	redemptClient, err := redemption.NewRedemptionClient(ctx, integration.SDConn())
+	if err != nil {
+		return nil, err
+	}
+	// Obtain the flyovers.
+	flyovers, err := redemptClient.RedeemPathWithRequest(ctx, path, hummpkg.RedemptionRequestNoHop{
+		StartTime: util.TimeToSecs(returnNow()),
+		Bw:        hummParams.BW,
+		Duration:  hummParams.Duration,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("redeeming flyovers: %w", err)
+	}
+
+	// Build a reservation with the flyovers.
+	return snetpath.NewReservation(
+		snetpath.WithNow(returnNow),
+		snetpath.WithScionPath(path, snetpath.FlyoversToMap(flyovers)),
+	)
+}
+
+func (c *client) buildReservationWithSecretValues(
+	ctx context.Context,
+	path snet.Path,
+	now time.Time,
+) (*snetpath.Reservation, error) {
 	returnNow := func() time.Time {
 		return now
 	}
 	baseHops := snetpath.InterfacesToBaseHops(path.Metadata().Interfaces)
-	flyovers := make([]*snetpath.FlyoverData, 0, len(baseHops))
+	flyovers := make([]*snetpath.Hop, 0, len(baseHops))
 	startTime := uint32(now.Add(hummStartOffset).Unix())
 	aesByIA := make(map[addr.IA]cipher.Block)
 	buffer := make([]byte, hummlib.AkBufferSize)
@@ -483,14 +552,15 @@ func (c *client) buildReservation(path snet.Path, now time.Time) (*snetpath.Rese
 		)
 		var ak [hummlib.AkBufferSize]byte
 		copy(ak[:], akRaw)
-		flyovers = append(flyovers, &snetpath.FlyoverData{
-			BaseHop:   baseHop,
-			IsFlyover: true,
-			ResID:     hummReservationID,
-			Ak:        ak,
-			Bw:        hummBandwidth,
-			StartTime: startTime,
-			Duration:  hummDurationSeconds,
+		flyovers = append(flyovers, &snetpath.Hop{
+			BaseHop: baseHop,
+			Flyover: &snetpath.FlyoverData{
+				ResID:     hummReservationID,
+				Ak:        ak,
+				Bw:        hummBandwidth,
+				StartTime: startTime,
+				Duration:  hummDurationSeconds,
+			},
 		})
 	}
 	return snetpath.NewReservation(
@@ -561,4 +631,9 @@ func readFrom(conn *snet.Conn, pld []byte) (int, net.Addr, error) {
 		"isd_as", opErr.RevInfo().IA(),
 		"interface", opErr.RevInfo().IfID)
 
+}
+
+type hummingbirdParameters struct {
+	BW       uint16
+	Duration uint16
 }
