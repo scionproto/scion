@@ -1,8 +1,8 @@
+.. _underlay:
+
 ***************
 IP/UDP underlay
 ***************
-
-.. _underlay:
 
 Introduction
 ------------
