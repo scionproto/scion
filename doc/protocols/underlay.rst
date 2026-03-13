@@ -40,24 +40,6 @@ The exception is intra-domain control-plane traffic between end-hosts and the co
     |        Link Layer           |
     +-----------------------------+
 
-SCION strongly emphasizes the separation between inter-domain routing and intra-domain forwarding. This allows it to easily reuse existing intra-domain network fabrics to provide connectivity among SCION infrastructure services, routers, and end-hosts. To maximize compatibility with current network infrastructures, most implementations encapsulate the SCION header inside a standard UDP/IPv6 or UDP/IPv4 packet. In such cases, SCION packets are enclosed within the standard IP/UDP protocol stack:
-
-.. code-block:: text
-
-    +-----------------------------+
-    |                             |
-    |        Payload (L4)         |
-    |                             |
-    +-----------------------------+
-    |           SCION             |
-    +-----------------------------+ <-+
-    |            UDP              |   |
-    |                             |   | Intra-domain
-    +-----------------------------+   | protocol
-    |            IP               |   |
-    +-----------------------------+   |
-    |        Link Layer           |   |
-    +-----------------------------+ <-+
 
 
 Ports Overview
