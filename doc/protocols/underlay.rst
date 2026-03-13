@@ -109,4 +109,4 @@ Control Plane Instances
 
 Control plane components of different ASes communicate with each other through RPC messages that are transported via Connect RPC. This protocol carries messages over HTTP/3, that uses a QUIC transport layer. Identification of the relevant addresses and ports for inter-domain queries is provided by `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_.
 
-For intra-domain communication of endpoints with service instances, the operator may use arbitrary ports, that have to be communicated to endpoints. For a comprehensive list of ports used by this implementation, refer to the `Control Port Table <../manuals/control.html#port-table>`_.
+For intra-domain communication of endpoints with service instances, the operator may use arbitrary ports, that have to be communicated to endpoints. For a comprehensive list of ports used by this implementation, refer to the :ref:`control-port-table`.
