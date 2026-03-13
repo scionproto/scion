@@ -20,6 +20,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -37,10 +38,12 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/types"
 	humm "github.com/scionproto/scion/pkg/hummingbird"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
 	hbirdv1connect "github.com/scionproto/scion/pkg/proto/hbird/v1/hbirdconnect"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/snet/squic"
 	"github.com/scionproto/scion/private/app/appnet"
 )
@@ -109,7 +112,7 @@ func (c *RedemptionClient) SetRequestDataForLaterRedemption(
 func (c RedemptionClient) RedeemHopWithPreviousRequest(
 	ctx context.Context,
 	ia addr.IA,
-) (*humm.FlyoverData, error) {
+) (*path.Hop, error) {
 	// Do we have a request for this particular IA?
 	request, ok := c.requestMap[ia]
 	if !ok {
@@ -128,7 +131,7 @@ func (c RedemptionClient) RedeemHopWithPreviousRequest(
 func (c RedemptionClient) RedeemPathWithPreviousRequests(
 	ctx context.Context,
 	p snet.Path,
-) ([]*humm.FlyoverData, error) {
+) ([]*path.Hop, error) {
 	hops, err := getHopsFromPath(p)
 	if err != nil {
 		return nil, err
@@ -144,7 +147,7 @@ func (c RedemptionClient) RedeemPathWithRequest(
 	ctx context.Context,
 	p snet.Path,
 	commonRequest humm.RedemptionRequestNoHop,
-) ([]*humm.FlyoverData, error) {
+) ([]*path.Hop, error) {
 	hops, err := getHopsFromPath(p)
 	if err != nil {
 		return nil, err
@@ -161,9 +164,9 @@ func (c RedemptionClient) RedeemPathWithRequest(
 
 func (c RedemptionClient) redeemHopsConcurrently(
 	ctx context.Context,
-	hops []humm.BaseHop,
-) ([]*humm.FlyoverData, []error) {
-	results := make([]*humm.FlyoverData, len(hops))
+	hops []path.BaseHop,
+) ([]*path.Hop, []error) {
+	results := make([]*path.Hop, len(hops))
 	failures := make([]error, len(hops))
 	wg := sync.WaitGroup{}
 	wg.Add(len(hops))
@@ -196,14 +199,14 @@ func (c RedemptionClient) redeemHop(
 	ia addr.IA,
 	client hbirdv1connect.HBirdServiceClient,
 	request humm.RedemptionRequest,
-) (*humm.FlyoverData, error) {
+) (*path.Hop, error) {
 	pbRequest := &hbirdv1.RedemptionRequests{
 		Redemption: []*hbirdv1.RedemptionRequest{
 			&hbirdv1.RedemptionRequest{
 				RedInfo: &hbirdv1.RedemptionInfo{
 					Ingress:   uint32(request.Ingress),
 					Egress:    uint32(request.Egress),
-					Bw:        uint32(request.BW),
+					Bw:        uint32(request.Bw),
 					StartTime: request.StartTime,
 					Duration:  uint32(request.Duration),
 				},
@@ -236,17 +239,19 @@ func (c RedemptionClient) redeemHop(
 		return nil, fmt.Errorf("redeemed key has wrong length %d", len(resp.AuthKey))
 	}
 
-	flyover := &humm.FlyoverData{
-		BaseHop: humm.BaseHop{
+	flyover := &path.Hop{
+		BaseHop: path.BaseHop{
 			IA:      ia,
 			Ingress: request.Ingress,
 			Egress:  request.Egress,
 		},
-		ResID:     resp.ResId,
-		Ak:        [humm.AkSize]byte(ak),
-		Bw:        request.BW,
-		StartTime: request.StartTime,
-		Duration:  request.Duration,
+		Flyover: &path.FlyoverData{
+			ResID:     resp.ResId,
+			Ak:        [humm.AkSize]byte(ak),
+			Bw:        request.Bw,
+			StartTime: request.StartTime,
+			Duration:  request.Duration,
+		},
 	}
 	return flyover, nil
 }
@@ -302,17 +307,17 @@ func (c RedemptionClient) getDstAddr(ctx context.Context, dstIa addr.IA) (*snet.
 	}, nil
 }
 
-func getHopsFromPath(p snet.Path) ([]humm.BaseHop, error) {
+func getHopsFromPath(p snet.Path) ([]path.BaseHop, error) {
 	if p.Metadata() == nil {
 		return nil, fmt.Errorf("requested path does not have metadata")
 	}
 
 	ifaces := p.Metadata().Interfaces
 	// numHops := len(ifaces)/2 + 1
-	hops := make([]humm.BaseHop, len(ifaces)/2+1)
+	hops := make([]path.BaseHop, len(ifaces)/2+1)
 
 	// First hop.
-	hops[0] = humm.BaseHop{
+	hops[0] = path.BaseHop{
 		IA:      ifaces[0].IA,
 		Ingress: 0,
 		Egress:  uint16(ifaces[0].ID),
@@ -336,7 +341,7 @@ func getHopsFromPath(p snet.Path) ([]humm.BaseHop, error) {
 }
 
 func getRequestsForHops(
-	hops []humm.BaseHop,
+	hops []path.BaseHop,
 	commonRequest humm.RedemptionRequestNoHop,
 ) humm.RequestMap {
 	requestMap := make(humm.RequestMap)
@@ -462,4 +467,47 @@ func findCsIpAddr(p snet.Path, dstIA addr.IA) (netip.AddrPort, error) {
 		return netip.AddrPort{}, fmt.Errorf("no control service discovery info for IA %s", dstIA)
 	}
 	return v.ControlServices[0], nil
+}
+
+// FilterPathByHummingbirdSupport returns a sequence of ASes which claim to support Hummingbird.
+func FilterPathByHummingbirdSupport(p snet.Path) ([]path.BaseHop, error) {
+	hops, err := getHopsFromPath(p)
+	if err != nil {
+		return nil, err
+	}
+	notes := p.Metadata().Notes
+	if len(notes) != len(hops) {
+		return nil, fmt.Errorf("inconsistent number of hops %d (notes) != %d (interfaces)",
+			len(notes), len(hops))
+	}
+
+	supportingASes := make([]path.BaseHop, 0)
+	for i, note := range notes {
+		if supportsHumm(note) {
+			supportingASes = append(supportingASes, hops[i])
+		}
+	}
+
+	return supportingASes, nil
+}
+
+func supportsHumm(note string) bool {
+	// The received JSON will have at least these fields:
+	// "hummingbird-v0": {
+	//     "supported": true
+	// }
+	type hummPayload struct {
+		HummingbirdV0 *struct {
+			Supported *bool `json:"supported"`
+		} `json:"hummingbird-v0"`
+	}
+	var payload hummPayload
+	if err := json.Unmarshal([]byte(note), &payload); err != nil {
+		log.Debug("hummingbird Reservation: failed to parse hummingbird note",
+			"note", note, "err", err)
+		return false
+	}
+	return payload.HummingbirdV0 != nil &&
+		payload.HummingbirdV0.Supported != nil &&
+		*payload.HummingbirdV0.Supported
 }

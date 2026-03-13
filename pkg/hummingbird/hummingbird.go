@@ -21,22 +21,6 @@ import (
 
 const AkSize = hummslayers.AkBufferSize
 
-type BaseHop struct {
-	IA      addr.IA
-	Ingress uint16
-	Egress  uint16
-}
-
-type FlyoverData struct {
-	BaseHop
-
-	ResID     uint32       // Unique per AS.
-	Ak        [AkSize]byte // Authentication key.
-	Bw        uint16
-	StartTime uint32 // Unix timestamp for the start of the reservation.
-	Duration  uint16 // Duration of the reservation in seconds.
-}
-
 // RedemptionRequestNoHop represents the redemption request parameters without ingress or egress.
 // It can be used to parametrize a request that will be applied to several hops.
 type RedemptionRequestNoHop struct {
@@ -44,7 +28,7 @@ type RedemptionRequestNoHop struct {
 	IngressToken []byte
 	EgressToken  []byte
 
-	BW        uint16
+	Bw        uint16
 	StartTime uint32
 	Duration  uint16
 }

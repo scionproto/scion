@@ -33,8 +33,28 @@ import (
 	"github.com/scionproto/scion/pkg/hummingbird"
 	"github.com/scionproto/scion/pkg/log"
 	hummlib "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
+	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/keyconf"
 )
+
+func TestSupportsHumm(t *testing.T) {
+	example := `
+	{
+			"hummingbird-v0": {
+					"supported": true,
+					"min-cost": 102,
+					"min-bw": 14,
+					"max-bw": 14,
+					"markets": {
+							"market1": "https://example.com/api/v0/info",
+							"market2": "https://www.example.net/info",
+							"brokerA": "https://example.org/api/v0/exchange"
+					}
+			}
+	}`
+	got := supportsHumm(example)
+	require.True(t, got)
+}
 
 // TestRedeemHopIntraAS uses tiny.topo AS 111 as local AS. Topology must be running.
 func TestRedeemHopIntraAS(t *testing.T) {
@@ -55,7 +75,7 @@ func TestRedeemHopIntraAS(t *testing.T) {
 
 	req := hummingbird.RedemptionRequest{
 		RedemptionRequestNoHop: hummingbird.RedemptionRequestNoHop{
-			BW: 1,
+			Bw: 1,
 			// StartTime: util.TimeToSecs(time.Now()) + 1,
 			StartTime: 1,
 			// deleteme the server fails to return Ak with longer than 10 durations.
@@ -66,17 +86,17 @@ func TestRedeemHopIntraAS(t *testing.T) {
 		Egress:  41,
 	}
 	c.SetRequestDataForLaterRedemption(localIA, req)
-	flyover, err := c.RedeemHopWithPreviousRequest(ctx, localIA)
+	hop, err := c.RedeemHopWithPreviousRequest(ctx, localIA)
 	require.NoError(t, err)
-	require.NotEqual(t, 0, flyover.ResID)
-	require.Len(t, flyover.Ak, hummingbird.AkSize)
-	require.Equal(t, localIA, flyover.IA)
-	require.Equal(t, req.Ingress, flyover.Ingress)
-	require.Equal(t, req.Egress, flyover.Egress)
-	require.Equal(t, req.BW, flyover.Bw)
-	require.Equal(t, req.StartTime, flyover.StartTime)
-	require.Equal(t, req.Duration, flyover.Duration)
-	t.Logf("Ak = %s", hex.EncodeToString(flyover.Ak[:]))
+	require.NotEqual(t, 0, hop.Flyover.ResID)
+	require.Len(t, hop.Flyover.Ak, hummingbird.AkSize)
+	require.Equal(t, localIA, hop.IA)
+	require.Equal(t, req.Ingress, hop.Ingress)
+	require.Equal(t, req.Egress, hop.Egress)
+	require.Equal(t, req.Bw, hop.Flyover.Bw)
+	require.Equal(t, req.StartTime, hop.Flyover.StartTime)
+	require.Equal(t, req.Duration, hop.Flyover.Duration)
+	t.Logf("Ak = %s", hex.EncodeToString(hop.Flyover.Ak[:]))
 }
 
 // TestRedeemHopInterAS requires the tiny.topo to be running.
@@ -99,7 +119,7 @@ func TestRedeemHopInterAS(t *testing.T) {
 
 	req := hummingbird.RedemptionRequest{
 		RedemptionRequestNoHop: hummingbird.RedemptionRequestNoHop{
-			BW: 1,
+			Bw: 1,
 			// StartTime: util.TimeToSecs(time.Now()) + 1,
 			StartTime: 1,
 			// deleteme the server fails to return Ak with longer than 10 durations.
@@ -110,17 +130,17 @@ func TestRedeemHopInterAS(t *testing.T) {
 		Egress:  41,
 	}
 	c.SetRequestDataForLaterRedemption(dstIA, req)
-	flyover, err := c.RedeemHopWithPreviousRequest(ctx, dstIA)
+	hop, err := c.RedeemHopWithPreviousRequest(ctx, dstIA)
 	require.NoError(t, err)
-	require.NotEqual(t, 0, flyover.ResID)
-	require.Len(t, flyover.Ak, hummingbird.AkSize)
-	require.Equal(t, dstIA, flyover.IA)
-	require.Equal(t, req.Ingress, flyover.Ingress)
-	require.Equal(t, req.Egress, flyover.Egress)
-	require.Equal(t, req.BW, flyover.Bw)
-	require.Equal(t, req.StartTime, flyover.StartTime)
-	require.Equal(t, req.Duration, flyover.Duration)
-	t.Logf("Ak = %s", hex.EncodeToString(flyover.Ak[:]))
+	require.NotEqual(t, 0, hop.Flyover.ResID)
+	require.Len(t, hop.Flyover.Ak, hummingbird.AkSize)
+	require.Equal(t, dstIA, hop.IA)
+	require.Equal(t, req.Ingress, hop.Ingress)
+	require.Equal(t, req.Egress, hop.Egress)
+	require.Equal(t, req.Bw, hop.Flyover.Bw)
+	require.Equal(t, req.StartTime, hop.Flyover.StartTime)
+	require.Equal(t, req.Duration, hop.Flyover.Duration)
+	t.Logf("Ak = %s", hex.EncodeToString(hop.Flyover.Ak[:]))
 }
 
 func TestRedeemPath(t *testing.T) {
@@ -162,7 +182,7 @@ func TestRedeemPath(t *testing.T) {
 	as112 := addr.MustParseIA("1-ff00:0:112")
 	request := hummingbird.RedemptionRequest{
 		RedemptionRequestNoHop: hummingbird.RedemptionRequestNoHop{
-			BW:        1,
+			Bw:        1,
 			StartTime: 1,
 			Duration:  5,
 		},
@@ -205,9 +225,9 @@ func TestRedeemPath(t *testing.T) {
 	require.Equal(t, uint16(0), results[2].Egress)
 	// Common.
 	for i := range results {
-		require.Equal(t, request.BW, results[i].Bw)
-		require.Equal(t, request.StartTime, results[i].StartTime)
-		require.Equal(t, request.Duration, results[i].Duration)
+		require.Equal(t, request.Bw, results[i].Flyover.Bw)
+		require.Equal(t, request.StartTime, results[i].Flyover.StartTime)
+		require.Equal(t, request.Duration, results[i].Flyover.Duration)
 	}
 }
 
@@ -238,7 +258,7 @@ func TestRedeemPathWithRequest(t *testing.T) {
 
 	// Redeem with basic request. We should get three full flyovers.
 	request := hummingbird.RedemptionRequestNoHop{
-		BW:        1,
+		Bw:        1,
 		StartTime: 1,
 		Duration:  5,
 	}
@@ -267,9 +287,9 @@ func TestRedeemPathWithRequest(t *testing.T) {
 	require.Equal(t, uint16(0), results[2].Egress)
 	// Common.
 	for i := range results {
-		require.Equal(t, request.BW, results[i].Bw)
-		require.Equal(t, request.StartTime, results[i].StartTime)
-		require.Equal(t, request.Duration, results[i].Duration)
+		require.Equal(t, request.Bw, results[i].Flyover.Bw)
+		require.Equal(t, request.StartTime, results[i].Flyover.StartTime)
+		require.Equal(t, request.Duration, results[i].Flyover.Duration)
 	}
 }
 
@@ -296,7 +316,7 @@ func TestAkCorrectness(t *testing.T) {
 
 	req := hummingbird.RedemptionRequest{
 		RedemptionRequestNoHop: hummingbird.RedemptionRequestNoHop{
-			BW: 1,
+			Bw: 1,
 			// StartTime: util.TimeToSecs(time.Now()) + 1,
 			StartTime: 1,
 			// Duration: 60,
@@ -308,7 +328,7 @@ func TestAkCorrectness(t *testing.T) {
 	c.SetRequestDataForLaterRedemption(localIA, req)
 	flyover, err := c.RedeemHopWithPreviousRequest(ctx, localIA)
 	require.NoError(t, err)
-	gotAk := flyover.Ak
+	gotAk := flyover.Flyover.Ak
 
 	// Derive Ak from local data.
 	expectedAk := deriveAk(t, localIA, flyover)
@@ -326,7 +346,7 @@ func buildSdConn(
 	return conn
 }
 
-func deriveAk(t *testing.T, ia addr.IA, flyover *hummingbird.FlyoverData) [hummingbird.AkSize]byte {
+func deriveAk(t *testing.T, ia addr.IA, flyover *path.Hop) [hummingbird.AkSize]byte {
 	// Get SV.
 	genPath := "../../../gen/"
 	asDir := addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator())
@@ -344,21 +364,21 @@ func deriveAk(t *testing.T, ia addr.IA, flyover *hummingbird.FlyoverData) [hummi
 	buffer := make([]byte, hummlib.AkBufferSize)
 
 	t.Logf("resID = %d, bw = %d, in = %d, eg = %d, start = %d, dur = %d",
-		flyover.ResID,
-		flyover.Bw,
+		flyover.Flyover.ResID,
+		flyover.Flyover.Bw,
 		flyover.Ingress,
 		flyover.Egress,
-		flyover.StartTime,
-		flyover.Duration,
+		flyover.Flyover.StartTime,
+		flyover.Flyover.Duration,
 	)
 	akRaw := hummlib.DeriveAuthKey(
 		block,
-		flyover.ResID,
-		flyover.Bw,
+		flyover.Flyover.ResID,
+		flyover.Flyover.Bw,
 		flyover.Ingress,
 		flyover.Egress,
-		flyover.StartTime,
-		flyover.Duration,
+		flyover.Flyover.StartTime,
+		flyover.Flyover.Duration,
 		buffer,
 	)
 	t.Logf("ak = %s", hex.EncodeToString(akRaw))
