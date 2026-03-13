@@ -54,17 +54,19 @@ func TestRedeemHopIntraAS(t *testing.T) {
 	require.NoError(t, err)
 
 	req := hummingbird.RedemptionRequest{
+		RedemptionRequestNoHop: hummingbird.RedemptionRequestNoHop{
+			BW: 1,
+			// StartTime: util.TimeToSecs(time.Now()) + 1,
+			StartTime: 1,
+			// deleteme the server fails to return Ak with longer than 10 durations.
+			// Duration: 60,
+			Duration: 5,
+		},
 		Ingress: 0,
 		Egress:  41,
-		BW:      1,
-		// StartTime: util.TimeToSecs(time.Now()) + 1,
-		StartTime: 1,
-		// deleteme the server fails to return Ak with longer than 10 durations.
-		// Duration: 60,
-		Duration: 5,
 	}
-	c.SetRequestData(localIA, req)
-	flyover, err := c.RedeemHop(ctx, localIA)
+	c.SetRequestDataForLaterRedemption(localIA, req)
+	flyover, err := c.RedeemHopWithPreviousRequest(ctx, localIA)
 	require.NoError(t, err)
 	require.NotEqual(t, 0, flyover.ResID)
 	require.Len(t, flyover.Ak, hummingbird.AkSize)
@@ -96,17 +98,19 @@ func TestRedeemHopInterAS(t *testing.T) {
 	require.NoError(t, err)
 
 	req := hummingbird.RedemptionRequest{
+		RedemptionRequestNoHop: hummingbird.RedemptionRequestNoHop{
+			BW: 1,
+			// StartTime: util.TimeToSecs(time.Now()) + 1,
+			StartTime: 1,
+			// deleteme the server fails to return Ak with longer than 10 durations.
+			// Duration: 60,
+			Duration: 5,
+		},
 		Ingress: 0,
 		Egress:  41,
-		BW:      1,
-		// StartTime: util.TimeToSecs(time.Now()) + 1,
-		StartTime: 1,
-		// deleteme the server fails to return Ak with longer than 10 durations.
-		// Duration: 60,
-		Duration: 5,
 	}
-	c.SetRequestData(dstIA, req)
-	flyover, err := c.RedeemHop(ctx, dstIA)
+	c.SetRequestDataForLaterRedemption(dstIA, req)
+	flyover, err := c.RedeemHopWithPreviousRequest(ctx, dstIA)
 	require.NoError(t, err)
 	require.NotEqual(t, 0, flyover.ResID)
 	require.Len(t, flyover.Ak, hummingbird.AkSize)
@@ -145,40 +149,110 @@ func TestRedeemPath(t *testing.T) {
 	require.Len(t, chosenPath.Metadata().Interfaces, 4)
 
 	// Without any requests stored, we should still get three nil flyovers.
-	results, err := c.RedeemPath(ctx, chosenPath)
+	results, err := c.RedeemPathWithPreviousRequests(ctx, chosenPath)
 	require.NoError(t, err)
 	require.Len(t, results, 3) // 3 hops
+	require.Nil(t, results[0])
+	require.Nil(t, results[1])
+	require.Nil(t, results[2])
 
 	// Set some reservation requests. Common to all ASes with the exception of the interfaces.
 	as110 := addr.MustParseIA("1-ff00:0:110")
 	as111 := addr.MustParseIA("1-ff00:0:111")
 	as112 := addr.MustParseIA("1-ff00:0:112")
 	request := hummingbird.RedemptionRequest{
-		BW:        1,
-		StartTime: 1,
-		Duration:  5,
+		RedemptionRequestNoHop: hummingbird.RedemptionRequestNoHop{
+			BW:        1,
+			StartTime: 1,
+			Duration:  5,
+		},
 	}
 	// AS111.
 	request.Ingress = 0
 	request.Egress = 41
-	c.SetRequestData(as111, request)
+	c.SetRequestDataForLaterRedemption(as111, request)
 	// AS110.
 	request.Ingress = 1
 	request.Egress = 2
-	c.SetRequestData(as110, request)
+	c.SetRequestDataForLaterRedemption(as110, request)
 	// AS112.
 	request.Ingress = 1
 	request.Egress = 0
-	c.SetRequestData(as112, request)
+	c.SetRequestDataForLaterRedemption(as112, request)
 
 	// Check reservation request map.
 	require.Len(t, c.requestMap, 3)
 
 	// Redeem again. This time we should get three full flyovers.
-	results, err = c.RedeemPath(ctx, chosenPath)
+	results, err = c.RedeemPathWithPreviousRequests(ctx, chosenPath)
 	require.NoError(t, err)
 	require.Len(t, results, 3) // 3 hops
+	require.NotNil(t, results[0])
+	require.NotNil(t, results[1])
+	require.NotNil(t, results[2])
 
+	// AS111.
+	require.Equal(t, as111, results[0].IA)
+	require.Equal(t, uint16(0), results[0].Ingress)
+	require.Equal(t, uint16(41), results[0].Egress)
+	// AS110.
+	require.Equal(t, as110, results[1].IA)
+	require.Equal(t, uint16(1), results[1].Ingress)
+	require.Equal(t, uint16(2), results[1].Egress)
+	// AS112.
+	require.Equal(t, as112, results[2].IA)
+	require.Equal(t, uint16(1), results[2].Ingress)
+	require.Equal(t, uint16(0), results[2].Egress)
+	// Common.
+	for i := range results {
+		require.Equal(t, request.BW, results[i].Bw)
+		require.Equal(t, request.StartTime, results[i].StartTime)
+		require.Equal(t, request.Duration, results[i].Duration)
+	}
+}
+
+func TestRedeemPathWithRequest(t *testing.T) {
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+
+	const redemptionServerPort = 30258
+	const localScionDaemonAddr = "127.0.0.19:30255" // As in 111
+	dstIA := addr.MustParseIA("1-ff00:0:112")
+
+	sdConn := buildSdConn(ctx, t, localScionDaemonAddr)
+
+	localIA, err := sdConn.LocalIA(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "1-ff00:0:111", localIA.String())
+
+	c, err := NewRedemptionClient(ctx, sdConn)
+	require.NoError(t, err)
+
+	// Find a path.
+	paths, err := sdConn.Paths(ctx, dstIA, localIA, types.PathReqFlags{})
+	require.NoError(t, err)
+	require.Greater(t, len(paths), 0)
+	chosenPath := paths[0]
+	// Tiny.topo defines 111->110->112 as the only path.
+	require.Len(t, chosenPath.Metadata().Interfaces, 4)
+
+	// Redeem with basic request. We should get three full flyovers.
+	request := hummingbird.RedemptionRequestNoHop{
+		BW:        1,
+		StartTime: 1,
+		Duration:  5,
+	}
+	results, err := c.RedeemPathWithRequest(ctx, chosenPath, request)
+	require.NoError(t, err)
+	require.Len(t, results, 3) // 3 hops
+	require.NotNil(t, results[0])
+	require.NotNil(t, results[1])
+	require.NotNil(t, results[2])
+
+	// Check result values.
+	as110 := addr.MustParseIA("1-ff00:0:110")
+	as111 := addr.MustParseIA("1-ff00:0:111")
+	as112 := addr.MustParseIA("1-ff00:0:112")
 	// AS111.
 	require.Equal(t, as111, results[0].IA)
 	require.Equal(t, uint16(0), results[0].Ingress)
@@ -221,16 +295,18 @@ func TestAkCorrectness(t *testing.T) {
 	c.pubBytes = x509.MarshalPKCS1PublicKey(&c.privKey.PublicKey)
 
 	req := hummingbird.RedemptionRequest{
+		RedemptionRequestNoHop: hummingbird.RedemptionRequestNoHop{
+			BW: 1,
+			// StartTime: util.TimeToSecs(time.Now()) + 1,
+			StartTime: 1,
+			// Duration: 60,
+			Duration: 5,
+		},
 		Ingress: 0,
 		Egress:  41,
-		BW:      1,
-		// StartTime: util.TimeToSecs(time.Now()) + 1,
-		StartTime: 1,
-		// Duration: 60,
-		Duration: 5,
 	}
-	c.SetRequestData(localIA, req)
-	flyover, err := c.RedeemHop(ctx, localIA)
+	c.SetRequestDataForLaterRedemption(localIA, req)
+	flyover, err := c.RedeemHopWithPreviousRequest(ctx, localIA)
 	require.NoError(t, err)
 	gotAk := flyover.Ak
 

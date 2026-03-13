@@ -36,7 +36,7 @@ import (
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/daemon/types"
-	"github.com/scionproto/scion/pkg/hummingbird"
+	humm "github.com/scionproto/scion/pkg/hummingbird"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
 	hbirdv1connect "github.com/scionproto/scion/pkg/proto/hbird/v1/hbirdconnect"
@@ -50,7 +50,7 @@ const RedemptionServerPort = 30258
 type RedemptionClient struct {
 	LocaIA     addr.IA
 	SdConn     daemon.Connector // Daemon connector for paths.
-	requestMap map[addr.IA]hummingbird.RedemptionRequest
+	requestMap humm.RequestMap
 
 	intraAsClientFactory func() hbirdv1connect.HBirdServiceClient
 	interAsClientFactory func(
@@ -90,7 +90,7 @@ func NewRedemptionClient(ctx context.Context, sdConn daemon.Connector) (*Redempt
 		LocaIA: localIA,
 		SdConn: sdConn,
 
-		requestMap:           make(map[addr.IA]hummingbird.RedemptionRequest),
+		requestMap:           make(map[addr.IA]humm.RedemptionRequest),
 		intraAsClientFactory: intraAsClientFactory,
 		interAsClientFactory: interAsClientFactory,
 
@@ -99,15 +99,17 @@ func NewRedemptionClient(ctx context.Context, sdConn daemon.Connector) (*Redempt
 	}, nil
 }
 
-func (c *RedemptionClient) SetRequestData(ia addr.IA, req hummingbird.RedemptionRequest) {
+func (c *RedemptionClient) SetRequestDataForLaterRedemption(
+	ia addr.IA, req humm.RedemptionRequest,
+) {
 	c.requestMap[ia] = req
 }
 
-// RedeemHop redeems one hop.
-func (c RedemptionClient) RedeemHop(
+// RedeemHopWithPreviousRequest redeems one hop.
+func (c RedemptionClient) RedeemHopWithPreviousRequest(
 	ctx context.Context,
 	ia addr.IA,
-) (*hummingbird.FlyoverData, error) {
+) (*humm.FlyoverData, error) {
 	// Do we have a request for this particular IA?
 	request, ok := c.requestMap[ia]
 	if !ok {
@@ -123,30 +125,45 @@ func (c RedemptionClient) RedeemHop(
 	return c.redeemHop(ctx, ia, client, request)
 }
 
-func (c RedemptionClient) RedeemPath(
+func (c RedemptionClient) RedeemPathWithPreviousRequests(
 	ctx context.Context,
 	p snet.Path,
-) ([]*hummingbird.FlyoverData, error) {
-	if p.Source() != c.LocaIA {
-		return nil, fmt.Errorf("path starts at %s, expected local IA to be %s",
-			p.Source(), c.LocaIA)
-	}
-	if p.Metadata() == nil {
-		return nil, fmt.Errorf("requested path does not have metadata")
+) ([]*humm.FlyoverData, error) {
+	hops, err := getHopsFromPath(p)
+	if err != nil {
+		return nil, err
 	}
 
-	ifaces := p.Metadata().Interfaces
-	numHops := len(ifaces)/2 + 1
-	hops := make([]addr.IA, numHops)
+	// Run clients to all on-path ASes in parallel.
+	results, failures := c.redeemHopsConcurrently(ctx, hops)
 
-	// First hop.
-	hops[0] = ifaces[0].IA
-	// Rest of hops.
-	for i := 1; i < numHops; i++ {
-		hops[i] = ifaces[i+2-1].IA
+	return results, errors.Join(failures...)
+}
+
+func (c RedemptionClient) RedeemPathWithRequest(
+	ctx context.Context,
+	p snet.Path,
+	commonRequest humm.RedemptionRequestNoHop,
+) ([]*humm.FlyoverData, error) {
+	hops, err := getHopsFromPath(p)
+	if err != nil {
+		return nil, err
 	}
 
-	results := make([]*hummingbird.FlyoverData, len(hops))
+	// Replace requests with new ones from all on-path ASes.
+	c.requestMap = getRequestsForHops(hops, commonRequest)
+
+	// Run clients to all on-path ASes in parallel.
+	results, failures := c.redeemHopsConcurrently(ctx, hops)
+
+	return results, errors.Join(failures...)
+}
+
+func (c RedemptionClient) redeemHopsConcurrently(
+	ctx context.Context,
+	hops []humm.BaseHop,
+) ([]*humm.FlyoverData, []error) {
+	results := make([]*humm.FlyoverData, len(hops))
 	failures := make([]error, len(hops))
 	wg := sync.WaitGroup{}
 	wg.Add(len(hops))
@@ -155,31 +172,31 @@ func (c RedemptionClient) RedeemPath(
 			defer wg.Done()
 
 			// Find a request.
-			request, ok := c.requestMap[hops[i]]
+			request, ok := c.requestMap[hops[i].IA]
 			if !ok {
 				// No request: do nothing.
 				return
 			}
 			// Get a client.
-			client, err := c.clientForAs(ctx, hops[i])
+			client, err := c.clientForAs(ctx, hops[i].IA)
 			if err != nil {
-				failures[i] = fmt.Errorf("getting client for %s: %w", hops[i], err)
+				failures[i] = fmt.Errorf("getting client for %s: %w", hops[i].IA, err)
 				return
 			}
-			results[i], failures[i] = c.redeemHop(ctx, hops[i], client, request)
+			results[i], failures[i] = c.redeemHop(ctx, hops[i].IA, client, request)
 		}(i)
 	}
 	wg.Wait()
 
-	return results, errors.Join(failures...)
+	return results, failures
 }
 
 func (c RedemptionClient) redeemHop(
 	ctx context.Context,
 	ia addr.IA,
 	client hbirdv1connect.HBirdServiceClient,
-	request hummingbird.RedemptionRequest,
-) (*hummingbird.FlyoverData, error) {
+	request humm.RedemptionRequest,
+) (*humm.FlyoverData, error) {
 	pbRequest := &hbirdv1.RedemptionRequests{
 		Redemption: []*hbirdv1.RedemptionRequest{
 			&hbirdv1.RedemptionRequest{
@@ -215,18 +232,18 @@ func (c RedemptionClient) redeemHop(
 	if err != nil {
 		return nil, fmt.Errorf("decrypting Ak: %w", err)
 	}
-	if len(ak) != hummingbird.AkSize {
+	if len(ak) != humm.AkSize {
 		return nil, fmt.Errorf("redeemed key has wrong length %d", len(resp.AuthKey))
 	}
 
-	flyover := &hummingbird.FlyoverData{
-		BaseHop: hummingbird.BaseHop{
+	flyover := &humm.FlyoverData{
+		BaseHop: humm.BaseHop{
 			IA:      ia,
 			Ingress: request.Ingress,
 			Egress:  request.Egress,
 		},
 		ResID:     resp.ResId,
-		Ak:        [hummingbird.AkSize]byte(ak),
+		Ak:        [humm.AkSize]byte(ak),
 		Bw:        request.BW,
 		StartTime: request.StartTime,
 		Duration:  request.Duration,
@@ -283,6 +300,54 @@ func (c RedemptionClient) getDstAddr(ctx context.Context, dstIa addr.IA) (*snet.
 		Path:    chosenPath.Dataplane(),
 		NextHop: chosenPath.UnderlayNextHop(),
 	}, nil
+}
+
+func getHopsFromPath(p snet.Path) ([]humm.BaseHop, error) {
+	if p.Metadata() == nil {
+		return nil, fmt.Errorf("requested path does not have metadata")
+	}
+
+	ifaces := p.Metadata().Interfaces
+	// numHops := len(ifaces)/2 + 1
+	hops := make([]humm.BaseHop, len(ifaces)/2+1)
+
+	// First hop.
+	hops[0] = humm.BaseHop{
+		IA:      ifaces[0].IA,
+		Ingress: 0,
+		Egress:  uint16(ifaces[0].ID),
+	}
+	// Rest of hops excluding last.
+	// 0, [1,2], [3,4], 5
+	// 0    1      2    3
+	i := 1
+	for ; i < len(hops)-1; i++ {
+		hops[i].IA = ifaces[i*2-1].IA
+		hops[i].Ingress = uint16(ifaces[i*2-1].ID)
+		hops[i].Egress = uint16(ifaces[i*2].ID)
+	}
+	// Last hop.
+	for ; i < len(hops); i++ {
+		hops[i].IA = ifaces[i*2-1].IA
+		hops[i].Ingress = uint16(ifaces[i*2-1].ID)
+		hops[i].Egress = 0
+	}
+	return hops, nil
+}
+
+func getRequestsForHops(
+	hops []humm.BaseHop,
+	commonRequest humm.RedemptionRequestNoHop,
+) humm.RequestMap {
+	requestMap := make(humm.RequestMap)
+	for _, hop := range hops {
+		requestMap[hop.IA] = humm.RedemptionRequest{
+			RedemptionRequestNoHop: commonRequest,
+			Ingress:                hop.Ingress,
+			Egress:                 hop.Egress,
+		}
+	}
+	return requestMap
 }
 
 func buildIntraAsFactory(ctx context.Context, sdConn daemon.Connector,

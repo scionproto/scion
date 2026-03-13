@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["hummingbird.go"],
+    importpath = "github.com/scionproto/scion/pkg/hummingbird",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/slayers/path/hummingbird:go_default_library",
+    ],
+)

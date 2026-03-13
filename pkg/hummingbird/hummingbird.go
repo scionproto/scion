@@ -37,14 +37,23 @@ type FlyoverData struct {
 	Duration  uint16 // Duration of the reservation in seconds.
 }
 
-type RedemptionRequest struct {
+// RedemptionRequestNoHop represents the redemption request parameters without ingress or egress.
+// It can be used to parametrize a request that will be applied to several hops.
+type RedemptionRequestNoHop struct {
 	ClientKey    []byte
 	IngressToken []byte
 	EgressToken  []byte
 
-	Ingress   uint16
-	Egress    uint16
 	BW        uint16
 	StartTime uint32
 	Duration  uint16
 }
+
+// RedemptionRequest contains all the redemption request parameters.
+type RedemptionRequest struct {
+	RedemptionRequestNoHop
+	Ingress uint16
+	Egress  uint16
+}
+
+type RequestMap map[addr.IA]RedemptionRequest
