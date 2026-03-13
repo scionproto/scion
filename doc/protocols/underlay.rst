@@ -27,6 +27,8 @@ SCION allows reusing existing network fabrics to provide connectivity among SCIO
 
 The exception is intra-domain control-plane traffic between end-hosts and the control-plane. This usually uses gRPC or ConnectRPC over HTTP/TCP/IP without SCION:
 
+.. code-block:: text
+
     +-----------------------------+
     |                             |
     |        Payload (L4)         |
