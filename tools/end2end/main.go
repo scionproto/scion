@@ -61,12 +61,10 @@ import (
 )
 
 const (
-	ping                = "ping"
-	pong                = "pong"
-	hummReservationID   = uint32(1)
-	hummBandwidth       = uint16(64)
-	hummDurationSeconds = uint16(60)
-	hummStartOffset     = -5 * time.Second
+	ping              = "ping"
+	pong              = "pong"
+	hummReservationID = uint32(1)
+	hummStartOffset   = -5 * time.Second
 )
 
 type Ping struct {
@@ -128,16 +126,13 @@ func addFlags() {
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC")
 	flag.StringVar(&hummingbird, "hummingbird", "", "Enable Hummingbird with BW,dur (e.g. '3,5s')")
-	flag.StringVar(&hummKeysDir, "hummKeysDir", "./gen",
+	flag.StringVar(&hummKeysDir, "hummKeysDir", "",
 		"Root directory containing AS*/keys/master0.key files for Hummingbird")
 }
 
 func validateFlags() {
 	if epic && hummingbird != "" {
 		integration.LogFatal("EPIC and Hummingbird modes are mutually exclusive")
-	}
-	if hummingbird != "" && hummKeysDir == "" {
-		integration.LogFatal("Missing hummKeysDir in hummingbird mode")
 	}
 	if integration.Mode == integration.ModeClient {
 		if remote.Host == nil {
@@ -173,7 +168,7 @@ func validateFlags() {
 				"value", dur.Seconds())
 		}
 		hummParams = hummingbirdParameters{
-			BW:       uint16(bw),
+			Bw:       uint16(bw),
 			Duration: uint16(dur.Seconds()),
 		}
 	}
@@ -471,7 +466,13 @@ func (c *client) configureRemotePath(ctx context.Context, path snet.Path) error 
 		}
 		remote.Path = epicPath
 	} else if c.useHummingbird {
-		reservation, err := c.buildReservationWithSecretValues(ctx, path, time.Now())
+		var reservation *snetpath.Reservation
+		var err error
+		if c.hummKeysDir != "" {
+			reservation, err = c.buildReservationWithSecretValues(ctx, path, time.Now())
+		} else {
+			reservation, err = c.buildReservationWithRedemptions(ctx, path, time.Now())
+		}
 		if err != nil {
 			return err
 		}
@@ -499,7 +500,7 @@ func (c *client) buildReservationWithRedemptions(
 	// Obtain the flyovers.
 	flyovers, err := redemptClient.RedeemPathWithRequest(ctx, path, hummpkg.RedemptionRequestNoHop{
 		StartTime: util.TimeToSecs(returnNow()),
-		Bw:        hummParams.BW,
+		Bw:        hummParams.Bw,
 		Duration:  hummParams.Duration,
 	})
 	if err != nil {
@@ -527,6 +528,8 @@ func (c *client) buildReservationWithSecretValues(
 	aesByIA := make(map[addr.IA]cipher.Block)
 	buffer := make([]byte, hummlib.AkBufferSize)
 
+	hummBandwidth := c.hummParams.Bw
+	hummDurationSeconds := c.hummParams.Duration
 	for _, baseHop := range baseHops {
 		block, ok := aesByIA[baseHop.IA]
 		if !ok {
@@ -634,6 +637,6 @@ func readFrom(conn *snet.Conn, pld []byte) (int, net.Addr, error) {
 }
 
 type hummingbirdParameters struct {
-	BW       uint16
+	Bw       uint16
 	Duration uint16
 }
