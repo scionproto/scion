@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/hummingbird"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
@@ -119,9 +120,11 @@ func (c RedemptionClient) RedeemHop(
 		client = c.intraAsClientFactory()
 	} else {
 		// Non local, use the inter-AS client.
-		// client = c.interAsClientFactory(ctx, )
-		// TODO
-		panic("TODO")
+		dstAddr, err := c.getDstAddr(ctx, ia)
+		if err != nil {
+			return nil, fmt.Errorf("finding the CS address of on-path AS %s: %w", ia, err)
+		}
+		client = c.interAsClientFactory(ctx, dstAddr)
 	}
 
 	pbRequest := &hbirdv1.RedemptionRequests{
@@ -177,6 +180,33 @@ func (c RedemptionClient) RedeemHop(
 
 func (c RedemptionClient) decryptAk(encryptedAk []byte) ([]byte, error) {
 	return rsa.DecryptOAEP(sha256.New(), rand.Reader, c.privKey, encryptedAk, nil)
+}
+
+func (c RedemptionClient) getDstAddr(ctx context.Context, dstIa addr.IA) (*snet.UDPAddr, error) {
+	// Find a path to ia.
+	paths, err := c.SdConn.Paths(ctx, dstIa, c.LocaIA, types.PathReqFlags{})
+	if err != nil {
+		return nil, err
+	}
+	if len(paths) == 0 {
+		return nil, err
+	}
+	chosenPath := paths[0]
+
+	// Find the CS address of the dstIA.
+	ipAddr, err := findCsIpAddr(chosenPath, dstIa)
+	if err != nil {
+		return nil, err
+	}
+	return &snet.UDPAddr{
+		IA: dstIa,
+		Host: &net.UDPAddr{
+			IP:   net.IP(ipAddr.Addr().AsSlice()),
+			Port: RedemptionServerPort,
+		},
+		Path:    chosenPath.Dataplane(),
+		NextHop: chosenPath.UnderlayNextHop(),
+	}, nil
 }
 
 func buildIntraAsFactory(ctx context.Context, sdConn daemon.Connector,

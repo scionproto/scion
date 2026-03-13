@@ -52,7 +52,7 @@ import (
 // Expects the server to run like:
 // go run ./hbird/cmd/hummingbird/   --config gen/ASff00_0_110/hbird.toml
 // Server needs dummy_keys inside the configuration directory.
-func TestRedeemHopLocal(t *testing.T) {
+func TestRedeemHopLocaldeleteme(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 
@@ -82,21 +82,21 @@ func TestRedeemHopLocal(t *testing.T) {
 	require.NotNil(t, res)
 }
 
-// TestRedeemHopInterAS
+// TestRedeemHopInterASdeleteme
 // Expects the server to run like:
 // cd hbird/cmd/hummingbird && go run ./ --config configuration/hbird.toml
 // The topology file is for AS 110 from tiny.topo
 //
 // The test client is run as:
 // export SCION_DAEMON=$( cd ../../../ && ./scion.sh sciond-addr 111 ) && go run ./ 1-ff00:0:110 skipIP
-func TestRedeemHopInterAS(t *testing.T) {
+func TestRedeemHopInterASdeleteme(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 
 	const redemptionServerPort = 30258
 	const localScionDaemonAddr = "127.0.0.19:30255" // As in 111
-
 	dstIA := addr.MustParseIA("1-ff00:0:110")
+
 	sdConn := buildSdConn(ctx, t, localScionDaemonAddr)
 	localIA, err := sdConn.LocalIA(ctx)
 	require.NoError(t, err)
@@ -178,6 +178,48 @@ func TestRedeemHopIntraAS(t *testing.T) {
 	require.NotEqual(t, 0, flyover.ResID)
 	require.Len(t, flyover.Ak, hummingbird.AkSize)
 	require.Equal(t, localIA, flyover.IA)
+	require.Equal(t, req.Ingress, flyover.Ingress)
+	require.Equal(t, req.Egress, flyover.Egress)
+	require.Equal(t, req.BW, flyover.Bw)
+	require.Equal(t, req.StartTime, flyover.StartTime)
+	require.Equal(t, req.Duration, flyover.Duration)
+	t.Logf("Ak = %s", hex.EncodeToString(flyover.Ak[:]))
+}
+
+// TestRedeemHopInterAS requires the tiny.topo to be running.
+func TestRedeemHopInterAS(t *testing.T) {
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+
+	const redemptionServerPort = 30258
+	const localScionDaemonAddr = "127.0.0.19:30255" // As in 111
+	dstIA := addr.MustParseIA("1-ff00:0:110")
+
+	sdConn := buildSdConn(ctx, t, localScionDaemonAddr)
+
+	localIA, err := sdConn.LocalIA(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "1-ff00:0:111", localIA.String())
+
+	c, err := NewRedemptionClient(ctx, sdConn)
+	require.NoError(t, err)
+
+	req := hummingbird.RedemptionRequest{
+		Ingress: 0,
+		Egress:  41,
+		BW:      1,
+		// StartTime: util.TimeToSecs(time.Now()) + 1,
+		StartTime: 1,
+		// deleteme the server fails to return Ak with longer than 10 durations.
+		// Duration: 60,
+		Duration: 5,
+	}
+	c.SetRequestData(dstIA, req)
+	flyover, err := c.RedeemHop(ctx, dstIA)
+	require.NoError(t, err)
+	require.NotEqual(t, 0, flyover.ResID)
+	require.Len(t, flyover.Ak, hummingbird.AkSize)
+	require.Equal(t, dstIA, flyover.IA)
 	require.Equal(t, req.Ingress, flyover.Ingress)
 	require.Equal(t, req.Egress, flyover.Egress)
 	require.Equal(t, req.BW, flyover.Bw)
