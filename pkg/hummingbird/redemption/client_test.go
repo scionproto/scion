@@ -21,129 +21,19 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
-	"net"
-	"net/http"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	libconnect "github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/hummingbird"
 	"github.com/scionproto/scion/pkg/log"
-	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
-	hbirdv1connect "github.com/scionproto/scion/pkg/proto/hbird/v1/hbirdconnect"
 	hummlib "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
-	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/snet/squic"
-	"github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/keyconf"
 )
-
-// TestRedeemHop
-// Expects the server to run like:
-// go run ./hbird/cmd/hummingbird/   --config gen/ASff00_0_110/hbird.toml
-// Server needs dummy_keys inside the configuration directory.
-func TestRedeemHopLocaldeleteme(t *testing.T) {
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
-
-	const redemptionServerPort = 30258
-	const localScionDaemonAddr = "127.0.0.19:30255" // As in 111
-
-	// Connect to the daemon.
-	sdConn := buildSdConn(ctx, t, localScionDaemonAddr)
-	// Find the address of the local CS.
-	topo := daemon.TopoQuerier{Connector: sdConn}
-	csAddr, err := topo.UnderlayAnycast(ctx, addr.SvcCS)
-	require.NoError(t, err)
-	// Build the redemption server's address using the CS's one.
-	dstRedemptionServer := fmt.Sprintf("http://%s:%d", csAddr.IP.String(), redemptionServerPort)
-
-	// The connect client is built differently depending on whether the connection is intra- or
-	// inter-AS.
-	// The creation of the request and request itself is the same.
-	client := hbirdv1connect.NewHBirdServiceClient(
-		http.DefaultClient,
-		dstRedemptionServer,
-	)
-
-	request := &hbirdv1.RedemptionRequests{}
-	res, err := client.Redeem(ctx, connect.NewRequest(request))
-	require.NoError(t, err)
-	require.NotNil(t, res)
-}
-
-// TestRedeemHopInterASdeleteme
-// Expects the server to run like:
-// cd hbird/cmd/hummingbird && go run ./ --config configuration/hbird.toml
-// The topology file is for AS 110 from tiny.topo
-//
-// The test client is run as:
-// export SCION_DAEMON=$( cd ../../../ && ./scion.sh sciond-addr 111 ) && go run ./ 1-ff00:0:110 skipIP
-func TestRedeemHopInterASdeleteme(t *testing.T) {
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
-
-	const redemptionServerPort = 30258
-	const localScionDaemonAddr = "127.0.0.19:30255" // As in 111
-	dstIA := addr.MustParseIA("1-ff00:0:110")
-
-	sdConn := buildSdConn(ctx, t, localScionDaemonAddr)
-	localIA, err := sdConn.LocalIA(ctx)
-	require.NoError(t, err)
-
-	scionNetwork := buildScionNetwork(ctx, t, sdConn)
-	factory := buildFactory(ctx, t, scionNetwork)
-	dialerGenerator := factory.NewDialer
-
-	// Construct the redemption server's address based on that of the CS.
-	paths, err := sdConn.Paths(ctx, dstIA, localIA, types.PathReqFlags{})
-	require.NoError(t, err)
-	chosenPath := paths[0]
-	csIpAddr, err := findCsIpAddr(chosenPath, dstIA)
-	require.NoError(t, err)
-	dstAddr := &snet.UDPAddr{
-		IA: dstIA,
-		Host: &net.UDPAddr{
-			IP:   net.IP(csIpAddr.Addr().AsSlice()),
-			Port: redemptionServerPort,
-		},
-		Path:    chosenPath.Dataplane(),
-		NextHop: chosenPath.UnderlayNextHop(),
-	}
-	dstAddr.Path = chosenPath.Dataplane()
-	dstAddr.NextHop = chosenPath.UnderlayNextHop()
-
-	readyDialer := dialerGenerator(dstAddr,
-		squic.WithDialTimeout(time.Second),
-	)
-
-	// The connect client is built differently depending on whether the connection is intra- or
-	// inter-AS.
-	// The creation of the request and request itself is the same.
-	client := hbirdv1connect.NewHBirdServiceClient(
-		libconnect.HTTPClient{
-			RoundTripper: &http3.Transport{
-				Dial: readyDialer.DialEarly,
-			},
-		},
-		libconnect.BaseUrl(dstAddr),
-	)
-
-	request := &hbirdv1.RedemptionRequests{}
-	res, err := client.Redeem(ctx, connect.NewRequest(request))
-	require.NoError(t, err)
-	require.NotNil(t, res)
-}
 
 // TestRedeemHopIntraAS uses tiny.topo AS 111 as local AS. Topology must be running.
 func TestRedeemHopIntraAS(t *testing.T) {
@@ -277,55 +167,6 @@ func buildSdConn(
 	conn, err := daemon.NewService(daemonAddr).Connect(ctx)
 	require.NoError(t, err)
 	return conn
-}
-
-func buildScionNetwork(
-	ctx context.Context,
-	t *testing.T,
-	sdConn daemon.Connector,
-) *snet.SCIONNetwork {
-	topo, err := daemon.LoadTopology(ctx, sdConn)
-	require.NoError(t, err)
-
-	return &snet.SCIONNetwork{
-		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: daemon.RevHandler{Connector: sdConn},
-		},
-		Topology: topo,
-	}
-}
-
-func buildFactory(
-	ctx context.Context,
-	t *testing.T,
-	sn *snet.SCIONNetwork,
-) *squic.EarlyDialerFactory {
-
-	clientAddr := &net.UDPAddr{
-		IP: net.IPv4(127, 0, 0, 1),
-	}
-	client, err := sn.Listen(ctx, "udp", clientAddr)
-	require.NoError(t, err)
-	clientTransport := &quic.Transport{
-		Conn: client,
-	}
-
-	insecureClientTlsConfig, err := appnet.GenerateTLSConfig()
-	require.NoError(t, err)
-	insecureClientTlsConfig.InsecureSkipVerify = true
-	insecureClientTlsConfig.NextProtos = []string{"SCION"}
-
-	qConnDialer := &squic.ConnDialer{
-		Transport: clientTransport,
-		TLSConfig: insecureClientTlsConfig,
-	}
-
-	factory := &squic.EarlyDialerFactory{
-		Transport: qConnDialer.Transport,
-		TLSConfig: libconnect.AdaptClientTLS(qConnDialer.TLSConfig),
-		Rewriter:  passThroughRewriter{},
-	}
-	return factory
 }
 
 func deriveAk(t *testing.T, ia addr.IA, flyover *hummingbird.FlyoverData) [hummingbird.AkSize]byte {
