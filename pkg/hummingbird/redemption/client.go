@@ -20,10 +20,12 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -113,20 +115,71 @@ func (c RedemptionClient) RedeemHop(
 		return nil, nil
 	}
 
-	// Is this hop the local IA?
-	var client hbirdv1connect.HBirdServiceClient
-	if ia == c.LocaIA {
-		// It is local. Use the intra-AS client.
-		client = c.intraAsClientFactory()
-	} else {
-		// Non local, use the inter-AS client.
-		dstAddr, err := c.getDstAddr(ctx, ia)
-		if err != nil {
-			return nil, fmt.Errorf("finding the CS address of on-path AS %s: %w", ia, err)
-		}
-		client = c.interAsClientFactory(ctx, dstAddr)
+	client, err := c.clientForAs(ctx, ia)
+	if err != nil {
+		return nil, err
 	}
 
+	return c.redeemHop(ctx, ia, client, request)
+}
+
+func (c RedemptionClient) RedeemPath(
+	ctx context.Context,
+	p snet.Path,
+) ([]*hummingbird.FlyoverData, error) {
+	if p.Source() != c.LocaIA {
+		return nil, fmt.Errorf("path starts at %s, expected local IA to be %s",
+			p.Source(), c.LocaIA)
+	}
+	if p.Metadata() == nil {
+		return nil, fmt.Errorf("requested path does not have metadata")
+	}
+
+	ifaces := p.Metadata().Interfaces
+	numHops := len(ifaces)/2 + 1
+	hops := make([]addr.IA, numHops)
+
+	// First hop.
+	hops[0] = ifaces[0].IA
+	// Rest of hops.
+	for i := 1; i < numHops; i++ {
+		hops[i] = ifaces[i+2-1].IA
+	}
+
+	results := make([]*hummingbird.FlyoverData, len(hops))
+	failures := make([]error, len(hops))
+	wg := sync.WaitGroup{}
+	wg.Add(len(hops))
+	for i := range hops {
+		go func(i int) {
+			defer wg.Done()
+
+			// Find a request.
+			request, ok := c.requestMap[hops[i]]
+			if !ok {
+				// No request: do nothing.
+				return
+			}
+			// Get a client.
+			client, err := c.clientForAs(ctx, hops[i])
+			if err != nil {
+				failures[i] = fmt.Errorf("getting client for %s: %w", hops[i], err)
+				return
+			}
+			results[i], failures[i] = c.redeemHop(ctx, hops[i], client, request)
+		}(i)
+	}
+	wg.Wait()
+
+	return results, errors.Join(failures...)
+}
+
+func (c RedemptionClient) redeemHop(
+	ctx context.Context,
+	ia addr.IA,
+	client hbirdv1connect.HBirdServiceClient,
+	request hummingbird.RedemptionRequest,
+) (*hummingbird.FlyoverData, error) {
 	pbRequest := &hbirdv1.RedemptionRequests{
 		Redemption: []*hbirdv1.RedemptionRequest{
 			&hbirdv1.RedemptionRequest{
@@ -142,6 +195,9 @@ func (c RedemptionClient) RedeemHop(
 			},
 		},
 		ClientKey: c.pubBytes,
+	}
+	if len(request.ClientKey) > 0 {
+		pbRequest.ClientKey = request.ClientKey
 	}
 	res, err := client.Redeem(ctx, connect.NewRequest(pbRequest))
 	if err != nil {
@@ -176,6 +232,26 @@ func (c RedemptionClient) RedeemHop(
 		Duration:  request.Duration,
 	}
 	return flyover, nil
+}
+
+func (c RedemptionClient) clientForAs(
+	ctx context.Context,
+	ia addr.IA,
+) (hbirdv1connect.HBirdServiceClient, error) {
+	// Is this hop the local IA?
+	var client hbirdv1connect.HBirdServiceClient
+	if ia == c.LocaIA {
+		// It is local. Use the intra-AS client.
+		client = c.intraAsClientFactory()
+	} else {
+		// Non local, use the inter-AS client.
+		dstAddr, err := c.getDstAddr(ctx, ia)
+		if err != nil {
+			return nil, fmt.Errorf("finding the CS address of on-path AS %s: %w", ia, err)
+		}
+		client = c.interAsClientFactory(ctx, dstAddr)
+	}
+	return client, nil
 }
 
 func (c RedemptionClient) decryptAk(encryptedAk []byte) ([]byte, error) {

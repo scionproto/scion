@@ -40,10 +40,11 @@ type FlyoverData struct {
 type RedemptionRequest struct {
 	ClientKey    []byte
 	IngressToken []byte
-	Ingress      uint16
 	EgressToken  []byte
-	Egress       uint16
-	BW           uint16
-	StartTime    uint32
-	Duration     uint16
+
+	Ingress   uint16
+	Egress    uint16
+	BW        uint16
+	StartTime uint32
+	Duration  uint16
 }

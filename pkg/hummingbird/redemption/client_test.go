@@ -29,6 +29,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/hummingbird"
 	"github.com/scionproto/scion/pkg/log"
 	hummlib "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
@@ -116,6 +117,86 @@ func TestRedeemHopInterAS(t *testing.T) {
 	require.Equal(t, req.StartTime, flyover.StartTime)
 	require.Equal(t, req.Duration, flyover.Duration)
 	t.Logf("Ak = %s", hex.EncodeToString(flyover.Ak[:]))
+}
+
+func TestRedeemPath(t *testing.T) {
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+
+	const redemptionServerPort = 30258
+	const localScionDaemonAddr = "127.0.0.19:30255" // As in 111
+	dstIA := addr.MustParseIA("1-ff00:0:112")
+
+	sdConn := buildSdConn(ctx, t, localScionDaemonAddr)
+
+	localIA, err := sdConn.LocalIA(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "1-ff00:0:111", localIA.String())
+
+	c, err := NewRedemptionClient(ctx, sdConn)
+	require.NoError(t, err)
+
+	// Find a path.
+	paths, err := sdConn.Paths(ctx, dstIA, localIA, types.PathReqFlags{})
+	require.NoError(t, err)
+	require.Greater(t, len(paths), 0)
+	chosenPath := paths[0]
+	// Tiny.topo defines 111->110->112 as the only path.
+	require.Len(t, chosenPath.Metadata().Interfaces, 4)
+
+	// Without any requests stored, we should still get three nil flyovers.
+	results, err := c.RedeemPath(ctx, chosenPath)
+	require.NoError(t, err)
+	require.Len(t, results, 3) // 3 hops
+
+	// Set some reservation requests. Common to all ASes with the exception of the interfaces.
+	as110 := addr.MustParseIA("1-ff00:0:110")
+	as111 := addr.MustParseIA("1-ff00:0:111")
+	as112 := addr.MustParseIA("1-ff00:0:112")
+	request := hummingbird.RedemptionRequest{
+		BW:        1,
+		StartTime: 1,
+		Duration:  5,
+	}
+	// AS111.
+	request.Ingress = 0
+	request.Egress = 41
+	c.SetRequestData(as111, request)
+	// AS110.
+	request.Ingress = 1
+	request.Egress = 2
+	c.SetRequestData(as110, request)
+	// AS112.
+	request.Ingress = 1
+	request.Egress = 0
+	c.SetRequestData(as112, request)
+
+	// Check reservation request map.
+	require.Len(t, c.requestMap, 3)
+
+	// Redeem again. This time we should get three full flyovers.
+	results, err = c.RedeemPath(ctx, chosenPath)
+	require.NoError(t, err)
+	require.Len(t, results, 3) // 3 hops
+
+	// AS111.
+	require.Equal(t, as111, results[0].IA)
+	require.Equal(t, uint16(0), results[0].Ingress)
+	require.Equal(t, uint16(41), results[0].Egress)
+	// AS110.
+	require.Equal(t, as110, results[1].IA)
+	require.Equal(t, uint16(1), results[1].Ingress)
+	require.Equal(t, uint16(2), results[1].Egress)
+	// AS112.
+	require.Equal(t, as112, results[2].IA)
+	require.Equal(t, uint16(1), results[2].Ingress)
+	require.Equal(t, uint16(0), results[2].Egress)
+	// Common.
+	for i := range results {
+		require.Equal(t, request.BW, results[i].Bw)
+		require.Equal(t, request.StartTime, results[i].StartTime)
+		require.Equal(t, request.Duration, results[i].Duration)
+	}
 }
 
 func TestAkCorrectness(t *testing.T) {
