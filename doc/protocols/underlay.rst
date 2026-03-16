@@ -87,7 +87,7 @@ Traffic from End-hosts
 
 End hosts send traffic to the SCION router's Internal Interface address and port. This underlay port must be configured on the endpoints via the ``topology.json`` file.
 
-NAT Address Discovery
+NAT Traversal
 """"""""""""""""""""""""""""""""""""""
 
 End hosts located behind a Network Address Translation (NAT) device face a unique challenge: the source address they encode must be the external IP and port visible to the first-hop border router, rather than their internal local address.
