@@ -294,7 +294,6 @@ func TestRedeemPathWithRequest(t *testing.T) {
 }
 
 func TestAkCorrectness(t *testing.T) {
-	t.Skip("deleteme TODO disabled until investigation on why the Aks are different.")
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 
@@ -332,6 +331,7 @@ func TestAkCorrectness(t *testing.T) {
 
 	// Derive Ak from local data.
 	expectedAk := deriveAk(t, localIA, flyover)
+	t.Logf("from redemption server Ak = %s", hex.EncodeToString(gotAk[:]))
 
 	require.Equal(t, expectedAk, gotAk)
 }

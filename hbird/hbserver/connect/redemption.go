@@ -8,7 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	hbirdv1 "github.com/scionproto/scion/pkg/proto/hbird/v1"
+	hummlib "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/private/topology"
 )
 
@@ -291,41 +292,38 @@ func (h *HummingbirdKeyDerivationService) AssignAuthenticationKey(
 }
 
 func ComputeAuthenticationKey(r ResInfo, masterKey [16]byte) (*[16]byte, error) {
-	// Create AES cipher.
-	blockCipher, err := aes.NewCipher(masterKey[:])
+	// Create AES cipher from secret value.
+	sv := hummlib.DeriveSecretValue(masterKey[:])
+	blockCipher, err := aes.NewCipher(sv)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AES-128 cipher: %w", err)
 	}
-	// Combine res_id and bandwidth bits:
+
+	// BW as 16 bits.
 	bwVal, err := r.Bandwidth.ToWireFormat()
 	if err != nil {
 		return nil, err
 	}
-	resIDConcatBW := (r.ResID << BW_BITS) | uint32(bwVal)
-
-	// Build the 16-byte block.
-	// Indices:
-	//   [0..2] = ingress (u16 big-endian)
-	//   [2..4] = egress (u16 big-endian)
-	//   [4..8] = resIDConcatBW (u32 big-endian)
-	//   [8..12] = start_time (u32 big-endian)
-	//   [12..14] = duration (u16 big-endian)
-	var block [16]byte
-
-	binary.BigEndian.PutUint16(block[0:2], r.IngressInterface)
-	binary.BigEndian.PutUint16(block[2:4], r.EgressInterface)
-	binary.BigEndian.PutUint32(block[4:8], resIDConcatBW)
-
 	// StartTime as 32-bit Unix time
 	unixStart := uint32(r.StartTime.Unix())
-	binary.BigEndian.PutUint32(block[8:12], unixStart)
-
 	// Duration in seconds as a 16-bit
 	durSeconds := uint16(r.Duration.Seconds())
-	binary.BigEndian.PutUint16(block[12:14], durSeconds)
-	// [14..16] is zero
 
-	// Encrypt the block in-place
-	blockCipher.Encrypt(block[:], block[:])
-	return &block, nil
+	var buff [16]byte
+
+	ak := hummlib.DeriveAuthKey(
+		blockCipher,
+		r.ResID,
+		bwVal,
+		r.IngressInterface,
+		r.EgressInterface,
+		unixStart,
+		durSeconds,
+		buff[:],
+	)
+	deleteme := fmt.Sprintf("deleteme recomputed ak = %s", hex.EncodeToString(ak))
+	log.Debug(deleteme)
+
+	buffAlias := [16]byte(ak)
+	return &buffAlias, nil
 }
