@@ -107,6 +107,8 @@ SCION border routers utilize specific underlay ports to process and forward traf
 Control Plane Instances
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Control plane components of different ASes communicate with each other through RPC messages that are transported via Connect RPC. This protocol carries messages over HTTP/3, that uses a QUIC transport layer. Identification of the relevant addresses and ports for inter-domain queries is provided by `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_.
+Control plane components communicate with each other and with end-hosts through RPC messages transported via Connect RPC.
 
-For intra-domain communication of endpoints with service instances, the operator may use arbitrary ports, that have to be communicated to endpoints. For a comprehensive list of ports used by this implementation, refer to the :ref:`control-port-table`.
+For inter-AS communication, traffic is transported over ConnectRPC/HTTP3/QUIC/UDP/SCION/UDP/IP between control service instances. Identification of the relevant control service addresses and ports is provided by `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_.
+
+For intra-AS communication, traffic is transported over ConnectRPC/HTTP/TCP/IP between end-hosts and control service instances. The port used by control service instances is configured by operators, and configured on end-hosts. For a comprehensive list of ports used by this implementation, refer to the :ref:`control-port-table`.
