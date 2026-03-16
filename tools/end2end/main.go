@@ -489,11 +489,13 @@ func (c *client) buildReservationWithRedemptions(
 	path snet.Path,
 	now time.Time,
 ) (*snetpath.Reservation, error) {
-	return redemption.OneShotReservation(ctx, c.sdConn, path, hummpkg.RedemptionRequestNoHop{
-		StartTime: uint32(now.Unix()),
-		Bw:        hummParams.Bw,
-		Duration:  hummParams.Duration,
-	})
+	return redemption.OneShotReservation(ctx, c.sdConn, integration.Local.Host.IP, path,
+		hummpkg.RedemptionRequestNoHop{
+			StartTime: uint32(now.Unix()),
+			Bw:        hummParams.Bw,
+			Duration:  hummParams.Duration,
+		},
+	)
 }
 
 func (c *client) buildReservationWithSecretValues(

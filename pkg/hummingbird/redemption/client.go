@@ -65,7 +65,11 @@ type RedemptionClient struct {
 	privKey  *rsa.PrivateKey
 }
 
-func NewRedemptionClient(ctx context.Context, sdConn daemon.Connector) (*RedemptionClient, error) {
+func NewRedemptionClient(
+	ctx context.Context,
+	sdConn daemon.Connector,
+	localIP net.IP,
+) (*RedemptionClient, error) {
 	localIA, err := sdConn.LocalIA(ctx)
 	if err != nil {
 		return nil, err
@@ -79,7 +83,7 @@ func NewRedemptionClient(ctx context.Context, sdConn daemon.Connector) (*Redempt
 	}
 
 	// Inter-AS.
-	interAsClientFactory, err := buildInterAsFactory(ctx, sdConn)
+	interAsClientFactory, err := buildInterAsFactory(ctx, sdConn, localIP)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +376,7 @@ func buildIntraAsFactory(ctx context.Context, sdConn daemon.Connector,
 	}, nil
 }
 
-func buildInterAsFactory(ctx context.Context, sdConn daemon.Connector,
+func buildInterAsFactory(ctx context.Context, sdConn daemon.Connector, localIP net.IP,
 ) (func(
 	ctx context.Context,
 	dst *snet.UDPAddr,
@@ -394,7 +398,7 @@ func buildInterAsFactory(ctx context.Context, sdConn daemon.Connector,
 
 	// Dialer factory.
 	clientAddr := &net.UDPAddr{
-		IP: net.IPv4(127, 0, 0, 1), // deleteme TODO is this correct?
+		IP: localIP,
 	}
 	client, err := scionNet.Listen(ctx, "udp", clientAddr)
 	if err != nil {

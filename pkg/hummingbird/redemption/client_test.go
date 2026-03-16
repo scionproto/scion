@@ -21,6 +21,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"net"
 	"path/filepath"
 	"testing"
 	"time"
@@ -70,7 +71,7 @@ func TestRedeemHopIntraAS(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "1-ff00:0:111", localIA.String())
 
-	c, err := NewRedemptionClient(ctx, sdConn)
+	c, err := NewRedemptionClient(ctx, sdConn, localIpFromDaemonAddr(t, localScionDaemonAddr))
 	require.NoError(t, err)
 
 	req := hummingbird.RedemptionRequest{
@@ -114,7 +115,7 @@ func TestRedeemHopInterAS(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "1-ff00:0:111", localIA.String())
 
-	c, err := NewRedemptionClient(ctx, sdConn)
+	c, err := NewRedemptionClient(ctx, sdConn, localIpFromDaemonAddr(t, localScionDaemonAddr))
 	require.NoError(t, err)
 
 	req := hummingbird.RedemptionRequest{
@@ -157,7 +158,7 @@ func TestRedeemPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "1-ff00:0:111", localIA.String())
 
-	c, err := NewRedemptionClient(ctx, sdConn)
+	c, err := NewRedemptionClient(ctx, sdConn, localIpFromDaemonAddr(t, localScionDaemonAddr))
 	require.NoError(t, err)
 
 	// Find a path.
@@ -245,7 +246,7 @@ func TestRedeemPathWithRequest(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "1-ff00:0:111", localIA.String())
 
-	c, err := NewRedemptionClient(ctx, sdConn)
+	c, err := NewRedemptionClient(ctx, sdConn, localIpFromDaemonAddr(t, localScionDaemonAddr))
 	require.NoError(t, err)
 
 	// Find a path.
@@ -306,7 +307,7 @@ func TestAkCorrectness(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "1-ff00:0:111", localIA.String())
 
-	c, err := NewRedemptionClient(ctx, sdConn)
+	c, err := NewRedemptionClient(ctx, sdConn, localIpFromDaemonAddr(t, localScionDaemonAddr))
 	require.NoError(t, err)
 
 	// Set a deterministic client key.
@@ -344,6 +345,12 @@ func buildSdConn(
 	conn, err := daemon.NewService(daemonAddr).Connect(ctx)
 	require.NoError(t, err)
 	return conn
+}
+
+func localIpFromDaemonAddr(t *testing.T, localScionDaemonAddr string) net.IP {
+	addr, err := net.ResolveUDPAddr("udp", localScionDaemonAddr)
+	require.NoError(t, err)
+	return addr.IP
 }
 
 func deriveAk(t *testing.T, ia addr.IA, flyover *path.Hop) [hummingbird.AkSize]byte {

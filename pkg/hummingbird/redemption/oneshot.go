@@ -16,10 +16,11 @@ package redemption
 
 import (
 	"context"
-	"fmt"
+	"net"
 
 	"github.com/scionproto/scion/pkg/daemon"
 	humm "github.com/scionproto/scion/pkg/hummingbird"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 )
@@ -27,18 +28,19 @@ import (
 func OneShotReservation(
 	ctx context.Context,
 	sdConn daemon.Connector,
+	localIP net.IP,
 	p snet.Path,
 	commonRequest humm.RedemptionRequestNoHop,
 ) (*snetpath.Reservation, error) {
 	// Build a redemption client.
-	redemptClient, err := NewRedemptionClient(ctx, sdConn)
+	redemptClient, err := NewRedemptionClient(ctx, sdConn, localIP)
 	if err != nil {
-		return nil, err
+		return nil, serrors.Wrap("new redemption client", err)
 	}
 	// Obtain the flyovers.
 	flyovers, err := redemptClient.RedeemPathWithRequest(ctx, p, commonRequest)
 	if err != nil {
-		return nil, fmt.Errorf("redeeming flyovers: %w", err)
+		return nil, serrors.Wrap("redeeming flyovers", err)
 	}
 
 	// Build a reservation with the flyovers.
