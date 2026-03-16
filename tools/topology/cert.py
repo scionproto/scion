@@ -55,10 +55,13 @@ class CertGenerator(object):
     def _master_keys(self, topo_dicts):
         for topo_id in topo_dicts:
             base = topo_id.base_dir(self.args.output_dir)
-            write_file(os.path.join(base, 'keys', 'master0.key'),
-                       base64.b64encode(os.urandom(16)).decode())
-            write_file(os.path.join(base, 'keys', 'master1.key'),
-                       base64.b64encode(os.urandom(16)).decode())
+            # Same master keys for CS and Hummingbird redemption service.
+            master0 = base64.b64encode(os.urandom(16)).decode()
+            master1 = base64.b64encode(os.urandom(16)).decode()
+            write_file(os.path.join(base, 'keys', 'master0.key'), master0)
+            write_file(os.path.join(base, 'keys', 'master1.key'), master1)
+            write_file(os.path.join(base, 'dummy_keys', 'master0.key'), master0)
+            write_file(os.path.join(base, 'dummy_keys', 'master1.key'), master1)
 
     def _copy_files(self, topo_dicts):
         cp = local['cp']

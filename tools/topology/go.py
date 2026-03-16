@@ -62,12 +62,6 @@ class GoGenArgs(ArgsBase):
 
 
 class GoGenerator(object):
-    HBIRD_DUMMY_KEYS = ("master0.key", "master1.key")
-    HBIRD_DUMMY_KEY_PAYLOADS = {
-        "master0.key": "Q7dc0ap9/VeSjqJNbFI5Hw==",
-        "master1.key": "7ncpfi4DmIa08XeI1EMGmg==",
-    }
-
     def __init__(self, args):
         """
         :param GoGenArgs args: Contains the passed command line arguments and topo dicts.
@@ -124,7 +118,6 @@ class GoGenerator(object):
                 base = topo_id.base_dir(self.args.output_dir)
                 hb_conf = self._build_hummingbird_conf(base, topo_id, elem_id)
                 write_file(os.path.join(base, HBIRD_CONFIG_NAME), toml.dumps(hb_conf))
-                self._write_hummingbird_dummy_keys(base)
                 break
 
     def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem, ca):
@@ -173,13 +166,6 @@ class GoGenerator(object):
                 'min_cost': 1,
             },
         }
-
-    def _write_hummingbird_dummy_keys(self, base):
-        for key_name in self.HBIRD_DUMMY_KEYS:
-            write_file(
-                os.path.join(base, 'dummy_keys', key_name),
-                self.HBIRD_DUMMY_KEY_PAYLOADS[key_name],
-            )
 
     def _hummingbird_name(self, topo_id):
         return 'hbird%s' % topo_id.file_fmt()
