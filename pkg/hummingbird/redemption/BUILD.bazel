@@ -3,7 +3,10 @@ load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["client.go"],
+    srcs = [
+        "client.go",
+        "oneshot.go",
+    ],
     importpath = "github.com/scionproto/scion/pkg/hummingbird/redemption",
     visibility = ["//visibility:public"],
     deps = [

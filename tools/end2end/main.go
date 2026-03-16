@@ -489,29 +489,11 @@ func (c *client) buildReservationWithRedemptions(
 	path snet.Path,
 	now time.Time,
 ) (*snetpath.Reservation, error) {
-	returnNow := func() time.Time {
-		return now
-	}
-	// Build a redemption client.
-	redemptClient, err := redemption.NewRedemptionClient(ctx, integration.SDConn())
-	if err != nil {
-		return nil, err
-	}
-	// Obtain the flyovers.
-	flyovers, err := redemptClient.RedeemPathWithRequest(ctx, path, hummpkg.RedemptionRequestNoHop{
-		StartTime: util.TimeToSecs(returnNow()),
+	return redemption.OneShotReservation(ctx, c.sdConn, path, hummpkg.RedemptionRequestNoHop{
+		StartTime: uint32(now.Unix()),
 		Bw:        hummParams.Bw,
 		Duration:  hummParams.Duration,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("redeeming flyovers: %w", err)
-	}
-
-	// Build a reservation with the flyovers.
-	return snetpath.NewReservation(
-		snetpath.WithNow(returnNow),
-		snetpath.WithScionPath(path, snetpath.FlyoversToMap(flyovers)),
-	)
 }
 
 func (c *client) buildReservationWithSecretValues(
