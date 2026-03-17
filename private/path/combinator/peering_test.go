@@ -508,9 +508,11 @@ func TestPeeringFull(t *testing.T) {
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
 				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
 			},
-			Cores: []*seg.PathSegment{},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_620_X_610_X}),
+			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_610_X_620_X, graph.If_620_X_621_X}),
+				g.Beacon([]uint16{graph.If_620_X_621_X}),
 				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:621")),
 			},
 		},
@@ -520,10 +522,12 @@ func TestPeeringFull(t *testing.T) {
 			SrcIA:    addr.MustParseIA("6-ff00:0:621"),
 			DstIA:    addr.MustParseIA("6-ff00:0:611"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_610_X_620_X, graph.If_620_X_621_X}),
+				g.Beacon([]uint16{graph.If_620_X_621_X}),
 				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:621")),
 			},
-			Cores: []*seg.PathSegment{},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_610_X_620_X}),
+			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
 				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
@@ -568,9 +572,10 @@ func TestPeeringFull(t *testing.T) {
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
 				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
 			},
-			Cores: []*seg.PathSegment{},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_620_X_610_X}),
+			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_610_X_620_X}),
 				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:620")),
 			},
 		},
@@ -580,10 +585,11 @@ func TestPeeringFull(t *testing.T) {
 			SrcIA:    addr.MustParseIA("6-ff00:0:620"),
 			DstIA:    addr.MustParseIA("6-ff00:0:611"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_610_X_620_X}),
 				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:620")),
 			},
-			Cores: []*seg.PathSegment{},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_610_X_620_X}),
+			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
 				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
