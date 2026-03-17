@@ -48,11 +48,9 @@ func TestPeering(t *testing.T) {
 			FileName: "peering_120_to_410.txt",
 			SrcIA:    addr.MustParseIA("1-ff00:0:120"),
 			DstIA:    addr.MustParseIA("4-ff00:0:410"),
-			Ups: []*seg.PathSegment{
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:120")),
-			},
+			Ups:      []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_310_X_410_X, graph.If_410_X_310_X}),
+				g.Beacon([]uint16{graph.If_310_X_120_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
@@ -63,11 +61,9 @@ func TestPeering(t *testing.T) {
 			FileName: "peering_410_to_120.txt",
 			SrcIA:    addr.MustParseIA("4-ff00:0:410"),
 			DstIA:    addr.MustParseIA("1-ff00:0:120"),
-			Ups: []*seg.PathSegment{
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
-			},
+			Ups:      []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_310_X_120_X, graph.If_120_X_310_X}),
+				g.Beacon([]uint16{graph.If_310_X_410_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:120")),
@@ -80,11 +76,8 @@ func TestPeering(t *testing.T) {
 			DstIA:    addr.MustParseIA("4-ff00:0:410"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X, graph.If_121_X_123_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:123")),
 			},
-			Cores: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_310_X_410_X, graph.If_410_X_310_X}),
-			},
+			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
 			},
@@ -94,15 +87,12 @@ func TestPeering(t *testing.T) {
 			FileName: "peering_410_to_123.txt",
 			SrcIA:    addr.MustParseIA("4-ff00:0:410"),
 			DstIA:    addr.MustParseIA("1-ff00:0:123"),
-			Ups: []*seg.PathSegment{
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
-			},
+			Ups:      []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_310_X_120_X, graph.If_120_X_310_X}),
+				g.Beacon([]uint16{graph.If_310_X_410_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X, graph.If_121_X_123_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:123")),
 			},
 		},
 		{
@@ -112,11 +102,8 @@ func TestPeering(t *testing.T) {
 			DstIA:    addr.MustParseIA("3-ff00:0:310"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_122_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:122")),
 			},
-			Cores: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_310_X_120_X, graph.If_120_X_310_X}),
-			},
+			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.PeeringBeacon(addr.MustParseIA("3-ff00:0:310")),
 			},
@@ -128,11 +115,8 @@ func TestPeering(t *testing.T) {
 			DstIA:    addr.MustParseIA("2-ff00:0:210"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_110_X_111_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:111")),
 			},
-			Cores: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_210_X_110_X, graph.If_110_X_210_X}),
-			},
+			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.PeeringBeacon(addr.MustParseIA("2-ff00:0:210")),
 			},
@@ -144,12 +128,10 @@ func TestPeering(t *testing.T) {
 			DstIA:    addr.MustParseIA("4-ff00:0:411"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X, graph.If_121_X_123_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:123")),
 			},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_411_X}),
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:411")),
 			},
 		},
 		{
@@ -159,12 +141,10 @@ func TestPeering(t *testing.T) {
 			DstIA:    addr.MustParseIA("1-ff00:0:123"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_411_X}),
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:411")),
 			},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X, graph.If_121_X_123_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:123")),
 			},
 		},
 		{
@@ -174,12 +154,10 @@ func TestPeering(t *testing.T) {
 			DstIA:    addr.MustParseIA("3-ff00:0:311"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_122_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:122")),
 			},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_310_X_311_X}),
-				g.PeeringBeacon(addr.MustParseIA("3-ff00:0:311")),
 			},
 		},
 		{
@@ -189,12 +167,10 @@ func TestPeering(t *testing.T) {
 			DstIA:    addr.MustParseIA("2-ff00:0:211"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_110_X_111_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:111")),
 			},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X_211_X}),
-				g.PeeringBeacon(addr.MustParseIA("2-ff00:0:211")),
 			},
 		},
 	}
@@ -238,7 +214,6 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("2-ff00:0:210"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_110_X_111_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:111")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X_110_X}),
@@ -252,15 +227,12 @@ func TestPeeringFull(t *testing.T) {
 			FileName: "peering_210_to_111_full.txt",
 			SrcIA:    addr.MustParseIA("2-ff00:0:210"),
 			DstIA:    addr.MustParseIA("1-ff00:0:111"),
-			Ups: []*seg.PathSegment{
-				g.PeeringBeacon(addr.MustParseIA("2-ff00:0:210")),
-			},
+			Ups:      []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_110_X_210_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_110_X_111_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:111")),
 			},
 		},
 		{
@@ -268,9 +240,7 @@ func TestPeeringFull(t *testing.T) {
 			FileName: "peering_120_to_410_full.txt",
 			SrcIA:    addr.MustParseIA("1-ff00:0:120"),
 			DstIA:    addr.MustParseIA("4-ff00:0:410"),
-			Ups: []*seg.PathSegment{
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:120")),
-			},
+			Ups:      []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_310_X, graph.If_310_X_120_X}),
 			},
@@ -283,9 +253,7 @@ func TestPeeringFull(t *testing.T) {
 			FileName: "peering_410_to_120_full.txt",
 			SrcIA:    addr.MustParseIA("4-ff00:0:410"),
 			DstIA:    addr.MustParseIA("1-ff00:0:120"),
-			Ups: []*seg.PathSegment{
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
-			},
+			Ups:      []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_310_X, graph.If_310_X_410_X}),
 			},
@@ -300,8 +268,6 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("4-ff00:0:410"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X, graph.If_121_X_123_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:123")),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:120")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_310_X, graph.If_310_X_120_X}),
@@ -315,16 +281,12 @@ func TestPeeringFull(t *testing.T) {
 			FileName: "peering_410_to_123_full.txt",
 			SrcIA:    addr.MustParseIA("4-ff00:0:410"),
 			DstIA:    addr.MustParseIA("1-ff00:0:123"),
-			Ups: []*seg.PathSegment{
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:120")),
-			},
+			Ups:      []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_310_X, graph.If_310_X_410_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X, graph.If_121_X_123_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:123")),
 			},
 		},
 		{
@@ -334,7 +296,6 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("3-ff00:0:310"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_122_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:122")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_310_X_120_X}),
@@ -348,15 +309,12 @@ func TestPeeringFull(t *testing.T) {
 			FileName: "peering_310_to_122_full.txt",
 			SrcIA:    addr.MustParseIA("3-ff00:0:310"),
 			DstIA:    addr.MustParseIA("1-ff00:0:122"),
-			Ups: []*seg.PathSegment{
-				g.PeeringBeacon(addr.MustParseIA("3-ff00:0:310")),
-			},
+			Ups:      []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_310_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_122_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:122")),
 			},
 		},
 		{
@@ -366,15 +324,12 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("3-ff00:0:311"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_122_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:122")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_310_X_120_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_310_X_311_X}),
-				g.PeeringBeacon(addr.MustParseIA("3-ff00:0:310")),
-				g.PeeringBeacon(addr.MustParseIA("3-ff00:0:311")),
 			},
 		},
 		{
@@ -384,15 +339,12 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_310_X_311_X}),
-				g.PeeringBeacon(addr.MustParseIA("3-ff00:0:311")),
-				g.PeeringBeacon(addr.MustParseIA("3-ff00:0:310")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_310_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_122_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:122")),
 			},
 		},
 		{
@@ -402,15 +354,12 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("2-ff00:0:211"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_110_X_111_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:111")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X_110_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X_211_X}),
-				g.PeeringBeacon(addr.MustParseIA("2-ff00:0:210")),
-				g.PeeringBeacon(addr.MustParseIA("2-ff00:0:211")),
 			},
 		},
 		{
@@ -420,15 +369,12 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("1-ff00:0:111"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_210_X_211_X}),
-				g.PeeringBeacon(addr.MustParseIA("2-ff00:0:211")),
-				g.PeeringBeacon(addr.MustParseIA("2-ff00:0:210")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_110_X_210_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_110_X_111_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:111")),
 			},
 		},
 		{
@@ -438,16 +384,12 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("4-ff00:0:411"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X, graph.If_121_X_123_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:123")),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:120")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_310_X, graph.If_310_X_120_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_411_X}),
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:411")),
 			},
 		},
 		{
@@ -457,16 +399,12 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("1-ff00:0:123"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_411_X}),
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:411")),
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:120")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_310_X, graph.If_310_X_410_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X, graph.If_121_X_123_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:123")),
 			},
 		},
 		{
@@ -476,12 +414,10 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:121")),
 			},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_122_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:122")),
 			},
 		},
 		{
@@ -491,12 +427,10 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("1-ff00:0:121"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_122_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:122")),
 			},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_121_X}),
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:121")),
 			},
 		},
 		{
@@ -506,12 +440,12 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("6-ff00:0:621"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
 			},
-			Cores: []*seg.PathSegment{},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_620_X_610_X}),
+			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_610_X_620_X, graph.If_620_X_621_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:621")),
+				g.Beacon([]uint16{graph.If_620_X_621_X}),
 			},
 		},
 		{
@@ -520,13 +454,13 @@ func TestPeeringFull(t *testing.T) {
 			SrcIA:    addr.MustParseIA("6-ff00:0:621"),
 			DstIA:    addr.MustParseIA("6-ff00:0:611"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_610_X_620_X, graph.If_620_X_621_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:621")),
+				g.Beacon([]uint16{graph.If_620_X_621_X}),
 			},
-			Cores: []*seg.PathSegment{},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_610_X_620_X}),
+			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
 			},
 		},
 		{
@@ -536,12 +470,10 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("6-ff00:0:612"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
 			},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_612_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:612")),
 			},
 		},
 		{
@@ -551,12 +483,10 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("6-ff00:0:611"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_612_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:612")),
 			},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
 			},
 		},
 		{
@@ -566,27 +496,26 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("6-ff00:0:620"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
 			},
-			Cores: []*seg.PathSegment{},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_620_X_610_X}),
+			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_610_X_620_X}),
 				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:620")),
 			},
 		},
 		{
+			// Core→Non-core: core segment [610,620] has peer entries at AS 620.
 			Name:     "core 620 to non-core 611 full",
 			FileName: "peering_620_to_611_full.txt",
 			SrcIA:    addr.MustParseIA("6-ff00:0:620"),
 			DstIA:    addr.MustParseIA("6-ff00:0:611"),
-			Ups: []*seg.PathSegment{
+			Ups:      []*seg.PathSegment{},
+			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_620_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:620")),
 			},
-			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_610_X_611_X}),
-				g.PeeringBeacon(addr.MustParseIA("6-ff00:0:611")),
 			},
 		},
 		{
@@ -596,7 +525,6 @@ func TestPeeringFull(t *testing.T) {
 			DstIA:    addr.MustParseIA("1-ff00:0:120"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_411_X}),
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_120_X_310_X, graph.If_310_X_410_X}),
@@ -610,15 +538,12 @@ func TestPeeringFull(t *testing.T) {
 			FileName: "peering_120_to_411_full.txt",
 			SrcIA:    addr.MustParseIA("1-ff00:0:120"),
 			DstIA:    addr.MustParseIA("4-ff00:0:411"),
-			Ups: []*seg.PathSegment{
-				g.PeeringBeacon(addr.MustParseIA("1-ff00:0:120")),
-			},
+			Ups:      []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_310_X, graph.If_310_X_120_X}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_410_X_411_X}),
-				g.PeeringBeacon(addr.MustParseIA("4-ff00:0:410")),
 			},
 		},
 	}

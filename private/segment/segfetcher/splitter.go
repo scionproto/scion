@@ -179,24 +179,15 @@ func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IA) (bool, e
 }
 
 // addOneHopRequests appends one-hop segment requests for peering path discovery.
-// These requests fetch segments that contain peer entries for core ASes.
+// One-hop segments are Down segments that carry peer entries for core ASes,
+// enabling the combinator to build peering shortcuts on the destination side.
+// Source-side peering edges come from core segment processing in the combinator.
 func (s *MultiSegmentSplitter) addOneHopRequests(
 	ctx context.Context,
 	reqs Requests,
 	src, dst addr.IA,
 	srcCore, dstCore bool,
 ) Requests {
-	// Source side: request Up one-hop segments
-	if srcCore {
-		reqs = append(reqs, Request{Src: src, Dst: src, SegType: seg.TypeUp})
-	} else {
-		srcCores, _ := s.Inspector.ByAttributes(ctx, src.ISD(), trust.Core)
-		for _, c := range srcCores {
-			reqs = append(reqs, Request{Src: c, Dst: c, SegType: seg.TypeUp})
-		}
-	}
-
-	// Destination side: request Down one-hop segments
 	if dstCore {
 		reqs = append(reqs, Request{Src: dst, Dst: dst, SegType: seg.TypeDown})
 	} else if srcCore || src.ISD() != dst.ISD() {

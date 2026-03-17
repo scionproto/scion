@@ -223,9 +223,9 @@ func (s *CoreStore) SegmentsToRegister(
 			return nil, err
 		}
 		return groupBeacons(beacons, &s.policies.CoreReg), nil
-	case seg.TypeDown, seg.TypeUp:
-		// Core ASes don't have up/down beacons from the beacon store, but the
-		// caller may add one-hop segments for core-to-core peering. Return empty.
+	case seg.TypeUp:
+		// Core ASes don't have up beacons from the beacon store, but the
+		// caller adds one-hop segments for core AS peering. Return empty.
 		return make(GroupedBeacons), nil
 	default:
 		return nil, serrors.New("Unsupported segment type", "type", segType)

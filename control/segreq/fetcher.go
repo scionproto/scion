@@ -182,18 +182,6 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 			return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, err)
 		}
 		return up, nil
-	case seg.TypeUp:
-		// Up segment requests are normally resolved locally. The exception is
-		// one-hop segment requests (src == dst) for core ASes in our ISD, which
-		// are used for peering path discovery. Route these via up segment to
-		// the core AS.
-		if req.Src == req.Dst {
-			return p.upPath(ctx, dst)
-		}
-		// Regular up segment requests should have been resolved locally.
-		return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, nil,
-			"reason", "up segment should have been resolved locally",
-			"src", req.Src, "dst", req.Dst)
 	case seg.TypeDown:
 		// Special case: src == dst is a one-hop segment request (core AS peering).
 		if req.Src == req.Dst {

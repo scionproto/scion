@@ -44,8 +44,7 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 	dst addr.IA) (segfetcher.Segments, error) {
 
 	// Special case: src == dst == localIA is a request for local one-hop segments.
-	// These are used for core AS peering. Return both Up and Down types so the
-	// requester can use whichever direction is needed for path construction.
+	// One-hop segments are Down segments used for core AS peering.
 	if src == dst && src == f.LocalIA && f.PathDB != nil {
 		return getOneHopSegments(ctx, f.PathDB, f.LocalIA)
 	}

@@ -27,9 +27,11 @@ Path #2:
     IF ..
       HF InIF=4342 OutIF=0
       HF InIF=0 OutIF=4243
+    IF ..
+      HF InIF=4245 OutIF=0
+      HF InIF=0 OutIF=4542
     IF C.
-      HF InIF=0 OutIF=4245
-      HF InIF=4542 OutIF=4546
+      HF InIF=0 OutIF=4546
       HF InIF=4645 OutIF=0
   Interfaces:
     6-ff00:0:611#4342

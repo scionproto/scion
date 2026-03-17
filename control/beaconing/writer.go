@@ -249,20 +249,16 @@ func (r *LocalWriter) RegisterSegments(
 	logBeacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
 	for _, b := range beacons {
-		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: b.Segment})
-		logBeacons[b.Segment.GetLoggingID()] = b
-
-		// For one-hop segments (single AS entry with 0/0 hop field), store as both
-		// Up and Down types to support bidirectional core-to-core peering links.
-		// The source core AS needs it as Up (edges go OUT), and the destination
-		// core AS needs it as Down (edges come IN).
+		segType := r.Type
+		// One-hop segments (for core AS peering) are always stored as Down
+		// segments. The combinator uses them on the destination side of peering
+		// shortcuts, where down segments provide the edge to the destination.
+		// Source-side peering edges come from core segment processing instead.
 		if isOneHopSegment(b.Segment) {
-			oppositeType := seg.TypeUp
-			if r.Type == seg.TypeUp {
-				oppositeType = seg.TypeDown
-			}
-			toRegister = append(toRegister, &seg.Meta{Type: oppositeType, Segment: b.Segment})
+			segType = seg.TypeDown
 		}
+		toRegister = append(toRegister, &seg.Meta{Type: segType, Segment: b.Segment})
+		logBeacons[b.Segment.GetLoggingID()] = b
 	}
 	stats, err := r.Store.StoreSegs(ctx, toRegister)
 	// If an error occurred while storing, no segments were registered, since StoreSegs
