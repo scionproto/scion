@@ -24,7 +24,7 @@ import (
 	"strings"
 	"sync"
 
-	_ "modernc.org/sqlite" // sqlite driver
+	_ "github.com/mattn/go-sqlite3" // sqlite driver
 )
 
 type Reader interface {
@@ -110,13 +110,13 @@ func NewSqlite(path string, cfg *SqliteConfig) (*Sqlite, error) {
 	connParams.Add("_txlock", "immediate")
 	writeUrl := path + "?" + connParams.Encode()
 
-	write, err := sql.Open("sqlite", writeUrl)
+	write, err := sql.Open("sqlite3", writeUrl)
 	if err != nil {
 		return nil, fmt.Errorf("opening write database: %w", err)
 	}
 	write.SetMaxOpenConns(1)
 
-	read, err := sql.Open("sqlite", readUrl)
+	read, err := sql.Open("sqlite3", readUrl)
 	if err != nil {
 		defer write.Close()
 		return nil, fmt.Errorf("opening read database: %w", err)

@@ -105,7 +105,7 @@ use_repo(
     "org_golang_x_sync",
     "org_golang_x_sys",
     "org_golang_x_tools",
-    "org_modernc_sqlite",
+    "com_github_mattn_go_sqlite3",
     "org_uber_go_goleak",
     "org_uber_go_zap",
 )
