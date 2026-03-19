@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/storage"
+	"github.com/scionproto/scion/private/storage/db"
 	"github.com/scionproto/scion/private/storage/trust/dbtest"
 	"github.com/scionproto/scion/private/storage/trust/fspersister"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
@@ -40,15 +41,18 @@ type DB struct {
 	Dir string
 }
 
-func (db *DB) Prepare(t *testing.T, _ context.Context) {
+func (d *DB) Prepare(t *testing.T, _ context.Context) {
 	dir := t.TempDir()
-	db.prepare(t, dir)
+	d.prepare(t, dir)
 }
 
-func (db *DB) prepare(t *testing.T, dbDir string) {
-	sqliteDB, err := sqlite.New("file::memory:")
+func (d *DB) prepare(t *testing.T, dbDir string) {
+	sqliteDB, err := sqlite.New(
+		xtest.SanitizedName(t),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
-	*db = DB{
+	*d = DB{
 		TrustDB: fspersister.WrapDB(sqliteDB, fspersister.Config{
 			TRCDir: dbDir,
 		}),

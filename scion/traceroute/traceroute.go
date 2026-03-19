@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -157,7 +158,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 		t.drain(ctx)
 	}()
 	prevXover := false
-	for i := 0; i < len(idxPath.HopFields); i++ {
+	for i := range len(idxPath.HopFields) {
 		hf := idxPath.PathMeta.CurrHF
 		info := idxPath.InfoFields[idxPath.PathMeta.CurrINF]
 		// First hop of the path isn't probed, since only the egress hop is
@@ -246,7 +247,7 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 			Payload:     snet.SCMPTracerouteRequest{Identifier: t.id},
 		},
 	}
-	for i := 0; i < t.probesPerHop; i++ {
+	for range t.probesPerHop {
 		sendTs := time.Now()
 		t.stats.Sent++
 		if err := t.conn.WriteTo(pkt, t.nextHop); err != nil {

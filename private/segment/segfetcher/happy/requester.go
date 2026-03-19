@@ -24,8 +24,9 @@ import (
 
 // Requester fetches segments from a remote using gRPC.
 type Requester struct {
-	Connect segfetcher.RPC
-	Grpc    segfetcher.RPC
+	Connect   segfetcher.RPC
+	Grpc      segfetcher.RPC
+	RpcConfig happy.Config
 }
 
 func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
@@ -45,6 +46,6 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 			Input2: server,
 			Typ:    "control_plane.v1.SegmentLookupService.Segments",
 		},
-		happy.Config{},
+		f.RpcConfig,
 	)
 }

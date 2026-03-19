@@ -20,6 +20,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/private/storage/db"
 	"github.com/scionproto/scion/private/storage/trust/dbtest"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
 )
@@ -37,7 +39,10 @@ func TestDB(t *testing.T) {
 }
 
 func newDatabase(t *testing.T) sqlite.DB {
-	db, err := sqlite.New("file::memory:")
+	db, err := sqlite.New(
+		xtest.SanitizedName(t),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 	return db
 }

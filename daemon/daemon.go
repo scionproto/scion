@@ -16,31 +16,25 @@
 package daemon
 
 import (
-	"context"
-	"errors"
 	"io"
 	"net"
-	"path/filepath"
 	"strconv"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/daemon/drkey"
-	"github.com/scionproto/scion/daemon/fetcher"
-	"github.com/scionproto/scion/daemon/internal/servers"
+	"github.com/scionproto/scion/daemon/grpc"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	libgrpc "github.com/scionproto/scion/pkg/grpc"
-	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/daemon/asinfo"
+	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	"github.com/scionproto/scion/pkg/daemon/private/engine"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
-	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/drkey"
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/trust"
-	trustgrpc "github.com/scionproto/scion/private/trust/grpc"
-	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 // InitTracer initializes the global tracer.
@@ -53,60 +47,6 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 	return trCloser, nil
 }
 
-// TrustEngine builds the trust engine backed by the trust database.
-func TrustEngine(
-	ctx context.Context,
-	cfgDir string,
-	ia addr.IA,
-	db trust.DB,
-	dialer libgrpc.Dialer,
-) (trust.Engine, error) {
-	certsDir := filepath.Join(cfgDir, "certs")
-	loaded, err := trust.LoadTRCs(ctx, certsDir, db)
-	if err != nil {
-		return trust.Engine{}, serrors.Wrap("loading TRCs", err)
-	}
-	log.Info("TRCs loaded", "files", loaded.Loaded)
-	for f, r := range loaded.Ignored {
-		if errors.Is(r, trust.ErrAlreadyExists) {
-			log.Debug("Ignoring existing TRC", "file", f)
-			continue
-		}
-		log.Info("Ignoring non-TRC", "file", f, "reason", r)
-	}
-	loaded, err = trust.LoadChains(ctx, certsDir, db)
-	if err != nil {
-		return trust.Engine{}, serrors.Wrap("loading certificate chains",
-			err)
-	}
-	log.Info("Certificate chains loaded", "files", loaded.Loaded)
-	for f, r := range loaded.Ignored {
-		if errors.Is(r, trust.ErrAlreadyExists) {
-			log.Debug("Ignoring existing certificate chain", "file", f)
-			continue
-		}
-		if errors.Is(r, trust.ErrOutsideValidity) {
-			log.Debug("Ignoring certificate chain outside validity", "file", f)
-			continue
-		}
-		log.Info("Ignoring non-certificate chain", "file", f, "reason", r)
-	}
-	return trust.Engine{
-		Inspector: trust.DBInspector{DB: db},
-		Provider: trust.FetchingProvider{
-			DB: db,
-			Fetcher: trustgrpc.Fetcher{
-				IA:       ia,
-				Dialer:   dialer,
-				Requests: metrics.NewPromCounter(trustmetrics.RPC.Fetches),
-			},
-			Recurser: trust.LocalOnlyRecurser{},
-			Router:   trust.LocalRouter{IA: ia},
-		},
-		DB: db,
-	}, nil
-}
-
 // ServerConfig is the configuration for the daemon API server.
 type ServerConfig struct {
 	IA          addr.IA
@@ -114,91 +54,93 @@ type ServerConfig struct {
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	Engine      trust.Engine
-	Topology    servers.Topology
+	LocalASInfo asinfo.LocalASInfo
 	DRKeyClient *drkey.ClientEngine
 }
 
 // NewServer constructs a daemon API server.
-func NewServer(cfg ServerConfig) *servers.DaemonServer {
-	return &servers.DaemonServer{
-		IA:  cfg.IA,
-		MTU: cfg.MTU,
-		// TODO(JordiSubira): This will be changed in the future to fetch
-		// the information from the CS instead of feeding the configuration
-		// file into.
-		Topology:    cfg.Topology,
-		Fetcher:     cfg.Fetcher,
-		ASInspector: cfg.Engine.Inspector,
-		RevCache:    cfg.RevCache,
-		DRKeyClient: cfg.DRKeyClient,
-		Metrics: servers.Metrics{
-			PathsRequests: servers.RequestMetrics{
+func NewServer(cfg ServerConfig) *grpc.DaemonServer {
+	return &grpc.DaemonServer{
+		Engine: &engine.DaemonEngine{
+			IA:  cfg.IA,
+			MTU: cfg.MTU,
+			// TODO(JordiSubira): This will be changed in the future to fetch
+			// the information from the CS instead of feeding the configuration
+			// file into.
+			LocalASInfo: cfg.LocalASInfo,
+			Fetcher:     cfg.Fetcher,
+			ASInspector: cfg.Engine.Inspector,
+			RevCache:    cfg.RevCache,
+			DRKeyClient: cfg.DRKeyClient,
+		},
+		Metrics: grpc.Metrics{
+			PathsRequests: grpc.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
 					Namespace: "sd",
 					Subsystem: "path",
 					Name:      "requests_total",
 					Help:      "The amount of path requests received.",
-				}, servers.PathsRequestsLabels),
+				}, grpc.PathsRequestsLabels),
 				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
 					Namespace: "sd",
 					Subsystem: "path",
 					Name:      "request_duration_seconds",
 					Help:      "Time to handle path requests.",
 					Buckets:   prom.DefaultLatencyBuckets,
-				}, servers.LatencyLabels),
+				}, grpc.LatencyLabels),
 			},
-			ASRequests: servers.RequestMetrics{
+			ASRequests: grpc.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
 					Namespace: "sd",
 					Subsystem: "as_info",
 					Name:      "requests_total",
 					Help:      "The amount of AS requests received.",
-				}, servers.ASRequestsLabels),
+				}, grpc.ASRequestsLabels),
 				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
 					Namespace: "sd",
 					Subsystem: "as_info",
 					Name:      "request_duration_seconds",
 					Help:      "Time to handle AS requests.",
 					Buckets:   prom.DefaultLatencyBuckets,
-				}, servers.LatencyLabels),
+				}, grpc.LatencyLabels),
 			},
-			InterfacesRequests: servers.RequestMetrics{
+			InterfacesRequests: grpc.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
 					Namespace: "sd",
 					Subsystem: "if_info",
 					Name:      "requests_total",
 					Help:      "The amount of interfaces requests received.",
-				}, servers.InterfacesRequestsLabels),
+				}, grpc.InterfacesRequestsLabels),
 				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
 					Namespace: "sd",
 					Subsystem: "if_info",
 					Name:      "request_duration_seconds",
 					Help:      "Time to handle interfaces requests.",
 					Buckets:   prom.DefaultLatencyBuckets,
-				}, servers.LatencyLabels),
+				}, grpc.LatencyLabels),
 			},
-			ServicesRequests: servers.RequestMetrics{
+			ServicesRequests: grpc.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
 					Namespace: "sd",
 					Subsystem: "service_info",
 					Name:      "requests_total",
 					Help:      "The amount of services requests received.",
-				}, servers.ServicesRequestsLabels),
+				}, grpc.ServicesRequestsLabels),
 				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
 					Namespace: "sd",
 					Subsystem: "service_info",
 					Name:      "request_duration_seconds",
 					Help:      "Time to handle services requests.",
 					Buckets:   prom.DefaultLatencyBuckets,
-				}, servers.LatencyLabels),
+				}, grpc.LatencyLabels),
 			},
-			InterfaceDownNotifications: servers.RequestMetrics{
+			InterfaceDownNotifications: grpc.RequestMetrics{
 				Requests: metrics.NewPromCounter(prom.SafeRegister(
 					prometheus.NewCounterVec(prometheus.CounterOpts{
 						Namespace: "sd",
 						Name:      "received_revocations_total",
 						Help:      "The amount of revocations received.",
-					}, servers.InterfaceDownNotificationsLabels)).(*prometheus.CounterVec),
+					}, grpc.InterfaceDownNotificationsLabels)).(*prometheus.CounterVec),
 				),
 				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
 					Namespace: "sd",
@@ -206,7 +148,7 @@ func NewServer(cfg ServerConfig) *servers.DaemonServer {
 					Name:      "notification_duration_seconds",
 					Help:      "Time to handle interface down notifications.",
 					Buckets:   prom.DefaultLatencyBuckets,
-				}, servers.LatencyLabels),
+				}, grpc.LatencyLabels),
 			},
 		},
 	}

@@ -11,16 +11,16 @@ jobs:
       statsFile: '/gobra/stats.json'
     steps:
       - name: Checkout the SCION repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
       - name: Set-up caching for the verification results
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         env:
           cache-name: gobra-cache
         with:
           path: ${{ runner.workspace }}/.gobra/cache.json
           key: ${{ env.cache-name }}
       - name: Verify the specified files
-        uses: viperproject/gobra-action@v22.10.2
+        uses: viperproject/gobra-action@v25.09.1
         with:
           # Prefix used to resolve SCION packages
           module: 'github.com/scionproto/scion/'
@@ -31,9 +31,14 @@ jobs:
           recursive: '1'
           timeout: 10m
           caching: '1'
+          # Work around JDK cgroup v2 NullPointerException on GitHub Actions
+          # runners by disabling container support detection. The extra flag
+          # is injected via javaXss because the action has no dedicated input
+          # for arbitrary JVM flags.
+          javaXss: '128m -XX:-UseContainerSupport'
           statsFile: ${{ env.statsFile }}
       - name: Upload the verification report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: verification_stats.json
           path: ${{ env.statsFile }}

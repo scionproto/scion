@@ -51,3 +51,11 @@ debug = false
 # (default: localhost:6831)
 agent = "localhost:6831"
 `
+
+const rpcSample = `
+# client_protocol specifies which rpc protocols should be attempted by clients.
+# (grpc or connect or all).
+client_protocol = "all"
+# server_protocol specifies which rpc protocols should be supported by the control service.
+server_protocol = "all"
+`

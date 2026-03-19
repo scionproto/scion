@@ -18,11 +18,11 @@ const sample = `
 # Connection for the database.
 connection = "%s"
 
-# The maximum number of open connections to the database. In case of 0,
-# the limit is not set and uses the go default. (default 0)
-max_open_conns = 0
+# The maximum number of open read connections to the database. In case of 0,
+# the limit is not set and uses a sane default. (default 0)
+max_open_read_conns = 0
 
-# The maximum number of idle connections to the database. In case of 0,
-# the limit is not set and uses the go default. (default 0)
-max_idle_conns = 0
+# The maximum number of idle read connections to the database. In case of 0,
+# the limit is not set and uses a sane default. (default 0)
+max_idle_read_conns = 0
 `

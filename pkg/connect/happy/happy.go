@@ -23,7 +23,10 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-const DefaultDelay = 500 * time.Millisecond
+// Give a good chance to the preferred call before we even start the fallback. We cannot dally too
+// much, though: this is usually called from time-boxed code paths with a typical timeout of 1s. So
+// we do not want to timeout by default every time the fallback is required.
+const DefaultDelay = 300 * time.Millisecond
 
 type Caller[R any] interface {
 	Invoke(context.Context) (R, error)
@@ -125,10 +128,8 @@ func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config
 	defer cancel()
 
 	if !cfg.NoPreferred {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
 			rep, err := preferred.Invoke(abortCtx)
 			if err == nil {
 				reps[idxPreferred] = rep
@@ -138,17 +139,16 @@ func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config
 				logger.Debug("Failed to receive via connect", "type", preferred.Type(), "err", err)
 			}
 			errs[idxPreferred] = err
-		}()
+		})
 	} else {
 		logger.Debug("Skipping preferred caller", "type", preferred.Type())
 		errs[idxPreferred] = serrors.New("preferred caller is disabled")
 	}
 
 	if !cfg.NoFallback {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer log.HandlePanic()
-			defer wg.Done()
+
 			select {
 			case <-abortCtx.Done():
 				return
@@ -162,11 +162,11 @@ func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config
 			} else {
 				logger.Debug("Failed to receive on grpc", "type", fallback.Type(), "err", err)
 			}
-			errs[idxPreferred] = err
-		}()
+			errs[idxFallback] = err
+		})
 	} else {
 		logger.Debug("Skipping fallback caller", "type", fallback.Type())
-		errs[idxPreferred] = serrors.New("fallback caller is disabled")
+		errs[idxFallback] = serrors.New("fallback caller is disabled")
 	}
 
 	wg.Wait()
@@ -176,10 +176,10 @@ func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config
 	// Both requests failed.
 	case errs[idxPreferred] != nil && errs[idxFallback] != nil:
 		return zero, serrors.List(errs[:]).ToError()
-	// Fast request failed. Return fallback.
+	// Preferred request failed. Return fallback.
 	case errs[idxPreferred] != nil:
 		return reps[idxFallback], errs[idxFallback]
-	// Fast succeeded. Return fast (even if fallback succeeded too)
+	// Preferred succeeded. Return fast (even if fallback succeeded too)
 	default:
 		return reps[idxPreferred], errs[idxPreferred]
 	}

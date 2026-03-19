@@ -31,10 +31,18 @@ import (
 
 func TestStoreSegmentsToRegister(t *testing.T) {
 	testStoreSelection(t, func(store *beacon.Store) ([]beacon.Beacon, error) {
-		return store.SegmentsToRegister(context.Background(), seg.TypeUp)
+		s, err := store.SegmentsToRegister(context.Background(), seg.TypeUp)
+		if err != nil {
+			return nil, err
+		}
+		return s[beacon.DefaultGroup], nil
 	})
 	testStoreSelection(t, func(store *beacon.Store) ([]beacon.Beacon, error) {
-		return store.SegmentsToRegister(context.Background(), seg.TypeDown)
+		s, err := store.SegmentsToRegister(context.Background(), seg.TypeDown)
+		if err != nil {
+			return nil, err
+		}
+		return s[beacon.DefaultGroup], nil
 	})
 }
 
@@ -142,7 +150,11 @@ func testStoreSelection(t *testing.T,
 
 func TestCoreStoreSegmentsToRegister(t *testing.T) {
 	testCoreStoreSelection(t, func(store *beacon.CoreStore) ([]beacon.Beacon, error) {
-		return store.SegmentsToRegister(context.Background(), seg.TypeCore)
+		s, err := store.SegmentsToRegister(context.Background(), seg.TypeCore)
+		if err != nil {
+			return nil, err
+		}
+		return s[beacon.DefaultGroup], nil
 	})
 }
 
@@ -262,10 +274,9 @@ func testCoreStoreSelection(t *testing.T,
 }
 
 func testBeacon(g *graph.Graph, desc ...uint16) beacon.Beacon {
-	pseg := testSegment(g, desc)
-	asEntry := pseg.ASEntries[pseg.MaxIdx()]
+	pseg := testSegment(g, desc[:len(desc)-1])
 	return beacon.Beacon{
-		InIfID:  asEntry.HopEntry.HopField.ConsIngress,
+		InIfID:  desc[len(desc)-1],
 		Segment: pseg,
 	}
 }

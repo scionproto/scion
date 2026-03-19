@@ -24,7 +24,9 @@ import (
 
 	cs "github.com/scionproto/scion/control"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/app/command"
+	"github.com/scionproto/scion/private/storage/db"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 )
@@ -32,7 +34,10 @@ import (
 func TestNewSigner(t *testing.T) {
 	dir := testCrypto(t)
 
-	db, err := sqlite.New("file::memory:")
+	db, err := sqlite.New(
+		xtest.SanitizedName(t),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 
 	signer := cs.NewSigner(

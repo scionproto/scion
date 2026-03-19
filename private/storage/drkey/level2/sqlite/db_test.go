@@ -47,7 +47,7 @@ func newLevel2Database(t *testing.T) *Backend {
 	name := file.Name()
 	err = file.Close()
 	require.NoError(t, err)
-	db, err := NewBackend(name)
+	db, err := NewBackend(name, nil)
 	require.NoError(t, err)
 	return db
 }

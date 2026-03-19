@@ -77,7 +77,7 @@ func (cfg *Config) Validate() error {
 		&cfg.PathDB,
 		&cfg.SD,
 		&cfg.TrustEngine,
-		&cfg.DRKeyLevel2DB,
+		cfg.DRKeyLevel2DB.WithAllowEmptyConn(),
 	)
 }
 

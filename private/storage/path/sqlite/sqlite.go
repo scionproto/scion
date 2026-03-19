@@ -23,7 +23,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -49,49 +48,49 @@ var noInsertion = pathdb.InsertStats{}
 var _ pathdb.DB = (*Backend)(nil)
 
 type Backend struct {
-	db *sql.DB
+	db *db.Sqlite
 	*executor
 }
 
 // New returns a new SQLite backend opening a database at the given path. If
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from the one in schema.go, an error is returned.
-func New(path string) (*Backend, error) {
-	db, err := db.NewSqlite(path, Schema, SchemaVersion)
+func New(path string, cfg *db.SqliteConfig) (*Backend, error) {
+	db, err := db.NewSqlite(path, cfg)
 	if err != nil {
+		return nil, err
+	}
+	if err := db.Setup(Schema, SchemaVersion); err != nil {
 		return nil, err
 	}
 	return &Backend{
 		executor: &executor{
-			db: db,
+			write: db.Full,
+			read:  db.ReadOnly,
 		},
 		db: db,
 	}, nil
+}
+
+func (b *Backend) DB() *db.Sqlite {
+	return b.db
 }
 
 func (b *Backend) Close() error {
 	return b.db.Close()
 }
 
-func (b *Backend) SetMaxOpenConns(maxOpenConns int) {
-	b.db.SetMaxOpenConns(maxOpenConns)
-}
-func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
-	b.db.SetMaxIdleConns(maxIdleConns)
-}
-
 func (b *Backend) BeginTransaction(ctx context.Context,
 	opts *sql.TxOptions) (pathdb.Transaction, error) {
 
-	b.Lock()
-	defer b.Unlock()
-	tx, err := b.db.BeginTx(ctx, opts)
+	tx, err := b.db.Full.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, serrors.Wrap("Failed to create transaction", err)
 	}
 	return &transaction{
 		executor: &executor{
-			db: tx,
+			write: tx,
+			read:  tx,
 		},
 		tx: tx,
 	}, nil
@@ -105,22 +104,21 @@ type transaction struct {
 }
 
 func (tx *transaction) Commit() error {
-	tx.Lock()
-	defer tx.Unlock()
 	return tx.tx.Commit()
 }
 
 func (tx *transaction) Rollback() error {
-	tx.Lock()
-	defer tx.Unlock()
 	return tx.tx.Rollback()
 }
 
 var _ (pathdb.ReadWrite) = (*executor)(nil)
 
 type executor struct {
-	sync.RWMutex
-	db db.Sqler
+	write db.Sqler
+	read  interface {
+		QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	}
 }
 
 func (e *executor) Insert(ctx context.Context, segMeta *seg.Meta) (pathdb.InsertStats, error) {
@@ -132,13 +130,11 @@ func (e *executor) Insert(ctx context.Context, segMeta *seg.Meta) (pathdb.Insert
 func (e *executor) InsertWithHPGroupIDs(ctx context.Context, segMeta *seg.Meta,
 	hpGroupIDs []uint64) (pathdb.InsertStats, error) {
 
-	e.Lock()
-	defer e.Unlock()
-	if e.db == nil {
+	if e.write == nil {
 		return noInsertion, serrors.New("No database open")
 	}
 	var stats pathdb.InsertStats
-	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	err := db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
 		stats, err = insert(ctx, tx, segMeta, hpGroupIDs)
 		return err
@@ -388,22 +384,18 @@ func (e *executor) DeleteExpired(ctx context.Context, now time.Time) (int, error
 func (e *executor) deleteInTx(ctx context.Context,
 	delFunc func(tx *sql.Tx) (sql.Result, error)) (int, error) {
 
-	e.Lock()
-	defer e.Unlock()
-	if e.db == nil {
+	if e.write == nil {
 		return 0, serrors.New("No database open")
 	}
-	return db.DeleteInTx(ctx, e.db, delFunc)
+	return db.DeleteInTx(ctx, e.write, delFunc)
 }
 
 func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results, error) {
-	e.RLock()
-	defer e.RUnlock()
-	if e.db == nil {
+	if e.read == nil {
 		return nil, serrors.New("No database open")
 	}
 	stmt, args := e.buildQuery(params)
-	rows, err := e.db.QueryContext(ctx, stmt, args...)
+	rows, err := e.read.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, serrors.Wrap("Error looking up path segment", err, "q", stmt)
 	}
@@ -532,9 +524,7 @@ func (e *executor) GetAll(ctx context.Context) (query.Results, error) {
 func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA,
 	nextQuery time.Time) (bool, error) {
 
-	e.Lock()
-	defer e.Unlock()
-	if e.db == nil {
+	if e.write == nil {
 		return false, serrors.New("No database open")
 	}
 	// Select the data from the input only if the new NextQuery is larger than the existing
@@ -548,7 +538,7 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA,
 		WHERE data.lq > NextQuery.NextQuery OR NextQuery.DstIsdID IS NULL;
 	`
 	var r sql.Result
-	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	err := db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
 		r, err = tx.ExecContext(
 			ctx,
@@ -569,9 +559,7 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA,
 }
 
 func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Time, error) {
-	e.RLock()
-	defer e.RUnlock()
-	if e.db == nil {
+	if e.read == nil {
 		return time.Time{}, serrors.New("No database open")
 	}
 	query := `
@@ -579,7 +567,7 @@ func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Tim
 		WHERE SrcIsdID = ? AND SrcAsID = ? AND DstIsdID = ? AND DstAsID = ?
 	`
 	var nanos int64
-	err := e.db.QueryRowContext(ctx, query, src.ISD(), src.AS(), dst.ISD(), dst.AS()).Scan(&nanos)
+	err := e.read.QueryRowContext(ctx, query, src.ISD(), src.AS(), dst.ISD(), dst.AS()).Scan(&nanos)
 	if err == sql.ErrNoRows {
 		return time.Time{}, nil
 	}

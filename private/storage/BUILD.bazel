@@ -13,6 +13,7 @@ go_library(
         "//pkg/addr:go_default_library",
         "//pkg/drkey:go_default_library",
         "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
         "//private/config:go_default_library",
         "//private/pathdb:go_default_library",
         "//private/periodic:go_default_library",

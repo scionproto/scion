@@ -24,7 +24,7 @@ import (
 	"github.com/scionproto/scion/private/segment/segverifier"
 )
 
-type selectionAlgorithm interface {
+type SelectionAlgorithm interface {
 	// SelectBeacons selects the `resultSize` best beacons from the provided slice of beacons.
 	SelectBeacons(ctx context.Context, beacons []Beacon, resultSize int) []Beacon
 }
@@ -32,6 +32,12 @@ type selectionAlgorithm interface {
 // baseAlgo implements a very simple selection algorithm that optimizes for
 // short paths, but also tries to achieve some path diversity.
 type baseAlgo struct{}
+
+// DefaultSelectionAlgorithm implements a very simple selection algorithm that
+// optimizes for short paths, but also tries to achieve minimal path diversity.
+func DefaultSelectionAlgorithm() SelectionAlgorithm {
+	return baseAlgo{}
+}
 
 // SelectBeacons implements a very simple selection algorithm. The best beacon
 // is the one with the shortest path. The slice contains the resultSize-1 shortest
@@ -80,15 +86,22 @@ func (baseAlgo) selectMostDiverse(beacons []Beacon, best Beacon) (Beacon, int) {
 type chainsAvailableAlgo struct {
 	verifier     chainChecker
 	logThrottled *cache.Cache
+	selector     SelectionAlgorithm
 }
 
-func newChainsAvailableAlgo(engine ChainProvider) chainsAvailableAlgo {
+// NewChainsAvailableAlgo creates a SelectionAlgorithm that filters beacons
+// based on the availability of their verification chains before passing them to
+// the provided selector. This can be paired with a chain provider that only
+// returns locally available chains to ensure that beacons are verifiable with
+// cryptographic material available in the local trust store.
+func NewChainsAvailableAlgo(engine ChainProvider, selector SelectionAlgorithm) SelectionAlgorithm {
 	return chainsAvailableAlgo{
 		verifier: chainChecker{
 			Engine: engine,
 			Cache:  cache.New(defaultCacheHitExpiration, defaultCacheHitExpiration),
 		},
 		logThrottled: cache.New(defaultCacheHitExpiration, defaultCacheHitExpiration),
+		selector:     selector,
 	}
 }
 
@@ -114,5 +127,5 @@ func (a chainsAvailableAlgo) SelectBeacons(
 			a.logThrottled.Set(id, struct{}{}, cache.DefaultExpiration)
 		}
 	}
-	return baseAlgo{}.SelectBeacons(ctx, withChain, resultSize)
+	return a.selector.SelectBeacons(ctx, withChain, resultSize)
 }

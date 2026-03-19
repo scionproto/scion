@@ -102,7 +102,7 @@ func (a *Aggregator) run(ctx context.Context) error {
 			case <-ticker.C:
 				a.report()
 			case <-a.workerBase.GetDoneChan():
-				break
+				return
 			}
 		}
 	}()

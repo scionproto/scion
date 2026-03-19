@@ -187,7 +187,7 @@ func TestAPI(t *testing.T) {
 						if err != nil {
 							return nil, serrors.Wrap("packing header", err)
 						}
-						hdrAndBody := &cryptopb.HeaderAndBodyInternal{
+						hdrAndBody := &cryptopb.HeaderAndBody{
 							Header: rawHdr,
 							Body:   msg,
 						}

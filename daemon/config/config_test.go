@@ -39,6 +39,14 @@ func TestConfigSample(t *testing.T) {
 	CheckTestConfig(t, &cfg, idSample)
 }
 
+func TestConfigDBInit(t *testing.T) {
+	var cfg Config
+	cfg.InitDefaults()
+	assert.NotZero(t, cfg.TrustDB.Connection)
+	assert.NotZero(t, cfg.PathDB.Connection)
+	assert.Zero(t, cfg.DRKeyLevel2DB.Connection)
+}
+
 func InitTestConfig(cfg *Config) {
 	envtest.InitTest(&cfg.General, &cfg.Metrics, &cfg.Tracing, nil)
 	logtest.InitTestLogging(&cfg.Logging)

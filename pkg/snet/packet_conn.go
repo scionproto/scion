@@ -114,8 +114,8 @@ type SCIONPacketConnMetrics struct {
 // SCIONPacketConn gives applications full control over the content of valid SCION
 // packets.
 type SCIONPacketConn struct {
-	// Conn is the connection to send/receive serialized packets on.
-	Conn *net.UDPConn
+	// conn is the connection to send/receive serialized packets on.
+	conn sysPacketConn
 	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
@@ -126,17 +126,26 @@ type SCIONPacketConn struct {
 	Topology Topology
 }
 
+// sysPacketConn is a wrapper interface around net.PacketConn.
+// It exists so custom types can wrap or customize the standard net.PacketConn methods.
+type sysPacketConn interface {
+	net.PacketConn
+	SyscallConn() (syscall.RawConn, error)
+	SetReadBuffer(bytes int) error
+	SetWriteBuffer(bytes int) error
+}
+
 func (c *SCIONPacketConn) SetReadBuffer(bytes int) error {
-	return c.Conn.SetReadBuffer(bytes)
+	return c.conn.SetReadBuffer(bytes)
 }
 
 func (c *SCIONPacketConn) SetDeadline(d time.Time) error {
-	return c.Conn.SetDeadline(d)
+	return c.conn.SetDeadline(d)
 }
 
 func (c *SCIONPacketConn) Close() error {
 	metrics.CounterInc(c.Metrics.Closes)
-	return c.Conn.Close()
+	return c.conn.Close()
 }
 
 func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
@@ -145,7 +154,7 @@ func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 	}
 
 	// Send message
-	n, err := c.Conn.WriteTo(pkt.Bytes, ov)
+	n, err := c.conn.WriteTo(pkt.Bytes, ov)
 	if err != nil {
 		return serrors.Wrap("Reliable socket write error", err)
 	}
@@ -155,11 +164,11 @@ func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 }
 
 func (c *SCIONPacketConn) SetWriteBuffer(bytes int) error {
-	return c.Conn.SetWriteBuffer(bytes)
+	return c.conn.SetWriteBuffer(bytes)
 }
 
 func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
-	return c.Conn.SetWriteDeadline(d)
+	return c.conn.SetWriteDeadline(d)
 }
 
 func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
@@ -199,12 +208,12 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 }
 
 func (c *SCIONPacketConn) SyscallConn() (syscall.RawConn, error) {
-	return c.Conn.SyscallConn()
+	return c.conn.SyscallConn()
 }
 
 func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	pkt.Prepare()
-	n, remoteAddr, err := c.Conn.ReadFrom(pkt.Bytes)
+	n, remoteAddr, err := c.conn.ReadFrom(pkt.Bytes)
 	if err != nil {
 		metrics.CounterInc(c.Metrics.UnderlayConnectionErrors)
 		return nil, serrors.Wrap("reading underlay connection", err)
@@ -242,11 +251,11 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 }
 
 func (c *SCIONPacketConn) SetReadDeadline(d time.Time) error {
-	return c.Conn.SetReadDeadline(d)
+	return c.conn.SetReadDeadline(d)
 }
 
 func (c *SCIONPacketConn) LocalAddr() net.Addr {
-	return c.Conn.LocalAddr()
+	return c.conn.LocalAddr()
 }
 
 // isShimDispatcher checks that udpAddr corresponds to the address where the

@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/segment/iface"
-	"github.com/scionproto/scion/private/storage/db"
 )
 
 // Key denotes the key for the revocation cache.
@@ -72,6 +71,5 @@ type RevCache interface {
 	// ever growing cache.
 	// Returns the amount of deleted entries.
 	DeleteExpired(ctx context.Context) (int64, error)
-	db.LimitSetter
 	io.Closer
 }

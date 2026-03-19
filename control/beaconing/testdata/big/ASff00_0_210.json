@@ -8,17 +8,17 @@
   "dispatched_ports": "31000-32767",
   "control_service": {
     "cs2-ff00_0_210-1": {
-      "addr": "127.0.0.116:31054"
+      "addr": "127.0.0.133:31056"
     }
   },
   "discovery_service": {
     "cs2-ff00_0_210-1": {
-      "addr": "127.0.0.116:31054"
+      "addr": "127.0.0.133:31056"
     }
   },
   "border_routers": {
     "br2-ff00_0_210-1": {
-      "internal_addr": "127.0.0.113:31056",
+      "internal_addr": "127.0.0.129:31058",
       "interfaces": {
         "2111": {
           "underlay": {
@@ -32,7 +32,7 @@
       }
     },
     "br2-ff00_0_210-2": {
-      "internal_addr": "127.0.0.114:31058",
+      "internal_addr": "127.0.0.130:31060",
       "interfaces": {
         "2120": {
           "underlay": {
@@ -47,15 +47,29 @@
       }
     },
     "br2-ff00_0_210-3": {
-      "internal_addr": "127.0.0.115:31060",
+      "internal_addr": "127.0.0.131:31062",
       "interfaces": {
         "2135": {
           "underlay": {
-            "local": "127.0.0.34:50000",
-            "remote": "127.0.0.35:50000"
+            "local": "127.0.0.36:50000",
+            "remote": "127.0.0.37:50000"
           },
           "isd_as": "2-ff00:0:211",
           "link_to": "child",
+          "mtu": 1472
+        }
+      }
+    },
+    "br2-ff00_0_210-4": {
+      "internal_addr": "127.0.0.132:31064",
+      "interfaces": {
+        "2142": {
+          "underlay": {
+            "local": "127.0.0.38:50000",
+            "remote": "127.0.0.39:50000"
+          },
+          "isd_as": "6-ff00:0:610",
+          "link_to": "core",
           "mtu": 1472
         }
       }

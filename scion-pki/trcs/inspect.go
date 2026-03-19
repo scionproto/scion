@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cms/protocol"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/command"
 )
 
@@ -70,7 +71,7 @@ return an error if parts of a TRC fail to decode, enable the strict mode.
 			}
 			cmd.SilenceUsage = true
 
-			raw, err := os.ReadFile(args[0])
+			raw, err := app.ReadFileOrStdin(args[0])
 			if err != nil {
 				return err
 			}

@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"net/netip"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -25,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/private/app/env"
 	"github.com/scionproto/scion/private/app/flag"
 )
@@ -80,7 +80,7 @@ func TestSCIONEnvironment(t *testing.T) {
 			flags:  noFlags,
 			env:    noEnv,
 			file:   noFile,
-			daemon: daemon.DefaultAPIAddress,
+			daemon: "",
 			local:  netip.Addr{},
 		},
 		"flag values set": {
@@ -139,4 +139,68 @@ func TestSCIONEnvironment(t *testing.T) {
 func tempEnv(t *testing.T, key, val string) {
 	require.NoError(t, os.Setenv(key, val))
 	t.Cleanup(func() { require.NoError(t, os.Unsetenv(key)) })
+}
+
+func TestSCIONEnvironmentConfigDir(t *testing.T) {
+	defaultDir := ""
+	if runtime.GOOS == "linux" {
+		defaultDir = "/etc/scion"
+	}
+
+	testCases := map[string]struct {
+		flags     []string
+		configDir string
+	}{
+		"no flag": {
+			flags:     []string{},
+			configDir: defaultDir,
+		},
+		"config-dir flag set": {
+			flags:     []string{"--config-dir", "/custom/path"},
+			configDir: "/custom/path",
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var env flag.SCIONEnvironment
+			fs := pflag.NewFlagSet("testSet", pflag.ContinueOnError)
+			env.Register(fs)
+			require.NoError(t, fs.Parse(tc.flags))
+			assert.Equal(t, tc.configDir, env.ConfigDir())
+		})
+	}
+}
+
+func TestSCIONEnvironmentValidate(t *testing.T) {
+	testCases := map[string]struct {
+		flags   []string
+		wantErr bool
+	}{
+		"sciond set": {
+			flags:   []string{"--sciond", "127.0.0.1:30255"},
+			wantErr: false,
+		},
+		"config-dir set": {
+			flags:   []string{"--config-dir", "/custom/path"},
+			wantErr: false,
+		},
+		"both flags set - sciond takes priority": {
+			flags:   []string{"--sciond", "127.0.0.1:30255", "--config-dir", "/custom/path"},
+			wantErr: false,
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var env flag.SCIONEnvironment
+			fs := pflag.NewFlagSet("testSet", pflag.ContinueOnError)
+			env.Register(fs)
+			require.NoError(t, fs.Parse(tc.flags))
+			err := env.Validate()
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

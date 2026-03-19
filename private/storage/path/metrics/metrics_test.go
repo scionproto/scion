@@ -20,7 +20,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/storage"
+	"github.com/scionproto/scion/private/storage/db"
 	pathdbtest "github.com/scionproto/scion/private/storage/path/dbtest"
 	pathstoragemetrics "github.com/scionproto/scion/private/storage/path/metrics"
 	"github.com/scionproto/scion/private/storage/path/sqlite"
@@ -42,7 +44,10 @@ func TestMetricWrapperFunctionality(t *testing.T) {
 }
 
 func setupDB(t *testing.T) storage.PathDB {
-	db, err := sqlite.New("file::memory:")
+	db, err := sqlite.New(
+		xtest.SanitizedName(t),
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 	return pathstoragemetrics.WrapDB(db, pathstoragemetrics.Config{
 		Driver: "test_sqlite",

@@ -14,6 +14,7 @@ go_library(
         "observability.go",
         "renew.go",
         "sign.go",
+        "template.go",
         "validate.go",
         "verify.go",
     ],

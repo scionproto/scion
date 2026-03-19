@@ -13,6 +13,12 @@ ASes:
   "4-ff00:0:410": {core: true, voting: true, authoritative: true, issuing: true}
   "4-ff00:0:411": {cert_issuer: "4-ff00:0:410"}
   "5-ff00:0:510": {core: true, voting: true, authoritative: true, issuing: true}
+  "6-ff00:0:610": {core: true, voting: true, authoritative: true, issuing: true}
+  "6-ff00:0:620": {core: true, voting: true, authoritative: true, issuing: true}
+  "6-ff00:0:611": {cert_issuer: "6-ff00:0:610"}
+  "6-ff00:0:612": {cert_issuer: "6-ff00:0:610"}
+  "6-ff00:0:621": {cert_issuer: "6-ff00:0:620"}
+  "6-ff00:0:622": {cert_issuer: "6-ff00:0:620"}
 links:
   - {a: "1-ff00:0:110", b: "1-ff00:0:120", linkAtoB: CORE}
   - {a: "1-ff00:0:110", b: "2-ff00:0:210", linkAtoB: CORE}
@@ -22,6 +28,7 @@ links:
   - {a: "1-ff00:0:120", b: "1-ff00:0:121", linkAtoB: CHILD}
   - {a: "1-ff00:0:120", b: "1-ff00:0:122", linkAtoB: CHILD}
   - {a: "1-ff00:0:120", b: "3-ff00:0:310", linkAtoB: CORE}
+  - {a: "1-ff00:0:120", b: "4-ff00:0:410", linkAtoB: PEER}
   - {a: "1-ff00:0:120", b: "5-ff00:0:510", linkAtoB: CORE}
   - {a: "1-ff00:0:121", b: "1-ff00:0:123", linkAtoB: CHILD}
   - {a: "1-ff00:0:121", b: "1-ff00:0:122", linkAtoB: PEER}
@@ -30,6 +37,15 @@ links:
   - {a: "1-ff00:0:123", b: "4-ff00:0:410", linkAtoB: PEER}
   - {a: "1-ff00:0:123", b: "4-ff00:0:411", linkAtoB: PEER}
   - {a: "2-ff00:0:210", b: "2-ff00:0:211", linkAtoB: CHILD}
+  - {a: "2-ff00:0:210", b: "6-ff00:0:610", linkAtoB: CORE}
   - {a: "3-ff00:0:310", b: "4-ff00:0:410", linkAtoB: CORE}
   - {a: "3-ff00:0:310", b: "3-ff00:0:311", linkAtoB: CHILD}
   - {a: "4-ff00:0:410", b: "4-ff00:0:411", linkAtoB: CHILD}
+  - {a: "6-ff00:0:610", b: "6-ff00:0:620", linkAtoB: CORE}
+  - {a: "6-ff00:0:610", b: "6-ff00:0:611", linkAtoB: CHILD}
+  - {a: "6-ff00:0:610", b: "6-ff00:0:612", linkAtoB: CHILD}
+  - {a: "6-ff00:0:620", b: "6-ff00:0:621", linkAtoB: CHILD}
+  - {a: "6-ff00:0:620", b: "6-ff00:0:622", linkAtoB: CHILD}
+  - {a: "6-ff00:0:611", b: "6-ff00:0:620", linkAtoB: PEER}
+  - {a: "6-ff00:0:611", b: "6-ff00:0:621", linkAtoB: PEER}
+  - {a: "6-ff00:0:611", b: "6-ff00:0:612", linkAtoB: PEER}

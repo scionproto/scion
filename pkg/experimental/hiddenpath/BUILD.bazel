@@ -19,6 +19,7 @@ go_library(
         "//control/beacon:go_default_library",
         "//control/beaconing:go_default_library",
         "//control/ifstate:go_default_library",
+        "//control/segreg:go_default_library",
         "//pkg/addr:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/metrics:go_default_library",

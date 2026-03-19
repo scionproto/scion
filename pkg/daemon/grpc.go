@@ -26,9 +26,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/addr"
+	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/drkey"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
+	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
+	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
@@ -37,6 +40,66 @@ import (
 	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology"
 )
+
+const (
+	// DefaultAPIAddress contains the system default for a daemon API socket.
+	DefaultAPIAddress = "127.0.0.1:30255"
+	// DefaultAPIPort contains the default port for a daemon client API socket.
+	DefaultAPIPort = 30255
+	// defaultConnectionTimeout contains the default timeout for a daemon connection.
+	defaultConnectionTimeout = time.Second
+)
+
+// NewService returns a SCION Daemon API connection factory.
+func NewService(name string) Service {
+	return Service{
+		Address: name,
+		Metrics: Metrics{
+			Connects: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "conn", "connections_total",
+					"The amount of SCIOND connection attempts.", promLabels{},
+				),
+			),
+			PathsRequests: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "path", "requests_total",
+					"The amount of Path requests sent.", promLabels{},
+				),
+			),
+			ASRequests: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "as_info", "requests_total",
+					"The amount of AS info requests sent.", promLabels{},
+				),
+			),
+			InterfacesRequests: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "if_info", "requests_total",
+					"The amount of IF info requests sent.", promLabels{},
+				),
+			),
+			ServicesRequests: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "service_info", "requests_total",
+					"The amount of SVC info requests sent.", promLabels{},
+				),
+			),
+			InterfaceDownNotifications: libmetrics.NewPromCounter(
+				prom.NewCounterVecWithLabels(
+					"lib_sciond", "revocation", "requests_total",
+					"The amount of Revocation requests sent.", promLabels{},
+				),
+			),
+		},
+	}
+}
+
+// promLabels implements prom.Labels for result label.
+type promLabels struct{}
+
+func (promLabels) Labels() []string { return []string{prom.LabelResult} }
+func (promLabels) Values() []string { return []string{""} }
 
 // Service exposes the API to connect to a SCION daemon service.
 type Service struct {
@@ -47,7 +110,7 @@ type Service struct {
 	Metrics Metrics
 }
 
-func (s Service) Connect(ctx context.Context) (Connector, error) {
+func (s Service) Connect(_ context.Context) (Connector, error) {
 	conn, err := grpc.NewClient(s.Address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		libgrpc.UnaryClientInterceptor(),
@@ -105,7 +168,7 @@ func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, er
 }
 
 func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
-	f PathReqFlags) ([]snet.Path, error) {
+	f daemontypes.PathReqFlags) ([]snet.Path, error) {
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Paths(ctx, &sdpb.PathsRequest{
@@ -123,15 +186,15 @@ func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
 	return paths, err
 }
 
-func (c grpcConn) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
+func (c grpcConn) ASInfo(ctx context.Context, ia addr.IA) (daemontypes.ASInfo, error) {
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.AS(ctx, &sdpb.ASRequest{IsdAs: uint64(ia)})
 	if err != nil {
 		c.metrics.incAS(err)
-		return ASInfo{}, err
+		return daemontypes.ASInfo{}, err
 	}
 	c.metrics.incAS(nil)
-	return ASInfo{
+	return daemontypes.ASInfo{
 		IA:  addr.IA(response.IsdAs),
 		MTU: uint16(response.Mtu),
 	}, nil

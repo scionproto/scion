@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/private/storage/db"
 )
 
 var ErrKeyNotFound = serrors.New("key not found")
@@ -32,7 +31,6 @@ type SecretValueDB interface {
 	DeleteExpiredValues(ctx context.Context, cutoff time.Time) (int, error)
 
 	io.Closer
-	db.LimitSetter
 }
 
 // Level1DB is the drkey database interface for level 1.
@@ -42,7 +40,6 @@ type Level1DB interface {
 	DeleteExpiredLevel1Keys(ctx context.Context, cutoff time.Time) (int, error)
 
 	io.Closer
-	db.LimitSetter
 }
 
 // Level2DB is the drkey database interface for end-host keys.
@@ -58,5 +55,4 @@ type Level2DB interface {
 	DeleteExpiredHostHostKeys(ctx context.Context, cutoff time.Time) (int, error)
 
 	io.Closer
-	db.LimitSetter
 }

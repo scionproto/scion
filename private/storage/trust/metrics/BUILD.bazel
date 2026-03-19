@@ -25,7 +25,9 @@ go_test(
     deps = [
         ":go_default_library",
         "//pkg/metrics:go_default_library",
+        "//pkg/private/xtest:go_default_library",
         "//private/storage:go_default_library",
+        "//private/storage/db:go_default_library",
         "//private/storage/trust/dbtest:go_default_library",
         "//private/storage/trust/sqlite:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

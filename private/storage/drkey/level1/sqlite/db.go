@@ -17,7 +17,6 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/drkey"
@@ -50,22 +49,30 @@ var _ drkey.Level1DB = (*Backend)(nil)
 // Level1Backend implements a level 1 drkey DB with sqlite.
 type Backend struct {
 	*executor
-	db *sql.DB
+	db *db.Sqlite
 }
 
 // NewLevel1Backend creates a database and prepares all statements.
-func NewBackend(path string) (*Backend, error) {
-	db, err := db.NewSqlite(path, Level1Schema, Level1SchemaVersion)
+func NewBackend(path string, cfg *db.SqliteConfig) (*Backend, error) {
+	db, err := db.NewSqlite(path, cfg)
 	if err != nil {
+		return nil, err
+	}
+	if err := db.Setup(Level1Schema, Level1SchemaVersion); err != nil {
 		return nil, err
 	}
 	b := &Backend{
 		executor: &executor{
-			db: db,
+			write: db.Full,
+			read:  db.ReadOnly,
 		},
 		db: db,
 	}
 	return b, nil
+}
+
+func (b *Backend) DB() *db.Sqlite {
+	return b.db
 }
 
 // Close closes the database connection.
@@ -73,19 +80,11 @@ func (b *Backend) Close() error {
 	return b.db.Close()
 }
 
-// SetMaxOpenConns sets the maximum number of open connections.
-func (b *Backend) SetMaxOpenConns(maxOpenConns int) {
-	b.db.SetMaxOpenConns(maxOpenConns)
-}
-
-// SetMaxIdleConns sets the maximum number of idle connections.
-func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
-	b.db.SetMaxIdleConns(maxIdleConns)
-}
-
 type executor struct {
-	sync.RWMutex
-	db db.Sqler
+	write db.Sqler
+	read  interface {
+		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	}
 }
 
 const getLevel1KeyStmt = `
@@ -101,14 +100,11 @@ func (e *executor) GetLevel1Key(
 	ctx context.Context,
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
-
-	e.RLock()
-	defer e.RUnlock()
 	var epochBegin, epochEnd int
 	var bytes []byte
 	valSecs := util.TimeToSecs(meta.Validity)
 
-	err := e.db.QueryRowContext(ctx, getLevel1KeyStmt, meta.SrcIA.ISD(), meta.SrcIA.AS(),
+	err := e.read.QueryRowContext(ctx, getLevel1KeyStmt, meta.SrcIA.ISD(), meta.SrcIA.AS(),
 		meta.DstIA.ISD(), meta.DstIA.AS(), meta.ProtoId, valSecs,
 		valSecs).Scan(&epochBegin, &epochEnd, &bytes)
 	if err != nil {
@@ -135,11 +131,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 
 // InsertLevel1Key inserts a Level1 key.
 func (e *executor) InsertLevel1Key(ctx context.Context, key drkey.Level1Key) error {
-
-	e.RLock()
-	defer e.RUnlock()
-
-	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	return db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		_, err := tx.ExecContext(
 			ctx,
 			insertLevel1KeyStmt,
@@ -166,10 +158,7 @@ DELETE FROM DRKeyLevel1 WHERE ? >= EpochEnd
 // DeleteExpiredLevel1Keys removes all expired Level1 key, i.e. all the keys
 // which expiration time is strictly smaller than the cutoff
 func (e *executor) DeleteExpiredLevel1Keys(ctx context.Context, cutoff time.Time) (int, error) {
-	e.RLock()
-	defer e.RUnlock()
-
-	return db.DeleteInTx(ctx, e.db, func(tx *sql.Tx) (sql.Result, error) {
+	return db.DeleteInTx(ctx, e.write, func(tx *sql.Tx) (sql.Result, error) {
 		cutoffSecs := util.TimeToSecs(cutoff)
 		return tx.ExecContext(ctx, deleteExpiredLevel1KeysStmt, cutoffSecs)
 	})

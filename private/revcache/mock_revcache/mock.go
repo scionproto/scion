@@ -109,27 +109,3 @@ func (mr *MockRevCacheMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Insert", reflect.TypeOf((*MockRevCache)(nil).Insert), arg0, arg1)
 }
-
-// SetMaxIdleConns mocks base method.
-func (m *MockRevCache) SetMaxIdleConns(arg0 int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMaxIdleConns", arg0)
-}
-
-// SetMaxIdleConns indicates an expected call of SetMaxIdleConns.
-func (mr *MockRevCacheMockRecorder) SetMaxIdleConns(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMaxIdleConns", reflect.TypeOf((*MockRevCache)(nil).SetMaxIdleConns), arg0)
-}
-
-// SetMaxOpenConns mocks base method.
-func (m *MockRevCache) SetMaxOpenConns(arg0 int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMaxOpenConns", arg0)
-}
-
-// SetMaxOpenConns indicates an expected call of SetMaxOpenConns.
-func (mr *MockRevCacheMockRecorder) SetMaxOpenConns(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMaxOpenConns", reflect.TypeOf((*MockRevCache)(nil).SetMaxOpenConns), arg0)
-}

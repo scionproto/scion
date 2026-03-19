@@ -25,10 +25,12 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
+	"github.com/scionproto/scion/private/tracing"
 )
 
 type addrInfo struct {
@@ -58,16 +60,31 @@ case, the host could have multiple SCION addresses.
 			if err := envFlags.LoadExternalVars(); err != nil {
 				return err
 			}
-			daemonAddr := envFlags.Daemon()
-
+			if err := envFlags.Validate(); err != nil {
+				return err
+			}
 			cmd.SilenceUsage = true
+
+			span, traceCtx := tracing.CtxWith(context.Background(), "run")
+			defer span.Finish()
+
+			sd, err := daemon.NewAutoConnector(traceCtx,
+				daemon.WithDaemon(envFlags.Daemon()),
+				daemon.WithConfigDir(envFlags.ConfigDir()),
+			)
+			if err != nil {
+				return serrors.Wrap("getting daemon connector", err)
+			}
+
+			defer func(sd daemon.Connector) {
+				err := sd.Close()
+				if err != nil {
+					log.Error("Closing SCION Daemon connection", "err", err)
+				}
+			}(sd)
+
 			ctx, cancelF := context.WithTimeout(cmd.Context(), time.Second)
 			defer cancelF()
-			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
-			if err != nil {
-				return serrors.Wrap("connecting to SCION Daemon", err)
-			}
-			defer sd.Close()
 
 			info, err := app.QueryASInfo(ctx, sd)
 			if err != nil {
@@ -96,7 +113,8 @@ case, the host could have multiple SCION addresses.
 		},
 	}
 	envFlags.Register(cmd.Flags())
-	cmd.Flags().BoolVar(&flags.json, "json", false, "Write the output as machine readable json")
+	cmd.Flags().BoolVar(&flags.json, "json", false,
+		"Write the output as machine readable json")
 
 	return cmd
 }

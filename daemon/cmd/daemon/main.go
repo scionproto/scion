@@ -35,11 +35,10 @@ import (
 
 	"github.com/scionproto/scion/daemon"
 	"github.com/scionproto/scion/daemon/config"
-	sd_drkey "github.com/scionproto/scion/daemon/drkey"
-	sd_grpc "github.com/scionproto/scion/daemon/drkey/grpc"
-	"github.com/scionproto/scion/daemon/fetcher"
 	api "github.com/scionproto/scion/daemon/mgmtapi"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon/fetcher"
+	daemontrust "github.com/scionproto/scion/pkg/daemon/private/trust"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
@@ -47,12 +46,11 @@ import (
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
-	"github.com/scionproto/scion/pkg/scrypto/signed"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/launcher"
+	sddrkey "github.com/scionproto/scion/private/drkey"
+	sdgrpc "github.com/scionproto/scion/private/drkey/grpc"
 	cppkiapi "github.com/scionproto/scion/private/mgmtapi/cppki/api"
 	segapi "github.com/scionproto/scion/private/mgmtapi/segments/api"
 	"github.com/scionproto/scion/private/pathdb"
@@ -60,7 +58,7 @@ import (
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/segment/segfetcher"
 	segfetchergrpc "github.com/scionproto/scion/private/segment/segfetcher/grpc"
-	infra "github.com/scionproto/scion/private/segment/verifier"
+	segverifier "github.com/scionproto/scion/private/segment/verifier"
 	"github.com/scionproto/scion/private/service"
 	"github.com/scionproto/scion/private/storage"
 	"github.com/scionproto/scion/private/storage/drkey/level2"
@@ -155,8 +153,9 @@ func realMain(ctx context.Context) error {
 			[]string{"driver", "operation", prom.LabelResult},
 		),
 	})
-	engine, err := daemon.TrustEngine(
-		errCtx, globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer,
+	certsDir := filepath.Join(globalCfg.General.ConfigDir, "certs")
+	engine, err := daemontrust.NewEngine(
+		errCtx, certsDir, topo.IA(), trustDB, dialer,
 	)
 	if err != nil {
 		return serrors.Wrap("creating trust engine", err)
@@ -168,7 +167,7 @@ func realMain(ctx context.Context) error {
 		MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
 	}
 	trcLoader := trust.TRCLoader{
-		Dir: filepath.Join(globalCfg.General.ConfigDir, "certs"),
+		Dir: certsDir,
 		DB:  trustDB,
 	}
 	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
@@ -186,7 +185,7 @@ func realMain(ctx context.Context) error {
 	}, 10*time.Second, 10*time.Second)
 	defer trcLoaderTask.Stop()
 
-	var drkeyClientEngine *sd_drkey.ClientEngine
+	var drkeyClientEngine *sddrkey.ClientEngine
 	if globalCfg.DRKeyLevel2DB.Connection != "" {
 		backend, err := storage.NewDRKeyLevel2Storage(globalCfg.DRKeyLevel2DB)
 		if err != nil {
@@ -215,10 +214,10 @@ func realMain(ctx context.Context) error {
 		}
 		defer level2DB.Close()
 
-		drkeyFetcher := &sd_grpc.Fetcher{
+		drkeyFetcher := &sdgrpc.Fetcher{
 			Dialer: dialer,
 		}
-		drkeyClientEngine = &sd_drkey.ClientEngine{
+		drkeyClientEngine = &sddrkey.ClientEngine{
 			IA:      topo.IA(),
 			DB:      level2DB,
 			Fetcher: drkeyFetcher,
@@ -254,9 +253,9 @@ func realMain(ctx context.Context) error {
 		}
 	}
 
-	createVerifier := func() infra.Verifier {
+	createVerifier := func() segverifier.Verifier {
 		if globalCfg.SD.DisableSegVerification {
-			return acceptAllVerifier{}
+			return segverifier.AcceptAllVerifier{}
 		}
 		return compat.Verifier{Verifier: trust.Verifier{
 			Engine:             engine,
@@ -272,21 +271,21 @@ func realMain(ctx context.Context) error {
 	)
 	sdpb.RegisterDaemonServiceServer(server, daemon.NewServer(
 		daemon.ServerConfig{
-			IA:       topo.IA(),
-			MTU:      topo.MTU(),
-			Topology: topo,
+			IA:          topo.IA(),
+			MTU:         topo.MTU(),
+			LocalASInfo: topo,
 			Fetcher: fetcher.NewFetcher(
 				fetcher.FetcherConfig{
-					IA:         topo.IA(),
-					MTU:        topo.MTU(),
-					Core:       topo.Core(),
-					NextHopper: topo,
-					RPC:        requester,
-					PathDB:     pathDB,
-					Inspector:  engine,
-					Verifier:   createVerifier(),
-					RevCache:   revCache,
-					Cfg:        globalCfg.SD,
+					IA:            topo.IA(),
+					MTU:           topo.MTU(),
+					Core:          topo.Core(),
+					NextHopper:    topo,
+					RPC:           requester,
+					PathDB:        pathDB,
+					Inspector:     engine,
+					Verifier:      createVerifier(),
+					RevCache:      revCache,
+					QueryInterval: globalCfg.SD.QueryInterval.Duration,
 				},
 			),
 			Engine:      engine,
@@ -365,26 +364,6 @@ func realMain(ctx context.Context) error {
 	})
 
 	return g.Wait()
-}
-
-type acceptAllVerifier struct{}
-
-func (acceptAllVerifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
-	associatedData ...[]byte,
-) (*signed.Message, error) {
-	return nil, nil
-}
-
-func (v acceptAllVerifier) WithServer(net.Addr) infra.Verifier {
-	return v
-}
-
-func (v acceptAllVerifier) WithIA(addr.IA) infra.Verifier {
-	return v
-}
-
-func (v acceptAllVerifier) WithValidity(cppki.Validity) infra.Verifier {
-	return v
 }
 
 func loaderMetrics() topology.LoaderMetrics {

@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,10 +70,8 @@ func TestAcceptLoopParallelism(t *testing.T) {
 	var reattempts int32
 
 	var wg sync.WaitGroup
-	for i := 0; i < 500; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 500 {
+		wg.Go(func() {
 			attempt := func() bool {
 				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 				defer cancel()
@@ -105,7 +104,7 @@ func TestAcceptLoopParallelism(t *testing.T) {
 				}
 				atomic.AddInt32(&reattempts, 1)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	require.Less(t, reattempts, int32(50))
@@ -167,13 +166,11 @@ func TestEstablishConnection(t *testing.T) {
 		// received. Add a wait group that protects read access to srvConn.
 		var srvConn net.Conn
 		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			var err error
 			srvConn, err = srv.Accept()
 			require.NoError(t, err)
-		}()
+		})
 
 		dialer := connDialer(t)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)

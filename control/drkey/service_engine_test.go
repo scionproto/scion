@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/private/storage/db"
 	level1_sql "github.com/scionproto/scion/private/storage/drkey/level1/sqlite"
 	secret_sql "github.com/scionproto/scion/private/storage/drkey/secret/sqlite"
 )
@@ -262,14 +263,20 @@ func TestGetLevel1Key(t *testing.T) {
 }
 
 func newLevel1Database(t *testing.T) *level1_sql.Backend {
-	db, err := level1_sql.NewBackend("file::memory:")
+	db, err := level1_sql.NewBackend(
+		xtest.SanitizedName(t)+"_level1",
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 
 	return db
 }
 
 func newSVDatabase(t *testing.T) *secret_sql.Backend {
-	db, err := secret_sql.NewBackend("file::memory:")
+	db, err := secret_sql.NewBackend(
+		xtest.SanitizedName(t)+"_secret",
+		&db.SqliteConfig{InMemory: true},
+	)
 	require.NoError(t, err)
 
 	return db

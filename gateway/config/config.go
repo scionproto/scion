@@ -49,6 +49,7 @@ type Config struct {
 	Features env.Features `toml:"features,omitempty"`
 	Logging  log.Config   `toml:"log,omitempty"`
 	Metrics  env.Metrics  `toml:"metrics,omitempty"`
+	RPC      env.RPC      `toml:"rpc,omitempty"`
 	API      api.Config   `toml:"api,omitempty"`
 	Daemon   env.Daemon   `toml:"sciond_connection,omitempty"`
 	Gateway  Gateway      `toml:"gateway,omitempty"`

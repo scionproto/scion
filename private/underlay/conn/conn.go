@@ -14,7 +14,6 @@
 // limitations under the License.
 
 //go:build go1.9
-// +build go1.9
 
 // Package conn implements underlay sockets.
 package conn

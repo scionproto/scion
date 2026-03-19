@@ -17,7 +17,6 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/drkey"
@@ -82,22 +81,30 @@ var _ drkey.Level2DB = (*Backend)(nil)
 // Backend implements a level 2 drkey DB with sqlite.
 type Backend struct {
 	*executor
-	db *sql.DB
+	db *db.Sqlite
 }
 
 // NewBackend creates a database and prepares all statements.
-func NewBackend(path string) (*Backend, error) {
-	db, err := db.NewSqlite(path, Level2Schema, Level2SchemaVersion)
+func NewBackend(path string, cfg *db.SqliteConfig) (*Backend, error) {
+	db, err := db.NewSqlite(path, cfg)
 	if err != nil {
+		return nil, err
+	}
+	if err := db.Setup(Level2Schema, Level2SchemaVersion); err != nil {
 		return nil, err
 	}
 	b := &Backend{
 		executor: &executor{
-			db: db,
+			write: db.Full,
+			read:  db.ReadOnly,
 		},
 		db: db,
 	}
 	return b, nil
+}
+
+func (b *Backend) DB() *db.Sqlite {
+	return b.db
 }
 
 // Close closes the database connection.
@@ -105,19 +112,11 @@ func (b *Backend) Close() error {
 	return b.db.Close()
 }
 
-// SetMaxOpenConns sets the maximum number of open connections.
-func (b *Backend) SetMaxOpenConns(maxOpenConns int) {
-	b.db.SetMaxOpenConns(maxOpenConns)
-}
-
-// SetMaxIdleConns sets the maximum number of idle connections.
-func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
-	b.db.SetMaxIdleConns(maxIdleConns)
-}
-
 type executor struct {
-	sync.RWMutex
-	db db.Sqler
+	write db.Sqler
+	read  interface {
+		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	}
 }
 
 const getASHostKeyStmt = `
@@ -132,15 +131,13 @@ AND EpochBegin<=? AND ?<EpochEnd
 func (e *executor) GetASHostKey(
 	ctx context.Context,
 	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
-	e.RLock()
-	defer e.RUnlock()
 	var epochBegin int
 	var epochEnd int
 	var bytes []byte
 
 	valSecs := util.TimeToSecs(meta.Validity)
 
-	err := e.db.QueryRowContext(ctx, getASHostKeyStmt,
+	err := e.read.QueryRowContext(ctx, getASHostKeyStmt,
 		meta.ProtoId,
 		meta.SrcIA.ISD(), meta.SrcIA.AS(),
 		meta.DstIA.ISD(), meta.DstIA.AS(),
@@ -171,10 +168,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 
 // InsertASHostKey inserts a ASHost key.
 func (e *executor) InsertASHostKey(ctx context.Context, key drkey.ASHostKey) error {
-	e.RLock()
-	defer e.RUnlock()
 
-	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	return db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, insertASHostKeyStmt,
 			key.ProtoId,
 			key.SrcIA.ISD(), key.SrcIA.AS(),
@@ -203,8 +198,6 @@ AND EpochBegin<=? AND ?<EpochEnd
 func (e *executor) GetHostASKey(
 	ctx context.Context,
 	meta drkey.HostASMeta) (drkey.HostASKey, error) {
-	e.RLock()
-	defer e.RUnlock()
 
 	var epochBegin int
 	var epochEnd int
@@ -212,7 +205,7 @@ func (e *executor) GetHostASKey(
 
 	valSecs := util.TimeToSecs(meta.Validity)
 
-	err := e.db.QueryRowContext(ctx, getHostASKeyStmt,
+	err := e.read.QueryRowContext(ctx, getHostASKeyStmt,
 		meta.ProtoId,
 		meta.SrcIA.ISD(), meta.SrcIA.AS(),
 		meta.DstIA.ISD(), meta.DstIA.AS(),
@@ -244,10 +237,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 
 // InsertHostASKey inserts a HostAS key.
 func (e *executor) InsertHostASKey(ctx context.Context, key drkey.HostASKey) error {
-	e.RLock()
-	defer e.RUnlock()
 
-	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	return db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, insertHostASKeyStmt,
 			key.ProtoId,
 			key.SrcIA.ISD(), key.SrcIA.AS(),
@@ -275,8 +266,6 @@ AND EpochBegin<=? AND ?<EpochEnd
 func (e *executor) GetHostHostKey(
 	ctx context.Context,
 	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
-	e.RLock()
-	defer e.RUnlock()
 
 	var epochBegin int
 	var epochEnd int
@@ -284,7 +273,7 @@ func (e *executor) GetHostHostKey(
 
 	valSecs := util.TimeToSecs(meta.Validity)
 
-	err := e.db.QueryRowContext(ctx, getHostHostKeyStmt,
+	err := e.read.QueryRowContext(ctx, getHostHostKeyStmt,
 		meta.ProtoId,
 		meta.SrcIA.ISD(), meta.SrcIA.AS(),
 		meta.DstIA.ISD(), meta.DstIA.AS(),
@@ -317,10 +306,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
 // InsertHostHostKey inserts a HostHost key.
 func (e *executor) InsertHostHostKey(ctx context.Context, key drkey.HostHostKey) error {
-	e.RLock()
-	defer e.RUnlock()
 
-	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+	return db.DoInTx(ctx, e.write, func(ctx context.Context, tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, insertHostHostKeyStmt,
 			key.ProtoId,
 			key.SrcIA.ISD(), key.SrcIA.AS(),
@@ -343,10 +330,8 @@ DELETE FROM ASHost WHERE ? >= EpochEnd;
 // DeleteExpiredASHostKeys removes all expired AS-Host keys, i.e. those keys
 // which expiration time is strictly less than the cutoff
 func (e *executor) DeleteExpiredASHostKeys(ctx context.Context, cutoff time.Time) (int, error) {
-	e.RLock()
-	defer e.RUnlock()
 
-	return db.DeleteInTx(ctx, e.db, func(tx *sql.Tx) (sql.Result, error) {
+	return db.DeleteInTx(ctx, e.write, func(tx *sql.Tx) (sql.Result, error) {
 		cutoffSecs := util.TimeToSecs(cutoff)
 		return tx.ExecContext(ctx, deleteExpiredASHostKeysStmt, cutoffSecs)
 	})
@@ -359,10 +344,8 @@ DELETE FROM HostAS WHERE ? >= EpochEnd;
 // DeleteExpiredHostASKeys removes all expired Host-AS keys, i.e. those keys
 // which expiration time is strictly less than the cutoff
 func (e *executor) DeleteExpiredHostASKeys(ctx context.Context, cutoff time.Time) (int, error) {
-	e.RLock()
-	defer e.RUnlock()
 
-	return db.DeleteInTx(ctx, e.db, func(tx *sql.Tx) (sql.Result, error) {
+	return db.DeleteInTx(ctx, e.write, func(tx *sql.Tx) (sql.Result, error) {
 		cutoffSecs := util.TimeToSecs(cutoff)
 		return tx.ExecContext(ctx, deleteExpiredHostASKeysStmt, cutoffSecs)
 	})
@@ -375,10 +358,8 @@ DELETE FROM HostHost WHERE ? >= EpochEnd;
 // DeleteExpiredHostHostKeys removes all expired Host-Host keys, i.e. those keys
 // which expiration time is strictly less than the cutoff
 func (e *executor) DeleteExpiredHostHostKeys(ctx context.Context, cutoff time.Time) (int, error) {
-	e.RLock()
-	defer e.RUnlock()
 
-	return db.DeleteInTx(ctx, e.db, func(tx *sql.Tx) (sql.Result, error) {
+	return db.DeleteInTx(ctx, e.write, func(tx *sql.Tx) (sql.Result, error) {
 		cutoffSecs := util.TimeToSecs(cutoff)
 		return tx.ExecContext(ctx, deleteExpiredHostHostKeysStmt, cutoffSecs)
 	})

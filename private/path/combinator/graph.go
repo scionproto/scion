@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -105,13 +106,27 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 
 	// Directly process core segments, because we're not interested in
 	// shortcuts. Add edge from last entry IA to first entry IA.
+	// Additionally, extract peering edges from the last ASEntry so that
+	// core ASes can be the source of peering shortcuts (core→down path).
 	if segment.Type == proto.PathSegType_core {
+		lastIdx := len(asEntries) - 1
+		lastIA := asEntries[lastIdx].Local
 		g.AddEdge(
-			vertexFromIA(asEntries[len(asEntries)-1].Local),
+			vertexFromIA(lastIA),
 			vertexFromIA(asEntries[0].Local),
 			segment,
 			&edge{Weight: len(asEntries) - 1},
 		)
+		for peerIdx, peer := range asEntries[lastIdx].PeerEntries {
+			ingress := iface.ID(peer.HopField.ConsIngress)
+			remote := iface.ID(peer.PeerInterface)
+			g.AddEdge(
+				vertexFromIA(lastIA),
+				vertexFromPeering(lastIA, ingress, peer.Peer, remote),
+				segment,
+				&edge{Weight: 0, Shortcut: lastIdx, Peer: peerIdx + 1},
+			)
+		}
 		return
 	}
 
@@ -200,7 +215,7 @@ func (g *dmg) GetPaths(src, dst vertex) []*pathSolution {
 
 		for nextVertex, edgeList := range g.Adjacencies[currentPathSolution.currentVertex] {
 			for segment, e := range edgeList {
-				// Makes sure the the segment would be valid in a path.
+				// Makes sure the segment would be valid in a path.
 				if !validNextSeg(currentPathSolution.currentSeg, segment) {
 					continue
 				}
@@ -361,7 +376,6 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 			asEntry := asEntries[asEntryIdx]
 
 			var hopField path.HopField
-			var forwardingLinkMtu int
 			var epicAuth []byte
 			if !isPeer {
 				// Regular hop field.
@@ -372,7 +386,11 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 					ConsEgress:  entry.HopField.ConsEgress,
 					Mac:         entry.HopField.MAC,
 				}
-				forwardingLinkMtu = entry.IngressMTU
+				// The Hop Entry's ingress MTU needs to be used to calculate the MTU for the
+				// segment. Except for the ingress MTU of segment's first HE that is used.
+				if entry.IngressMTU != 0 && !isShortcut {
+					mtu = min(mtu, uint16(entry.IngressMTU))
+				}
 				epicAuth = getAuth(&asEntry)
 			} else {
 				// We've reached the ASEntry where we want to switch
@@ -384,7 +402,7 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 					ConsEgress:  peer.HopField.ConsEgress,
 					Mac:         peer.HopField.MAC,
 				}
-				forwardingLinkMtu = peer.PeerMTU
+				mtu = min(mtu, uint16(peer.PeerMTU))
 				epicAuth = getAuthPeer(&asEntry, solEdge.edge.Peer-1)
 			}
 
@@ -406,22 +424,17 @@ func (solution *pathSolution) Path(hashState hashState) Path {
 			hops = append(hops, hopField)
 			pathASEntries = append(pathASEntries, asEntry)
 			epicSegAuths = append(epicSegAuths, epicAuth)
-
-			mtu = minUint16(mtu, uint16(asEntry.MTU))
-			if forwardingLinkMtu != 0 {
-				// The first HE in a segment has MTU 0, so we ignore those
-				mtu = minUint16(mtu, uint16(forwardingLinkMtu))
-			}
+			mtu = min(mtu, uint16(asEntry.MTU))
 		}
 
 		// Put the hops in forwarding order. Needed for down segments
 		// since we collected hops from the end, just like for up
 		// segments.
 		if solEdge.segment.Type == proto.PathSegType_down {
-			reverseHops(hops)
-			reverseIntfs(intfs)
-			reverseASEntries(pathASEntries)
-			reverseEpicAuths(epicSegAuths)
+			slices.Reverse(hops)
+			slices.Reverse(intfs)
+			slices.Reverse(pathASEntries)
+			slices.Reverse(epicSegAuths)
 		}
 
 		segments = append(segments, segment{
@@ -503,30 +516,6 @@ func isEpicAvailable(epicPathAuths [][]byte) ([]byte, []byte, bool) {
 	return epicPathAuths[l-2], epicPathAuths[l-1], true
 }
 
-func reverseHops(s []path.HopField) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
-}
-
-func reverseIntfs(s []snet.PathInterface) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
-}
-
-func reverseASEntries(s []seg.ASEntry) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
-}
-
-func reverseEpicAuths(s [][]byte) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
-}
-
 func calculateBeta(se *solutionEdge) uint16 {
 	// If this is a peer hop, we need to set beta[i] = beta[i+1]. That is, the SegID
 	// accumulator must correspond to the next (in construction order) hop.
@@ -553,7 +542,7 @@ func calculateBeta(se *solutionEdge) uint16 {
 		}
 	}
 	beta := se.segment.Info.SegmentID
-	for i := 0; i < index; i++ {
+	for i := range index {
 		hop := se.segment.ASEntries[i].HopEntry
 		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC[:])
 	}
@@ -568,13 +557,6 @@ type solutionEdge struct {
 	dst  vertex
 	// The segment associated with this edge, used during forwarding path construction
 	segment *inputSegment
-}
-
-func minUint16(x, y uint16) uint16 {
-	if x < y {
-		return x
-	}
-	return y
 }
 
 // validNextSeg returns whether nextSeg is a valid next segment in a path from the given currSeg.
