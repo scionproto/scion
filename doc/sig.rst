@@ -1,6 +1,6 @@
-****************
-SCION-IP Gateway
-****************
+**************************
+SIG Protocol Specification
+**************************
 
 Introduction
 ============
@@ -13,9 +13,9 @@ Tunneling IP traffic over SCION requires a pair of SIGs and it involves the foll
 
 2. The IP packet reaches a SIG in the sender’s network via standard IP routing.
 
-3. Based on the destination IP address, the source (ingress) SIG determines the destination (egress) SIG's ISD-AS endpoint address. To achieve this, SIGs are administratively configured with a set of partner ASes and discover SIGs present at these ASes. They then exchange IP prefixes. The description of that protocol is yet to be written.
+3. Based on the destination IP address, the source (ingress) SIG determines the destination (egress) SIG's ISD-AS endpoint address. To achieve this, SIGs are administratively configured with a set of partner ASes and discover SIGs present at these ASes. They then exchange IP prefixes using :ref:`SGRP <sgrp>`.
 
-4. The ingress SIG encapsulates the original IP packet within one or more SCION packets and sends them to the egress SIG. If necessary, the ingress SIG performs SCION path lookups and selects a SCION path to the egress SIG.
+4. The ingress SIG encapsulates the original IP packet within one or more SCION packets and sends them to the egress SIG. The ingress SIG performs SCION path lookups and selects a SCION path to the egress SIG.
 
 5. The egress SIG receives the SCION packet or packets and decapsulates the original IP packet. It then forwards the packet to the final IP destination using standard IP routing.
 
@@ -28,6 +28,8 @@ This protocol is designed to:
 SIGs map IP prefixes to SCION ASes using SGRP.
 
 
+.. _sgrp:
+
 SCION Gateway Routing Protocol (SGRP)
 =====================================
 
@@ -35,21 +37,22 @@ The SCION Gateway Routing Protocol (SGRP) enables SIGs to map IP prefixes to SCI
 
 A SIG participating in SGRP between two SCION ASes does the following:
 
-1. It discovers the SIGs in the remote SCION AS by periodically sending a discovery message to the Control Plane of the remote AS which replies with a list of local tunneling endpoints.
+1. It discovers the SIGs in the remote SCION AS by periodically sending a ``DiscoveryService.Gateways`` gRPC request to the remote AS. The remote AS replies with a list of gateways, each described by a control address, a data address, a probe address, and an optional set of allowed AS interfaces. The discovery service is defined in `proto/discovery/v1/discovery.proto <https://github.com/scionproto/scion/blob/master/proto/discovery/v1/discovery.proto>`_.
 
-2. It periodically queries each discovered SIG in the remote AS to learn the IP prefixes that it announces. From that, the local SIG builds a mapping of IP prefix to remote SIGs.
+2. It periodically queries each discovered SIG in the remote AS via the ``IPPrefixesService.Prefixes`` gRPC to learn the IP prefixes that it announces. From that, the local SIG builds a mapping of IP prefix to remote SIGs.
 
 3. When queried by a remote SIG, the local SIG replies with the set of IP prefixes it wants to announce.
 
-The set of announced IP prefixes can be statically configured.
+The set of announced IP prefixes can be statically configured via the IP routing policy file (see :doc:`/manuals/gateway`).
 
 SGRP Messages
 -------------
 
-https://github.com/scionproto/scion/blob/master/proto/gateway/v1/prefix.proto
+The prefix exchange protocol is defined in `proto/gateway/v1/prefix.proto <https://github.com/scionproto/scion/blob/master/proto/gateway/v1/prefix.proto>`_.
 
-Server - https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_server.go
-Client - https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_fetcher.go
+Server - `gateway/control/grpc/prefix_server.go <https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_server.go>`_
+
+Client - `gateway/control/grpc/prefix_fetcher.go <https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_fetcher.go>`_
 
 
 SIG Framing Protocol
@@ -63,7 +66,7 @@ The ingress SIG initiates unidirectional packet flows to the egress SIG simply b
 
 To preserve performance, IP packets that form a sequence leave the egress SIG in the order in which they entered the ingress SIG. To that end:
 
-- The ingress SIG encapsulates IP packets that cannot be proven independent (e.g., with the same  IP 6-tuple) in the same stream.
+- The ingress SIG encapsulates IP packets that cannot be proven independent (e.g., with the same 5-tuple consisting of protocol number, source address, destination address, source port, destination port) in the same stream.
 - The ingress SIG encapsulates IP packets to a given stream in the order in which they were received.
 - The ingress SIG sends all frames of a given stream over the same SCION path.
 - The egress SIG reassembles and forward packets from each stream, ordered by frame sequence number and by packet within each frame.
@@ -136,3 +139,8 @@ Following example shows three IP packets packed into three SIG frames:
   +----------------------------+------------+
   | SIG HDR Index=0xffff Seq=2 | ...payload |
   +----------------------------+------------+
+
+Operational Guide
+=================
+
+For deployment, configuration, and operational information about the SIG, see the :doc:`/manuals/gateway`.
