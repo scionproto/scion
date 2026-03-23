@@ -47,24 +47,32 @@ The exception is intra-domain control-plane traffic between end-hosts and the co
 Ports Overview
 --------------
 
-SCION components rely on a structured port allocation scheme to handle underlay (UDP/IP) and service communications. The following table summarizes the common default ports and their configuration scopes:
+SCION components rely on the following ports to handle underlay (UDP/IP) and service communications. The following table summarizes the common default ports and their configuration scopes:
 
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Description                             | Port Range | Default Value   | Scope                | Configured in                                                                                                                     |
-+=========================================+============+=================+======================+===================================================================================================================================+
-| UDP underlay default port / SCMP Daemon | Fixed      | UDP 30041       | Global all end-hosts | Hardcoded                                                                                                                         |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| UDP underlay dispatched ports           | any        | UDP 31000-32767 | AS-wide              | :doc:`topology.json <../manuals/common>`                                                                                          |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Router Internal Interfaces              | any        | UDP 30100-30199 | Router-wide          | :doc:`topology.json <../manuals/common>`                                                                                          |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Router External Interfaces              | any        | UDP 31000-39999 | Link                 | :doc:`topology.json <../manuals/common>`                                                                                          |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+| Description                             | UDP Port                         | Use                                                          |
++=========================================+==================================+==============================================================+
+| UDP underlay default port / SCMP Daemon | UDP 30041                        | Traffic to end-hosts & SCMP informational messages           |
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+| UDP underlay dispatched ports           | Per AS configurable              | Traffic to end-hosts                                         |
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+| Router Internal Interfaces              | Per Router configurable          | Intra-AS traffic (end-hosts to routers, router to router)    |
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+| Router External Interfaces              | Per Link configurable            | Inter-AS traffic (router to router)                          |
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+
+In this implementation, ports are configured in :doc:`topology.json <../manuals/common>`. 
+
+For configurable ports, it is recommended to use ports within the IANA Private Ports range (49152-65535). This implementation typically uses: 
+* UDP 31000-32767 for dispatched ports. They are only used for SCION traffic whose L4 payload's destination port falls within the configured dispatched port range (See Traffic to End-hosts). Note that there is a proposal to extend this behavior to all ports (See https://github.com/scionproto/scion/pull/4884)
+* UDP 50000 and subsequent for internal interfaces
+* UDP 30100 and subsequent for external interfaces. However, their use in deployments is discouraged in favor of IANA Private Ports.
+ 
 
 Traffic to End-hosts
 ~~~~~~~~~~~~~~~~~~~~
 
-When routing from border routers to endpoints, the SCION UDP/IP underlay generally uses the destination port from the SCION payload as the underlay destination port.
+When forwarding traffic from the last border routers to endpoints, the SCION UDP/IP underlay generally uses the destination port from the SCION payload as the underlay destination port.
 
 In the modern "dispatcherless" design (see :doc:`Router Port Dispatch <../dev/design/router-port-dispatch>`), applications open a UDP/IP underlay socket directly. To ensure that traffic goes to the correct application, the ingress router at the destination AS MUST select the underlay destination port by inspecting the Layer 4 destination port from the TCP/SCION, UDP/SCION, or SCMP Error payload:
 
