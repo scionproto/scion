@@ -6,8 +6,17 @@ py_library(
 )
 
 topogen_test(
-    name = "test",
-    src = "test.py",
+    name = "test_isd_1",
+    src = "test_isd_1.py",
+    topo = "//topology:testdata/big.topo",
+    deps = [
+        ":transit_traffic_base",
+    ],
+)
+
+topogen_test(
+    name = "test_isd_3",
+    src = "test_isd_3.py",
     topo = "//topology:testdata/big.topo",
     deps = [
         ":transit_traffic_base",

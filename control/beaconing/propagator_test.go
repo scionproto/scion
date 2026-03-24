@@ -1,5 +1,5 @@
 // Copyright 2019 Anapaya Systems
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -449,13 +449,14 @@ func runTransitTrafficTest(t *testing.T, topoFile string, filter func(*ifstate.I
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+			IA:                   topo.IA(),
+			MTU:                  topo.MTU(),
+			SignerGen:            testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
+			Intfs:                intfs,
+			MAC:                  macFactory,
+			MaxExpTime:           func() uint8 { return beacon.DefaultMaxExpTime },
+			StaticInfo:           func() *beaconing.StaticInfoCfg { return nil },
+			DiscoveryInformation: func() *discovery.Extension { return nil },
 		},
 		SenderFactory: senderFactory,
 		IA:            topo.IA(),

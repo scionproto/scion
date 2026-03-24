@@ -281,7 +281,7 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.Wrap("loading policies", err)
 	}
-	beaconStore, isdLoopAllowed, err := createBeaconStore(
+	beaconStore, isdLoopAllowed, transitTrafficAllowed, err := createBeaconStore(
 		policies,
 		beaconDB,
 		trust.FetchingProvider{
@@ -995,6 +995,7 @@ func realMain(ctx context.Context) error {
 		DRKeyEpochInterval:        epochDuration,
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
+		AllowTransitTraffic:       transitTrafficAllowed,
 		EPIC:                      globalCfg.BS.EPIC,
 	}
 
@@ -1123,7 +1124,7 @@ func createBeaconStore(
 	policies loadedPolicies,
 	db storage.BeaconDB,
 	provider beacon.ChainProvider,
-) (cs.Store, bool, error) {
+) (cs.Store, bool, bool, error) {
 	switch {
 	case policies.CorePolicies != nil:
 		policies := policies.CorePolicies
@@ -1131,16 +1132,22 @@ func createBeaconStore(
 		store, err := beacon.NewCoreBeaconStore(*policies, db,
 			beacon.WithSelectionAlgorithm(selectionAlgo),
 		)
-		return store, *policies.Prop.Filter.AllowIsdLoop, err
+		return store,
+			*policies.Prop.Filter.AllowIsdLoop,
+			*policies.Prop.Filter.AllowTransitTraffic,
+			err
 	case policies.NonCorePolicies != nil:
 		policies := policies.NonCorePolicies
 		selectionAlgo := beacon.NewChainsAvailableAlgo(provider, beacon.DefaultSelectionAlgorithm())
 		store, err := beacon.NewBeaconStore(*policies, db,
 			beacon.WithSelectionAlgorithm(selectionAlgo),
 		)
-		return store, *policies.Prop.Filter.AllowIsdLoop, err
+		return store,
+			*policies.Prop.Filter.AllowIsdLoop,
+			*policies.Prop.Filter.AllowTransitTraffic,
+			err
 	default:
-		return nil, false, serrors.New("no policies loaded")
+		return nil, false, false, serrors.New("no policies loaded")
 	}
 }
 

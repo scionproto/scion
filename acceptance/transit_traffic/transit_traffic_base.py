@@ -1,6 +1,18 @@
 #!/usr/bin/env python3
 
-# Copyright 2025 SCION Association
+# Copyright 2026 SCION Association
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import time
 
@@ -16,12 +28,18 @@ class Test(base.TestTopogen):
         "122": "1-ff00:0:122",
         "123": "1-ff00:0:123",
         "210": "2-ff00:0:210",
-        "211": "2-ff00:0:210",
+        "211": "2-ff00:0:211",
         "310": "3-ff00:0:310",
         "311": "3-ff00:0:311",
         "410": "4-ff00:0:410",
         "411": "4-ff00:0:411",
         "510": "5-ff00:0:510",
+        "610": "6-ff00:0:610",
+        "611": "6-ff00:0:611",
+        "612": "6-ff00:0:612",
+        "620": "6-ff00:0:620",
+        "621": "6-ff00:0:621",
+        "622": "6-ff00:0:622",
     }
 
     def setup_prepare(self, no_transit_isd_number, no_transit_as_numbers):
@@ -58,8 +76,7 @@ class Test(base.TestTopogen):
         try:
              self._showpaths(source_as, destination_as)
         except Exception as e:
-            raise AssertionError(f"No path found: {source_as} -> {destination_as}")
-        self._showpaths(source_as, destination_as)
+            raise AssertionError(f"No path found: {source_as} -> {destination_as}") from e
 
     def _assert_bidirectional_path(self, source_as: str, destination_as: str):
         self._assert_path(source_as, destination_as)

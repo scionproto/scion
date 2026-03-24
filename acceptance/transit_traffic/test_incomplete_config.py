@@ -1,53 +1,87 @@
 #!/usr/bin/env python3
 
-# Copyright 2025 SCION Association
+# Copyright 2026 SCION Association
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from acceptance.transit_traffic import transit_traffic_base
 
 class Test(transit_traffic_base.Test):
     """
-    This test disallows traffic in only one AS in one ISD and checks the resulting paths.
-    This config doesn't make much sense in a real-life scenario,
-    but shows what happens in case of misconfiguration of one AS in the ISD.
+    This test disallows transit traffic at only one of two core ASes in an ISD.
+    It demonstrates that an incomplete configuration (only AS 120 blocks transit,
+    while AS 110 does not) creates partial isolation: ISDs that both connect
+    through the blocking AS lose connectivity to each other, but can still reach
+    ISDs reachable through the non-blocking core AS.
 
     The graph without peering links looks as follows:
     411 123
     |   |
-    410 121 122     111   211
-      \    \ |      /     /
-      310---120---110---210
-      /      |
-    311     510
+    410 121 122     111   211   612
+      \    \ |      /     /     /
+      310---120---110---210---610---620
+      /      |                 |     | \
+    311     510              611   621 622
 
-    Transit traffic via is not allowed only via AS 310: 311 doesn't have this configured.
+    Transit traffic is blocked only at AS 120.
     """
 
     def setup_prepare(self):
-        super().setup_prepare("3", ["310"])
+        super().setup_prepare("1", ["120"])
 
     def _run(self):
-        # Traffic originating or ending in AS 310 is allowed.
-        self._assert_bidirectional_path("310", "410")
-        self._assert_bidirectional_path("310", "110")
-        self._assert_bidirectional_path("310", "510")
-
-        self._assert_bidirectional_path("311", "122")
-
-        # Transit traffic via AS 310 is not allowed.
-        self._assert_no_path_in_both_directions("410", "210")
-        self._assert_no_path_in_both_directions("411", "211")
-        self._assert_no_path_in_both_directions("411", "510")
-        self._assert_no_path_in_both_directions("410", "123")
-        self._assert_no_path_in_both_directions("410", "111")
-
-        # Traffic outside of ISD 3 is not affected.
-        self._assert_bidirectional_path("123", "510")
-        self._assert_bidirectional_path("123", "211")
-        self._assert_bidirectional_path("122", "111")
-        self._assert_bidirectional_path("120", "210")
+        # ISD 3, 4 and 5 can reach ISD 2 because beacons pass through 120
+        # to 110 (same-ISD hop, not blocked), and 110 forwards freely to 210.
+        self._assert_bidirectional_path("310", "210")
+        self._assert_bidirectional_path("410", "210")
+        self._assert_bidirectional_path("311", "211")
+        self._assert_bidirectional_path("411", "211")
+        self._assert_bidirectional_path("510", "210")
         self._assert_bidirectional_path("510", "211")
-        self._assert_bidirectional_path("111", "211")
+
+        # ISD 3 and 4 cannot reach ISD 5: the only path goes through 120.
+        self._assert_no_path_in_both_directions("310", "510")
+        self._assert_no_path_in_both_directions("410", "510")
+        self._assert_no_path_in_both_directions("311", "510")
+        self._assert_no_path_in_both_directions("411", "510")
+
+        # Direct neighbors of 120 are still reachable.
+        self._assert_bidirectional_path("120", "310")
+        self._assert_bidirectional_path("120", "510")
+        self._assert_bidirectional_path("120", "110")
+
+        # Intra-ISD traffic is unaffected.
         self._assert_bidirectional_path("410", "411")
+        self._assert_bidirectional_path("310", "311")
+        self._assert_bidirectional_path("110", "111")
+        self._assert_bidirectional_path("122", "123")
+        self._assert_bidirectional_path("610", "611")
+        self._assert_bidirectional_path("620", "621")
+
+        # ISD 3 and ISD 4 connectivity is not affected (doesn't need 120).
+        self._assert_bidirectional_path("310", "410")
+        self._assert_bidirectional_path("311", "411")
+
+        # Beacons from ISDs 3, 4 and 5 all pass through 120->110
+        # (same-ISD, not blocked) before reaching 210->610,
+        # so core segments to ISD 6 exist from every ISD
+        # and can be traversed in both directions.
+        self._assert_bidirectional_path("610", "210")
+        self._assert_bidirectional_path("610", "310")
+        self._assert_bidirectional_path("610", "410")
+        self._assert_bidirectional_path("610", "510")
+        self._assert_bidirectional_path("611", "211")
+        self._assert_bidirectional_path("611", "411")
 
 if __name__ == "__main__":
     transit_traffic_base.main(Test)
