@@ -22,14 +22,7 @@ class Test(transit_traffic_base.Test):
     the central hub ISD. It differs from ISD 3 test since there are
     no peering links between ISDs 1,2,4,5 and ISDs 2,6.
 
-    The graph without peering links looks as follows:
-    411 123
-    |   |
-    410 121 122     111   211   612
-      \    \ |      /     /     /
-      310---120---110---210---610---620
-      /      |                 |     | \
-    311     510              611   621 622
+    The graph picture can be found here: topology/testdata/big.topo.png
 
     With transit blocked at both 110 and 120, ISD 1 becomes a wall:
     each neighboring ISD can reach ISD 1 via 2-ISD origination beacons,
@@ -42,7 +35,7 @@ class Test(transit_traffic_base.Test):
         super().setup_prepare("1", ["110", "120"])
 
     def _run(self):
-        # All ISDs can reach ISD 1 (origination beacons cross only 2 ISDs).
+        # Traffic originating or ending in ISD 1 is allowed.
         self._assert_bidirectional_path("210", "110")
         self._assert_bidirectional_path("310", "120")
         self._assert_bidirectional_path("410", "110")
@@ -51,14 +44,20 @@ class Test(transit_traffic_base.Test):
         self._assert_bidirectional_path("211", "111")
         self._assert_bidirectional_path("311", "121")
         self._assert_bidirectional_path("611", "111")
+        self._assert_bidirectional_path("110", "111")
+        self._assert_bidirectional_path("120", "122")
 
-        # ISDs with direct core links bypass ISD 1.
+        # Traffic outside of ISD 1 is not affected.
         self._assert_bidirectional_path("310", "410")
         self._assert_bidirectional_path("311", "411")
         self._assert_bidirectional_path("210", "610")
         self._assert_bidirectional_path("211", "611")
+        self._assert_bidirectional_path("310", "311")
+        self._assert_bidirectional_path("410", "411")
+        self._assert_bidirectional_path("610", "611")
+        self._assert_bidirectional_path("620", "621")
 
-        # All other cross-ISD pairs require transiting ISD 1: blocked.
+        # Transit traffic via ISD 1 is not allowed.
         self._assert_no_path_in_both_directions("210", "310")
         self._assert_no_path_in_both_directions("210", "510")
         self._assert_no_path_in_both_directions("310", "510")
@@ -68,14 +67,6 @@ class Test(transit_traffic_base.Test):
         self._assert_no_path_in_both_directions("510", "610")
         self._assert_no_path_in_both_directions("211", "311")
         self._assert_no_path_in_both_directions("411", "611")
-
-        # Intra-ISD traffic is unaffected.
-        self._assert_bidirectional_path("110", "111")
-        self._assert_bidirectional_path("120", "122")
-        self._assert_bidirectional_path("310", "311")
-        self._assert_bidirectional_path("410", "411")
-        self._assert_bidirectional_path("610", "611")
-        self._assert_bidirectional_path("620", "621")
 
 if __name__ == "__main__":
     transit_traffic_base.main(Test)

@@ -22,14 +22,7 @@ class Test(transit_traffic_base.Test):
     resulting paths. It differs from ISD 1 test since there are
     peering links between ISD 4 and ISD 1.
 
-    The graph without peering links looks as follows:
-    411 123
-    |   |
-    410 121 122     111   211   612
-      \    \ |      /     /     /
-      310---120---110---210---610---620
-      /      |                 |     | \
-    311     510              611   621 622
+    The graph picture can be found here: topology/testdata/big.topo.png
 
     Transit traffic is blocked at all ASes in ISD 3 (310 and 311).
     """
@@ -50,23 +43,18 @@ class Test(transit_traffic_base.Test):
         self._assert_bidirectional_path("310", "610")
         self._assert_bidirectional_path("311", "611")
 
-        # Transit traffic via ISD 3 is not allowed.
-        # TODO should work via peering link 120-410
+        # Transit traffic via ISD 3 is not allowed,
+        # therefore beacons are not making it through ISD 3.
+        # Because of it, peering links info is not propagated.
+        # While the graph has peering links for all cases below,
+        # there's no path in such config.
         self._assert_no_path_in_both_directions("410", "210")
-        # TODO should work via peering link 123-411
         self._assert_no_path_in_both_directions("411", "211")
-        # TODO should work via peering link 123-411
         self._assert_no_path_in_both_directions("411", "510")
-        # TODO should work via peering link 123-410
         self._assert_no_path_in_both_directions("410", "123")
-        # TODO should work via peering link 123-411
         self._assert_no_path_in_both_directions("411", "123")
-        # TODO should work via peering link 120-410
         self._assert_no_path_in_both_directions("410", "111")
-        # ISD 4 cannot reach ISD 6 (only core path goes through 310).
-        # TODO should work via peering link 120-410
         self._assert_no_path_in_both_directions("410", "610")
-        # TODO should work via peering link 123-411
         self._assert_no_path_in_both_directions("411", "611")
 
         # Traffic outside of ISD 3 is not affected.
