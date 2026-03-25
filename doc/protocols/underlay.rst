@@ -112,6 +112,11 @@ SCION border routers utilize specific underlay ports to process and forward traf
 * **Internal Interfaces**: Used for intra-AS communication to receive traffic from end-hosts. Operators can choose the port freely. The same port must be configured on endpoints so that they can send outbound traffic. Routers with multiple internal interfaces can use a range of ports.
 * **External Interfaces**: Used for inter-AS links towards neighboring SCION ASes. Note that the choice of underlay protocol and UDP port is per link. It is independent from other links and intra-AS underlay.
 
+UDP Checksum
+~~~~~~~~~~~~
+
+In accordance with RFC 8085, underlay UDP checksums should be enabled. While the current implementation successfully enforces checksum validation for router-to-router traffic, it does not yet enforce it for traffic directed toward endpoints (see Issue #4265).
+
 Control Plane Instances
 ~~~~~~~~~~~~~~~~~~~~~~~
 
