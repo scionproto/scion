@@ -33,7 +33,9 @@ SIGs discover remote SIGs via :ref:`SIG Discovery <sig-discovery>` and then map 
 SIG Discovery
 =============
 
-Before exchanging IP prefixes, a SIG must discover the SIG instances in each remote AS. It does so by periodically sending a ``DiscoveryService.Gateways`` RPC to the remote AS's Discovery Service. The remote AS replies with a list of gateways, each described by a control address, a data address, a probe address, and an optional set of allowed AS interfaces. The discovery service is defined in `proto/discovery/v1/discovery.proto <https://github.com/scionproto/scion/blob/master/proto/discovery/v1/discovery.proto>`_. The RPC can be served over gRPC or ConnectRPC (see the ``rpc`` configuration in :doc:`/manuals/gateway`).
+Before exchanging IP prefixes, a SIG must discover the SIG instances in each remote AS. It does so by periodically sending a ``DiscoveryService.Gateways`` RPC to the remote AS's control service. Based on the AS's topology information, the control service replies with a list of gateways, each described by a control address, a data address, a probe address, and an optional set of allowed AS interfaces. The discovery service is defined in `proto/discovery/v1/discovery.proto <https://github.com/scionproto/scion/blob/master/proto/discovery/v1/discovery.proto>`_. The RPC can be served over gRPC or ConnectRPC (see the ``rpc`` configuration in :doc:`/manuals/gateway`).
+
+A SIG makes itself discoverable by being declared in the AS's ``topology.json`` file (under the ``sigs`` key) with its control, data, and probe addresses.
 
 
 .. _sgrp:
