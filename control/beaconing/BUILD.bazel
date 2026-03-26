@@ -110,11 +110,9 @@ run_binary(
     name = "topogen_topology_big",
     srcs = [
         ":ifids_topology_big",
-        "//tools:topogen",
         "//topology:big",
     ],
     args = [
-        "$(locations //tools:topogen)",
         "$(location //topology:big)",
         "$(location :ifids_topology_big)",
         "$(RULEDIR)/testdata/big",
