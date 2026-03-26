@@ -151,6 +151,13 @@ Following example shows three IP packets packed into three SIG frames:
   | SIG HDR Index=0xffff Seq=2 | ...payload |
   +----------------------------+------------+
 
+Tunneling Considerations
+------------------------
+
+The SIG only tunnels unicast IPv4 and IPv6 traffic. Multicast traffic is not supported.
+
+In accordance with `RFC 8085 <https://www.rfc-editor.org/rfc/rfc8085>`_ (UDP Usage Guidelines), IP-based unicast traffic is assumed to be congestion controlled at the transport layer by the original sender. The SIG tunnel therefore does not implement its own congestion control mechanisms for the encapsulated payload.
+
 Operational Guide
 =================
 
