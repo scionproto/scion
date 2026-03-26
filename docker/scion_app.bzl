@@ -1,9 +1,21 @@
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load(":tester.bzl", "remap_deb_tars")
 
 # Defines a common base image for all app images.
 def scion_app_base():
+    pkg_tar(
+        name = "app_layer_deb",
+        deps = ["@tester_deb//coreutils/amd64"],
+    )
+
+    remap_deb_tars(
+        name = "app_layer_deb_remapped",
+        src = "app_layer_deb",
+        out = "app_layer_deb_remapped.tar",
+    )
+
     pkg_tar(
         name = "share_dirs_layer",
         empty_dirs = [
@@ -23,10 +35,11 @@ def scion_app_base():
     # shell.
     oci_image(
         name = "app_base",
-        base = "@distroless_base_debian10",
+        base = "@distroless_base_debian12",
         env = env,
         tars = [
             "//licenses:licenses",
+            ":app_layer_deb_remapped",
             ":share_dirs_layer",
         ],
         labels = ":labels",

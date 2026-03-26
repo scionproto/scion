@@ -940,7 +940,7 @@
     "@@rules_oci+//oci:extensions.bzl%oci": {
       "general": {
         "bzlTransitiveDigest": "Zi413Di0peMrhjS7VFmwkPWCcIAqsqE8VW0m8A1iqm4=",
-        "usagesDigest": "aWRJxn4kRkttzU+SqayBMwRGrKBvfusUwrpHJpEaYwU=",
+        "usagesDigest": "Kxq4Vry5CVd7X7JnyvUqNJJR0GQsivqL5V6hShfVBms=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -972,6 +972,49 @@
               "reproducible": true
             }
           },
+          "distroless_base_debian12_linux_amd64": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
+            "attributes": {
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "gcr.io",
+              "repository": "distroless/base-debian12",
+              "identifier": "sha256:937c7eaaf6f3f2d38a1f8c4aeff326f0c56e4593ea152e9e8f74d976dde52f56",
+              "platform": "linux/amd64",
+              "target_name": "distroless_base_debian12_linux_amd64",
+              "bazel_tags": []
+            }
+          },
+          "distroless_base_debian12_linux_arm64_v8": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
+            "attributes": {
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "gcr.io",
+              "repository": "distroless/base-debian12",
+              "identifier": "sha256:937c7eaaf6f3f2d38a1f8c4aeff326f0c56e4593ea152e9e8f74d976dde52f56",
+              "platform": "linux/arm64/v8",
+              "target_name": "distroless_base_debian12_linux_arm64_v8",
+              "bazel_tags": []
+            }
+          },
+          "distroless_base_debian12": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_alias",
+            "attributes": {
+              "target_name": "distroless_base_debian12",
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "gcr.io",
+              "repository": "distroless/base-debian12",
+              "identifier": "sha256:937c7eaaf6f3f2d38a1f8c4aeff326f0c56e4593ea152e9e8f74d976dde52f56",
+              "platforms": {
+                "@@platforms//cpu:x86_64": "@distroless_base_debian12_linux_amd64",
+                "@@platforms//cpu:arm64": "@distroless_base_debian12_linux_arm64_v8"
+              },
+              "bzlmod_repository": "distroless_base_debian12",
+              "reproducible": true
+            }
+          },
           "debian10_single": {
             "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
             "attributes": {
@@ -996,6 +1039,49 @@
               "platforms": {},
               "platform": "@@rules_oci+//oci:debian10_single",
               "bzlmod_repository": "debian10",
+              "reproducible": true
+            }
+          },
+          "debian12_linux_amd64": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
+            "attributes": {
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "index.docker.io",
+              "repository": "library/debian",
+              "identifier": "sha256:bc960ef50e6feed90686c593361df158517556ed1d2d98e5d1df3724024e0f49",
+              "platform": "linux/amd64",
+              "target_name": "debian12_linux_amd64",
+              "bazel_tags": []
+            }
+          },
+          "debian12_linux_arm64_v8": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
+            "attributes": {
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "index.docker.io",
+              "repository": "library/debian",
+              "identifier": "sha256:bc960ef50e6feed90686c593361df158517556ed1d2d98e5d1df3724024e0f49",
+              "platform": "linux/arm64/v8",
+              "target_name": "debian12_linux_arm64_v8",
+              "bazel_tags": []
+            }
+          },
+          "debian12": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_alias",
+            "attributes": {
+              "target_name": "debian12",
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "index.docker.io",
+              "repository": "library/debian",
+              "identifier": "sha256:bc960ef50e6feed90686c593361df158517556ed1d2d98e5d1df3724024e0f49",
+              "platforms": {
+                "@@platforms//cpu:x86_64": "@debian12_linux_amd64",
+                "@@platforms//cpu:arm64": "@debian12_linux_arm64_v8"
+              },
+              "bzlmod_repository": "debian12",
               "reproducible": true
             }
           },
@@ -1116,7 +1202,13 @@
         "moduleExtensionMetadata": {
           "explicitRootModuleDirectDeps": [
             "distroless_base_debian10",
-            "debian10"
+            "distroless_base_debian12",
+            "distroless_base_debian12_linux_amd64",
+            "distroless_base_debian12_linux_arm64_v8",
+            "debian10",
+            "debian12",
+            "debian12_linux_amd64",
+            "debian12_linux_arm64_v8"
           ],
           "explicitRootModuleDirectDevDeps": [],
           "useAllRepos": "NO",
