@@ -43,7 +43,7 @@ The ideas and concepts behind SCION.
   :doc:`SCION <overview>` |
   :doc:`Control Plane <control-plane>` |
   :doc:`Data Plane <data-plane>` |
-  :doc:`SIG <sig>` |
+  :doc:`SCION-IP Gateway <sig>` |
   SCION End Hosts |
   `Applications <https://docs.scion.org/projects/scion-applications/en/latest>`_
 
