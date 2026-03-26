@@ -43,9 +43,9 @@ A SIG makes itself discoverable by being declared in the AS's ``topology.json`` 
 SCION Gateway Routing Protocol (SGRP)
 =====================================
 
-The SCION Gateway Routing Protocol (SGRP) enables SIGs to map IP prefixes to SCION ASes. SGRP operates between SIGs that have already been discovered via :ref:`SIG Discovery <sig-discovery>`.
+The SCION Gateway Routing Protocol (SGRP) enables SIGs to mutually exchange IP prefixes through RPC queries. SGRP operates between SIGs that have already been discovered via :ref:`SIG Discovery <sig-discovery>`.
 
-A SIG participating in SGRP between two SCION ASes does the following:
+A SIG participating in SGRP does the following:
 
 1. It periodically queries each discovered SIG in the remote AS via the ``IPPrefixesService.Prefixes`` RPC to learn the IP prefixes that it announces. From that, the local SIG builds a mapping of IP prefix to remote SIGs.
 
