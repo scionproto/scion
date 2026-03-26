@@ -52,7 +52,7 @@ Deployment Examples
 Basic SIG Pair
 --------------
 
-The simplest deployment uses one SIG per AS to tunnel IP traffic between two SCION ASes. In this example, AS ``1-ff00:0:110`` and AS ``1-ff00:0:111`` each run a SIG.
+The simplest deployment uses a pair of SIGs to tunnel IP traffic between them. In this example, the two SIGs are respectively in AS ``1-ff00:0:110`` and AS ``1-ff00:0:111``.
 
 Each SIG requires two configuration files, with an optional third:
 
