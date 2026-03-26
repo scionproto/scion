@@ -8,6 +8,6 @@ topogen_test(
         "//acceptance/hidden_paths/testdata:hp_groups_as3.yml",
         "//acceptance/hidden_paths/testdata:hp_groups_as4.yml",
     ],
-    topo = "//acceptance/hidden_paths/testdata:topology.topo",
     tags = ["exclusive"],
+    topo = "//acceptance/hidden_paths/testdata:topology.topo",
 )

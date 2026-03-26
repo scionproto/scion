@@ -37,9 +37,10 @@ gen_bazel_test_steps() {
             cache="--nocache_tesx§t_results"
         fi
 
-        echo "      - label: \"Integration tests (parallel)\""
+        echo "      - label: \"Other integration tests (parallel)\""
         echo "        command:"
-        echo "          - bazel test --config=integration --local_test_jobs=HOST_CPUS*.5 $cache $parallel_targets"
+        echo "          - echo '--- Targets' && echo '$parallel_targets' | tr ' ' '\n' | sort"
+        echo "          - bazel test --config=integration --local_test_jobs=HOST_CPUS*.75 $cache $parallel_targets"
         echo "        key: \"integration_parallel\""
         echo "        plugins:"
         echo "          - scionproto/metahook#v0.3.0:"
