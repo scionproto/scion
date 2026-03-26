@@ -15,6 +15,7 @@
 import logging
 import os
 import re
+import subprocess
 import traceback
 from abc import abstractmethod, ABC
 
@@ -24,6 +25,7 @@ from plumbum import cmd
 from plumbum import LocalPath
 
 from acceptance.common import docker, log
+from acceptance.common import slot
 from tools.topology.scion_addr import ISD_AS
 
 logger = logging.getLogger(__name__)
@@ -86,6 +88,7 @@ class TestBase(ABC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._setup_prepare_failed = False
+        self._slot = None
 
     def init(self):
         """ init is called first. The Test object can be initialized here.
@@ -110,13 +113,37 @@ class TestBase(ABC):
         pass
 
     def teardown(self):
-        pass
+        if self._slot is not None:
+            self._slot.release()
+
+    def _load_persisted_slot(self):
+        """Load slot from .slot file for manual run/teardown subcommands."""
+        slot_file = self.artifacts / ".slot"
+        if slot_file.exists() and self._slot is None:
+            with open(str(slot_file), "r") as f:
+                slot_id = int(f.read().strip())
+            self._slot = slot.Slot(slot_id, lock_fd=None)
 
     def setup_prepare(self):
         """Unpacks loads local docker images and generates the topology.
         """
-        docker.assert_no_networks()
+        self._slot = slot.acquire()
+        # Override artifacts dir with slot-derived path when not running
+        # under Bazel (which sets TEST_UNDECLARED_OUTPUTS_DIR to a unique dir).
+        if not os.environ.get("TEST_UNDECLARED_OUTPUTS_DIR"):
+            self.artifacts = LocalPath(self._slot.artifacts_dir)
+        # Pre-cleanup: remove orphaned containers from a previous crashed run.
+        subprocess.run(
+            ["docker", "compose", "-p", self._slot.project_name, "down", "-v"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        docker.assert_no_networks(prefix=self._slot.project_name)
         self._setup_artifacts()
+        # Persist slot ID for manual setup/run/teardown mode.
+        slot_file = self.artifacts / ".slot"
+        with open(str(slot_file), "w") as f:
+            f.write(str(self._slot.id))
         self._setup_docker_images()
         # Define where coredumps will be stored.
         print(
@@ -157,6 +184,13 @@ class TestTopogen(TestBase):
 
     def setup_prepare(self):
         super().setup_prepare()
+        # Re-initialize Compose with the slot's project name now that
+        # the slot is acquired (init() runs before setup, before slot
+        # acquisition).
+        self.dc = docker.Compose(
+            compose_file=self.artifacts / "gen/scion-dc.yml",
+            project_name=self._slot.project_name,
+        )
         self._setup_generate()
 
     def _setup_generate(self):
@@ -181,6 +215,8 @@ class TestTopogen(TestBase):
                 "-o=" + self.artifacts + "/gen",
                 "-c=topology.json",
                 "-d",
+                "--project-name=" + self._slot.project_name,
+                "--network=" + self._slot.network,
                 *self.setup_params,
             )
         for support_dir in ["logs", "gen-cache", "gen-data", "traces"]:
@@ -199,13 +235,23 @@ class TestTopogen(TestBase):
     def teardown(self):
         # Avoid running docker compose teardown if setup_prepare failed
         if self._setup_prepare_failed:
+            super().teardown()
             return
         out_dir = self.artifacts / "logs"
         self.dc.collect_logs(out_dir=out_dir)
         ps = self.dc("ps")
         print(self.dc("down", "-v"))
+        super().teardown()
         if re.search(r"Exit\s+[1-9]\d*", ps):
             raise Exception("Failed services.\n" + ps)
+
+    def _reinit_compose_from_slot(self):
+        """Reinitialize Compose with slot's project name for manual mode."""
+        if self._slot is not None:
+            self.dc = docker.Compose(
+                compose_file=self.artifacts / "gen/scion-dc.yml",
+                project_name=self._slot.project_name,
+            )
 
     def await_connectivity(self, quiet_seconds=None, timeout_seconds=None):
         """
@@ -266,6 +312,9 @@ def main(test_class):
     class _TestRun(test_class, cli.Application):
         def main(self):
             self.init()
+            self._load_persisted_slot()
+            if hasattr(self, '_reinit_compose_from_slot'):
+                self._reinit_compose_from_slot()
             try:
                 self._run()
             except Exception:
@@ -275,6 +324,9 @@ def main(test_class):
     class _TestTeardown(test_class, cli.Application):
         def main(self):
             self.init()
+            self._load_persisted_slot()
+            if hasattr(self, '_reinit_compose_from_slot'):
+                self._reinit_compose_from_slot()
             try:
                 self.teardown()
             except Exception:
