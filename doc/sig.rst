@@ -48,11 +48,14 @@ The set of announced IP prefixes can be statically configured via the IP routing
 SGRP Messages
 -------------
 
-The prefix exchange protocol is defined in `proto/gateway/v1/prefix.proto <https://github.com/scionproto/scion/blob/master/proto/gateway/v1/prefix.proto>`_.
+Prefix exchange uses the ``IPPrefixesService.Prefixes`` RPC, defined in `proto/gateway/v1/prefix.proto <https://github.com/scionproto/scion/blob/master/proto/gateway/v1/prefix.proto>`_.
 
-Server - `gateway/control/grpc/prefix_server.go <https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_server.go>`_
+A requesting SIG sends a ``PrefixesRequest`` to a discovered remote SIG's control address. The request contains a ``etag`` field: a hash of the prefix set from the previous response (or empty on the first request).
 
-Client - `gateway/control/grpc/prefix_fetcher.go <https://github.com/scionproto/scion/blob/master/gateway/control/grpc/prefix_fetcher.go>`_
+`The remote SIG determines which IP prefixes to advertise based on the requesting AS's identity (extracted from the SCION peer address) and the local routing policy.` It replies with a ``PrefixesResponse`` containing:
+
+- A list of IP prefixes, each consisting of a raw IP address (4 bytes for IPv4, 16 bytes for IPv6) and a prefix length (e.g., 24 for a /24 network).
+- An ``etag`` for the returned prefix set. If the request's ``etag`` matches the current set, the prefix list is empty and the client reuses its cached prefixes.
 
 
 SIG Framing Protocol
