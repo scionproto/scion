@@ -19,7 +19,7 @@ PACKAGES = [
     "@tester_deb//openssh-server",
     "@tester_deb//procps",
     "@tester_deb//rsync",
-    "@tester_deb//telnet",
+    "@tester_deb//inetutils-telnet",
     "@tester_deb//tshark",
     "@tester_deb//wget",
 ]
@@ -66,7 +66,7 @@ def scion_tester_image():
 
     oci_image(
         name = "tester",
-        base = "@debian10",
+        base = "@debian12",
         env = {
             "TZ": "UTC",
             "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/share/bin",

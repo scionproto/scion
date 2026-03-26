@@ -75,6 +75,7 @@ use_repo(
     "com_github_iancoleman_strcase",
     "com_github_lestrrat_go_jwx_v3",
     "com_github_mattn_go_isatty",
+    "com_github_mattn_go_sqlite3",
     "com_github_mdlayher_arp",
     "com_github_mdlayher_ethernet",
     "com_github_oapi_codegen_oapi_codegen_v2",
@@ -105,7 +106,6 @@ use_repo(
     "org_golang_x_sync",
     "org_golang_x_sys",
     "org_golang_x_tools",
-    "org_modernc_sqlite",
     "org_uber_go_goleak",
     "org_uber_go_zap",
 )
@@ -167,14 +167,38 @@ oci.pull(
     image = "gcr.io/distroless/base-debian10",
 )
 oci.pull(
+    name = "distroless_base_debian12",
+    digest = "sha256:937c7eaaf6f3f2d38a1f8c4aeff326f0c56e4593ea152e9e8f74d976dde52f56",
+    image = "gcr.io/distroless/base-debian12",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64/v8",
+    ],
+)
+oci.pull(
     name = "debian10",
     digest = "sha256:60cb30babcd1740309903c37d3d408407d190cf73015aeddec9086ef3f393a5d",
     image = "index.docker.io/library/debian",
 )
+oci.pull(
+    name = "debian12",
+    digest = "sha256:bc960ef50e6feed90686c593361df158517556ed1d2d98e5d1df3724024e0f49",
+    image = "index.docker.io/library/debian",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64/v8",
+    ],
+)
 use_repo(
     oci,
     "debian10",
+    "debian12",
+    "debian12_linux_amd64",
+    "debian12_linux_arm64_v8",
     "distroless_base_debian10",
+    "distroless_base_debian12",
+    "distroless_base_debian12_linux_amd64",
+    "distroless_base_debian12_linux_arm64_v8",
 )
 
 # RPM packaging
