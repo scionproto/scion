@@ -1,5 +1,5 @@
 **************************
-SIG Protocol Specification
+IP in SCION Tunneling
 **************************
 
 Introduction
