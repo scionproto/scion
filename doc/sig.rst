@@ -1,6 +1,6 @@
-**************************
+*********************
 IP in SCION Tunneling
-**************************
+*********************
 
 Introduction
 ============
@@ -37,9 +37,9 @@ The SCION Gateway Routing Protocol (SGRP) enables SIGs to map IP prefixes to SCI
 
 A SIG participating in SGRP between two SCION ASes does the following:
 
-1. It discovers the SIGs in the remote SCION AS by periodically sending a ``DiscoveryService.Gateways`` gRPC request to the remote AS. The remote AS replies with a list of gateways, each described by a control address, a data address, a probe address, and an optional set of allowed AS interfaces. The discovery service is defined in `proto/discovery/v1/discovery.proto <https://github.com/scionproto/scion/blob/master/proto/discovery/v1/discovery.proto>`_.
+1. It discovers the SIGs in the remote SCION AS by periodically sending a ``DiscoveryService.Gateways`` RPC request to the remote AS. The remote AS replies with a list of gateways, each described by a control address, a data address, a probe address, and an optional set of allowed AS interfaces. The discovery service is defined in `proto/discovery/v1/discovery.proto <https://github.com/scionproto/scion/blob/master/proto/discovery/v1/discovery.proto>`_. The RPC can be served over gRPC or ConnectRPC (see the ``rpc`` configuration in :doc:`/manuals/gateway`).
 
-2. It periodically queries each discovered SIG in the remote AS via the ``IPPrefixesService.Prefixes`` gRPC to learn the IP prefixes that it announces. From that, the local SIG builds a mapping of IP prefix to remote SIGs.
+2. It periodically queries each discovered SIG in the remote AS via the ``IPPrefixesService.Prefixes`` RPC to learn the IP prefixes that it announces. From that, the local SIG builds a mapping of IP prefix to remote SIGs.
 
 3. When queried by a remote SIG, the local SIG replies with the set of IP prefixes it wants to announce.
 
