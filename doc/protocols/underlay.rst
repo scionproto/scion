@@ -119,7 +119,8 @@ SCION border routers utilize specific underlay ports to process and forward traf
 UDP Checksum
 ~~~~~~~~~~~~
 
-In accordance with RFC 8085, underlay UDP checksums should be enabled. While the current implementation successfully enforces checksum validation for router-to-router traffic, it does not yet enforce it for traffic directed toward endpoints (see Issue #4265).
+In accordance with RFC 8085, underlay UDP checksums should be enabled. This implementation leverages standard OS sockets, therefore typically verifying underlay UDP checksums.
+
 
 Control Plane Instances
 ~~~~~~~~~~~~~~~~~~~~~~~
