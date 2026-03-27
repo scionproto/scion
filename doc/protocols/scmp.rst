@@ -3,7 +3,10 @@
 ******************
 SCMP Specification
 ******************
-
+.. 
+   Warning: the SCION IETF RFCs point to this page:
+   https://docs.scion.org/en/latest/protocols/scmp.html
+   Should it ever be moved, ensure that there is a redirect!
 .. |br| raw:: html
 
   <br/>

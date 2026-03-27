@@ -1,6 +1,10 @@
 ****************
 SCION-IP Gateway
 ****************
+.. 
+   Warning: the SCION IETF RFCs point to this page:
+   https://docs.scion.org/en/latest/sig.html
+   Should it ever be moved, ensure that there is a redirect!
 
 Introduction
 ============

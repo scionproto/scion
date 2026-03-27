@@ -3,6 +3,10 @@
 ***************
 IP/UDP underlay
 ***************
+.. 
+   Warning: the SCION IETF RFCs point to this page:
+   https://docs.scion.org/en/latest/protocols/underlay.html
+   Should it ever be moved, ensure that there is a redirect!
 
 Introduction
 ------------
@@ -61,13 +65,13 @@ SCION components rely on the following ports to handle underlay (UDP/IP) and ser
 | Router External Interfaces              | Per Link configurable            | Inter-AS traffic (router to router)                          |
 +-----------------------------------------+----------------------------------+--------------------------------------------------------------+
 
-In this implementation, ports are configured in :doc:`topology.json <../manuals/common>`. 
+In this implementation, ports are configured in :doc:`topology.json <../manuals/common>`.
 
-For configurable ports, it is recommended to use ports within the IANA Private Ports range (49152-65535). This implementation typically uses: 
+For configurable ports, it is recommended to use ports within the IANA Private Ports range (49152-65535). This implementation typically uses:
 * UDP 31000-32767 for dispatched ports. They are only used for SCION traffic whose L4 payload's destination port falls within the configured dispatched port range (See Traffic to End-hosts). Note that there is a proposal to extend this behavior to all ports (See https://github.com/scionproto/scion/pull/4884)
 * UDP 50000 and subsequent for internal interfaces
 * UDP 30100 and subsequent for external interfaces. However, their use in deployments is discouraged in favor of IANA Private Ports.
- 
+
 
 Traffic to End-hosts
 ~~~~~~~~~~~~~~~~~~~~
