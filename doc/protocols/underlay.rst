@@ -89,7 +89,7 @@ In the modern "dispatcherless" design (see :doc:`Router Port Dispatch <../dev/de
   * For SCMP error messages, the router tries to extract the end-host port and sends the packet to the endhost, subject to dispatched port settings and the default underlay port. If the port cannot be extracted, the packet is dropped.
 
 .. note::
-   Historically, SCION end hosts relied on a user-space "dispatcher" process listening on the default port UDP 30041 to route incoming packets to the correct application socket. For more details, see the :doc:`Dispatcher Manual <../manuals/dispatcher>`.
+   SCION endpoints operate across distinct administrative domains (ASes). The use of fixed port UDP 30041 avoids bootstrapping dependencies across different ASes for SCMP traffic. Furthermore, a fixed port simplifies the configuration of firewalls and ACLs. Historically, this port was used by the user-space "dispatcher" process, routing incoming packets to the correct application socket. For more details, see the :doc:`Dispatcher Manual <../manuals/dispatcher>`.
 
 The SCMP Daemon (``scmpd``) SHOULD listen on the UDP underlay default port (30041) to process and reply to informational SCMP messages, such as echo requests (pings) and traceroutes.
 
