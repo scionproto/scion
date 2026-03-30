@@ -73,7 +73,7 @@ Each SIG requires two configuration files, with an optional third:
 
 The SIG in AS ``1-ff00:0:111`` needs a matching traffic policy pointing back to AS ``1-ff00:0:110`` and listing the prefixes reachable through it.
 
-Once both SIGs are running, IP traffic matching the configured prefixes is automatically tunneled over SCION. Each SIG independently discovers remote SIGs via :ref:`SIG Discovery <sig-discovery>`, fetches their prefix announcements via :ref:`SGRP <sgrp>`, and creates tunneling sessions.
+Once both SIGs are running, IP traffic matching the configured prefixes is automatically tunneled over SCION. Each SIG independently discovers remote SIGs via :ref:`SIG Discovery <sig-discovery>`, fetches their prefix announcements via :ref:`SGRP <sgrp>`, and creates tunneling sessions. Note that path policies for SIGs are not configurable now.
 
 IP traffic must be routed to the SIG using standard IP routing. The SIG automatically installs routes on the machine it runs on, but other hosts in the local network require static routes pointing to the SIG. Dynamic routing mechanisms are not supported.
 
