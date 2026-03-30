@@ -35,10 +35,16 @@ register_toolchains("@go_toolchains//:all")
 go_sdk.nogo(nogo = "@//:nogo")
 
 # Gazelle
-bazel_dep(name = "gazelle", version = "0.43.0")
+bazel_dep(name = "gazelle", version = "0.47.0")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
+go_deps.gazelle_override(
+    directives = [
+        "gazelle:proto disable",
+    ],
+    path = "google.golang.org/grpc/examples",
+)
 
 # go_deps.module() is needed for tools dependencies (previously tool_deps.bzl) that can't be added to go.mod
 go_deps.module(
@@ -69,6 +75,7 @@ use_repo(
     "com_github_iancoleman_strcase",
     "com_github_lestrrat_go_jwx_v3",
     "com_github_mattn_go_isatty",
+    "com_github_mattn_go_sqlite3",
     "com_github_mdlayher_arp",
     "com_github_mdlayher_ethernet",
     "com_github_oapi_codegen_oapi_codegen_v2",
@@ -99,14 +106,13 @@ use_repo(
     "org_golang_x_sync",
     "org_golang_x_sys",
     "org_golang_x_tools",
-    "org_modernc_sqlite",
     "org_uber_go_goleak",
     "org_uber_go_zap",
 )
 
 # npm
-bazel_dep(name = "rules_nodejs", version = "6.3.4")
-bazel_dep(name = "aspect_rules_js", version = "2.2.0")
+bazel_dep(name = "rules_nodejs", version = "6.7.3")
+bazel_dep(name = "aspect_rules_js", version = "2.9.2")
 
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
 node.toolchain(node_version = "22.14.0")
@@ -123,7 +129,7 @@ pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
 use_repo(pnpm, "pnpm")
 
 # Python rules
-bazel_dep(name = "rules_python", version = "1.2.0")
+bazel_dep(name = "rules_python", version = "1.8.4")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")
@@ -152,7 +158,7 @@ use_repo(
 )
 
 # Rules for container image building
-bazel_dep(name = "rules_oci", version = "2.2.3")
+bazel_dep(name = "rules_oci", version = "2.2.7")
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(
@@ -161,18 +167,42 @@ oci.pull(
     image = "gcr.io/distroless/base-debian10",
 )
 oci.pull(
+    name = "distroless_base_debian12",
+    digest = "sha256:937c7eaaf6f3f2d38a1f8c4aeff326f0c56e4593ea152e9e8f74d976dde52f56",
+    image = "gcr.io/distroless/base-debian12",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64/v8",
+    ],
+)
+oci.pull(
     name = "debian10",
     digest = "sha256:60cb30babcd1740309903c37d3d408407d190cf73015aeddec9086ef3f393a5d",
     image = "index.docker.io/library/debian",
 )
+oci.pull(
+    name = "debian12",
+    digest = "sha256:bc960ef50e6feed90686c593361df158517556ed1d2d98e5d1df3724024e0f49",
+    image = "index.docker.io/library/debian",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64/v8",
+    ],
+)
 use_repo(
     oci,
     "debian10",
+    "debian12",
+    "debian12_linux_amd64",
+    "debian12_linux_arm64_v8",
     "distroless_base_debian10",
+    "distroless_base_debian12",
+    "distroless_base_debian12_linux_amd64",
+    "distroless_base_debian12_linux_arm64_v8",
 )
 
 # RPM packaging
-bazel_dep(name = "rules_pkg", version = "1.1.0")
+bazel_dep(name = "rules_pkg", version = "1.2.0")
 single_version_override(
     module_name = "rules_pkg",
     patches = [
@@ -187,7 +217,7 @@ use_repo(find_rpm, "rules_pkg_rpmbuild")
 register_toolchains("@rules_pkg_rpmbuild//:all")
 
 # Debian rules
-bazel_dep(name = "rules_distroless", version = "0.5.1")
+bazel_dep(name = "rules_distroless", version = "0.6.2")
 
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.install(
@@ -210,8 +240,8 @@ register_toolchains(
 )
 
 # Support cross building and packaging for openwrt_amd64 via the openwrt SDK
-bazel_dep(name = "platforms", version = "0.0.11")
-bazel_dep(name = "rules_cc", version = "0.1.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.16")
 
 # Antlr
 bazel_dep(name = "rules_java", version = "8.11.0")
@@ -228,10 +258,10 @@ use_repo(
 )
 
 # Other dependencies
-bazel_dep(name = "bazel_skylib", version = "1.7.1")
-bazel_dep(name = "aspect_bazel_lib", version = "2.14.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "rules_proto", version = "7.1.0")
-bazel_dep(name = "rules_proto_grpc", version = "5.0.1")
-bazel_dep(name = "protobuf", version = "30.1")
-bazel_dep(name = "rules_shell", version = "0.4.0")
-bazel_dep(name = "buildifier_prebuilt", version = "8.0.1")
+bazel_dep(name = "rules_proto_grpc", version = "5.8.0")
+bazel_dep(name = "protobuf", version = "31.1")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.2")

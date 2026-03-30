@@ -7,3 +7,5 @@ SCION Protocol Stack
 This document provides a visual summary of the SCION overall protocol stack.
 
 .. figure:: fig/stack.excalidraw.png
+
+The underlay is described in :ref:`underlay`.
