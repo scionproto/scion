@@ -1,26 +1,14 @@
 {
     "dependencies": {
-        "@redocly/cli": "2.12.0",
+        "@redocly/cli": "2.25.2",
         "@stoplight/spectral-cli": "^6.15.0"
     },
     "pnpm": {
         "overrides": {
-            "@types/jsonpath-plus": ">=10.3.0"
+            "rollup": ">=2.80.0",
+            "minimatch": ">=3.1.4",
+            "handlebars": ">=4.7.9"
         },
-        "onlyBuiltDependencies": [],
-        "packageExtensions": {
-            "styled-components@5.3.11": {
-                "dependencies": {
-                    "react-is": "18.2.0"
-                }
-            },
-            "redoc@~2.5.0": {
-                "dependencies": {
-                    "call-me-maybe": "1.0.2",
-                    "yaml": ">=2.2.2",
-                    "fast-safe-stringify": "2.1.1"
-                }
-            }
-        }
+        "onlyBuiltDependencies": []
     }
 }
