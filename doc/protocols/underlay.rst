@@ -3,6 +3,10 @@
 ***************
 IP/UDP underlay
 ***************
+..
+   Warning: the SCION IETF RFCs point to this page:
+   https://docs.scion.org/en/latest/protocols/underlay.html
+   Should it ever be moved, ensure that there is a redirect!
 
 Introduction
 ------------
@@ -47,24 +51,32 @@ The exception is intra-domain control-plane traffic between end-hosts and the co
 Ports Overview
 --------------
 
-SCION components rely on a structured port allocation scheme to handle underlay (UDP/IP) and service communications. The following table summarizes the common default ports and their configuration scopes:
+SCION components rely on the following ports to handle underlay (UDP/IP) and service communications. The following table summarizes the common default ports and their configuration scopes:
 
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Description                             | Port Range | Default Value   | Scope                | Configured in                                                                                                                     |
-+=========================================+============+=================+======================+===================================================================================================================================+
-| UDP underlay default port / SCMP Daemon | Fixed      | UDP 30041       | Global all end-hosts | Hardcoded                                                                                                                         |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| UDP underlay dispatched ports           | any        | UDP 31000-32767 | AS-wide              | :doc:`topology.json <../manuals/common>`                                                                                          |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Router Internal Interfaces              | any        | UDP 30100-30199 | Router-wide          | :doc:`topology.json <../manuals/common>`                                                                                          |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
-| Router External Interfaces              | any        | UDP 31000-39999 | Link                 | :doc:`topology.json <../manuals/common>`                                                                                          |
-+-----------------------------------------+------------+-----------------+----------------------+-----------------------------------------------------------------------------------------------------------------------------------+
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+| Description                             | UDP Port                         | Use                                                          |
++=========================================+==================================+==============================================================+
+| UDP underlay default port / SCMP Daemon | UDP 30041                        | Traffic to end-hosts & SCMP informational messages           |
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+| UDP underlay dispatched ports           | Per AS configurable              | Traffic to end-hosts                                         |
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+| Router Internal Interfaces              | Per Router configurable          | Intra-AS traffic (end-hosts to routers, router to router)    |
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+| Router External Interfaces              | Per Link configurable            | Inter-AS traffic (router to router)                          |
++-----------------------------------------+----------------------------------+--------------------------------------------------------------+
+
+In this implementation, ports are configured in :doc:`topology.json <../manuals/common>`.
+
+For configurable ports, it is recommended to use ports within the IANA Private Ports range (49152-65535). This implementation typically uses:
+* UDP 31000-32767 for dispatched ports. They are only used for SCION traffic whose L4 payload's destination port falls within the configured dispatched port range (See Traffic to End-hosts). Note that there is a proposal to extend this behavior to all ports (See https://github.com/scionproto/scion/pull/4884)
+* UDP 50000 and subsequent for internal interfaces
+* UDP 30100 and subsequent for external interfaces. However, their use in deployments is discouraged in favor of IANA Private Ports.
+
 
 Traffic to End-hosts
 ~~~~~~~~~~~~~~~~~~~~
 
-When routing from border routers to endpoints, the SCION UDP/IP underlay generally uses the destination port from the SCION payload as the underlay destination port.
+When forwarding traffic from the last border routers to endpoints, the SCION UDP/IP underlay generally uses the destination port from the SCION payload as the underlay destination port.
 
 In the modern "dispatcherless" design (see :doc:`Router Port Dispatch <../dev/design/router-port-dispatch>`), applications open a UDP/IP underlay socket directly. To ensure that traffic goes to the correct application, the ingress router at the destination AS MUST select the underlay destination port by inspecting the Layer 4 destination port from the TCP/SCION, UDP/SCION, or SCMP Error payload:
 
@@ -77,7 +89,7 @@ In the modern "dispatcherless" design (see :doc:`Router Port Dispatch <../dev/de
   * For SCMP error messages, the router tries to extract the end-host port and sends the packet to the endhost, subject to dispatched port settings and the default underlay port. If the port cannot be extracted, the packet is dropped.
 
 .. note::
-   Historically, SCION end hosts relied on a user-space "dispatcher" process listening on the default port UDP 30041 to route incoming packets to the correct application socket. For more details, see the :doc:`Dispatcher Manual <../manuals/dispatcher>`.
+   SCION endpoints operate across distinct administrative domains (ASes). The use of fixed port UDP 30041 avoids bootstrapping dependencies across different ASes for SCMP traffic. Furthermore, a fixed port simplifies the configuration of firewalls and ACLs. Historically, this port was used by the user-space "dispatcher" process, routing incoming packets to the correct application socket. For more details, see the :doc:`Dispatcher Manual <../manuals/dispatcher>`.
 
 The SCMP Daemon (``scmpd``) SHOULD listen on the UDP underlay default port (30041) to process and reply to informational SCMP messages, such as echo requests (pings) and traceroutes.
 
@@ -103,6 +115,12 @@ SCION border routers utilize specific underlay ports to process and forward traf
 
 * **Internal Interfaces**: Used for intra-AS communication to receive traffic from end-hosts. Operators can choose the port freely. The same port must be configured on endpoints so that they can send outbound traffic. Routers with multiple internal interfaces can use a range of ports.
 * **External Interfaces**: Used for inter-AS links towards neighboring SCION ASes. Note that the choice of underlay protocol and UDP port is per link. It is independent from other links and intra-AS underlay.
+
+UDP Checksum
+~~~~~~~~~~~~
+
+In accordance with RFC 8085, underlay UDP checksums should be enabled. This implementation leverages standard OS sockets, therefore typically verifying underlay UDP checksums.
+
 
 Control Plane Instances
 ~~~~~~~~~~~~~~~~~~~~~~~
