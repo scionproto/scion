@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# This script ensures that certain documentation files are not renamed or moved.
+# These paths are referenced in the IETF drafts and must stay the same.
+
+root_dir="$(bazel info workspace 2> /dev/null)"
+
+required_files=(
+    doc/beacon-metadata.rst
+    doc/protocols/scmp.rst
+    doc/protocols/underlay.rst
+    doc/sig.rst
+)
+
+ret=0
+missing=()
+for f in "${required_files[@]}"; do
+    if [ ! -f "$root_dir/$f" ]; then
+        missing+=("$f")
+        ret=1
+    fi
+done
+
+if [ $ret -ne 0 ]; then
+    annotate="The following documentation files must not be renamed or moved: ${missing[*]}"
+    echo "$annotate"
+
+    if [ "${CI+x}" == x ]; then
+        echo "$annotate" | buildkite-agent annotate --style 'error' --context 'check_doc_paths'
+    fi
+fi
+exit $ret
