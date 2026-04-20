@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["headers.go"],
+    importpath = "github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers",
+    visibility = ["//router/underlayproviders/afxdpudpip:__subpackages__"],
+    deps = [
+        "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["headers_test.go"],
+    embed = [":go_default_library"],
+)

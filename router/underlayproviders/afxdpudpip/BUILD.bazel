@@ -24,6 +24,8 @@ go_library(
             "//private/underlay/conn:go_default_library",
             "//router:go_default_library",
             "//router/bfd:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
             "@com_github_vishvananda_netlink//:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
@@ -36,6 +38,8 @@ go_library(
             "//private/underlay/conn:go_default_library",
             "//router:go_default_library",
             "//router/bfd:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
             "@com_github_vishvananda_netlink//:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
@@ -48,6 +52,8 @@ go_library(
             "//private/underlay/conn:go_default_library",
             "//router:go_default_library",
             "//router/bfd:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
             "@com_github_vishvananda_netlink//:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
@@ -60,6 +66,8 @@ go_library(
             "//private/underlay/conn:go_default_library",
             "//router:go_default_library",
             "//router/bfd:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
             "@com_github_vishvananda_netlink//:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
@@ -69,7 +77,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["options_test.go"],
+    srcs = [
+        "afxdpudpip_test.go",
+        "options_test.go",
+    ],
     embed = [":go_default_library"],
     deps = select({
         "@rules_go//go/platform:android_amd64": [

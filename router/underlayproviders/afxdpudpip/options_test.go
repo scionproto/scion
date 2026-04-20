@@ -19,8 +19,6 @@ package afxdpudpip
 import (
 	"testing"
 
-	"github.com/scionproto/scion/pkg/private/ptr"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,43 +46,43 @@ func TestParseOptions(t *testing.T) {
 		},
 		"prefer_zerocopy true": {
 			options:      `{"prefer_zerocopy": true}`,
-			wantZerocopy: ptr.To(true),
+			wantZerocopy: new(true),
 		},
 		"prefer_zerocopy false": {
 			options:      `{"prefer_zerocopy": false}`,
-			wantZerocopy: ptr.To(false),
+			wantZerocopy: new(false),
 		},
 		"prefer_hugepages true": {
 			options:       `{"prefer_hugepages": true}`,
-			wantHugepages: ptr.To(true),
+			wantHugepages: new(true),
 		},
 		"prefer_hugepages false": {
 			options:       `{"prefer_hugepages": false}`,
-			wantHugepages: ptr.To(false),
+			wantHugepages: new(false),
 		},
 		"num_frames": {
 			options:       `{"num_frames": 8192}`,
-			wantNumFrames: ptr.To(uint32(8192)),
+			wantNumFrames: new(uint32(8192)),
 		},
 		"frame_size": {
 			options:       `{"frame_size": 4096}`,
-			wantFrameSize: ptr.To(uint32(4096)),
+			wantFrameSize: new(uint32(4096)),
 		},
 		"rx_size": {
 			options:    `{"rx_size": 1024}`,
-			wantRxSize: ptr.To(uint32(1024)),
+			wantRxSize: new(uint32(1024)),
 		},
 		"tx_size": {
 			options:    `{"tx_size": 1024}`,
-			wantTxSize: ptr.To(uint32(1024)),
+			wantTxSize: new(uint32(1024)),
 		},
 		"cq_size": {
 			options:    `{"cq_size": 4096}`,
-			wantCqSize: ptr.To(uint32(4096)),
+			wantCqSize: new(uint32(4096)),
 		},
 		"batch_size": {
 			options:       `{"batch_size": 128}`,
-			wantBatchSize: ptr.To(uint32(128)),
+			wantBatchSize: new(uint32(128)),
 		},
 		"rx_queues only": {
 			options:      `{"rx_queues": [0, 1, 2, 3]}`,
@@ -122,14 +120,14 @@ func TestParseOptions(t *testing.T) {
 			}`,
 			wantRxQueues:  []uint32{0, 1},
 			wantTxQueues:  []uint32{0, 1},
-			wantZerocopy:  ptr.To(false),
-			wantHugepages: ptr.To(true),
-			wantNumFrames: ptr.To(uint32(8192)),
-			wantFrameSize: ptr.To(uint32(4096)),
-			wantRxSize:    ptr.To(uint32(1024)),
-			wantTxSize:    ptr.To(uint32(1024)),
-			wantCqSize:    ptr.To(uint32(4096)),
-			wantBatchSize: ptr.To(uint32(128)),
+			wantZerocopy:  new(false),
+			wantHugepages: new(true),
+			wantNumFrames: new(uint32(8192)),
+			wantFrameSize: new(uint32(4096)),
+			wantRxSize:    new(uint32(1024)),
+			wantTxSize:    new(uint32(1024)),
+			wantCqSize:    new(uint32(4096)),
+			wantBatchSize: new(uint32(128)),
 		},
 		"err empty rx_queues list": {
 			options: `{"rx_queues": []}`,

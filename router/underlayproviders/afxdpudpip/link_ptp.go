@@ -28,6 +28,8 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
+	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/checksum"
+	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers"
 )
 
 // linkPTP is a point-to-point link using AF_XDP for packet I/O.
@@ -72,36 +74,36 @@ func (l *linkPTP) buildHeader() chan *router.Packet {
 
 	var hdr []byte
 	if l.is4 {
-		hdr = make([]byte, ethLen+ipv4Len+udpLen)
+		hdr = make([]byte, headers.LenEth+headers.LenIPv4+headers.LenUDP)
 
 		// Ethernet header
 		copy(hdr[0:6], dstMac[:])
 		copy(hdr[6:12], l.txConns[0].localMAC)
-		binary.BigEndian.PutUint16(hdr[12:14], 0x0800) // IPv4
+		binary.BigEndian.PutUint16(hdr[12:14], headers.EtherTypeIPv4)
 
 		// IPv4 header template (lengths/checksum patched per-packet)
 		src4 := srcIP.As4()
 		dst4 := dstIP.As4()
-		buildIPv4Header(hdr[ethLen:], src4, dst4, 0)
+		headers.BuildIPv4(hdr[headers.LenEth:], src4, dst4, 0)
 
 		// UDP header template (length patched per-packet)
-		buildUDPHeader(hdr[ethLen+ipv4Len:], srcPort, dstPort, 0)
+		headers.BuildUDP(hdr[headers.LenEth+headers.LenIPv4:], srcPort, dstPort, 0)
 
 	} else {
-		hdr = make([]byte, ethLen+ipv6Len+udpLen)
+		hdr = make([]byte, headers.LenEth+headers.LenIPv6+headers.LenUDP)
 
 		// Ethernet header
 		copy(hdr[0:6], dstMac[:])
 		copy(hdr[6:12], l.txConns[0].localMAC)
-		binary.BigEndian.PutUint16(hdr[12:14], 0x86DD) // IPv6
+		binary.BigEndian.PutUint16(hdr[12:14], headers.EtherTypeIPv6)
 
 		// IPv6 header template
 		src6 := srcIP.As16()
 		dst6 := dstIP.As16()
-		buildIPv6Header(hdr[ethLen:], src6, dst6, 0)
+		headers.BuildIPv6(hdr[headers.LenEth:], src6, dst6, 0)
 
 		// UDP header template
-		buildUDPHeader(hdr[ethLen+ipv6Len:], srcPort, dstPort, 0)
+		headers.BuildUDP(hdr[headers.LenEth+headers.LenIPv6:], srcPort, dstPort, 0)
 	}
 
 	l.header.Store(&hdr)
@@ -112,7 +114,7 @@ func (l *linkPTP) buildHeader() chan *router.Packet {
 // On success (true), the packet is ready to send and the caller owns it.
 // On failure (false), the packet has already been disposed of (backlogged or
 // returned to pool); the caller must not touch it.
-func (l *linkPTP) finishPacket(p *router.Packet) bool {
+func (l *linkPTP) finishPacket(p *router.Packet, csumOffload bool) bool {
 	hdrp := l.header.Load()
 	if hdrp == nil {
 		// Try to build header
@@ -136,49 +138,50 @@ func (l *linkPTP) finishPacket(p *router.Packet) bool {
 	hdr := *hdrp
 	payloadLen := len(p.RawPacket)
 
-	// Prepend the header template
 	p.RawPacket = p.WithHeader(len(hdr))
 	copy(p.RawPacket, hdr)
 
 	if l.is4 {
-		// Fix IPv4 total length
-		ipTotalLen := ipv4Len + udpLen + payloadLen
-		binary.BigEndian.PutUint16(p.RawPacket[ethLen+2:], uint16(ipTotalLen))
-
-		// Fix UDP length
+		ipTotalLen := headers.LenIPv4 + headers.LenUDP + payloadLen
+		binary.BigEndian.PutUint16(p.RawPacket[headers.LenEth+2:], uint16(ipTotalLen))
 		binary.BigEndian.PutUint16(
-			p.RawPacket[ethLen+ipv4Len+4:],
-			uint16(udpLen+payloadLen),
+			p.RawPacket[headers.LenEth+headers.LenIPv4+4:],
+			uint16(headers.LenUDP+payloadLen),
 		)
 
-		// Recompute IPv4 header checksum
-		p.RawPacket[ethLen+10] = 0
-		p.RawPacket[ethLen+11] = 0
-		csum := ipv4Checksum(p.RawPacket[ethLen : ethLen+ipv4Len])
-		binary.BigEndian.PutUint16(p.RawPacket[ethLen+10:], csum)
+		// IPv4 header checksum is always computed in software: 20 bytes is too
+		// cheap to be worth offloading, and the NIC metadata path only covers
+		// the L4 checksum.
+		p.RawPacket[headers.LenEth+10] = 0
+		p.RawPacket[headers.LenEth+11] = 0
+		csum := checksum.IPv4Header(p.RawPacket[headers.LenEth : headers.LenEth+headers.LenIPv4])
+		binary.BigEndian.PutUint16(p.RawPacket[headers.LenEth+10:], csum)
 
-		// IPv4 UDP checksum is optional, leave as 0
-		p.RawPacket[ethLen+ipv4Len+6] = 0
-		p.RawPacket[ethLen+ipv4Len+7] = 0
+		// IPv4 UDP checksum is optional (RFC 768), so we leave it zero.
+		p.RawPacket[headers.LenEth+headers.LenIPv4+6] = 0
+		p.RawPacket[headers.LenEth+headers.LenIPv4+7] = 0
 	} else {
-		// Fix IPv6 payload length
-		binary.BigEndian.PutUint16(p.RawPacket[ethLen+4:], uint16(udpLen+payloadLen))
-
-		// Fix UDP length
-		udpOff := ethLen + ipv6Len
-		binary.BigEndian.PutUint16(p.RawPacket[udpOff+4:], uint16(udpLen+payloadLen))
-
-		// Zero UDP checksum for computation
+		udpTotalLen := headers.LenUDP + payloadLen
+		binary.BigEndian.PutUint16(p.RawPacket[headers.LenEth+4:], uint16(udpTotalLen))
+		udpOff := headers.LenEth + headers.LenIPv6
+		binary.BigEndian.PutUint16(p.RawPacket[udpOff+4:], uint16(udpTotalLen))
 		p.RawPacket[udpOff+6] = 0
 		p.RawPacket[udpOff+7] = 0
 
-		// Compute IPv6 UDP checksum (mandatory)
 		srcIP := l.localAddr.Addr().As16()
 		dstIP := l.remoteAddr.Addr().As16()
-		csum := udp6Checksum(srcIP, dstIP,
-			p.RawPacket[udpOff:udpOff+udpLen],
-			p.RawPacket[udpOff+udpLen:])
-		binary.BigEndian.PutUint16(p.RawPacket[udpOff+6:], csum)
+
+		if csumOffload {
+			// Seed the UDP checksum field with the pseudo-header partial sum; the
+			// NIC folds in the rest at TX time.
+			csum := checksum.UDP6Pseudo(srcIP, dstIP, udpTotalLen)
+			binary.BigEndian.PutUint16(p.RawPacket[udpOff+6:], csum)
+		} else {
+			csum := checksum.UDP6(srcIP, dstIP,
+				p.RawPacket[udpOff:udpOff+headers.LenUDP],
+				p.RawPacket[udpOff+headers.LenUDP:])
+			binary.BigEndian.PutUint16(p.RawPacket[udpOff+6:], csum)
+		}
 	}
 	return true
 }
@@ -289,7 +292,7 @@ func (l *linkPTP) sendBacklog() {
 			}
 			// Compute connection index BEFORE finishPacket prepends headers.
 			connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
-			if !l.finishPacket(p) {
+			if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 				givenup = true
 				continue
 			}
@@ -309,7 +312,7 @@ func (l *linkPTP) sendBacklog() {
 func (l *linkPTP) Send(p *router.Packet) bool {
 	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
-	if !l.finishPacket(p) {
+	if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 		return false
 	}
 	select {
@@ -326,7 +329,7 @@ func (l *linkPTP) Send(p *router.Packet) bool {
 func (l *linkPTP) SendBlocking(p *router.Packet) {
 	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
-	if l.finishPacket(p) {
+	if l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 		l.txConns[connIdx].queue <- p
 	}
 }

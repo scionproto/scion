@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_binary")
+
+go_binary(
+    name = "packetgolden",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/router/underlayproviders/afxdpudpip/cmd/packetgolden",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+        "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
+        "@com_github_vishvananda_netlink//:go_default_library",
+        "@org_golang_x_sys//unix:go_default_library",
+    ],
+)

@@ -27,6 +27,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.37
 	github.com/mdlayher/arp v0.0.0-20220512170110-6706a2966875
 	github.com/mdlayher/ethernet v0.0.0-20220221185849-529eae5b6118
+	github.com/mdlayher/netlink v1.7.2
 	github.com/oapi-codegen/oapi-codegen/v2 v2.4.1
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/olekukonko/tablewriter v1.0.7

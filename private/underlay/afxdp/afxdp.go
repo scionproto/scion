@@ -216,6 +216,11 @@ const (
 	DefaultRxQueueSize        = DefaultTxQueueSize
 	DefaultCompletionRingSize = 2048
 	DefaultBatchSize          = 64 // TX batching
+
+	// TxMetadataLen is the size of the xsk_tx_metadata struct prepended to
+	// each TX frame when checksum offloading is enabled. Must match the kernel's
+	// struct xsk_tx_metadata layout (see linux/if_xdp.h).
+	TxMetadataLen = 16
 )
 
 /*---- Queue wrappers ----*/
@@ -545,10 +550,16 @@ func registerXSK(iface *Interface, fd int, queueID uint32) error {
 //
 // WARNING: Socket is not safe for concurrent use.
 type Socket struct {
-	conf        SocketConfig
-	isZerocopy  bool
-	isHugepages bool
-	fd          int
+	conf          SocketConfig
+	isZerocopy    bool
+	isHugepages   bool
+	isCsumOffload bool
+	// txMetadataLen is the metadata headroom registered with the kernel at UMEM
+	// registration. Non-zero whenever the kernel accepted the registration,
+	// independent of whether checksum offload is actually in use (see
+	// isCsumOffload).
+	txMetadataLen uint32
+	fd            int
 
 	// umem is the contiguous UMEM region backing all RX/TX frames.
 	// Both RX and TX rings reference offsets into this slice.
@@ -654,17 +665,33 @@ func Open(
 		return nil, fail("mmap UMEM: %w", err)
 	}
 
+	// Try to register UMEM with TX metadata support for checksum offloading.
+	// If the kernel/driver doesn't support it, fall back to no metadata.
+	var hasTxMetadata bool
 	reg := unix.XDPUmemReg{
-		Addr:     uint64(uintptr(unsafe.Pointer(&umem[0]))),
-		Len:      uint64(len(umem)),
-		Size:     conf.FrameSize,
-		Headroom: 0,
+		Addr:            uint64(uintptr(unsafe.Pointer(&umem[0]))),
+		Len:             uint64(len(umem)),
+		Size:            conf.FrameSize,
+		Headroom:        0,
+		Flags:           unix.XDP_UMEM_TX_METADATA_LEN,
+		Tx_metadata_len: TxMetadataLen,
 	}
-	if err := setsockopt(
+	err = setsockopt(
 		fd, unix.SOL_XDP, unix.XDP_UMEM_REG,
 		unsafe.Pointer(&reg), unsafe.Sizeof(reg),
-	); err != nil {
-		return nil, fail("setsockopt XDP_UMEM_REG: %w", err)
+	)
+	if err != nil {
+		// Fall back: register without TX metadata support.
+		reg.Flags = 0
+		reg.Tx_metadata_len = 0
+		if err := setsockopt(
+			fd, unix.SOL_XDP, unix.XDP_UMEM_REG,
+			unsafe.Pointer(&reg), unsafe.Sizeof(reg),
+		); err != nil {
+			return nil, fail("setsockopt XDP_UMEM_REG: %w", err)
+		}
+	} else {
+		hasTxMetadata = true
 	}
 
 	// UMEM ring sizes.
@@ -810,22 +837,47 @@ func Open(
 		freeFrames[i] = uint64(frameIdx) * uint64(conf.FrameSize)
 	}
 
+	// txMetadataLen tracks the metadata headroom registered with the kernel.
+	// This MUST always match what was passed to XDP_UMEM_REG, regardless of
+	// whether we actually use offloading, because the kernel's TX path expects
+	// d.Addr to point past the metadata region.
+	var txMdLen uint32
+	if hasTxMetadata {
+		txMdLen = TxMetadataLen
+	}
+
+	// Reserve metadata headroom whenever the kernel accepted the UMEM
+	// registration, but only enable checksum offload when the device explicitly
+	// advertises AF_XDP tx-checksum support and this queue is running zerocopy.
+	var deviceTxChecksum bool
+	if hasTxMetadata {
+		deviceTxChecksum, err = queryTxChecksumOffload(iface.ifIndex)
+		if err != nil {
+			// Stay conservative: if we cannot verify support, don't emit partial
+			// checksums that might escape without completion.
+			deviceTxChecksum = false
+		}
+	}
+	csumOffload := hasTxMetadata && zerocopy && deviceTxChecksum
+
 	return &Socket{
-		conf:        conf,
-		isZerocopy:  zerocopy,
-		isHugepages: hugepages,
-		fd:          fd,
-		umem:        umem,
-		tx:          txQ,
-		cq:          cqQ,
-		rx:          rxQ,
-		fq:          fqQ,
-		txRegion:    txRegion,
-		rxRegion:    rxRegion,
-		cqRegion:    cqRegion,
-		fqRegion:    fqRegion,
-		freeFrames:  freeFrames,
-		compBuf:     make([]uint64, conf.BatchSize),
+		conf:          conf,
+		isZerocopy:    zerocopy,
+		isHugepages:   hugepages,
+		isCsumOffload: csumOffload,
+		txMetadataLen: txMdLen,
+		fd:            fd,
+		umem:          umem,
+		tx:            txQ,
+		cq:            cqQ,
+		rx:            rxQ,
+		fq:            fqQ,
+		txRegion:      txRegion,
+		rxRegion:      rxRegion,
+		cqRegion:      cqRegion,
+		fqRegion:      fqRegion,
+		freeFrames:    freeFrames,
+		compBuf:       make([]uint64, conf.BatchSize),
 	}, nil
 }
 
@@ -836,6 +888,11 @@ func (s *Socket) IsZerocopy() bool { return s.isZerocopy }
 
 // IsHugepages reports whether the socket UMEM was mmapped via hugepages.
 func (s *Socket) IsHugepages() bool { return s.isHugepages }
+
+// IsCsumOffload reports whether the socket supports TX checksum offloading
+// via XDP_TXMD_FLAGS_CHECKSUM. When true, callers should use SubmitCsumOffload
+// instead of Submit to benefit from hardware checksum computation.
+func (s *Socket) IsCsumOffload() bool { return s.isCsumOffload }
 
 // Close releases the socket, UMEM and kernel resources.
 func (s *Socket) Close() error {
@@ -974,6 +1031,10 @@ type Frame struct {
 // NextFrame returns a writable UMEM buffer and its address.
 // A zero-value frame indicates that no frame is currently available and the
 // caller should retry after PollCompletions().
+//
+// When TX metadata is active (IsCsumOffload), the returned Buf starts after
+// the metadata region. The caller writes packet data into Buf as usual.
+// The metadata region is written by SubmitCsumOffload.
 func (s *Socket) NextFrame() Frame {
 	if len(s.freeFrames) == 0 {
 		// Try to reclaim some completions.
@@ -992,8 +1053,8 @@ func (s *Socket) NextFrame() Frame {
 		frameSize = DefaultFrameSize
 	}
 
-	start := int(addr)
-	end := start + int(frameSize)
+	start := int(addr) + int(s.txMetadataLen)
+	end := int(addr) + int(frameSize)
 
 	return Frame{
 		Buf:  s.umem[start:end],
@@ -1002,6 +1063,8 @@ func (s *Socket) NextFrame() Frame {
 }
 
 // Submit publishes the frame to the TX ring.
+// When TX metadata headroom is reserved, the descriptor addr is adjusted
+// to point past the metadata region to the packet data.
 func (s *Socket) Submit(addr uint64, length uint32) error {
 	var idx uint32
 
@@ -1016,9 +1079,42 @@ func (s *Socket) Submit(addr uint64, length uint32) error {
 	}
 
 	d := &s.tx.descs[idx&s.tx.mask]
-	d.Addr = addr
+	d.Addr = addr + uint64(s.txMetadataLen)
 	d.Len = length
 	d.Options = 0
+	return nil
+}
+
+// SubmitCsumOffload publishes the frame to the TX ring with checksum offload metadata.
+// It writes the xsk_tx_metadata struct into the metadata region preceding the packet
+// data and sets XDP_TX_METADATA in the descriptor options.
+//
+// csumStart is the offset from the start of the packet (not the metadata) to where
+// checksumming begins (typically the UDP header offset).
+// csumOffset is the offset from csumStart to the checksum field (6 for UDP).
+func (s *Socket) SubmitCsumOffload(addr uint64, length uint32, csumStart, csumOffset uint16) error {
+	var idx uint32
+
+	for reserveTx(s.tx, 1, &idx) <= 0 {
+		if s.PollCompletions(s.conf.BatchSize) == 0 {
+			if err := wakeupTxQueue(s.fd); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Write xsk_tx_metadata into the UMEM region preceding the packet data.
+	// Layout (16 bytes): flags(8) + csum_start(2) + csum_offset(2) + pad(4)
+	mdStart := int(addr)
+	binary.LittleEndian.PutUint64(s.umem[mdStart:], unix.XDP_TXMD_FLAGS_CHECKSUM)
+	binary.LittleEndian.PutUint16(s.umem[mdStart+8:], csumStart)
+	binary.LittleEndian.PutUint16(s.umem[mdStart+10:], csumOffset)
+	// bytes 12-15 are padding, leave as-is.
+
+	d := &s.tx.descs[idx&s.tx.mask]
+	d.Addr = addr + uint64(s.txMetadataLen) // Packet data starts after metadata.
+	d.Len = length
+	d.Options = unix.XDP_TX_METADATA
 	return nil
 }
 
@@ -1041,9 +1137,10 @@ retry:
 	}
 
 	base := idx & s.tx.mask
+	mdOff := uint64(s.txMetadataLen)
 	for i := range n {
 		d := &s.tx.descs[(base+uint32(i))&s.tx.mask]
-		d.Addr = addrs[i]
+		d.Addr = addrs[i] + mdOff
 		d.Len = lens[i]
 		d.Options = 0
 	}
@@ -1071,10 +1168,11 @@ func (s *Socket) PollCompletions(maxFrames uint32) uint32 {
 	maxFrames = min(maxFrames, uint32(len(s.compBuf)))
 
 	n := umemCompleteFromKernel(s.cq, s.compBuf, maxFrames)
+	mdOff := uint64(s.txMetadataLen)
 	for i := range n {
-		// cap(freeFrames) was pre-allocated to the total TX pool size,
-		// so this will not allocate as long as we don't exceed that.
-		s.freeFrames = append(s.freeFrames, s.compBuf[i])
+		// The completion ring returns d.Addr which was offset by txMetadataLen
+		// in Submit/SubmitCsumOffload. Subtract it to recover the frame base address.
+		s.freeFrames = append(s.freeFrames, s.compBuf[i]-mdOff)
 	}
 	return n
 }

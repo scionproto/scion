@@ -27,6 +27,8 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
+	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/checksum"
+	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers"
 )
 
 // linkInternal is a link without a fixed remote address.
@@ -79,32 +81,32 @@ func (l *linkInternal) packHeader() {
 	srcPort := l.localAddr.Port()
 
 	if l.is4 {
-		l.header = make([]byte, ethLen+ipv4Len+udpLen)
+		l.header = make([]byte, headers.LenEth+headers.LenIPv4+headers.LenUDP)
 
 		// Ethernet: dst MAC (zero, patched later), src MAC, IPv4 ethertype
 		copy(l.header[0:6], zeroMacAddr[:])
 		copy(l.header[6:12], l.txConns[0].localMAC)
-		binary.BigEndian.PutUint16(l.header[12:14], 0x0800)
+		binary.BigEndian.PutUint16(l.header[12:14], headers.EtherTypeIPv4)
 
 		// IPv4 header template
-		buildIPv4Header(l.header[ethLen:], srcIP.As4(), [4]byte{}, 0)
+		headers.BuildIPv4(l.header[headers.LenEth:], srcIP.As4(), [4]byte{}, 0)
 
 		// UDP header template (only src port known)
-		buildUDPHeader(l.header[ethLen+ipv4Len:], srcPort, 0, 0)
+		headers.BuildUDP(l.header[headers.LenEth+headers.LenIPv4:], srcPort, 0, 0)
 
 	} else {
-		l.header = make([]byte, ethLen+ipv6Len+udpLen)
+		l.header = make([]byte, headers.LenEth+headers.LenIPv6+headers.LenUDP)
 
 		// Ethernet: dst MAC (zero, patched later), src MAC, IPv6 ethertype
 		copy(l.header[0:6], zeroMacAddr[:])
 		copy(l.header[6:12], l.txConns[0].localMAC)
-		binary.BigEndian.PutUint16(l.header[12:14], 0x86DD)
+		binary.BigEndian.PutUint16(l.header[12:14], headers.EtherTypeIPv6)
 
 		// IPv6 header template
-		buildIPv6Header(l.header[ethLen:], srcIP.As16(), [16]byte{}, 0)
+		headers.BuildIPv6(l.header[headers.LenEth:], srcIP.As16(), [16]byte{}, 0)
 
 		// UDP header template
-		buildUDPHeader(l.header[ethLen+ipv6Len:], srcPort, 0, 0)
+		headers.BuildUDP(l.header[headers.LenEth+headers.LenIPv6:], srcPort, 0, 0)
 	}
 }
 
@@ -112,7 +114,7 @@ func (l *linkInternal) packHeader() {
 // On success (true), the packet is ready to send and the caller owns it.
 // On failure (false), the packet has already been disposed of (backlogged or
 // returned to pool); the caller must not touch it.
-func (l *linkInternal) finishPacket(p *router.Packet) bool {
+func (l *linkInternal) finishPacket(p *router.Packet, csumOffload bool) bool {
 	dstIPBytes, dstPort := getRemoteAddr(p, l.is4)
 	dstIP, ok := netip.AddrFromSlice(dstIPBytes)
 	if !ok {
@@ -141,63 +143,56 @@ func (l *linkInternal) finishPacket(p *router.Packet) bool {
 
 	payloadLen := len(p.RawPacket)
 
-	// Prepend the header template
 	p.RawPacket = p.WithHeader(len(l.header))
 	copy(p.RawPacket, l.header)
-
-	// Patch destination MAC
 	copy(p.RawPacket[0:6], dstMac[:])
 
 	if l.is4 {
-		// Patch destination IP
-		copy(p.RawPacket[ethLen+16:ethLen+20], dstIPBytes)
+		copy(p.RawPacket[headers.LenEth+16:headers.LenEth+20], dstIPBytes)
 
-		// Fix IPv4 total length
-		ipTotalLen := ipv4Len + udpLen + payloadLen
-		binary.BigEndian.PutUint16(p.RawPacket[ethLen+2:], uint16(ipTotalLen))
-
-		// Fix destination port
-		binary.BigEndian.PutUint16(p.RawPacket[ethLen+ipv4Len+2:], dstPort)
-
-		// Fix UDP length
+		ipTotalLen := headers.LenIPv4 + headers.LenUDP + payloadLen
+		binary.BigEndian.PutUint16(p.RawPacket[headers.LenEth+2:], uint16(ipTotalLen))
+		binary.BigEndian.PutUint16(p.RawPacket[headers.LenEth+headers.LenIPv4+2:], dstPort)
 		binary.BigEndian.PutUint16(
-			p.RawPacket[ethLen+ipv4Len+4:], uint16(udpLen+payloadLen),
+			p.RawPacket[headers.LenEth+headers.LenIPv4+4:], uint16(headers.LenUDP+payloadLen),
 		)
 
-		// Recompute IPv4 header checksum
-		p.RawPacket[ethLen+10] = 0
-		p.RawPacket[ethLen+11] = 0
-		csum := ipv4Checksum(p.RawPacket[ethLen : ethLen+ipv4Len])
-		binary.BigEndian.PutUint16(p.RawPacket[ethLen+10:], csum)
+		// IPv4 header checksum is always computed in software: 20 bytes is too
+		// cheap to be worth offloading, and the NIC metadata path only covers
+		// the L4 checksum.
+		p.RawPacket[headers.LenEth+10] = 0
+		p.RawPacket[headers.LenEth+11] = 0
+		csum := checksum.IPv4Header(p.RawPacket[headers.LenEth : headers.LenEth+headers.LenIPv4])
+		binary.BigEndian.PutUint16(p.RawPacket[headers.LenEth+10:], csum)
 
-		// IPv4 UDP checksum is optional
-		p.RawPacket[ethLen+ipv4Len+6] = 0
-		p.RawPacket[ethLen+ipv4Len+7] = 0
+		// IPv4 UDP checksum is optional (RFC 768), so we leave it zero.
+		p.RawPacket[headers.LenEth+headers.LenIPv4+6] = 0
+		p.RawPacket[headers.LenEth+headers.LenIPv4+7] = 0
 	} else {
-		// Patch destination IP
-		copy(p.RawPacket[ethLen+24:ethLen+40], dstIPBytes)
+		copy(p.RawPacket[headers.LenEth+24:headers.LenEth+40], dstIPBytes)
 
-		// Fix IPv6 payload length
-		binary.BigEndian.PutUint16(p.RawPacket[ethLen+4:], uint16(udpLen+payloadLen))
-
-		// Fix destination port
-		udpOff := ethLen + ipv6Len
+		udpTotalLen := headers.LenUDP + payloadLen
+		binary.BigEndian.PutUint16(p.RawPacket[headers.LenEth+4:], uint16(udpTotalLen))
+		udpOff := headers.LenEth + headers.LenIPv6
 		binary.BigEndian.PutUint16(p.RawPacket[udpOff+2:], dstPort)
-
-		// Fix UDP length
-		binary.BigEndian.PutUint16(p.RawPacket[udpOff+4:], uint16(udpLen+payloadLen))
-
-		// Zero checksum for computation
+		binary.BigEndian.PutUint16(p.RawPacket[udpOff+4:], uint16(udpTotalLen))
 		p.RawPacket[udpOff+6] = 0
 		p.RawPacket[udpOff+7] = 0
 
-		// Compute IPv6 UDP checksum (mandatory)
 		srcIP := l.localAddr.Addr().As16()
 		dstIP6 := dstIP.As16()
-		csum := udp6Checksum(srcIP, dstIP6,
-			p.RawPacket[udpOff:udpOff+udpLen],
-			p.RawPacket[udpOff+udpLen:])
-		binary.BigEndian.PutUint16(p.RawPacket[udpOff+6:], csum)
+
+		if csumOffload {
+			// Seed the UDP checksum field with the pseudo-header partial sum; the
+			// NIC folds in the rest at TX time.
+			csum := checksum.UDP6Pseudo(srcIP, dstIP6, udpTotalLen)
+			binary.BigEndian.PutUint16(p.RawPacket[udpOff+6:], csum)
+		} else {
+			csum := checksum.UDP6(srcIP, dstIP6,
+				p.RawPacket[udpOff:udpOff+headers.LenUDP],
+				p.RawPacket[udpOff+headers.LenUDP:])
+			binary.BigEndian.PutUint16(p.RawPacket[udpOff+6:], csum)
+		}
 	}
 	return true
 }
@@ -319,7 +314,7 @@ func (l *linkInternal) sendBacklog(dstAddr netip.Addr) {
 			}
 			// Compute connection index BEFORE finishPacket prepends headers.
 			connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
-			if !l.finishPacket(p) {
+			if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 				givenup = true
 				continue
 			}
@@ -339,7 +334,7 @@ func (l *linkInternal) sendBacklog(dstAddr netip.Addr) {
 func (l *linkInternal) Send(p *router.Packet) bool {
 	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
-	if !l.finishPacket(p) {
+	if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 		return false
 	}
 	select {
@@ -356,7 +351,7 @@ func (l *linkInternal) Send(p *router.Packet) bool {
 func (l *linkInternal) SendBlocking(p *router.Packet) {
 	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
-	if l.finishPacket(p) {
+	if l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 		l.txConns[connIdx].queue <- p
 	}
 }

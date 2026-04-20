@@ -19,6 +19,7 @@ import (
 	"hash"
 	"net"
 	"net/netip"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -104,6 +105,39 @@ func InternalIPPort(AS byte, routerIndex byte) (netip.Addr, layers.UDPPort) {
 	return InternalIP(AS, routerIndex), layers.UDPPort(30042)
 }
 
+// PublicIP6 returns an IPv6 address for the external interface.
+// Scheme: fd00:10:123:SS::LL where SS=subnet(max(local,remote)), LL=localAS.
+func PublicIP6(localAS byte, remoteAS byte) netip.Addr {
+	if addrOverride, found := pubIPoverrides[int(localAS)][int(remoteAS)]; found {
+		return addrOverride
+	}
+	subnetNr := max(remoteAS, localAS)
+	return netip.AddrFrom16([16]byte{
+		0xfd, 0x00, 0x00, 0x10, 0x01, 0x23, 0x00, subnetNr,
+		0, 0, 0, 0, 0, 0, 0, localAS,
+	})
+}
+
+func PublicIP6Port(localAS byte, remoteAS byte) (netip.Addr, layers.UDPPort) {
+	return PublicIP6(localAS, remoteAS), layers.UDPPort(50000)
+}
+
+// InternalIP6 returns an IPv6 address for the internal interface.
+// Scheme: fd00:10:123:A0::RR where A0=AS*10, RR=routerIndex.
+func InternalIP6(AS byte, routerIndex byte) netip.Addr {
+	if addrOverride, found := intIPoverrides[int(AS)][int(routerIndex)]; found {
+		return addrOverride
+	}
+	return netip.AddrFrom16([16]byte{
+		0xfd, 0x00, 0x00, 0x10, 0x01, 0x23, 0x00, AS * 10,
+		0, 0, 0, 0, 0, 0, 0, routerIndex,
+	})
+}
+
+func InternalIP6Port(AS byte, routerIndex byte) (netip.Addr, layers.UDPPort) {
+	return InternalIP6(AS, routerIndex), layers.UDPPort(30042)
+}
+
 // isdAS returns a complete string form ISD/AS number for the given AS index.
 // All are in ISD-1, except AS 4.
 func ISDAS(AS byte) addr.IA {
@@ -143,6 +177,35 @@ func Underlay(
 		DstIP:    dstIP.AsSlice(),
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
+	}
+	udp := &layers.UDP{
+		SrcPort: srcPort,
+		DstPort: dstPort,
+	}
+	_ = udp.SetNetworkLayerForChecksum(ip)
+
+	return ethernet, ip, udp
+}
+
+// Underlay6 constructs an IPv6 underlay (Ethernet + IPv6 + UDP) for benchmark packets.
+func Underlay6(
+	srcIP netip.Addr,
+	srcPort layers.UDPPort,
+	dstIP netip.Addr,
+	dstPort layers.UDPPort) (*layers.Ethernet, *layers.IPv6, *layers.UDP) {
+
+	ethernet := &layers.Ethernet{
+		SrcMAC:       MACAddr(srcIP),
+		DstMAC:       MACAddr(dstIP),
+		EthernetType: layers.EthernetTypeIPv6,
+	}
+
+	ip := &layers.IPv6{
+		Version:    6,
+		HopLimit:   64,
+		SrcIP:      srcIP.AsSlice(),
+		DstIP:      dstIP.AsSlice(),
+		NextHeader: layers.IPProtocolUDP,
 	}
 	udp := &layers.UDP{
 		SrcPort: srcPort,
@@ -208,10 +271,8 @@ func InitPubIPoverrides(pairs []string) {
 			pubIPoverrides[localAS] = make(map[int]netip.Addr)
 		}
 		pubIPoverrides[localAS][remoteAS] = IP
-		fmt.Printf("pubIpOverride: localAS %d remoteAS %d IP %s\n", localAS, remoteAS, IP.String())
-		if err != nil {
-			panic(err)
-		}
+		fmt.Printf("pubIpOverride: localAS %d remoteAS %d IP %s\n",
+			localAS, remoteAS, IP.String())
 	}
 }
 
@@ -240,9 +301,6 @@ func InitIntIPoverrides(pairs []string) {
 		}
 		fmt.Printf("intIpOverride: AS %d router %d IP %s\n", AS, routerNb, IP.String())
 		intIPoverrides[AS][routerNb] = IP
-		if err != nil {
-			panic(err)
-		}
 	}
 }
 
@@ -251,6 +309,14 @@ func InitIntfMap() {
 		interfaceLabel(1, 0): {InternalIP(1, 1), InternalIP(1, 2), true},
 		interfaceLabel(1, 2): {PublicIP(1, 2), PublicIP(2, 1), false},
 		interfaceLabel(1, 3): {PublicIP(1, 3), PublicIP(3, 1), false},
+	}
+}
+
+func InitIntfMap6() {
+	intfMap = map[string]intfDesc{
+		interfaceLabel(1, 0): {InternalIP6(1, 1), InternalIP6(1, 2), true},
+		interfaceLabel(1, 2): {PublicIP6(1, 2), PublicIP6(2, 1), false},
+		interfaceLabel(1, 3): {PublicIP6(1, 3), PublicIP6(3, 1), false},
 	}
 }
 
@@ -292,57 +358,124 @@ func InitInterfaces(pairs []string) []string {
 			}
 		}
 
-		// The subject's MAC needs to be arp'ed.
-		arpClient, err := arp.Dial(device)
-		if err != nil {
-			panic(err)
+		if subjectIP.Is4() {
+			// IPv4: use ARP to resolve the subject's MAC.
+			subjectMAC := resolveARP(device, subjectIP, peerIP, peerMAC)
+			macAddrs[subjectIP] = subjectMAC
+			macAddrs[peerIP] = peerMAC
+		} else {
+			// IPv6: use NDP (via kernel) to resolve the subject's MAC.
+			subjectMAC := resolveNDP(name, subjectIP, peerIP, peerMAC)
+			macAddrs[subjectIP] = subjectMAC
+			macAddrs[peerIP] = peerMAC
 		}
-		err = arpClient.SetReadDeadline(time.Now().Add(5 * time.Second))
-		if err != nil {
-			panic(err)
-		}
-		subjectMAC, err := arpClient.Resolve(subjectIP)
-		if err != nil {
-			panic(err)
-		}
-
-		// Done.
-		macAddrs[subjectIP] = subjectMAC // ip->mac (side of router under test)
-		macAddrs[peerIP] = peerMAC       // peerIP->peerMAC (side mocked by brload)
-
-		// Respond to arp requests so there's no need to add a static arp entry on the router
-		// side. We can't assign our address to the interface, so the kernel won't do that for us.
-		err = arpClient.SetReadDeadline(time.Time{})
-		if err != nil {
-			panic(err)
-		}
-		go func() {
-			defer log.HandlePanic()
-			// We only respond to the subject, so the reply is always the same.
-			reply := arp.Packet{
-				HardwareType:       1,
-				ProtocolType:       uint16(ethernet.EtherTypeIPv4),
-				HardwareAddrLength: 6,
-				IPLength:           4,
-				Operation:          arp.OperationReply,
-				SenderHardwareAddr: peerMAC, // peer is us.
-				SenderIP:           peerIP,  // peer is us
-				TargetHardwareAddr: subjectMAC,
-				TargetIP:           subjectIP,
-			}
-			for {
-				p, _, err := arpClient.Read()
-				if err == nil && p.SenderIP == subjectIP {
-					_ = arpClient.WriteTo(&reply, subjectMAC)
-				}
-			}
-		}()
 	}
 	deduped := make([]string, 0, len(asSet))
 	for n := range asSet {
 		deduped = append(deduped, n)
 	}
 	return deduped
+}
+
+// resolveARP resolves the subject's MAC via ARP and starts a background goroutine
+// that responds to ARP requests from the subject.
+func resolveARP(
+	device *net.Interface,
+	subjectIP netip.Addr,
+	peerIP netip.Addr,
+	peerMAC net.HardwareAddr,
+) net.HardwareAddr {
+	arpClient, err := arp.Dial(device)
+	if err != nil {
+		panic(err)
+	}
+	err = arpClient.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if err != nil {
+		panic(err)
+	}
+	subjectMAC, err := arpClient.Resolve(subjectIP)
+	if err != nil {
+		panic(fmt.Sprintf("read packet %s: %v", peerMAC, err))
+	}
+
+	// Respond to ARP requests so there's no need to add a static arp entry on the router side.
+	err = arpClient.SetReadDeadline(time.Time{})
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		defer log.HandlePanic()
+		reply := arp.Packet{
+			HardwareType:       1,
+			ProtocolType:       uint16(ethernet.EtherTypeIPv4),
+			HardwareAddrLength: 6,
+			IPLength:           4,
+			Operation:          arp.OperationReply,
+			SenderHardwareAddr: peerMAC,
+			SenderIP:           peerIP,
+			TargetHardwareAddr: subjectMAC,
+			TargetIP:           subjectIP,
+		}
+		for {
+			p, _, err := arpClient.Read()
+			if err == nil && p.SenderIP == subjectIP {
+				_ = arpClient.WriteTo(&reply, subjectMAC)
+			}
+		}
+	}()
+	return subjectMAC
+}
+
+// resolveNDP resolves the subject's MAC via NDP (kernel-assisted).
+// It assigns the peer IPv6 address to the interface, pings the subject to trigger NDP,
+// reads the neighbor table, then removes the address. A static neighbor entry is added
+// for the peer so the router can reach us without kernel-assigned addresses.
+func resolveNDP(
+	name string,
+	subjectIP netip.Addr,
+	peerIP netip.Addr,
+	peerMAC net.HardwareAddr,
+) net.HardwareAddr {
+	// Assign the peer IP so the kernel can do NDP.
+	cidr := fmt.Sprintf("%s/64", peerIP.String())
+	_ = exec.Command("ip", "addr", "add", cidr, "dev", name).Run()
+
+	// Flush any FAILED entries for this subject so NDP can retry.
+	_ = exec.Command("ip", "-6", "neigh", "del", subjectIP.String(), "dev", name).Run()
+
+	// Ping the subject to trigger NDP neighbor solicitation.
+	_ = exec.Command("ping", "-6", "-c", "3", "-W", "2",
+		"-I", name, subjectIP.String()).Run()
+
+	// Read the neighbor table to get the resolved MAC.
+	out, err := exec.Command("ip", "neigh", "show", subjectIP.String(),
+		"dev", name).CombinedOutput()
+	if err != nil {
+		panic(fmt.Sprintf("ip neigh show %s dev %s: %s %v", subjectIP, name, out, err))
+	}
+
+	// Parse: "fd00:10:123:3::1 dev center_1 lladdr 58:a2:e1:04:a9:9a REACHABLE"
+	fields := strings.Fields(strings.TrimSpace(string(out)))
+	macIdx := -1
+	for i, f := range fields {
+		if f == "lladdr" && i+1 < len(fields) {
+			macIdx = i + 1
+			break
+		}
+	}
+	if macIdx < 0 {
+		panic(fmt.Sprintf("NDP resolution failed for %s on %s: %s", subjectIP, name, out))
+	}
+	subjectMAC, err := net.ParseMAC(fields[macIdx])
+	if err != nil {
+		panic(fmt.Sprintf("parsing MAC %q: %v", fields[macIdx], err))
+	}
+
+	// Add a static neighbor entry for the peer (us) so the router can reach brload.
+	_ = exec.Command("ip", "neigh", "replace", peerIP.String(),
+		"lladdr", peerMAC.String(), "dev", name, "nud", "permanent").Run()
+
+	return subjectMAC
 }
 
 // interfaceName returns the name of the host interface that this test must use in order to exchange
@@ -360,11 +493,16 @@ func MACAddr(ip netip.Addr) net.HardwareAddr {
 	if ok {
 		return mac
 	}
-	as4 := ip.As4()
 
 	// This component makes no assumption regarding how the topology is used. We have to support all
 	// hosts that the topology describes, even fictional ones, should a test case refer to it.
-	return net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, as4[2], as4[3]}
+	if ip.Is4() {
+		as4 := ip.As4()
+		return net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, as4[2], as4[3]}
+	}
+	// IPv6: use the last two bytes of the address.
+	as16 := ip.As16()
+	return net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, as16[14], as16[15]}
 }
 
 // hostAddr returns a the SCION Hosts addresse that corresponds to the given underlay address.
@@ -382,9 +520,13 @@ func HostAddr(ip netip.Addr) addr.Host {
 func ListInterfaces() string {
 	var sb strings.Builder
 	for l, i := range intfMap {
+		prefixLen := "24"
+		if i.ip.Is6() {
+			prefixLen = "64"
+		}
 		sb.WriteString(l)
 		sb.WriteString(",")
-		sb.WriteString("24")
+		sb.WriteString(prefixLen)
 		sb.WriteString(",")
 		sb.WriteString(i.ip.String())
 		sb.WriteString(",")

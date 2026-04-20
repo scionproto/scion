@@ -37,20 +37,11 @@ import (
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
+	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers"
 )
 
-const (
-	ethLen      = 14
-	ipv4Len     = 20
-	ipv6Len     = 40
-	ipv6AddrLen = 16
-
-	udpLen  = 8
-	portLen = 2
-
-	// AF_XDP specific default for connection receive batch size.
-	defaultBatchSize = 64
-)
+// AF_XDP specific default for connection receive batch size.
+const defaultBatchSize = 64
 
 var (
 	errResolveOnNonInternalLink = errors.New(
@@ -118,7 +109,8 @@ func (uo udpOpener) Open(
 	log.Debug("Opened AF_XDP socket",
 		"queue", queueID,
 		"zerocopy", socket.IsZerocopy(),
-		"hugepages", socket.IsHugepages())
+		"hugepages", socket.IsHugepages(),
+		"csum_offload", socket.IsCsumOffload())
 	return socket, nil
 }
 
@@ -193,8 +185,9 @@ func (u *underlay) NumConnections() int {
 
 func (u *underlay) Headroom() int {
 	// Enough headroom for ethernet + max(ip) + udp headers on outgoing packets.
-	// We add src address + port for internal links (packet.HeadBytes storage).
-	return ethLen + ipv6Len + udpLen + ipv6AddrLen + portLen
+	// For internal links, setRemoteAddr stores dst IP + dst port (16 + 2 bytes
+	// for IPv6) in the headroom via packet.HeadBytes.
+	return headers.LenEth + headers.LenIPv6 + headers.LenUDP + net.IPv6len + 2
 }
 
 // applyPreferences updates the connOpener with preferences from the given options.
@@ -346,15 +339,25 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	if len(data) < slayers.CmnHdrLen {
 		return 0, errShortPacket
 	}
-	dstHostAddrLen := slayers.AddrType(data[9] >> 4 & 0xf).Length()
-	srcHostAddrLen := slayers.AddrType(data[9] & 0xf).Length()
+	// SCION common header layout, see
+	// https://docs.scion.org/en/latest/protocols/scion-header.html#common-header
+	// Byte 9 holds DT|DL in bits 7..4 and ST|SL in bits 3..0.
+	const addrTypeByteOff = 9
+	addrTypeByte := data[addrTypeByteOff]
+	dstHostAddrLen := slayers.AddrType((addrTypeByte >> 4) & 0xf).Length()
+	srcHostAddrLen := slayers.AddrType(addrTypeByte & 0xf).Length()
 	addrHdrLen := 2*addr.IABytes + srcHostAddrLen + dstHostAddrLen
 	if len(data) < slayers.CmnHdrLen+addrHdrLen {
 		return 0, errShortPacket
 	}
 
+	// Hash the 20-bit FlowID (bits 12..31 of the common header): the low 4
+	// bits of byte 1 followed by bytes 2..3. Then mix in the full Address
+	// Header (src/dst IA + host addrs) that follows the common header.
+	const flowIDHighByte = 1
+	flowIDHigh := data[flowIDHighByte] & 0x0F
 	s := hashSeed
-	s = router.HashFNV1a(s, data[1]&0xF)
+	s = router.HashFNV1a(s, flowIDHigh)
 	for _, c := range data[2:4] {
 		s = router.HashFNV1a(s, c)
 	}
@@ -365,8 +368,8 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	return s % uint32(numProcRoutines), nil
 }
 
-// computeConnIdx hashes the SCION flow ID and addresses to select a connection
-// for TX. This ensures packets from the same flow always use the same queue,
+// computeConnIdx hashes the SCION flow ID and addresses to select a connection for TX.
+// This ensures packets from the same flow always use the same queue,
 // preventing reordering.
 func computeConnIdx(data []byte, numConns int, seed uint32) int {
 	if numConns <= 1 {
@@ -379,8 +382,9 @@ func computeConnIdx(data []byte, numConns int, seed uint32) int {
 	return int(idx)
 }
 
-// detectQueues reads sysfs to discover available RX and TX queues for a network interface.
-// Returns sorted lists of queue IDs. Each falls back to [0] independently if detection fails.
+// detectQueues reads sysfs to discover available RX and TX queues for
+// a network interface. Returns sorted lists of queue IDs.
+// Each falls back to [0] independently if detection fails.
 func detectQueues(ifName string) (rx, tx []uint32) {
 	entries, err := os.ReadDir(fmt.Sprintf("/sys/class/net/%s/queues", ifName))
 	if err != nil {
@@ -391,14 +395,14 @@ func detectQueues(ifName string) (rx, tx []uint32) {
 
 	for _, e := range entries {
 		name := e.Name()
-		if strings.HasPrefix(name, "rx-") {
-			id, err := strconv.ParseUint(strings.TrimPrefix(name, "rx-"), 10, 32)
+		if after, ok := strings.CutPrefix(name, "rx-"); ok {
+			id, err := strconv.ParseUint(after, 10, 32)
 			if err != nil {
 				continue
 			}
 			rx = append(rx, uint32(id))
-		} else if strings.HasPrefix(name, "tx-") {
-			id, err := strconv.ParseUint(strings.TrimPrefix(name, "tx-"), 10, 32)
+		} else if after0, ok0 := strings.CutPrefix(name, "tx-"); ok0 {
+			id, err := strconv.ParseUint(after0, 10, 32)
 			if err != nil {
 				continue
 			}

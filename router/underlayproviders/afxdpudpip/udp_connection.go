@@ -18,6 +18,7 @@ package afxdpudpip
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"net"
 	"net/netip"
 	"sync/atomic"
@@ -25,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/private/underlay/afxdp"
 	"github.com/scionproto/scion/router"
+	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers"
 )
 
 // addrPort is like netip.AddrPort but with mutable (for us) fields.
@@ -59,6 +61,7 @@ type udpConnection struct {
 	senderDone   chan struct{}
 	seed         uint32
 	running      atomic.Bool
+	csumOffload  bool // If true, use SubmitCsumOffload for IPv6 TX packets.
 	queueID      uint32
 	ifIndex      int // Kernel interface index for neighbor filtering.
 }
@@ -106,7 +109,7 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 	frameBuffer := make([]afxdp.Frame, defaultBatchSize)
 
 	// Minimum headroom assuming IPv4 (we adjust for actual headers later).
-	minHeadRoom := ethLen + ipv4Len + udpLen
+	minHeadRoom := headers.LenEth + headers.LenIPv4 + headers.LenUDP
 
 	// Reusable packet buffer - reset and reuse until delivered.
 	p := pool.Get()
@@ -157,55 +160,54 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 // dispatchPacket parses and dispatches a received packet to the appropriate link.
 // Returns true if the packet was delivered (caller needs new buffer).
 func (u *udpConnection) dispatchPacket(p *router.Packet, data []byte) bool {
-	if len(data) < ethLen {
+	if len(data) < headers.LenEth {
 		return false
 	}
 
-	// Parse Ethernet header (raw).
-	etherType := uint16(data[12])<<8 | uint16(data[13])
+	etherType := binary.BigEndian.Uint16(data[12:14])
 
 	var srcDst fourTuple
 	var srcIPBytes []byte
 	var payloadOffset int
 
 	switch etherType {
-	case 0x0800: // IPv4
-		if len(data) < ethLen+ipv4Len {
+	case headers.EtherTypeIPv4:
+		if len(data) < headers.LenEth+headers.LenIPv4 {
 			return false
 		}
-		ipHdrLen := int(data[ethLen]&0x0F) * 4
-		if ipHdrLen < ipv4Len || len(data) < ethLen+ipHdrLen+udpLen {
+		ipHdrLen := int(data[headers.LenEth]&0x0F) * 4
+		if ipHdrLen < headers.LenIPv4 || len(data) < headers.LenEth+ipHdrLen+headers.LenUDP {
 			return false
 		}
-		if data[ethLen+9] != 17 { // Not UDP
-			return false
-		}
-
-		srcDst.src.ip = netip.AddrFrom4([4]byte(data[ethLen+12 : ethLen+16]))
-		srcDst.dst.ip = netip.AddrFrom4([4]byte(data[ethLen+16 : ethLen+20]))
-		srcIPBytes = data[ethLen+12 : ethLen+16]
-
-		udpStart := ethLen + ipHdrLen
-		payloadOffset = udpStart + udpLen
-		srcDst.src.port = uint16(data[udpStart])<<8 | uint16(data[udpStart+1])
-		srcDst.dst.port = uint16(data[udpStart+2])<<8 | uint16(data[udpStart+3])
-
-	case 0x86DD: // IPv6
-		if len(data) < ethLen+ipv6Len+udpLen {
-			return false
-		}
-		if data[ethLen+6] != 17 { // Not UDP
+		if data[headers.LenEth+9] != headers.IPProtoUDP {
 			return false
 		}
 
-		srcDst.src.ip = netip.AddrFrom16([16]byte(data[ethLen+8 : ethLen+24]))
-		srcDst.dst.ip = netip.AddrFrom16([16]byte(data[ethLen+24 : ethLen+40]))
-		srcIPBytes = data[ethLen+8 : ethLen+24]
+		srcDst.src.ip = netip.AddrFrom4([4]byte(data[headers.LenEth+12 : headers.LenEth+16]))
+		srcDst.dst.ip = netip.AddrFrom4([4]byte(data[headers.LenEth+16 : headers.LenEth+20]))
+		srcIPBytes = data[headers.LenEth+12 : headers.LenEth+16]
 
-		udpStart := ethLen + ipv6Len
-		payloadOffset = udpStart + udpLen
-		srcDst.src.port = uint16(data[udpStart])<<8 | uint16(data[udpStart+1])
-		srcDst.dst.port = uint16(data[udpStart+2])<<8 | uint16(data[udpStart+3])
+		udpStart := headers.LenEth + ipHdrLen
+		payloadOffset = udpStart + headers.LenUDP
+		srcDst.src.port = binary.BigEndian.Uint16(data[udpStart : udpStart+2])
+		srcDst.dst.port = binary.BigEndian.Uint16(data[udpStart+2 : udpStart+4])
+
+	case headers.EtherTypeIPv6:
+		if len(data) < headers.LenEth+headers.LenIPv6+headers.LenUDP {
+			return false
+		}
+		if data[headers.LenEth+6] != headers.IPProtoUDP {
+			return false
+		}
+
+		srcDst.src.ip = netip.AddrFrom16([16]byte(data[headers.LenEth+8 : headers.LenEth+24]))
+		srcDst.dst.ip = netip.AddrFrom16([16]byte(data[headers.LenEth+24 : headers.LenEth+40]))
+		srcIPBytes = data[headers.LenEth+8 : headers.LenEth+24]
+
+		udpStart := headers.LenEth + headers.LenIPv6
+		payloadOffset = udpStart + headers.LenUDP
+		srcDst.src.port = binary.BigEndian.Uint16(data[udpStart : udpStart+2])
+		srcDst.dst.port = binary.BigEndian.Uint16(data[udpStart+2 : udpStart+4])
 
 	default:
 		// ARP/NDP are handled by kernel via XDP_PASS
@@ -291,8 +293,22 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			}
 
 			copy(frame.Buf[:len(raw)], raw)
-			if err := u.socket.Submit(frame.Addr, uint32(len(raw))); err != nil {
-				log.Debug("AF_XDP submit error", "err", err)
+
+			// Use checksum offload for IPv6 packets when supported.
+			var submitErr error
+			if u.csumOffload && len(raw) >= headers.LenEth &&
+				binary.BigEndian.Uint16(raw[12:14]) == headers.EtherTypeIPv6 {
+				// IPv6: csum_start is offset to UDP header, csum_offset is 6
+				// (the checksum field within the UDP header).
+				csumStart := uint16(headers.LenEth + headers.LenIPv6)
+				csumOffset := uint16(6)
+				submitErr = u.socket.SubmitCsumOffload(
+					frame.Addr, uint32(len(raw)), csumStart, csumOffset)
+			} else {
+				submitErr = u.socket.Submit(frame.Addr, uint32(len(raw)))
+			}
+			if submitErr != nil {
+				log.Debug("AF_XDP submit error", "err", submitErr)
 				sc := router.ClassOfSize(len(raw))
 				metrics[sc].DroppedPacketsBusyForwarder[pkts[i].TrafficType].Inc()
 				pool.Put(pkts[i])
@@ -363,6 +379,7 @@ func newUdpConnection(
 		queue:        queue,
 		metrics:      metrics,
 		seed:         makeHashSeed(),
+		csumOffload:  socket.IsCsumOffload(),
 		receiverDone: make(chan struct{}),
 		senderDone:   make(chan struct{}),
 		queueID:      queueID,

@@ -90,6 +90,7 @@ int bpf_sock_filter(struct xdp_md *ctx) {
   }
 
   __u8 ipproto;
+  int is_frag = 0;
   addrPort key = {0};
 
   // IPv4
@@ -103,6 +104,13 @@ int bpf_sock_filter(struct xdp_md *ctx) {
     // Forward non-UDP packets to kernel.
     if (ipproto != IPPROTO_UDP)
       return XDP_PASS;
+
+    // Detect IPv4 fragments: MF bit set or nonzero Fragment Offset.
+    // The mask 0x3FFF selects MF (0x2000) and the 13-bit offset (0x1FFF)
+    // while excluding DF (0x4000) and the reserved bit (0x8000).
+    // See https://www.rfc-editor.org/rfc/rfc791#section-3.1
+    __u16 frag_field = __builtin_bswap16(ip->frag_off);
+    is_frag = (frag_field & 0x3FFF) != 0;
 
     key.type = 4;
 
@@ -133,6 +141,12 @@ int bpf_sock_filter(struct xdp_md *ctx) {
     if (ipproto == IPPROTO_ICMPV6)
       return XDP_PASS;
 
+    // IPv6 fragments carry nexthdr=IPPROTO_FRAGMENT (44), not UDP (17), so
+    // they fall through the non-UDP XDP_PASS branch below rather than being
+    // dropped here. The kernel then discards them because no kernel socket
+    // is bound to our AF_XDP ports.
+    // See https://www.rfc-editor.org/rfc/rfc8200#section-4.5
+
     // Forward non-UDP packets to kernel.
     if (ipproto != IPPROTO_UDP)
       return XDP_PASS;
@@ -159,6 +173,15 @@ int bpf_sock_filter(struct xdp_md *ctx) {
   if (allowed == NULL) {
     // Not in our filter map - pass to kernel
     return XDP_PASS;
+  }
+
+  // The packet matches our filter, but fragments are never delivered to
+  // AF_XDP userspace: userspace has no reassembly state, and a first
+  // fragment would arrive as a truncated SCION packet. SCION negotiates
+  // path MTU end-to-end so a fragment here is a misconfigured peer, a
+  // non-conforming implementation, or adversarial traffic.
+  if (is_frag) {
+    return XDP_DROP;
   }
 
   // Redirect to AF_XDP socket for this queue
