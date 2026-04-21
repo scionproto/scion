@@ -31,6 +31,7 @@ The existing TRC Signing Ceremony Phases documents are listed here:
 
 * :ref:`trc-signing-ceremony-phases-base`
 * :doc:`trc-signing-ceremony-phases-sensitive`
+* :doc:`trc-signing-ceremony-phases-regular`
 
 Furthermore, the ceremony administrator should remind all voters that they need
 to agree on a common TRC policy before scheduling the TRC ceremony. Importantly,

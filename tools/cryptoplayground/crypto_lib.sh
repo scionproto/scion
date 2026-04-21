@@ -918,6 +918,56 @@ check_regular_vote() {
 # LITERALINCLUDE check_regular_vote END
 }
 
+regular_vote_scion_pki() {
+# LITERALINCLUDE regular_vote_scion_pki START
+    scion-pki trc sign $TRCID.pld.der \
+        $PUBDIR/$PREDID/regular-voting.crt \
+        $KEYDIR/$PREDID/regular-voting.key \
+        -o $TRCID.regular.vote.trc
+# LITERALINCLUDE regular_vote_scion_pki END
+}
+
+check_regular_vote_scion_pki() {
+# LITERALINCLUDE check_regular_vote_scion_pki START
+    scion-pki trc inspect $TRCID.regular.vote.trc
+# LITERALINCLUDE check_regular_vote_scion_pki END
+}
+
+sign_regular_payload() {
+# LITERALINCLUDE sign_regular_payload START
+    openssl cms -sign -in $TRCID.pld.der -inform der \
+        -signer $PUBDIR/regular-voting.crt \
+        -inkey $KEYDIR/regular-voting.key \
+        -nodetach -nocerts -nosmimecap -binary -outform der \
+        > $TRCID.regular.trc
+# LITERALINCLUDE sign_regular_payload END
+}
+
+sign_regular_payload_scion_pki() {
+# LITERALINCLUDE sign_regular_payload_scion_pki START
+    scion-pki trc sign $TRCID.pld.der \
+        $PUBDIR/regular-voting.crt \
+        $KEYDIR/regular-voting.key \
+        -o $TRCID.regular.trc
+# LITERALINCLUDE sign_regular_payload_scion_pki END
+}
+
+check_regular_signed_payload_scion_pki() {
+# LITERALINCLUDE check_regular_signed_payload_scion_pki START
+    scion-pki trc inspect $TRCID.regular.trc
+# LITERALINCLUDE check_regular_signed_payload_scion_pki END
+}
+
+check_regular_signed_payload() {
+# LITERALINCLUDE check_regular_signed_payload START
+    openssl cms -verify -in $TRCID.regular.trc -inform der \
+        -certfile $PUBDIR/regular-voting.crt \
+        -CAfile $PUBDIR/regular-voting.crt \
+        -purpose any -no_check_time \
+        > /dev/null
+# LITERALINCLUDE check_regular_signed_payload END
+}
+
 verify_trc() {
 # LITERALINCLUDE verify_trc START
     cat */*voting.crt >> bundle.crt
