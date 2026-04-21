@@ -6,7 +6,7 @@ TRC Signing Ceremony Phases - Regular Update
 
 .. highlight:: bash
 
-This documents outlines the steps each participant must go through when
+This document outlines the steps each participant must go through when
 participating in a TRC Signing Ceremony for a regular TRC Update.
 
 This document is organized by role. Please only refer to the section pertaining

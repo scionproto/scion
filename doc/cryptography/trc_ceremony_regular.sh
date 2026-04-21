@@ -16,14 +16,15 @@ set -e
 
 if [ ! -d "$SAFEDIR/admin" ]; then
     echo "##################################"
-    echo "# Running Base+Sensitive Ceremony #"
+    echo "# Running Prerequisite Ceremonies #"
+    echo "# (Base TRC + Sensitive Update)   #"
     echo "##################################"
     echo ""
 
     $PLAYGROUND/trc_ceremony_sensitive.sh
 
     echo "###################################"
-    echo "# Finished Base+Sensitive Ceremony #"
+    echo "# Finished Prerequisite Ceremonies #"
     echo "###################################"
     echo ""
 fi
