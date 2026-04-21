@@ -946,7 +946,7 @@ TRC Signing Ceremony - Script Builder
     EOF</div></pre></div>
 
                     <div x-show="cert.kms === 'pkcs11'" class="mb-4 text-slate-500">
-                        The private key is proviced via PKCS#11. The following
+                        The private key is provided via PKCS#11. The following
                         command requires that the key has already been created.
                         Follow the documentation of your KMS to create the key.
                     </div>
