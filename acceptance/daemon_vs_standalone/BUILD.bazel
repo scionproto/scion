@@ -1,7 +1,7 @@
-load("//acceptance/common:topogen.bzl", "topogen_test")
+load("//acceptance/common:topogen.bzl", "topogen_test_underlays")
 
 # Test with standalone daemon (embedded daemon using topology files) - default
-topogen_test(
+topogen_test_underlays(
     name = "test_standalone",
     src = "test.py",
     args = [
@@ -12,7 +12,7 @@ topogen_test(
 )
 
 # Test with remote daemon (connecting to sciond via gRPC)
-topogen_test(
+topogen_test_underlays(
     name = "test_daemon",
     src = "test.py",
     args = [

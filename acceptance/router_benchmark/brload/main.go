@@ -67,19 +67,28 @@ func (c *caseChoice) Allowed() string {
 
 var (
 	allCases = map[string]Case{
-		"in":          cases.In,
-		"out":         cases.Out,
-		"in_transit":  cases.InTransit,
-		"out_transit": cases.OutTransit,
-		"br_transit":  cases.BrTransit,
+		"in":            cases.In,
+		"out":           cases.Out,
+		"in_transit":    cases.InTransit,
+		"out_transit":   cases.OutTransit,
+		"br_transit":    cases.BrTransit,
+		"in6":           cases.In6,
+		"out6":          cases.Out6,
+		"in_transit6":   cases.InTransit6,
+		"out_transit6":  cases.OutTransit6,
+		"br_transit6":   cases.BrTransit6,
 	}
-	logConsole   string
-	dir          string
-	testDuration time.Duration
-	packetSize   int
-	numStreams   uint16
-	caseToRun    caseChoice
-	interfaces   []string
+	logConsole          string
+	dir                 string
+	testDuration        time.Duration
+	numPackets          int
+	packetSize          int
+	numStreams          uint16
+	caseToRun           caseChoice
+	interfaces          []string
+	internAddrOverrides []string
+	publicAddrOverrides []string
+	useIPv6             bool
 )
 
 func main() {
@@ -102,6 +111,7 @@ func main() {
 		},
 	}
 	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15, "Test duration")
+	runCmd.Flags().IntVar(&numPackets, "num-packets", -1, "Maximum number of packets")
 	runCmd.Flags().IntVar(&packetSize, "packet-size", 172, "Total size of each packet sent")
 	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
@@ -113,8 +123,25 @@ func main() {
 		`label=<host_interface>[,<MACaddr>] where <host_interface> is the host device that matches
  the <label> requirement from --show-interfaces and <MACaddr> is the local address to assume for it.
  <MACaddr> defaults to the real address assigned to the device`)
+	runCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override", []string{},
+		`<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of one router
+of that AS, and <IP addr> is the IP address assigned to the internal interface of that
+router`)
+	runCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override", []string{},
+		`<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers,
+and <IP addr> is the IP address assigned on the side of localAS`)
+	runCmd.Flags().BoolVar(&useIPv6, "ipv6", false, "Use IPv6 underlay addresses")
 	runCmd.MarkFlagRequired("case")
 	runCmd.MarkFlagRequired("interface")
+
+	intfCmd.Flags().BoolVar(&useIPv6, "ipv6", false, "Use IPv6 underlay addresses")
+	intfCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override", []string{},
+		`<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of one router
+of that AS, and <IP addr> is the IP address assigned to the internal interface of that
+router`)
+	intfCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override", []string{},
+		`<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers,
+and <IP addr> is the IP address assigned on the side of localAS`)
 
 	rootCmd.AddCommand(intfCmd)
 	rootCmd.AddCommand(runCmd)
@@ -127,8 +154,53 @@ func main() {
 }
 
 func showInterfaces(cmd *cobra.Command) int {
+	// Process overrides if any, and create the interfaces map
+	cases.InitIntIPoverrides(internAddrOverrides)
+	cases.InitPubIPoverrides(publicAddrOverrides)
+	if useIPv6 {
+		cases.InitIntfMap6()
+	} else {
+		cases.InitIntfMap()
+	}
+
 	fmt.Println(cases.ListInterfaces())
 	return 0
+}
+
+func rttCheck(
+	writePktTo *afpacket.TPacket,
+	packetChan chan gopacket.Packet,
+	rawPkt []byte,
+	payload []byte,
+) (time.Duration, error) {
+	// Zero the UDP checksum. For IPv4 it's optional (set to 0). For IPv6 it was already
+	// computed by gopacket during serialization, but we zero it here because the payload
+	// will be modified per-batch (flowID patching). The router's receiver doesn't validate
+	// the underlay UDP checksum.
+	udpCsumOff := underlayUDPChecksumOffset(rawPkt)
+	binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
+
+	// Prepare a batch of 1 packet.
+	allPkts := make([][]byte, 1)
+	allPkts[0] = make([]byte, len(rawPkt))
+	copy(allPkts[0], rawPkt)
+
+	// Share it with a multi-packets sender.
+	sender := newMpktSender(writePktTo)
+	sender.setPkts(allPkts)
+
+	// Send and receive just one packet. Measure the interval.
+	timeout := time.After(1 * time.Second)
+	begin := time.Now()
+	if _, err := sender.sendAll(); err != nil {
+		return time.Duration(0), err
+	}
+	select {
+	case <-packetChan:
+	case <-timeout:
+		return time.Duration(0), errors.New("listener never saw any packet")
+	}
+	return time.Since(begin), nil
 }
 
 func run(cmd *cobra.Command) int {
@@ -153,6 +225,15 @@ func run(cmd *cobra.Command) int {
 	if err != nil {
 		log.Error("Loading keys failed", "err", err)
 		return 1
+	}
+
+	// Process overrides if any, and create the interfaces map
+	cases.InitIntIPoverrides(internAddrOverrides)
+	cases.InitPubIPoverrides(publicAddrOverrides)
+	if useIPv6 {
+		cases.InitIntfMap6()
+	} else {
+		cases.InitIntfMap()
 	}
 
 	interfaceNames := cases.InitInterfaces(interfaces)
@@ -186,19 +267,26 @@ func run(cmd *cobra.Command) int {
 	packetChan := packetSource.Packets()
 	listenerChan := make(chan int)
 
+	// Zero the UDP checksum (see underlayUDPChecksumOffset for details).
+	udpCsumOff := underlayUDPChecksumOffset(rawPkt)
+	binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
+
+	// Measure the rtt with one packet.
+	rtt, err := rttCheck(writePktTo, packetChan, rawPkt, payload)
+	if err == nil {
+		fmt.Printf("rtt: %s\n", rtt.String())
+	} else {
+		fmt.Printf("rtt error: %s\n", err)
+	}
+
 	go func() {
 		defer log.HandlePanic()
 		defer close(listenerChan)
 		listenerChan <- receivePackets(packetChan, payload)
 	}()
 
-	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
-	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
-	// we don't need to update it.
-	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
-
 	// Prepare a batch worth of packets.
-	batchSize := int(8)
+	batchSize := int(64)
 	allPkts := make([][]byte, batchSize)
 	for i := range batchSize {
 		allPkts[i] = make([]byte, len(rawPkt))
@@ -215,21 +303,29 @@ func run(cmd *cobra.Command) int {
 	metricsBegin := begin.Unix()
 
 	numPkt := 0
+out:
 	for time.Since(begin) < testDuration {
 		// we break every 1000 batches to check the time
 		for range 1000 {
-			// Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
-			// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
-			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
-			// more than 64K flows).
+			// Rotate through flowIDs. We patch it directly into the SCION header of the packet.
+			// The SCION header starts after Ethernet + IP + UDP. The flowID is the 20 least
+			// significant bits of the first 32-bit field (+2 bytes into SCION header).
+			flowIDOff := underlayFlowIDOffset(allPkts[0])
 			for j := range batchSize {
-				binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
-				numPkt++
+				binary.BigEndian.PutUint16(allPkts[j][flowIDOff:flowIDOff+2],
+					uint16((numPkt+j)%int(numStreams)))
 			}
 
-			if _, err := sender.sendAll(); err != nil {
+			if n, err := sender.sendAll(); err == nil {
+				// n can be less than a batch if sendAll is made non-blocking.
+				numPkt += n
+			} else {
 				log.Error("writing input packet", "case", string(caseToRun), "error", err)
 				return 1
+			}
+			// We check packet count in one batch increment.
+			if numPackets > 0 && numPackets <= numPkt {
+				break out
 			}
 		}
 	}
@@ -248,7 +344,7 @@ func run(cmd *cobra.Command) int {
 		select {
 		case outcome = <-listenerChan:
 			if outcome == 0 {
-				log.Error("Listener never saw a valid packet being forwarded")
+				log.Error("listener never saw a valid packet being forwarded")
 				return 1
 			}
 		case <-timeout:
@@ -306,7 +402,11 @@ func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) 
 	handles := make(map[string]*afpacket.TPacket)
 
 	for _, intf := range interfaceNames {
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf), afpacket.OptFrameSize(4096))
+		handle, err := afpacket.NewTPacket(
+			afpacket.OptInterface(intf),
+			afpacket.OptBlockTimeout(time.Millisecond), // TPv3 waits for and aggregates packets!
+			// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
+		)
 		if err != nil {
 			return nil, serrors.Wrap("creating TPacket", err)
 		}
@@ -328,6 +428,30 @@ func loadKey(artifactsDir string) (hash.Hash, error) {
 		return nil, err
 	}
 	return macGen(), nil
+}
+
+// underlayUDPChecksumOffset returns the byte offset of the UDP checksum field
+// in a raw packet. It detects IPv4 vs IPv6 via the EtherType at bytes 12-13.
+func underlayUDPChecksumOffset(pkt []byte) int {
+	etherType := binary.BigEndian.Uint16(pkt[12:14])
+	switch etherType {
+	case 0x86DD: // IPv6: 14 (eth) + 40 (ipv6) + 6 (udp checksum offset)
+		return 60
+	default: // IPv4: 14 (eth) + 20 (ipv4) + 6 (udp checksum offset)
+		return 40
+	}
+}
+
+// underlayFlowIDOffset returns the byte offset of the SCION FlowID field
+// (the last 16 bits of the first 32-bit word) in a raw packet.
+func underlayFlowIDOffset(pkt []byte) int {
+	etherType := binary.BigEndian.Uint16(pkt[12:14])
+	switch etherType {
+	case 0x86DD: // IPv6: 14 + 40 + 8 (UDP) + 2 (into SCION header)
+		return 64
+	default: // IPv4: 14 + 20 + 8 (UDP) + 2 (into SCION header)
+		return 44
+	}
 }
 
 // registerScionPorts registers the following UDP ports in gopacket such as SCION is the

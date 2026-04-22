@@ -148,8 +148,10 @@ of the individual fields below.
       "link_to": <"parent"|"child"|"peer"|"core">,
       "mtu": <int>,
       "underlay": {
+         "protocol": "<udpip|other_underlay_protocol>"
          "local": "<ip|hostname>:<port>", # or just ":<port>"
-         "remote": "<ip|hostname:port>",
+         "remote": "<ip|hostname>:<port>",
+         "options": "<options>", # optional, defined by protocol
       },
       "bfd": {              # optional
          "disable": <bool>,
@@ -255,6 +257,17 @@ of the individual fields below.
          In the configuration for the corresponding interface in the neighbor AS, these
          addresses are exactly swapped (unless one or both routers are behind NAT).
 
+         .. option:: protocol = <string>, default = "udpip"
+
+            The underlay protocol to be used. The selected underlay protocol must be supported
+            by a specific border router underlay component that declares to implement it.
+
+            The addresses provided via the ``remote`` and ``local`` options must be valid string
+            representations of addresses for the specified protocol.
+
+            As of this writing, the only available underlay protocol is "udpip",
+            which is the default. As a result addresses are always <ip>:<port> pairs.
+
          .. option:: remote = <ip|hostname>:<port>, required
 
             The IP/UDP address of the corresponding router interface in the neighbor AS. If that router
@@ -266,6 +279,12 @@ of the individual fields below.
             The IP or hostname can be omitted; in this case the router will just bind to a wildcard
             address. If the router is behind NAT, this field must be set to the non-public address;
             that is, the address that the router should bind to.
+
+      .. option:: options
+
+         Arbitrary string. Format and semantics are defined by each underlay
+         protocol. For the ``udpip`` protocol with the ``afxdp`` implementation,
+         see :ref:`router-afxdp-options`.
 
       .. option:: bfd, optional
 

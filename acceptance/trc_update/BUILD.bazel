@@ -1,6 +1,6 @@
-load("//acceptance/common:topogen.bzl", "topogen_test")
+load("//acceptance/common:topogen.bzl", "topogen_test_underlays")
 
-topogen_test(
+topogen_test_underlays(
     name = "test",
     src = "test.py",
     args = [

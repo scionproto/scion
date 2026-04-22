@@ -125,6 +125,7 @@ steps:
         - ./scion.sh topology -c topology/default.topo
         - ./scion.sh run
         - tools/await-connectivity
+        - sleep 5
         - ./bin/scion_integration || ( echo "^^^ +++" && false )
         - ./bin/end2end_integration || ( echo "^^^ +++" && false )
       plugins: &scion-run-hooks
@@ -141,7 +142,7 @@ steps:
             pre-exit: .buildkite/cleanup-leftovers.sh
       artifact_paths: &scion-run-artifact-paths
         - test-out.tar.gz
-      timeout_in_minutes: 15
+      timeout_in_minutes: 20
       key: e2e_integration_tests_v2
       retry: *automatic-retry
     - label: "E2E: failing links :man_in_business_suit_levitating:"
@@ -152,6 +153,7 @@ steps:
         - ./scion.sh topology -c topology/default-no-peers.topo
         - ./scion.sh run
         - tools/await-connectivity
+        - sleep 5
         - ./bin/end2end_integration || ( echo "^^^ +++" && false )
         - ./tools/integration/revocation_test.sh
       plugins: *scion-run-hooks
@@ -159,7 +161,7 @@ steps:
       timeout_in_minutes: 15
       key: e2e_revocation_test_v2
       retry: *automatic-retry
-    - label: "E2E: default :docker: (ping)"
+    - label: "E2E: default :docker: (scion, ping)"
       command:
         - echo "--- build"
         - make build-dev docker-images
@@ -167,10 +169,29 @@ steps:
         - ./scion.sh topology -d
         - ./scion.sh run
         - tools/await-connectivity
+        - sleep 15
         - echo "--- run tests"
+        - ./bin/scion_integration -d || ( echo "^^^ +++" && false )
         - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
       plugins: *scion-run-hooks
       artifact_paths: *scion-run-artifact-paths
-      timeout_in_minutes: 15
+      timeout_in_minutes: 20
       key: docker_integration_e2e_default
+      retry: *automatic-retry
+    - label: "E2E: failing links :docker:"
+      command:
+        - echo "--- build"
+        - make build-dev docker-images
+        - echo "--- start topology"
+        - ./scion.sh topology -d -c topology/default-no-peers.topo
+        - ./scion.sh run
+        - tools/await-connectivity
+        - sleep 15
+        - echo "--- run tests"
+        - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
+        - ./tools/integration/revocation_test.sh
+      plugins: *scion-run-hooks
+      artifact_paths: *scion-run-artifact-paths
+      timeout_in_minutes: 15
+      key: docker_integration_e2e_failing_links
       retry: *automatic-retry

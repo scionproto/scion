@@ -12,6 +12,7 @@ def topogen_test(
         topo,
         gateway = False,
         debug = False,
+        underlay = None,
         args = [],
         deps = [],
         data = [],
@@ -23,12 +24,13 @@ def topogen_test(
     test. Additionally, It creates <name>_setup, <name>_run and <name>_teardown
     targets that allow to run the test in stages.
 
-    Args:cc
+    Args:
         name: name of the test
         src: the source code of the test
         topo: the topology (.topo) file to use for the test
         gateway: whether gateways should be present in the topology
         debug: if true, debug docker images are used instead of prod images
+        underlay: preferred underlay variant ('afxdp' or 'inet'), or None for default
         args: additional arguments to pass to the test
         deps: additional dependencies
         data: additional data files
@@ -56,6 +58,8 @@ def topogen_test(
     ]
     if gateway:
         common_args.append("--setup-params='--sig'")
+    if underlay:
+        common_args.append("--underlay=" + underlay)
 
     common_data = [
         "//scion-pki/cmd/scion-pki",
@@ -108,7 +112,7 @@ def topogen_test(
 
     py_test(
         name = name,
-        size = "large",
+        size = "medium",
         srcs = [src],
         main = src,
         args = args + common_args,
@@ -122,4 +126,18 @@ def topogen_test(
             "PYTHONIOENCODING": "utf-8",
             "HOME": homedir,
         },
+    )
+
+def topogen_test_underlays(name, **kwargs):
+    """Creates two topogen_test targets (afxdp + inet) and a test_suite grouping them.
+
+    For each underlay variant, it creates <name>_<underlay>, <name>_<underlay>_setup,
+    <name>_<underlay>_run, and <name>_<underlay>_teardown targets.
+    A test_suite named <name> groups the two test targets.
+    """
+    topogen_test(name = name + "_afxdp", underlay = "afxdp", **kwargs)
+    topogen_test(name = name + "_inet", underlay = "inet", **kwargs)
+    native.test_suite(
+        name = name,
+        tests = [":" + name + "_afxdp", ":" + name + "_inet"],
     )
