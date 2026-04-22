@@ -38,6 +38,7 @@ var (
 	OIDExtKeyUsageRegular   = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55324, 1, 3, 2}
 	OIDExtKeyUsageRoot      = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55324, 1, 3, 3}
 
+	OIDExtKeyUsageAny          = asn1.ObjectIdentifier{2, 5, 29, 37, 0}
 	OIDExtKeyUsageServerAuth   = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 1}
 	OIDExtKeyUsageClientAuth   = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 2}
 	OIDExtKeyUsageTimeStamping = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 8}
