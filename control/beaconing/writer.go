@@ -46,9 +46,9 @@ type Pather interface {
 // SegmentProvider provides segments to register for the specified type.
 type SegmentProvider interface {
 	// SegmentsToRegister returns the segments that should be registered for the
-	// given segment type as GroupedBeacons.
-	// The returned GroupedBeacons must not be nil if the returned error is nil.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) (beacon.GroupedBeacons, error)
+	// given segment type.
+	// The returned slice must not be nil if the returned error is nil.
+	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.Beacon, []beacon.RegistrationPolicy, error)
 }
 
 // SegmentStore stores segments in the path database.
@@ -86,7 +86,7 @@ type Writer interface {
 	// of the local IA. The returned statistics should provide insights about
 	// how many segments have been successfully written. The method should return
 	// an error if the writing did fail.
-	Write(ctx context.Context, beacons beacon.GroupedBeacons, peers []uint16) (WriteStats, error)
+	Write(ctx context.Context, beacons []beacon.Beacon, policies []beacon.RegistrationPolicy, peers []uint16) (WriteStats, error)
 }
 
 var _ periodic.Task = (*WriteScheduler)(nil)
@@ -130,12 +130,12 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 	if !r.Tick.Overdue(r.lastWrite) && !r.Tick.Passed() {
 		return nil
 	}
-	segments, err := r.Provider.SegmentsToRegister(ctx, r.Type)
+	beacons, policies, err := r.Provider.SegmentsToRegister(ctx, r.Type)
 	if err != nil {
 		return err
 	}
 	peers := sortedIntfs(r.Intfs, topology.Peer)
-	stats, err := r.Writer.Write(ctx, segments, peers)
+	stats, err := r.Writer.Write(ctx, beacons, policies, peers)
 	if err != nil {
 		return err
 	}
@@ -449,62 +449,60 @@ type GroupWriter struct {
 
 var _ Writer = (*GroupWriter)(nil)
 
-// processSegments processes the segments by terminating them and filtering out
-// the segments that do not have a valid interface ID.
+// processSegments processes the segments by terminating them, filtering out
+// the segments that do not have a valid interface ID, and grouping them by
+// registration policy.
 func (w *GroupWriter) processSegments(
 	ctx context.Context,
-	beacons beacon.GroupedBeacons,
+	beacons []beacon.Beacon,
+	policies []beacon.RegistrationPolicy,
 	peers []uint16,
 ) beacon.GroupedBeacons {
 	logger := log.FromCtx(ctx)
-	processed := make(beacon.GroupedBeacons, len(beacons))
-	for group, beacons := range beacons {
-		processedGroup := make([]beacon.Beacon, 0, len(beacons))
-		for i, b := range beacons {
-			// If the beacon does not have a valid interface ID, skip it.
-			if w.Intfs != nil && w.Intfs.Get(b.InIfID) == nil {
+	// First, extend and filter the beacons.
+	processedBeacons := make([]beacon.Beacon, 0, len(beacons))
+	for i, b := range beacons {
+		// If the beacon does not have a valid interface ID, skip it.
+		if w.Intfs != nil && w.Intfs.Get(b.InIfID) == nil {
+			continue
+		}
+		// Try to terminate the segment if an extender is configured.
+		if w.Extender != nil {
+			err := w.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
+			var signerGenError trust.SignerGenError
+			if errors.As(err, &signerGenError) {
+				// In case of a signer generation error, we can break the loop,
+				// the chance we will get a working signer during this run is
+				// very low.
+				w.signerLogThrottle.Do(func(suppressedCount int) {
+					logger.Error(
+						"Unable to terminate beacon due to signer generation error, breaking loop",
+						"beacon", b,
+						"err", err,
+						"next_gen", signerGenError.NextGen,
+					)
+				})
+				// Keep old behavior regarding metrics:
+				metrics.CounterAdd(w.InternalErrors, float64(len(beacons)-i))
+				break
+			}
+			if err != nil {
+				// Throttle error logging here.
+				w.terminateLogThrottle.Do(func(suppressedCount int) {
+					logger.Error("Unable to terminate beacon",
+						"beacon", b,
+						"err", err,
+						"suppressed", suppressedCount,
+					)
+				})
+				metrics.CounterInc(w.InternalErrors)
 				continue
 			}
-			// Try to terminate the segment if an extender is configured.
-			if w.Extender != nil {
-				err := w.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
-				var signerGenError trust.SignerGenError
-				if errors.As(err, &signerGenError) {
-					// In case of a signer generation error, we can break the loop,
-					// the chance we will get a working signer during this run is
-					// very low.
-					w.signerLogThrottle.Do(func(suppressedCount int) {
-						logger.Error("Unable to terminate beacon due to signer generation error,"+
-							" breaking loop",
-							"beacon", b,
-							"err", err,
-							"next_gen", signerGenError.NextGen,
-						)
-					})
-					// Keep old behavior regarding metrics:
-					metrics.CounterAdd(w.InternalErrors, float64(len(beacons)-i))
-					break
-				}
-				if err != nil {
-					// Throttle error logging here.
-					w.terminateLogThrottle.Do(func(suppressedCount int) {
-						logger.Error("Unable to terminate beacon",
-							"beacon", b,
-							"err", err,
-							"suppressed", suppressedCount,
-						)
-					})
-					metrics.CounterInc(w.InternalErrors)
-					continue
-				}
-			}
-			processedGroup = append(processedGroup, b)
 		}
-		if len(processedGroup) > 0 {
-			processed[group] = processedGroup
-		}
+		processedBeacons = append(processedBeacons, b)
 	}
-	return processed
+	// Then, group the beacons according to the registration policies.
+	return w.groupBeacons(processedBeacons, policies)
 }
 
 // Write writes beacons to multiple segment registrars based on the PolicyType.
@@ -513,10 +511,12 @@ func (w *GroupWriter) processSegments(
 // and the group's name (which should correspond to the registration policy name).
 func (w *GroupWriter) Write(
 	ctx context.Context,
-	allBeacons beacon.GroupedBeacons,
+	beacons []beacon.Beacon,
+	policies []beacon.RegistrationPolicy,
 	peers []uint16,
 ) (WriteStats, error) {
-	processedBeacons := w.processSegments(ctx, allBeacons, peers)
+	// Process and group the beacons.
+	processedBeacons := w.processSegments(ctx, beacons, policies, peers)
 	writeStats := WriteStats{Count: 0, StartIAs: make(map[addr.IA]struct{})}
 	// Defines a concurrent task, i.e., registration of a group of segments with a
 	// specific registrar.
@@ -555,4 +555,28 @@ func (w *GroupWriter) Write(
 		writeStats.Extend(stats)
 	}
 	return writeStats, nil
+}
+
+// groupBeacons groups beacons according to the registration policies defined in the policy.
+// The beacons that do not match any registration policy are dropped.
+// If the policy defines no registration policy, all the beacons will be put into
+// the default group.
+func (w *GroupWriter) groupBeacons(beacons []beacon.Beacon, policies []beacon.RegistrationPolicy) beacon.GroupedBeacons {
+	if len(policies) == 0 {
+		return map[string][]beacon.Beacon{
+			beacon.DefaultGroup: beacons,
+		}
+	}
+	// Go through every beacon, and group it into the first registration
+	// policy that matches it.
+	beaconBuckets := make(beacon.GroupedBeacons)
+	for _, b := range beacons {
+		for _, regPolicy := range policies {
+			if regPolicy.Matcher.Match(b) {
+				beaconBuckets[regPolicy.Name] = append(beaconBuckets[regPolicy.Name], b)
+				break
+			}
+		}
+	}
+	return beaconBuckets
 }
