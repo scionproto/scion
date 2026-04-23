@@ -1,0 +1,42 @@
+Path #0:
+  Weight: 1
+  Fields:
+    IF .P
+      HF InIF=4138 OutIF=0
+    IF CP
+      HF InIF=3841 OutIF=0
+  Interfaces:
+    4-ff00:0:411#4138
+    1-ff00:0:123#3841
+Path #1:
+  Weight: 2
+  Fields:
+    IF .P
+      HF InIF=4140 OutIF=0
+      HF InIF=4038 OutIF=4041
+    IF CP
+      HF InIF=3840 OutIF=0
+  Interfaces:
+    4-ff00:0:411#4140
+    4-ff00:0:410#4041
+    4-ff00:0:410#4038
+    1-ff00:0:123#3840
+Path #2:
+  Weight: 4
+  Fields:
+    IF .P
+      HF InIF=4140 OutIF=0
+      HF InIF=4012 OutIF=4041
+    IF CP
+      HF InIF=1240 OutIF=1215
+      HF InIF=1512 OutIF=1538
+      HF InIF=3815 OutIF=0
+  Interfaces:
+    4-ff00:0:411#4140
+    4-ff00:0:410#4041
+    4-ff00:0:410#4012
+    1-ff00:0:120#1240
+    1-ff00:0:120#1215
+    1-ff00:0:121#1512
+    1-ff00:0:121#1538
+    1-ff00:0:123#3815

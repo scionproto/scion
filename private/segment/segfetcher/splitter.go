@@ -23,6 +23,20 @@ import (
 	"github.com/scionproto/scion/private/trust"
 )
 
+// ctxKey is used for context keys in this package.
+type ctxKey string
+
+// SkipOneHopKey is a context key that, when set, instructs the splitter to skip
+// creating one-hop segment requests. This is used to avoid infinite recursion
+// when the dstProvider needs to find a path to a remote core AS for forwarding
+// a one-hop segment request.
+const SkipOneHopKey ctxKey = "skipOneHop"
+
+// SkipOneHop returns true if one-hop segment requests should be skipped.
+func SkipOneHop(ctx context.Context) bool {
+	return ctx.Value(SkipOneHopKey) != nil
+}
+
 // Splitter splits a path request into set of segment requests.
 type Splitter interface {
 	// Split splits a path request from the local AS to dst into a set of segment requests.
@@ -70,6 +84,9 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 		return nil, err
 	}
 
+	// Check if we should skip one-hop segment requests (to avoid recursion in dstProvider)
+	skipOneHop := SkipOneHop(ctx)
+
 	switch {
 	case !srcCore && !dstCore:
 		if !singleCore.IsZero() {
@@ -78,29 +95,48 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 				{Src: singleCore, Dst: dst, SegType: Down},
 			}, nil
 		}
-		return Requests{
+		reqs := Requests{
 			{Src: src, Dst: toWildCard(src), SegType: Up},
 			{Src: toWildCard(src), Dst: toWildCard(dst), SegType: Core},
 			{Src: toWildCard(dst), Dst: dst, SegType: Down},
-		}, nil
+		}
+		if !skipOneHop {
+			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
+		}
+		return reqs, nil
 	case !srcCore && dstCore:
 		if (src.ISD() == dst.ISD() && dst.IsWildcard()) || singleCore.Equal(dst) {
 			return Requests{{Src: src, Dst: dst, SegType: Up}}, nil
 		}
-		return Requests{
+		reqs := Requests{
 			{Src: src, Dst: toWildCard(src), SegType: Up},
 			{Src: toWildCard(src), Dst: dst, SegType: Core},
-		}, nil
+		}
+		if !skipOneHop {
+			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
+		}
+		return reqs, nil
 	case srcCore && !dstCore:
 		if singleCore.Equal(src) {
 			return Requests{{Src: src, Dst: dst, SegType: Down}}, nil
 		}
-		return Requests{
+		reqs := Requests{
 			{Src: src, Dst: toWildCard(dst), SegType: Core},
 			{Src: toWildCard(dst), Dst: dst, SegType: Down},
-		}, nil
+		}
+		if !skipOneHop {
+			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
+		}
+		return reqs, nil
 	default:
-		return Requests{{Src: src, Dst: dst, SegType: Core}}, nil
+		// srcCore && dstCore
+		reqs := Requests{
+			{Src: src, Dst: dst, SegType: Core},
+		}
+		if !skipOneHop {
+			reqs = s.addOneHopRequests(ctx, reqs, src, dst, srcCore, dstCore)
+		}
+		return reqs, nil
 	}
 }
 
@@ -140,6 +176,28 @@ func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IA) (bool, e
 		return false, err
 	}
 	return isCore, nil
+}
+
+// addOneHopRequests appends one-hop segment requests for peering path discovery.
+// One-hop segments are Down segments that carry peer entries for core ASes,
+// enabling the combinator to build peering shortcuts on the destination side.
+// Source-side peering edges come from core segment processing in the combinator.
+func (s *MultiSegmentSplitter) addOneHopRequests(
+	ctx context.Context,
+	reqs Requests,
+	src, dst addr.IA,
+	srcCore, dstCore bool,
+) Requests {
+	if dstCore {
+		reqs = append(reqs, Request{Src: dst, Dst: dst, SegType: seg.TypeDown})
+	} else if srcCore || src.ISD() != dst.ISD() {
+		dstCores, _ := s.Inspector.ByAttributes(ctx, dst.ISD(), trust.Core)
+		for _, c := range dstCores {
+			reqs = append(reqs, Request{Src: c, Dst: c, SegType: seg.TypeDown})
+		}
+	}
+
+	return reqs
 }
 
 func toWildCard(ia addr.IA) addr.IA {
