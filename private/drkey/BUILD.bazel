@@ -2,7 +2,10 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["client_engine.go"],
+    srcs = [
+        "client_engine.go",
+        "metrics.go",
+    ],
     importpath = "github.com/scionproto/scion/private/drkey",
     visibility = ["//visibility:public"],
     deps = [
