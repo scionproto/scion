@@ -11,6 +11,7 @@ py_library(
         "docker",
         "log",
         "scion",
+        "slot",
     ],
 )
 
@@ -20,6 +21,11 @@ py_library(
     deps = [
         requirement("plumbum"),
     ],
+)
+
+py_library(
+    name = "slot",
+    srcs = ["slot.py"],
 )
 
 py_library(

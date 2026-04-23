@@ -12,5 +12,6 @@ topogen_test(
         "//acceptance/stun/test-client",
         "//acceptance/stun/test-server",
     ],
+    tags = ["exclusive"],
     topo = "//topology:tiny.topo",
 )

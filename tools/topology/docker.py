@@ -54,7 +54,7 @@ class DockerGenerator(object):
         self.args = args
         self.dc_conf = {
             'version': DOCKER_COMPOSE_CONFIG_VERSION,
-            'name': 'scion',
+            'name': getattr(self.args, 'project_name', 'scion'),
             'services': {},
             'networks': {},
             'volumes': {}
@@ -119,8 +119,9 @@ class DockerGenerator(object):
                     ipv = 'ipv6'
                 self.elem_networks[elem].append({'net': str(network), ipv: ip})
             # Create docker networks
-            prefix = 'scn_'
-            net_name = "%s%03d" % (prefix, len(self.bridges))
+            project_name = getattr(self.args, 'project_name', 'scion')
+            net_name = "scn_%03d" % len(self.bridges)
+            bridge_name = "%s_%s" % (project_name, net_name)
             self.bridges[str(network)] = net_name
             self.dc_conf['networks'][net_name] = {
                 'ipam': {
@@ -130,7 +131,7 @@ class DockerGenerator(object):
                 },
                 'driver': 'bridge',
                 'driver_opts': {
-                    'com.docker.network.bridge.name': net_name
+                    'com.docker.network.bridge.name': bridge_name
                 }
             }
             if net_desc.name in v4nets:

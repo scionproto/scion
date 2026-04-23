@@ -40,6 +40,7 @@ raw_test(
     homedir = "$(rootpath //docker:router.tarball)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
+    tags = ["exclusive"],
     deps = ["benchmarklib"],
 )
 
