@@ -7,4 +7,5 @@ Filter:
   AsBlackList: ["ff00:0:110", "ff00:0:111"]
   IsdBlackList: [1, 2, 3]
   AllowIsdLoop: true
+  AllowTransitTraffic: true
 Type: Propagation

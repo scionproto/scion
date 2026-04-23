@@ -8,22 +8,22 @@
   "dispatched_ports": "31000-32767",
   "control_service": {
     "cs5-ff00_0_510-1": {
-      "addr": "127.0.0.170:31098"
+      "addr": "127.0.0.202:31104"
     }
   },
   "discovery_service": {
     "cs5-ff00_0_510-1": {
-      "addr": "127.0.0.170:31098"
+      "addr": "127.0.0.202:31104"
     }
   },
   "border_routers": {
     "br5-ff00_0_510-1": {
-      "internal_addr": "127.0.0.169:31100",
+      "internal_addr": "127.0.0.201:31106",
       "interfaces": {
         "3712": {
           "underlay": {
-            "local": "127.0.0.21:50000",
-            "remote": "127.0.0.20:50000"
+            "local": "127.0.0.23:50000",
+            "remote": "127.0.0.22:50000"
           },
           "isd_as": "1-ff00:0:120",
           "link_to": "core",

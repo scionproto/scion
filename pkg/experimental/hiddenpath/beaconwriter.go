@@ -86,7 +86,8 @@ func (w *BeaconWriter) Write(
 	var wg sync.WaitGroup
 
 	for _, b := range beacons[beacon.DefaultGroup] {
-		if w.Intfs.Get(b.InIfID) == nil {
+		// TODO: less hacky?
+		if w.Intfs.Get(b.InIfID) == nil && b.InIfID != 0 {
 			logger.Error("Received beacon for non-existing interface", "interface", b.InIfID)
 			metrics.CounterInc(w.InternalErrors)
 			continue

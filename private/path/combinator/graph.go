@@ -106,13 +106,27 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 
 	// Directly process core segments, because we're not interested in
 	// shortcuts. Add edge from last entry IA to first entry IA.
+	// Additionally, extract peering edges from the last ASEntry so that
+	// core ASes can be the source of peering shortcuts (core→down path).
 	if segment.Type == proto.PathSegType_core {
+		lastIdx := len(asEntries) - 1
+		lastIA := asEntries[lastIdx].Local
 		g.AddEdge(
-			vertexFromIA(asEntries[len(asEntries)-1].Local),
+			vertexFromIA(lastIA),
 			vertexFromIA(asEntries[0].Local),
 			segment,
 			&edge{Weight: len(asEntries) - 1},
 		)
+		for peerIdx, peer := range asEntries[lastIdx].PeerEntries {
+			ingress := iface.ID(peer.HopField.ConsIngress)
+			remote := iface.ID(peer.PeerInterface)
+			g.AddEdge(
+				vertexFromIA(lastIA),
+				vertexFromPeering(lastIA, ingress, peer.Peer, remote),
+				segment,
+				&edge{Weight: 0, Shortcut: lastIdx, Peer: peerIdx + 1},
+			)
+		}
 		return
 	}
 
@@ -201,7 +215,7 @@ func (g *dmg) GetPaths(src, dst vertex) []*pathSolution {
 
 		for nextVertex, edgeList := range g.Adjacencies[currentPathSolution.currentVertex] {
 			for segment, e := range edgeList {
-				// Makes sure the the segment would be valid in a path.
+				// Makes sure the segment would be valid in a path.
 				if !validNextSeg(currentPathSolution.currentSeg, segment) {
 					continue
 				}
