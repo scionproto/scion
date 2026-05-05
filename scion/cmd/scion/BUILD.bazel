@@ -6,7 +6,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "address.go",
-        "bandwidth_reservations.go",
+        "bandwidth_assets.go",
         "common.go",
         "gendocs.go",
         "main.go",
@@ -47,7 +47,7 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["bandwidth_reservations_test.go"],
+    srcs = ["bandwidth_assets_test.go"],
     embed = [":go_default_library"],
     deps = [
         "//control/beaconing:go_default_library",

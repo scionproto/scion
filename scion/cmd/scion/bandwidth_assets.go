@@ -44,8 +44,6 @@ type bandwidthAssetFlags struct {
 type intraDomainLink struct {
 	FromInterface iface.ID `json:"from_interface"`
 	ToInterface   iface.ID `json:"to_interface"`
-	FromRouter    string   `json:"from_router,omitempty"`
-	ToRouter      string   `json:"to_router,omitempty"`
 	BandwidthKbps uint64   `json:"bandwidth_kbit"`
 }
 
@@ -243,9 +241,9 @@ func printAssetLinks(out io.Writer, links []assetLink,
 		bwGranularity, timeGranularity)
 	fmt.Fprintf(out, "Intra-domain links (%d):\n", len(links))
 	for i, link := range links {
-		fmt.Fprintf(out, "  [%d] if%d (%s) <-> if%d (%s), bandwidth %d Kbit/s\n",
-			i+1, link.Link.FromInterface, link.Link.FromRouter, link.Link.ToInterface,
-			link.Link.ToRouter, link.Link.BandwidthKbps)
+		fmt.Fprintf(out, "  [%d] %d <-> %d, bandwidth %d Kbit/s\n",
+			i+1, link.Link.FromInterface, link.Link.ToInterface,
+			link.Link.BandwidthKbps)
 		if len(link.Assets) == 0 {
 			fmt.Fprintln(out, "      no assets")
 			continue
@@ -283,13 +281,9 @@ func intraDomainLinks(topo *topology.RWTopology, staticInfo *beaconing.StaticInf
 			if existing, ok := linksByPair[p]; ok && existing.BandwidthKbps <= bandwidth {
 				continue
 			}
-			fromInfo := topo.IFInfoMap[p.a]
-			toInfo := topo.IFInfoMap[p.b]
 			linksByPair[p] = intraDomainLink{
 				FromInterface: p.a,
 				ToInterface:   p.b,
-				FromRouter:    fromInfo.BRName,
-				ToRouter:      toInfo.BRName,
 				BandwidthKbps: bandwidth,
 			}
 		}
@@ -391,7 +385,7 @@ func promptAssets(in *bufio.Reader, out io.Writer, links []assetLink,
 		}
 		i := selected - 1
 		link := links[i].Link
-		fmt.Fprintf(out, "Adding asset for if%d <-> if%d.\n",
+		fmt.Fprintf(out, "Adding asset for %d <-> %d.\n",
 			link.FromInterface, link.ToInterface)
 		for {
 			asset, err := promptAsset(in, out)

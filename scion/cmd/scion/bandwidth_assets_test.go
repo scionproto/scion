@@ -287,8 +287,6 @@ func TestPrintAssetLinksIncludesAssets(t *testing.T) {
 		Link: intraDomainLink{
 			FromInterface: 1,
 			ToInterface:   2,
-			FromRouter:    "br1",
-			ToRouter:      "br2",
 			BandwidthKbps: 100,
 		},
 		Assets: []linkAsset{{
@@ -301,7 +299,7 @@ func TestPrintAssetLinksIncludesAssets(t *testing.T) {
 	got := out.String()
 	for _, want := range []string{
 		"Granularity: bw_granularity 5 Kbit/s, time_granularity 60 second(s)",
-		"if1 (br1) <-> if2 (br2)",
+		"1 <-> 2",
 		"40 Kbit/s",
 		"2026-05-05T10:00:00Z to 2026-05-05T11:00:00Z",
 	} {
@@ -317,8 +315,6 @@ func TestPromptAssetsSelectsLinkAndPrintsAfterAdd(t *testing.T) {
 			Link: intraDomainLink{
 				FromInterface: 1,
 				ToInterface:   2,
-				FromRouter:    "br1",
-				ToRouter:      "br2",
 				BandwidthKbps: 100,
 			},
 			Assets: []linkAsset{},
@@ -327,8 +323,6 @@ func TestPromptAssetsSelectsLinkAndPrintsAfterAdd(t *testing.T) {
 			Link: intraDomainLink{
 				FromInterface: 2,
 				ToInterface:   3,
-				FromRouter:    "br2",
-				ToRouter:      "br3",
 				BandwidthKbps: 100,
 			},
 			Assets: []linkAsset{},
@@ -363,8 +357,8 @@ func TestPromptAssetsSelectsLinkAndPrintsAfterAdd(t *testing.T) {
 		"Granularity: bw_granularity 10 Kbit/s, time_granularity 60 second(s)",
 		"bandwidth granularity: ",
 		"time granularity: ",
-		"Adding asset for if2 <-> if3.",
-		"if2 (br2) <-> if3 (br3)",
+		"Adding asset for 2 <-> 3.",
+		"2 <-> 3",
 		"30 Kbit/s, 2026-05-05T10:00:05",
 	} {
 		if !strings.Contains(got, want) {
@@ -451,8 +445,6 @@ func TestRunBandwidthAssetsNonInteractiveReadsInputAssetsWithoutWriting(t *testi
       "link": {
         "from_interface": 1,
         "to_interface": 2,
-        "from_router": "br1",
-        "to_router": "br2",
         "bandwidth_kbit": 50
       },
       "assets": [
@@ -485,7 +477,7 @@ func TestRunBandwidthAssetsNonInteractiveReadsInputAssetsWithoutWriting(t *testi
 	got := out.String()
 	for _, want := range []string{
 		"Granularity: bw_granularity 5 Kbit/s, time_granularity 60 second(s)",
-		"if1 (br1) <-> if2 (br2)",
+		"1 <-> 2",
 		"10 Kbit/s",
 		"2026-01-01T00:00:00Z to 2026-01-10T00:00:00Z",
 	} {
@@ -516,6 +508,9 @@ func TestRunBandwidthAssetsWritesGranularity(t *testing.T) {
 	raw, err := os.ReadFile(outputPath)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "from_router") || strings.Contains(string(raw), "to_router") {
+		t.Fatalf("written output contains router fields:\n%s", raw)
 	}
 	var written assetFile
 	if err := json.Unmarshal(raw, &written); err != nil {
@@ -614,8 +609,6 @@ func writeMinimalAssetTestFiles(t *testing.T, topologyPath, staticInfoPath, inpu
       "link": {
         "from_interface": 1,
         "to_interface": 2,
-        "from_router": "br1",
-        "to_router": "br2",
         "bandwidth_kbit": 50
       },
       "assets": [
