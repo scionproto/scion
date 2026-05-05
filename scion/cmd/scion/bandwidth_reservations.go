@@ -39,7 +39,6 @@ type bandwidthReservationFlags struct {
 	input          string
 	output         string
 	nonInteractive bool
-	list           bool
 }
 
 type intraDomainLink struct {
@@ -81,9 +80,7 @@ func newBandwidthReservations(pather CommandPather) *cobra.Command {
   %[1]s bandwidth-reservations --topology topology.json --static-info staticInfoConfig.json \
     --input bandwidthReservations.json --output bandwidthReservations.json
   %[1]s bandwidth-reservations --topology topology.json --static-info staticInfoConfig.json \
-    --input bandwidthReservations.json --list
-  %[1]s bandwidth-reservations --topology topology.json --static-info staticInfoConfig.json \
-    --output links.json --non-interactive`, pather.CommandPath()),
+    --input bandwidthReservations.json --non-interactive`, pather.CommandPath()),
 		Long: `'bandwidth-reservations' reads a topology.json file and a staticInfoConfig.json
 file, lists all intra-domain links described by staticInfoConfig.json Bandwidth
 Intra entries, and stores user-entered reservation slots in a JSON file.
@@ -96,13 +93,12 @@ values: Kbit/s.`,
 			return runBandwidthReservations(cmd.InOrStdin(), cmd.OutOrStdout(), flags)
 		},
 	}
-	cmd.Flags().StringVar(&flags.topologyPath, "topology", "", "Path to topology.json")
-	cmd.Flags().StringVar(&flags.staticInfo, "static-info", "", "Path to staticInfoConfig.json")
-	cmd.Flags().StringVar(&flags.input, "input", "", "Path to read existing reservation JSON")
+	cmd.Flags().StringVarP(&flags.topologyPath, "topology", "t", "", "Path to topology.json")
+	cmd.Flags().StringVarP(&flags.staticInfo, "static-info", "s", "", "Path to staticInfoConfig.json")
+	cmd.Flags().StringVarP(&flags.input, "input", "i", "", "Path to read existing reservation JSON")
 	cmd.Flags().StringVarP(&flags.output, "output", "o", "", "Path to write reservation JSON")
 	cmd.Flags().BoolVar(&flags.nonInteractive, "non-interactive", false,
-		"Write reservation file without prompting for new reservations")
-	cmd.Flags().BoolVar(&flags.list, "list", false, "List reservations and do not write an output file")
+		"List links and reservations without prompting or writing an output file")
 	cmd.MarkFlagRequired("topology")
 	cmd.MarkFlagRequired("static-info")
 	return cmd
@@ -115,7 +111,7 @@ func runBandwidthReservations(in io.Reader, out io.Writer, flags bandwidthReserv
 	if flags.staticInfo == "" {
 		return serrors.New("static info config path is required")
 	}
-	if !flags.list && flags.output == "" {
+	if !flags.nonInteractive && flags.output == "" {
 		return serrors.New("output path is required")
 	}
 
@@ -142,14 +138,12 @@ func runBandwidthReservations(in io.Reader, out io.Writer, flags bandwidthReserv
 	}
 
 	printReservationLinks(out, reserved)
-	if flags.list {
+	if flags.nonInteractive {
 		return nil
 	}
 
-	if !flags.nonInteractive {
-		if err := promptReservations(bufio.NewReader(in), out, reserved); err != nil {
-			return err
-		}
+	if err := promptReservations(bufio.NewReader(in), out, reserved); err != nil {
+		return err
 	}
 	if err := validateReservationLinks(reserved); err != nil {
 		return err

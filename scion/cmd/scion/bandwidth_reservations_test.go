@@ -317,11 +317,12 @@ func TestPromptReservationsSelectsLinkAndPrintsAfterAdd(t *testing.T) {
 	}
 }
 
-func TestRunBandwidthReservationsListReadsInputReservations(t *testing.T) {
+func TestRunBandwidthReservationsNonInteractiveReadsInputReservationsWithoutWriting(t *testing.T) {
 	tmp := t.TempDir()
 	topologyPath := filepath.Join(tmp, "topology.json")
 	staticInfoPath := filepath.Join(tmp, "staticInfoConfig.json")
 	inputPath := filepath.Join(tmp, "reservations.json")
+	outputPath := filepath.Join(tmp, "output.json")
 
 	if err := os.WriteFile(topologyPath, []byte(`{
   "isd_as": "1-ff00:0:110",
@@ -394,13 +395,17 @@ func TestRunBandwidthReservationsListReadsInputReservations(t *testing.T) {
 
 	var out bytes.Buffer
 	err := runBandwidthReservations(strings.NewReader(""), &out, bandwidthReservationFlags{
-		topologyPath: topologyPath,
-		staticInfo:   staticInfoPath,
-		input:        inputPath,
-		list:         true,
+		topologyPath:   topologyPath,
+		staticInfo:     staticInfoPath,
+		input:          inputPath,
+		output:         outputPath,
+		nonInteractive: true,
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if _, err := os.Stat(outputPath); !os.IsNotExist(err) {
+		t.Fatalf("non-interactive mode wrote output file, stat err: %v", err)
 	}
 	got := out.String()
 	for _, want := range []string{
@@ -409,7 +414,7 @@ func TestRunBandwidthReservationsListReadsInputReservations(t *testing.T) {
 		"2026-01-01T00:00:00Z to 2026-01-10T00:00:00Z",
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("list output missing %q in:\n%s", want, got)
+			t.Fatalf("non-interactive output missing %q in:\n%s", want, got)
 		}
 	}
 }
