@@ -55,7 +55,7 @@ func main() {
 		newShowpaths(cmd),
 		newTraceroute(cmd),
 		newAddress(cmd),
-		newBandwidthReservations(cmd),
+		newBandwidthAssets(cmd),
 		newGendocs(cmd),
 	)
 	// This Templatefunc allows use some escape characters for the rst
