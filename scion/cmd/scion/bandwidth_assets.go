@@ -44,7 +44,7 @@ type bandwidthAssetFlags struct {
 type intraDomainLink struct {
 	FromInterface iface.ID `json:"from_interface"`
 	ToInterface   iface.ID `json:"to_interface"`
-	BandwidthKbps uint64   `json:"bandwidth_kbit"`
+	BandwidthKbps uint64   `json:"-"`
 }
 
 type linkAsset struct {

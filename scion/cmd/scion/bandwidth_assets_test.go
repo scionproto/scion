@@ -512,6 +512,20 @@ func TestRunBandwidthAssetsWritesGranularity(t *testing.T) {
 	if strings.Contains(string(raw), "from_router") || strings.Contains(string(raw), "to_router") {
 		t.Fatalf("written output contains router fields:\n%s", raw)
 	}
+	var rawOutput map[string]any
+	if err := json.Unmarshal(raw, &rawOutput); err != nil {
+		t.Fatal(err)
+	}
+	rawLinks := rawOutput["intra_domain_links"].([]any)
+	rawLink := rawLinks[0].(map[string]any)["link"].(map[string]any)
+	if _, ok := rawLink["bandwidth_kbit"]; ok {
+		t.Fatalf("written link output contains bandwidth_kbit:\n%s", raw)
+	}
+	rawAssets := rawLinks[0].(map[string]any)["assets"].([]any)
+	rawAsset := rawAssets[0].(map[string]any)
+	if _, ok := rawAsset["bandwidth_kbit"]; !ok {
+		t.Fatalf("written asset output is missing bandwidth_kbit:\n%s", raw)
+	}
 	var written assetFile
 	if err := json.Unmarshal(raw, &written); err != nil {
 		t.Fatal(err)
