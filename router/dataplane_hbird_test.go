@@ -618,8 +618,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				dpath.Base.PathMeta.SegLen[0] = 6 + 5 // 2 hops + 1 flyover
 				dpath.Base.NumLines = 6 + 5
 				dpath.Base.PathMeta.CurrHF = 6
-				dpath.HopFields[2].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[2], dpath.PathMeta)
+				dpath.HopFields[2].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[0], dpath.HopFields[2], dpath.PathMeta)
 				var dstAddr *net.UDPAddr
 				ingress := uint16(1)
 				egress := uint16(0)
@@ -657,8 +657,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				dpath.Base.PathMeta.CurrHF = 0
 				dpath.Base.PathMeta.SegLen[0] = 5 * 3 // 3 flyovers
 				dpath.NumLines = 15
-				dpath.HopFields[0].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[0], dpath.Base.PathMeta)
+				dpath.HopFields[0].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[0], dpath.HopFields[0], dpath.Base.PathMeta)
 				ingress := uint16(0)
 				egress := uint16(0)
 				if afterProcessing {
@@ -695,8 +695,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				dpath.Base.PathMeta.SegLen[0] = 6 + 5 // 1 flyover
 				dpath.NumLines = 11
 				dpath.Base.PathMeta.CurrHF = 6
-				dpath.HopFields[0].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[2], dpath.Base.PathMeta)
+				dpath.HopFields[0].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[0], dpath.HopFields[2], dpath.Base.PathMeta)
 				ingress := uint16(0)
 				egress := uint16(0)
 				if afterProcessing {
@@ -732,8 +732,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				dpath.Base.PathMeta.SegLen[0] = 11 // 1 flyover
 				dpath.Base.NumLines = 11
 				dpath.Base.PathMeta.CurrHF = 3
-				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[1], dpath.Base.PathMeta)
+				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[0], dpath.HopFields[1], dpath.Base.PathMeta)
 				ingress := uint16(1)
 				egress := uint16(2)
 				if afterProcessing {
@@ -771,8 +771,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				dpath.Base.PathMeta.SegLen[0] = 11
 				dpath.Base.PathMeta.CurrHF = 3
 				dpath.InfoFields[0].ConsDir = false
-				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[1], dpath.PathMeta)
+				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[0], dpath.HopFields[1], dpath.PathMeta)
 				ingress := uint16(1)
 				egress := uint16(2)
 				if afterProcessing {
@@ -812,8 +812,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				dpath.Base.NumLines = 11
 				dpath.Base.PathMeta.SegLen[0] = 11
 				dpath.PathMeta.CurrHF = 3
-				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[1], dpath.Base.PathMeta)
+				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[0], dpath.HopFields[1], dpath.Base.PathMeta)
 				var dstAddr *net.UDPAddr
 				ingress := uint16(1)
 				egress := uint16(3)
@@ -863,7 +863,7 @@ func TestProcessHbirdPacket(t *testing.T) {
 					},
 				}
 				dpath.HopFields[1].HopField.Mac = computeAggregateMacExplicitInEg(
-					t, key, hbirdKey, spkt.DstIA, spkt.PayloadLen, 3, 51,
+					t, key, hbirdKey, spkt, dpath, 3, 51,
 					dpath.InfoFields[0], dpath.HopFields[1], dpath.PathMeta)
 				dpath.HopFields[2].HopField.Mac =
 					computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[2].HopField)
@@ -879,7 +879,7 @@ func TestProcessHbirdPacket(t *testing.T) {
 					dpath.HopFields[1].HopField.Mac =
 						computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1].HopField)
 					dpath.HopFields[2].HopField.Mac = computeAggregateMacExplicitInEg(t, key, hbirdKey,
-						spkt.DstIA, spkt.PayloadLen, 3, 51,
+						spkt, dpath, 3, 51,
 						dpath.InfoFields[1], dpath.HopFields[2], dpath.PathMeta)
 					dpath.PathMeta.SegLen[0] -= 2
 					dpath.PathMeta.SegLen[1] += 2
@@ -944,7 +944,7 @@ func TestProcessHbirdPacket(t *testing.T) {
 					},
 				}
 				dpath.HopFields[2].HopField.Mac = computeAggregateMacExplicitInEg(
-					t, key, hbirdKey, spkt.DstIA, spkt.PayloadLen, 3, 51,
+					t, key, hbirdKey, spkt, dpath, 3, 51,
 					dpath.InfoFields[1], dpath.HopFields[2], dpath.PathMeta)
 				ingress := uint16(0) // from sibling router
 				egress := uint16(3)
@@ -1022,8 +1022,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				// parent hop of HF[1] in the original beaconned segment,
 				// which is not in the path). So, we use one from an
 				// info field because computeMAC makes that easy.
-				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[1], dpath.HopFields[1], dpath.PathMeta)
+				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[1], dpath.HopFields[1], dpath.PathMeta)
 				dpath.HopFields[2].HopField.Mac = computeMAC(
 					t, hbirdKey, dpath.InfoFields[1], dpath.HopFields[2].HopField)
 				ingress := uint16(1) // from peering link
@@ -1092,8 +1092,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				// info field because computeMAC makes that easy.
 				dpath.HopFields[0].HopField.Mac = computeMAC(
 					t, hbirdKey, dpath.InfoFields[0], dpath.HopFields[0].HopField)
-				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[1], dpath.PathMeta)
+				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[0], dpath.HopFields[1], dpath.PathMeta)
 				// We're going against construction order, so the accumulator
 				// value is that of the previous hop in traversal order. The
 				// story starts with the packet arriving at hop 1, so the
@@ -1172,8 +1172,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				// info field because computeMAC makes that easy.
 				dpath.HopFields[1].HopField.Mac = computeMAC(
 					t, hbirdKey, dpath.InfoFields[1], dpath.HopFields[1].HopField)
-				dpath.HopFields[2].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[1], dpath.HopFields[2], dpath.PathMeta)
+				dpath.HopFields[2].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[1], dpath.HopFields[2], dpath.PathMeta)
 				ingress := uint16(1)
 				egress := uint16(0)
 				// The SegID we provide is that of HF[2] which happens to be SEG[1]'s SegID,
@@ -1243,8 +1243,8 @@ func TestProcessHbirdPacket(t *testing.T) {
 				// in the original beaconned segment, which is not in
 				// the path). So, we use one from an info field because
 				// computeMAC makes that easy.
-				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt.DstIA,
-					spkt.PayloadLen, dpath.InfoFields[0], dpath.HopFields[1], dpath.PathMeta)
+				dpath.HopFields[1].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
+					dpath.InfoFields[0], dpath.HopFields[1], dpath.PathMeta)
 				dpath.HopFields[2].HopField.Mac = computeMAC(
 					t, hbirdKey, dpath.InfoFields[0], dpath.HopFields[2].HopField)
 				ingress := uint16(2) // from child link
@@ -3678,14 +3678,14 @@ func computeAggregateMac(
 	t *testing.T,
 	key []byte,
 	sv []byte,
-	dst addr.IA,
-	l uint16,
+	spkt *slayers.SCION,
+	dpath *hummingbird.Decoded,
 	info path.InfoField,
 	hf hummingbird.FlyoverHopField,
 	meta hummingbird.MetaHdr,
 ) [path.MacLen]byte {
 	return computeAggregateMacExplicitInEg(
-		t, key, sv, dst, l, hf.HopField.ConsIngress, hf.HopField.ConsEgress,
+		t, key, sv, spkt, dpath, hf.HopField.ConsIngress, hf.HopField.ConsEgress,
 		info, hf, meta)
 }
 
@@ -3693,8 +3693,8 @@ func computeAggregateMacExplicitInEg(
 	t *testing.T,
 	key []byte,
 	sv []byte,
-	dst addr.IA,
-	l uint16,
+	spkt *slayers.SCION,
+	dpath *hummingbird.Decoded,
 	hin uint16,
 	heg uint16,
 	info path.InfoField,
@@ -3718,7 +3718,9 @@ func computeAggregateMacExplicitInEg(
 
 	ak := hummingbird.DeriveAuthKey(block, hf.ResID, hf.Bw, ingress, egress,
 		meta.BaseTS-uint32(hf.ResStartTime), hf.Duration, akBuffer)
-	flyoverMac := hummingbird.FullFlyoverMac(ak, dst, l, hf.ResStartTime,
+	flyoverMac := hummingbird.FullFlyoverMac(ak, spkt.DstIA,
+		packetLenFromRouterView(t, spkt, dpath),
+		hf.ResStartTime,
 		meta.HighResTS, macBuffer, xkBuffer)
 
 	for i, b := range scionMac {
@@ -3744,7 +3746,8 @@ func deaggregateFlyoverFromMac(
 }
 
 // Computes flyovermac and aggregates it to existing mac in hopfield
-func aggregateOntoScionMac(t *testing.T, sv []byte, dst addr.IA, l, hin, heg uint16,
+func aggregateOntoScionMac(t *testing.T, sv []byte, spkt *slayers.SCION, dpath *hummingbird.Decoded,
+	hin, heg uint16,
 	info path.InfoField, hf *hummingbird.FlyoverHopField, meta hummingbird.MetaHdr) {
 	block, err := aes.NewCipher(sv)
 	require.NoError(t, err)
@@ -3756,10 +3759,30 @@ func aggregateOntoScionMac(t *testing.T, sv []byte, dst addr.IA, l, hin, heg uin
 
 	ak := hummingbird.DeriveAuthKey(block, hf.ResID, hf.Bw, ingress, egress,
 		meta.BaseTS-uint32(hf.ResStartTime), hf.Duration, akBuffer)
-	flyoverMac := hummingbird.FullFlyoverMac(ak, dst, l, hf.ResStartTime,
+	flyoverMac := hummingbird.FullFlyoverMac(ak, spkt.DstIA,
+		packetLenFromRouterView(t, spkt, dpath),
+		hf.ResStartTime,
 		meta.HighResTS, macBuffer, xkBuffer)
 
 	for i := range hf.HopField.Mac {
 		hf.HopField.Mac[i] ^= flyoverMac[i]
 	}
+}
+
+func packetLenFromRouterView(
+	t *testing.T,
+	spkt *slayers.SCION,
+	dpath *hummingbird.Decoded,
+) uint16 {
+	t.Helper()
+
+	rawBytes := make([]byte, dpath.Len())
+	require.NoError(t, dpath.SerializeTo(rawBytes))
+
+	rawPath := &hummingbird.Raw{}
+	require.NoError(t, rawPath.DecodeFromBytes(rawBytes))
+
+	spkt.Path = rawPath
+	spkt.PathType = rawPath.Type()
+	return spkt.PacketLen()
 }

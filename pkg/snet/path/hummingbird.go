@@ -77,13 +77,18 @@ func NewReservation(opts ...ReservationModFcn) (*Reservation, error) {
 // SetPath sets the path into the passed-by-pointer scion headers.
 // When called, the scion layer has its fields (e.g. payload length, src IA, etc.) already set up.
 func (r Reservation) SetPath(s *slayers.SCION) error {
-	dec := r.deriveDataPlanePath(s.PayloadLen, r.Now())
-	s.Path, s.PathType = dec, dec.Type()
+	// We need to have a path set in the slayers.SCION to compute its full packet length,
+	// since r.Dec and the derived dataplane path have the same length in bytes,
+	// use the decoded Hummingbird path initially before deriving the correct dataplane path.
+	s.Path, s.PathType = r.Dec, r.Dec.Type()
+	dec := r.deriveDataPlanePath(s.PacketLen(), r.Now())
+	// Now set the correct dataplane path in the SCION layer.
+	s.Path = dec
 	return nil
 }
 
 // DeriveDataPlanePath sets pathmeta timestamps and increments duplicate detection counter and
-// updates MACs of all flyoverfields.
+// updates MACs of all flyoverfields using the full SCION packet length.
 func (r Reservation) deriveDataPlanePath(
 	pktLen uint16,
 	timeStamp time.Time,

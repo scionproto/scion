@@ -160,6 +160,13 @@ func (s *SCION) NetworkFlow() gopacket.Flow {
 	return gopacket.Flow{}
 }
 
+// PacketLen returns the full SCION packet length in bytes: common header,
+// address header, path header, and SCION payload. It does not include any
+// outer underlay headers.
+func (s *SCION) PacketLen() uint16 {
+	return uint16(CmnHdrLen+s.AddrHdrLen()+s.Path.Len()) + s.PayloadLen
+}
+
 func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
 	scnLen := CmnHdrLen + s.AddrHdrLen() + s.Path.Len()
 	if scnLen > MaxHdrLen {

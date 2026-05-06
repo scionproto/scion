@@ -218,7 +218,7 @@ func (p *scionPacketProcessor) verifyHbirdFlyoverMac() disposition {
 		ingress, egress, p.hbirdPath.PathMeta.BaseTS-uint32(p.flyoverField.ResStartTime),
 		p.flyoverField.Duration,
 		p.macInputBuffer[path.MACBufferSize+hummingbird.FlyoverMacBufferSize:])
-	flyoverMac = hummingbird.FullFlyoverMac(ak, p.scionLayer.DstIA, p.scionLayer.PayloadLen,
+	flyoverMac = hummingbird.FullFlyoverMac(ak, p.scionLayer.DstIA, p.scionLayer.PacketLen(),
 		p.flyoverField.ResStartTime, p.hbirdPath.PathMeta.HighResTS,
 		p.macInputBuffer[path.MACBufferSize:], p.hbirdXkbuffer)
 
@@ -240,7 +240,7 @@ func (p *scionPacketProcessor) verifyHbirdFlyoverMac() disposition {
 			"scionMac", fmt.Sprintf("%x", scionMac[:path.MacLen]),
 			"if_id", p.ingressFromLink, "curr_inf", p.hbirdPath.PathMeta.CurrINF,
 			"curr_hf", p.hbirdPath.PathMeta.CurrHF, "seg_id", p.infoField.SegID,
-			"packet length", p.scionLayer.PayloadLen,
+			"packet length", p.scionLayer.PacketLen(),
 			"dest", p.scionLayer.DstIA, "startTime", p.flyoverField.ResStartTime,
 			"highResTS", p.hbirdPath.PathMeta.HighResTS,
 			"ResID", p.flyoverField.ResID, "Bw", p.flyoverField.Bw,
