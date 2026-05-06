@@ -109,8 +109,6 @@ class GoGenerator(object):
                                toml.dumps(bs_conf))
 
     def generate_hummingbird(self):
-        if self.args.docker:
-            return
         for topo_id, topo in self.args.topo_dicts.items():
             for elem_id in topo.get("control_service", {}):
                 if not elem_id.endswith("-1"):

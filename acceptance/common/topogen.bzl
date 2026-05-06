@@ -68,6 +68,7 @@ def topogen_test(
         "//docker:control.tarball",
         "//docker:daemon.tarball",
         "//docker:dispatcher.tarball",
+        "//docker:hummingbird.tarball",
         "//docker:router.tarball",
     ]
     if tester:

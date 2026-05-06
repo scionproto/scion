@@ -9,6 +9,7 @@ filegroup(
         ":daemon.tarball",
         ":dispatcher.tarball",
         ":gateway.tarball",
+        ":hummingbird.tarball",
         ":router.tarball",
     ],
 )
@@ -62,6 +63,16 @@ scion_app_image(
         "/etc/scion/sd.toml",
     ],
     entrypoint = ["/app/daemon"],
+)
+
+scion_app_image(
+    name = "hummingbird",
+    src = "//hbird/cmd/hummingbird",
+    cmd = [
+        "--config",
+        "/etc/scion/hbird.toml",
+    ],
+    entrypoint = ["/app/hummingbird"],
 )
 
 scion_app_image(
