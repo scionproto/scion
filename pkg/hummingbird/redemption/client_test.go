@@ -353,11 +353,15 @@ func localIpFromDaemonAddr(t *testing.T, localScionDaemonAddr string) net.IP {
 	return addr.IP
 }
 
+// deriveAk derives the expected Hummingbird authentication key using the master secret in
+// the keys directory of the ia AS.
 func deriveAk(t *testing.T, ia addr.IA, flyover *path.Hop) [hummingbird.AkSize]byte {
-	// Get SV.
-	genPath := "../../../gen/"
-	asDir := addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator())
-	keysDir := filepath.Join(genPath, asDir, "keys")
+	// Get SV from master keys.
+	keysDir := filepath.Join(
+		"testdata",
+		addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator()),
+		"keys",
+	)
 	t.Logf("keysDir = %s", keysDir)
 	master, err := keyconf.LoadMaster(keysDir)
 	require.NoError(t, err)

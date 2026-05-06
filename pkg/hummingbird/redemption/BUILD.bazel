@@ -32,6 +32,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["client_test.go"],
+    data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
         "//pkg/addr:go_default_library",
