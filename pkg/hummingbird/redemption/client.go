@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"strconv"
 	"sync"
 	"time"
 
@@ -366,8 +367,13 @@ func buildIntraAsFactory(ctx context.Context, sdConn daemon.Connector,
 	if err != nil {
 		return nil, fmt.Errorf("cannot find CS address: %w", err)
 	}
+
 	// Build the redemption server's address using the CS's one.
-	dstRedemptionServer := fmt.Sprintf("http://%s:%d", csAddr.IP.String(), RedemptionServerPort)
+	dstRedemptionServer := "http://" + net.JoinHostPort(
+		csAddr.IP.String(),
+		strconv.Itoa(RedemptionServerPort),
+	)
+
 	return func() hbirdv1connect.HBirdServiceClient {
 		return hbirdv1connect.NewHBirdServiceClient(
 			http.DefaultClient,
