@@ -48,6 +48,13 @@ func GetMetrics() *Metrics {
 type Disposition disposition
 
 const PDiscard = Disposition(pDiscard)
+const PSlowPath = Disposition(pSlowPath)
+
+type SlowPathRequestView struct {
+	SPType  int8
+	Code    slayers.SCMPCode
+	Pointer uint16
+}
 
 // Implements the link interface minimally
 type MockLink struct {
@@ -308,6 +315,19 @@ func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
 	// Erase trafficType; we don't set it in the expected results.
 	pkt.trafficType = ttOther
 	return Disposition(disp)
+}
+
+func (d *DataPlane) ProcessSlowPath(pkt *Packet) error {
+	p := newSlowPathProcessor(&d.dataPlane)
+	return p.processPacket(pkt)
+}
+
+func ExtractSlowPathRequest(pkt *Packet) SlowPathRequestView {
+	return SlowPathRequestView{
+		SPType:  int8(pkt.slowPathRequest.spType),
+		Code:    pkt.slowPathRequest.code,
+		Pointer: pkt.slowPathRequest.pointer,
+	}
 }
 
 func ExtractServices(s *Services[netip.AddrPort]) map[addr.SVC][]netip.AddrPort {

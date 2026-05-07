@@ -15,6 +15,7 @@
 package router_test
 
 import (
+	"bytes"
 	"crypto/aes"
 	"net"
 	"net/netip"
@@ -22,6 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/gopacket/gopacket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1288,6 +1290,123 @@ func TestProcessHbirdPacket(t *testing.T) {
 				return
 			}
 			assertPktEqual(t, want, pkt)
+		})
+	}
+}
+
+func TestProcessHbirdSCMP(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	key := []byte("testkey_xxxxxxxx")
+	hbirdKey := []byte("test_secretvalue")
+	now := time.Now()
+
+	testCases := map[string]struct {
+		prepareDP            func(*gomock.Controller) *router.DataPlane
+		mockPkt              func(*testing.T, *router.DataPlane) (*router.Packet, []byte)
+		expectedSlowPath     router.SlowPathRequestView
+		expectedSCMPTypeCode slayers.SCMPTypeCode
+		expectedLayerType    gopacket.LayerType
+		assertReply          func(*testing.T, gopacket.Packet, []byte)
+	}{
+		"invalid flyover aggregate MAC on inbound packet": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDPWithHummingbirdKey(
+					[]uint16{1, 2, 3},
+					nil,
+					nil,
+					map[uint16]netip.AddrPort{},
+					addr.MustParseIA("1-ff00:0:110"), nil, key, hbirdKey)
+			},
+			mockPkt: func(t *testing.T, dp *router.DataPlane) (*router.Packet, []byte) {
+				// Start from the valid inbound flyover case used in TestProcessHbirdPacket,
+				// then corrupt only the aggregate MAC so the rest of the path remains
+				// well-formed and the failure is unambiguously a MAC verification error.
+				spkt, dpath := prepHbirdMsg(now)
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
+				dst := addr.MustParseHost("10.0.100.100")
+				require.NoError(t, spkt.SetDstAddr(dst))
+				dpath.HopFields = []hummingbird.FlyoverHopField{
+					{HopField: path.HopField{ConsIngress: 41, ConsEgress: 40}},
+					{HopField: path.HopField{ConsIngress: 31, ConsEgress: 30}},
+					{HopField: path.HopField{ConsIngress: 1, ConsEgress: 0},
+						Flyover: true, ResStartTime: 123, Duration: 304, Bw: 16},
+				}
+				dpath.Base.PathMeta.SegLen[0] = 6 + 5
+				dpath.Base.NumLines = 6 + 5
+				dpath.Base.PathMeta.CurrHF = 6
+				dpath.HopFields[2].HopField.Mac = computeAggregateMac(
+					t, key, hbirdKey, spkt, dpath, dpath.InfoFields[0], dpath.HopFields[2],
+					dpath.PathMeta)
+				// Flip one byte to turn the valid aggregate MAC into the malformed one
+				// that should trigger the SCMP slow path.
+				dpath.HopFields[2].HopField.Mac[0] ^= 0xff
+
+				raw := toBytes(t, spkt, dpath)
+				original := bytes.Clone(raw)
+				pkt := router.NewPacket(raw, nil, nil, 1, 0)
+				pkt.Link = router.ExtractInterfaces(dp)[1]
+				return pkt, original
+			},
+			expectedSlowPath: router.SlowPathRequestView{
+				SPType:  int8(slayers.SCMPTypeParameterProblem),
+				Code:    slayers.SCMPCodeInvalidHopFieldMAC,
+				// Pointer to the current Hummingbird hop line in the malformed packet.
+				Pointer: 80,
+			},
+			// The slow-path response should be an SCMP Parameter Problem reporting the
+			// invalid hop/flyover MAC.
+			expectedSCMPTypeCode: slayers.CreateSCMPTypeCode(
+				slayers.SCMPTypeParameterProblem,
+				slayers.SCMPCodeInvalidHopFieldMAC,
+			),
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+			assertReply: func(t *testing.T, packet gopacket.Packet, original []byte) {
+				scionLayer := packet.Layer(slayers.LayerTypeSCION)
+				require.NotNil(t, scionLayer)
+				scionPkt := scionLayer.(*slayers.SCION)
+				// The response must travel back on a Hummingbird path towards the
+				// original source IA, with the local router IA as sender.
+				assert.EqualValues(t, hummingbird.PathType, scionPkt.PathType)
+				assert.Equal(t, addr.MustParseIA("2-ff00:0:222"), scionPkt.DstIA)
+				assert.Equal(t, addr.MustParseIA("1-ff00:0:110"), scionPkt.SrcIA)
+
+				scmpParam := packet.Layer(slayers.LayerTypeSCMPParameterProblem)
+				require.NotNil(t, scmpParam)
+				quote := scmpParam.LayerPayload()
+				require.NotEmpty(t, quote)
+				// SCMP errors must quote the offending packet payload verbatim, subject
+				// only to SCMP truncation limits.
+				assert.True(t, bytes.Equal(original[:len(quote)], quote))
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			dp := tc.prepareDP(ctrl)
+			pkt, original := tc.mockPkt(t, dp)
+
+			disp := dp.ProcessPkt(pkt)
+			assert.Equal(t, router.PSlowPath, disp)
+			assert.Equal(t, tc.expectedSlowPath, router.ExtractSlowPathRequest(pkt))
+
+			err := dp.ProcessSlowPath(pkt)
+			require.NoError(t, err)
+
+			packet := gopacket.NewPacket(pkt.RawPacket, slayers.LayerTypeSCION, gopacket.Default)
+			scmpLayer := packet.Layer(slayers.LayerTypeSCMP)
+			require.NotNil(t, scmpLayer)
+			scmp := scmpLayer.(*slayers.SCMP)
+			assert.Equal(t, tc.expectedSCMPTypeCode, scmp.TypeCode)
+			assert.NotNil(t, packet.Layer(tc.expectedLayerType))
+
+			if tc.assertReply != nil {
+				tc.assertReply(t, packet, original)
+			}
 		})
 	}
 }

@@ -980,6 +980,8 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 		if p.path == nil {
 			return errMalformedPath
 		}
+	case hbird.PathType:
+		// Hummingbird slow-path handling is delegated to prepareHbirdSCMP.
 	default:
 		// unsupported path type
 		return serrors.New("Path type not supported for slow-path", "type", pathType)
