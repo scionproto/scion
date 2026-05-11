@@ -20,6 +20,7 @@ import (
 	"crypto/cipher"
 	"crypto/sha256"
 	"encoding/binary"
+
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -131,4 +132,26 @@ func FullFlyoverMac(
 	encryptBlockAsm(aesRounds, &xkbuffer[0], &buffer[0], &buffer[0])
 
 	return buffer[0:FlyoverMacBufferSize]
+}
+
+// FlyoverMacWithAkAesBlock computes the MAC for a Hummingbird packet, given an existing
+// block obtained with e.g. block:=aes.NewCipher(ak), and a preallocated buffer of at least
+// AkBufferSize bytes.
+func FlyoverMacWithAkAesBlock(
+	block cipher.Block,
+	buffer []byte,
+	dstIA addr.IA,
+	pktlen uint16,
+	resStartTime uint16,
+	highResTime uint32,
+) []byte {
+	_ = buffer[AkBufferSize-1]
+
+	binary.BigEndian.PutUint64(buffer[0:8], uint64(dstIA))
+	binary.BigEndian.PutUint16(buffer[8:10], pktlen)
+	binary.BigEndian.PutUint16(buffer[10:12], resStartTime)
+	binary.BigEndian.PutUint32(buffer[12:16], highResTime)
+
+	block.Encrypt(buffer[:AkBufferSize], buffer[:AkBufferSize])
+	return buffer[:AkBufferSize]
 }

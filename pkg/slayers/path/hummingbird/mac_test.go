@@ -67,6 +67,9 @@ func TestDeriveAuthKey(t *testing.T) {
 	require.Equal(t, expected, key)
 }
 
+// BenchmarkDeriveAuthKey measures the performance of the DeriveAuthKey function.
+// This benchmark is relevant to the border router, who keeps an existing block, and always
+// needs to derive a new Ak for every packet.
 func BenchmarkDeriveAuthKey(b *testing.B) {
 	sv := []byte{
 		0, 1, 2, 3, 4, 5, 6, 7,
@@ -88,10 +91,10 @@ func BenchmarkDeriveAuthKey(b *testing.B) {
 	}
 }
 
-// BenchmarkDeriveAuthKeyManually benchmarks obtaining Ak by just using the stdlib.
+// BenchmarkDeriveAuthKeyStdLib benchmarks obtaining Ak by just using the stdlib.
 // Results in my machine of 5.987 ns/op.
 // Does not take into account the process of moving data into the buffer
-func BenchmarkDeriveAuthKeyManually(b *testing.B) {
+func BenchmarkDeriveAuthKeyStdLib(b *testing.B) {
 	sv := []byte{
 		0, 1, 2, 3, 4, 5, 6, 7,
 		0, 1, 2, 3, 4, 5, 6, 7,
@@ -100,9 +103,8 @@ func BenchmarkDeriveAuthKeyManually(b *testing.B) {
 	var bw uint16 = 0x0203
 	var in uint16 = 2
 	var eg uint16 = 5
-	var start uint16 = 0x0001
-	var end uint16 = 0x0203
-	inData := make([]byte, hummingbird.AkBufferSize)
+	var start uint32 = 0x0030001
+	var duration uint16 = 0x0203
 
 	buffer := make([]byte, hummingbird.AkBufferSize)
 	block, err := aes.NewCipher(sv)
@@ -110,15 +112,17 @@ func BenchmarkDeriveAuthKeyManually(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		binary.BigEndian.PutUint32(inData[0:4], resId<<10)
-		inData[2] |= byte(bw >> 8)
-		inData[3] = byte(bw)
-		binary.BigEndian.PutUint16(inData[4:6], in)
-		binary.BigEndian.PutUint16(inData[6:8], eg)
-		binary.BigEndian.PutUint16(inData[8:10], start)
-		binary.BigEndian.PutUint16(inData[10:12], end)
-		binary.BigEndian.PutUint32(inData[12:16], 0) //padding
-		block.Encrypt(buffer[:], inData)
+		func() {
+			_ = buffer[hummingbird.AkBufferSize-1]
+
+			binary.BigEndian.PutUint16(buffer[0:2], in)
+			binary.BigEndian.PutUint16(buffer[2:4], eg)
+			binary.BigEndian.PutUint32(buffer[4:8], resId<<10|uint32(bw))
+			binary.BigEndian.PutUint32(buffer[8:12], start)
+			binary.BigEndian.PutUint16(buffer[12:14], duration)
+			binary.BigEndian.PutUint16(buffer[14:16], 0) //padding
+			block.Encrypt(buffer, buffer)
+		}()
 	}
 }
 
@@ -152,6 +156,10 @@ func TestFlyoverMac(t *testing.T) {
 	require.Equal(t, expected, mac)
 }
 
+// BenchmarkFlyoverMac measures the performance of the FullFlyoverMac function.
+// This benchmark is relevant to the end-hosts and border routers, who with an existing Ak will
+// call FullFlyoverMac preserving the buffers. The end-host caches the Ak, while the border router
+// recomputes it per packet.
 func BenchmarkFlyoverMac(b *testing.B) {
 	ak := []byte{
 		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
@@ -170,9 +178,9 @@ func BenchmarkFlyoverMac(b *testing.B) {
 	}
 }
 
-// Benchmark of the Flyover MAC if we use library code only
-// Without using the assembly code in the asm_* files.
-func BenchmarkFlyoverMacLib(b *testing.B) {
+// BenchmarkFlyoverMacStdLib measures the performance of the Flyover MAC if we use
+// standard library code only, without using the assembly code in the asm_* files.
+func BenchmarkFlyoverMacStdLib(b *testing.B) {
 	ak := []byte{
 		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
 		0xb5, 0x75, 0xc6, 0xe9, 0x4c, 0x5a, 0x89, 0x84,
@@ -194,5 +202,32 @@ func BenchmarkFlyoverMacLib(b *testing.B) {
 
 		block, _ := aes.NewCipher(ak)
 		block.Encrypt(buffer[:], buffer[:])
+	}
+}
+
+// BenchmarkFullFlyoverMacEndhost measures the time needed to derive a MAC given a fixed Ak.
+// This is relevant for the endhost, as it can cache the AES Block derived from Ak,
+// and reuse it to compute each MAC as the values change.
+func BenchmarkFullFlyoverMacEndhost(b *testing.B) {
+	ak := []byte{
+		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
+		0xb5, 0x75, 0xc6, 0xe9, 0x4c, 0x5a, 0x89, 0x84,
+	}
+
+	var dstIA addr.IA = 326
+	var pktlen uint16 = 23
+	var resStartTs uint16 = 1234
+	var highResTs uint32 = 4321
+	buffer := make([]byte, hummingbird.FlyoverMacBufferSize)
+
+	// Derive the AES block once, like the end-host would do.
+	// Keep it for posterior computations of the MAC.
+	block, err := aes.NewCipher(ak)
+	require.NoError(b, err)
+
+	// Compute expected output based on library cbc-mac implementation.
+	b.ResetTimer()
+	for b.Loop() {
+		hummingbird.FlyoverMacWithAkAesBlock(block, buffer, dstIA, pktlen, resStartTs, highResTs)
 	}
 }
