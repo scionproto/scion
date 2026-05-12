@@ -148,7 +148,7 @@ func (c RedemptionClient) RedeemPathWithPreviousRequests(
 	return results, errors.Join(failures...)
 }
 
-func (c RedemptionClient) RedeemPathWithRequest(
+func (c *RedemptionClient) RedeemPathWithRequest(
 	ctx context.Context,
 	p snet.Path,
 	commonRequest humm.RedemptionRequestNoHop,
@@ -292,7 +292,7 @@ func (c RedemptionClient) getDstAddr(ctx context.Context, dstIa addr.IA) (*snet.
 		return nil, err
 	}
 	if len(paths) == 0 {
-		return nil, err
+		return nil, fmt.Errorf("no path available to %s", dstIa)
 	}
 	chosenPath := paths[0]
 
