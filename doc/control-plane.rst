@@ -171,7 +171,7 @@ Peering Links
 
 PCBs do not traverse peering links.
 Instead, available peering links are announced along with a regular path in the individual AS
-entries of PCBs.
+entries of PCBs during *intra-AS* beaconing. Peering links are not announced in *inter-AS* beaconing.
 If both ASes at either end of a peering link have registered path segments that include a specific
 peering link, then it can be used to during segment combination to create an end-to-end path.
 
@@ -195,7 +195,7 @@ core AS that originated the PCB.
 Intra-ISD Path-Segment Registration
 -----------------------------------
 
-Every *registration period* (determined by each AS), the AS's control service selects of
+Every *registration period* (determined by each AS), the AS's control service selects
 PCBs to transform into path segments:
 
 - Up-segments, which allow the infrastructure entities and endpoints in this AS to communicate with
@@ -206,6 +206,9 @@ PCBs to transform into path segments:
   core AS that originated the PCB.
   As a result, a core AS's path database contains all down-segments registered by their
   direct or indirect customer ASes.
+
+In addition, if the AS is a core AS and if peering links are present, the control service adds
+an UP and a DOWN segment that contains only the AS itself along with all peering link metadata.
 
 Core Path-Segment Registration
 ------------------------------
@@ -225,13 +228,13 @@ Path Lookup
 An endpoint (source) that wants to start communication with another endpoint (destination), needs
 up to three path segments:
 
-- An up-path segment to reach the core of the source ISD
+- An up-path segment to reach the core of the source ISD or to get peering metadata for the core AS,
 - a core-path segment to reach
 
   - another core AS in the source ISD, in case the destination AS is in the same source ISD, or
   - a core AS in a remote ISD, if the destination AS is in another ISD, and
 
-- a down-path segment to reach the destination AS.
+- a down-path segment to reach the destination AS or to get peering metadata for the core AS.
 
 The process to look up and fetch path segments consists of the following steps:
 
@@ -296,6 +299,42 @@ end-to-end paths are encoded in the packet header.
    (labeled "c"). All created forwarding paths in cases 1a-1e traverse the ISD
    core(s), whereas the paths in cases 2-4 do not enter the ISD core.
 
+Peering Links in Core ASes
+--------------------------
+
+This section distinguished peering links and peering shortcuts:
+
+- Peering link: A physical link between two ASes.
+- Peering shortcut: A peering link that is used when constructing a full path.
+
+All ASes may have physical peering links. However, for segment combinations, peering
+shortcuts are only allowed (and announced) between ASes that are on UP segment or DOWN segments.
+This trivially allows peering shortcuts between non-core ASes and ASes.
+
+Peering shortcuts However, for segment combination,
+peering links with core ASes can only be used *indirectly* and only for the first and last AS in a core segment.
+Indirect means:
+
+- Any core AS that has peering links returns, when queried for an UP or DOWN segment,
+  a "zero"-hop segment that contains only itself and its peering links.
+- Client must always query for UP and DOWN links, even when they are located in a core AS.
+
+As a result, if the core ASes have peering links, any client will have at least one UP and one DOWN
+segment (even if source and destination AS are core ASes).
+These UP and DOWN segments, or any other UP or DOWN segments if they are available, can be used to
+create a peering shortcut.
+
+FAQ: Why do core segments not contain peering metadata?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+AS may use peering link instead of a public link if they
+does not want the link to be used for traffic that transits the ISD.
+The peering link allows usage to be limited to traffic that starts or ends in the local AS or one of its child ASes.
+If peering links were announced withe core segment metadata, they could be used on
+core segments that *transit* the local AS.
+
+Links
+=====
 
 .. seealso::
 
