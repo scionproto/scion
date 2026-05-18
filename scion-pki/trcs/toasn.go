@@ -15,6 +15,7 @@
 package trcs
 
 import (
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -37,18 +38,38 @@ func CreatePayload(cfg conf.TRC, pred *cppki.TRC) (*cppki.TRC, error) {
 			Base:   cfg.BaseVersion,
 			Serial: cfg.SerialVersion,
 		},
-		Validity:          v,
-		GracePeriod:       cfg.GracePeriod.Duration,
-		NoTrustReset:      cfg.NoTrustReset,
-		Votes:             cfg.Votes,
-		Quorum:            int(cfg.VotingQuorum),
-		CoreASes:          cfg.CoreASes,
-		AuthoritativeASes: cfg.AuthoritativeASes,
-		Description:       cfg.Description,
-		Certificates:      certs,
+		Validity:              v,
+		GracePeriod:           cfg.GracePeriod.Duration,
+		NoTrustReset:          cfg.NoTrustReset,
+		Votes:                 cfg.Votes,
+		Quorum:                int(cfg.VotingQuorum),
+		CoreASes:              cfg.CoreASes,
+		AuthoritativeASes:     cfg.AuthoritativeASes,
+		Description:           cfg.Description,
+		DescriptionLanguage:   cfg.DescriptionLanguage,
+		LocalizedDescriptions: localizedTextsFromMap(cfg.LocalizedDescriptions),
+		Certificates:          certs,
 	}
 	if err := trc.Validate(); err != nil {
 		return nil, err
 	}
 	return trc, nil
+}
+
+// localizedTextsFromMap converts a language→content map into a sorted slice of
+// cppki.LocalizedText. Sorting by language ensures deterministic ASN.1 output.
+func localizedTextsFromMap(m map[string]string) []cppki.LocalizedText {
+	if len(m) == 0 {
+		return nil
+	}
+	langs := make([]string, 0, len(m))
+	for lang := range m {
+		langs = append(langs, lang)
+	}
+	sort.Strings(langs)
+	texts := make([]cppki.LocalizedText, 0, len(m))
+	for _, lang := range langs {
+		texts = append(texts, cppki.LocalizedText{Language: lang, Content: m[lang]})
+	}
+	return texts
 }

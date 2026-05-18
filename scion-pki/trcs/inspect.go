@@ -164,16 +164,18 @@ type humanTRC struct {
 		NotBefore time.Time `yaml:"not_before" json:"not_before"`
 		NotAfter  time.Time `yaml:"not_after" json:"not_after"`
 	} `yaml:"validity" json:"validity"`
-	GracePeriod       string       `yaml:"graceperiod,omitempty" json:"graceperiod,omitempty"`
-	GracePeriodEnd    time.Time    `yaml:"graceperiod_end,omitempty" json:"graceperiod_end,omitempty"`
-	NoTrustReset      bool         `yaml:"no_trust_reset" json:"no_trust_reset"`
-	Votes             []int        `yaml:"votes,omitempty" json:"votes,omitempty"`
-	Quorum            int          `yaml:"voting_quorum" json:"voting_quorum"`
-	CoreASes          []addr.AS    `yaml:"core_ases" json:"core_ases"`
-	AuthoritativeASes []addr.AS    `yaml:"authoritative_ases" json:"authoritative_ases"`
-	Description       string       `yaml:"description" json:"description"`
-	Certificates      []certDesc   `yaml:"certificates" json:"certificates"`
-	Signatures        []signerInfo `yaml:"signatures,omitempty" json:"signatures,omitempty"`
+	GracePeriod           string            `yaml:"graceperiod,omitempty" json:"graceperiod,omitempty"`
+	GracePeriodEnd        time.Time         `yaml:"graceperiod_end,omitempty" json:"graceperiod_end,omitempty"`
+	NoTrustReset          bool              `yaml:"no_trust_reset" json:"no_trust_reset"`
+	Votes                 []int             `yaml:"votes,omitempty" json:"votes,omitempty"`
+	Quorum                int               `yaml:"voting_quorum" json:"voting_quorum"`
+	CoreASes              []addr.AS         `yaml:"core_ases" json:"core_ases"`
+	AuthoritativeASes     []addr.AS         `yaml:"authoritative_ases" json:"authoritative_ases"`
+	Description           string            `yaml:"description" json:"description"`
+	DescriptionLanguage   string            `yaml:"description_language,omitempty" json:"description_language,omitempty"`
+	LocalizedDescriptions map[string]string `yaml:"localized_descriptions,omitempty" json:"localized_descriptions,omitempty"`
+	Certificates          []certDesc        `yaml:"certificates" json:"certificates"`
+	Signatures            []signerInfo      `yaml:"signatures,omitempty" json:"signatures,omitempty"`
 }
 
 func (h *humanTRC) setTRC(trc cppki.TRC) error {
@@ -189,6 +191,13 @@ func (h *humanTRC) setTRC(trc cppki.TRC) error {
 	h.CoreASes = trc.CoreASes
 	h.AuthoritativeASes = trc.AuthoritativeASes
 	h.Description = trc.Description
+	h.DescriptionLanguage = trc.DescriptionLanguage
+	if len(trc.LocalizedDescriptions) > 0 {
+		h.LocalizedDescriptions = make(map[string]string, len(trc.LocalizedDescriptions))
+		for _, lt := range trc.LocalizedDescriptions {
+			h.LocalizedDescriptions[lt.Language] = lt.Content
+		}
+	}
 	if !trc.ID.IsBase() {
 		h.GracePeriod = trc.GracePeriod.String()
 		h.GracePeriodEnd = trc.Validity.NotBefore.Add(trc.GracePeriod).UTC()

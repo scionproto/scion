@@ -36,19 +36,27 @@ type asn1Validity struct {
 	NotAfter  time.Time `asn1:"notAfter,generalized"`
 }
 
+// asn1LocalizedText is used to encode and decode a localized description.
+type asn1LocalizedText struct {
+	Language string `asn1:"printable"`
+	Content  string `asn1:"utf8"`
+}
+
 // asn1TRCPayload is used to encode and decode the TRC payload.
 type asn1TRCPayload struct {
-	Version           int64           `asn1:"version"`
-	ID                asn1ID          `asn1:"iD"`
-	Validity          asn1Validity    `asn1:"validity"`
-	GracePeriod       int64           `asn1:"gracePeriod"`
-	NoTrustReset      bool            `asn1:"noTrustReset"`
-	Votes             []int64         `asn1:"votes"`
-	Quorum            int64           `asn1:"votingQuorum"`
-	CoreASes          []string        `asn1:"coreASes"`
-	AuthoritativeASes []string        `asn1:"authoritativeASes"`
-	Description       string          `asn1:"description,utf8"`
-	Certificates      []asn1.RawValue `asn1:"certificates"`
+	Version               int64               `asn1:"version"`
+	ID                    asn1ID              `asn1:"iD"`
+	Validity              asn1Validity        `asn1:"validity"`
+	GracePeriod           int64               `asn1:"gracePeriod"`
+	NoTrustReset          bool                `asn1:"noTrustReset"`
+	Votes                 []int64             `asn1:"votes"`
+	Quorum                int64               `asn1:"votingQuorum"`
+	CoreASes              []string            `asn1:"coreASes"`
+	AuthoritativeASes     []string            `asn1:"authoritativeASes"`
+	Description           string              `asn1:"description,utf8"`
+	Certificates          []asn1.RawValue     `asn1:"certificates"`
+	LocalizedDescriptions []asn1LocalizedText `asn1:"optional,explicit,tag:0"`
+	DescriptionLanguage   string              `asn1:"optional,explicit,tag:1,printable"`
 }
 
 // DecodeTRC parses the payload form ASN.1 DER format. The payload keeps a
@@ -86,18 +94,20 @@ func DecodeTRC(raw []byte) (TRC, error) {
 		return TRC{}, serrors.Wrap("invalid validity", err)
 	}
 	pld := TRC{
-		Raw:               raw,
-		Version:           int(a.Version) + 1,
-		ID:                id,
-		Validity:          validity,
-		GracePeriod:       time.Duration(a.GracePeriod) * time.Second,
-		NoTrustReset:      a.NoTrustReset,
-		Votes:             decodeVotes(a.Votes),
-		Quorum:            int(a.Quorum),
-		CoreASes:          cores,
-		AuthoritativeASes: auths,
-		Description:       a.Description,
-		Certificates:      certs,
+		Raw:                   raw,
+		Version:               int(a.Version) + 1,
+		ID:                    id,
+		Validity:              validity,
+		GracePeriod:           time.Duration(a.GracePeriod) * time.Second,
+		NoTrustReset:          a.NoTrustReset,
+		Votes:                 decodeVotes(a.Votes),
+		Quorum:                int(a.Quorum),
+		CoreASes:              cores,
+		AuthoritativeASes:     auths,
+		Description:           a.Description,
+		Certificates:          certs,
+		LocalizedDescriptions: decodeLocalizedTexts(a.LocalizedDescriptions),
+		DescriptionLanguage:   a.DescriptionLanguage,
 	}
 	if err := pld.Validate(); err != nil {
 		return TRC{}, err
@@ -133,14 +143,16 @@ func (trc *TRC) Encode() ([]byte, error) {
 			NotBefore: trc.Validity.NotBefore.UTC().Truncate(time.Second),
 			NotAfter:  trc.Validity.NotAfter.UTC().Truncate(time.Second),
 		},
-		GracePeriod:       int64(trc.GracePeriod / time.Second),
-		NoTrustReset:      trc.NoTrustReset,
-		Votes:             encodeVotes(trc.Votes),
-		Quorum:            int64(trc.Quorum),
-		CoreASes:          cores,
-		AuthoritativeASes: auths,
-		Description:       trc.Description,
-		Certificates:      certs,
+		GracePeriod:           int64(trc.GracePeriod / time.Second),
+		NoTrustReset:          trc.NoTrustReset,
+		Votes:                 encodeVotes(trc.Votes),
+		Quorum:                int64(trc.Quorum),
+		CoreASes:              cores,
+		AuthoritativeASes:     auths,
+		Description:           trc.Description,
+		Certificates:          certs,
+		LocalizedDescriptions: encodeLocalizedTexts(trc.LocalizedDescriptions),
+		DescriptionLanguage:   trc.DescriptionLanguage,
 	}
 	return asn1.Marshal(a)
 }
@@ -221,6 +233,22 @@ func encodeASes(ases []addr.AS) ([]string, error) {
 		encoded = append(encoded, as.String())
 	}
 	return encoded, nil
+}
+
+func decodeLocalizedTexts(raw []asn1LocalizedText) []LocalizedText {
+	texts := make([]LocalizedText, 0, len(raw))
+	for _, t := range raw {
+		texts = append(texts, LocalizedText{Language: t.Language, Content: t.Content})
+	}
+	return texts
+}
+
+func encodeLocalizedTexts(texts []LocalizedText) []asn1LocalizedText {
+	encoded := make([]asn1LocalizedText, 0, len(texts))
+	for _, t := range texts {
+		encoded = append(encoded, asn1LocalizedText{Language: t.Language, Content: t.Content})
+	}
+	return encoded
 }
 
 func decodeVotes(orig []int64) []int {
