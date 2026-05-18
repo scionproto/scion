@@ -26,6 +26,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -64,7 +65,7 @@ const (
 	ping              = "ping"
 	pong              = "pong"
 	hummReservationID = uint32(1)
-	hummStartOffset   = -5 * time.Second
+	hummStartOffset   = -3 * time.Second
 )
 
 type Ping struct {
@@ -514,6 +515,11 @@ func (c *client) buildReservationWithSecretValues(
 
 	hummBandwidth := c.hummParams.Bw
 	hummDurationSeconds := c.hummParams.Duration
+	log.Debug("Building Hummingbird reservation from local secret values",
+		"start_time", startTime,
+		"duration", hummDurationSeconds,
+		"bandwidth", hummBandwidth,
+		"res_id", hummReservationID)
 	for _, baseHop := range baseHops {
 		block, ok := aesByIA[baseHop.IA]
 		if !ok {
@@ -537,6 +543,15 @@ func (c *client) buildReservationWithSecretValues(
 			hummDurationSeconds,
 			buffer,
 		)
+		log.Debug("Locally derived Hummingbird AK",
+			"ia", baseHop.IA,
+			"ingress", baseHop.Ingress,
+			"egress", baseHop.Egress,
+			"start_time", startTime,
+			"duration", hummDurationSeconds,
+			"bandwidth", hummBandwidth,
+			"res_id", hummReservationID,
+			"ak", hex.EncodeToString(akRaw))
 		var ak [hummlib.AkBufferSize]byte
 		copy(ak[:], akRaw)
 		flyovers = append(flyovers, &snetpath.Hop{
