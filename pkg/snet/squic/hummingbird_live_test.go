@@ -20,6 +20,7 @@ import (
 	"crypto/cipher"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -52,7 +53,6 @@ const (
 	tinyServerListenAddr  = "1-ff00:0:111,127.0.0.20:12345"
 	tinyClientListenAddr  = "1-ff00:0:112,[fd00:f00d:cafe::7f00:c]:0"
 	tinyServerRemoteAddr  = "1-ff00:0:111,127.0.0.20:12345"
-	quicProto             = "SCION"
 	quicTestMessageClient = "ping over hummingbird"
 	quicTestMessageServer = "pong over scion"
 )
@@ -126,7 +126,7 @@ func TestQUICOverHummingbirdTinyTopology(t *testing.T) {
 	require.NoError(t, err)
 
 	reply := make([]byte, len(quicTestMessageServer))
-	n, err := stream.Read(reply)
+	n, err := io.ReadFull(stream, reply)
 	require.NoError(t, err)
 	require.Equal(t, quicTestMessageServer, string(reply[:n]))
 
@@ -150,20 +150,13 @@ func (ignoreSCMP) Handle(*snet.Packet) error {
 func requireTinyTopologyAssets(t *testing.T) string {
 	t.Helper()
 
-	repoRoot := requireRepoRoot(t)
-	candidates := []string{
-		filepath.Join(repoRoot, "gen.no-docker"),
-		filepath.Join(repoRoot, "gen"),
-		filepath.Join(repoRoot, "gen.with-redemp-on-110"),
-		filepath.Join(repoRoot, "gen.docker"),
+	root := filepath.Join(requireRepoRoot(t), "gen")
+	if hasTinyTopologyAssets(root) {
+		t.Logf("using tiny-topology assets from %s", root)
+		return root
 	}
-	for _, root := range candidates {
-		if hasTinyTopologyAssets(root) {
-			t.Logf("using tiny-topology assets from %s", root)
-			return root
-		}
-	}
-	t.Skipf("tiny-topology assets not found in any of %v", candidates)
+
+	t.Fatalf("tiny topology assets not found in %s", root)
 	return ""
 }
 
@@ -196,11 +189,11 @@ func requireDaemonConnector(t *testing.T, ctx context.Context, daemonAddr string
 
 	conn, err := daemon.NewService(daemonAddr).Connect(ctx)
 	if err != nil {
-		t.Skipf("tiny-topology daemon %s is not reachable: %v", daemonAddr, err)
+		t.Fatalf("tiny-topology daemon %s is not reachable: %v", daemonAddr, err)
 	}
 	if _, err := conn.LocalIA(ctx); err != nil {
 		_ = conn.Close()
-		t.Skipf("tiny-topology daemon %s is not usable: %v", daemonAddr, err)
+		t.Fatalf("tiny-topology daemon %s is not usable: %v", daemonAddr, err)
 	}
 	return conn
 }
@@ -374,16 +367,14 @@ func runQUICServer(ctx context.Context, listener *quic.Listener) error {
 	if err != nil {
 		return serrors.Wrap("accepting quic connection", err)
 	}
-	defer conn.CloseWithError(0, "")
 
 	stream, err := conn.AcceptStream(ctx)
 	if err != nil {
 		return serrors.Wrap("accepting quic stream", err)
 	}
-	defer stream.Close()
 
 	buf := make([]byte, len(quicTestMessageClient))
-	n, err := stream.Read(buf)
+	n, err := io.ReadFull(stream, buf)
 	if err != nil {
 		return serrors.Wrap("reading client payload", err)
 	}
@@ -392,6 +383,9 @@ func runQUICServer(ctx context.Context, listener *quic.Listener) error {
 	}
 	if _, err := stream.Write([]byte(quicTestMessageServer)); err != nil {
 		return serrors.Wrap("writing server payload", err)
+	}
+	if err := stream.Close(); err != nil {
+		return serrors.Wrap("closing server stream", err)
 	}
 	return nil
 }
