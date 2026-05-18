@@ -30,18 +30,20 @@ import (
 
 // TRC holds the TRC configuration.
 type TRC struct {
-	ISD               addr.ISD        `toml:"isd"`
-	Description       string          `toml:"description"`
-	SerialVersion     scrypto.Version `toml:"serial_version"`
-	BaseVersion       scrypto.Version `toml:"base_version"`
-	VotingQuorum      uint8           `toml:"voting_quorum"`
-	GracePeriod       util.DurWrap    `toml:"grace_period"`
-	NoTrustReset      bool            `toml:"no_trust_reset"`
-	Validity          Validity        `toml:"validity"`
-	CoreASes          []addr.AS       `toml:"core_ases"`
-	AuthoritativeASes []addr.AS       `toml:"authoritative_ases"`
-	CertificateFiles  []string        `toml:"cert_files"`
-	Votes             []int           `toml:"votes"`
+	ISD                   addr.ISD          `toml:"isd"`
+	Description           string            `toml:"description"`
+	DescriptionLanguage   string            `toml:"description_language"`
+	LocalizedDescriptions map[string]string `toml:"localized_descriptions"`
+	SerialVersion         scrypto.Version   `toml:"serial_version"`
+	BaseVersion           scrypto.Version   `toml:"base_version"`
+	VotingQuorum          uint8             `toml:"voting_quorum"`
+	GracePeriod           util.DurWrap      `toml:"grace_period"`
+	NoTrustReset          bool              `toml:"no_trust_reset"`
+	Validity              Validity          `toml:"validity"`
+	CoreASes              []addr.AS         `toml:"core_ases"`
+	AuthoritativeASes     []addr.AS         `toml:"authoritative_ases"`
+	CertificateFiles      []string          `toml:"cert_files"`
+	Votes                 []int             `toml:"votes"`
 
 	relPath string
 }

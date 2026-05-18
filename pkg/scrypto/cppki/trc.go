@@ -80,6 +80,12 @@ func (u UpdateType) String() string {
 	}
 }
 
+// LocalizedText represents a localized description with a language identifier.
+type LocalizedText struct {
+	Language string
+	Content  string
+}
+
 // TRC is the TRC payload.
 type TRC struct {
 	// Raw contains the complete ASN.1 DER content.
@@ -88,17 +94,19 @@ type TRC struct {
 	// serialized version 0 is represented as 1. This emulates behavior of the
 	// go standard library for the x509 certificate version:
 	// https://golang.org/pkg/crypto/x509/#Certificate
-	Version           int
-	ID                TRCID
-	Validity          Validity
-	GracePeriod       time.Duration
-	NoTrustReset      bool
-	Votes             []int
-	Quorum            int
-	CoreASes          []addr.AS
-	AuthoritativeASes []addr.AS
-	Description       string
-	Certificates      []*x509.Certificate
+	Version               int
+	ID                    TRCID
+	Validity              Validity
+	GracePeriod           time.Duration
+	NoTrustReset          bool
+	Votes                 []int
+	Quorum                int
+	CoreASes              []addr.AS
+	AuthoritativeASes     []addr.AS
+	Description           string
+	Certificates          []*x509.Certificate
+	LocalizedDescriptions []LocalizedText
+	DescriptionLanguage   string
 }
 
 // Validate validates the payload. This does not include validation of TRC
@@ -244,7 +252,9 @@ func (trc *TRC) IsZero() bool {
 		len(trc.CoreASes) == 0 &&
 		len(trc.AuthoritativeASes) == 0 &&
 		trc.Description == "" &&
-		len(trc.Certificates) == 0
+		len(trc.Certificates) == 0 &&
+		len(trc.LocalizedDescriptions) == 0 &&
+		trc.DescriptionLanguage == ""
 }
 
 // ValidateUpdate validates if this TRC is a valid successor TRC to the provided

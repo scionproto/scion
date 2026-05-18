@@ -307,8 +307,12 @@ func createTRCs(cfg config) error {
 	}
 	for isd := range isds {
 		trcConf := conf.TRC{
-			ISD:           isd,
-			Description:   fmt.Sprintf("Testcrypto TRC for ISD %d", isd),
+			ISD:                 isd,
+			Description:         fmt.Sprintf("Testcrypto TRC for ISD %d", isd),
+			DescriptionLanguage: "en",
+			LocalizedDescriptions: map[string]string{
+				"de": fmt.Sprintf("Testcrypto TRC für ISD %d", isd),
+			},
 			SerialVersion: 1,
 			BaseVersion:   1,
 			VotingQuorum:  uint8(len(voters[isd])/2 + 1),
