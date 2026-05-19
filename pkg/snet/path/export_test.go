@@ -15,6 +15,8 @@
 package path
 
 import (
+	"crypto/cipher"
+
 	dppath "github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/snet"
 )
@@ -32,4 +34,8 @@ func (r *Reservation) SetScionPath(p SCION) error {
 
 func (r *Reservation) GetScionMACs() [][dppath.MacLen]byte {
 	return r.scionMacs
+}
+
+func (r *Reservation) AesBlocks() *[]cipher.Block {
+	return &r.blocksPerAk
 }

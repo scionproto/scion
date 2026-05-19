@@ -16,6 +16,7 @@ package path_test
 
 import (
 	"context"
+	"crypto/cipher"
 	"sync"
 	"testing"
 	"time"
@@ -74,6 +75,7 @@ func TestSetFlyover(t *testing.T) {
 		Now:   func() time.Time { return referenceTime },
 	}
 	r.Hops = make([]*path.Hop, len(r.Dec.HopFields))
+	*r.AesBlocks() = make([]cipher.Block, len(r.Hops))
 	// There are 4 hops in the path:
 	require.Equal(t, 4, len(r.Hops))
 
@@ -97,7 +99,8 @@ func TestSetFlyover(t *testing.T) {
 	// - [1] 110[1] -> 110[0]
 	// - [2] 110[0] -> 110[2]
 	// - [3] 112[1] -> 112[0]
-	r.SetHopAndFlyover(1, &flyoverData)
+	err := r.SetHopAndFlyover(1, &flyoverData)
+	require.NoError(t, err)
 
 	// Check that the hop indeed has the flyover.
 	require.NotNil(t, r.Hops[1])

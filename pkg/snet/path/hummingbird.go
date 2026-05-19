@@ -15,6 +15,8 @@
 package path
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -40,8 +42,9 @@ type Reservation struct {
 	metadata *snet.PathMetadata // Set at construction time.
 	Hops     []*Hop             // Same length as `Dec`. Hops[i]==nil iff no hop at i (eg. xover hop).
 
-	scionMacs [][dppath.MacLen]byte // MAC fields from the SCION path, before XORing Hummingbird's.
-	counter   uint32                // duplicate detection counter
+	blocksPerAk []cipher.Block        // Same length as Hops.
+	scionMacs   [][dppath.MacLen]byte // Original MAC fields from the SCION path.
+	counter     uint32                // duplicate detection counter.
 }
 
 var _ snet.DataplanePath = (*Reservation)(nil)
@@ -109,7 +112,6 @@ func (r *Reservation) deriveDataPlanePath(
 
 	// compute Macs for Flyovers
 	var byteBuffer [hummingbird.FlyoverMacBufferSize]byte
-	var xkbuffer [hummingbird.XkBufferSize]uint32
 	for i, h := range r.Hops {
 		// Check if hop is xover (no hop) or non flyover (just best effort)
 		if h == nil || h.Flyover == nil {
@@ -118,20 +120,21 @@ func (r *Reservation) deriveDataPlanePath(
 		f := h.Flyover
 		hf := &r.Dec.HopFields[i]
 		hf.ResStartTime = uint16(secs - f.StartTime)
-		flyovermac := hummingbird.FullFlyoverMac(
-			f.Ak[:],
+
+		flyovermac := hummingbird.FlyoverMacWithAkAesBlock(
+			r.blocksPerAk[i],
+			byteBuffer[:],
 			r.DstIA,
 			pktLen,
 			hf.ResStartTime,
 			millis,
-			byteBuffer[:],
-			xkbuffer[:],
 		)
 
 		binary.BigEndian.PutUint32(hf.HopField.Mac[:4],
 			binary.BigEndian.Uint32(flyovermac[:4])^binary.BigEndian.Uint32(r.scionMacs[i][:4]))
 		binary.BigEndian.PutUint16(hf.HopField.Mac[4:],
 			binary.BigEndian.Uint16(flyovermac[4:])^binary.BigEndian.Uint16(r.scionMacs[i][4:]))
+
 	}
 }
 
@@ -170,6 +173,7 @@ func WithScionPath(p snet.Path, flyoverMap FlyoverMap) ReservationModFcn {
 		}
 		// Extend the number of hops to that of the path.
 		r.Hops = make([]*Hop, len(r.Dec.HopFields))
+		r.blocksPerAk = make([]cipher.Block, len(r.Hops))
 
 		// We use the path metadata to get the IAs and interface ID sequence from it.
 		r.metadata = p.Metadata()
@@ -185,7 +189,11 @@ func WithScionPath(p snet.Path, flyoverMap FlyoverMap) ReservationModFcn {
 				"base_hops", len(baseHops), "hop_fields", len(hfIndices))
 		}
 		for i, baseHop := range baseHops {
-			r.SetHopAndFlyover(hfIndices[i], consumeFlyover(flyoverMap, baseHop))
+			err := r.SetHopAndFlyover(hfIndices[i], consumeFlyover(flyoverMap, baseHop))
+			if err != nil {
+				return serrors.Wrap("cannot set the flyover for hop", err,
+					"index", i, "base hop", baseHop)
+			}
 		}
 
 		return nil
@@ -212,10 +220,10 @@ func (r *Reservation) setScionPath(p SCION) error {
 func (r *Reservation) SetHopAndFlyover(
 	hfIdx uint8,
 	hop *Hop,
-) {
+) error {
 	r.Hops[hfIdx] = hop
 	if hop.Flyover == nil {
-		return
+		return nil
 	}
 
 	// Find the hop field from its index.
@@ -231,6 +239,16 @@ func (r *Reservation) SetHopAndFlyover(
 	hf.Bw = hop.Flyover.Bw
 	hf.Duration = hop.Flyover.Duration
 	hf.ResID = hop.Flyover.ResID
+
+	// Prepare the AES block with the right Ak.
+	block, err := aes.NewCipher(hop.Flyover.Ak[:])
+	if err != nil {
+		return serrors.Wrap("cannot create AES block", err)
+	}
+	// Set the AES block to be used by deriveDataPlanePath.
+	r.blocksPerAk[hfIdx] = block
+
+	return nil
 }
 
 func consumeFlyover(flyoverMap FlyoverMap, baseHop BaseHop) *Hop {
