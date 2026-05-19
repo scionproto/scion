@@ -171,7 +171,7 @@ Peering Links
 
 PCBs do not traverse peering links.
 Instead, available peering links are announced along with a regular path in the individual AS
-entries of PCBs during *intra-AS* beaconing. Peering links are not announced in *inter-AS* beaconing.
+entries of PCBs during *intra-ISD* beaconing. Peering links are not announced in *inter-ISD* beaconing.
 If both ASes at either end of a peering link have registered path segments that include a specific
 peering link, then it can be used to during segment combination to create an end-to-end path.
 
