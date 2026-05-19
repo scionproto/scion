@@ -40,6 +40,9 @@ The default way to build SCION, however, uses Bazel.
 In particular, this allows to run all the tests, linters etc.
 Please visit our [documentation site](https://docs.scion.org/en/latest/dev/setup.html) for
 instructions on how to set up Bazel and the full development environment.
+For Hummingbird, Bazel builds also refresh the copied AES assembly automatically; plain
+`go build` uses the checked-in generated files and can be validated with
+`go run ./tools/gen_hbird_aesasm -check`.
 
 ### Connecting to the SCION Network
 

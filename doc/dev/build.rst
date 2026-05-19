@@ -12,6 +12,8 @@ Not all tests and checks can be run in this setup. We use Bazel to orchestrate a
 Without running all checks locally, it is likely that there will be frustrating cycles with the CI
 system rejecting your changes.
 See :doc:`setup` for instructions on how to set up Bazel and the full development environment.
+For Hummingbird, ``go build`` uses the checked-in generated AES assembly files; validate that they
+match the current generator and Go toolchain with ``go run ./tools/gen_hbird_aesasm -check``.
 
 Prerequisites
 -------------
@@ -69,6 +71,8 @@ Building with Bazel
 Please be aware that the following instructions only result in a minimal build
 environment. Not all tests and checks can be run in this setup.
 See :doc:`setup` for instructions on how to set up Bazel and the full development environment.
+For Hummingbird, Bazel builds refresh the copied AES assembly automatically as part of the build
+graph.
 
 Prerequisites
 -------------

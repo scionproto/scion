@@ -14,6 +14,8 @@
 
 //go:build amd64 || arm64 || ppc64 || ppc64le
 
+//go:generate go run github.com/scionproto/scion/tools/gen_hbird_aesasm
+
 package hummingbird
 
 import (
@@ -27,21 +29,13 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
-// The FullFlyoverMac makes use of the assembly code in the asm_* files
-// There are two main, related, reasons for that.
-// First, the AES key expansion performed by these assembly files is
-// much faster than what the library code does.
-// BenchmarkFlyoverMac and BenchmarkFlyoverMacLib in mac_test.go show the difference
-//
-// Second, the library implementation of the AES key expansion performs calls to make()
-// and allocates memory, which we would like to avoid
-// This is also the main reason why the direct call to assembly is much faster
-//
-// A full implementation of AES written in go only without memory allocations
-// has been attempted, but turned out to not be much more efficient than
-// the library implementation.
-// This is expectedt to be due to the fact that a go only implementation of AES
-// is unable to make use of hardware accelerated AES instructions.
+// The original implementation of FullFlyoverMac used assembly helpers copied from the
+// Go AES implementation to avoid per-call allocations and the hidden key schedule work
+// inside aes.NewCipher. The assembly-backed path remains the default implementation.
+
+// Bazel builds regenerate the copied AES assembly automatically. Run
+// `go generate ./pkg/slayers/path/hummingbird` to refresh the checked-in files for
+// raw `go build` workflows.
 
 // defined in asm_* assembly files
 
@@ -49,17 +43,19 @@ import (
 func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 
 //go:noescape
-func expandKeyAsm(nr int, key *byte, enc *uint32)
+func expandKeyAsm(nr int, key *byte, enc, dec *uint32)
 
 const (
 	PathType = 5
 	// SecretValueDerivationSalt is the PBKDF2 salt used to derive the Hummingbird AS secret value.
 	SecretValueDerivationSalt = "Derive hbird sv"
 
-	aesRounds            = 10
 	AkBufferSize         = 16
 	FlyoverMacBufferSize = 16
-	XkBufferSize         = (aesRounds + 1) * (128 / 32) // 44
+
+	aesRounds        = 10
+	aesRoundKeyWords = (aesRounds + 1) * (128 / 32) // 44
+	XkBufferSize     = 2 * aesRoundKeyWords         // enc + dec key schedule
 	// Total MAC buffer size:
 	MACBufferSize = path.MACBufferSize + FlyoverMacBufferSize + AkBufferSize
 )
@@ -105,10 +101,8 @@ func DeriveAuthKey(
 	return buffer[0:AkBufferSize]
 }
 
-// Computes full flyover MAC Vk based on authentication key Ak.
-// Requires buffer to be of size at least FlyoverMacBufferSize
-// Requires xkbuffer to be of size at least XkBufferSize.
-// (Used to store the AES expanded keys)
+// Computes full flyover MAC Vk based on authentication key Ak using the assembly-backed
+// AES helpers copied from the Go standard library.
 func FullFlyoverMac(
 	ak []byte,
 	dstIA addr.IA,
@@ -118,7 +112,19 @@ func FullFlyoverMac(
 	buffer []byte,
 	xkbuffer []uint32,
 ) []byte {
+	return FullFlyoverMacAsm(ak, dstIA, pktlen, resStartTime, highResTime, buffer, xkbuffer)
+}
 
+// FullFlyoverMacAsm uses the assembly-backed AES helpers.
+func FullFlyoverMacAsm(
+	ak []byte,
+	dstIA addr.IA,
+	pktlen uint16,
+	resStartTime uint16,
+	highResTime uint32,
+	buffer []byte,
+	xkbuffer []uint32,
+) []byte {
 	// Bounds check.
 	_ = buffer[FlyoverMacBufferSize-1]
 	_ = xkbuffer[XkBufferSize-1]
@@ -128,7 +134,7 @@ func FullFlyoverMac(
 	binary.BigEndian.PutUint16(buffer[10:12], resStartTime)
 	binary.BigEndian.PutUint32(buffer[12:16], highResTime)
 
-	expandKeyAsm(aesRounds, &ak[0], &xkbuffer[0])
+	expandKeyAsm(aesRounds, &ak[0], &xkbuffer[0], &xkbuffer[aesRoundKeyWords])
 	encryptBlockAsm(aesRounds, &xkbuffer[0], &buffer[0], &buffer[0])
 
 	return buffer[0:FlyoverMacBufferSize]

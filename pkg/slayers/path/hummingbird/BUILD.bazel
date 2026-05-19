@@ -1,15 +1,26 @@
 load("@rules_go//go:def.bzl", "go_library")
 load("//tools:go.bzl", "go_test")
 
+genrule(
+    name = "generated_asm",
+    outs = [
+        "generated_asm_amd64.s",
+        "generated_asm_arm64.s",
+        "generated_asm_ppc64x.s",
+    ],
+    cmd = "$(location //tools/gen_hbird_aesasm) -out-dir=$(@D) -prefix=generated_",
+    tools = ["//tools/gen_hbird_aesasm"],
+)
+
 go_library(
     name = "go_default_library",
     srcs = [
-        "asm_amd64.s",
-        "asm_arm64.s",
-        "asm_ppc64x.s",
         "base.go",
         "decoded.go",
         "flyoverhopfield.go",
+        ":generated_asm_amd64.s",
+        ":generated_asm_arm64.s",
+        ":generated_asm_ppc64x.s",
         "mac.go",
         "raw.go",
     ],
@@ -48,6 +59,7 @@ go_test(
         "export_test.go",
         "flyoverhopfield_test.go",
         "mac_test.go",
+        "mac_purego_test.go",
         "raw_test.go",
         "testpaths_test.go",
     ],
@@ -58,5 +70,6 @@ go_test(
         "//pkg/slayers/path/scion:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
+        "@org_golang_x_crypto//blake2s:go_default_library",
     ],
 )

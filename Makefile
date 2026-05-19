@@ -1,4 +1,4 @@
-.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
+.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod hbird-asm-check licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
 
 build-dev:
 	rm -f bin/*
@@ -109,7 +109,10 @@ endif
 
 lint: lint-go lint-bazel lint-protobuf lint-openapi lint-doc
 
-lint-go: lint-go-gazelle lint-go-bazel lint-go-golangci lint-go-semgrep
+lint-go: hbird-asm-check lint-go-gazelle lint-go-bazel lint-go-golangci lint-go-semgrep
+
+hbird-asm-check:
+	go run ./tools/gen_hbird_aesasm -check
 
 lint-go-gazelle:
 	$(info ==> $@)

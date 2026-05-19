@@ -17,10 +17,13 @@ package hummingbird_test
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/binary"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/blake2s"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
@@ -156,11 +159,55 @@ func TestFlyoverMac(t *testing.T) {
 	require.Equal(t, expected, mac)
 }
 
-// BenchmarkFlyoverMac measures the performance of the FullFlyoverMac function.
-// This benchmark is relevant to the end-hosts and border routers, who with an existing Ak will
-// call FullFlyoverMac preserving the buffers. The end-host caches the Ak, while the border router
-// recomputes it per packet.
-func BenchmarkFlyoverMac(b *testing.B) {
+func TestExpandAES128KeyAndEncryptBlockExpanded(t *testing.T) {
+	ak := []byte{
+		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
+		0xb5, 0x75, 0xc6, 0xe9, 0x4c, 0x5a, 0x89, 0x84,
+	}
+	input := []byte{
+		0, 1, 2, 3, 4, 5, 6, 7,
+		8, 9, 10, 11, 12, 13, 14, 15,
+	}
+	xkbuffer := make([]uint32, hummingbird.XkBufferSize)
+
+	expected := append([]byte(nil), input...)
+	block, err := aes.NewCipher(ak)
+	require.NoError(t, err)
+	block.Encrypt(expected, expected)
+
+	got := append([]byte(nil), input...)
+	expandAES128KeyTest(ak, xkbuffer)
+	encryptAES128BlockExpandedTest(xkbuffer, got)
+
+	require.Equal(t, expected, got)
+}
+
+func TestFullFlyoverMacGoMatchesAssembly(t *testing.T) {
+	ak := []byte{
+		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
+		0xb5, 0x75, 0xc6, 0xe9, 0x4c, 0x5a, 0x89, 0x84,
+	}
+	var dstIA addr.IA = 326
+	var pktlen uint16 = 23
+	var resStartTs uint16 = 1234
+	var highResTs uint32 = 4321
+	goBuffer := make([]byte, hummingbird.FlyoverMacBufferSize)
+	goXkbuffer := make([]uint32, hummingbird.XkBufferSize)
+	asmBuffer := make([]byte, hummingbird.FlyoverMacBufferSize)
+	asmXkbuffer := make([]uint32, hummingbird.XkBufferSize)
+
+	goMAC := fullFlyoverMacGoTest(
+		ak, dstIA, pktlen, resStartTs, highResTs, goBuffer, goXkbuffer,
+	)
+	asmMAC := hummingbird.FullFlyoverMacAsm(
+		ak, dstIA, pktlen, resStartTs, highResTs, asmBuffer, asmXkbuffer,
+	)
+
+	require.Equal(t, asmMAC, goMAC)
+}
+
+// BenchmarkFlyoverMacGo measures the performance of the pure-Go expanded-key implementation.
+func BenchmarkFlyoverMacGo(b *testing.B) {
 	ak := []byte{
 		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
 		0xb5, 0x75, 0xc6, 0xe9, 0x4c, 0x5a, 0x89, 0x84,
@@ -174,7 +221,26 @@ func BenchmarkFlyoverMac(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		hummingbird.FullFlyoverMac(ak, dstIA, pktlen, resStartTs, highResTs, buffer, xkbuffer)
+		fullFlyoverMacGoTest(ak, dstIA, pktlen, resStartTs, highResTs, buffer, xkbuffer)
+	}
+}
+
+// BenchmarkFlyoverMacAsm measures the performance of the preserved assembly-backed path.
+func BenchmarkFlyoverMacAsm(b *testing.B) {
+	ak := []byte{
+		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
+		0xb5, 0x75, 0xc6, 0xe9, 0x4c, 0x5a, 0x89, 0x84,
+	}
+	var dstIA addr.IA = 326
+	var pktlen uint16 = 23
+	var resStartTs uint16 = 1234
+	var highResTs uint32 = 4321
+	buffer := make([]byte, hummingbird.FlyoverMacBufferSize)
+	xkbuffer := make([]uint32, hummingbird.XkBufferSize)
+
+	b.ResetTimer()
+	for b.Loop() {
+		hummingbird.FullFlyoverMacAsm(ak, dstIA, pktlen, resStartTs, highResTs, buffer, xkbuffer)
 	}
 }
 
@@ -205,6 +271,72 @@ func BenchmarkFlyoverMacStdLib(b *testing.B) {
 	}
 }
 
+func BenchmarkExpandAES128Key(b *testing.B) {
+	ak := []byte{
+		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
+		0xb5, 0x75, 0xc6, 0xe9, 0x4c, 0x5a, 0x89, 0x84,
+	}
+	xkbuffer := make([]uint32, hummingbird.XkBufferSize)
+
+	b.ResetTimer()
+	for b.Loop() {
+		expandAES128KeyTest(ak, xkbuffer)
+	}
+}
+
+func BenchmarkEncryptAES128BlockExpanded(b *testing.B) {
+	ak := []byte{
+		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
+		0xb5, 0x75, 0xc6, 0xe9, 0x4c, 0x5a, 0x89, 0x84,
+	}
+	xkbuffer := make([]uint32, hummingbird.XkBufferSize)
+	buffer := make([]byte, hummingbird.FlyoverMacBufferSize)
+
+	expandAES128KeyTest(ak, xkbuffer)
+	b.ResetTimer()
+	for b.Loop() {
+		copy(buffer, []byte{
+			0, 1, 2, 3, 4, 5, 6, 7,
+			8, 9, 10, 11, 12, 13, 14, 15,
+		})
+		encryptAES128BlockExpandedTest(xkbuffer, buffer)
+	}
+}
+
+func BenchmarkFlyoverMacRouterLike(b *testing.B) {
+	sv := []byte{
+		0, 1, 2, 3, 4, 5, 6, 7,
+		0, 1, 2, 3, 4, 5, 6, 7,
+	}
+	var resID uint32 = 0x40
+	var bw uint16 = 0x0203
+	var in uint16 = 2
+	var eg uint16 = 5
+	var start uint32 = 0x0030001
+	var duration uint16 = 0x0203
+	var dstIA addr.IA = 326
+	var pktlen uint16 = 23
+	var resStartTs uint16 = 1234
+	var highResTs uint32 = 4321
+	buffer := make([]byte, hummingbird.MACBufferSize)
+	xkbuffer := make([]uint32, hummingbird.XkBufferSize)
+
+	block, err := aes.NewCipher(sv)
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for b.Loop() {
+		ak := hummingbird.DeriveAuthKey(
+			block, resID, bw, in, eg, start, duration,
+			buffer[hummingbird.FlyoverMacBufferSize:],
+		)
+		fullFlyoverMacGoTest(
+			ak, dstIA, pktlen, resStartTs, highResTs,
+			buffer[:hummingbird.FlyoverMacBufferSize], xkbuffer,
+		)
+	}
+}
+
 // BenchmarkFullFlyoverMacEndhost measures the time needed to derive a MAC given a fixed Ak.
 // This is relevant for the endhost, as it can cache the AES Block derived from Ak,
 // and reuse it to compute each MAC as the values change.
@@ -230,4 +362,61 @@ func BenchmarkFullFlyoverMacEndhost(b *testing.B) {
 	for b.Loop() {
 		hummingbird.FlyoverMacWithAkAesBlock(block, buffer, dstIA, pktlen, resStartTs, highResTs)
 	}
+}
+
+func BenchmarkMacAlternatives(b *testing.B) {
+	const (
+		AkSize  = hummingbird.AkBufferSize
+		MacSize = hummingbird.FlyoverMacBufferSize
+	)
+	ak := []byte{
+		0x7e, 0x61, 0x04, 0x91, 0x30, 0x6b, 0x95, 0xec,
+		0xb5, 0x75, 0xc6, 0xe9, 0x4c, 0x5a, 0x89, 0x84,
+	}
+
+	b.Run(
+		// AesEncrypt just calls AES encrypt. Times for my machine.
+		// 13.40 ns/op
+		"AesEncrypt", func(b *testing.B) {
+			buffer := make([]byte, MacSize)
+			block, err := aes.NewCipher(ak)
+			require.NoError(b, err)
+
+			b.ResetTimer()
+			for b.Loop() {
+				block.Encrypt(buffer[:16], buffer[:16])
+			}
+		},
+	)
+
+	b.Run("HMAC", func(b *testing.B) {
+		// Alternative using an HMAC with SHA256.
+		// 478.3 ns/op
+		buffer := make([]byte, MacSize)
+		h := hmac.New(sha256.New, ak)
+		b.ResetTimer()
+		for b.Loop() {
+			h.Reset()
+			h.Write(buffer)
+			h.Sum(nil)
+		}
+	},
+	)
+
+	b.Run("BLAKE2s", func(b *testing.B) {
+		// Keyed hash using BLAKE2s approach.
+		// 234.7 ns/op
+		buffer := make([]byte, MacSize)
+		h, err := blake2s.New256(ak)
+		require.NoError(b, err)
+		var fullMac [32]byte
+
+		b.ResetTimer()
+		for b.Loop() {
+			h.Reset()
+			h.Write(buffer)
+			h.Sum(fullMac[:0])
+		}
+	})
+
 }
