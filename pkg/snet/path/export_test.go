@@ -15,6 +15,7 @@
 package path
 
 import (
+	dppath "github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -23,4 +24,12 @@ func WithMetadata(metadata *snet.PathMetadata) ReservationModFcn {
 		r.metadata = metadata
 		return nil
 	}
+}
+
+func (r *Reservation) SetScionPath(p SCION) error {
+	return r.setScionPath(p)
+}
+
+func (r *Reservation) GetScionMACs() [][dppath.MacLen]byte {
+	return r.scionMacs
 }

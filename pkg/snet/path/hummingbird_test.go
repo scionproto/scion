@@ -134,6 +134,37 @@ func TestWithScionPath(t *testing.T) {
 	checkHop(t, r.Hops[3], "1-ff00:0:112", 1, 0, true)
 }
 
+// TestSetScionPathClonesMacFields checks that Reservation.setScionPath clones the values of
+// the MAC fields of the SCION path.
+func TestSetScionPathClonesMacFields(t *testing.T) {
+	const referenceEpochTime uint32 = 123456
+	referenceTime := util.SecsToTime(referenceEpochTime)
+
+	// Create a path and remember one of the MAC fields.
+	p := createSnetScionPath(t, referenceTime)
+	scionPath := p.DataplanePath.(path.SCION)
+	require.NotNil(t, scionPath)
+	scionDec := &scion.Decoded{}
+	err := scionDec.DecodeFromBytes(scionPath.Raw)
+	require.NoError(t, err)
+	originalMac := scionDec.HopFields[0].Mac // Copy the array (clone).
+
+	r := &path.Reservation{}
+	err = r.SetScionPath(p.DataplanePath.(path.SCION))
+	require.NoError(t, err)
+
+	// Modify one of the MAC fields.
+	scionDec.HopFields[0].Mac[1] = 42
+	require.NotEqual(t, originalMac, scionDec.HopFields[0])
+	// Check the cloned one in Reservation still has the original value.
+	require.Equal(t, originalMac, r.GetScionMACs()[0])
+
+	// Now modify also one MAC field in the internal hummingbird path.
+	r.Dec.HopFields[0].HopField.Mac[1] = 42
+	require.NotEqual(t, originalMac, r.Dec.HopFields[0].HopField.Mac[1])
+	require.Equal(t, originalMac, r.GetScionMACs()[0])
+}
+
 func TestFlyoversForPath(t *testing.T) {
 	const referenceEpochTime uint32 = 123456
 	referenceTime := util.SecsToTime(referenceEpochTime)
@@ -344,7 +375,7 @@ func createFlyover(t *testing.T, startTime uint32) *path.FlyoverData {
 		StartTime: startTime,
 		Duration:  10,
 		Bw:        64,
-		Ak:        [16]byte{},
+		Ak:        [16]byte{1, 2, 3, 4},
 	}
 }
 
@@ -452,7 +483,7 @@ func redeemFlyover(baseHop path.BaseHop, startTime uint32) *path.Hop {
 			StartTime: startTime,
 			Duration:  10,
 			Bw:        64,
-			Ak:        [16]byte{},
+			Ak:        [16]byte{1, 2, 3, 4},
 		},
 	}
 }

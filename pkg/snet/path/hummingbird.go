@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	dppath "github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	dphum "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
@@ -39,7 +40,8 @@ type Reservation struct {
 	metadata *snet.PathMetadata // Set at construction time.
 	Hops     []*Hop             // Same length as `Dec`. Hops[i]==nil iff no hop at i (eg. xover hop).
 
-	counter uint32 // duplicate detection counter
+	scionMacs [][dppath.MacLen]byte // MAC fields from the SCION path, before XORing Hummingbird's.
+	counter   uint32                // duplicate detection counter
 }
 
 var _ snet.DataplanePath = (*Reservation)(nil)
@@ -76,33 +78,34 @@ func NewReservation(opts ...ReservationModFcn) (*Reservation, error) {
 
 // SetPath sets the path into the passed-by-pointer scion headers.
 // When called, the scion layer has its fields (e.g. payload length, src IA, etc.) already set up.
-func (r Reservation) SetPath(s *slayers.SCION) error {
+func (r *Reservation) SetPath(s *slayers.SCION) error {
 	// We need to have a path set in the slayers.SCION to compute its full packet length,
 	// since r.Dec and the derived dataplane path have the same length in bytes,
 	// use the decoded Hummingbird path initially before deriving the correct dataplane path.
 	s.Path, s.PathType = r.Dec, r.Dec.Type()
-	dec := r.deriveDataPlanePath(s.PacketLen(), r.Now())
-	// Now set the correct dataplane path in the SCION layer.
-	s.Path = dec
+	r.deriveDataPlanePath(s.PacketLen(), r.Now())
+
+	// The correct dataplane path in the SCION layer is still r.Dec (pointer to path),
+	// nothing else to do.
 	return nil
 }
 
-// DeriveDataPlanePath sets pathmeta timestamps and increments duplicate detection counter and
+// deriveDataPlanePath sets pathmeta timestamps and increments the duplicate detection counter and
 // updates MACs of all flyoverfields using the full SCION packet length.
-func (r Reservation) deriveDataPlanePath(
+func (r *Reservation) deriveDataPlanePath(
 	pktLen uint16,
 	timeStamp time.Time,
-) *dphum.Decoded {
+) {
 
 	// Update timestamps
 	secs := uint32(timeStamp.Unix())
-	millis := uint32(timeStamp.Nanosecond()/1000) << 22
+	millis := uint32(timeStamp.Nanosecond()/1_000_000) << 22 // Milliseconds use the 10 MSBs.
 	millis |= r.counter
 	r.Dec.Base.PathMeta.BaseTS = secs
 	r.Dec.Base.PathMeta.HighResTS = millis
-	// increment counter for next packet
+	// Increment counter for the next packet. Make sure it always fits in 22 bits.
 	r.counter++
-	r.counter %= 1 << 22
+	r.counter %= 1 << 22 // Counter is the "tail" of the timestamp, using the 22 LSBs.
 
 	// compute Macs for Flyovers
 	var byteBuffer [hummingbird.FlyoverMacBufferSize]byte
@@ -126,11 +129,10 @@ func (r Reservation) deriveDataPlanePath(
 		)
 
 		binary.BigEndian.PutUint32(hf.HopField.Mac[:4],
-			binary.BigEndian.Uint32(flyovermac[:4])^binary.BigEndian.Uint32(hf.HopField.Mac[:4]))
+			binary.BigEndian.Uint32(flyovermac[:4])^binary.BigEndian.Uint32(r.scionMacs[i][:4]))
 		binary.BigEndian.PutUint16(hf.HopField.Mac[4:],
-			binary.BigEndian.Uint16(flyovermac[4:])^binary.BigEndian.Uint16(hf.HopField.Mac[4:]))
+			binary.BigEndian.Uint16(flyovermac[4:])^binary.BigEndian.Uint16(r.scionMacs[i][4:]))
 	}
-	return r.Dec
 }
 
 // ReservationModFcn is a options setting function for a reservation.
@@ -160,12 +162,9 @@ func WithScionPath(p snet.Path, flyoverMap FlyoverMap) ReservationModFcn {
 	return func(r *Reservation) error {
 		switch p := p.Dataplane().(type) {
 		case SCION:
-			scion := &scion.Decoded{}
-			if err := scion.DecodeFromBytes(p.Raw); err != nil {
-				return serrors.Join(err, serrors.New("failed to Prepare Hummingbird Path"))
+			if err := r.setScionPath(p); err != nil {
+				return err
 			}
-			r.Dec = &hummingbird.Decoded{}
-			r.Dec.ConvertFromScionDecoded(scion)
 		default:
 			return serrors.New("Unsupported path type")
 		}
@@ -191,6 +190,23 @@ func WithScionPath(p snet.Path, flyoverMap FlyoverMap) ReservationModFcn {
 
 		return nil
 	}
+}
+
+func (r *Reservation) setScionPath(p SCION) error {
+	scion := &scion.Decoded{}
+	if err := scion.DecodeFromBytes(p.Raw); err != nil {
+		return serrors.Join(err, serrors.New("failed to Prepare Hummingbird Path"))
+	}
+	r.Dec = &hummingbird.Decoded{}
+	r.Dec.ConvertFromScionDecoded(scion)
+
+	// Clone the MAC fields.
+	r.scionMacs = make([][6]byte, len(scion.HopFields))
+	for i, hf := range scion.HopFields {
+		r.scionMacs[i] = hf.Mac
+	}
+
+	return nil
 }
 
 func (r *Reservation) SetHopAndFlyover(
