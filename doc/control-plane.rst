@@ -208,7 +208,7 @@ PCBs to transform into path segments:
   direct or indirect customer ASes.
 
 In addition, if the AS is a core AS and if peering links are present, the control service adds
-an UP and a DOWN segment that contains only the AS itself along with all peering link metadata.
+an up- and a down-segment that contains only the AS itself along with all peering link metadata.
 
 Core Path-Segment Registration
 ------------------------------
@@ -308,21 +308,18 @@ This section distinguished peering links and peering shortcuts:
 - Peering shortcut: A peering link that is used when constructing a full path.
 
 All ASes may have physical peering links. However, for segment combinations, peering
-shortcuts are only allowed (and announced) between ASes that are on UP segment or DOWN segments.
+shortcuts are only allowed (and announced) between ASes that are on up- segment or down-segments.
 This trivially allows peering shortcuts between non-core ASes and ASes.
 
-Peering shortcuts However, for segment combination,
-peering links with core ASes can only be used *indirectly* and only for the first and last AS in a core segment.
-Indirect means:
+Whenever an AS is queried for up- or down-segments that terminate in that same AS,
+and if the AS has any peering links, it will return a "zero"-hop segment that contains only
+the AS itself and its peering links.
 
-- Any core AS that has peering links returns, when queried for an UP or DOWN segment,
-  a "zero"-hop segment that contains only itself and its peering links.
-- Client must always query for UP and DOWN links, even when they are located in a core AS.
 
-As a result, if the core ASes have peering links, any client will have at least one UP and one DOWN
-segment (even if source and destination AS are core ASes).
-These UP and DOWN segments, or any other UP or DOWN segments if they are available, can be used to
-create a peering shortcut.
+This ensures that, if the core ASes have peering links, any client will have at least one up- and one
+down-segment (even if source and destination AS are core ASes).
+The peering metadata from these zero-hop-up/down-segments, or any other up- or down-segments
+if they are available, can be used to create peering shortcuts.
 
 FAQ: Why do core segments not contain peering metadata?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
