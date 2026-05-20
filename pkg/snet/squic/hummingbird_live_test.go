@@ -15,6 +15,7 @@
 package squic_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -53,9 +54,13 @@ const (
 	tinyServerListenAddr  = "1-ff00:0:111,127.0.0.20:12345"
 	tinyClientListenAddr  = "1-ff00:0:112,[fd00:f00d:cafe::7f00:c]:0"
 	tinyServerRemoteAddr  = "1-ff00:0:111,127.0.0.20:12345"
-	quicTestMessageClient = "ping over hummingbird"
+	quicTestMessageSize   = 20 * 1024
 	quicTestMessageServer = "pong over scion"
 )
+
+// Keep the client payload at or above 20 KiB so the live test exercises
+// multiple data packets instead of succeeding on only a few packets.
+var quicTestMessageClient = bytes.Repeat([]byte("ping over hummingbird|"), 1024)[:quicTestMessageSize]
 
 // TestQUICOverHummingbirdTinyTopology verifies that a QUIC handshake plus a
 // stream exchange succeeds when the client sends over a Hummingbird reservation
@@ -122,7 +127,7 @@ func TestQUICOverHummingbirdTinyTopology(t *testing.T) {
 	require.NoError(t, err)
 	defer stream.Close()
 
-	_, err = stream.Write([]byte(quicTestMessageClient))
+	_, err = stream.Write(quicTestMessageClient)
 	require.NoError(t, err)
 
 	reply := make([]byte, len(quicTestMessageServer))
@@ -378,8 +383,8 @@ func runQUICServer(ctx context.Context, listener *quic.Listener) error {
 	if err != nil {
 		return serrors.Wrap("reading client payload", err)
 	}
-	if string(buf[:n]) != quicTestMessageClient {
-		return fmt.Errorf("unexpected client payload: %q", string(buf[:n]))
+	if !bytes.Equal(buf[:n], quicTestMessageClient) {
+		return fmt.Errorf("unexpected client payload")
 	}
 	if _, err := stream.Write([]byte(quicTestMessageServer)); err != nil {
 		return serrors.Wrap("writing server payload", err)
