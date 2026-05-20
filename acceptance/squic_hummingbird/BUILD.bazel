@@ -1,0 +1,38 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+load("//acceptance/common:topogen.bzl", "topogen_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/acceptance/squic_hummingbird",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/snet/squic/hummingbirdtest:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "squic-hummingbird",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+topogen_test(
+    name = "test",
+    src = "test.py",
+    args = [
+        "--executable=squic-hummingbird:$(location //acceptance/squic_hummingbird:squic-hummingbird)",
+    ],
+    data = [
+        "//acceptance/squic_hummingbird:squic-hummingbird",
+    ],
+    topo = "//topology:tiny.topo",
+)
+
+go_binary(
+    name = "squic_hummingbird",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
