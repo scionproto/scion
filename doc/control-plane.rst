@@ -312,7 +312,7 @@ shortcuts are only allowed (and announced) between ASes that are on up- segment 
 This trivially allows peering shortcuts between non-core ASes and ASes.
 
 Whenever an AS is queried for up- or down-segments that terminate in that same AS,
-and if the AS has any peering links, it will return a "zero"-hop segment that contains only
+and if the AS has any peering links, it will return a single-AS segment that contains only
 the AS itself and its peering links.
 
 
