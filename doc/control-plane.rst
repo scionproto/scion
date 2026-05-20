@@ -318,7 +318,7 @@ the AS itself and its peering links.
 
 This ensures that, if the core ASes have peering links, any client will have at least one up- and one
 down-segment (even if source and destination AS are core ASes).
-The peering metadata from these zero-hop-up/down-segments, or any other up- or down-segments
+The peering metadata from these single-AS up/down-segments, or any other up- or down-segments
 if they are available, can be used to create peering shortcuts.
 
 FAQ: Why do core segments not contain peering metadata?
