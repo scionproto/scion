@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/router"
+	pr "github.com/scionproto/scion/router/priority"
 )
 
 func TestDataPlaneSetHbirdKey(t *testing.T) {
@@ -689,26 +690,34 @@ func TestProcessHbirdPacket(t *testing.T) {
 				spkt, dpath := prepHbirdMsg(now)
 				spkt.SrcIA = addr.MustParseIA("1-ff00:0:110")
 				dpath.HopFields = []hummingbird.FlyoverHopField{
-					{HopField: path.HopField{ConsIngress: 41, ConsEgress: 40}},
-					{HopField: path.HopField{ConsIngress: 31, ConsEgress: 30}},
 					{HopField: path.HopField{ConsIngress: 0, ConsEgress: 1},
 						Flyover: true, ResStartTime: 5, Duration: 2, Bw: 16},
+					{HopField: path.HopField{ConsIngress: 31, ConsEgress: 30},
+						Flyover: true, ResStartTime: 123, Duration: 304, Bw: 16},
+					{HopField: path.HopField{ConsIngress: 41, ConsEgress: 40},
+						Flyover: true, ResStartTime: 123, Duration: 304, Bw: 16},
 				}
-				dpath.Base.PathMeta.SegLen[0] = 6 + 5 // 1 flyover
-				dpath.NumLines = 11
-				dpath.Base.PathMeta.CurrHF = 6
+				dpath.Base.PathMeta.CurrHF = 0
+				dpath.Base.PathMeta.SegLen[0] = 5 * 3 // 3 flyovers
+				dpath.NumLines = 15
 				dpath.HopFields[0].HopField.Mac = computeAggregateMac(t, key, hbirdKey, spkt, dpath,
-					dpath.InfoFields[0], dpath.HopFields[2], dpath.Base.PathMeta)
+					dpath.InfoFields[0], dpath.HopFields[0], dpath.Base.PathMeta)
 				ingress := uint16(0)
 				egress := uint16(0)
+				var pkt *router.Packet
 				if afterProcessing {
 					dpath.HopFields[0].HopField.Mac = computeMAC(t, key, dpath.InfoFields[0],
 						dpath.HopFields[0].HopField)
+					assert.NoError(t, dpath.IncPath(hummingbird.FlyoverLines))
+					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[0].HopField.Mac)
 					egress = 1
+					pkt = router.NewPacket(toBytes(t, spkt, dpath), nil, nil, ingress, egress)
+					pkt.PriorityLabel = pr.WithBestEffort
+					return pkt
 				}
 				return router.NewPacket(toBytes(t, spkt, dpath), nil, nil, ingress, egress)
 			},
-			assertFunc: discarded,
+			assertFunc: notDiscarded,
 		},
 		"brtransit flyover": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {

@@ -138,14 +138,11 @@ func (p *scionPacketProcessor) validateReservationExpiry() disposition {
 	if startTime.Before(now) && now.Before(endTime) {
 		return pForward
 	}
-	log.Debug("SCMP: Reservation is not valid at current time", "reservation start", startTime,
+	log.Debug("Hummingbird reservation is not valid at current time, forwarding best-effort",
+		"reservation start", startTime,
 		"reservation end", endTime, "now", now)
-	p.pkt.slowPathRequest = slowPathRequest{
-		spType:  slowPathType(slayers.SCMPTypeParameterProblem),
-		code:    slayers.SCMPCodeReservationExpired,
-		pointer: p.currentHopPointer(),
-	}
-	return pSlowPath
+	p.pkt.PriorityLabel = pr.WithBestEffort
+	return pForward
 }
 
 func (p *scionPacketProcessor) currentHbirdInfoPointer() uint16 {
