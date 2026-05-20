@@ -1,5 +1,10 @@
+# gazelle:exclude generated_asm_amd64.s
+# gazelle:exclude generated_asm_arm64.s
+# gazelle:exclude generated_asm_ppc64x.s
+
 load("@rules_go//go:def.bzl", "go_library")
 load("//tools:go.bzl", "go_test")
+load("//tools/lint:write_source_files.bzl", "write_source_files")
 
 genrule(
     name = "generated_asm",
@@ -15,12 +20,12 @@ genrule(
 go_library(
     name = "go_default_library",
     srcs = [
+        "asm_amd64.s",
+        "asm_arm64.s",
+        "asm_ppc64x.s",
         "base.go",
         "decoded.go",
         "flyoverhopfield.go",
-        ":generated_asm_amd64.s",
-        ":generated_asm_arm64.s",
-        ":generated_asm_ppc64x.s",
         "mac.go",
         "raw.go",
     ],
@@ -58,8 +63,8 @@ go_test(
         "decoded_test.go",
         "export_test.go",
         "flyoverhopfield_test.go",
-        "mac_test.go",
         "mac_purego_test.go",
+        "mac_test.go",
         "raw_test.go",
         "testpaths_test.go",
     ],
@@ -72,4 +77,13 @@ go_test(
         "@com_github_stretchr_testify//require:go_default_library",
         "@org_golang_x_crypto//blake2s:go_default_library",
     ],
+)
+
+write_source_files(
+    name = "write_files",
+    files = {
+        "asm_amd64.s": ":generated_asm_amd64.s",
+        "asm_arm64.s": ":generated_asm_arm64.s",
+        "asm_ppc64x.s": ":generated_asm_ppc64x.s",
+    },
 )
