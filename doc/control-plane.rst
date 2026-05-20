@@ -324,11 +324,7 @@ if they are available, can be used to create peering shortcuts.
 FAQ: Why do core segments not contain peering metadata?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-AS may use peering link instead of a public link if they
-does not want the link to be used for traffic that transits the ISD.
-The peering link allows usage to be limited to traffic that starts or ends in the local AS or one of its child ASes.
-If peering links were announced withe core segment metadata, they could be used on
-core segments that *transit* the local AS.
+Peering links enable two ASes to route traffic between each other and their respective downstream ASes while restricting global transit. Embedding this peering data within a core segment, which inherently facilitates transit, would directly contradict the non-transit nature of peering.
 
 Links
 =====
