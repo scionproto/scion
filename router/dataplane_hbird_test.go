@@ -214,6 +214,35 @@ func TestProcessHbirdPacket(t *testing.T) {
 			},
 			assertFunc: notDiscarded,
 		},
+		"discard malformed current hop alignment": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					mockExternalInterfaces,
+					nil,
+					nil,
+					mockInternalNextHops,
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func(afterProcessing bool, _ *router.DataPlane) *router.Packet {
+				spkt, dpath := prepHbirdMsg(now)
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
+				dst := addr.MustParseHost("10.0.100.100")
+				assert.NoError(t, spkt.SetDstAddr(dst))
+				dpath.HopFields = []hummingbird.FlyoverHopField{
+					{HopField: path.HopField{ConsIngress: 41, ConsEgress: 40}},
+					{HopField: path.HopField{ConsIngress: 31, ConsEgress: 30}},
+					{HopField: path.HopField{ConsIngress: 1, ConsEgress: 0},
+						Flyover: true, ResStartTime: 123, Duration: 304, Bw: 16},
+				}
+				dpath.Base.PathMeta.SegLen[0] = 11
+				dpath.Base.NumLines = 11
+				dpath.Base.PathMeta.CurrHF = 4
+				ingress := uint16(1)
+				egress := uint16(0)
+				return router.NewPacket(toBytes(t, spkt, dpath), nil, nil, ingress, egress)
+			},
+			assertFunc: discarded,
+		},
 		"brtransit peering consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
@@ -1359,8 +1388,8 @@ func TestProcessHbirdSCMP(t *testing.T) {
 				return pkt, original
 			},
 			expectedSlowPath: router.SlowPathRequestView{
-				SPType:  int8(slayers.SCMPTypeParameterProblem),
-				Code:    slayers.SCMPCodeInvalidHopFieldMAC,
+				SPType: int8(slayers.SCMPTypeParameterProblem),
+				Code:   slayers.SCMPCodeInvalidHopFieldMAC,
 				// Pointer to the current Hummingbird hop line in the malformed packet.
 				Pointer: 80,
 			},

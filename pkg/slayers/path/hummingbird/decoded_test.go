@@ -199,6 +199,18 @@ func TestInfIndexForHFIndex(t *testing.T) {
 	}
 }
 
+func TestDecodedGetCurrentHopField(t *testing.T) {
+	path := *decodedPaths[0]
+	path.PathMeta.CurrHF = 5
+	got, err := path.GetCurrentHopField()
+	assert.NoError(t, err)
+	assert.Equal(t, path.HopFields[1], got)
+
+	path.PathMeta.CurrHF = 4
+	_, err = path.GetCurrentHopField()
+	assert.Error(t, err)
+}
+
 func mkDecodedHbirdPath(
 	t *testing.T,
 	pcase hbirdPathCase,

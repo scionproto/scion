@@ -212,6 +212,28 @@ func (s *Decoded) ToRaw() (*Raw, error) {
 	return raw, nil
 }
 
+// GetHopField returns the hop field starting at the specified line offset.
+func (s *Decoded) GetHopField(hfLine uint8) (FlyoverHopField, error) {
+	lineCount := uint8(0)
+	for _, hop := range s.HopFields {
+		if lineCount == hfLine {
+			return hop, nil
+		}
+		if hop.Flyover {
+			lineCount += FlyoverLines
+		} else {
+			lineCount += HopLines
+		}
+	}
+	return FlyoverHopField{}, serrors.New(
+		"HopField index out of bounds", "max", lineCount, "actual", hfLine)
+}
+
+// GetCurrentHopField returns the current hop field pointed to by CurrHF.
+func (s *Decoded) GetCurrentHopField() (FlyoverHopField, error) {
+	return s.GetHopField(s.PathMeta.CurrHF)
+}
+
 // InfIndexForHFIndex takes the index of the hop field in the HopFields slice and returns its
 // corresponding info field index in the InfoFields slice. Expected 0 <= hfIdx < len(HopFields).
 func (s *Decoded) InfIndexForHFIndex(hfIdx uint8) uint8 {

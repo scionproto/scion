@@ -176,6 +176,34 @@ func (s *Raw) GetCurrentHopField() (FlyoverHopField, error) {
 	return s.GetHopField(int(s.PathMeta.CurrHF))
 }
 
+// CurrINFMatchesCurrHF returns whether the current info field belongs to the
+// current hop field line according to the segment lengths in the path meta.
+func (s *Raw) CurrINFMatchesCurrHF() bool {
+	return int(s.PathMeta.CurrINF) == int(s.Base.InfIndexForHF(s.PathMeta.CurrHF))
+}
+
+// CurrHFIsHopStart returns whether CurrHF points to the first line of a hop
+// field. Raw.GetHopField accepts any in-bounds line index, so callers that rely
+// on CurrHF identifying the current hop must validate this explicitly.
+func (s *Raw) CurrHFIsHopStart() bool {
+	currHF := int(s.PathMeta.CurrHF)
+	for idx := 0; idx <= currHF; {
+		if idx == currHF {
+			return true
+		}
+		hop, err := s.GetHopField(idx)
+		if err != nil {
+			return false
+		}
+		if hop.Flyover {
+			idx += FlyoverLines
+		} else {
+			idx += HopLines
+		}
+	}
+	return false
+}
+
 // ReplaceMac replaces the Mac of the hopfield at the given index with a new MAC.
 func (s *Raw) ReplacMac(idx int, mac []byte) error {
 	if idx >= s.NumLines-HopLines+1 {

@@ -122,7 +122,7 @@ func (s *Base) Type() path.Type {
 // MetaHdr is the PathMetaHdr of a Hummingbird (data-plane) path type.
 type MetaHdr struct {
 	CurrINF   uint8    // Index of the current info field.
-	CurrHF    uint8    // Index of the current hop field.
+	CurrHF    uint8    // Index of the current hop field. Incremented by 3 or 5 (regular or Flyover)
 	SegLen    [3]uint8 // Length in bytes / 4 of each segment.
 	BaseTS    uint32
 	HighResTS uint32

@@ -175,6 +175,38 @@ func TestGetHbirdHopField(t *testing.T) {
 	}
 }
 
+func TestCurrHFIsHopStart(t *testing.T) {
+	testCases := map[string]struct {
+		currHF uint8
+		want   bool
+	}{
+		"first hop":            {currHF: 0, want: true},
+		"second hop flyover":   {currHF: 5, want: true},
+		"middle of first hop":  {currHF: 1, want: false},
+		"middle of second hop": {currHF: 6, want: false},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			raw := *rawHbirdTestPath
+			raw.PathMeta.CurrHF = tc.currHF
+			assert.Equal(t, tc.want, raw.CurrHFIsHopStart())
+		})
+	}
+}
+
+func TestCurrINFMatchesCurrHF(t *testing.T) {
+	valid := *rawHbirdTestPath
+	valid.PathMeta.CurrHF = 5
+	valid.PathMeta.CurrINF = 0
+	assert.True(t, valid.CurrINFMatchesCurrHF())
+
+	invalid := *rawHbirdTestPath
+	invalid.PathMeta.CurrHF = 5
+	invalid.PathMeta.CurrINF = 1
+	assert.False(t, invalid.CurrINFMatchesCurrHF())
+}
+
 func TestLastHop(t *testing.T) {
 	testCases := map[*hummingbird.Raw]bool{
 		createHbirdPath(3, 9):  false,

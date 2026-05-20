@@ -60,6 +60,9 @@ func (d *dataPlane) SetHbirdKey(key []byte) error {
 
 func (p *scionPacketProcessor) parseHbirdPath() disposition {
 	var err error
+	if !p.hbirdPath.CurrHFIsHopStart() || !p.hbirdPath.CurrINFMatchesCurrHF() {
+		return errorDiscard("error", errMalformedPath)
+	}
 	p.flyoverField, err = p.hbirdPath.GetCurrentHopField()
 	if err != nil {
 		return errorDiscard(err, errMalformedPath)
@@ -850,6 +853,10 @@ func (p *slowPathPacketProcessor) prepareHbirdSCMP(
 	}
 	revPath := revPathTmp.(*hummingbird.Decoded)
 
+	if int(revPath.PathMeta.CurrINF) >= len(revPath.InfoFields) {
+		return serrors.JoinNoStack(errCannotRoute, nil,
+			"details", "reversed path current info field out of bounds")
+	}
 	peering, err := determinePeerHbird(revPath.PathMeta, revPath.InfoFields[revPath.PathMeta.CurrINF])
 	if err != nil {
 		return serrors.JoinNoStack(errCannotRoute, err, "details", "peering cannot be determined")
@@ -870,7 +877,11 @@ func (p *slowPathPacketProcessor) prepareHbirdSCMP(
 	if p.pkt.Link.Scope() == External {
 		infoField := &revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir && !peering {
-			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
+			hopField, err := revPath.GetCurrentHopField()
+			if err != nil {
+				return serrors.JoinNoStack(errCannotRoute, err,
+					"details", "reversed path current hop field out of bounds")
+			}
 			infoField.UpdateSegID(hopField.HopField.Mac)
 		}
 		if err := revPath.IncPath(hummingbird.HopLines); err != nil {
