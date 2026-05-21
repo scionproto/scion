@@ -15,4 +15,5 @@ go_test(
     name = "go_default_test",
     srcs = ["headers_test.go"],
     embed = [":go_default_library"],
+    deps = ["//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library"],
 )

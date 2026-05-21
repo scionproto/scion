@@ -1,12 +1,6 @@
 # afxdpudpip — AF_XDP UDP/IP Underlay
 
-AF_XDP-based UDP/IP underlay implementation for the SCION router.
-Carries SCION traffic over raw AF_XDP sockets with Ethernet/IP/UDP
-encapsulation, binding queues in `XDP_ZEROCOPY` mode whenever the
-driver supports it and falling back to copy mode otherwise. On
-zerocopy queues, IPv6 UDP checksum offload is also enabled
-automatically when the kernel and driver advertise AF_XDP
-`tx-checksum`.
+AF_XDP-based UDP/IP underlay implementation for the SCION router. Carries SCION traffic over raw AF_XDP sockets with Ethernet/IP/UDP encapsulation, binding queues in `XDP_ZEROCOPY` mode whenever the driver supports it and falling back to copy mode otherwise. On zerocopy queues, IPv6 UDP checksum offload is also enabled automatically when the kernel and driver advertise AF_XDP `tx-checksum`.
 
 ## Scope & Limitations
 
@@ -193,6 +187,26 @@ flowchart LR
 - If any of those checks fail, IPv6 falls back to a full software UDP checksum. This avoids emitting only the pseudo-header seed on queues that would not complete the checksum.
 - The checksum decision is per selected TX connection, not per link. A multi-queue link can mix queues with different capabilities without corrupting packets.
 - TX metadata headroom may still be reserved in UMEM even when checksum offload is disabled. That keeps descriptor addressing consistent; it does not imply checksum offload is active.
+
+## Metrics
+
+Packets dropped by the XDP program never reach userspace, so the router's normal RX counters cannot account for them. To preserve observability, the XDP program maintains kernel-side counters and the AF_XDP socket exposes its own drop/error statistics. Both are surfaced as Prometheus metrics: on each scrape, userspace reads the eBPF map and calls `getsockopt(XDP_STATISTICS)` once per socket. Nothing is read on the forwarding path.
+
+- `router_xdp_drops_total{nic, reason}` — XDP_DROP counts from the
+  `drop_counters` PERCPU_ARRAY in
+  [sockfilter.c](../../../private/underlay/ebpf/sockfilter.c).
+  Reasons: `eth_malformed`, `ip_malformed`, `udp_malformed`, `fragment`.
+- `router_afxdp_socket_drops_total{nic, queue, stat}` —
+  `getsockopt(SOL_XDP, XDP_STATISTICS)`. `stat` is one of `rx_dropped`,
+  `rx_invalid_descs`, `tx_invalid_descs`, `rx_ring_full`,
+  `rx_fill_ring_empty_descs`, `tx_ring_empty_descs`.
+
+`drop_counters` is touched only on the drop path, not on the redirect
+path. The eBPF program increments only the current CPU's slot; userspace
+sums all per-CPU slots into a single value on each scrape.
+
+The C `DROP_REASON_*` indices and Go `ebpf.DropReasonNames` must match;
+`NewInterface` fails if `drop_counters.MaxEntries != len(DropReasonNames)`.
 
 ## Test Validation
 

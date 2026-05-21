@@ -54,6 +54,32 @@ struct {
   __type(value, __u32);    // AF_XDP socket FD
 } xsks_map SEC(".maps");
 
+// Drop reason indices. The Go side mirrors this ordering in dropReasonNames.
+#define DROP_REASON_ETH_MALFORMED 0
+#define DROP_REASON_IP_MALFORMED  1
+#define DROP_REASON_UDP_MALFORMED 2
+#define DROP_REASON_FRAGMENT      3
+#define DROP_REASON_MAX           4
+
+// drop_counters is a per-CPU array of 64-bit counters, one per drop reason.
+// Userspace sums the per-CPU slots at scrape time to produce the total.
+struct {
+  __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+  __uint(max_entries, DROP_REASON_MAX);
+  __type(key, __u32);
+  __type(value, __u64);
+} drop_counters SEC(".maps");
+
+// drop bumps the per-CPU counter for reason and returns XDP_DROP.
+static __always_inline int drop(__u32 reason) {
+  __u64 *cnt = bpf_map_lookup_elem(&drop_counters, &reason);
+  if (cnt) {
+    // This is safe, only this CPU writes its slot. Userspace sums.
+    *cnt += 1;
+  }
+  return XDP_DROP;
+}
+
 // Helper function to copy memory with bounds checking
 static __always_inline int safe_memcpy(
   __u8 *dst, const void *src,
@@ -80,7 +106,7 @@ int bpf_sock_filter(struct xdp_md *ctx) {
   struct ethhdr *eth = data;
   // Verify Ethernet header fits in packet bounds.
   if ((void *)(eth + 1) > data_end)
-    return XDP_DROP;
+    return drop(DROP_REASON_ETH_MALFORMED);
 
   __u16 ethtype = __builtin_bswap16(eth->h_proto);
 
@@ -97,7 +123,7 @@ int bpf_sock_filter(struct xdp_md *ctx) {
   if (ethtype == ETH_P_IP) {
     struct iphdr *ip = (void *)(eth + 1);
     if ((void *)(ip + 1) > data_end)
-      return XDP_DROP;
+      return drop(DROP_REASON_IP_MALFORMED);
 
     ipproto = ip->protocol;
 
@@ -116,16 +142,16 @@ int bpf_sock_filter(struct xdp_md *ctx) {
 
     // Copy destination IP address.
     if (safe_memcpy(key.ip_addr, &ip->daddr, 4, data_end) < 0)
-      return XDP_DROP;
+      return drop(DROP_REASON_IP_MALFORMED);
 
     // Parse UDP header with variable IP header length.
     __u32 ip_hdr_len = ip->ihl * 4;
     if (ip_hdr_len < sizeof(struct iphdr))
-      return XDP_DROP;
+      return drop(DROP_REASON_IP_MALFORMED);
 
     struct udphdr *udp = (void *)((void *)ip + ip_hdr_len);
     if ((void *)(udp + 1) > data_end)
-      return XDP_DROP;
+      return drop(DROP_REASON_UDP_MALFORMED);
 
     key.port = udp->dest;
   }
@@ -133,7 +159,7 @@ int bpf_sock_filter(struct xdp_md *ctx) {
   else if (ethtype == ETH_P_IPV6) {
     struct ipv6hdr *ip6 = (void *)(eth + 1);
     if ((void *)(ip6 + 1) > data_end)
-      return XDP_DROP;
+      return drop(DROP_REASON_IP_MALFORMED);
 
     ipproto = ip6->nexthdr;
 
@@ -155,11 +181,11 @@ int bpf_sock_filter(struct xdp_md *ctx) {
 
     // Copy destination IP address.
     if (safe_memcpy(key.ip_addr, &ip6->daddr, 16, data_end) < 0)
-      return XDP_DROP;
+      return drop(DROP_REASON_IP_MALFORMED);
 
     struct udphdr *udp = (void *)(ip6 + 1);
     if ((void *)(udp + 1) > data_end)
-      return XDP_DROP;
+      return drop(DROP_REASON_UDP_MALFORMED);
 
     key.port = udp->dest;
   }
@@ -175,13 +201,10 @@ int bpf_sock_filter(struct xdp_md *ctx) {
     return XDP_PASS;
   }
 
-  // The packet matches our filter, but fragments are never delivered to
-  // AF_XDP userspace: userspace has no reassembly state, and a first
-  // fragment would arrive as a truncated SCION packet. SCION negotiates
-  // path MTU end-to-end so a fragment here is a misconfigured peer, a
-  // non-conforming implementation, or adversarial traffic.
+  // Drop fragments: userspace cannot reassemble, and SCION negotiates
+  // path MTU end-to-end so fragments are not expected here.
   if (is_frag) {
-    return XDP_DROP;
+    return drop(DROP_REASON_FRAGMENT);
   }
 
   // Redirect to AF_XDP socket for this queue

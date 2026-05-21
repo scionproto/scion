@@ -29,6 +29,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -134,6 +136,10 @@ type underlay struct {
 	dispatchStart     uint16
 	dispatchEnd       uint16
 	dispatchRedirect  uint16
+
+	// metricsRegister registers the kernel-side stats collector exactly once
+	// across repeated Start() invocations.
+	metricsRegister sync.Once
 }
 
 type udpLink interface {
@@ -275,6 +281,12 @@ func (u *underlay) Start(
 	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
 	u.mu.Unlock()
 
+	u.metricsRegister.Do(func() {
+		if err := prometheus.Register(newStatsCollector(u)); err != nil {
+			log.Info("afxdpudpip stats collector not registered", "err", err)
+		}
+	})
+
 	// Links MUST be started before connections.
 	for _, l := range linkSnapshot {
 		l.start(ctx, procQs, pool)
@@ -285,22 +297,23 @@ func (u *underlay) Start(
 }
 
 func (u *underlay) Stop() {
+	// Held through teardown to block the stats collector.
 	u.mu.Lock()
-	connSnapshot := slices.Collect(maps.Values(u.allConnections))
-	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
-	ifaceSnapshot := slices.Collect(maps.Values(u.allInterfaces))
-	u.mu.Unlock()
+	defer u.mu.Unlock()
 
-	for _, c := range connSnapshot {
+	for _, c := range u.allConnections {
 		c.stop()
 	}
-	for _, l := range linkSnapshot {
+	for _, l := range u.allLinks {
 		l.stop()
 	}
 	// Close shared XDP interfaces after all sockets are closed.
-	for _, xi := range ifaceSnapshot {
+	for _, xi := range u.allInterfaces {
 		xi.Close()
 	}
+	clear(u.allConnections)
+	clear(u.allLinks)
+	clear(u.allInterfaces)
 }
 
 // receivePacket updates input metrics, hashes the packet to a processor queue,

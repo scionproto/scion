@@ -79,6 +79,16 @@ func NewInterface(ifaceName string) (*Interface, error) {
 		return nil, fmt.Errorf("creating eBPF collection: %w", err)
 	}
 
+	// Keep in sync with ebpf.DropReasonNames.
+	if dc := coll.Maps["drop_counters"]; dc == nil {
+		coll.Close()
+		return nil, fmt.Errorf("no map named drop_counters found")
+	} else if got, want := dc.MaxEntries(), uint32(len(ebpf.DropReasonNames)); got != want {
+		coll.Close()
+		return nil, fmt.Errorf(
+			"drop_counters has %d entries, but ebpf.DropReasonNames has %d", got, want)
+	}
+
 	// Get the XDP program from the collection.
 	prog := coll.Programs["bpf_sock_filter"]
 	if prog == nil {
@@ -119,6 +129,35 @@ func (i *Interface) Close() error {
 		i.coll = nil
 	}
 	return errors.Join(errs...)
+}
+
+// Name returns the name of the underlying netdevice (e.g. "eth0"). Used as a
+// metric label.
+func (i *Interface) Name() string {
+	return i.iface.Name
+}
+
+// ReadDropCounters returns the current per-reason XDP_DROP totals summed across
+// all online CPUs. Indices align with ebpf.DropReasonNames.
+func (i *Interface) ReadDropCounters() ([len(ebpf.DropReasonNames)]uint64, error) {
+	var totals [len(ebpf.DropReasonNames)]uint64
+	m := i.coll.Maps["drop_counters"]
+	if m == nil {
+		return totals, errors.New("no map named drop_counters found")
+	}
+	// PERCPU_ARRAY lookups return one uint64 per online CPU.
+	for reason := range len(ebpf.DropReasonNames) {
+		var perCPU []uint64
+		if err := m.Lookup(uint32(reason), &perCPU); err != nil {
+			return totals, fmt.Errorf("reading drop_counters[%d]: %w", reason, err)
+		}
+		var sum uint64
+		for _, v := range perCPU {
+			sum += v
+		}
+		totals[reason] = sum
+	}
+	return totals, nil
 }
 
 // AddAddrPort adds an address/port pair to the sockfilter map.
@@ -893,6 +932,40 @@ func (s *Socket) IsHugepages() bool { return s.isHugepages }
 // via XDP_TXMD_FLAGS_CHECKSUM. When true, callers should use SubmitCsumOffload
 // instead of Submit to benefit from hardware checksum computation.
 func (s *Socket) IsCsumOffload() bool { return s.isCsumOffload }
+
+// QueueID returns the NIC RX/TX queue this socket is bound to.
+func (s *Socket) QueueID() uint32 { return s.conf.QueueID }
+
+// SocketStats mirrors the kernel's struct xdp_statistics. All counters are
+// monotonic totals since socket creation.
+//
+// See https://www.kernel.org/doc/html/latest/networking/af_xdp.html#statistics
+type SocketStats struct {
+	RxDropped            uint64 // Packets dropped for non-FQ-empty reasons.
+	RxInvalidDescs       uint64 // RX descriptors with invalid address/length.
+	TxInvalidDescs       uint64 // TX descriptors with invalid address/length.
+	RxRingFull           uint64 // Packets dropped because RX ring was full.
+	RxFillRingEmptyDescs uint64 // Packets dropped because FQ was empty.
+	TxRingEmptyDescs     uint64 // TX attempts dropped because TX ring was empty.
+}
+
+// Stats reads the kernel's AF_XDP socket statistics via
+// getsockopt(SOL_XDP, XDP_STATISTICS).
+func (s *Socket) Stats() (SocketStats, error) {
+	var raw unix.XDPStatistics
+	if err := getsockopt(s.fd, unix.SOL_XDP, unix.XDP_STATISTICS,
+		unsafe.Pointer(&raw), unsafe.Sizeof(raw)); err != nil {
+		return SocketStats{}, fmt.Errorf("getsockopt(XDP_STATISTICS): %w", err)
+	}
+	return SocketStats{
+		RxDropped:            raw.Rx_dropped,
+		RxInvalidDescs:       raw.Rx_invalid_descs,
+		TxInvalidDescs:       raw.Tx_invalid_descs,
+		RxRingFull:           raw.Rx_ring_full,
+		RxFillRingEmptyDescs: raw.Rx_fill_ring_empty_descs,
+		TxRingEmptyDescs:     raw.Tx_ring_empty_descs,
+	}, nil
+}
 
 // Close releases the socket, UMEM and kernel resources.
 func (s *Socket) Close() error {

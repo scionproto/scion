@@ -70,8 +70,9 @@ type sockfilterProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type sockfilterMapSpecs struct {
-	SockMapFlt *ebpf.MapSpec `ebpf:"sock_map_flt"`
-	XsksMap    *ebpf.MapSpec `ebpf:"xsks_map"`
+	DropCounters *ebpf.MapSpec `ebpf:"drop_counters"`
+	SockMapFlt   *ebpf.MapSpec `ebpf:"sock_map_flt"`
+	XsksMap      *ebpf.MapSpec `ebpf:"xsks_map"`
 }
 
 // sockfilterVariableSpecs contains global variables before they are loaded into the kernel.
@@ -100,12 +101,14 @@ func (o *sockfilterObjects) Close() error {
 //
 // It can be passed to loadSockfilterObjects or ebpf.CollectionSpec.LoadAndAssign.
 type sockfilterMaps struct {
-	SockMapFlt *ebpf.Map `ebpf:"sock_map_flt"`
-	XsksMap    *ebpf.Map `ebpf:"xsks_map"`
+	DropCounters *ebpf.Map `ebpf:"drop_counters"`
+	SockMapFlt   *ebpf.Map `ebpf:"sock_map_flt"`
+	XsksMap      *ebpf.Map `ebpf:"xsks_map"`
 }
 
 func (m *sockfilterMaps) Close() error {
 	return _SockfilterClose(
+		m.DropCounters,
 		m.SockMapFlt,
 		m.XsksMap,
 	)
