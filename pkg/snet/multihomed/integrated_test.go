@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/snet"
 )
@@ -318,7 +319,7 @@ func getRemote(
 	sd daemon.Connector,
 	remote, local addr.IA,
 ) []snet.Path {
-	paths, err := sd.Paths(ctx, remote, local, daemon.PathReqFlags{})
+	paths, err := sd.Paths(ctx, remote, local, daemontypes.PathReqFlags{})
 	require.NoError(t, err)
 	return paths
 }
