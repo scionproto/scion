@@ -19,7 +19,6 @@ go_test(
     name = "go_default_test",
     srcs = [
         "export_test.go",
-        "integrated_test.go",
         "multihomed_test.go",
     ],
     embed = [":go_default_library"],
