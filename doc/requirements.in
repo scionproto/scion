@@ -10,6 +10,5 @@ sphinxcontrib-mermaid
 
 # Pinning the versions of the indirect requirements to fix Dependabot alerts.
 urllib3 >= 2.7.0
-pygments >= 2.20.0
 idna >= 3.15
 mistune >= 3.2.1
