@@ -6,9 +6,6 @@ settings:
 
 onlyBuiltDependencies: []
 
-overrides:
-  handlebars: '>=4.7.9'
-
 dependencies:
   '@redocly/cli':
     specifier: 2.31.4

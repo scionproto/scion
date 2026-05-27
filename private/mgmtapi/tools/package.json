@@ -4,9 +4,6 @@
         "@stoplight/spectral-cli": "^6.16.0"
     },
     "pnpm": {
-        "overrides": {
-            "handlebars": ">=4.7.9"
-        },
         "onlyBuiltDependencies": []
     }
 }
