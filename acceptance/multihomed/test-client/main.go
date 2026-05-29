@@ -68,7 +68,8 @@ func main() {
 	}
 	defer sd.Close()
 
-	paths, err := sd.Paths(ctx, remoteAddr.IA, localAddr.IA, daemontypes.PathReqFlags{Refresh: true})
+	paths, err := sd.Paths(ctx, remoteAddr.IA, localAddr.IA,
+		daemontypes.PathReqFlags{Refresh: true})
 	if err != nil {
 		log.Fatalf("path lookup: %v", err)
 	}

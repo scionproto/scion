@@ -113,7 +113,7 @@ func (s *MultihomedTestSuite) TestInternalEgressCache() {
 // of a sync.Map (any->any) and a regular map (IP->IP) with a RWMutex.
 func BenchmarkSyncMapWrites(b *testing.B) {
 	// Create a set of `size` IP addresses.
-	addrs := generateIpAddrs(b.N)
+	addrs := generateIpAddrs(b, b.N)
 
 	m := sync.Map{}
 	b.ResetTimer()
@@ -121,7 +121,7 @@ func BenchmarkSyncMapWrites(b *testing.B) {
 }
 
 func BenchmarkSyncMapReads(b *testing.B) {
-	addrs := generateIpAddrs(b.N)
+	addrs := generateIpAddrs(b, b.N)
 	m := sync.Map{}
 	storeInSyncMap(&m, addrs)
 
@@ -140,7 +140,7 @@ func BenchmarkSyncMapReads(b *testing.B) {
 }
 
 func BenchmarkMuMapWrites(b *testing.B) {
-	addrs := generateIpAddrs(b.N)
+	addrs := generateIpAddrs(b, b.N)
 
 	m := make(map[netip.Addr]netip.Addr)
 	mu := sync.RWMutex{}
@@ -149,7 +149,7 @@ func BenchmarkMuMapWrites(b *testing.B) {
 }
 
 func BenchmarkMuMapReads(b *testing.B) {
-	addrs := generateIpAddrs(b.N)
+	addrs := generateIpAddrs(b, b.N)
 	m := make(map[netip.Addr]netip.Addr)
 	mu := sync.RWMutex{}
 	storeInMuMap(m, &mu, addrs)
@@ -169,11 +169,13 @@ func BenchmarkMuMapReads(b *testing.B) {
 	require.Len(b, discardBuff, b.N)
 }
 
-func generateIpAddrs(size int) []netip.Addr {
+func generateIpAddrs(tb testing.TB, size int) []netip.Addr {
+	tb.Helper()
 	addrs := make([]netip.Addr, size)
 	raw := [4]byte{}
 	for i := range size {
-		rand.Read(raw[:])
+		_, err := rand.Read(raw[:])
+		require.NoError(tb, err)
 		addrs[i] = netip.AddrFrom4(raw)
 	}
 	return addrs

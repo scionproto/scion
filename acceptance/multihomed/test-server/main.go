@@ -51,7 +51,8 @@ func main() {
 
 	log.Printf("server running bind=%s:%d", bindAddr, port)
 
-	// Single ping/pong exchange; process exits afterwards so the test can restart with a fresh bind.
+	// One-time ping/pong exchange; process exits afterwards,
+	// so a new server can be started with a fresh bind to the same port.
 	var pkt snet.Packet
 	pkt.Prepare()
 	n, lastHop, err := conn.ReadFrom(pkt.Bytes)
