@@ -98,6 +98,53 @@ See :doc:`endhost-bootstrap` for the general bootstrapping framework. How the
 endhost API URL is integrated into the bootstrap process is left for a
 dedicated design.
 
+Endhost API Implementation Versioning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To allow a client to check compatibility with a particular implementation of the
+endhost API, a server SHOULD report the implementation version of the API
+specification requested by the client. The API version requested by the client
+is specified as part of the RPC path of the request (see below).
+
+The version is reported as an HTTP response header. The name of the response
+header is ``Endhost-API-Server-Version``. The value is a SemVer-compatible
+version identifier that is prefixed with a string that uniquely identifies the
+implementor of the API:
+
+``<vendor>-<major>.<minor>.<patch>``
+
+The version follows SemVer-semantics, with special rules for major version 0 vs. 1:
+
+* Major version 0 (pre-stable): Any difference in minor or patch version between
+  two 0.x.y versions signifies a potential breaking change. Clients SHOULD NOT
+  assume compatibility between any two 0.x.y versions unless they share the exact
+  same minor and patch version.
+* Major version 1 (stable): Any two versions sharing major version 1 are
+  guaranteed to be backwards compatible. A client built against ``1.x.y`` can
+  safely interact with a server reporting any ``1.x'.y'``, provided ``x' >= x``.
+  The sole exception are security bugfixes that require a breaking change: in
+  this case, an implementation MUST increment the major version beyond 1.
+
+In other words, the stable compatibility guarantee only applies once the major
+version reaches 1. During the 0.x.y phase, every release should be treated as
+potentially breaking. In general, there is no need for a major version greater
+than 1, unless a breaking change is required for security reasons.
+
+The version reported by the server MUST match the following regular expression:
+
+``[a-zA-Z][a-zA-Z0-9]{0,254}-(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)``
+
+Examples
+""""""""
+
+RPC path: ``/scion.endhost.v1.UnderlayService/ListUnderlays``
+Response Header: ``Endhost-API-Server-Version: xyz-1.0.1``
+Comment: This is a stable implementation ``1.0.1`` the API specification ``v1`` by the vendor ``xyz``.
+
+RPC path: ``/scion.endhost.v2.UnderlayService/ListUnderlays``
+Response Header: ``Endhost-API-Server-Version: abc-0.3.1``
+Comment: This is a unstable implementation ``1.0.1`` the API specification ``v2`` by the vendor ``abc``.
+
 Underlay Discovery
 ^^^^^^^^^^^^^^^^^^
 
