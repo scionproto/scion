@@ -84,7 +84,17 @@ class Test(base.TestTopogen):
         scion_dc["services"][SERVER_BR2]["networks"][SERVER_SECONDARY_NETWORK] = {
             "ipv4_address": SERVER_SECONDARY_BR_IP,
         }
-        scion_dc["services"][SERVER_DISPATCHER]["networks"][SERVER_SECONDARY_NETWORK] = {
+
+        # Attach the secondary subnet to the container namespace that hosts the
+        # test-server process. In some compose variants `tester_*` shares the
+        # dispatcher namespace via `network_mode`, in others it has its own.
+        server_service = scion_dc["services"][SERVER_CONTAINER]
+        server_ns_service = (
+            SERVER_DISPATCHER
+            if "network_mode" in server_service and SERVER_DISPATCHER in scion_dc["services"]
+            else SERVER_CONTAINER
+        )
+        scion_dc["services"][server_ns_service]["networks"][SERVER_SECONDARY_NETWORK] = {
             "ipv4_address": SERVER_SECONDARY_IP,
         }
 
