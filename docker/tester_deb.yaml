@@ -9,7 +9,7 @@
 version: 1
 
 sources:
-  - channel: buster main contrib
+  - channel: bookworm main contrib
     url: https://snapshot.debian.org/archive/debian/20240311T214105Z
     # TODO optimally we would also have updates and security channels here,
     # but given it's only for testing it's also not a big issue.
@@ -21,6 +21,7 @@ archs:
 packages:
   - bash
   - bridge-utils
+  - coreutils
   - iperf3
   - iproute2
   - iptables
@@ -31,6 +32,6 @@ packages:
   - openssh-server
   - procps
   - rsync
-  - telnet
+  - inetutils-telnet
   - tshark
   - wget

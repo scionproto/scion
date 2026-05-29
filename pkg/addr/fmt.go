@@ -1,4 +1,5 @@
 // Copyright 2022 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -109,7 +110,7 @@ func fmtAS(as AS, sep string) string {
 	const maxLen = len("ffff:ffff:ffff")
 	var b strings.Builder
 	b.Grow(maxLen)
-	for i := 0; i < asParts; i++ {
+	for i := range asParts {
 		if i > 0 {
 			b.WriteString(sep)
 		}

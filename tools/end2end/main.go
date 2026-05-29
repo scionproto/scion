@@ -37,6 +37,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -349,7 +350,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	}
 
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
-		daemon.PathReqFlags{Refresh: n != 0})
+		daemontypes.PathReqFlags{Refresh: n != 0})
 	if err != nil {
 		return nil, withTag(serrors.Wrap("requesting paths", err))
 	}

@@ -75,6 +75,7 @@ func NewCookedConn(
 	if local.Host == nil || local.Host.IP.IsUnspecified() {
 		return nil, serrors.New("nil or unspecified address is not supported.")
 	}
+	hasSTUN := hasSTUNConn(pconn)
 	return &Conn{
 		conn:   pconn,
 		local:  local,
@@ -86,12 +87,14 @@ func NewCookedConn(
 			remote:              o.remote,
 			dispatchedPortStart: topo.PortRange.Start,
 			dispatchedPortEnd:   topo.PortRange.End,
+			hasSTUN:             hasSTUN,
 		},
 		scionConnReader: scionConnReader{
 			conn:        pconn,
 			buffer:      make([]byte, common.SupportedMTU),
 			replyPather: o.replyPather,
 			local:       local,
+			hasSTUN:     hasSTUN,
 		},
 	}, nil
 }
@@ -152,4 +155,14 @@ func apply(opts []ConnOption) options {
 		option(&o)
 	}
 	return o
+}
+
+// hasSTUNConn checks if the provided PacketConn has STUN enabled.
+func hasSTUNConn(pc PacketConn) bool {
+	scionPacketConn, ok := pc.(*SCIONPacketConn)
+	if !ok {
+		return false
+	}
+	_, ok = scionPacketConn.conn.(*stunConn)
+	return ok
 }

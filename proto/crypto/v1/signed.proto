@@ -56,7 +56,7 @@ message Header {
 
 // Low-level representation of HeaderAndBody used for signature computation
 // input. This should not be used by external code.
-message HeaderAndBodyInternal {
+message HeaderAndBody {
     // Enocded header suitable for signature computation.
     bytes header = 1;
     // Raw payload suitable for signature computation.

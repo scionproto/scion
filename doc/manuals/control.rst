@@ -787,6 +787,8 @@ There is one top-level entry for each type of metadata, all of which are optiona
 
    A free form string to communicate interesting/important information to other network operators.
 
+.. _control-port-table:
+
 Port table
 ==========
 

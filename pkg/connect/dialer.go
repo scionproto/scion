@@ -16,10 +16,10 @@ package connect
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/quic-go/quic-go/http3"
 
@@ -29,16 +29,31 @@ import (
 
 type Dialer = func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
 
+// BaseUrl constructs a URL suitable for connectrpc/HTTP3 requests.
+// Full SCION addresses (e.g. "1-ff00:0:110,127.0.0.1:31000") are not RFC 3986 compliant.
+// We encode the full SCION address into a valid hostname by replacing
+// colons with dashes, dots with dashes, and the comma with an underscore:
+//
+//   - "1-ff00:0:110,10.0.0.1:31000" -> "https://scion4-1-ff00-0-110_10-0-0-1:31000"
+//   - "1-ff00:0:110,[::1]:31000"    -> "https://scion6-1-ff00-0-110_--1:31000"
+//   - "1-ff00:0:110,CS"             -> "https://scion-1-ff00-0-110_CS"
 func BaseUrl(server net.Addr) string {
 	switch s := server.(type) {
 	case *snet.UDPAddr:
-		host := fmt.Sprintf("%s,%s", s.IA, s.Host.IP)
-		return "https://" + net.JoinHostPort(host, strconv.Itoa(s.Host.Port))
+		ia := strings.ReplaceAll(s.IA.String(), ":", "-")
+		ip := s.Host.IP.String()
+		port := strconv.Itoa(s.Host.Port)
+		if s.Host.IP.To4() != nil {
+			ip = strings.ReplaceAll(ip, ".", "-")
+			return "https://scion4-" + ia + "_" + ip + ":" + port
+		}
+		ip = strings.ReplaceAll(ip, ":", "-")
+		return "https://scion6-" + ia + "_" + ip + ":" + port
 	case *snet.SVCAddr:
-		return fmt.Sprintf("https://[%s,%s]", s.IA, s.SVC.BaseString())
-	default:
-		return "https://" + server.String()
+		ia := strings.ReplaceAll(s.IA.String(), ":", "-")
+		return "https://scion-" + ia + "_" + s.SVC.BaseString()
 	}
+	return "https://" + server.String()
 }
 
 type HTTPClient struct {

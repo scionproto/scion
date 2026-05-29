@@ -19,12 +19,12 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/command"
 	scionpki "github.com/scionproto/scion/scion-pki"
 	"github.com/scionproto/scion/scion-pki/file"
@@ -98,7 +98,7 @@ By default, the public key is written to standard out.
 // LoadPrivate key loads a private key from file.
 func LoadPrivateKey(kms, name string) (crypto.Signer, error) {
 	if kms == "" {
-		raw, err := os.ReadFile(name)
+		raw, err := app.ReadFileOrStdin(name)
 		if err != nil {
 			return nil, serrors.Wrap("reading private key", err)
 		}

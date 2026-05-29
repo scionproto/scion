@@ -61,7 +61,7 @@ the expected ISD-AS value.
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
-			chain, err := cppki.ReadPEMCerts(args[0])
+			chain, err := ReadPEMCerts(args[0])
 			if err != nil {
 				return serrors.Wrap("reading chain", err, "file", args[0])
 			}
@@ -148,7 +148,7 @@ The CA certificate must be a PEM encoded.
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
-			certs, err := cppki.ReadPEMCerts(args[0])
+			certs, err := ReadPEMCerts(args[0])
 			if err != nil {
 				return serrors.Wrap("reading certificate", err, "file", args[0])
 			}

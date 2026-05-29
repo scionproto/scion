@@ -274,10 +274,9 @@ func testCoreStoreSelection(t *testing.T,
 }
 
 func testBeacon(g *graph.Graph, desc ...uint16) beacon.Beacon {
-	pseg := testSegment(g, desc)
-	asEntry := pseg.ASEntries[pseg.MaxIdx()]
+	pseg := testSegment(g, desc[:len(desc)-1])
 	return beacon.Beacon{
-		InIfID:  asEntry.HopEntry.HopField.ConsIngress,
+		InIfID:  desc[len(desc)-1],
 		Segment: pseg,
 	}
 }

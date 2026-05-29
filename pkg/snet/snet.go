@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics/v2"
+	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -89,6 +90,8 @@ type SCIONNetwork struct {
 	// SCMPHandler describes the network behaviour upon receiving SCMP traffic.
 	SCMPHandler       SCMPHandler
 	PacketConnMetrics SCIONPacketConnMetrics
+	// STUNEnabled indicates whether STUN should be used for NAT traversal.
+	STUNEnabled bool
 }
 
 // OpenRaw returns a PacketConn which listens on the specified address.
@@ -121,7 +124,7 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 		return nil, err
 	}
 	return &SCIONPacketConn{
-		Conn:        pconn,
+		conn:        pconn,
 		SCMPHandler: n.SCMPHandler,
 		Metrics:     n.PacketConnMetrics,
 		Topology:    n.Topology,
@@ -154,6 +157,20 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 		return nil, err
 	}
 	log.FromCtx(ctx).Debug("UDP socket opened on", "addr", packetConn.LocalAddr(), "to", remote)
+
+	if n.STUNEnabled {
+		scionPacketConn, ok := packetConn.(*SCIONPacketConn)
+		if !ok {
+			return nil, serrors.New("expected SCIONPacketConn", "type", common.TypeOf(packetConn))
+		}
+		stunConn, err := newSTUNConn(scionPacketConn.conn)
+		if err != nil {
+			return nil, serrors.Wrap("error creating STUN conn", err)
+		}
+		scionPacketConn.conn = stunConn
+		packetConn = scionPacketConn
+	}
+
 	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather), WithRemote(remote))
 }
 

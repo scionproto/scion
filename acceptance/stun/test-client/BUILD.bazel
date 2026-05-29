@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/acceptance/stun/test-client",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/daemon:go_default_library",
+        "//pkg/daemon/types:go_default_library",
+        "//pkg/snet:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "test-client",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

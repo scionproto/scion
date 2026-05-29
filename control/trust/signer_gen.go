@@ -22,7 +22,6 @@ import (
 
 	"github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -40,6 +39,14 @@ type CachingSignerGen struct {
 	ok         bool
 }
 
+type SignerGenError struct {
+	NextGen time.Time
+}
+
+func (e SignerGenError) Error() string {
+	return "no signer cached, reload interval has not passed"
+}
+
 // Generate generates a signer using the SignerGen or returns the cached signer.
 // An error is only returned if the previous signer is empty, and no signer can
 // be generated.
@@ -50,7 +57,7 @@ func (s *CachingSignerGen) Generate(ctx context.Context) ([]trust.Signer, error)
 	now := time.Now()
 	if now.Sub(s.lastGen) < s.Interval {
 		if !s.ok {
-			return nil, serrors.New("no signer cached, reload interval has not passed")
+			return nil, SignerGenError{NextGen: s.lastGen.Add(s.Interval)}
 		}
 		return s.cached, nil
 	}

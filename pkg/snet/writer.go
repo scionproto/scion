@@ -36,6 +36,9 @@ type scionConnWriter struct {
 
 	mtx    sync.Mutex
 	buffer []byte
+
+	// hasSTUN indicates whether the conn has STUN enabled.
+	hasSTUN bool
 }
 
 // WriteTo sends b to raddr.
@@ -82,6 +85,19 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	if !ok {
 		return 0, serrors.New("invalid listen host IP", "ip", c.local.Host.IP)
 	}
+	listenHostPort := uint16(c.local.Host.Port)
+
+	// Rewrite source address if STUN is in use
+	var err error
+	listenHostIP, listenHostPort, err = c.stunMappedSource(
+		raddr,
+		nextHop,
+		listenHostIP,
+		listenHostPort,
+	)
+	if err != nil {
+		return 0, err
+	}
 
 	pkt := &Packet{
 		Bytes: Bytes(c.buffer),
@@ -93,7 +109,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 			},
 			Path: path,
 			Payload: UDPPayload{
-				SrcPort: uint16(c.local.Host.Port),
+				SrcPort: listenHostPort,
 				DstPort: uint16(port),
 				Payload: b,
 			},
@@ -120,4 +136,48 @@ func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 
 func (c *scionConnWriter) isWithinRange(port int) bool {
 	return port >= int(c.dispatchedPortStart) && port <= int(c.dispatchedPortEnd)
+}
+
+// stunMappedSource returns the NAT mapped address for the source if the connection is
+// using STUN and the destination is in a different IA. Otherwise, it returns the original
+// address unchanged.
+func (c *scionConnWriter) stunMappedSource(
+	raddr net.Addr,
+	nextHop *net.UDPAddr,
+	listenHostIP netip.Addr,
+	listenHostPort uint16,
+) (netip.Addr, uint16, error) {
+
+	if !c.hasSTUN {
+		return listenHostIP, listenHostPort, nil
+	}
+
+	scionPacketConn := c.conn.(*SCIONPacketConn)
+	stunConn := scionPacketConn.conn.(*stunConn)
+
+	var sameIA bool
+	switch a := raddr.(type) {
+	case *UDPAddr:
+		sameIA = a.IA.Equal(c.local.IA)
+	case *SVCAddr:
+		sameIA = a.IA.Equal(c.local.IA)
+	}
+
+	if sameIA {
+		return listenHostIP, listenHostPort, nil
+	}
+
+	nextHopIP, ok := netip.AddrFromSlice(nextHop.IP)
+	if !ok {
+		return netip.Addr{}, 0, serrors.New("invalid next hop IP", "ip", nextHop.IP)
+	}
+	nextHopIP = nextHopIP.Unmap()
+	nextHopAddrPort := netip.AddrPortFrom(nextHopIP, uint16(nextHop.Port))
+
+	mappedAddr, err := stunConn.mappedAddr(nextHopAddrPort)
+	if err != nil {
+		return netip.Addr{}, 0, serrors.New("Error getting mapped address for STUN", "stun", err)
+	}
+
+	return mappedAddr.Addr(), mappedAddr.Port(), nil
 }

@@ -20,12 +20,12 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/scion-pki/encoding"
 )
@@ -102,7 +102,7 @@ The subject key ID is written to standard out.
 
 // loadPublicKey loads the public key from file and distinguishes what type of key it is.
 func loadPublicKey(filename string) (crypto.PublicKey, error) {
-	raw, err := os.ReadFile(filename)
+	raw, err := app.ReadFileOrStdin(filename)
 	if err != nil {
 		return nil, serrors.Wrap("reading input file", err)
 	}

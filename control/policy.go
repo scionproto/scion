@@ -62,5 +62,6 @@ func loadPolicy(fn string, t beacon.PolicyType) (beacon.Policy, error) {
 		policy = *p
 	}
 	policy.InitDefaults()
+	policy.Type = t
 	return policy, nil
 }

@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,18 +64,15 @@ func TestMetrics(t *testing.T) {
 	sessionB.Sender = linkBToA
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err := sessionA.Run(context.Background())
 		require.NoError(t, err)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err := sessionB.Run(context.Background())
 		require.NoError(t, err)
-	}()
+	})
 
 	linkAToB.Sending(true)
 	linkBToA.Sending(true)

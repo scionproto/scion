@@ -67,11 +67,11 @@ func (p *FakeProvider) GetKeyWithinAcceptanceWindow(
 	absTimeCurrent := spao.AbsoluteTimestamp(keys[1].Epoch, timestamp)
 	absTimeNext := spao.AbsoluteTimestamp(keys[2].Epoch, timestamp)
 	switch {
-	case validity.Contains(absTimeCurrent):
+	case validity.Contains(absTimeCurrent) && withinGracePeriod(keys[1].Epoch, absTimeCurrent):
 		return keys[1], nil
-	case validity.Contains(absTimePrevious):
+	case validity.Contains(absTimePrevious) && withinGracePeriod(keys[0].Epoch, absTimePrevious):
 		return keys[0], nil
-	case validity.Contains(absTimeNext):
+	case validity.Contains(absTimeNext) && withinGracePeriod(keys[2].Epoch, absTimeNext):
 		return keys[2], nil
 	default:
 		return drkey.ASHostKey{}, serrors.New("no absTime falls into the acceptance window",
@@ -112,4 +112,12 @@ func newEpoch(idx int64, duration int64) drkey.Epoch {
 	begin := uint32(idx * duration)
 	end := begin + uint32(duration)
 	return drkey.NewEpoch(begin, end)
+}
+
+func withinGracePeriod(epoch drkey.Epoch, absTime time.Time) bool {
+	graceValidity := cppki.Validity{
+		NotBefore: epoch.NotBefore,
+		NotAfter:  epoch.NotAfter.Add(drkey.GRACE_PERIOD),
+	}
+	return graceValidity.Contains(absTime)
 }

@@ -1,6 +1,6 @@
 // Copyright 2018 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
-// Copyright 2023 SCION Association
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -51,6 +52,7 @@ var (
 	Mode       string
 	Progress   string
 	daemonAddr string
+	topoDir    string
 	Attempts   int
 	logConsole string
 	features   string
@@ -75,11 +77,20 @@ func addFlags() error {
 	flag.Var(&Local, "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
-	flag.StringVar(&daemonAddr, "sciond", envFlags.Daemon(), "SCION Daemon address")
+	flag.StringVar(
+		&daemonAddr, "sciond", "",
+		"SCION Daemon address. If set, uses remote daemon instead of standalone daemon.",
+	)
+	flag.StringVar(
+		&topoDir, "topoDir", "",
+		"Directory containing topology files. Used for standalone daemon (default mode).",
+	)
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
-	flag.StringVar(&features, "features", "",
-		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
+	flag.StringVar(
+		&features, "features", "",
+		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")),
+	)
 	return nil
 }
 
@@ -128,12 +139,43 @@ func validateFlags() {
 	}
 }
 
+// SDConn returns a daemon connector.
+// If -sciond is specified, it connects to a remote daemon.
+// Otherwise (default), it creates a standalone daemon connector using the topology file
+// from -topoDir.
 func SDConn() daemon.Connector {
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
-	defer cancelF()
-	conn, err := daemon.NewService(daemonAddr).Connect(ctx)
+	// If sciond address is specified, use remote daemon
+	if daemonAddr != "" {
+		ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
+		defer cancelF()
+		conn, err := daemon.NewService(daemonAddr).Connect(ctx)
+		if err != nil {
+			LogFatal("Unable to initialize SCION Daemon connection", "err", err)
+		}
+		return conn
+	}
+
+	// Use standalone daemon by default (with topology file)
+	if topoDir == "" {
+		LogFatal("Either -sciond or -topoDir must be specified")
+	}
+
+	// Construct topology file path from the local IA
+	asDir := addr.FormatAS(Local.IA.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator())
+	asPath := filepath.Join(topoDir, asDir)
+	topoFile := filepath.Join(asPath, "topology.json")
+
+	log.Debug("Using standalone daemon", "topology", topoFile)
+	topo, err := daemon.LoadASInfoFromFile(topoFile)
 	if err != nil {
-		LogFatal("Unable to initialize SCION Daemon connection", "err", err)
+		LogFatal("Unable to load topology", "err", err, "topoFile", topoFile)
+	}
+	ctx := context.Background()
+	conn, err := daemon.NewStandaloneConnector(
+		ctx, topo, daemon.WithCertsDir(filepath.Join(asPath, "certs")),
+	)
+	if err != nil {
+		LogFatal("Unable to create standalone daemon", "err", err, "topoFile", topoFile)
 	}
 	return conn
 }
@@ -145,7 +187,7 @@ type AttemptFunc func(n int) bool
 // were executed. Between two attempts at least RetryTimeout time has to pass.
 // Returns 0 on success, 1 on failure.
 func AttemptRepeatedly(name string, attempt AttemptFunc) int {
-	for attempts := 0; attempts < Attempts; attempts++ {
+	for attempts := range Attempts {
 		if attempts != 0 {
 			log.Info("Retrying...")
 			time.Sleep(integration.RetryTimeout)
@@ -164,7 +206,7 @@ func AttemptRepeatedly(name string, attempt AttemptFunc) int {
 // This is very similar to AttemptRepeatedly, but difference in failure/success behaviour
 // justify a different function: parameter-based tweaks would be easily confusing.
 func RepeatUntilFail(name string, doit AttemptFunc) int {
-	for attempts := 0; attempts < Attempts; attempts++ {
+	for attempts := range Attempts {
 		if doit(attempts) {
 			log.Error(fmt.Sprintf("%s failed...", name))
 			return 1

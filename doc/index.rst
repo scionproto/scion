@@ -36,13 +36,14 @@ The ideas and concepts behind SCION.
    Control Plane <control-plane>
    Data Plane <data-plane>
    Cryptography <cryptography/index>
-   sig
+   SIG Protocol Specification <sig>
    glossary
 
 * **Overview**:
   :doc:`SCION <overview>` |
   :doc:`Control Plane <control-plane>` |
   :doc:`Data Plane <data-plane>` |
+  :doc:`SCION-IP Gateway <sig>` |
   SCION End Hosts |
   `Applications <https://docs.scion.org/projects/scion-applications/en/latest>`_
 

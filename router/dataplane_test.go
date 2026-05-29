@@ -359,7 +359,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 					func(m conn.Messages) (int, error) {
 						// 10 scion messages to external
-						for i := 0; i < totalCount; i++ {
+						for i := range totalCount {
 							spkt, dpath := prepBaseMsg(time.Now())
 							spkt.DstIA = local
 							spkt.RawDstAddr = []byte{192, 168, 1, 1}
@@ -379,7 +379,7 @@ func TestDataPlaneRun(t *testing.T) {
 							// However, prepBaseMsg does pretend that there's a SCIONUDP Header.
 							// Remove that. Since the removal of the dispatcher, the router snoops
 							// into L4 and would mistake our payload for a broken SCION/UDP header.
-							spkt.NextHdr = slayers.L4None
+							spkt.NextHdr = slayers.ExperimentationAndTesting
 
 							err := gopacket.SerializeLayers(buffer,
 								gopacket.SerializeOptions{FixLengths: true},

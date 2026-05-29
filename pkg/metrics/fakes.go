@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,7 +67,7 @@ func createLabelsMap(existingLabels map[string]string, newLabels []string) map[s
 	for k, v := range existingLabels {
 		labelsMap[k] = v
 	}
-	for i := 0; i < len(newLabels)/2; i++ {
+	for i := range len(newLabels) / 2 {
 		k, v := newLabels[2*i], newLabels[2*i+1]
 		if _, ok := labelsMap[k]; ok {
 			panic(fmt.Sprintf("duplicate label key: %s", k))

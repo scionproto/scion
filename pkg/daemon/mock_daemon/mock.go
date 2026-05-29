@@ -11,7 +11,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/pkg/addr"
-	daemon "github.com/scionproto/scion/pkg/daemon"
+	types "github.com/scionproto/scion/pkg/daemon/types"
 	drkey "github.com/scionproto/scion/pkg/drkey"
 	path_mgmt "github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	snet "github.com/scionproto/scion/pkg/snet"
@@ -41,10 +41,10 @@ func (m *MockConnector) EXPECT() *MockConnectorMockRecorder {
 }
 
 // ASInfo mocks base method.
-func (m *MockConnector) ASInfo(arg0 context.Context, arg1 addr.IA) (daemon.ASInfo, error) {
+func (m *MockConnector) ASInfo(arg0 context.Context, arg1 addr.IA) (types.ASInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ASInfo", arg0, arg1)
-	ret0, _ := ret[0].(daemon.ASInfo)
+	ret0, _ := ret[0].(types.ASInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -145,7 +145,7 @@ func (mr *MockConnectorMockRecorder) LocalIA(arg0 interface{}) *gomock.Call {
 }
 
 // Paths mocks base method.
-func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 daemon.PathReqFlags) ([]snet.Path, error) {
+func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 types.PathReqFlags) ([]snet.Path, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Paths", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]snet.Path)

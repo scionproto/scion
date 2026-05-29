@@ -30,6 +30,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -173,7 +174,7 @@ func fetchPaths(
 	refresh bool,
 	seq string,
 ) ([]snet.Path, error) {
-	allPaths, err := conn.Paths(ctx, remote, 0, daemon.PathReqFlags{Refresh: refresh})
+	allPaths, err := conn.Paths(ctx, remote, 0, daemontypes.PathReqFlags{Refresh: refresh})
 	if err != nil {
 		return nil, serrors.Wrap("retrieving paths", err)
 	}

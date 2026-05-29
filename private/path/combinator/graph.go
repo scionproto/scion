@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -527,7 +528,7 @@ func calculateBeta(se *solutionEdge) uint16 {
 		}
 	}
 	beta := se.segment.Info.SegmentID
-	for i := 0; i < index; i++ {
+	for i := range index {
 		hop := se.segment.ASEntries[i].HopEntry
 		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC[:])
 	}

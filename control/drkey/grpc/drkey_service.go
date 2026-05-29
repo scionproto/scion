@@ -285,6 +285,10 @@ func (d *Server) validateAllowedHost(protoId drkey.Protocol, peerAddr net.Addr) 
 // requested dst host. The source AS infrastructure nodes are not supposed to contact
 // the local CS but to derive this key from the SV instead.
 func validateASHostReq(meta drkey.ASHostMeta, localIA addr.IA, peerAddr net.Addr) error {
+	if meta.ProtoId == drkey.Generic {
+		return serrors.New("invalid request, " +
+			"ASHost requests cannot be made for the generic protocol (ProtoID 0)")
+	}
 	hostAddr, err := hostAddrFromPeer(peerAddr)
 	if err != nil {
 		return err
@@ -306,6 +310,10 @@ func validateASHostReq(meta drkey.ASHostMeta, localIA addr.IA, peerAddr net.Addr
 // requested src host. The dst AS infrastructure nodes are not supposed to contact
 // the local CS but to derive this key from the SV instead.
 func validateHostASReq(meta drkey.HostASMeta, localIA addr.IA, peerAddr net.Addr) error {
+	if meta.ProtoId == drkey.Generic {
+		return serrors.New("invalid request, " +
+			"HostAS requests cannot be made for the generic protocol (ProtoID 0)")
+	}
 	hostAddr, err := hostAddrFromPeer(peerAddr)
 	if err != nil {
 		return err
@@ -326,6 +334,10 @@ func validateHostASReq(meta drkey.HostASMeta, localIA addr.IA, peerAddr net.Addr
 // validateHostHostReq returns and error if the requesting host is different from the
 // requested src host or the dst host.
 func validateHostHostReq(meta drkey.HostHostMeta, localIA addr.IA, peerAddr net.Addr) error {
+	if meta.ProtoId == drkey.Generic {
+		return serrors.New("invalid request, " +
+			"HostHost requests cannot be made for the generic protocol (ProtoID 0)")
+	}
 	hostAddr, err := hostAddrFromPeer(peerAddr)
 	if err != nil {
 		return err

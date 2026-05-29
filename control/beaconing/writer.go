@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +17,7 @@ package beaconing
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strconv"
 	"sync"
@@ -24,6 +26,7 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/control/segreg"
+	"github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -376,11 +379,8 @@ func (r *remoteWriter) startSendSegReg(
 	reg seg.Meta,
 	addr net.Addr,
 ) {
-
-	r.wg.Add(1)
-	go func() {
+	r.wg.Go(func() {
 		defer log.HandlePanic()
-		defer r.wg.Done()
 
 		labels := writerLabels{
 			StartIA: bseg.Segment.FirstIA(),
@@ -402,7 +402,7 @@ func (r *remoteWriter) startSendSegReg(
 			labels.WithResult(prom.Success).Expand()...))
 		logger.Debug("Successfully registered segment", "seg_type", r.writer.Type,
 			"addr", addr, "seg", bseg.Segment)
-	}()
+	})
 }
 
 type writerLabels struct {
@@ -442,6 +442,9 @@ type GroupWriter struct {
 	// InternalErrors counts the errors during segment termination.
 	// If the counter is nil, errors are not counted.
 	InternalErrors metrics.Counter
+
+	signerLogThrottle    log.Throttle
+	terminateLogThrottle log.Throttle
 }
 
 var _ Writer = (*GroupWriter)(nil)
@@ -457,7 +460,7 @@ func (w *GroupWriter) processSegments(
 	processed := make(beacon.GroupedBeacons, len(beacons))
 	for group, beacons := range beacons {
 		processedGroup := make([]beacon.Beacon, 0, len(beacons))
-		for _, b := range beacons {
+		for i, b := range beacons {
 			// If the beacon does not have a valid interface ID, skip it.
 			if w.Intfs != nil && w.Intfs.Get(b.InIfID) == nil {
 				continue
@@ -465,8 +468,32 @@ func (w *GroupWriter) processSegments(
 			// Try to terminate the segment if an extender is configured.
 			if w.Extender != nil {
 				err := w.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
+				var signerGenError trust.SignerGenError
+				if errors.As(err, &signerGenError) {
+					// In case of a signer generation error, we can break the loop,
+					// the chance we will get a working signer during this run is
+					// very low.
+					w.signerLogThrottle.Do(func(suppressedCount int) {
+						logger.Error("Unable to terminate beacon due to signer generation error,"+
+							" breaking loop",
+							"beacon", b,
+							"err", err,
+							"next_gen", signerGenError.NextGen,
+						)
+					})
+					// Keep old behavior regarding metrics:
+					metrics.CounterAdd(w.InternalErrors, float64(len(beacons)-i))
+					break
+				}
 				if err != nil {
-					logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
+					// Throttle error logging here.
+					w.terminateLogThrottle.Do(func(suppressedCount int) {
+						logger.Error("Unable to terminate beacon",
+							"beacon", b,
+							"err", err,
+							"suppressed", suppressedCount,
+						)
+					})
 					metrics.CounterInc(w.InternalErrors)
 					continue
 				}
@@ -510,19 +537,17 @@ func (w *GroupWriter) Write(
 	// Run the tasks concurrently and collect the write stats.
 	allWriteStats := make([]WriteStats, len(tasks))
 	wg := sync.WaitGroup{}
-	wg.Add(len(tasks))
 	for i, task := range tasks {
-		go func(j int) {
-			defer wg.Done()
+		wg.Go(func() {
 			sum := task.Reg.RegisterSegments(ctx, task.Beacons, peers)
 			if sum == nil {
 				return
 			}
-			allWriteStats[j] = WriteStats{
+			allWriteStats[i] = WriteStats{
 				Count:    sum.GetCount(),
 				StartIAs: sum.GetSrcs(),
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 	// Extend the write stats with the results from all registrars.

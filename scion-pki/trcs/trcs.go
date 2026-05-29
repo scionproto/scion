@@ -43,3 +43,7 @@ func addOutputFlag(flag *string, cmd *cobra.Command) {
 	cmd.Flags().StringVarP(flag, "out", "o", "", "Output file (required)")
 	cmd.MarkFlagRequired("out")
 }
+
+func addOptionalOutputFlag(flag *string, cmd *cobra.Command) {
+	cmd.Flags().StringVarP(flag, "out", "o", "", "Output file (optional)")
+}

@@ -1,4 +1,5 @@
 // Copyright 2020 ETH Zurich
+// Copyright 2025 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +27,7 @@ import (
 func TestDecodeEncode(t *testing.T) {
 	hop := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	peers := make([][]byte, 0, 5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		peer := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 		peers = append(peers, peer)
 

@@ -36,6 +36,8 @@ import (
 const (
 	// Daemon is a placeholder for the Daemon server in the arguments.
 	Daemon = "<SCIOND>"
+	// TopoDir is a placeholder for the topology directory in the arguments.
+	TopoDir = "<TOPODIR>"
 	// ServerPortReplace is a placeholder for the server port in the arguments.
 	ServerPortReplace = "<ServerPort>"
 	// SrcIAReplace is a placeholder for the source IA in the arguments.
@@ -119,6 +121,14 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 		}
 		args = replacePattern(Daemon, daemonAddr, args)
 	}
+	if needTopoDir(args) {
+		// In Docker mode, the gen directory is mounted at /share/gen inside the container
+		if *Docker {
+			args = replacePattern(TopoDir, "/share/gen", args)
+		} else {
+			args = replacePattern(TopoDir, GenFile(""), args)
+		}
+	}
 	r := exec.CommandContext(ctx, bi.cmd, args...)
 	log.Info(fmt.Sprintf("%v %v\n", bi.cmd, strings.Join(args, " ")))
 	r.Env = os.Environ()
@@ -189,6 +199,14 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 		}
 		args = replacePattern(Daemon, daemonAddr, args)
 	}
+	if needTopoDir(args) {
+		// In Docker mode, the gen directory is mounted at /share/gen inside the container
+		if *Docker {
+			args = replacePattern(TopoDir, "/share/gen", args)
+		} else {
+			args = replacePattern(TopoDir, GenFile(""), args)
+		}
+	}
 	r := &BinaryWaiter{
 		cmd:         exec.CommandContext(ctx, bi.cmd, args...),
 		logsWritten: make(chan struct{}),
@@ -256,6 +274,15 @@ func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.Reader) 
 func needSCIOND(args []string) bool {
 	for _, arg := range args {
 		if strings.Contains(arg, Daemon) {
+			return true
+		}
+	}
+	return false
+}
+
+func needTopoDir(args []string) bool {
+	for _, arg := range args {
+		if strings.Contains(arg, TopoDir) {
 			return true
 		}
 	}

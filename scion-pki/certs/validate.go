@@ -65,7 +65,7 @@ period. This can be enabled by specifying the \--check-time flag.
 			cmd.SilenceUsage = true
 
 			filename := args[0]
-			certs, err := cppki.ReadPEMCerts(filename)
+			certs, err := ReadPEMCerts(filename)
 			if err != nil {
 				return err
 			}
