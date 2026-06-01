@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -27,6 +28,7 @@ import (
 
 func main() {
 	log.SetOutput(os.Stdout)
+	log.Printf("test-client starting")
 
 	// Parse test inputs. The remote is provided as a full SCION UDP address so the same
 	// client binary can probe server primary and secondary IPs without code changes.
@@ -41,6 +43,8 @@ func main() {
 	flag.Var(&remoteAddr, "remote", "Remote SCION address")
 	flag.StringVar(&expect, "expect", "", "Expected remote SCION address")
 	flag.Parse()
+	log.Printf("parsed args daemon=%q local=%q remote=%q expect=%q",
+		daemonAddr, localAddr.String(), remoteAddr.String(), expect)
 
 	if expect != "" {
 		parsed, err := snet.ParseUDPAddr(expect)
@@ -59,6 +63,7 @@ func main() {
 	if daemonAddr == "" {
 		log.Fatal("daemon address missing: pass -daemon or set SCION_DAEMON_ADDRESS/SCION_DAEMON")
 	}
+	log.Printf("using daemon address %s", daemonAddr)
 
 	// Resolve a path from local IA to remote IA.
 	ctx := context.Background()
@@ -67,6 +72,7 @@ func main() {
 		log.Fatalf("connect daemon: %v", err)
 	}
 	defer sd.Close()
+	log.Printf("connected to daemon")
 
 	paths, err := sd.Paths(ctx, remoteAddr.IA, localAddr.IA,
 		daemontypes.PathReqFlags{Refresh: true})
@@ -77,6 +83,7 @@ func main() {
 		log.Fatalf("no path from %s to %s", localAddr.IA, remoteAddr.IA)
 	}
 	sp := paths[0]
+	log.Printf("path lookup returned %d paths; using first path", len(paths))
 
 	// Build a SCION connection pinned to the selected path.
 	topo, err := daemon.LoadTopology(ctx, sd)
@@ -98,18 +105,21 @@ func main() {
 		log.Fatalf("dial: %v", err)
 	}
 	defer conn.Close()
+	log.Printf("dial successful: local_host=%s remote=%s", localAddr.Host, remoteAddr.String())
 
 	// Exchange ping/pong payloads and assert reply endpoint if requested by the caller.
 	_, err = conn.Write([]byte("ping"))
 	if err != nil {
 		log.Fatalf("write ping: %v", err)
 	}
+	log.Printf("ping sent")
 
 	buf := make([]byte, 2048)
 	n, from, err := conn.ReadFrom(buf)
 	if err != nil {
 		log.Fatalf("read pong: %v", err)
 	}
+	log.Printf("received response from %s (%d bytes)", from, n)
 	if string(buf[:n]) != "pong" {
 		log.Fatalf("unexpected payload: %q", string(buf[:n]))
 	}
@@ -125,4 +135,5 @@ func main() {
 	}
 
 	log.Printf("client success remote=%s", from)
+	fmt.Printf("test-client done\n")
 }

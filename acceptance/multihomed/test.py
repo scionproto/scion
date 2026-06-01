@@ -102,11 +102,16 @@ class Test(base.TestTopogen):
             yaml.safe_dump(scion_dc, file, sort_keys=False)
 
     def _run(self):
+        print("[multihomed] waiting for control/data-plane connectivity")
         self.await_connectivity()
+        print("[multihomed] connectivity reported ready; waiting extra 10s for stabilization")
         time.sleep(10)
 
         test_client = local["realpath"](self.get_executable("test-client").executable).strip()
         test_server = local["realpath"](self.get_executable("test-server").executable).strip()
+        print(f"[multihomed] test-client binary={test_client}")
+        print(f"[multihomed] test-server binary={test_server}")
+        print("[multihomed] copying test binaries into containers")
         self.dc("cp", test_server, f"{SERVER_CONTAINER}:/bin/")
         self.dc("cp", test_client, f"{CLIENT_111_CONTAINER}:/bin/")
         self.dc("cp", test_client, f"{CLIENT_112_CONTAINER}:/bin/")
@@ -157,16 +162,24 @@ class Test(base.TestTopogen):
         label: str,
     ):
         remote = f"{SERVER_IA},{remote_ip}:{SERVER_PORT}"
-        print(f"running {label}: {remote}")
+        print(f"[multihomed] running scenario: {label}")
+        print(
+            "[multihomed] scenario config: "
+            f"client_container={client_container} client_ia={client_ia} "
+            f"server_bind={bind_ip}:{SERVER_PORT} remote={remote}"
+        )
         for attempt in range(2):
+            print(f"[multihomed] attempt {attempt + 1}/2 for scenario: {label}")
             # Make sure no stale server process from a previous scenario/attempt keeps
             # the port busy and causes a false negative timeout.
+            print(f"[multihomed] killing stale test-server processes in {SERVER_CONTAINER}")
             self.dc.execute(
                 SERVER_CONTAINER,
                 "bash",
                 "-c",
                 "killall test-server >/dev/null 2>&1 || true",
             )
+            print(f"[multihomed] starting test-server (detached) bind={bind_ip}:{SERVER_PORT}")
             self.dc.execute_detached(
                 SERVER_CONTAINER,
                 "bash",
@@ -175,6 +188,7 @@ class Test(base.TestTopogen):
             )
             time.sleep(3)
             try:
+                print(f"[multihomed] executing test-client in {client_container}")
                 result = self.dc.execute(
                     client_container,
                     "bash",
@@ -184,9 +198,19 @@ class Test(base.TestTopogen):
                         f'-remote "{remote}" -expect "{remote}"'
                     ),
                 )
+                print("[multihomed] test-client output begin")
                 print(result)
+                print("[multihomed] test-client output end")
                 return
-            except Exception:
+            except Exception as err:
+                print(f"[multihomed] scenario attempt failed: {label}")
+                print(str(err))
+                print("[multihomed] server logs (tail=80)")
+                print(self.dc("logs", "--tail", "80", SERVER_CONTAINER))
+                print("[multihomed] server dispatcher logs (tail=80)")
+                print(self.dc("logs", "--tail", "80", SERVER_DISPATCHER))
+                print(f"[multihomed] client logs (tail=80) from {client_container}")
+                print(self.dc("logs", "--tail", "80", client_container))
                 if attempt == 0:
                     print(f"scenario retry after first failure: {label}")
                     time.sleep(2)

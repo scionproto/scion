@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -26,6 +27,7 @@ import (
 
 func main() {
 	log.SetOutput(os.Stdout)
+	log.Printf("test-server starting")
 
 	// Parse test inputs. The same server binary is used for:
 	// - IPv4 unbound mode: bind to 0.0.0.0
@@ -36,6 +38,7 @@ func main() {
 	flag.StringVar(&bindAddr, "bind", "0.0.0.0", "Bind host")
 	flag.IntVar(&port, "port", 31000, "Bind UDP port")
 	flag.Parse()
+	log.Printf("parsed args bind=%q port=%d", bindAddr, port)
 
 	// Bind a raw UDP socket in the tester namespace. Replies are created by reversing the
 	// received SCION packet, which preserves the destination address the client originally used.
@@ -50,6 +53,7 @@ func main() {
 	defer conn.Close()
 
 	log.Printf("server running bind=%s:%d", bindAddr, port)
+	fmt.Printf("test-server listening\n")
 
 	// One-time ping/pong exchange; process exits afterwards,
 	// so a new server can be started with a fresh bind to the same port.
@@ -59,6 +63,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("read ping: %v", err)
 	}
+	log.Printf("received packet from lastHop=%v bytes=%d", lastHop, n)
 	pkt.Bytes = pkt.Bytes[:n]
 
 	if err := pkt.Decode(); err != nil {
@@ -96,6 +101,7 @@ func main() {
 	}
 
 	log.Printf("served ping from %s", pkt.Destination)
+	fmt.Printf("test-server done\n")
 }
 
 func portString(port int) string {
