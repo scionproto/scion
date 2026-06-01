@@ -171,7 +171,7 @@ Peering Links
 
 PCBs do not traverse peering links.
 Instead, available peering links are announced along with a regular path in the individual AS
-entries of PCBs.
+entries of PCBs during *intra-ISD* beaconing. Peering links are not announced in *inter-ISD* beaconing.
 If both ASes at either end of a peering link have registered path segments that include a specific
 peering link, then it can be used to during segment combination to create an end-to-end path.
 
@@ -195,7 +195,7 @@ core AS that originated the PCB.
 Intra-ISD Path-Segment Registration
 -----------------------------------
 
-Every *registration period* (determined by each AS), the AS's control service selects of
+Every *registration period* (determined by each AS), the AS's control service selects
 PCBs to transform into path segments:
 
 - Up-segments, which allow the infrastructure entities and endpoints in this AS to communicate with
@@ -206,6 +206,9 @@ PCBs to transform into path segments:
   core AS that originated the PCB.
   As a result, a core AS's path database contains all down-segments registered by their
   direct or indirect customer ASes.
+
+In addition, if the AS is a core AS and if peering links are present, the control service adds
+an up- and a down-segment that contains only the AS itself along with all peering link metadata.
 
 Core Path-Segment Registration
 ------------------------------
@@ -225,13 +228,13 @@ Path Lookup
 An endpoint (source) that wants to start communication with another endpoint (destination), needs
 up to three path segments:
 
-- An up-path segment to reach the core of the source ISD
+- An up-path segment to reach the core of the source ISD or to get peering metadata for the core AS,
 - a core-path segment to reach
 
   - another core AS in the source ISD, in case the destination AS is in the same source ISD, or
   - a core AS in a remote ISD, if the destination AS is in another ISD, and
 
-- a down-path segment to reach the destination AS.
+- a down-path segment to reach the destination AS or to get peering metadata for the core AS.
 
 The process to look up and fetch path segments consists of the following steps:
 
@@ -296,6 +299,35 @@ end-to-end paths are encoded in the packet header.
    (labeled "c"). All created forwarding paths in cases 1a-1e traverse the ISD
    core(s), whereas the paths in cases 2-4 do not enter the ISD core.
 
+Peering Links in Core ASes
+--------------------------
+
+This section distinguished peering links and peering shortcuts:
+
+- Peering link: A physical link between two ASes.
+- Peering shortcut: A peering link that is used when constructing a full path.
+
+All ASes may have physical peering links. However, for segment combinations, peering
+shortcuts are only allowed (and announced) between ASes that are on up- segment or down-segments.
+This trivially allows peering shortcuts between non-core ASes and ASes.
+
+Whenever an AS is queried for up- or down-segments that terminate in that same AS,
+and if the AS has any peering links, it will return a single-AS segment that contains only
+the AS itself and its peering links.
+
+
+This ensures that, if the core ASes have peering links, any client will have at least one up- and one
+down-segment (even if source and destination AS are core ASes).
+The peering metadata from these single-AS up/down-segments, or any other up- or down-segments
+if they are available, can be used to create peering shortcuts.
+
+FAQ: Why do core segments not contain peering metadata?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Peering links enable two ASes to route traffic between each other and their respective downstream ASes while restricting global transit. Embedding this peering data within a core segment, which inherently facilitates transit, would directly contradict the non-transit nature of peering.
+
+Links
+=====
 
 .. seealso::
 
