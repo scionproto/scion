@@ -93,6 +93,12 @@ class GoGenerator(object):
                 'addr': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT+700)
             }
         }
+        # XDP cannot attach to the loopback device. When the topology uses
+        # the default loopback network (no --network override), force inet.
+        if not self.args.docker and not self.args.network:
+            raw_entry['router'] = {
+                'preferred_underlays': {'udpip': 'inet'},
+            }
         return raw_entry
 
     def generate_control_service(self):

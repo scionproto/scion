@@ -51,8 +51,9 @@ type RouterConfig struct {
 	// configured router in the context of acceptance tests. However, this
 	// introduces two sources for the port configuration. We should remove this
 	// and adapt the acceptance tests.
-	DispatchedPortStart *int `toml:"dispatched_port_start,omitempty"`
-	DispatchedPortEnd   *int `toml:"dispatched_port_end,omitempty"`
+	DispatchedPortStart *int              `toml:"dispatched_port_start,omitempty"`
+	DispatchedPortEnd   *int              `toml:"dispatched_port_end,omitempty"`
+	PreferredUnderlays  map[string]string `toml:"preferred_underlays,omitempty"`
 }
 
 // BFD configuration. Unfortunately cannot be shared with topology.BFD
@@ -144,6 +145,9 @@ func (cfg *RouterConfig) InitDefaults() {
 	}
 	if cfg.BFD.RequiredMinRxInterval.Duration == 0 {
 		cfg.BFD.RequiredMinRxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
+	}
+	if cfg.PreferredUnderlays == nil {
+		cfg.PreferredUnderlays = map[string]string{"udpip": "afxdp"}
 	}
 }
 

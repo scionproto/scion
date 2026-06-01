@@ -5,6 +5,9 @@
 [features]
   experimental_scmp_authentication = true
 
+[router]
+  preferred_underlays = { udpip = "afxdp" }
+
 [router.bfd]
   disable = true
 
