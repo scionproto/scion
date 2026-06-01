@@ -3,7 +3,7 @@ Private ISDs
 ************
 
 - Author(s): Tilmann Zäschke (+ ideas from others)
-- Last updated: 2025-11-07
+- Last updated: 2026-06-01
 - Discussion at: :issue:`4827`
 - Status: **WIP**
 
@@ -16,9 +16,10 @@ Other references:
 Abstract
 ========
 *TL;DR This proposal aims to resolve scaling issues with large numbers
-of ISD and core ASes. As a side effect it introduces new privacy
-features, such as hiding ASes and links, and improved censorship protection
-by using inter-ISD peering links as normal first class links in segments.*
+of ISD and core ASes.
+It also introduces new privacy features, such as hiding ASes, links, or whole SCION networks.
+Moreover it improves censorship protection by allowing inter-ISD peering links to be used as normal
+first class links in segments.*
 
 The current ISD design combines several features:
 
@@ -30,19 +31,26 @@ The current ISD design combines several features:
 Features (1.) and (2.) cause several issues:
 
 * The number of ISDs is limited to 65000 (spec: 4000). A change would require
-  modification of the dataplane, i.e. the SCION header.
+  modification of the dataplane, i.e. the SCION header. This is a low number considering
+  that globally 100s of jurisdiction may want to to run 100s of ISDs, plus
+  many other bodies that may want to run ISDs outside of jurisdictions.
 * Every ISD has at least one CORE AS. A global network with 65000 core ASes
   would break down. We should aim to have at most a few 1000 CORE ASes.
 * Many entities may want to control their own ISD but do not want to participate
   in the global core routing network because they are not interested in transit
-  traffic and need ways to avoid it.
+  traffic and need ways to avoid it. However, the current is based on the assumption
+  that any AS with access to the public network is exclusively in ISD that
+  participate on global core routing. An AS cannot currently participate (securely)
+  in public and non-public ISD at the same time.
 
-However, it seems like that many entities that are interested in setting up an ISD
-are only interested in the features (3.) and (4.).
+While features (1.) and (2.) cause several issues, it seems that many entities that are
+interested in setting up an ISD are only interested in the features (3.) and (4.).
 
-This proposal introduces Private ISDs (or User-/Nested/Anonymous ISDs, TBD).
-Private ISDs (P-ISDs) provide the features 3. and 4. (independent TRC and routing)
-without requiring an features 1. or 2. (ISD number or a CORE AS).
+This proposal introduces Private ISDs.
+Private ISDs (P-ISDs) provide the features (3.) and (4.) (independent TRC and routing)
+without requiring features (1.) or (2.) (ISD number or a CORE AS).
+
+This proposal also turns participation of ASes in multiple (P-)ISD into a first class feature.
 
 Background
 ==========
@@ -64,6 +72,28 @@ Terminology
 Proposal
 ========
 
+Overview
+--------
+
+This document shifts SCION's primary design as follows:
+
+- It establishes a first class design goal that ASes can participate in multiple ISDs
+  or P-ISDs. This is already possible, but:
+
+  - it is not well documented,
+  - does not provide secure ISD separation (forged paths can cross ISD boundaries),
+  - and is cumbersome to use on endhosts (e.g. requires running multiple daemons).
+
+- It establishes Private ISDs (P-ISDs) as first class design goal:
+
+  - Define security properties (hidden links, hidden ASes, routing isolation, ...).
+  - Define requirements on routers, services, and endhosts.
+
+In summary, with the presented design, an AS can safely participate in any number of
+public or private ISDs.
+The changes to the current system are relatively minor, they also improve, document and
+clarify participation in multiple public ISDs.
+
 Building a P-ISD
 ----------------
 
@@ -72,25 +102,23 @@ Building a P-ISD
    non-separated, meaning that they must form a single contiguous network
    where every AS can reach every other AS without leaving the network.
    A P-ISD may use the same interfaces/links between ASes that are already
-   in used by the public ISD or by other P-ISD. It may also use interfaces/links
-   that are not otherwise available.
+   in used by the public ISD or by other P-ISD. It may also use additional
+   interfaces/links that are not otherwise available.
 
-2. We chose one or more of the selected ASes to be P-COREs.
-   Like normal ISD cores, these P-COREs provide TRC and beaconing for
-   all ASes in the P-ISD. However, unlike normal ISD cores, P-COREs do not
-   have external "core" links to any other (P-)ISDs.
+2. Out of the participating ASes, we chose core ASes (P-COREs), authoritative ASes,
+   voting ASes, ... and so on to for an ISD (TRC, etc) as usual.
+   Unlike normal ISDs, the are no "core" links or "peering" links that leave the P-ISD.
 
 3. Pick an (P-)ISD number. For now, we can use any ISD number from the `private range (16-63)
    <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
-   In case of nested P-ISDs, we need to ensure that no AS participates in P-ISDs
-   that use the same ISD number.
+   A (current) limitation is that an AS cannot participate in two ISDs that have the same ISD number.
 
 The resulting P-ISD is built mostly like a normal ISD: It has a TRC, performs
 beaconing, has at least one CORE AS, ASes have child/parent/peer relationships.
 However, there are some differences:
 
 - P-CORE ASes to not perform beaconing outside the P-ISD.
-- ASes keep their P-ISD number from the surrounding ISD.
+- P-ISD numbers do not need to be announced outside the P-ISD.
 - ASes in an P-ISD can have different ISD numbers (from their respective ISDs.
 - P-ISDs are not addressable or even visible from the outside, they don't have
   an external ISD number.
