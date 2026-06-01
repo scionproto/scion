@@ -45,6 +45,11 @@ func main() {
 	flag.Parse()
 	log.Printf("parsed args daemon=%q local=%q remote=%q expect=%q",
 		daemonAddr, localAddr.String(), remoteAddr.String(), expect)
+	log.Printf("local address. IA=%s, IP=%s, port=%d",
+		localAddr.IA,
+		localAddr.Host.IP,
+		localAddr.Host.Port,
+	)
 
 	if expect != "" {
 		parsed, err := snet.ParseUDPAddr(expect)

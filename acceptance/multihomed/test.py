@@ -63,6 +63,7 @@ CLIENT_111_CONTAINER = "tester_1-ff00_0_111"
 CLIENT_112_CONTAINER = "tester_1-ff00_0_112"
 SERVER_DISPATCHER = "disp_tester_1-ff00_0_110"
 SERVER_BR2 = "br1-ff00_0_110-2"
+SERVER_LOG_FILE = "/tmp/multihomed-test-server.log"
 
 
 class Test(base.TestTopogen):
@@ -122,6 +123,10 @@ class Test(base.TestTopogen):
             "server IPs configured: primary=%s, secondary=%s"
             % (SERVER_PRIMARY_IP, SERVER_SECONDARY_IP)
         )
+        print("[multihomed] server namespace addresses before scenarios")
+        print(self.dc.execute(SERVER_CONTAINER, "bash", "-c", "ip -o addr show"))
+        print("[multihomed] server namespace routes before scenarios")
+        print(self.dc.execute(SERVER_CONTAINER, "bash", "-c", "ip route show"))
         self._run_scenario(
             client_container=CLIENT_111_CONTAINER,
             client_ia=CLIENT_111_IA,
@@ -192,9 +197,22 @@ class Test(base.TestTopogen):
                 SERVER_CONTAINER,
                 "bash",
                 "-c",
-                f'test-server -bind "{bind_ip}" -port {SERVER_PORT}',
+                (
+                    f'rm -f {SERVER_LOG_FILE} && '
+                    f'test-server -bind "{bind_ip}" -port {SERVER_PORT} '
+                    f'> {SERVER_LOG_FILE} 2>&1'
+                ),
             )
             time.sleep(3)
+            print("[multihomed] server listening sockets")
+            print(
+                self.dc.execute(
+                    SERVER_CONTAINER,
+                    "bash",
+                    "-c",
+                    "ss -lunp | grep 31000 || true",
+                )
+            )
             try:
                 print(f"[multihomed] executing test-client in {client_container}")
                 result = self.dc.execute(
@@ -213,6 +231,28 @@ class Test(base.TestTopogen):
             except Exception as err:
                 print(f"[multihomed] scenario attempt failed: {label}")
                 print(str(err))
+                print("[multihomed] server namespace addresses")
+                print(self.dc.execute(SERVER_CONTAINER, "bash", "-c", "ip -o addr show"))
+                print("[multihomed] server namespace routes")
+                print(self.dc.execute(SERVER_CONTAINER, "bash", "-c", "ip route show"))
+                print("[multihomed] server process list")
+                print(
+                    self.dc.execute(
+                        SERVER_CONTAINER,
+                        "bash",
+                        "-c",
+                        "ps -ef | grep test-server | grep -v grep || true",
+                    )
+                )
+                print("[multihomed] test-server captured stdout/stderr (tail=120)")
+                print(
+                    self.dc.execute(
+                        SERVER_CONTAINER,
+                        "bash",
+                        "-c",
+                        f"tail -n 120 {SERVER_LOG_FILE} || true",
+                    )
+                )
                 print("[multihomed] server logs (tail=80)")
                 print(self.dc("logs", "--tail", "80", SERVER_CONTAINER))
                 print("[multihomed] server dispatcher logs (tail=80)")
