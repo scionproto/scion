@@ -55,6 +55,8 @@ SERVER_SECONDARY_NETWORK = "local_110_br2"
 SERVER_IA = "1-ff00:0:110"
 CLIENT_111_IA = "1-ff00:0:111"
 CLIENT_112_IA = "1-ff00:0:112"
+CLIENT_111_LOCAL_BIND = "0.0.0.0"
+CLIENT_112_LOCAL_BIND = "[::]"
 
 SERVER_CONTAINER = "tester_1-ff00_0_110"
 CLIENT_111_CONTAINER = "tester_1-ff00_0_111"
@@ -123,6 +125,7 @@ class Test(base.TestTopogen):
         self._run_scenario(
             client_container=CLIENT_111_CONTAINER,
             client_ia=CLIENT_111_IA,
+            client_local_bind=CLIENT_111_LOCAL_BIND,
             remote_ip=SERVER_PRIMARY_IP,
             bind_ip="0.0.0.0",
             label="AS111 -> AS110 via br1-ff00_0_110-1 with unbound server",
@@ -130,6 +133,7 @@ class Test(base.TestTopogen):
         self._run_scenario(
             client_container=CLIENT_112_CONTAINER,
             client_ia=CLIENT_112_IA,
+            client_local_bind=CLIENT_112_LOCAL_BIND,
             remote_ip=SERVER_SECONDARY_IP,
             bind_ip="0.0.0.0",
             # The extra compose-managed subnet sits behind br1-ff00_0_110-2, so the
@@ -139,6 +143,7 @@ class Test(base.TestTopogen):
         self._run_scenario(
             client_container=CLIENT_111_CONTAINER,
             client_ia=CLIENT_111_IA,
+            client_local_bind=CLIENT_111_LOCAL_BIND,
             remote_ip=SERVER_PRIMARY_IP,
             bind_ip=SERVER_PRIMARY_IP,
             label="AS111 -> AS110 via br1-ff00_0_110-1 with server bound to primary IP",
@@ -146,6 +151,7 @@ class Test(base.TestTopogen):
         self._run_scenario(
             client_container=CLIENT_112_CONTAINER,
             client_ia=CLIENT_112_IA,
+            client_local_bind=CLIENT_112_LOCAL_BIND,
             remote_ip=SERVER_SECONDARY_IP,
             bind_ip=SERVER_SECONDARY_IP,
             # The extra compose-managed subnet sits behind br1-ff00_0_110-2, so the
@@ -157,6 +163,7 @@ class Test(base.TestTopogen):
         self,
         client_container: str,
         client_ia: str,
+        client_local_bind: str,
         remote_ip: str,
         bind_ip: str,
         label: str,
@@ -166,6 +173,7 @@ class Test(base.TestTopogen):
         print(
             "[multihomed] scenario config: "
             f"client_container={client_container} client_ia={client_ia} "
+            f"client_local_bind={client_local_bind}:0 "
             f"server_bind={bind_ip}:{SERVER_PORT} remote={remote}"
         )
         for attempt in range(2):
@@ -194,7 +202,7 @@ class Test(base.TestTopogen):
                     "bash",
                     "-c",
                     (
-                        f'test-client -local "{client_ia},0.0.0.0:0" '
+                        f'test-client -local "{client_ia},{client_local_bind}:0" '
                         f'-remote "{remote}" -expect "{remote}"'
                     ),
                 )
