@@ -37,8 +37,13 @@ func CreatePayload(cfg conf.TRC, pred *cppki.TRC) (*cppki.TRC, error) {
 			Base:   cfg.BaseVersion,
 			Serial: cfg.SerialVersion,
 		},
-		Validity:          v,
-		GracePeriod:       cfg.GracePeriod.Duration,
+		Validity: v,
+		GracePeriod: func() time.Duration {
+			if cfg.GracePeriod == nil {
+				return 0
+			}
+			return cfg.GracePeriod.Duration
+		}(),
 		NoTrustReset:      cfg.NoTrustReset,
 		Votes:             cfg.Votes,
 		Quorum:            int(cfg.VotingQuorum),
