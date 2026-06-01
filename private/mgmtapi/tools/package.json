@@ -1,14 +1,18 @@
 {
     "dependencies": {
-        "@redocly/cli": "2.25.2",
-        "@stoplight/spectral-cli": "^6.15.0"
+        "@redocly/cli": "2.31.4",
+        "@stoplight/spectral-cli": "^6.16.0"
     },
     "pnpm": {
-        "overrides": {
-            "rollup": ">=2.80.0",
-            "minimatch": ">=3.1.4",
-            "handlebars": ">=4.7.9"
-        },
-        "onlyBuiltDependencies": []
+        "onlyBuiltDependencies": [],
+        "packageExtensions": {
+            "redoc": {
+                "dependencies": {
+                    "call-me-maybe": "^1.0.2",
+                    "fast-safe-stringify": "^2.1.1",
+                    "yaml": "^2.8.3"
+                }
+            }
+        }
     }
 }
