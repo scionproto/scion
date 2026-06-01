@@ -158,23 +158,40 @@ class Test(base.TestTopogen):
     ):
         remote = f"{SERVER_IA},{remote_ip}:{SERVER_PORT}"
         print(f"running {label}: {remote}")
-        self.dc.execute_detached(
-            SERVER_CONTAINER,
-            "bash",
-            "-c",
-            f'test-server -bind "{bind_ip}" -port {SERVER_PORT}',
-        )
-        time.sleep(3)
-        result = self.dc.execute(
-            client_container,
-            "bash",
-            "-c",
-            (
-                f'test-client -local "{client_ia},0.0.0.0:0" '
-                f'-remote "{remote}" -expect "{remote}"'
-            ),
-        )
-        print(result)
+        for attempt in range(2):
+            # Make sure no stale server process from a previous scenario/attempt keeps
+            # the port busy and causes a false negative timeout.
+            self.dc.execute(
+                SERVER_CONTAINER,
+                "bash",
+                "-c",
+                "killall test-server >/dev/null 2>&1 || true",
+            )
+            self.dc.execute_detached(
+                SERVER_CONTAINER,
+                "bash",
+                "-c",
+                f'test-server -bind "{bind_ip}" -port {SERVER_PORT}',
+            )
+            time.sleep(3)
+            try:
+                result = self.dc.execute(
+                    client_container,
+                    "bash",
+                    "-c",
+                    (
+                        f'test-client -local "{client_ia},0.0.0.0:0" '
+                        f'-remote "{remote}" -expect "{remote}"'
+                    ),
+                )
+                print(result)
+                return
+            except Exception:
+                if attempt == 0:
+                    print(f"scenario retry after first failure: {label}")
+                    time.sleep(2)
+                    continue
+                raise
 
 
 if __name__ == "__main__":
