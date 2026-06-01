@@ -192,18 +192,28 @@ class Test(base.TestTopogen):
                 "-c",
                 "killall test-server >/dev/null 2>&1 || true",
             )
-            print(f"[multihomed] starting test-server (detached) bind={bind_ip}:{SERVER_PORT}")
-            self.dc.execute_detached(
+            print(f"[multihomed] starting test-server (background) bind={bind_ip}:{SERVER_PORT}")
+            server_pid = self.dc.execute(
                 SERVER_CONTAINER,
                 "bash",
                 "-c",
                 (
-                    f'rm -f {SERVER_LOG_FILE} && '
-                    f'test-server -bind "{bind_ip}" -port {SERVER_PORT} '
-                    f'> {SERVER_LOG_FILE} 2>&1'
+                    f"rm -f {SERVER_LOG_FILE} && "
+                    f"nohup /bin/test-server -bind '{bind_ip}' -port {SERVER_PORT} "
+                    f"> {SERVER_LOG_FILE} 2>&1 < /dev/null & echo $!"
                 ),
-            )
+            ).strip()
+            print(f"[multihomed] started test-server pid={server_pid}")
             time.sleep(3)
+            print("[multihomed] verify test-server process is alive")
+            print(
+                self.dc.execute(
+                    SERVER_CONTAINER,
+                    "bash",
+                    "-c",
+                    f"kill -0 {server_pid} >/dev/null 2>&1 && echo alive || echo dead",
+                )
+            )
             print("[multihomed] server listening sockets")
             print(
                 self.dc.execute(
