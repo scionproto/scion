@@ -30,6 +30,7 @@ go_test(
         "combinator_test.go",
         "expiry_test.go",
         "export_test.go",
+        "peering_test.go",
         "staticinfo_accumulator_test.go",
     ],
     data = glob(["testdata/**"]),

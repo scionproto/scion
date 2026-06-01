@@ -18,6 +18,12 @@ var BigGraphDescription = &Description{
 		"4-ff00:0:410", // X = 40
 		"4-ff00:0:411", // X = 41
 		"5-ff00:0:510", // X = 37
+		"6-ff00:0:610", // X = 42
+		"6-ff00:0:611", // X = 43
+		"6-ff00:0:612", // X = 44
+		"6-ff00:0:620", // X = 45
+		"6-ff00:0:621", // X = 46
+		"6-ff00:0:622", // X = 47
 	},
 	Edges: []EdgeDesc{
 		{Xia: "1-ff00:0:110", XifID: If_110_X_120_X, Yia: "1-ff00:0:120", YifID: If_120_X_110_X, Peer: false},
@@ -28,6 +34,7 @@ var BigGraphDescription = &Description{
 		{Xia: "1-ff00:0:120", XifID: If_120_X_121_X, Yia: "1-ff00:0:121", YifID: If_121_X_120_X, Peer: false},
 		{Xia: "1-ff00:0:120", XifID: If_120_X_122_X, Yia: "1-ff00:0:122", YifID: If_122_X_120_X, Peer: false},
 		{Xia: "1-ff00:0:120", XifID: If_120_X_310_X, Yia: "3-ff00:0:310", YifID: If_310_X_120_X, Peer: false},
+		{Xia: "1-ff00:0:120", XifID: If_120_X_410_X, Yia: "4-ff00:0:410", YifID: If_410_X_120_X, Peer: true},
 		{Xia: "1-ff00:0:120", XifID: If_120_X_510_X, Yia: "5-ff00:0:510", YifID: If_510_X_120_X, Peer: false},
 		{Xia: "1-ff00:0:121", XifID: If_121_X_123_X, Yia: "1-ff00:0:123", YifID: If_123_X_121_X, Peer: false},
 		{Xia: "1-ff00:0:121", XifID: If_121_X_122_X, Yia: "1-ff00:0:122", YifID: If_122_X_121_X, Peer: true},
@@ -36,8 +43,17 @@ var BigGraphDescription = &Description{
 		{Xia: "1-ff00:0:123", XifID: If_123_X_410_X, Yia: "4-ff00:0:410", YifID: If_410_X_123_X, Peer: true},
 		{Xia: "1-ff00:0:123", XifID: If_123_X_411_X, Yia: "4-ff00:0:411", YifID: If_411_X_123_X, Peer: true},
 		{Xia: "2-ff00:0:210", XifID: If_210_X_211_X, Yia: "2-ff00:0:211", YifID: If_211_X_210_X, Peer: false},
+		{Xia: "2-ff00:0:210", XifID: If_210_X_610_X, Yia: "6-ff00:0:610", YifID: If_610_X_210_X, Peer: false},
 		{Xia: "3-ff00:0:310", XifID: If_310_X_410_X, Yia: "4-ff00:0:410", YifID: If_410_X_310_X, Peer: false},
 		{Xia: "3-ff00:0:310", XifID: If_310_X_311_X, Yia: "3-ff00:0:311", YifID: If_311_X_310_X, Peer: false},
 		{Xia: "4-ff00:0:410", XifID: If_410_X_411_X, Yia: "4-ff00:0:411", YifID: If_411_X_410_X, Peer: false},
+		{Xia: "6-ff00:0:610", XifID: If_610_X_620_X, Yia: "6-ff00:0:620", YifID: If_620_X_610_X, Peer: false},
+		{Xia: "6-ff00:0:610", XifID: If_610_X_611_X, Yia: "6-ff00:0:611", YifID: If_611_X_610_X, Peer: false},
+		{Xia: "6-ff00:0:610", XifID: If_610_X_612_X, Yia: "6-ff00:0:612", YifID: If_612_X_610_X, Peer: false},
+		{Xia: "6-ff00:0:620", XifID: If_620_X_621_X, Yia: "6-ff00:0:621", YifID: If_621_X_620_X, Peer: false},
+		{Xia: "6-ff00:0:620", XifID: If_620_X_622_X, Yia: "6-ff00:0:622", YifID: If_622_X_620_X, Peer: false},
+		{Xia: "6-ff00:0:611", XifID: If_611_X_620_X, Yia: "6-ff00:0:620", YifID: If_620_X_611_X, Peer: true},
+		{Xia: "6-ff00:0:611", XifID: If_611_X_621_X, Yia: "6-ff00:0:621", YifID: If_621_X_611_X, Peer: true},
+		{Xia: "6-ff00:0:611", XifID: If_611_X_612_X, Yia: "6-ff00:0:612", YifID: If_612_X_611_X, Peer: true},
 	},
 }

@@ -1,0 +1,77 @@
+{
+  "attributes": [
+    "core"
+  ],
+  "isd_as": "6-ff00:0:610",
+  "mtu": 1472,
+  "test_dispatcher": true,
+  "dispatched_ports": "31000-32767",
+  "control_service": {
+    "cs6-ff00_0_610-1": {
+      "addr": "127.0.0.213:31108"
+    }
+  },
+  "discovery_service": {
+    "cs6-ff00_0_610-1": {
+      "addr": "127.0.0.213:31108"
+    }
+  },
+  "border_routers": {
+    "br6-ff00_0_610-1": {
+      "internal_addr": "127.0.0.209:31110",
+      "interfaces": {
+        "4221": {
+          "underlay": {
+            "local": "127.0.0.39:50000",
+            "remote": "127.0.0.38:50000"
+          },
+          "isd_as": "2-ff00:0:210",
+          "link_to": "core",
+          "mtu": 1472
+        }
+      }
+    },
+    "br6-ff00_0_610-2": {
+      "internal_addr": "127.0.0.210:31112",
+      "interfaces": {
+        "4245": {
+          "underlay": {
+            "local": "127.0.0.46:50000",
+            "remote": "127.0.0.47:50000"
+          },
+          "isd_as": "6-ff00:0:620",
+          "link_to": "core",
+          "mtu": 1472
+        }
+      }
+    },
+    "br6-ff00_0_610-3": {
+      "internal_addr": "127.0.0.211:31114",
+      "interfaces": {
+        "4243": {
+          "underlay": {
+            "local": "127.0.0.48:50000",
+            "remote": "127.0.0.49:50000"
+          },
+          "isd_as": "6-ff00:0:611",
+          "link_to": "child",
+          "mtu": 1472
+        }
+      }
+    },
+    "br6-ff00_0_610-4": {
+      "internal_addr": "127.0.0.212:31116",
+      "interfaces": {
+        "4244": {
+          "underlay": {
+            "local": "127.0.0.50:50000",
+            "remote": "127.0.0.51:50000"
+          },
+          "isd_as": "6-ff00:0:612",
+          "link_to": "child",
+          "mtu": 1472
+        }
+      }
+    }
+  }
+}

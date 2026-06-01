@@ -151,6 +151,86 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 	}
 }
 
+func TestPathSegmentOneEntry(t *testing.T) {
+	asEntries := []ASEntry{
+		{
+			Local: as110,
+			Next:  0,
+			MTU:   1500,
+			HopEntry: HopEntry{
+				HopField: HopField{
+					ConsIngress: 0,
+					ConsEgress:  0,
+					ExpTime:     63,
+					MAC:         [path.MacLen]byte{0x33, 0x33, 0x33, 0x33, 0x33, 0x33},
+				},
+				IngressMTU: 1442,
+			},
+			PeerEntries: []PeerEntry{
+				{
+					Peer:          as211,
+					PeerInterface: 2112,
+					PeerMTU:       1501,
+					HopField: HopField{
+						ConsIngress: 1221,
+						ConsEgress:  0,
+						ExpTime:     60,
+						MAC:         [path.MacLen]byte{0x44, 0x44, 0x44, 0x44, 0x44, 0x44},
+					},
+				}, {
+					Peer:          as311,
+					PeerInterface: 3112,
+					PeerMTU:       1502,
+					HopField: HopField{
+						ConsIngress: 1231,
+						ConsEgress:  0,
+						ExpTime:     59,
+						MAC:         [path.MacLen]byte{0x55, 0x55, 0x55, 0x55, 0x55, 0x55},
+					},
+				},
+			},
+		},
+	}
+	var keyPairs []keyPair
+	for range asEntries {
+		keyPairs = append(keyPairs, newKeyPair(t))
+	}
+
+	ps, err := CreateSegment(time.Now(), 1337)
+	require.NoError(t, err)
+
+	for i, entry := range asEntries {
+		id, fullID := ps.ID(), ps.FullID()
+		err := ps.AddASEntry(context.Background(), entry, keyPairs[i])
+		require.NoErrorf(t, err, "index: %d", i)
+
+		// Check that adding an AS entry modifies the segment id.
+		newID, newFullID := ps.ID(), ps.FullID()
+		assert.NotEqual(t, id, newID)
+		assert.NotEqual(t, fullID, newFullID)
+
+	}
+
+	for i, kp := range keyPairs {
+		err := ps.VerifyASEntry(context.Background(), kp, i)
+		require.NoErrorf(t, err, "index: %d", i)
+	}
+
+	c, err := SegmentFromPB(PathSegmentToPB(ps))
+	require.NoError(t, err)
+	assert.Equal(t, c, ps)
+	for i, kp := range keyPairs {
+		err := c.VerifyASEntry(context.Background(), kp, i)
+		require.NoErrorf(t, err, "index: %d", i)
+	}
+
+	ps.ASEntries[0].Signed.Signature[3] ^= 0xFF
+	for i, kp := range keyPairs {
+		err := ps.VerifyASEntry(context.Background(), kp, i)
+		assert.Errorf(t, err, "index: %d", i)
+	}
+}
+
 type keyPair struct {
 	pubKey  crypto.PublicKey
 	privKey crypto.Signer

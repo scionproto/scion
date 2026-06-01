@@ -17,7 +17,9 @@ package beaconing
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"math/big"
 	"net"
 	"strconv"
 	"sync"
@@ -103,6 +105,9 @@ type WriteScheduler struct {
 	// Write is used to write the segments once the scheduling determines it is
 	// time to write.
 	Writer Writer
+	// Core indicates whether this AS is a core AS. When true and peering
+	// interfaces exist, one-hop segments with peer entries are created.
+	Core bool
 
 	// Tick is mutable. It's used to determine when to call write.
 	Tick Tick
@@ -135,6 +140,24 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 		return err
 	}
 	peers := sortedIntfs(r.Intfs, topology.Peer)
+	// Create one-hop segments for core ASes with peering links.
+	// These segments have one AS entry with ConsIngress=0, ConsEgress=0, plus
+	// peer entries for each peering interface.
+	if (r.Type == seg.TypeDown || r.Type == seg.TypeUp) && r.Core && len(peers) != 0 {
+		segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
+		if err != nil {
+			return err
+		}
+		b, err := seg.CreateSegment(time.Now(), uint16(segID.Uint64()))
+		if err != nil {
+			return err
+		}
+		segments[beacon.DefaultGroup] = append(segments[beacon.DefaultGroup], beacon.Beacon{
+			Segment: b,
+			InIfID:  0,
+		})
+	}
+
 	stats, err := r.Writer.Write(ctx, segments, peers)
 	if err != nil {
 		return err
@@ -226,7 +249,15 @@ func (r *LocalWriter) RegisterSegments(
 	logBeacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
 	for _, b := range beacons {
-		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: b.Segment})
+		segType := r.Type
+		// One-hop segments (for core AS peering) are always stored as Down
+		// segments. The combinator uses them on the destination side of peering
+		// shortcuts, where down segments provide the edge to the destination.
+		// Source-side peering edges come from core segment processing instead.
+		if isOneHopSegment(b.Segment) {
+			segType = seg.TypeDown
+		}
+		toRegister = append(toRegister, &seg.Meta{Type: segType, Segment: b.Segment})
 		logBeacons[b.Segment.GetLoggingID()] = b
 	}
 	stats, err := r.Store.StoreSegs(ctx, toRegister)
@@ -462,7 +493,7 @@ func (w *GroupWriter) processSegments(
 		processedGroup := make([]beacon.Beacon, 0, len(beacons))
 		for i, b := range beacons {
 			// If the beacon does not have a valid interface ID, skip it.
-			if w.Intfs != nil && w.Intfs.Get(b.InIfID) == nil {
+			if w.Intfs != nil && w.Intfs.Get(b.InIfID) == nil && b.InIfID != 0 {
 				continue
 			}
 			// Try to terminate the segment if an extender is configured.
@@ -555,4 +586,15 @@ func (w *GroupWriter) Write(
 		writeStats.Extend(stats)
 	}
 	return writeStats, nil
+}
+
+// isOneHopSegment returns true if the segment is a one-hop segment, i.e., a segment
+// with a single AS entry where both ingress and egress interfaces are 0. These segments
+// are used to represent core ASes with peering links for path combination purposes.
+func isOneHopSegment(s *seg.PathSegment) bool {
+	if len(s.ASEntries) != 1 {
+		return false
+	}
+	hf := s.ASEntries[0].HopEntry.HopField
+	return hf.ConsIngress == 0 && hf.ConsEgress == 0
 }
