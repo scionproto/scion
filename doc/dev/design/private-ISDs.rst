@@ -3,15 +3,15 @@ Private ISDs
 ************
 
 - Author(s): Tilmann Zäschke (+ ideas from others)
-- Last updated: 2026-06-01
+- Last updated: 2026-06-02
 - Discussion at: :issue:`4827`
 - Status: **WIP**
 
 Other references:
 
 - Previous version of this document: :issue:`4827`
-- Overlapping ISDs https://github.com/scionproto/scion/issues/4293
-- Nested ISDs (Scion Book 1, Section 3.6): https://scion-architecture.net/pdf/SCION-book.pdf
+- Overlapping ISDs: `#4293 <https://github.com/scionproto/scion/issues/4293>`_
+- Nested ISDs (Scion Book 1, Section 3.6): `PDF <https://scion-architecture.net/pdf/SCION-book.pdf>`_
 
 
 Abstract
@@ -473,7 +473,7 @@ Implementation
    - Service addresses: If CSes can handle only one (P-)ISD each, the border routers
      need to be able to hand out service addresses depending on the (P-)ISDs for which
      a service address is requested. This may be solved by the new service address API.
-     See :issue:`4388`.
+     See `#4388 <https://github.com/scionproto/scion/issues/4388>`_.
 
 4. Endhost libraries
 
