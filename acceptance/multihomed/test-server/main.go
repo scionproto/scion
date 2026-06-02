@@ -55,53 +55,54 @@ func main() {
 	log.Printf("server running bind=%s:%d", bindAddr, port)
 	fmt.Printf("test-server listening\n")
 
-	// One-time ping/pong exchange; process exits afterwards,
-	// so a new server can be started with a fresh bind to the same port.
-	var pkt snet.Packet
-	pkt.Prepare()
-	n, lastHop, err := conn.ReadFrom(pkt.Bytes)
-	if err != nil {
-		log.Fatalf("read ping: %v", err)
-	}
-	log.Printf("received packet from lastHop=%v bytes=%d", lastHop, n)
-	pkt.Bytes = pkt.Bytes[:n]
+	// Keep serving ping/pong exchanges so the same process can survive interface changes
+	// during the acceptance test.
+	for {
+		var pkt snet.Packet
+		pkt.Prepare()
+		n, lastHop, err := conn.ReadFrom(pkt.Bytes)
+		if err != nil {
+			log.Fatalf("read ping: %v", err)
+		}
+		log.Printf("received packet from lastHop=%v bytes=%d", lastHop, n)
+		pkt.Bytes = pkt.Bytes[:n]
 
-	if err := pkt.Decode(); err != nil {
-		log.Fatalf("decode packet: %v", err)
-	}
-	pld, ok := pkt.Payload.(snet.UDPPayload)
-	if !ok {
-		log.Fatalf("unexpected payload type %T", pkt.Payload)
-	}
-	if string(pld.Payload) != "ping" {
-		log.Fatalf("unexpected payload: %q", string(pld.Payload))
-	}
+		if err := pkt.Decode(); err != nil {
+			log.Fatalf("decode packet: %v", err)
+		}
+		pld, ok := pkt.Payload.(snet.UDPPayload)
+		if !ok {
+			log.Fatalf("unexpected payload type %T", pkt.Payload)
+		}
+		if string(pld.Payload) != "ping" {
+			log.Fatalf("unexpected payload: %q", string(pld.Payload))
+		}
 
-	rawPath, ok := pkt.Path.(snet.RawPath)
-	if !ok {
-		log.Fatalf("unexpected path type %T", pkt.Path)
-	}
-	replyPath, err := snet.DefaultReplyPather{}.ReplyPath(rawPath)
-	if err != nil {
-		log.Fatalf("reverse path: %v", err)
-	}
+		rawPath, ok := pkt.Path.(snet.RawPath)
+		if !ok {
+			log.Fatalf("unexpected path type %T", pkt.Path)
+		}
+		replyPath, err := snet.DefaultReplyPather{}.ReplyPath(rawPath)
+		if err != nil {
+			log.Fatalf("reverse path: %v", err)
+		}
 
-	pkt.Destination, pkt.Source = pkt.Source, pkt.Destination
-	pkt.Path = replyPath
-	pkt.Payload = snet.UDPPayload{
-		SrcPort: pld.DstPort,
-		DstPort: pld.SrcPort,
-		Payload: []byte("pong"),
-	}
-	if err := pkt.Serialize(); err != nil {
-		log.Fatalf("serialize reply: %v", err)
-	}
-	if _, err := conn.WriteTo(pkt.Bytes, lastHop); err != nil {
-		log.Fatalf("write pong: %v", err)
-	}
+		pkt.Destination, pkt.Source = pkt.Source, pkt.Destination
+		pkt.Path = replyPath
+		pkt.Payload = snet.UDPPayload{
+			SrcPort: pld.DstPort,
+			DstPort: pld.SrcPort,
+			Payload: []byte("pong"),
+		}
+		if err := pkt.Serialize(); err != nil {
+			log.Fatalf("serialize reply: %v", err)
+		}
+		if _, err := conn.WriteTo(pkt.Bytes, lastHop); err != nil {
+			log.Fatalf("write pong: %v", err)
+		}
 
-	log.Printf("served ping from %s", pkt.Destination)
-	fmt.Printf("test-server done\n")
+		log.Printf("served ping from %s", pkt.Destination)
+	}
 }
 
 func portString(port int) string {
