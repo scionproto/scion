@@ -35,12 +35,10 @@ func main() {
 	var daemonAddr string
 	var bindAddr string
 	var port int
-	var mode string
 
 	flag.StringVar(&daemonAddr, "daemon", "", "SCION daemon address")
 	flag.StringVar(&bindAddr, "bind", "0.0.0.0", "Bind host")
 	flag.IntVar(&port, "port", 31000, "Bind UDP port")
-	flag.StringVar(&mode, "mode", "multihomed", "Server mode")
 	flag.Parse()
 
 	if daemonAddr == "" {
@@ -84,7 +82,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	log.Printf("server running mode=%s daemon=%s bind=%s:%d", mode, daemonAddr, bindAddr, port)
+	log.Printf("server running daemon=%s bind=%s:%d", daemonAddr, bindAddr, port)
 
 	// Single ping/pong exchange; process exits afterwards so the test can restart with a fresh bind.
 	buf := make([]byte, 2048)

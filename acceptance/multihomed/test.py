@@ -114,7 +114,7 @@ class Test(base.TestTopogen):
             "tester_1-ff00_0_111",
             "bash",
             "-c",
-            f"test-server -bind {primary_ip} -port {bound_port} -mode bound",
+            f"test-server -bind {primary_ip} -port {bound_port}",
         )
         time.sleep(2)
 
@@ -135,7 +135,7 @@ class Test(base.TestTopogen):
             "tester_1-ff00_0_111",
             "bash",
             "-c",
-            f"test-server -bind 0.0.0.0 -port {multihomed_port} -mode multihomed",
+            f"test-server -bind 0.0.0.0 -port {multihomed_port}",
         )
         time.sleep(2)
 
@@ -157,7 +157,7 @@ class Test(base.TestTopogen):
             "tester_1-ff00_0_111",
             "bash",
             "-c",
-            f"test-server -bind 0.0.0.0 -port {multihomed_port} -mode multihomed",
+            f"test-server -bind 0.0.0.0 -port {multihomed_port}",
         )
         time.sleep(2)
 
