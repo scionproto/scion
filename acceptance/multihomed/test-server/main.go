@@ -15,96 +15,91 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
-	"strconv"
 
+	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
 func main() {
 	log.SetOutput(os.Stdout)
-	log.Printf("test-server starting")
 
 	// Parse test inputs. The same server binary is used for:
-	// - IPv4 unbound mode: bind to 0.0.0.0
-	// - IPv6 unbound mode: bind to ::
+	// - bound mode: bind to a specific host IP
+	// - multihomed mode: bind to 0.0.0.0 and accept traffic via multiple local IPs
+	var daemonAddr string
 	var bindAddr string
 	var port int
+	var mode string
 
+	flag.StringVar(&daemonAddr, "daemon", "", "SCION daemon address")
 	flag.StringVar(&bindAddr, "bind", "0.0.0.0", "Bind host")
 	flag.IntVar(&port, "port", 31000, "Bind UDP port")
+	flag.StringVar(&mode, "mode", "multihomed", "Server mode")
 	flag.Parse()
-	log.Printf("parsed args bind=%q port=%d", bindAddr, port)
 
-	// Bind a raw UDP socket in the tester namespace. Replies are created by reversing the
-	// received SCION packet, which preserves the destination address the client originally used.
-	local, err := net.ResolveUDPAddr("udp", net.JoinHostPort(bindAddr, portString(port)))
+	if daemonAddr == "" {
+		daemonAddr = os.Getenv("SCION_DAEMON_ADDRESS")
+	}
+	if daemonAddr == "" {
+		daemonAddr = os.Getenv("SCION_DAEMON")
+	}
+	if daemonAddr == "" {
+		log.Fatal("daemon address missing: pass -daemon or set SCION_DAEMON_ADDRESS/SCION_DAEMON")
+	}
+
+	// Initialize SCION networking stack from daemon topology.
+	ctx := context.Background()
+	sd, err := daemon.NewService(daemonAddr).Connect(ctx)
+	if err != nil {
+		log.Fatalf("connect daemon: %v", err)
+	}
+	defer sd.Close()
+
+	topo, err := daemon.LoadTopology(ctx, sd)
+	if err != nil {
+		log.Fatalf("load topology: %v", err)
+	}
+
+	sn := snet.SCIONNetwork{
+		Topology: topo,
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: daemon.RevHandler{Connector: sd},
+		},
+	}
+
+	// Bind listening socket according to requested mode/host.
+	local, err := net.ResolveUDPAddr("udp", net.JoinHostPort(bindAddr, fmt.Sprintf("%d", port)))
 	if err != nil {
 		log.Fatalf("parse bind address: %v", err)
 	}
-	conn, err := net.ListenUDP("udp", local)
+	conn, err := sn.Listen(ctx, "udp", local)
 	if err != nil {
 		log.Fatalf("listen: %v", err)
 	}
 	defer conn.Close()
 
-	log.Printf("server running bind=%s:%d", bindAddr, port)
-	fmt.Printf("test-server listening\n")
+	log.Printf("server running mode=%s daemon=%s bind=%s:%d", mode, daemonAddr, bindAddr, port)
 
-	// Keep serving ping/pong exchanges so the same process can survive interface changes
-	// during the acceptance test.
-	for {
-		var pkt snet.Packet
-		pkt.Prepare()
-		n, lastHop, err := conn.ReadFrom(pkt.Bytes)
-		if err != nil {
-			log.Fatalf("read ping: %v", err)
-		}
-		log.Printf("received packet from lastHop=%v bytes=%d", lastHop, n)
-		pkt.Bytes = pkt.Bytes[:n]
-
-		if err := pkt.Decode(); err != nil {
-			log.Fatalf("decode packet: %v", err)
-		}
-		pld, ok := pkt.Payload.(snet.UDPPayload)
-		if !ok {
-			log.Fatalf("unexpected payload type %T", pkt.Payload)
-		}
-		if string(pld.Payload) != "ping" {
-			log.Fatalf("unexpected payload: %q", string(pld.Payload))
-		}
-
-		rawPath, ok := pkt.Path.(snet.RawPath)
-		if !ok {
-			log.Fatalf("unexpected path type %T", pkt.Path)
-		}
-		replyPath, err := snet.DefaultReplyPather{}.ReplyPath(rawPath)
-		if err != nil {
-			log.Fatalf("reverse path: %v", err)
-		}
-
-		pkt.Destination, pkt.Source = pkt.Source, pkt.Destination
-		pkt.Path = replyPath
-		pkt.Payload = snet.UDPPayload{
-			SrcPort: pld.DstPort,
-			DstPort: pld.SrcPort,
-			Payload: []byte("pong"),
-		}
-		if err := pkt.Serialize(); err != nil {
-			log.Fatalf("serialize reply: %v", err)
-		}
-		if _, err := conn.WriteTo(pkt.Bytes, lastHop); err != nil {
-			log.Fatalf("write pong: %v", err)
-		}
-
-		log.Printf("served ping from %s", pkt.Destination)
+	// Single ping/pong exchange; process exits afterwards so the test can restart with a fresh bind.
+	buf := make([]byte, 2048)
+	n, remote, err := conn.ReadFrom(buf)
+	if err != nil {
+		log.Fatalf("read ping: %v", err)
 	}
-}
+	if string(buf[:n]) != "ping" {
+		log.Fatalf("unexpected payload: %q", string(buf[:n]))
+	}
 
-func portString(port int) string {
-	return strconv.Itoa(port)
+	_, err = conn.WriteTo([]byte("pong"), remote)
+	if err != nil {
+		log.Fatalf("write pong: %v", err)
+	}
+
+	log.Printf("served ping from %s", remote)
 }

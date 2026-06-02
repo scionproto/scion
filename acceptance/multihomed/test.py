@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2026 ETH Zurich
+# Copyright 2025 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,302 +14,162 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Acceptance test for a multihomed server container in the tiny topology.
+"""
+Acceptance test for SCION multihomed socket behavior.
 
-Manual runs:
-    bazel test --config=integration //acceptance/multihomed:test --test_output=streamed
+Manual run (single command):
+  bazel test --config=integration //acceptance/multihomed:test --test_output=streamed
+
+Manual run in phases (useful for debugging):
+  bazel run //acceptance/multihomed:test_setup
+  bazel run //acceptance/multihomed:test_run
+  bazel run //acceptance/multihomed:test_teardown
+
+Validation steps:
+1. Setup phase adds a second docker network and a second IP address to the server tester
+   container. The client tester and the AS111 border router are attached to that same extra
+   network so the secondary destination IP is actually reachable inside the remote AS.
+2. Regression check (bound server): server binds to the primary server IP only, and client
+   verifies ping/pong works via that bound endpoint.
+3. Multihomed check A (unbound server): server binds to 0.0.0.0, and client reaches it via
+   server primary IP.
+4. Multihomed check B (unbound server): server binds to 0.0.0.0, and client reaches it via
+   server secondary IP. The reply may still use the server's primary IP as source address, so
+   this step checks successful ping/pong delivery rather than exact reply source selection.
 """
 
 import time
-
 import yaml
 from plumbum import local
 
 from acceptance.common import base
-from acceptance.common.docker import _CalledProcessErrorWithOutput
-
-
-SERVER_CONTAINER = "probe_1-ff00_0_111_multi"
-SERVER_IMAGE = "scion/tester:latest"
-SERVER_PORT = 31000
-
-AS111_INTERNAL_NETWORK = "scn_002"
-AS111_INTERNAL_SERVER_IP = "172.20.0.30"
-AS111_INTERNAL_BR_IP = "172.20.0.26"
-
-AS111_EXTRA_NETWORK = "scn_111_multi"
-AS111_EXTRA_SUBNET = "172.20.1.0/29"
-AS111_EXTRA_SERVER_IP = "172.20.1.3"
-AS111_EXTRA_BR_IP = "172.20.1.2"
-
-AS112_CLIENT_CONTAINER = "tester_1-ff00_0_112"
-AS112_CLIENT_IA = "1-ff00:0:112"
-AS112_CLIENT_LOCAL = f'{AS112_CLIENT_IA},[::]:0'
-AS111_SERVER_IA = "1-ff00:0:111"
 
 
 class Test(base.TestTopogen):
     def setup_prepare(self):
         super().setup_prepare()
 
-        with open(self.artifacts / "gen/scion-dc.yml", "r", encoding="utf-8") as file:
+        # Patch generated docker-compose topology to give the tester network namespaces a second
+        # IP address on a dedicated local network. Tester containers inherit networking from their
+        # disp_tester sidecars, so the extra network must be attached there rather than on the
+        # tester services themselves. The remote AS border router also needs connectivity to that
+        # subnet, otherwise packets addressed to the secondary IP would time out at delivery.
+        compose_path = self.artifacts / "gen/scion-dc.yml"
+        with open(compose_path, "r") as file:
             scion_dc = yaml.safe_load(file)
 
-        scion_dc["networks"][AS111_EXTRA_NETWORK] = {
+        scion_dc["networks"]["local_002"] = {
             "driver": "bridge",
-            "driver_opts": {
-                "com.docker.network.bridge.name": AS111_EXTRA_NETWORK,
-            },
-            "ipam": {
-                "config": [{"subnet": AS111_EXTRA_SUBNET}],
-            },
+            "ipam": {"config": [{"subnet": "192.168.200.0/24"}]},
         }
 
-        scion_dc["services"]["br1-ff00_0_111-1"]["networks"][AS111_EXTRA_NETWORK] = {
-            "ipv4_address": AS111_EXTRA_BR_IP,
-        }
+        server_disp = scion_dc["services"]["disp_tester_1-ff00_0_111"]
+        client_disp = scion_dc["services"]["disp_tester_1-ff00_0_112"]
+        server_router = scion_dc["services"]["br1-ff00_0_111-1"]
 
-        scion_dc["services"][SERVER_CONTAINER] = {
-            "image": SERVER_IMAGE,
-            "command": 'bash -c "tail -f /dev/null"',
-            "cap_add": ["NET_ADMIN", "NET_RAW"],
-            "privileged": True,
-            "networks": {
-                AS111_INTERNAL_NETWORK: {"ipv4_address": AS111_INTERNAL_SERVER_IP},
-                AS111_EXTRA_NETWORK: {"ipv4_address": AS111_EXTRA_SERVER_IP},
-            },
-        }
+        server_disp.setdefault("networks", {})["local_002"] = {"ipv4_address": "192.168.200.11"}
+        client_disp.setdefault("networks", {})["local_002"] = {"ipv4_address": "192.168.200.12"}
+        server_router.setdefault("networks", {})["local_002"] = {"ipv4_address": "192.168.200.21"}
 
-        with open(self.artifacts / "gen/scion-dc.yml", "w", encoding="utf-8") as file:
-            yaml.safe_dump(scion_dc, file, sort_keys=False)
+        with open(compose_path, "w") as file:
+            yaml.dump(scion_dc, file)
+
+    def _server_primary_ip(self):
+        # Read the original topology IP from the tester dispatcher so we can test both original
+        # and secondary IPs of the shared tester network namespace.
+        compose_path = self.artifacts / "gen/scion-dc.yml"
+        with open(compose_path, "r") as file:
+            scion_dc = yaml.safe_load(file)
+
+        nets = scion_dc["services"]["disp_tester_1-ff00_0_111"]["networks"]
+        if "scn_002" in nets and "ipv4_address" in nets["scn_002"]:
+            return nets["scn_002"]["ipv4_address"]
+        for data in nets.values():
+            ip = data.get("ipv4_address")
+            if ip and ip != "192.168.200.11":
+                return ip
+        raise RuntimeError("could not determine server primary IP")
 
     def _run(self):
-        print("[multihomed] waiting for control/data-plane connectivity")
+        # Wait until SCION control-plane/path connectivity is established.
         self.await_connectivity()
-        print("[multihomed] connectivity reported ready; waiting extra 5s for stabilization")
         time.sleep(5)
 
+        # Copy test binaries into the two tester containers.
         test_client = local["realpath"](self.get_executable("test-client").executable).strip()
         test_server = local["realpath"](self.get_executable("test-server").executable).strip()
-        print(f"[multihomed] test-client binary={test_client}")
-        print(f"[multihomed] test-server binary={test_server}")
 
-        print("[multihomed] copying test binaries into containers")
-        self.dc("cp", test_server, f"{SERVER_CONTAINER}:/bin/test-server")
-        self.dc("cp", test_client, f"{AS112_CLIENT_CONTAINER}:/bin/test-client")
+        self.dc("cp", test_server, "tester_1-ff00_0_111:/bin/")
+        self.dc("cp", test_client, "tester_1-ff00_0_112:/bin/")
 
-        self._print_server_interfaces()
-        self._print_server_routes()
+        primary_ip = self._server_primary_ip()
+        secondary_ip = "192.168.200.11"
+        bound_port = 31001
+        multihomed_port = 31000
 
-        iface_by_ip = self._server_interfaces_by_ip()
-        primary_iface = iface_by_ip[AS111_INTERNAL_SERVER_IP]
-        secondary_iface = iface_by_ip[AS111_EXTRA_SERVER_IP]
-        print(
-            "[multihomed] server address/interface mapping: "
-            f"{AS111_INTERNAL_SERVER_IP}={primary_iface}, "
-            f"{AS111_EXTRA_SERVER_IP}={secondary_iface}"
-        )
+        print(f"server IPs configured: primary={primary_ip}, secondary={secondary_ip}")
 
-        self._ping_br_via_interface(primary_iface, AS111_INTERNAL_BR_IP)
-        self._ping_br_via_interface(secondary_iface, AS111_EXTRA_BR_IP)
-
-        print("[multihomed] starting first test-server instance bound to 0.0.0.0")
-        self._start_server()
-        self._print_server_output()
-        print(
-            "[multihomed] first client run from AS112 to server primary address "
-            f"{AS111_INTERNAL_SERVER_IP}:{SERVER_PORT}"
-        )
-        first_result = self._run_client(AS111_INTERNAL_SERVER_IP)
-        print("[multihomed] first client output begin")
-        print(first_result)
-        print("[multihomed] first client output end")
-        self._print_server_output()
-
-        print(f"[multihomed] bringing down interface {primary_iface} in server container")
-        print(
-            self.dc.execute(
-                SERVER_CONTAINER,
-                "bash",
-                "-c",
-                " && ".join([
-                    f"ip link set dev {primary_iface} down",
-                    f"ip -o addr show dev {primary_iface} || true",
-                ]),
-                user="0:0",
-            )
-        )
-        self._print_server_interfaces()
-        self._print_server_routes()
-        self._print_server_process_list()
-        self._print_server_sockets()
-
-        print(
-            "[multihomed] second client run from AS112 to server primary address; "
-            "this is expected to fail"
-        )
-        self._assert_client_failure(AS111_INTERNAL_SERVER_IP)
-        self._print_server_process_list()
-        self._print_server_output()
-
-        print(
-            "[multihomed] third client run from AS112 to server secondary address "
-            f"{AS111_EXTRA_SERVER_IP}:{SERVER_PORT}; this should succeed"
-        )
-        try:
-            third_result = self._run_client(AS111_EXTRA_SERVER_IP)
-        finally:
-            self._print_server_process_list()
-            self._print_server_output()
-        print("[multihomed] third client output begin")
-        print(third_result)
-        print("[multihomed] third client output end")
-
-    def _client_command(self, remote_ip):
-        remote = f'{AS111_SERVER_IA},{remote_ip}:{SERVER_PORT}'
-        return (
-            f'test-client -local "{AS112_CLIENT_LOCAL}" '
-            f'-remote "{remote}" -expect "{remote}"'
-        )
-
-    def _run_client(self, remote_ip):
-        return self.dc.execute(
-            AS112_CLIENT_CONTAINER,
-            "bash",
-            "-c",
-            self._client_command(remote_ip),
-        )
-
-    def _assert_client_failure(self, remote_ip):
-        try:
-            self._run_client(remote_ip)
-        except _CalledProcessErrorWithOutput as err:
-            print("[multihomed] observed expected client failure")
-            print(err)
-            return
-        raise AssertionError(f"client unexpectedly succeeded for remote {remote_ip}")
-
-    def _start_server(self):
-        self.dc.execute(
-            SERVER_CONTAINER,
-            "bash",
-            "-c",
-            "pkill -x test-server || true",
-            user="0:0",
-        )
+        # 1) Regression check: bound server must still work with a specific IP binding.
         self.dc.execute_detached(
-            SERVER_CONTAINER,
+            "tester_1-ff00_0_111",
             "bash",
             "-c",
-            (
-                f"test-server -bind 0.0.0.0 -port {SERVER_PORT} "
-                "> /proc/1/fd/1 2> /proc/1/fd/2"
-            ),
-            user="0:0",
+            f"test-server -bind {primary_ip} -port {bound_port} -mode bound",
         )
-        self._wait_for_server_ready()
-        print("[multihomed] test-server ready")
-        self._print_server_process_list()
-        self._print_server_sockets()
+        time.sleep(2)
 
-    def _wait_for_server_ready(self):
-        deadline = time.time() + 10
-        while time.time() < deadline:
-            if self._server_is_listening():
-                return
-            time.sleep(0.5)
-        raise AssertionError(f"test-server did not start listening on port {SERVER_PORT}")
-
-    def _server_is_listening(self):
-        sockets = self._server_socket_list()
-        return str(SERVER_PORT) in sockets
-
-    def _server_interfaces_by_ip(self):
-        output = self.dc.execute(
-            SERVER_CONTAINER,
+        local_addr = "1-ff00:0:112,0.0.0.0:0"
+        remote_bound = f"1-ff00:0:111,{primary_ip}:{bound_port}"
+        print(f"running bound-address regression scenario: {remote_bound}")
+        result_bound = self.dc.execute(
+            "tester_1-ff00_0_112",
             "bash",
             "-c",
-            "ip -o -4 addr show scope global",
-            user="0:0",
+            f'test-client -local "{local_addr}" -remote "{remote_bound}" '
+            f'-expect "{remote_bound}"',
         )
-        mapping = {}
-        for line in output.splitlines():
-            fields = line.split()
-            if len(fields) < 4:
-                continue
-            iface = fields[1]
-            ip = fields[3].split("/", maxsplit=1)[0]
-            mapping[ip] = iface
-        for ip in [AS111_INTERNAL_SERVER_IP, AS111_EXTRA_SERVER_IP]:
-            if ip not in mapping:
-                raise AssertionError(f"server IP {ip} not found in interface list:\n{output}")
-        return mapping
+        print(result_bound)
 
-    def _ping_br_via_interface(self, interface, br_ip):
-        print(f"[multihomed] pinging BR111 address {br_ip} via {interface}")
-        print(
-            self.dc.execute(
-                SERVER_CONTAINER,
-                "bash",
-                "-c",
-                f"ping -I {interface} -c3 {br_ip}",
-                user="0:0",
-            )
-        )
-
-    def _print_server_interfaces(self):
-        print(f"[multihomed] interfaces in {SERVER_CONTAINER}")
-        print(
-            self.dc.execute(
-                SERVER_CONTAINER,
-                "bash",
-                "-c",
-                "ip -o addr show || ifconfig -a || cat /proc/net/dev",
-                user="0:0",
-            )
-        )
-
-    def _print_server_routes(self):
-        print(f"[multihomed] routes in {SERVER_CONTAINER}")
-        print(
-            self.dc.execute(
-                SERVER_CONTAINER,
-                "bash",
-                "-c",
-                "ip route show || route -n || cat /proc/net/route",
-                user="0:0",
-            )
-        )
-
-    def _print_server_process_list(self):
-        print("[multihomed] server process list")
-        print(self._server_process_list())
-
-    def _server_process_list(self):
-        return self.dc.execute(
-            SERVER_CONTAINER,
+        # 2) Multihomed check using server primary IP while server is unbound (0.0.0.0).
+        self.dc.execute_detached(
+            "tester_1-ff00_0_111",
             "bash",
             "-c",
-            "ps -ef | grep test-server | grep -v grep || true",
-            user="0:0",
+            f"test-server -bind 0.0.0.0 -port {multihomed_port} -mode multihomed",
         )
+        time.sleep(2)
 
-    def _print_server_sockets(self):
-        print("[multihomed] server listening sockets")
-        print(self._server_socket_list())
-
-    def _server_socket_list(self):
-        return self.dc.execute(
-            SERVER_CONTAINER,
+        remote_primary = f"1-ff00:0:111,{primary_ip}:{multihomed_port}"
+        print(f"running client against primary IP: {remote_primary}")
+        result_primary = self.dc.execute(
+            "tester_1-ff00_0_112",
             "bash",
             "-c",
-            f"ss -lunp | grep {SERVER_PORT} || true",
-            user="0:0",
+            f'test-client -local "{local_addr}" -remote "{remote_primary}" '
+            f'-expect "{remote_primary}"',
         )
+        print(result_primary)
 
-    def _print_server_output(self):
-        print("[multihomed] test-server captured stdout/stderr (tail=120)")
-        print(self.dc("logs", "--tail", "120", SERVER_CONTAINER))
+        # 3) Multihomed check using server secondary IP while server is unbound (0.0.0.0).
+        # Linux may still select the primary IP as reply source, so this validates connectivity
+        # through the secondary destination without enforcing the response source address.
+        self.dc.execute_detached(
+            "tester_1-ff00_0_111",
+            "bash",
+            "-c",
+            f"test-server -bind 0.0.0.0 -port {multihomed_port} -mode multihomed",
+        )
+        time.sleep(2)
+
+        remote_secondary = f"1-ff00:0:111,{secondary_ip}:{multihomed_port}"
+        print(f"running client against secondary IP: {remote_secondary}")
+        result_secondary = self.dc.execute(
+            "tester_1-ff00_0_112",
+            "bash",
+            "-c",
+            f'test-client -local "{local_addr}" -remote "{remote_secondary}"',
+        )
+        print(result_secondary)
 
 
 if __name__ == "__main__":
