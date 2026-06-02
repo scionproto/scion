@@ -91,6 +91,233 @@ class Test(base.TestTopogen):
                 return ip
         raise RuntimeError("could not determine server primary IP")
 
+    def _compose_services(self):
+        compose_path = self.artifacts / "gen/scion-dc.yml"
+        with open(compose_path, "r") as file:
+            return yaml.safe_load(file)["services"]
+
+    def _service_network_addresses(self, service):
+        services = self._compose_services()
+        service_config = services[service]
+        networks = service_config.get("networks", {})
+        if not networks:
+            network_mode = service_config.get("network_mode", "")
+            if network_mode.startswith("service:"):
+                return self._service_network_addresses(network_mode.split(":", 1)[1])
+        addresses = {}
+        for network_name, config in networks.items():
+            ipv4 = config.get("ipv4_address")
+            ipv6 = config.get("ipv6_address")
+            if ipv4:
+                addresses[network_name] = ipv4
+            elif ipv6:
+                addresses[network_name] = ipv6
+        return addresses
+
+    def _shared_target_address(
+        self,
+        source_service,
+        target_service,
+        *,
+        expected_ip=None,
+        preferred_network=None,
+        excluded_networks=None,
+    ):
+        source_networks = self._service_network_addresses(source_service)
+        target_networks = self._service_network_addresses(target_service)
+        excluded = set(excluded_networks or [])
+        shared_networks = [
+            network for network in source_networks
+            if network in target_networks and network not in excluded
+        ]
+        if not shared_networks:
+            raise RuntimeError(
+                f"no shared docker network between {source_service} and {target_service}"
+            )
+        if preferred_network:
+            if preferred_network not in shared_networks:
+                raise RuntimeError(
+                    f"{source_service} and {target_service} do not share {preferred_network}"
+                )
+            return preferred_network, target_networks[preferred_network]
+        if expected_ip:
+            for network in shared_networks:
+                if target_networks[network] == expected_ip:
+                    return network, target_networks[network]
+            raise RuntimeError(
+                f"expected {target_service} to use {expected_ip} on one of {shared_networks}"
+            )
+        network = shared_networks[0]
+        return network, target_networks[network]
+
+    def _ping_hop(
+        self,
+        *,
+        label,
+        source_service,
+        target_service,
+        expected_ip=None,
+        preferred_network=None,
+        excluded_networks=None,
+    ):
+        network, target_ip = self._shared_target_address(
+            source_service,
+            target_service,
+            expected_ip=expected_ip,
+            preferred_network=preferred_network,
+            excluded_networks=excluded_networks,
+        )
+        family_flag = "-6" if ":" in target_ip else "-4"
+        print(
+            f"ping diagnostics {label}: source={source_service} target={target_service} "
+            f"network={network} target_ip={target_ip}"
+        )
+        result = self.dc.execute(
+            source_service,
+            "bash",
+            "-c",
+            f"ping {family_flag} -c 3 {target_ip}",
+            user="0:0",
+        )
+        print(result)
+
+    def _run_ping_diagnostics(self, primary_ip, secondary_ip):
+        failures = []
+        hops = [
+            {
+                "label": "client->112br1",
+                "source_service": "tester_1-ff00_0_112",
+                "target_service": "br1-ff00_0_112-1",
+            },
+            {
+                "label": "as110->110br2",
+                "source_service": "tester_1-ff00_0_110",
+                "target_service": "br1-ff00_0_110-2",
+            },
+            {
+                "label": "as110->110br1",
+                "source_service": "tester_1-ff00_0_110",
+                "target_service": "br1-ff00_0_110-1",
+            },
+            {
+                "label": "as111->111br1",
+                "source_service": "tester_1-ff00_0_111",
+                "target_service": "br1-ff00_0_111-1",
+            },
+            {
+                "label": "as111->server-remote_primary",
+                "source_service": "tester_1-ff00_0_111",
+                "target_service": "disp_tester_1-ff00_0_111",
+                "expected_ip": primary_ip,
+                "excluded_networks": ["local_002"],
+            },
+            {
+                "label": "as111->server-remote_secondary",
+                "source_service": "tester_1-ff00_0_111",
+                "target_service": "disp_tester_1-ff00_0_111",
+                "expected_ip": secondary_ip,
+                "preferred_network": "local_002",
+            },
+        ]
+        for hop in hops:
+            try:
+                self._ping_hop(**hop)
+            except Exception as err:  # noqa: BLE001 - keep collecting diagnostics on failures
+                failures.append((hop["label"], err))
+                print(f"ping diagnostics {hop['label']} failed:\n{err}")
+        if failures:
+            print("ping diagnostics summary: failures were observed before remote_secondary test")
+            for label, err in failures:
+                print(f"  - {label}: {err}")
+        else:
+            print("ping diagnostics summary: all hop-by-hop pings succeeded")
+
+    def _scion_ping(self, *, label, remote_addr):
+        print(f"scion ping diagnostics {label}: remote={remote_addr}")
+        result = self.dc.execute(
+            "tester_1-ff00_0_112",
+            "bash",
+            "-c",
+            f'scion ping -c 3 "{remote_addr}"',
+        )
+        print(result)
+
+    def _run_scion_ping_diagnostics(self, primary_ip, secondary_ip):
+        failures = []
+        probes = [
+            {
+                "label": "client->server-primary",
+                "remote_addr": f"1-ff00:0:111,{primary_ip}",
+            },
+            {
+                "label": "client->server-secondary",
+                "remote_addr": f"1-ff00:0:111,{secondary_ip}",
+            },
+        ]
+        for probe in probes:
+            try:
+                self._scion_ping(**probe)
+            except Exception as err:  # noqa: BLE001 - keep collecting diagnostics on failures
+                failures.append((probe["label"], err))
+                print(f"scion ping diagnostics {probe['label']} failed:\n{err}")
+        if failures:
+            print("scion ping diagnostics summary: "
+                  "failures were observed before remote_secondary test")
+            for label, err in failures:
+                print(f"  - {label}: {err}")
+        else:
+            print("scion ping diagnostics summary: both SCION ping probes succeeded")
+
+    def _scion_traceroute(self, *, label, remote_addr):
+        print(f"scion traceroute diagnostics {label}: remote={remote_addr}")
+        result = self.dc.execute(
+            "tester_1-ff00_0_112",
+            "bash",
+            "-c",
+            f'scion traceroute "{remote_addr}"',
+        )
+        print(result)
+
+    def _run_scion_traceroute_diagnostics(self, primary_ip, secondary_ip):
+        failures = []
+        probes = [
+            {
+                "label": "client->server-primary",
+                "remote_addr": f"1-ff00:0:111,{primary_ip}",
+            },
+            {
+                "label": "client->server-secondary",
+                "remote_addr": f"1-ff00:0:111,{secondary_ip}",
+            },
+        ]
+        for probe in probes:
+            try:
+                self._scion_traceroute(**probe)
+            except Exception as err:  # noqa: BLE001 - keep collecting diagnostics on failures
+                failures.append((probe["label"], err))
+                print(f"scion traceroute diagnostics {probe['label']} failed:\n{err}")
+        if failures:
+            print(
+                "scion traceroute diagnostics summary: failures were observed before "
+                "remote_secondary test"
+            )
+            for label, err in failures:
+                print(f"  - {label}: {err}")
+        else:
+            print("scion traceroute diagnostics summary: both traceroute probes succeeded")
+
+    def bash_at_server(self, cmd, *args, **kwargs):
+            print(
+                self.dc.execute(
+                    "tester_1-ff00_0_111",
+                    "bash",
+                    "-c",
+                    cmd,
+                    *args,
+                    **kwargs,
+                )
+            )
+
     def _run(self):
         # Wait until SCION control-plane/path connectivity is established.
         self.await_connectivity()
@@ -108,7 +335,7 @@ class Test(base.TestTopogen):
         bound_port = 31001
         multihomed_port = 31000
 
-        # SERVERLOGFILE="/tmp/log.txt"
+        SERVERLOGFILE="/tmp/log.txt"
 
         print(f"server IPs configured: primary={primary_ip}, secondary={secondary_ip}")
 
@@ -144,40 +371,23 @@ class Test(base.TestTopogen):
         print("server terminated successfully")
         time.sleep(2)
 
-
-        def bash_at_server(cmd, *args, **kwargs):
-            print(
-                self.dc.execute(
-                    "tester_1-ff00_0_111",
-                    "bash",
-                    "-c",
-                    cmd,
-                    *args,
-                    **kwargs,
-                )
-            )
-
-        # # bash(f"ls -l / ; echo ; ls -l /tmp ; echo ; ls -l /share")
-        # # bash("whoami ; id")
-        # bash_at_server(f"touch {SERVERLOGFILE} ; " +
-        #                f"chown {os.getuid()}:{os.getgid()} {SERVERLOGFILE}",
-        #                user="0:0")
-        # # bash(f"ls -l {LOGFILE}")
-
-
-        # 2) Multihomed check using server primary IP while server is unbound (0.0.0.0).
+        # Multihomed server.
+        self.bash_at_server(f"touch {SERVERLOGFILE} ; " +
+                            f"chown {os.getuid()}:{os.getgid()} {SERVERLOGFILE}",
+                            user="0:0")
+        self.bash_at_server(f"ls -l {SERVERLOGFILE}")
         self.dc.execute_detached(
             "tester_1-ff00_0_111",
             "bash",
             "-c",
-            # f"test-server -bind 0.0.0.0 -port {multihomed_port} > {SERVERLOGFILE} 2>&1",
-            f"test-server -bind 0.0.0.0 -port {multihomed_port}",
+            f"test-server -bind 0.0.0.0 -port {multihomed_port} > {SERVERLOGFILE} 2>&1",
         )
         time.sleep(2)
         print("---------------------------------------------------")
-        bash_at_server(f"ifconfig ; echo -e '\n\n' ; route -n")
+        self.bash_at_server("ifconfig ; echo ; route -n ; echo ; ps aux")
         print("---------------------------------------------------")
 
+        # 2) Multihomed check using server primary IP while server is unbound (0.0.0.0).
         remote_primary = f"1-ff00:0:111,{primary_ip}:{multihomed_port}"
         print(f"running client against primary IP: {remote_primary}")
         result_primary = self.dc.execute(
@@ -189,38 +399,28 @@ class Test(base.TestTopogen):
         )
         print(result_primary)
 
+        self._run_ping_diagnostics(primary_ip, secondary_ip)
+        self._run_scion_ping_diagnostics(primary_ip, secondary_ip)
+        self._run_scion_traceroute_diagnostics(primary_ip, secondary_ip)
+
         # 3) Multihomed check using server secondary IP while server is unbound (0.0.0.0).
         # Linux may still select the primary IP as reply source, so this validates connectivity
         # through the secondary destination without enforcing the response source address.
         remote_secondary = f"1-ff00:0:111,{secondary_ip}:{multihomed_port}"
         print(f"running client against secondary IP: {remote_secondary}")
-        result_secondary = self.dc.execute(
-            "tester_1-ff00_0_112",
-            "bash",
-            "-c",
-            f'test-client -local "{local_addr}" -remote "{remote_secondary}"',
-        )
-        print(result_secondary)
-
-
-
-
-        # print("bringing one interface down at the server")
-        # print("---------------------------------------------------")
-        # # bash_at_server(f"ifconfig eth1 down ; echo 'removed eth0' ; sleep 2 ; " +
-        # #      "ifconfig ; echo -n '\n' ; route -n", user="0:0")
-        # bash_at_server(f"ip addr del 192.168.200.11/24 dev eth1 ; sleep 1 ; ifconfig ; route -n",
-        #                user="0:0")
-        # print("---------------------------------------------------")
-        # # Give docker some time to bring down the interface in the container.
-        # time.sleep(5)
-
-
-
-
-
-
-
+        result_secondary = ""
+        try:
+            result_secondary = self.dc.execute(
+                "tester_1-ff00_0_112",
+                "bash",
+                "-c",
+                f'test-client -local "{local_addr}" -remote "{remote_secondary}"',
+            )
+        finally:
+            print("Client results:")
+            print(result_secondary)
+            print("\n\nServer log:")
+            self.bash_at_server(f"cat {SERVERLOGFILE}")
 
 
 if __name__ == "__main__":
