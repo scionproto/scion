@@ -48,7 +48,10 @@ type SegmentProvider interface {
 	// SegmentsToRegister returns the segments that should be registered for the
 	// given segment type.
 	// The returned slice must not be nil if the returned error is nil.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.Beacon, []beacon.RegistrationPolicy, error)
+	SegmentsToRegister(
+		ctx context.Context,
+		segType seg.Type,
+	) ([]beacon.Beacon, []beacon.RegistrationPolicy, error)
 }
 
 // SegmentStore stores segments in the path database.
@@ -86,7 +89,12 @@ type Writer interface {
 	// of the local IA. The returned statistics should provide insights about
 	// how many segments have been successfully written. The method should return
 	// an error if the writing did fail.
-	Write(ctx context.Context, beacons []beacon.Beacon, policies []beacon.RegistrationPolicy, peers []uint16) (WriteStats, error)
+	Write(
+		ctx context.Context,
+		beacons []beacon.Beacon,
+		policies []beacon.RegistrationPolicy,
+		peers []uint16,
+	) (WriteStats, error)
 }
 
 var _ periodic.Task = (*WriteScheduler)(nil)
@@ -561,7 +569,10 @@ func (w *GroupWriter) Write(
 // The beacons that do not match any registration policy are dropped.
 // If the policy defines no registration policy, all the beacons will be put into
 // the default group.
-func (w *GroupWriter) groupBeacons(beacons []beacon.Beacon, policies []beacon.RegistrationPolicy) beacon.GroupedBeacons {
+func (w *GroupWriter) groupBeacons(
+	beacons []beacon.Beacon,
+	policies []beacon.RegistrationPolicy,
+) beacon.GroupedBeacons {
 	if len(policies) == 0 {
 		return map[string][]beacon.Beacon{
 			beacon.DefaultGroup: beacons,
