@@ -63,7 +63,7 @@ CLIENT_111_CONTAINER = "tester_1-ff00_0_111"
 CLIENT_112_CONTAINER = "tester_1-ff00_0_112"
 SERVER_DISPATCHER = "disp_tester_1-ff00_0_110"
 SERVER_BR2 = "br1-ff00_0_110-2"
-SERVER_LOG_FILE = "/tmp/multihomed-test-server.log"
+SERVER_LOG_FILE = "/share/logs/multihomed-test-server.log"
 
 
 class Test(base.TestTopogen):
@@ -181,99 +181,111 @@ class Test(base.TestTopogen):
             f"client_local_bind={client_local_bind}:0 "
             f"server_bind={bind_ip}:{SERVER_PORT} remote={remote}"
         )
-        for attempt in range(2):
-            print(f"[multihomed] attempt {attempt + 1}/2 for scenario: {label}")
-            # Make sure no stale server process from a previous scenario/attempt keeps
-            # the port busy and causes a false negative timeout.
-            print(f"[multihomed] killing stale test-server processes in {SERVER_CONTAINER}")
+        # Make sure no stale server process from a previous scenario keeps the
+        # port busy and causes a false negative timeout.
+        print(f"[multihomed] killing stale test-server processes in {SERVER_CONTAINER}")
+        self.dc.execute(
+            SERVER_CONTAINER,
+            "bash",
+            "-c",
+            "killall test-server >/dev/null 2>&1 || true",
+        )
+        print(f"[multihomed] starting test-server (detached) bind={bind_ip}:{SERVER_PORT}")
+        self.dc.execute_detached(
+            SERVER_CONTAINER,
+            "bash",
+            "-c",
+            (
+                f"rm -f {SERVER_LOG_FILE} && "
+                f"test-server -bind '{bind_ip}' -port {SERVER_PORT} "
+                f"> {SERVER_LOG_FILE} 2>&1"
+            ),
+        )
+        try:
+            self._wait_for_server_ready(label)
+            print(f"[multihomed] executing test-client in {client_container}")
+            result = self.dc.execute(
+                client_container,
+                "bash",
+                "-c",
+                (
+                    f'test-client -local "{client_ia},{client_local_bind}:0" '
+                    f'-remote "{remote}" -expect "{remote}"'
+                ),
+            )
+            print("[multihomed] test-client output begin")
+            print(result)
+            print("[multihomed] test-client output end")
+        except Exception as err:
+            print(f"[multihomed] scenario failed: {label}")
+            print(str(err))
+            print("[multihomed] server namespace addresses")
+            print(self.dc.execute(SERVER_CONTAINER, "bash", "-c", "ip -o addr show"))
+            print("[multihomed] server namespace routes")
+            print(self.dc.execute(SERVER_CONTAINER, "bash", "-c", "ip route show"))
+            print("[multihomed] server process list")
+            print(self._server_process_list())
+            print("[multihomed] test-server captured stdout/stderr (tail=120)")
+            print(
+                self.dc.execute(
+                    SERVER_CONTAINER,
+                    "bash",
+                    "-c",
+                    f"tail -n 120 {SERVER_LOG_FILE} || true",
+                )
+            )
+            print("[multihomed] server logs (tail=80)")
+            print(self.dc("logs", "--tail", "80", SERVER_CONTAINER))
+            print("[multihomed] server dispatcher logs (tail=80)")
+            print(self.dc("logs", "--tail", "80", SERVER_DISPATCHER))
+            print(f"[multihomed] client logs (tail=80) from {client_container}")
+            print(self.dc("logs", "--tail", "80", client_container))
+            raise
+
+    def _wait_for_server_ready(self, label: str):
+        for _ in range(30):
+            process_list = self._server_process_list()
+            sockets = self._server_listening_sockets()
+            if process_list.strip() and sockets.strip():
+                print("[multihomed] test-server ready")
+                print("[multihomed] server process list")
+                print(process_list)
+                print("[multihomed] server listening sockets")
+                print(sockets)
+                return
+            time.sleep(0.2)
+
+        print(f"[multihomed] test-server did not become ready: {label}")
+        print("[multihomed] server process list")
+        print(self._server_process_list())
+        print("[multihomed] server listening sockets")
+        print(self._server_listening_sockets())
+        print("[multihomed] test-server captured stdout/stderr (tail=120)")
+        print(
             self.dc.execute(
                 SERVER_CONTAINER,
                 "bash",
                 "-c",
-                "killall test-server >/dev/null 2>&1 || true",
+                f"tail -n 120 {SERVER_LOG_FILE} || true",
             )
-            print(f"[multihomed] starting test-server (background) bind={bind_ip}:{SERVER_PORT}")
-            server_pid = self.dc.execute(
-                SERVER_CONTAINER,
-                "bash",
-                "-c",
-                (
-                    f"rm -f {SERVER_LOG_FILE} && "
-                    f"nohup /bin/test-server -bind '{bind_ip}' -port {SERVER_PORT} "
-                    f"> {SERVER_LOG_FILE} 2>&1 < /dev/null & echo $!"
-                ),
-            ).strip()
-            print(f"[multihomed] started test-server pid={server_pid}")
-            time.sleep(3)
-            print("[multihomed] verify test-server process is alive")
-            print(
-                self.dc.execute(
-                    SERVER_CONTAINER,
-                    "bash",
-                    "-c",
-                    f"kill -0 {server_pid} >/dev/null 2>&1 && echo alive || echo dead",
-                )
-            )
-            print("[multihomed] server listening sockets")
-            print(
-                self.dc.execute(
-                    SERVER_CONTAINER,
-                    "bash",
-                    "-c",
-                    "ss -lunp | grep 31000 || true",
-                )
-            )
-            try:
-                print(f"[multihomed] executing test-client in {client_container}")
-                result = self.dc.execute(
-                    client_container,
-                    "bash",
-                    "-c",
-                    (
-                        f'test-client -local "{client_ia},{client_local_bind}:0" '
-                        f'-remote "{remote}" -expect "{remote}"'
-                    ),
-                )
-                print("[multihomed] test-client output begin")
-                print(result)
-                print("[multihomed] test-client output end")
-                return
-            except Exception as err:
-                print(f"[multihomed] scenario attempt failed: {label}")
-                print(str(err))
-                print("[multihomed] server namespace addresses")
-                print(self.dc.execute(SERVER_CONTAINER, "bash", "-c", "ip -o addr show"))
-                print("[multihomed] server namespace routes")
-                print(self.dc.execute(SERVER_CONTAINER, "bash", "-c", "ip route show"))
-                print("[multihomed] server process list")
-                print(
-                    self.dc.execute(
-                        SERVER_CONTAINER,
-                        "bash",
-                        "-c",
-                        "ps -ef | grep test-server | grep -v grep || true",
-                    )
-                )
-                print("[multihomed] test-server captured stdout/stderr (tail=120)")
-                print(
-                    self.dc.execute(
-                        SERVER_CONTAINER,
-                        "bash",
-                        "-c",
-                        f"tail -n 120 {SERVER_LOG_FILE} || true",
-                    )
-                )
-                print("[multihomed] server logs (tail=80)")
-                print(self.dc("logs", "--tail", "80", SERVER_CONTAINER))
-                print("[multihomed] server dispatcher logs (tail=80)")
-                print(self.dc("logs", "--tail", "80", SERVER_DISPATCHER))
-                print(f"[multihomed] client logs (tail=80) from {client_container}")
-                print(self.dc("logs", "--tail", "80", client_container))
-                if attempt == 0:
-                    print(f"scenario retry after first failure: {label}")
-                    time.sleep(2)
-                    continue
-                raise
+        )
+        raise RuntimeError(f"test-server did not become ready: {label}")
+
+    def _server_process_list(self) -> str:
+        return self.dc.execute(
+            SERVER_CONTAINER,
+            "bash",
+            "-c",
+            "ps -ef | grep test-server | grep -v grep || true",
+        )
+
+    def _server_listening_sockets(self) -> str:
+        return self.dc.execute(
+            SERVER_CONTAINER,
+            "bash",
+            "-c",
+            f"ss -lunp | grep {SERVER_PORT} || true",
+        )
 
 
 if __name__ == "__main__":
