@@ -151,13 +151,13 @@ P-ISD (dashed oval shapes).
 Example: Simple Nested P-ISD
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. figure:: fig/private_isd/1-single-P-ISD.png
+.. figure:: fig/private_isd/1-1-ISD.png
    :align: center
 
-   Figure 1: The diagram shows six ASes. The ASes 1-10 and 1-11 participate only in the
-   public ISD, the other four ASes (1-20, 1-21, 1-30, 1-31) participate in both the public
-   and the private ISD. Since, in this case, all ASes of the P-ISD are also part of the
-   public ISD, the P-ISD can be called "nested".
+   Figure 1: The diagram shows six ASes. The ASes 10 and 11 participate only in the
+   public ISD (ISD 1), the other four ASes (20, 21, 30, 31) participate in both the public
+   ISD (ISD 1) and the private ISD (ISD 7). Since, in this case, all ASes of the P-ISD are
+   also part of the public ISD, the P-ISD may be called "nested".
 
    The private ISD is not visible to the outside, the public ISD simply sees six ASes but
    is not aware of the P-ISD formed by some of them.
@@ -166,12 +166,12 @@ Example: Simple Nested P-ISD
 Example: An P-ISD spread over two ISDs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. figure:: fig/private_isd/3-2-ISD-2-P-CORE.png
+.. figure:: fig/private_isd/2-2-ISDE.png
    :align: center
 
-   Figure 3: The diagram shows an P-ISD that has ASes in multiple ISDs.
-   If 1-31 want to communicate with 2-62, it use the public path
-   1-30 - 1-10 - 2-50 - 2-60 or the private path 1-30 - 2-60.
+   Figure 2: The diagram shows an P-ISD (7) that has ASes in multiple ISDs (1 and 2).
+   If AS 31 want to communicate with AS 62, it use the public path
+   (1-30) - (1-10) - (2-50) - (2-60) or the private path (7-30) - (7-60).
    Which path to use can depend on configurable AS policies or on
    path properties, such as performance, cost, or availability.
 
@@ -235,29 +235,14 @@ the BRs will attempt hop field verification with the wrong certificate.
 Border Routers
 --------------
 An AS has separate forwarding keys for each (P-)ISD.
-For any incoming data packets, border routers need to look at the P-ISD in
+For ingress and egress, border routers need to look at the ISD fields in
 the SCION address header to identify which forwarding key should be used
 for authenticating the hopfields.
+If the ISDs are the same and from the Private ISD range, the forwarding for
+the required P-ISD is used. If the ISDs are from outside the range, the default key
+for public ISDs is used.
+
 Forwarding keys do not need to be stored in memory, they may be derived dynamically.
-
-On egress, border routers must check whether the packet arrived via an ingress
-border router on a different path segment. If so, the BR must also validate the
-ingress hopfield with the forwarding key. This ensure that all path segments
-belong to the same (P-ISDs).
-
--> TODO why do we need that? If the forwarding key depends on the packet's ISD
-number, then the ingress BR would have already rejected the packet if it had the wrong
-ISD number...
-
--> Requires ISD number to be the same....
-   - If the ISD numbers are the same, this seems unnecessary
-   - If the ISD number are different, then we must ensure that we are using
-     one (which?) of the public ISD keys.
-
-Simple as that?
-- Same ISD: use private key or public key, which ever fits?
-- Different ISD: use default-key
-
 
 DRKey, EPIC, ...
 ----------------
@@ -278,10 +263,10 @@ Every AS may specify a preference list for routing, if the source and
 destination AS have multiple P-ISDs in common, the preference indicates from which
 P-ISD (or ISD) the segments should used.
 
-.. figure:: fig/private_isd/4-nested-P-ISD.png
+.. figure:: fig/private_isd/3-nested-ISDs.png
    :align: center
 
-   Figure 4: The diagram shows one large P-ISD with two smaller P-ISDs nested inside it.
+   Figure 3: The diagram shows one large P-ISD with two smaller P-ISDs nested inside it.
    There is no special meaning to "nesting", P-ISDs can overlap arbitrarily or
    partially as desired.
 
@@ -319,11 +304,11 @@ having another AS in the same P-ISD that has the same AS number).
 To hide its existence from the local public ISD, neighboring ASes must simply
 not even forward PCBs from the public ISD.
 
-.. figure:: fig/private_isd/5-private-AS-and-links.png
+.. figure:: fig/private_isd/4-private-AS-and-links.png
    :align: center
 
-   Figure 5: In this example, only the ASes 1-120, 1-130 and 1-131 and the link
-   between 1-130 and 1-131 are visible from the outside.
+   Figure 4: In this example, the ASes 21, 40, 41 and 42, as well as the link
+   between AS 20 and AS 30, are invisible outside the private ISD 5.
 
 
 Rationale
@@ -370,6 +355,53 @@ Disadvantages
   all P-ISDs in which the local AS participates.
 
 
+Alternative: Shared vs Separate Control Services
+------------------------------------------------
+
+One open question is whether to separate control services (CS) foe each (P-)ISD.
+
+For a typical set-up with only a few (P-)ISDs, a shared control service
+simplifies infrastructure cost.
+
+For large numbers of (P-)ISDs, we anyway need multiple CS instances,
+so it may be easier to manage with each (P-)ISD having it's own CS.
+
+For separate CS, one problem to consider is how external requests for
+services addresses are handled if there are different service addresses
+for different ISDs.
+
+For separate CS, there should be an endhost API implementation that
+offers a single point of access for endpoints to query segments. The
+implementation would relay queries to the different CS for each (P-)ISD.
+This single API reduces complexity for endhosts to have to discover and query
+multiple API services.
+
+Advantage of shared CS
+^^^^^^^^^^^^^^^^^^^^^^
+
+- Simple service address handling
+- Probably slightly more efficient to run a ssingle large CS process than
+  multiple smaller ones (memory + CPU).
+
+Advantages of separate CS
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- Full separation of different ISDs, a CS failure will affect only one (P-)ISD.
+- Maybe easier to manage for large (P-)ISD numbers.
+
+Alternative: 32bit ISD Numbers
+------------------------------
+
+With private ISDs, the two 16bit ISD numbers in the SCION address header always
+have the same value.
+This can exploited by instead storing a 32bit ISD number in these two fields.
+To avoid confusion with public ISD numbers, the usage of 32bit can be indicated by a flag.
+This flag could live in the reserved bits 80-95 of the common header; or it could
+simply be the first bit of the SRC ISD field.
+
+This is currently considered a future extension.
+
+
 Compatibility
 =============
 There are no conflicts with the existing design.
@@ -405,20 +437,20 @@ Maybe it is still a better choice than "Private ISD"?
 Implementation
 ==============
 
-1. Control service administration:
+1. Control service
 
-   - Mechanism to register ASes and their links and to communicate
-     this to other ASes in the local P-ISD.
-
-   - API for endhosts to learn about all (P-)ISDs that the local AS is part of.
-
-2. Control service API
+   - (optional) Control services must be able to handle PCBs and paths from
+     multiple (P-)ISDs.
+   - (optional alternative) If CS can handle only a single local (P-)ISD, the
+     new endhost API needs to be adapted to relay segment requests to all
+     relevant CS. Endhosts should need to contact only this single endhost API to
+     retrieve all available paths for all local (P-)ISDs.
 
    - Provide API to allow end-to-end segment requests. The request contains
-     the start AS, the destination AS and an (P-)ISD preference argument.
+     the start AS, the destination AS and an optional (P-)ISD preference argument.
      The request returns UP+CORE+DOWN segments in one request.
-     Stitching (creating) is not necessary, that may still be done on the endhost.
-     The (P-)ISD preference argument has three options:
+
+     (optional) The (P-)ISD preference argument has three options:
 
      - "Not set" (or "default"). The CS should return segments from
        whatever (P-)ISD it thinks is best (configurable by the CS admin)
@@ -430,23 +462,24 @@ Implementation
      In any case, the CS is free to ignore the preferred (P-)ISD and deliver
      segments only for some (P-)ISDs (configuration option on the CS).
 
-   - (Optional): Add an request to the API that return the API version.
-     E.g., version "1" would be the version as of Summer 2025,
-     version "2" adds a request API for segment requests as described above.
-     This would simplify migration, endhost libraries can find out whether
-     the local AS supports the new segment request API without resorting to
-     trial and error.
-
 3. Border routers
 
-   - They need to obtain and handle certificates from the local P-ISDs.
+   - They need to be able to store separate forwarding keys or derive
+     them on the fly when required.
+
+   - Every link must be able to handle multiple forwarding keys, i.e.
+     multiple (P-)-ISDs may use the same interface/link.
+
+   - Service addresses: If CSes can handle only one (P-)ISD each, the border routers
+     need to be able to hand out service addresses depending on the (P-)ISDs for which
+     a service address is requested. This may be solved by the new service address API.
+     See :issue:`4388`.
 
 4. Endhost libraries
 
    - Libraries and daemons need to be adapted to use the new CS API for
      requesting segments.
-   - Libraries need to ensure that they put the respective P-ISDs into
-     the SCION header of each packet.
+   - Libraries need to ensure that they properly handle multiple local (P-)ISDs.
    - Path policies may need to be extended to allow specifying (P-)ISD preference.
 
 
