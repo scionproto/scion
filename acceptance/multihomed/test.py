@@ -38,6 +38,7 @@ Validation steps:
    this step checks successful ping/pong delivery rather than exact reply source selection.
 """
 
+import os
 import time
 import yaml
 from plumbum import local
@@ -107,6 +108,8 @@ class Test(base.TestTopogen):
         bound_port = 31001
         multihomed_port = 31000
 
+        # SERVERLOGFILE="/tmp/log.txt"
+
         print(f"server IPs configured: primary={primary_ip}, secondary={secondary_ip}")
 
         # 1) Regression check: bound server must still work with a specific IP binding.
@@ -130,14 +133,50 @@ class Test(base.TestTopogen):
         )
         print(result_bound)
 
+        # Kill server.
+        print("killing server (SIGKILL) bound to one IP")
+        self.dc.execute_detached(
+            "tester_1-ff00_0_111",
+            "bash",
+            "-c",
+            f"killall -9 test-server",
+        )
+        print("server terminated successfully")
+        time.sleep(2)
+
+
+        def bash_at_server(cmd, *args, **kwargs):
+            print(
+                self.dc.execute(
+                    "tester_1-ff00_0_111",
+                    "bash",
+                    "-c",
+                    cmd,
+                    *args,
+                    **kwargs,
+                )
+            )
+
+        # # bash(f"ls -l / ; echo ; ls -l /tmp ; echo ; ls -l /share")
+        # # bash("whoami ; id")
+        # bash_at_server(f"touch {SERVERLOGFILE} ; " +
+        #                f"chown {os.getuid()}:{os.getgid()} {SERVERLOGFILE}",
+        #                user="0:0")
+        # # bash(f"ls -l {LOGFILE}")
+
+
         # 2) Multihomed check using server primary IP while server is unbound (0.0.0.0).
         self.dc.execute_detached(
             "tester_1-ff00_0_111",
             "bash",
             "-c",
+            # f"test-server -bind 0.0.0.0 -port {multihomed_port} > {SERVERLOGFILE} 2>&1",
             f"test-server -bind 0.0.0.0 -port {multihomed_port}",
         )
         time.sleep(2)
+        print("---------------------------------------------------")
+        bash_at_server(f"ifconfig ; echo -e '\n\n' ; route -n")
+        print("---------------------------------------------------")
 
         remote_primary = f"1-ff00:0:111,{primary_ip}:{multihomed_port}"
         print(f"running client against primary IP: {remote_primary}")
@@ -153,14 +192,6 @@ class Test(base.TestTopogen):
         # 3) Multihomed check using server secondary IP while server is unbound (0.0.0.0).
         # Linux may still select the primary IP as reply source, so this validates connectivity
         # through the secondary destination without enforcing the response source address.
-        self.dc.execute_detached(
-            "tester_1-ff00_0_111",
-            "bash",
-            "-c",
-            f"test-server -bind 0.0.0.0 -port {multihomed_port}",
-        )
-        time.sleep(2)
-
         remote_secondary = f"1-ff00:0:111,{secondary_ip}:{multihomed_port}"
         print(f"running client against secondary IP: {remote_secondary}")
         result_secondary = self.dc.execute(
@@ -170,6 +201,26 @@ class Test(base.TestTopogen):
             f'test-client -local "{local_addr}" -remote "{remote_secondary}"',
         )
         print(result_secondary)
+
+
+
+
+        # print("bringing one interface down at the server")
+        # print("---------------------------------------------------")
+        # # bash_at_server(f"ifconfig eth1 down ; echo 'removed eth0' ; sleep 2 ; " +
+        # #      "ifconfig ; echo -n '\n' ; route -n", user="0:0")
+        # bash_at_server(f"ip addr del 192.168.200.11/24 dev eth1 ; sleep 1 ; ifconfig ; route -n",
+        #                user="0:0")
+        # print("---------------------------------------------------")
+        # # Give docker some time to bring down the interface in the container.
+        # time.sleep(5)
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

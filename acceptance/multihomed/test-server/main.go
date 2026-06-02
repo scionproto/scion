@@ -84,20 +84,23 @@ func main() {
 
 	log.Printf("server running daemon=%s bind=%s:%d", daemonAddr, bindAddr, port)
 
-	// Single ping/pong exchange; process exits afterwards so the test can restart with a fresh bind.
-	buf := make([]byte, 2048)
-	n, remote, err := conn.ReadFrom(buf)
-	if err != nil {
-		log.Fatalf("read ping: %v", err)
-	}
-	if string(buf[:n]) != "ping" {
-		log.Fatalf("unexpected payload: %q", string(buf[:n]))
-	}
+	for {
+		log.Println("Server listening")
+		// Single ping/pong; process exits afterwards so the test can restart with a fresh bind.
+		buf := make([]byte, 2048)
+		n, remote, err := conn.ReadFrom(buf)
+		if err != nil {
+			log.Fatalf("read ping: %v", err)
+		}
+		if string(buf[:n]) != "ping" {
+			log.Fatalf("unexpected payload: %q", string(buf[:n]))
+		}
 
-	_, err = conn.WriteTo([]byte("pong"), remote)
-	if err != nil {
-		log.Fatalf("write pong: %v", err)
-	}
+		_, err = conn.WriteTo([]byte("pong"), remote)
+		if err != nil {
+			log.Fatalf("write pong: %v", err)
+		}
 
-	log.Printf("served ping from %s", remote)
+		log.Printf("served ping from %s", remote)
+	}
 }
