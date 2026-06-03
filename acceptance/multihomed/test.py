@@ -309,6 +309,75 @@ class Test(base.TestTopogen):
         else:
             print("scion traceroute diagnostics summary: both traceroute probes succeeded")
 
+    def _start_server_capture(self, capture_file, capture_log_file, pid_file):
+        self.dc.execute_detached(
+            "tester_1-ff00_0_111",
+            "bash",
+            "-c",
+            (
+                f"rm -f {capture_file} {capture_log_file} {pid_file} ; "
+                f"tshark -q -n -i eth0 -i eth1 "
+                f"-w {capture_file} > {capture_log_file} 2>&1 & "
+                f"echo $! > {pid_file}"
+            ),
+            user="0:0",
+        )
+
+    def _stop_server_capture(self, pid_file):
+        self.dc.execute(
+            "tester_1-ff00_0_111",
+            "bash",
+            "-c",
+            (
+                f"if [ -f {pid_file} ]; then "
+                f"kill $(cat {pid_file}) 2>/dev/null || true ; "
+                f"wait $(cat {pid_file}) 2>/dev/null || true ; "
+                f"fi"
+            ),
+            user="0:0",
+        )
+
+    def _collect_server_capture_artifacts(self, *container_files):
+        capture_dir = self.artifacts / "logs/server-capture"
+        os.makedirs(capture_dir, exist_ok=True)
+        for container_file in container_files:
+            try:
+                self.dc(
+                    "cp",
+                    f"tester_1-ff00_0_111:{container_file}",
+                    str(capture_dir / os.path.basename(container_file)),
+                )
+            except Exception as err:  # noqa: BLE001 - capture export should not fail the test
+                print(f"warning: failed to export capture artifact {container_file}: {err}")
+
+    def _print_server_capture(self, capture_file, capture_log_file, summary_file, all_packets_file):
+        self.bash_at_server(
+            (
+                f"tshark -r {capture_file} -n "
+                f"-Y 'arp or icmp or udp.port==30041 or udp.port==30042' "
+                f"> {summary_file}"
+            ),
+            user="0:0",
+        )
+        self.bash_at_server(
+            f"tshark -r {capture_file} -n > {all_packets_file}",
+            user="0:0",
+        )
+        self._collect_server_capture_artifacts(
+            capture_file,
+            capture_log_file,
+            summary_file,
+            all_packets_file,
+        )
+        print("\n\nServer packet capture startup log:")
+        self.bash_at_server(f"cat {capture_log_file}", user="0:0")
+        print("\n\nServer packet capture summary:")
+        self.bash_at_server(f"cat {summary_file}", user="0:0")
+        print(
+            "\n\nServer capture artifacts copied to "
+            f"{self.artifacts / 'logs/server-capture'}"
+        )
+
     def bash_at_server(self, cmd, *args, **kwargs):
             print(
                 self.dc.execute(
@@ -433,12 +502,26 @@ class Test(base.TestTopogen):
 
         primary_ip = self._server_primary_ip()
         secondary_ip = "192.168.200.11"
+        capture_file = "/tmp/server-capture.pcapng"
+        capture_log_file = "/tmp/server-capture.log"
+        pid_file = "/tmp/server-capture.pid"
+        summary_file = "/tmp/server-capture-summary.txt"
+        all_packets_file = "/tmp/server-capture-all.txt"
 
         print(f"server IPs configured: primary={primary_ip}, secondary={secondary_ip}")
-
-        self._run_ping_diagnostics(primary_ip, secondary_ip)
-        self._run_scion_ping_diagnostics(primary_ip, secondary_ip)
-        self._run_scion_traceroute_diagnostics(primary_ip, secondary_ip)
+        self._start_server_capture(capture_file, capture_log_file, pid_file)
+        try:
+            self._run_ping_diagnostics(primary_ip, secondary_ip)
+            self._run_scion_ping_diagnostics(primary_ip, secondary_ip)
+            self._run_scion_traceroute_diagnostics(primary_ip, secondary_ip)
+        finally:
+            self._stop_server_capture(pid_file)
+            self._print_server_capture(
+                capture_file,
+                capture_log_file,
+                summary_file,
+                all_packets_file,
+            )
 
 
 if __name__ == "__main__":
