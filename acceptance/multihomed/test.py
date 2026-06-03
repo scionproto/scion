@@ -350,6 +350,64 @@ class Test(base.TestTopogen):
             except Exception as err:  # noqa: BLE001 - capture export should not fail the test
                 print(f"warning: failed to export capture artifact {container_file}: {err}")
 
+    def _run_debug_dump(self, *, service, title, output_file, command):
+        print(f"\n\n{title}:")
+        try:
+            self.dc.execute(
+                service,
+                "bash",
+                "-c",
+                f"{command} > {output_file}",
+                user="0:0",
+            )
+            output = self.dc.execute(
+                service,
+                "bash",
+                "-c",
+                f"cat {output_file}",
+                user="0:0",
+            )
+            print(output)
+            self._collect_server_capture_artifacts(output_file)
+        except Exception as err:  # noqa: BLE001 - debug output should not fail the test
+            print(f"warning: failed to collect {title}: {err}")
+
+    def _print_server_network_diagnostics(self):
+        dumps = [
+            {
+                "service": "tester_1-ff00_0_111",
+                "title": "Server namespace ip addr",
+                "output_file": "/tmp/server-ip-addr.txt",
+                "command": "ip addr",
+            },
+            {
+                "service": "tester_1-ff00_0_111",
+                "title": "Server namespace ip route",
+                "output_file": "/tmp/server-ip-route.txt",
+                "command": "ip route",
+            },
+            {
+                "service": "tester_1-ff00_0_111",
+                "title": "Server namespace ip rule",
+                "output_file": "/tmp/server-ip-rule.txt",
+                "command": "ip rule",
+            },
+            {
+                "service": "tester_1-ff00_0_111",
+                "title": "Server namespace UDP sockets",
+                "output_file": "/tmp/server-ss-lunp.txt",
+                "command": "ss -lunp",
+            },
+            {
+                "service": "tester_1-ff00_0_111",
+                "title": "Server namespace ip neigh",
+                "output_file": "/tmp/server-ip-neigh.txt",
+                "command": "ip neigh",
+            },
+        ]
+        for dump in dumps:
+            self._run_debug_dump(**dump)
+
     def _print_server_capture(self, capture_file, capture_log_file, summary_file, all_packets_file):
         self.bash_at_server(
             (
@@ -377,6 +435,7 @@ class Test(base.TestTopogen):
             "\n\nServer capture artifacts copied to "
             f"{self.artifacts / 'logs/server-capture'}"
         )
+        self._print_server_network_diagnostics()
 
     def bash_at_server(self, cmd, *args, **kwargs):
             print(
