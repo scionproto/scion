@@ -477,8 +477,7 @@ func (w *GroupWriter) processSegments(
 		// Try to terminate the segment if an extender is configured.
 		if w.Extender != nil {
 			err := w.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
-			var signerGenError trust.SignerGenError
-			if errors.As(err, &signerGenError) {
+			if signerGenError, ok := errors.AsType[trust.SignerGenError](err); ok {
 				// In case of a signer generation error, we can break the loop,
 				// the chance we will get a working signer during this run is
 				// very low.
@@ -510,7 +509,7 @@ func (w *GroupWriter) processSegments(
 		processedBeacons = append(processedBeacons, b)
 	}
 	// Then, group the beacons according to the registration policies.
-	return w.groupBeacons(processedBeacons, policies)
+	return groupBeacons(processedBeacons, policies)
 }
 
 // Write writes beacons to multiple segment registrars based on the PolicyType.
@@ -569,12 +568,12 @@ func (w *GroupWriter) Write(
 // The beacons that do not match any registration policy are dropped.
 // If the policy defines no registration policy, all the beacons will be put into
 // the default group.
-func (w *GroupWriter) groupBeacons(
+func groupBeacons(
 	beacons []beacon.Beacon,
 	policies []beacon.RegistrationPolicy,
 ) beacon.GroupedBeacons {
 	if len(policies) == 0 {
-		return map[string][]beacon.Beacon{
+		return beacon.GroupedBeacons{
 			beacon.DefaultGroup: beacons,
 		}
 	}
