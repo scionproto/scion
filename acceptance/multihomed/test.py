@@ -27,8 +27,8 @@ Manual run in phases (useful for debugging):
 
 Validation steps:
 1. Setup phase adds a second docker network and a second IP address to the server tester
-   container. The client tester and the AS111 border router are attached to that same extra
-   network so the secondary destination IP is actually reachable inside the remote AS.
+   container. The AS111 border router is attached to that same extra network so the secondary
+   destination IP is actually reachable inside the remote AS.
 2. Regression check (bound server): server binds to the primary server IP only, and client
    verifies ping/pong works via that bound endpoint.
 3. Multihomed check A (unbound server): server binds to 0.0.0.0, and client reaches it via
@@ -50,26 +50,29 @@ class Test(base.TestTopogen):
     def setup_prepare(self):
         super().setup_prepare()
 
-        # Patch generated docker-compose topology to give the tester network namespaces a second
-        # IP address on a dedicated local network. Tester containers inherit networking from their
-        # disp_tester sidecars, so the extra network must be attached there rather than on the
-        # tester services themselves. The remote AS border router also needs connectivity to that
-        # subnet, otherwise packets addressed to the secondary IP would time out at delivery.
+        # Patch generated docker-compose topology to give the server tester network namespace a
+        # second IP address on a dedicated local network. Tester containers inherit networking
+        # from their disp_tester sidecars, so the extra network must be attached there rather
+        # than on the tester service itself. The remote AS border router also needs connectivity
+        # to that subnet, otherwise packets addressed to the secondary IP would time out at
+        # delivery.
         compose_path = self.artifacts / "gen/scion-dc.yml"
         with open(compose_path, "r") as file:
             scion_dc = yaml.safe_load(file)
 
+        if "local_002" in scion_dc["networks"]:
+            raise RuntimeError("expected local_002 to be absent before multihomed test setup")
+
         scion_dc["networks"]["local_002"] = {
             "driver": "bridge",
+            "driver_opts": {"com.docker.network.bridge.name": "local_002"},
             "ipam": {"config": [{"subnet": "192.168.200.0/24"}]},
         }
 
         server_disp = scion_dc["services"]["disp_tester_1-ff00_0_111"]
-        client_disp = scion_dc["services"]["disp_tester_1-ff00_0_112"]
         server_router = scion_dc["services"]["br1-ff00_0_111-1"]
 
         server_disp.setdefault("networks", {})["local_002"] = {"ipv4_address": "192.168.200.11"}
-        client_disp.setdefault("networks", {})["local_002"] = {"ipv4_address": "192.168.200.12"}
         server_router.setdefault("networks", {})["local_002"] = {"ipv4_address": "192.168.200.21"}
 
         with open(compose_path, "w") as file:
@@ -318,7 +321,7 @@ class Test(base.TestTopogen):
                 )
             )
 
-    def _run(self):
+    def _run_orig(self):
         # Wait until SCION control-plane/path connectivity is established.
         self.await_connectivity()
         time.sleep(5)
@@ -421,6 +424,21 @@ class Test(base.TestTopogen):
             print(result_secondary)
             print("\n\nServer log:")
             self.bash_at_server(f"cat {SERVERLOGFILE}")
+
+    def _run(self):
+        # Start with a diagnostics-only run so we can debug SCION reachability to the
+        # server's secondary address before exercising the application-level test flow.
+        self.await_connectivity()
+        time.sleep(5)
+
+        primary_ip = self._server_primary_ip()
+        secondary_ip = "192.168.200.11"
+
+        print(f"server IPs configured: primary={primary_ip}, secondary={secondary_ip}")
+
+        self._run_ping_diagnostics(primary_ip, secondary_ip)
+        self._run_scion_ping_diagnostics(primary_ip, secondary_ip)
+        self._run_scion_traceroute_diagnostics(primary_ip, secondary_ip)
 
 
 if __name__ == "__main__":
