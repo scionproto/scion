@@ -172,7 +172,7 @@ Example: An P-ISD spread over two ISDs
    Figure 2: The diagram shows an P-ISD (7) that has ASes in multiple ISDs (1 and 2).
    If AS 31 want to communicate with AS 62, it use the public path
    (1-30) - (1-10) - (2-50) - (2-60) or the private path (7-30) - (7-60).
-   Which path to use can depend on configurable AS policies or on
+   Which path is preferred can depend on configurable AS policies or on
    path properties, such as performance, cost, or availability.
 
    This figure also illustrates the improved power of peering links. The link 1-30 -
