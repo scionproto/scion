@@ -67,8 +67,6 @@ Background
 Terminology
 -----------
 - P-ISD - Private ISD
-- P-CORE - The core router(s) of a P-ISD. P-ISDs provide TRCs and local
-  beaconing but (usually) do not participate in the normal ISDs' core routing.
 - BR - Border router
 - CS - Control service / path service
 - Private AS - A Private AS is part of an P-ISD but not visible from
@@ -119,8 +117,8 @@ Building a P-ISD
    in used by the public ISD or by other P-ISD. It may also use additional
    interfaces/links that are not otherwise available.
 
-2. Out of the participating ASes, we chose core ASes (P-COREs), authoritative ASes,
-   voting ASes, ... and so on to for an ISD (TRC, etc) as usual.
+2. Out of the participating ASes, we chose core ASes, authoritative ASes,
+   voting ASes, ... and so on for an ISD (TRC, etc) as usual.
    Unlike normal ISDs, the are no "core" links or "peering" links that leave the P-ISD.
 
 3. Pick an (P-)ISD number. For now, we can use any ISD number from the `private range (16-63)
@@ -131,7 +129,7 @@ The resulting P-ISD is built mostly like a normal ISD: It has a TRC, performs
 beaconing, has at least one CORE AS, ASes have child/parent/peer relationships.
 However, there are some differences:
 
-- P-CORE ASes have no links to other ISDs and do not perform beaconing outside the P-ISD.
+- Core ASes have no links to other ISDs and do not perform beaconing outside the P-ISD.
 - P-ISD numbers do not need to be announced outside the P-ISD.
 - ASes in an P-ISD can have different ISD numbers (from their respective ISDs.
 - P-ISDs are not addressable or even visible from the outside, they don't have
@@ -140,7 +138,7 @@ However, there are some differences:
 Beaconing and routing is completely separate for each (P-)ISD. PCBs and traffic cannot
 leave or enter a P-ISD. Path segments from different P-ISDs cannot be combined.
 
-Note: An P-ISD can contain ASes (including P-COREs) and links that are not
+Note: An P-ISD can contain ASes (including core ASes) and links that are not
 visible outside of the P-ISD. These are called "private",
 see also `Private Links and Private ASes`_.
 
@@ -183,8 +181,7 @@ Example: An P-ISD spread over two ISDs
 
 Beaconing
 ---------
-The P-CORE performs beaconing just like a normal core AS.
-PCBs from an P-CORE are signed/extend with the TRC of the originating P-CORE.
+The core ASes perform beaconing just like in a normal ISD.
 
 Path Service
 ------------
@@ -270,10 +267,11 @@ P-ISD (or ISD) the segments should used.
    There is no special meaning to "nesting", P-ISDs can overlap arbitrarily or
    partially as desired.
 
-In some scenarios it may be useful if an AS can act as P-CORE for multiple P-ISDs.
+In some scenarios it may be useful if an AS can act as core AS for multiple P-ISDs.
 For example an ISP could offer to set up P-ISDs as a service for customers,
-it's own AS would then act as P-CORE for each P-ISD.
-This should work but is limited by two aspects:
+it's own AS would then act as core AS for each P-ISD.
+
+Having an AS participating in many (P-)ISDs works but is limited by two aspects:
 
 - (P-)ISD numbers are limited to 16bit. Even if we use the reserved ISD numbers
   the range would be limited to 60000, so an ISP can set up only 60K P-ISDs for
@@ -284,8 +282,8 @@ This should work but is limited by two aspects:
   A workaround is for the ISP to set up multiple AS that each serve a subset
   of the customer's P-ISD requirements.
 
-There is also a WIP that completely avoids these problems, allowing 32bit or even 64bit
-ISD numbers and additionally being immune to conflicting IDS.
+There is also a proposed extension that reduces the problem by 32bit ISD numbers,
+see `Alternative: 32bit ISD Numbers`_.
 
 
 Private Links and Private ASes
