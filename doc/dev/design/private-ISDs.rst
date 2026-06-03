@@ -166,7 +166,7 @@ Example: Simple Nested P-ISD
 Example: An P-ISD spread over two ISDs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. figure:: fig/private_isd/2-2-ISDE.png
+.. figure:: fig/private_isd/2-2-ISD.png
    :align: center
 
    Figure 2: The diagram shows an P-ISD (7) that has ASes in multiple ISDs (1 and 2).
