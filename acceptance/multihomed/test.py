@@ -39,6 +39,8 @@ Validation steps:
 """
 
 import os
+import json
+import subprocess
 import time
 import yaml
 from plumbum import local
@@ -338,7 +340,7 @@ class Test(base.TestTopogen):
         )
 
     def _collect_server_capture_artifacts(self, *container_files):
-        capture_dir = self.artifacts / "logs/server-capture"
+        capture_dir = self._capture_artifact_dir()
         os.makedirs(capture_dir, exist_ok=True)
         for container_file in container_files:
             try:
@@ -349,6 +351,95 @@ class Test(base.TestTopogen):
                 )
             except Exception as err:  # noqa: BLE001 - capture export should not fail the test
                 print(f"warning: failed to export capture artifact {container_file}: {err}")
+
+    def _capture_artifact_dir(self):
+        return self.artifacts / "logs/server-capture"
+
+    def _write_host_artifact(self, filename, content):
+        capture_dir = self._capture_artifact_dir()
+        os.makedirs(capture_dir, exist_ok=True)
+        output_path = capture_dir / filename
+        with open(output_path, "w", encoding="utf-8") as file:
+            file.write(content)
+        return output_path
+
+    def _run_host_debug_dump(self, *, title, filename, command):
+        print(f"\n\n{title}:")
+        try:
+            result = subprocess.run(
+                command,
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                encoding="utf-8",
+            )
+            output = result.stdout
+            self._write_host_artifact(filename, output)
+            print(output)
+            if result.returncode != 0:
+                print(
+                    f"warning: {title} exited with status {result.returncode}; "
+                    "captured output anyway"
+                )
+        except Exception as err:  # noqa: BLE001 - debug output should not fail the test
+            print(f"warning: failed to collect {title}: {err}")
+
+    def _docker_compose_container_id(self, service):
+        compose_file = str(self.artifacts / "gen/scion-dc.yml")
+        result = subprocess.run(
+            ["docker", "compose", "-f", compose_file, "ps", "-q", service],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+        )
+        container_id = result.stdout.strip()
+        if not container_id:
+            raise RuntimeError(f"could not determine container ID for {service}")
+        return container_id
+
+    def _inspect_docker_network_for_service(self, *, service, expected_ip, filename_prefix):
+        try:
+            container_id = self._docker_compose_container_id(service)
+            inspect_result = subprocess.run(
+                ["docker", "inspect", container_id],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
+            )
+            self._write_host_artifact(
+                f"{filename_prefix}-container-inspect.json",
+                inspect_result.stdout,
+            )
+            inspect_data = json.loads(inspect_result.stdout)
+            networks = inspect_data[0]["NetworkSettings"]["Networks"]
+            network_name = None
+            for candidate_name, candidate_data in networks.items():
+                if candidate_data.get("IPAddress") == expected_ip:
+                    network_name = candidate_name
+                    break
+            if not network_name:
+                raise RuntimeError(
+                    f"could not determine docker network for {service} address {expected_ip}"
+                )
+            network_result = subprocess.run(
+                ["docker", "network", "inspect", network_name],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
+            )
+            self._write_host_artifact(
+                f"{filename_prefix}-network-inspect.json",
+                network_result.stdout,
+            )
+            print(
+                f"docker network diagnostics {service}: "
+                f"container_id={container_id} network={network_name} expected_ip={expected_ip}"
+            )
+        except Exception as err:  # noqa: BLE001 - debug output should not fail the test
+            print(f"warning: failed to inspect docker network for {service}: {err}")
 
     def _run_debug_dump(self, *, service, title, output_file, command):
         print(f"\n\n{title}:")
@@ -408,6 +499,42 @@ class Test(base.TestTopogen):
         for dump in dumps:
             self._run_debug_dump(**dump)
 
+    def _print_host_network_diagnostics(self, secondary_ip):
+        dumps = [
+            {
+                "title": "Host local_002 ip addr",
+                "filename": "host-local_002-ip-addr.txt",
+                "command": ["ip", "addr", "show", "dev", "local_002"],
+            },
+            {
+                "title": "Host local_002 ip route",
+                "filename": "host-local_002-ip-route.txt",
+                "command": ["ip", "route", "show", "dev", "local_002"],
+            },
+            {
+                "title": "Host local_002 bridge fdb",
+                "filename": "host-local_002-bridge-fdb.txt",
+                "command": ["bridge", "fdb", "show", "dev", "local_002"],
+            },
+            {
+                "title": "Host local_002 ip neigh",
+                "filename": "host-local_002-ip-neigh.txt",
+                "command": ["ip", "neigh", "show", "dev", "local_002"],
+            },
+        ]
+        for dump in dumps:
+            self._run_host_debug_dump(**dump)
+        self._inspect_docker_network_for_service(
+            service="disp_tester_1-ff00_0_111",
+            expected_ip=secondary_ip,
+            filename_prefix="host-server-secondary",
+        )
+        self._inspect_docker_network_for_service(
+            service="br1-ff00_0_111-1",
+            expected_ip="192.168.200.21",
+            filename_prefix="host-router-secondary",
+        )
+
     def _print_server_capture(self, capture_file, capture_log_file, summary_file, all_packets_file):
         self.bash_at_server(
             (
@@ -436,6 +563,7 @@ class Test(base.TestTopogen):
             f"{self.artifacts / 'logs/server-capture'}"
         )
         self._print_server_network_diagnostics()
+        self._print_host_network_diagnostics("192.168.200.11")
 
     def bash_at_server(self, cmd, *args, **kwargs):
             print(
