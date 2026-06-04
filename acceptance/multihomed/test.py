@@ -49,6 +49,17 @@ from acceptance.common import base
 
 
 class Test(base.TestTopogen):
+    def _append_network(self, service_config, network_name, network_config):
+        networks = service_config.setdefault("networks", {})
+        if network_name in networks:
+            raise RuntimeError(f"expected {network_name} to be absent before multihomed setup")
+        reordered = {
+            existing_name: existing_config
+            for existing_name, existing_config in networks.items()
+        }
+        reordered[network_name] = network_config
+        service_config["networks"] = reordered
+
     def setup_prepare(self):
         super().setup_prepare()
 
@@ -74,11 +85,11 @@ class Test(base.TestTopogen):
         server_disp = scion_dc["services"]["disp_tester_1-ff00_0_111"]
         server_router = scion_dc["services"]["br1-ff00_0_111-1"]
 
-        server_disp.setdefault("networks", {})["local_002"] = {"ipv4_address": "192.168.200.11"}
-        server_router.setdefault("networks", {})["local_002"] = {"ipv4_address": "192.168.200.21"}
+        self._append_network(server_disp, "local_002", {"ipv4_address": "192.168.200.11"})
+        self._append_network(server_router, "local_002", {"ipv4_address": "192.168.200.21"})
 
         with open(compose_path, "w") as file:
-            yaml.dump(scion_dc, file)
+            yaml.dump(scion_dc, file, sort_keys=False)
 
     def _server_primary_ip(self):
         # Read the original topology IP from the tester dispatcher so we can test both original
