@@ -452,19 +452,19 @@ class Test(base.TestTopogen):
         except Exception as err:  # noqa: BLE001 - debug output should not fail the test
             print(f"warning: failed to inspect docker network for {service}: {err}")
 
-    def _run_debug_dump(self, *, service, title, output_file, command):
+    def _run_debug_dump(self, *, service, title, output_file, command, shell="bash"):
         print(f"\n\n{title}:")
         try:
             self.dc.execute(
                 service,
-                "bash",
+                shell,
                 "-c",
                 f"{command} > {output_file}",
                 user="0:0",
             )
             output = self.dc.execute(
                 service,
-                "bash",
+                shell,
                 "-c",
                 f"cat {output_file}",
                 user="0:0",
@@ -505,6 +505,47 @@ class Test(base.TestTopogen):
                 "title": "Server namespace ip neigh",
                 "output_file": "/tmp/server-ip-neigh.txt",
                 "command": "ip neigh",
+            },
+        ]
+        for dump in dumps:
+            self._run_debug_dump(**dump)
+
+    def _print_router_network_diagnostics(self):
+        dumps = [
+            {
+                "service": "br1-ff00_0_111-1",
+                "title": "Router namespace ip addr",
+                "output_file": "/tmp/router-ip-addr.txt",
+                "command": "ip addr",
+                "shell": "sh",
+            },
+            {
+                "service": "br1-ff00_0_111-1",
+                "title": "Router namespace ip route",
+                "output_file": "/tmp/router-ip-route.txt",
+                "command": "ip route",
+                "shell": "sh",
+            },
+            {
+                "service": "br1-ff00_0_111-1",
+                "title": "Router namespace ip rule",
+                "output_file": "/tmp/router-ip-rule.txt",
+                "command": "ip rule",
+                "shell": "sh",
+            },
+            {
+                "service": "br1-ff00_0_111-1",
+                "title": "Router namespace UDP sockets",
+                "output_file": "/tmp/router-ss-lunp.txt",
+                "command": "ss -lunp",
+                "shell": "sh",
+            },
+            {
+                "service": "br1-ff00_0_111-1",
+                "title": "Router namespace ip neigh",
+                "output_file": "/tmp/router-ip-neigh.txt",
+                "command": "ip neigh",
+                "shell": "sh",
             },
         ]
         for dump in dumps:
@@ -574,6 +615,7 @@ class Test(base.TestTopogen):
             f"{self.artifacts / 'logs/server-capture'}"
         )
         self._print_server_network_diagnostics()
+        self._print_router_network_diagnostics()
         self._print_host_network_diagnostics("192.168.200.11")
 
     def bash_at_server(self, cmd, *args, **kwargs):
