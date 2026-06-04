@@ -26,9 +26,9 @@ Manual run in phases (useful for debugging):
   bazel run //acceptance/multihomed:test_teardown
 
 Validation steps:
-1. Setup phase adds a second docker network and a second IP address to the server tester
-   container. The AS111 border router is attached to that same extra network so the secondary
-   destination IP is actually reachable inside the remote AS.
+1. Setup phase adds a second IP address to the server tester container on the existing subnet
+   shared with the AS111 border router, so the secondary destination IP remains reachable inside
+   the remote AS without creating an extra docker network.
 2. Regression check (bound server): server binds to the primary server IP only, and client
    verifies ping/pong works via that bound endpoint.
 3. Multihomed check A (unbound server): server binds to 0.0.0.0, and client reaches it via
@@ -39,7 +39,7 @@ Validation steps:
 """
 
 import os
-import json
+import ipaddress
 import subprocess
 import time
 import yaml
@@ -49,63 +49,114 @@ from acceptance.common import base
 
 
 class Test(base.TestTopogen):
-    def _append_network(self, service_config, network_name, network_config):
-        networks = service_config.setdefault("networks", {})
-        if network_name in networks:
-            raise RuntimeError(f"expected {network_name} to be absent before multihomed setup")
-        reordered = {
-            existing_name: existing_config
-            for existing_name, existing_config in networks.items()
-        }
-        reordered[network_name] = network_config
-        service_config["networks"] = reordered
+    SERVER_PRIMARY_NETWORK = "scn_002"
+    SERVER_SERVICE = "disp_tester_1-ff00_0_111"
+    SERVER_ROUTER_SERVICE = "br1-ff00_0_111-1"
 
     def setup_prepare(self):
         super().setup_prepare()
 
-        # Patch generated docker-compose topology to give the server tester network namespace a
-        # second IP address on a dedicated local network. Tester containers inherit networking
-        # from their disp_tester sidecars, so the extra network must be attached there rather
-        # than on the tester service itself. The remote AS border router also needs connectivity
-        # to that subnet, otherwise packets addressed to the secondary IP would time out at
-        # delivery.
+        # Keep the generated topology unchanged. We add the secondary server IP after the
+        # containers are up so the test uses the existing subnet shared with 111-br1 instead of
+        # creating an extra docker bridge that has proven flaky in CI.
+
+    def setup_start(self):
+        super().setup_start()
+        self._configure_server_secondary_ip()
+
+    def _server_network_info(self):
         compose_path = self.artifacts / "gen/scion-dc.yml"
         with open(compose_path, "r") as file:
             scion_dc = yaml.safe_load(file)
 
-        if "local_002" in scion_dc["networks"]:
-            raise RuntimeError("expected local_002 to be absent before multihomed test setup")
+        networks = scion_dc["networks"]
+        services = scion_dc["services"]
+        server_networks = services[self.SERVER_SERVICE]["networks"]
+        router_networks = services[self.SERVER_ROUTER_SERVICE]["networks"]
 
-        scion_dc["networks"]["local_002"] = {
-            "driver": "bridge",
-            "driver_opts": {"com.docker.network.bridge.name": "local_002"},
-            "ipam": {"config": [{"subnet": "192.168.200.0/24"}]},
+        if self.SERVER_PRIMARY_NETWORK not in server_networks:
+            raise RuntimeError(
+                f"expected {self.SERVER_SERVICE} to be attached to {self.SERVER_PRIMARY_NETWORK}"
+            )
+        if self.SERVER_PRIMARY_NETWORK not in router_networks:
+            raise RuntimeError(
+                f"expected {self.SERVER_ROUTER_SERVICE} to be attached to {self.SERVER_PRIMARY_NETWORK}"
+            )
+
+        network_cfg = networks[self.SERVER_PRIMARY_NETWORK]["ipam"]["config"]
+        ipv4_subnet = next(
+            (entry["subnet"] for entry in network_cfg if "." in entry["subnet"]),
+            None,
+        )
+        if not ipv4_subnet:
+            raise RuntimeError(f"could not determine IPv4 subnet for {self.SERVER_PRIMARY_NETWORK}")
+
+        primary_ip = server_networks[self.SERVER_PRIMARY_NETWORK]["ipv4_address"]
+        router_ip = router_networks[self.SERVER_PRIMARY_NETWORK]["ipv4_address"]
+        subnet = ipaddress.ip_network(ipv4_subnet, strict=True)
+        gateway_ip = str(next(subnet.hosts()))
+        used = {
+            service_network.get("ipv4_address")
+            for service in services.values()
+            for service_network in service.get("networks", {}).values()
+            if service_network.get("ipv4_address")
+        }
+        used.add(gateway_ip)
+        secondary_ip = None
+        for host in subnet.hosts():
+            host_ip = str(host)
+            if host_ip not in used:
+                secondary_ip = host_ip
+                break
+        if not secondary_ip:
+            raise RuntimeError(f"could not find a free address in {subnet}")
+
+        return {
+            "network": self.SERVER_PRIMARY_NETWORK,
+            "subnet": ipv4_subnet,
+            "prefix_len": subnet.prefixlen,
+            "primary_ip": primary_ip,
+            "router_ip": router_ip,
+            "gateway_ip": gateway_ip,
+            "secondary_ip": secondary_ip,
         }
 
-        server_disp = scion_dc["services"]["disp_tester_1-ff00_0_111"]
-        server_router = scion_dc["services"]["br1-ff00_0_111-1"]
-
-        self._append_network(server_disp, "local_002", {"ipv4_address": "192.168.200.11"})
-        self._append_network(server_router, "local_002", {"ipv4_address": "192.168.200.21"})
-
-        with open(compose_path, "w") as file:
-            yaml.dump(scion_dc, file, sort_keys=False)
-
     def _server_primary_ip(self):
-        # Read the original topology IP from the tester dispatcher so we can test both original
-        # and secondary IPs of the shared tester network namespace.
-        compose_path = self.artifacts / "gen/scion-dc.yml"
-        with open(compose_path, "r") as file:
-            scion_dc = yaml.safe_load(file)
+        return self._server_network_info()["primary_ip"]
 
-        nets = scion_dc["services"]["disp_tester_1-ff00_0_111"]["networks"]
-        if "scn_002" in nets and "ipv4_address" in nets["scn_002"]:
-            return nets["scn_002"]["ipv4_address"]
-        for data in nets.values():
-            ip = data.get("ipv4_address")
-            if ip and ip != "192.168.200.11":
-                return ip
-        raise RuntimeError("could not determine server primary IP")
+    def _server_secondary_ip(self):
+        return self._server_network_info()["secondary_ip"]
+
+    def _server_interface(self, expected_ip):
+        output = self.dc.execute(
+            "tester_1-ff00_0_111",
+            "bash",
+            "-c",
+            "ip -o -4 addr show",
+            user="0:0",
+        )
+        for line in output.splitlines():
+            fields = line.split()
+            if len(fields) >= 4 and fields[3].split("/", 1)[0] == expected_ip:
+                return fields[1]
+        raise RuntimeError(f"could not determine interface for {expected_ip}")
+
+    def _configure_server_secondary_ip(self):
+        server_network = self._server_network_info()
+        interface = self._server_interface(server_network["primary_ip"])
+        secondary_cidr = (
+            f"{server_network['secondary_ip']}/{server_network['prefix_len']}"
+        )
+        self.dc.execute(
+            "tester_1-ff00_0_111",
+            "bash",
+            "-c",
+            (
+                f"ip addr add {secondary_cidr} dev {interface} 2>/dev/null || "
+                f"ip addr replace {secondary_cidr} dev {interface}"
+            ),
+            user="0:0",
+        )
 
     def _compose_services(self):
         compose_path = self.artifacts / "gen/scion-dc.yml"
@@ -135,10 +186,13 @@ class Test(base.TestTopogen):
         source_service,
         target_service,
         *,
+        target_ip=None,
         expected_ip=None,
         preferred_network=None,
         excluded_networks=None,
     ):
+        if target_ip:
+            return preferred_network or "explicit", target_ip
         source_networks = self._service_network_addresses(source_service)
         target_networks = self._service_network_addresses(target_service)
         excluded = set(excluded_networks or [])
@@ -172,6 +226,7 @@ class Test(base.TestTopogen):
         label,
         source_service,
         target_service,
+        target_ip=None,
         expected_ip=None,
         preferred_network=None,
         excluded_networks=None,
@@ -179,6 +234,7 @@ class Test(base.TestTopogen):
         network, target_ip = self._shared_target_address(
             source_service,
             target_service,
+            target_ip=target_ip,
             expected_ip=expected_ip,
             preferred_network=preferred_network,
             excluded_networks=excluded_networks,
@@ -198,6 +254,7 @@ class Test(base.TestTopogen):
         print(result)
 
     def _run_ping_diagnostics(self, primary_ip, secondary_ip):
+        server_network = self._server_network_info()
         failures = []
         hops = [
             {
@@ -224,15 +281,15 @@ class Test(base.TestTopogen):
                 "label": "as111->server-remote_primary",
                 "source_service": "tester_1-ff00_0_111",
                 "target_service": "disp_tester_1-ff00_0_111",
-                "expected_ip": primary_ip,
-                "excluded_networks": ["local_002"],
+                "target_ip": primary_ip,
+                "preferred_network": server_network["network"],
             },
             {
                 "label": "as111->server-remote_secondary",
                 "source_service": "tester_1-ff00_0_111",
                 "target_service": "disp_tester_1-ff00_0_111",
-                "expected_ip": secondary_ip,
-                "preferred_network": "local_002",
+                "target_ip": secondary_ip,
+                "preferred_network": server_network["network"],
             },
         ]
         for hop in hops:
@@ -329,7 +386,7 @@ class Test(base.TestTopogen):
             "-c",
             (
                 f"rm -f {capture_file} {capture_log_file} {pid_file} ; "
-                f"tshark -q -n -i eth0 -i eth1 "
+                f"tshark -q -n -i any "
                 f"-w {capture_file} > {capture_log_file} 2>&1 & "
                 f"echo $! > {pid_file}"
             ),
@@ -409,7 +466,7 @@ class Test(base.TestTopogen):
             raise RuntimeError(f"could not determine container ID for {service}")
         return container_id
 
-    def _inspect_docker_network_for_service(self, *, service, expected_ip, filename_prefix):
+    def _inspect_docker_network_for_service(self, *, service, network_name, filename_prefix):
         try:
             container_id = self._docker_compose_container_id(service)
             inspect_result = subprocess.run(
@@ -423,17 +480,6 @@ class Test(base.TestTopogen):
                 f"{filename_prefix}-container-inspect.json",
                 inspect_result.stdout,
             )
-            inspect_data = json.loads(inspect_result.stdout)
-            networks = inspect_data[0]["NetworkSettings"]["Networks"]
-            network_name = None
-            for candidate_name, candidate_data in networks.items():
-                if candidate_data.get("IPAddress") == expected_ip:
-                    network_name = candidate_name
-                    break
-            if not network_name:
-                raise RuntimeError(
-                    f"could not determine docker network for {service} address {expected_ip}"
-                )
             network_result = subprocess.run(
                 ["docker", "network", "inspect", network_name],
                 check=True,
@@ -447,7 +493,7 @@ class Test(base.TestTopogen):
             )
             print(
                 f"docker network diagnostics {service}: "
-                f"container_id={container_id} network={network_name} expected_ip={expected_ip}"
+                f"container_id={container_id} network={network_name}"
             )
         except Exception as err:  # noqa: BLE001 - debug output should not fail the test
             print(f"warning: failed to inspect docker network for {service}: {err}")
@@ -552,38 +598,46 @@ class Test(base.TestTopogen):
             self._run_debug_dump(**dump)
 
     def _print_host_network_diagnostics(self, secondary_ip):
+        server_network = self._server_network_info()
+        bridge_name = server_network["network"]
         dumps = [
             {
-                "title": "Host local_002 ip addr",
-                "filename": "host-local_002-ip-addr.txt",
-                "command": ["ip", "addr", "show", "dev", "local_002"],
+                "title": f"Host {bridge_name} ip addr",
+                "filename": f"host-{bridge_name}-ip-addr.txt",
+                "command": ["ip", "addr", "show", "dev", bridge_name],
             },
             {
-                "title": "Host local_002 ip route",
-                "filename": "host-local_002-ip-route.txt",
-                "command": ["ip", "route", "show", "dev", "local_002"],
+                "title": f"Host {bridge_name} ip route",
+                "filename": f"host-{bridge_name}-ip-route.txt",
+                "command": ["ip", "route", "show", "dev", bridge_name],
             },
             {
-                "title": "Host local_002 bridge fdb",
-                "filename": "host-local_002-bridge-fdb.txt",
-                "command": ["bridge", "fdb", "show", "dev", "local_002"],
+                "title": f"Host {bridge_name} bridge fdb",
+                "filename": f"host-{bridge_name}-bridge-fdb.txt",
+                "command": ["bridge", "fdb", "show", "dev", bridge_name],
             },
             {
-                "title": "Host local_002 ip neigh",
-                "filename": "host-local_002-ip-neigh.txt",
-                "command": ["ip", "neigh", "show", "dev", "local_002"],
+                "title": f"Host {bridge_name} ip neigh",
+                "filename": f"host-{bridge_name}-ip-neigh.txt",
+                "command": ["ip", "neigh", "show", "dev", bridge_name],
             },
         ]
         for dump in dumps:
             self._run_host_debug_dump(**dump)
+        self._run_debug_dump(
+            service="tester_1-ff00_0_111",
+            title="Server namespace secondary-ip neigh probe",
+            output_file="/tmp/server-secondary-ip-neigh.txt",
+            command=f"ip neigh show to {secondary_ip}",
+        )
         self._inspect_docker_network_for_service(
-            service="disp_tester_1-ff00_0_111",
-            expected_ip=secondary_ip,
+            service=self.SERVER_SERVICE,
+            network_name=bridge_name,
             filename_prefix="host-server-secondary",
         )
         self._inspect_docker_network_for_service(
-            service="br1-ff00_0_111-1",
-            expected_ip="192.168.200.21",
+            service=self.SERVER_ROUTER_SERVICE,
+            network_name=bridge_name,
             filename_prefix="host-router-secondary",
         )
 
@@ -616,7 +670,7 @@ class Test(base.TestTopogen):
         )
         self._print_server_network_diagnostics()
         self._print_router_network_diagnostics()
-        self._print_host_network_diagnostics("192.168.200.11")
+        self._print_host_network_diagnostics(self._server_secondary_ip())
 
     def bash_at_server(self, cmd, *args, **kwargs):
             print(
@@ -630,7 +684,7 @@ class Test(base.TestTopogen):
                 )
             )
 
-    def _run_orig(self):
+    def _run(self):
         # Wait until SCION control-plane/path connectivity is established.
         self.await_connectivity()
         time.sleep(5)
@@ -643,7 +697,7 @@ class Test(base.TestTopogen):
         self.dc("cp", test_client, "tester_1-ff00_0_112:/bin/")
 
         primary_ip = self._server_primary_ip()
-        secondary_ip = "192.168.200.11"
+        secondary_ip = self._server_secondary_ip()
         bound_port = 31001
         multihomed_port = 31000
 
@@ -734,14 +788,14 @@ class Test(base.TestTopogen):
             print("\n\nServer log:")
             self.bash_at_server(f"cat {SERVERLOGFILE}")
 
-    def _run(self):
+    def _run_diagnosis(self):
         # Start with a diagnostics-only run so we can debug SCION reachability to the
         # server's secondary address before exercising the application-level test flow.
         self.await_connectivity()
         time.sleep(5)
 
         primary_ip = self._server_primary_ip()
-        secondary_ip = "192.168.200.11"
+        secondary_ip = self._server_secondary_ip()
         capture_file = "/tmp/server-capture.pcapng"
         capture_log_file = "/tmp/server-capture.log"
         pid_file = "/tmp/server-capture.pid"
