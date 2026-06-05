@@ -16,54 +16,26 @@ Other references:
 
 Abstract
 ========
-*TL;DR This proposal aims to resolve scaling issues with large numbers
-of ISD and core ASes.
-It also introduces new privacy features, such as hiding ASes, links, or whole SCION networks.
-Moreover it improves censorship protection by allowing inter-ISD peering links to be used as normal
-first class links in segments.*
 
-The current ISD design combines several features:
+This proposal has multiple objectives:
 
-1. An ISD has a globally unique ID.
-2. An ISD has a core AS that is part of the global network of core routers.
-3. An ISD has its own independent TRC
-4. An ISD has its own beaconing and independent routing
+1) Enable ASes to participate in multiple ISDs
 
-Features (1.) and (2.) cause several issues:
+   a) Running an AS in multiple ISDs is already possible but poorly documented.
+   b) Improve endhost support for multi-ISD ASes.
+   c) Improve infrastructure support for multi-ISD ASes, eg. with shared infrastructure.
 
-* The number of ISDs is limited to 65000 (spec: 4000). A change would require
-  modification of the dataplane, i.e. the SCION header. This is a low number considering
-  that globally 100s of jurisdiction may want to to run 100s of ISDs, plus
-  many other bodies that may want to run ISDs outside of jurisdictions.
-* Every ISD has at least one CORE AS. A global network with 65000 core ASes
-  would break down. We should aim to have at most a few 1000 CORE ASes.
-* Many entities may want to control their own ISD but do not want to participate
-  in the global core routing network because they are not interested in transit
-  traffic and need ways to avoid it. However, the current is based on the assumption
-  that any AS with access to the public network is exclusively in ISD that
-  participate on global core routing. An AS cannot currently participate (securely)
-  in public and non-public ISD at the same time.
+2) Based on multi-ISD capability, the proposal introduces *Private ISDs*
 
-While features (1.) and (2.) cause several issues, it seems that many entities that are
-interested in setting up an ISD are only interested in the features (3.) and (4.).
+   a) Document benefits of Private ISDs.
+   b) Discuss implementations changes required for private ISDs (there are very few).
 
-This proposal introduces Private ISDs.
-Private ISDs (P-ISDs) provide the features (3.) and (4.) (independent TRC and routing)
-without requiring features (1.) or (2.) (ISD number or a CORE AS).
+Having an AS in multiple ISDs can be beneficial for organizational reasons.
+Running Private ISDs has benefits for their users as well as for the global public SCION network:
 
-This proposal also turns participation of ASes in multiple ISDs into a first class feature. THis proposal:
-
-- ensures that participation multiple ISDs is scalable with large numbers of ISDs,
-- attempts to reduce admin overhead and resource overhead for managing multiple ISDs in an AS, and
-- makes availability of multiple ISDs transparent for endhost.
-
-Differences to proposal v1
---------------------------
-
-- Clarify that ISDs and P-ISDs are (almost) the same.
-- Clarify that implementation changes are mostly to support AS participating in multiple ISDs.
-  The fact that some of these multiple ISDs may be "private" is secondary.
-- Remove implied preference of private links over public links.
+- For the global network: improved scalability, especially relating to the public ISD registry
+  and to the global network of core ASes.
+- For the users of Private ISDs: Improved privacy, protection and failure tolerance.
 
 
 Background
@@ -80,6 +52,65 @@ Terminology
   Every P-ISD must have at least one non-private (public) AS in order to
   have a connection to the outside.
 - Private Links - A Private Link is a link that is only visible inside a P-ISD.
+
+Multi-ISD ASes
+--------------
+
+This proposal turns participation of ASes in multiple ISDs into a first class feature. This proposal:
+
+- ensures that participation multiple ISDs is scalable with large numbers of ISDs,
+- attempts to reduce admin overhead and resource overhead for managing multiple ISDs in an AS, and
+- makes availability of multiple ISDs transparent for endhost.
+
+Private ISDs
+------------
+
+The current ISD design combines several features:
+
+1. An ISD has a globally unique ID.
+2. An ISD has a core AS that is part of the global network of core routers.
+3. An ISD has its own independent TRC
+4. An ISD has its own beaconing and independent routing
+
+Features (1.) and (2.) cause several issues:
+
+* The number of ISDs is limited to 65000 (spec: 4000). A change would require
+  modification of the dataplane, i.e. the SCION header. This is a low number considering
+  that globally 100s of jurisdiction may want to run many ISDs each, plus
+  many other entities that may want to run ISDs outside of jurisdictions.
+* Every ISD has at least one CORE AS. A global network with 65000 core ASes
+  would break down. We should aim to have at most a few 1000 CORE ASes.
+* Many entities may want to control their own ISD but do not want to participate
+  in the global core routing network because they are not interested in transit
+  traffic and need ways to avoid it. However, the current is based on the assumption
+  that any AS with access to the public network is exclusively in ISD that
+  participate on global core routing. An AS cannot currently participate (securely)
+  in public and non-public ISD at the same time.
+
+While features (1.) and (2.) cause several issues, it seems that many entities that are
+interested in setting up an ISD are only interested in the features (3.) and (4.).
+
+This proposal introduces Private ISDs.
+Private ISDs (P-ISDs) provide the features (3.) and (4.) (independent TRC and routing)
+without requiring features (1.) or (2.) (ISD number or a CORE AS).
+
+For users of P-ISDs, benefits include:
+
+- Independence: Routing in an independent (private ISD) that is completely independent of any
+  other ISD: Own TRC, own routing, additional ASes, private links.
+- Privacy: Existence of, and participation in, a private ISD is completely invisible outside
+  of the private ISD.
+- Fault tolerance: Private ISDs can offer fallback paths for the public ISDs.
+  This is aided by the ability to run all infrastructure on separate hardware.
+
+
+Differences to proposal v1
+--------------------------
+
+- Clarify that ISDs and P-ISDs are (almost) the same.
+- Clarify that implementation changes are mostly to support AS participating in multiple ISDs.
+  The fact that some of these multiple ISDs may be "private" is secondary.
+- Remove implied preference of private links over public links.
 
 
 Proposal
