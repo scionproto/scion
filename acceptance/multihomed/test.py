@@ -765,57 +765,64 @@ class Test(base.TestTopogen):
         )
         print(result_primary)
 
-        self._run_ping_diagnostics(primary_ip, secondary_ip)
-        self._run_scion_ping_diagnostics(primary_ip, secondary_ip)
-        self._run_scion_traceroute_diagnostics(primary_ip, secondary_ip)
+        # self._run_ping_diagnostics(primary_ip, secondary_ip)
+        # self._run_scion_ping_diagnostics(primary_ip, secondary_ip)
+        # self._run_scion_traceroute_diagnostics(primary_ip, secondary_ip)
 
         # 3) Multihomed check using server secondary IP while server is unbound (0.0.0.0).
         # Linux may still select the primary IP as reply source, so this validates connectivity
         # through the secondary destination without enforcing the response source address.
         remote_secondary = f"1-ff00:0:111,{secondary_ip}:{multihomed_port}"
         print(f"running client against secondary IP: {remote_secondary}")
-        result_secondary = ""
-        try:
-            result_secondary = self.dc.execute(
-                "tester_1-ff00_0_112",
-                "bash",
-                "-c",
-                f'test-client -local "{local_addr}" -remote "{remote_secondary}"',
-            )
-        finally:
-            print("Client results:")
-            print(result_secondary)
-            print("\n\nServer log:")
-            self.bash_at_server(f"cat {SERVERLOGFILE}")
+        # result_secondary = ""
+        # try:
+        #     result_secondary = self.dc.execute(
+        #         "tester_1-ff00_0_112",
+        #         "bash",
+        #         "-c",
+        #         f'test-client -local "{local_addr}" -remote "{remote_secondary}"',
+        #     )
+        # finally:
+        #     print("Client results:")
+        #     print(result_secondary)
+        #     print("\n\nServer log:")
+        #     self.bash_at_server(f"cat {SERVERLOGFILE}")
+        result_secondary = self.dc.execute(
+            "tester_1-ff00_0_112",
+            "bash",
+            "-c",
+            f'test-client -local "{local_addr}" -remote "{remote_secondary}"',
+        )
+        print(result_secondary)
 
-    def _run_diagnosis(self):
-        # Start with a diagnostics-only run so we can debug SCION reachability to the
-        # server's secondary address before exercising the application-level test flow.
-        self.await_connectivity()
-        time.sleep(5)
+    # def _run_diagnosis(self):
+    #     # Start with a diagnostics-only run so we can debug SCION reachability to the
+    #     # server's secondary address before exercising the application-level test flow.
+    #     self.await_connectivity()
+    #     time.sleep(5)
 
-        primary_ip = self._server_primary_ip()
-        secondary_ip = self._server_secondary_ip()
-        capture_file = "/tmp/server-capture.pcapng"
-        capture_log_file = "/tmp/server-capture.log"
-        pid_file = "/tmp/server-capture.pid"
-        summary_file = "/tmp/server-capture-summary.txt"
-        all_packets_file = "/tmp/server-capture-all.txt"
+    #     primary_ip = self._server_primary_ip()
+    #     secondary_ip = self._server_secondary_ip()
+    #     capture_file = "/tmp/server-capture.pcapng"
+    #     capture_log_file = "/tmp/server-capture.log"
+    #     pid_file = "/tmp/server-capture.pid"
+    #     summary_file = "/tmp/server-capture-summary.txt"
+    #     all_packets_file = "/tmp/server-capture-all.txt"
 
-        print(f"server IPs configured: primary={primary_ip}, secondary={secondary_ip}")
-        self._start_server_capture(capture_file, capture_log_file, pid_file)
-        try:
-            self._run_ping_diagnostics(primary_ip, secondary_ip)
-            self._run_scion_ping_diagnostics(primary_ip, secondary_ip)
-            self._run_scion_traceroute_diagnostics(primary_ip, secondary_ip)
-        finally:
-            self._stop_server_capture(pid_file)
-            self._print_server_capture(
-                capture_file,
-                capture_log_file,
-                summary_file,
-                all_packets_file,
-            )
+    #     print(f"server IPs configured: primary={primary_ip}, secondary={secondary_ip}")
+    #     self._start_server_capture(capture_file, capture_log_file, pid_file)
+    #     try:
+    #         self._run_ping_diagnostics(primary_ip, secondary_ip)
+    #         self._run_scion_ping_diagnostics(primary_ip, secondary_ip)
+    #         self._run_scion_traceroute_diagnostics(primary_ip, secondary_ip)
+    #     finally:
+    #         self._stop_server_capture(pid_file)
+    #         self._print_server_capture(
+    #             capture_file,
+    #             capture_log_file,
+    #             summary_file,
+    #             all_packets_file,
+    #         )
 
 
 if __name__ == "__main__":
