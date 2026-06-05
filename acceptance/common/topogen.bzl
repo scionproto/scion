@@ -15,6 +15,7 @@ def topogen_test(
         args = [],
         deps = [],
         data = [],
+        tags = [],
         homedir = "",
         tester = "//docker:tester.tarball"):
     """Creates a test based on a topology file.
@@ -114,7 +115,7 @@ def topogen_test(
         args = args + common_args,
         deps = [":%s_lib" % name],
         data = data + common_data,
-        tags = ["integration", "exclusive"],
+        tags = tags + ["integration"],
         env = {
             # Ensure output appears immediately (in particular with --test_output=streamed)
             "PYTHONUNBUFFERED": "1",

@@ -40,15 +40,18 @@ SCION_TESTING_DOCKER_ASSERTIONS_OFF = 'SCION_TESTING_DOCKER_ASSERTIONS_OFF'
 
 class Compose(object):
     def __init__(self,
-                 compose_file: str = SCION_DC_FILE):
+                 compose_file: str = SCION_DC_FILE,
+                 project_name: str = "scion"):
         self.compose_file = compose_file
+        self.project_name = project_name
 
     def __call__(self, *args, **kwargs) -> str:
         """Runs docker compose with the given arguments"""
         # Note: not using plumbum here due to complications with encodings in the captured output
         try:
             res = subprocess.run(
-                ["docker", "compose", "-f", self.compose_file, *args],
+                ["docker", "compose", "-f", self.compose_file,
+                 "-p", self.project_name, *args],
                 check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
         except subprocess.CalledProcessError as e:
             raise _CalledProcessErrorWithOutput(e) from None
@@ -59,22 +62,23 @@ class Compose(object):
         out_p = plumbum.local.path(out_dir)
         cmd.mkdir("-p", out_p)
         for svc in self("config", "--services").splitlines():
+            container = self.project_name + "-" + svc + "-1"
             # Collect logs.
             dst_f = out_p / "%s.log" % svc
             print(svc)
             with open(dst_f, "w") as log_file:
-                cmd.docker.run(args=("logs", "scion-"+svc+"-1"), stdout=log_file,
+                cmd.docker.run(args=("logs", container), stdout=log_file,
                                stderr=subprocess.STDOUT, retcode=None)
             # Collect coredupms.
             coredump_f = out_p / "%s.coredump" % svc
             try:
-                cmd.docker.run(args=("cp", svc+":/share/coredump", coredump_f))
+                cmd.docker.run(args=("cp", container+":/share/coredump", coredump_f))
             except Exception:
                 # If the coredump does not exist, do nothing.
                 pass
             # Collect tshark traces.
             try:
-                cmd.docker.run(args=("cp", svc+":/share/tshark", out_p))
+                cmd.docker.run(args=("cp", container+":/share/tshark", out_p))
                 cmd.mv(out_p / "tshark" // "*", out_p)
                 cmd.rmdir(out_p / "tshark")
             except Exception:
@@ -188,12 +192,16 @@ class UnexpectedNetworkError(Exception):
     pass
 
 
-def assert_no_networks(writer=None):
+def assert_no_networks(writer=None, prefix=None):
     """Raises an exception if unexpected docker networks are found.
 
     The default bridge, host and none networks are always ignored.
 
-    If the SCION_TESTING_DOCKER_ASSERTIONS_OFF environmnent variable
+    If prefix is set, only networks starting with '{prefix}_scn_' are
+    considered unexpected. If prefix is None, all non-default networks
+    are flagged.
+
+    If the SCION_TESTING_DOCKER_ASSERTIONS_OFF environment variable
     is set to 1, the assertion is not executed. A warning message
     is printed to the writer if the writer is set.
 
@@ -201,10 +209,11 @@ def assert_no_networks(writer=None):
         writer: If specified, the writer's write method is used to
             print detailed information about all unexpected networks
             before raising the exception.
+        prefix: If specified, only flag networks with this prefix.
 
     Raises:
         UnexpectedNetworkError: An unexpected network name was found. The
-            message will contain the names of all unexepcted networks.
+            message will contain the names of all unexpected networks.
         plumbum.commands.processes.ProcessExecutionError: One of the docker
             commands returned a non-zero exit code.
     """
@@ -216,10 +225,14 @@ def assert_no_networks(writer=None):
     allowed_nets = ['bridge', 'host', 'none', 'benchmark']
     unexpected_nets = []
     for net in _get_networks():
-        if net.name not in allowed_nets:
-            if writer:
-                writer.write(f'{net.name} {net.driver} {net.containers}\n')
-            unexpected_nets.append(net.name)
+        if net.name in allowed_nets:
+            continue
+        if prefix is not None:
+            if not net.name.startswith(prefix + '_scn_'):
+                continue
+        if writer:
+            writer.write(f'{net.name} {net.driver} {net.containers}\n')
+        unexpected_nets.append(net.name)
     if unexpected_nets:
         raise UnexpectedNetworkError(str(unexpected_nets))
 

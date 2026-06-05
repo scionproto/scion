@@ -60,7 +60,7 @@ test:
 	bazel test --config=unit_all
 
 test-integration:
-	bazel test --config=integration_all
+	bazel test --config=integration_all $(ARGS)
 
 go.mod:
 	bazel run --config=quiet @rules_go//go -- mod tidy

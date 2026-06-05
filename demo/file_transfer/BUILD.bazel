@@ -6,5 +6,6 @@ topogen_test(
     args = [],
     data = ["tc_setup.sh"],
     gateway = True,
+    tags = ["exclusive"],
     topo = "topo.topo",
 )

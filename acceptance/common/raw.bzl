@@ -67,7 +67,7 @@ def raw_test(
         deps = [":%s_lib" % name],
         imports = imports,
         data = data,
-        tags = tags + ["integration", "exclusive"],
+        tags = tags + ["integration"],
         local = local,
         env = {
             # Ensure output appears immediately (in particular with --test_output=streamed)

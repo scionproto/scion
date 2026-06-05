@@ -1,10 +1,10 @@
 #!/bin/bash
 
-topogen="$1"
-# $2 and $3 are other files passed by topogen's py_binary to the Bazel rule running this script.
-topology="$4"
-ifids="$5"
-out="$6"
+# Locate topogen via runfiles (it's a data dependency of this sh_binary).
+topogen="${RUNFILES_DIR:-$0.runfiles}/_main/tools/topogen"
+topology="$1"
+ifids="$2"
+out="$3"
 
 tmpdir=$(mktemp -d)
 

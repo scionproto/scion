@@ -1,7 +1,10 @@
 # Acceptance testing framework
 
 This directory contains a set of integration tests.
-Each test is defined as a bazel test target, with tags `integration` and `exclusive`.
+Each test is defined as a bazel test target, with tag `integration`.
+Tests run in parallel, unless they need any global resources (like
+network namespaces or hardcoded IPs). For such tests,
+`exclusive` tag is used.
 
 Some integration tests use code outside this directory. For example, the
 `router_multi` acceptance test cases and main executable are in `tools/braccept`.
@@ -24,10 +27,17 @@ bazel test --config=integration //acceptance/cert_renewal:all //acceptance/trc_u
 bazel test --config=integration //acceptance/router_multi:all --cache_test_results=no
 ```
 
-The following the flags to bazel test can be helpful when running individual tests:
+The following flags can be helpful when running individual tests:
 
 - `--test_output=streamed` to display test output to the screen immediately
 - `--cache_test_results=no` or `-t-` to re-run tests after a cached success
+- `--local_test_jobs=N` to control how many tests run in parallel
+
+When using `make test-integration`, extra Bazel flags can be passed via `ARGS`:
+
+```bash
+make test-integration ARGS="--local_test_jobs=3"
+```
 
 ## Manual Testing
 

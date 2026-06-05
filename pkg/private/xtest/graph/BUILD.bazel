@@ -72,5 +72,6 @@ write_source_files(
 sh_binary(
     name = "topogen_with_graph",
     srcs = ["topogen_with_graph.sh"],
+    data = ["//tools:topogen"],
     visibility = ["//visibility:public"],
 )
