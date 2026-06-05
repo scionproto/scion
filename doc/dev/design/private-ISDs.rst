@@ -51,14 +51,19 @@ This proposal introduces Private ISDs.
 Private ISDs (P-ISDs) provide the features (3.) and (4.) (independent TRC and routing)
 without requiring features (1.) or (2.) (ISD number or a CORE AS).
 
-This proposal also turns participation of ASes in multiple (P-)ISD into a first class feature.
+This proposal also turns participation of ASes in multiple ISDs into a first class feature. THis proposal:
+
+- ensures that participation multiple ISDs is scalable with large numbers of ISDs,
+- attempts to reduce admin overhead and resource overhead for managing multiple ISDs in an AS, and
+- makes availability of multiple ISDs transparent for endhost.
 
 Differences to proposal v1
 --------------------------
 
-- Clarify that ISDs and P-ISDs ar (almost the same)
-- Clarify that implementation changes are mostly to support AS participating in multiple ISDs
-- Remove implied preference of private links over public links
+- Clarify that ISDs and P-ISDs are (almost) the same.
+- Clarify that implementation changes are mostly to support AS participating in multiple ISDs.
+  The fact that some of these multiple ISDs may be "private" is secondary.
+- Remove implied preference of private links over public links.
 
 
 Background
@@ -67,6 +72,7 @@ Background
 Terminology
 -----------
 - P-ISD - Private ISD
+- (P-)ISD - Private or public ISD
 - BR - Border router
 - CS - Control service / path service
 - Private AS - A Private AS is part of an P-ISD but not visible from
@@ -84,56 +90,60 @@ Overview
 
 This document shifts SCION's primary design as follows:
 
-- It establishes a first class design goal that ASes can participate in multiple ISDs
-  or P-ISDs. This is already possible, but:
+- It establishes as first class design goal that ASes can participate in multiple ISDs
+  (or P-ISDs). This is already possible, but:
 
   - it is not well documented,
   - does not provide secure ISD separation (forged paths can cross ISD boundaries),
-  - and is cumbersome to use on endhosts (e.g. requires running multiple daemons).
+  - and is cumbersome to use on endhosts (e.g. requires running multiple daemons),
+  - it does not scale well with multiple (P-)ISDs.
 
 - It establishes Private ISDs (P-ISDs) as first class design goal:
 
   - Define security properties (private links, private ASes, routing isolation, ...).
   - Define requirements on routers, services, and endhosts.
 
-In summary, with the presented design, an AS can safely participate in any number of
-public or private ISDs.
-The changes to the current system are relatively minor, they also improve, document and
-clarify participation in multiple public ISDs.
+In summary, with the presented design, an AS can safely participate in a large number of
+public (or private) ISDs.
+The changes to the current implementation are relatively minor, they are (almost?)
+completely within the boundaries of the specification in the CP, DP and CPPKI drafts.
 
-Just to emphasize it: Private ISDs need no special treatment in the implementation.
-Their differences to public ISDs are purely organisational.
-All changes to the implementation only improve security and ease of use for ASes participating
-in multiple ISDs (public or private).
+Just to emphasize this:
+
+- Private ISDs need no special treatment in the implementation (except for one case in
+  border routers forwarding key validation).
+- Their differences to public ISDs are purely semantic or on the organisational level.
+- Changes to the implementation are mainly to improve security, scalability and ease of use
+  for ASes participating in multiple ISDs (public or private).
 
 Building a P-ISD
 ----------------
 
 1. We select a group of ASes to form an P-ISD.
-   These ASes can be from different ISDs, but they must be
-   non-separated, meaning that they must form a single contiguous network
+   These ASes can be from different ISDs, but they must be non-separated,
+   meaning that they must form a single contiguous network
    where every AS can reach every other AS without leaving the network.
-   A P-ISD may use the same interfaces/links between ASes that are already
-   in used by the public ISD or by other P-ISD. It may also use additional
-   interfaces/links that are not otherwise available.
+   A P-ISD can share interfaces/links between ASes the public ISD or other P-ISD.
+   A P-ISD may also additional interfaces/links that are not otherwise available.
+   Unlike normal ISDs, P-ISDs have no "core" links or "peering" links that leave the P-ISD.
 
 2. Out of the participating ASes, we chose core ASes, authoritative ASes,
    voting ASes, ... and so on for an ISD (TRC, etc) as usual.
-   Unlike normal ISDs, the are no "core" links or "peering" links that leave the P-ISD.
 
 3. Pick an (P-)ISD number. For now, we can use any ISD number from the `private range (16-63)
    <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
+   The aim is to assign the range 4096 - 65535 for P-ISDs. There is also an option
+   to use 32bit numbers for P-ISDs (without changing the dataplane).
    A (current) limitation is that an AS cannot participate in two ISDs that have the same ISD number.
 
 The resulting P-ISD is built mostly like a normal ISD: It has a TRC, performs
 beaconing, has at least one CORE AS, ASes have child/parent/peer relationships.
 However, there are some differences:
 
-- Core ASes have no links to other ISDs and do not perform beaconing outside the P-ISD.
-- P-ISD numbers do not need to be announced outside the P-ISD.
-- ASes in an P-ISD can have different ISD numbers (from their respective ISDs.
-- P-ISDs are not addressable or even visible from the outside, they don't have
-  an external ISD number.
+- Core ASes have no links to other ISDs so they do not perform beaconing outside the P-ISD.
+- P-ISD numbers do not need to be publicly registered or announced outside the P-ISD.
+- ASes in an P-ISD can have multiple ISD numbers (from their respective ISDs).
+- P-ISDs are not addressable or even visible from the outside.
 
 Beaconing and routing is completely separate for each (P-)ISD. PCBs and traffic cannot
 leave or enter a P-ISD. Path segments from different P-ISDs cannot be combined.
@@ -183,6 +193,29 @@ Beaconing
 ---------
 The core ASes perform beaconing just like in a normal ISD.
 
+Beacons are created and forwarded separately for each (P-)ISDs.
+
+The question whether is whether to have separate CS for each (P-)ISD or
+whether one CS can handle beaconing for multiple (P-)ISDs.
+The best solution is probably to do the latter and have multiple or all
+(P-)ISDs use the same control service and the same beacons storage.
+
+- This simplifies set-up for ASes with only a few (P-ISDs): Only one
+  CS to install (+ potentially one backup)
+- This simplifies SVC address because BR can announce the same SVC addresses
+  regardless of ISD, which is consistent with current SVC announcement.
+
+For ASes with many (1000s) (P-)ISDs, hosting one CS (+ Backup) per (P-)ISD is
+probably inefficient, so having multiple (P-)ISDs per CS is probably more
+efficient. However, having all (P-)ISDs in one CS is also impossible, so
+(P-)ISDs need to be grouped into CSes.
+For access to these CSes, we need a SVC address system that can distinguish
+requests from different (P-)ISDs and serve the matching CS address.
+
+For increased security, or failure tolerance, or to handle becaoning load
+from large networks (public ISDs), it may still be desirable to
+handle different (P-)ISDs in separate CSes.
+
 Path Service
 ------------
 When a CS receives a segment request from an endhost, as default, the CS should
@@ -222,11 +255,12 @@ requires segments. If no P-ISD is given, the path server should return
 any segments it deems fitting.
 
 When constructing a path, an endhost must take care to use segments
-that are all either from the same P-ISD or all from public ISDs.
+that are all either from the same P-ISD or all from public ISDs. This
+can distinction can be done based on the numeric range of the ISD number.
 
 When constructing a packet, the endhost needs to put the correct (P-)ISD
 number into the SCION address header, otherwise routing will fail because
-the BRs will attempt hop field verification with the wrong certificate.
+the BRs will attempt hop field verification with the wrong forwarding key.
 
 
 Border Routers
@@ -478,6 +512,8 @@ Implementation
    - Libraries and daemons need to be adapted to use the new CS API for
      requesting segments.
    - Libraries need to ensure that they properly handle multiple local (P-)ISDs.
+     - Put the correct src/dst ISD in the address header.
+     - Ensure that they don't create paths with segments from different P-ISDs.
    - Path policies may need to be extended to allow specifying (P-)ISD preference.
 
 
