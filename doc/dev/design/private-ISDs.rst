@@ -46,7 +46,8 @@ Terminology
 - P-ISD - Private ISD
 - (P-)ISD - Private or public ISD
 - BR - Border router
-- CS - Control service / path service
+- CS - Control service, the service that performs beaconing and has a path database
+- PS - Path service, the that delivers path segment to endhosts. May be identical to CS.
 - Private AS - A Private AS is part of an P-ISD but not visible from
   outside their P-ISD. Private-ASes cannot have a parent AS outside the P-ISD.
   Every P-ISD must have at least one non-private (public) AS in order to
@@ -150,7 +151,7 @@ Just to emphasize this:
 Building a P-ISD
 ----------------
 
-1. We select a group of ASes to form an P-ISD.
+1. Select a group of ASes to form an P-ISD.
    These ASes can be from different ISDs, but they must be non-separated,
    meaning that they must form a single contiguous network
    where every AS can reach every other AS without leaving the network.
@@ -226,6 +227,9 @@ The core ASes perform beaconing just like in a normal ISD.
 
 Beacons are created and forwarded separately for each (P-)ISDs.
 
+Shared Infrastructure - Control Service
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 The question whether is whether to have separate CS for each (P-)ISD or
 whether one CS can handle beaconing for multiple (P-)ISDs.
 The best solution is probably to do the latter and have multiple or all
@@ -249,33 +253,46 @@ handle different (P-)ISDs in separate CSes.
 
 Path Service
 ------------
-When a CS receives a segment request from an endhost, as default, the CS should
+
+When an endhost requests path segments, they should have single service in their
+AS that needs to be queried, regardless of the (P-)ISDs in which the path segments originate.
+This can be done in two ways:
+
+- A single process with a beacon store that contains all segments. This is proposed in the
+  previous section: `Beaconing`_.
+- Alternatively, there could be a service that exposes a single segment query API to
+  endhosts, but is internally forwarding requests to different processes/machines
+  with separate beacon stores.
+
+It is an implementation decision whether an endhost API is backed by a single CS that
+managed all local (P-)ISDs, or whether it connects to multiple CS, one (or more) for each (P-)ISD.
+Both implementations are viable and the difference is not relevant for the following discussion.
+the endhost-facing API is called Path Service (PS), without specifying how it works internally.
+
+When a PS receives a segment request from an endhost, as default, the PS should
 return segments for through all available (P-)ISDs.
 
 The endhost is responsible for constructing path that are either completely inside
 a single P-ISD or only in public ISDs. Segments from a given P-ISD must not be stitched
 with segments from other P-ISDs or from public ISDs.
 
-The CS can decide which segments are made available to a given endhost.
+The PS can decide which segments are made available to a given endhost.
 
 This works best with the "new endhost API".
 
 The "new endhost API" allows segment requests to be answered in multiple responses.
-To indicate an AS's preference for a given path, the CS may decide to have the
+To indicate an AS's preference for a given path, the PS may decide to have the
 first response contain only preferred segments (through preferred ISDs) and
 offer other segments only in follow-up responses.
 
 An endhost may indicate their preference for a given (P-)ISD in the segment request,
-but the CS is allowed to ignore this preference and offer segments from other (P-)ISDs.
+but the PS is allowed to ignore this preference and offer segments from other (P-)ISDs.
 
 This gives the AS additional power in routing preference.
 This also simplifies endhost implementations such that they don't really need to
 know about participation in multiple ISDs, the just construct path from the first
-CS response. More complex implementations can of course take full advantage of
+PS response. More complex implementations can of course take full advantage of
 multi-ISD participation.
-
-It is an implementation decision whether an endhost API is backed by a single CS that
-managed all local (P-)ISDs, or whether it connects to multiple CS, one (or more) for each (P-)ISD.
 
 See also `Nested P-ISDs and Hierarchies`_.
 
@@ -421,7 +438,7 @@ Disadvantages
 Alternative: Shared vs Separate Control Services
 ------------------------------------------------
 
-One open question is whether to separate control services (CS) foe each (P-)ISD.
+One open question is whether to separate control services (CS) for each (P-)ISD.
 
 For a typical set-up with only a few (P-)ISDs, a shared control service
 simplifies infrastructure cost.
@@ -509,21 +526,23 @@ Implementation
      relevant CS. Endhosts should need to contact only this single endhost API to
      retrieve all available paths for all local (P-)ISDs.
 
+2. Path service
+
    - Provide API to allow end-to-end segment requests. The request contains
      the start AS, the destination AS and an optional (P-)ISD preference argument.
      The request returns UP+CORE+DOWN segments in one request.
 
      (optional) The (P-)ISD preference argument has three options:
 
-     - "Not set" (or "default"). The CS should return segments from
-       whatever (P-)ISD it thinks is best (configurable by the CS admin)
+     - "Not set" (or "default"). The PS should return segments from
+       whatever (P-)ISD it thinks is best (configurable by the PS admin)
      - "All" (or "*"). This should return segments from all (P-)ISDs that
-       the CS is willing to share.
-     - A list of (P-)ISDs. The CS should return segments only for (P-)ISDs
+       the PS is willing to share.
+     - A list of (P-)ISDs. The PS should return segments only for (P-)ISDs
        in the list.
 
-     In any case, the CS is free to ignore the preferred (P-)ISD and deliver
-     segments only for some (P-)ISDs (configuration option on the CS).
+     In any case, the PS is free to ignore the preferred (P-)ISD and deliver
+     segments only for some (P-)ISDs (configuration option on the PS).
 
 3. Border routers
 
@@ -540,11 +559,9 @@ Implementation
 
 4. Endhost libraries
 
-   - Libraries and daemons need to be adapted to use the new CS API for
+   - Libraries and daemons need to be adapted to use the new PS API for
      requesting segments.
    - Libraries need to ensure that they properly handle multiple local (P-)ISDs.
      - Put the correct src/dst ISD in the address header.
      - Ensure that they don't create paths with segments from different P-ISDs.
    - Path policies may need to be extended to allow specifying (P-)ISD preference.
-
-
