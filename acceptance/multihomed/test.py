@@ -79,7 +79,8 @@ class Test(base.TestTopogen):
             )
         if self.SERVER_PRIMARY_NETWORK not in router_networks:
             raise RuntimeError(
-                f"expected {self.SERVER_ROUTER_SERVICE} to be attached to {self.SERVER_PRIMARY_NETWORK}"
+                f"expected {self.SERVER_ROUTER_SERVICE} to be attached "
+                "to {self.SERVER_PRIMARY_NETWORK}"
             )
 
         network_cfg = networks[self.SERVER_PRIMARY_NETWORK]["ipam"]["config"]
@@ -196,7 +197,7 @@ class Test(base.TestTopogen):
             "tester_1-ff00_0_111",
             "bash",
             "-c",
-            f"killall -9 test-server",
+            "killall -9 test-server",
         )
         print("server terminated successfully")
         time.sleep(2)
@@ -235,6 +236,7 @@ class Test(base.TestTopogen):
             f'test-client -local "{local_addr}" -remote "{remote_secondary}"',
         )
         print(result_secondary)
+
 
 if __name__ == "__main__":
     base.main(Test)
