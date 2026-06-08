@@ -517,44 +517,49 @@ Maybe it is still a better choice than "Private ISD"?
 Implementation
 ==============
 
-1. Control service
+1. Control service & Path Service
 
-   - (optional) Control services must be able to handle PCBs and paths from
-     multiple (P-)ISDs.
-   - (optional alternative) If CS can handle only a single local (P-)ISD, the
-     new endhost API needs to be adapted to relay segment requests to all
-     relevant CS. Endhosts should need to contact only this single endhost API to
-     retrieve all available paths for all local (P-)ISDs.
+   - CS & PS: Multi-ISD support. There are two options, at least one needs to be implemented:
 
-2. Path service
+     - Option 1: Control services must be able to handle PCBs and paths from
+       multiple (P-)ISDs.
+     - Option 2: If CS can handle only a single local (P-)ISD, the Path Service
+       (new endhost API) needs to be adapted to relay segment requests to all
+       relevant CS. Endhosts should need to contact only this single endhost API to
+       retrieve all available paths for all local (P-)ISDs.
 
-   - Provide API to allow end-to-end segment requests. The request contains
-     the start AS, the destination AS and an optional (P-)ISD preference argument.
-     The request returns UP+CORE+DOWN segments in one request.
+   - PS: Multi-ISD support: The PS implementation need to support end to end segment
+     requests, i.e. are request (src ISD)-(dst ISD) must return all required up, core and
+     down segments. This is consistent with the new endhost API design.
 
-     (optional) The (P-)ISD preference argument has three options:
+   - (optional) The PS segment requests should have an additional (P-)ISD
+     preference argument with three options:
 
      - "Not set" (or "default"). The PS should return segments from
        whatever (P-)ISD it thinks is best (configurable by the PS admin)
      - "All" (or "*"). This should return segments from all (P-)ISDs that
        the PS is willing to share.
      - A list of (P-)ISDs. The PS should return segments only for (P-)ISDs
-       in the list.
+       in the list. In case of result paging, the PS should try to provide
+       in the first page one valid path for each ISD in the list.
 
      In any case, the PS is free to ignore the preferred (P-)ISD and deliver
      segments only for some (P-)ISDs (configuration option on the PS).
+     The client must be prepared to use ISDs that are not on the requested
+     preference list.
 
 3. Border routers
 
-   - They need to be able to store separate forwarding keys or derive
-     them on the fly when required.
+   - They need to be able to store separate forwarding keys for (P-)ISDs
+     or derive them on the fly when required.
 
    - Every link must be able to handle multiple forwarding keys, i.e.
      multiple (P-)-ISDs may use the same interface/link.
 
-   - Service addresses: If CSes can handle only one (P-)ISD each, the border routers
-     need to be able to hand out service addresses depending on the (P-)ISDs for which
-     a service address is requested. This may be solved by the new service address API.
+   - Service addresses: If CSes can handle only one (P-)ISD each, the
+     border routers need to be able to hand out service addresses depending
+     on the (P-)ISDs for which a service address is requested. This may be
+     solved by the new service address API.
      See `#4388 <https://github.com/scionproto/scion/issues/4388>`_.
 
 4. Endhost libraries
@@ -562,6 +567,23 @@ Implementation
    - Libraries and daemons need to be adapted to use the new PS API for
      requesting segments.
    - Libraries need to ensure that they properly handle multiple local (P-)ISDs.
+
      - Put the correct src/dst ISD in the address header.
-     - Ensure that they don't create paths with segments from different P-ISDs.
+     - Ensure that they don't create paths with segments from different P-ISDs
+       (different public ISDs are fine).
+
    - Path policies may need to be extended to allow specifying (P-)ISD preference.
+
+5. Other
+
+   - The local topology runner in the scionproto reference implementation needs
+     to be adapted to allow running topologies with multi-ISD ASes and with private
+     ASes.
+   - An initial implementation is available here:
+     However, it needs some adaption:
+
+     - It does not yet support the new endhost API
+     - It treats ISDs and P-ISDs differently in some parts of the code.
+       The only difference should be in the BR where ISD numbers from the private
+       range require a dedicated forwarding key while public ISDs can take the
+       default key.
