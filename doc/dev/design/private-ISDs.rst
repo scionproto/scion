@@ -3,7 +3,7 @@ Private ISDs
 ************
 
 - Author(s): Tilmann Zäschke (+ ideas from others)
-- Last updated: 2026-06-05
+- Last updated: 2026-06-08
 - Discussion at: :issue:`4827`
 - Status: **WIP**
 
@@ -557,7 +557,7 @@ Implementation
      - Every link must be able to handle multiple forwarding keys, i.e.
        multiple (P-)-ISDs may use the same interface/link.
      - Packets from P-ISDs (= from the defined range of private ISDs,
-       4-15 and 32'768-65'535 must be validated with a forwarding key that
+       16-63 and 32'768-65'535 must be validated with a forwarding key that
        is is unique for that P-ISD.
 
    - Service addresses: If CSes can handle only one (P-)ISD each, the
@@ -578,7 +578,7 @@ Implementation
 
    - Path policies may need to be extended to allow specifying (P-)ISD preference.
 
-5. Other
+5. Specification
 
    - The SCION specification must be adapted to designate the ISD 32'768-65'535 as
      P-ISDs.
@@ -589,6 +589,8 @@ Implementation
      - (alternative): If we decide to implement the 32bit ISD proposal, then we
        could leave the 0-65'535 range untouched and assign the range
        65'536-4'294'967'296 to P-ISDs.
+
+6. Other
 
    - The local topology runner in the scionproto reference implementation needs
      to be adapted to allow running topologies with multi-ISD ASes and with
