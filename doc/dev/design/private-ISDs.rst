@@ -550,11 +550,15 @@ Implementation
 
 3. Border routers
 
-   - They need to be able to store separate forwarding keys for (P-)ISDs
-     or derive them on the fly when required.
+   - Forwarding keys:
 
-   - Every link must be able to handle multiple forwarding keys, i.e.
-     multiple (P-)-ISDs may use the same interface/link.
+     - They need to be able to store separate forwarding keys for (P-)ISDs
+       or derive them on the fly when required.
+     - Every link must be able to handle multiple forwarding keys, i.e.
+       multiple (P-)-ISDs may use the same interface/link.
+     - Packets from P-ISDs (= from the defined range of private ISDs,
+       4-15 and 32'768-65'535 must be validated with a forwarding key that
+       is is unique for that P-ISD.
 
    - Service addresses: If CSes can handle only one (P-)ISD each, the
      border routers need to be able to hand out service addresses depending
@@ -576,10 +580,20 @@ Implementation
 
 5. Other
 
+   - The SCION specification must be adapted to designate the ISD 32'768-65'535 as
+     P-ISDs.
+     The larger range is required to reduce probability of conflicts when an AS
+     intends to join multiple ISDs.
+     The range 16'384-32'767 is left free for other uses.
+
+     - (alternative): If we decide to implement the 32bit ISD proposal, then we
+       could leave the 0-65'535 range untouched and assign the range
+       65'536-4'294'967'296 to P-ISDs.
+
    - The local topology runner in the scionproto reference implementation needs
-     to be adapted to allow running topologies with multi-ISD ASes and with private
-     ASes.
-   - An initial implementation is available here:
+     to be adapted to allow running topologies with multi-ISD ASes and with
+     private ASes and links.
+   - An initial implementation is available internally at ETH Zurich.
      However, it needs some adaption:
 
      - It does not yet support the new endhost API
