@@ -203,6 +203,23 @@ func TestNewCreateCmd(t *testing.T) {
 				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
 			},
 		},
+		"cp-root, with extended key usage any": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/cp-root-eku-any.crt",
+				dir + "/cp-root-eku-any.key",
+				"--profile=cp-root",
+				"--eku-any",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, certs []*x509.Certificate) {
+				ct, err := cppki.ValidateCert(certs[0])
+				require.NoError(t, err)
+				require.Equal(t, cppki.Root, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
+				require.Contains(t, certs[0].ExtKeyUsage, x509.ExtKeyUsageAny)
+			},
+		},
 		"cp-ca": {
 			Prepare: func(t *testing.T) {
 				cmd := newCreateCmd(command.StringPather("test"))
