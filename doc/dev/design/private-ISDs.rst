@@ -485,11 +485,11 @@ Alternative: External Reachability from P-ISD
 ---------------------------------------------
 
 A possible future extension would be to allow private ASes to access endpoints
-in other (P-)ISDs. This would require some kind of proxy or NAT that
+in other (P-)ISDs. This would require some kind of proxy or NAT that:
 
-- Provides paths to external location
-- Forwards traffic from inside to outside and back
-- For forwarding traffic, it should encrypt or strip the internal path from traffic.
+- provides paths to external location,
+- forwards traffic from inside to outside and back, and
+- for forwarding traffic, it should encrypt or strip the internal path from traffic.
 
 This will be discussed in a future proposal.
 
