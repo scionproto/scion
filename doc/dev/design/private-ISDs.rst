@@ -267,7 +267,7 @@ This can be done in two ways:
 It is an implementation decision whether an endhost API is backed by a single CS that
 managed all local (P-)ISDs, or whether it connects to multiple CS, one (or more) for each (P-)ISD.
 Both implementations are viable and the difference is not relevant for the following discussion.
-the endhost-facing API is called Path Service (PS), without specifying how it works internally.
+The endhost-facing API is called Path Service (PS), without specifying how it works internally.
 
 When a PS receives a segment request from an endhost, as default, the PS should
 return segments for through all available (P-)ISDs.
@@ -460,7 +460,7 @@ Advantage of shared CS
 ^^^^^^^^^^^^^^^^^^^^^^
 
 - Simple service address handling
-- Probably slightly more efficient to run a ssingle large CS process than
+- Probably slightly more efficient to run a single large CS process than
   multiple smaller ones (memory + CPU).
 
 Advantages of separate CS
@@ -481,6 +481,17 @@ simply be the first bit of the SRC ISD field.
 
 This is currently considered a future extension.
 
+Alternative: External Reachability from P-ISD
+---------------------------------------------
+
+A possible future extension would be to allow private ASes to access endpoints
+in other (P-)ISDs. This would require some kind of proxy or NAT that
+
+- Provides paths to external location
+- Forwards traffic from inside to outside and back
+- For forwarding traffic, it should encrypt or strip the internal path from traffic.
+
+This will be discussed in a future proposal.
 
 Compatibility
 =============
@@ -598,7 +609,7 @@ Implementation
    - An initial implementation is available internally at ETH Zurich.
      However, it needs some adaption:
 
-     - It does not yet support the new endhost API
+     - It does not yet support the new endhost API.
      - It treats ISDs and P-ISDs differently in some parts of the code.
        The only difference should be in the BR where ISD numbers from the private
        range require a dedicated forwarding key while public ISDs can take the
