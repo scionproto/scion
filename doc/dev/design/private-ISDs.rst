@@ -1,10 +1,10 @@
-************
-Private ISDs
-************
+*******************************
+Multi-ISD ASes and Private ISDs
+*******************************
 
 - Author(s): Tilmann Zäschke (+ ideas from others)
 - Last updated: 2026-06-08
-- Discussion at: :issue:`4827`
+- Discussion at: :issue:`4934`
 - Status: **WIP**
 
 Other references:
