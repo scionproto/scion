@@ -182,20 +182,8 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 			return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, err)
 		}
 		return up, nil
-	case seg.TypeUp:
-		// Up segment requests are normally resolved locally. The exception is
-		// one-hop segment requests (src == dst) for core ASes in our ISD, which
-		// are used for peering path discovery. Route these via up segment to
-		// the core AS.
-		if req.Src == req.Dst {
-			return p.upPath(ctx, dst)
-		}
-		// Regular up segment requests should have been resolved locally.
-		return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, nil,
-			"reason", "up segment should have been resolved locally",
-			"src", req.Src, "dst", req.Dst)
 	case seg.TypeDown:
-		// Special case: src == dst is a one-hop segment request (core AS peering).
+		// Special case: src == dst is a single-AS segment request (core AS peering).
 		if req.Src == req.Dst {
 			return p.oneHopPath(ctx, dst)
 		}
@@ -227,7 +215,7 @@ func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (net.Addr, error)
 }
 
 // corePath finds a path to the destination using core segments only.
-// Used for one-hop segment requests to remote core ASes to avoid recursion.
+// Used for single-AS segment requests to remote core ASes to avoid recursion.
 func (p *dstProvider) corePath(ctx context.Context, dst addr.IA) (net.Addr, error) {
 	return p.segSelector.SelectSeg(ctx, &query.Params{
 		StartsAt: []addr.IA{dst},
@@ -236,9 +224,9 @@ func (p *dstProvider) corePath(ctx context.Context, dst addr.IA) (net.Addr, erro
 	})
 }
 
-// oneHopPath finds a path to a core AS for fetching its one-hop segment.
+// oneHopPath finds a path to a core AS for fetching its single-AS segment.
 // Tries simple paths first (core, up) to avoid recursion, then falls back
-// to the router with SkipOneHopKey to prevent infinite recursion.
+// to the router with the skip-single-AS marker to prevent infinite recursion.
 func (p *dstProvider) oneHopPath(ctx context.Context, dst addr.IA) (net.Addr, error) {
 	// Try simple paths first (avoids recursion)
 	if addr, err := p.corePath(ctx, dst); err == nil {
@@ -249,15 +237,15 @@ func (p *dstProvider) oneHopPath(ctx context.Context, dst addr.IA) (net.Addr, er
 	}
 
 	// Fall back to router with recursion prevention
-	ctx = context.WithValue(ctx, segfetcher.SkipOneHopKey, true)
+	ctx = segfetcher.WithSkipSingleAS(ctx)
 	paths, err := p.router.AllRoutes(ctx, dst)
 	if err != nil {
 		return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, err,
-			"reason", "no path to core for one-hop request")
+			"reason", "no path to core for single-AS request")
 	}
 	if len(paths) == 0 {
 		return nil, serrors.JoinNoStack(segfetcher.ErrNotReachable, nil,
-			"reason", "no path to core for one-hop request")
+			"reason", "no path to core for single-AS request")
 	}
 	path := paths[rand.IntN(len(paths))]
 	return addrutil.ExtractDestinationServiceAddress(addr.SvcCS, path), nil

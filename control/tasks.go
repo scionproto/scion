@@ -203,9 +203,9 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 	if t.Core {
 		// Core ASes register core segments. If the core AS has peering links,
-		// also start an Up segment writer to create one-hop segments for peering.
+		// also start an Up segment writer to create single-AS segments for peering.
 		// Up segments are registered locally (unlike Down segments which are
-		// registered remotely), which is what we need for one-hop segments.
+		// registered remotely), which is what we need for single-AS segments.
 		writers := []*periodic.Runner{t.segmentWriter(beacon.RegPolicyTypeCore)}
 		if hasPeeringInterfaces(t.AllInterfaces) {
 			writers = append(writers, t.segmentWriter(beacon.RegPolicyTypeUp))

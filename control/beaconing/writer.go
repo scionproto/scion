@@ -104,7 +104,7 @@ type WriteScheduler struct {
 	// time to write.
 	Writer Writer
 	// Core indicates whether this AS is a core AS. When true and peering
-	// interfaces exist, one-hop segments with peer entries are created.
+	// interfaces exist, single-AS segments with peer entries are created.
 	Core bool
 
 	// Tick is mutable. It's used to determine when to call write.
@@ -133,15 +133,12 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 	if !r.Tick.Overdue(r.lastWrite) && !r.Tick.Passed() {
 		return nil
 	}
-	segments, err := r.Provider.SegmentsToRegister(ctx, r.Type)
-	if err != nil {
-		return err
-	}
-	peers := sortedIntfs(r.Intfs, topology.Peer)
-	// Create one-hop segments for core ASes with peering links.
-	// These segments have one AS entry with ConsIngress=0, ConsEgress=0, plus
-	// peer entries for each peering interface.
-	if (r.Type == seg.TypeDown || r.Type == seg.TypeUp) && r.Core && len(peers) != 0 {
+	var segments beacon.GroupedBeacons
+	if r.Core && r.Type == seg.TypeUp {
+		// Create single-AS segments for core ASes with peering links.
+		// These segments have one AS entry with ConsIngress=0, ConsEgress=0, plus
+		// peer entries for each peering interface.
+		segments = make(beacon.GroupedBeacons)
 		segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
 		if err != nil {
 			return err
@@ -154,7 +151,13 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 			Segment: b,
 			InIfID:  0,
 		})
+	} else {
+		var err error
+		if segments, err = r.Provider.SegmentsToRegister(ctx, r.Type); err != nil {
+			return err
+		}
 	}
+	peers := sortedIntfs(r.Intfs, topology.Peer)
 
 	stats, err := r.Writer.Write(ctx, segments, peers)
 	if err != nil {
@@ -250,11 +253,11 @@ func (r *LocalWriter) RegisterSegments(
 		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: b.Segment})
 		logBeacons[b.Segment.GetLoggingID()] = b
 
-		// For one-hop segments (single AS entry with 0/0 hop field), store as both
+		// For single-AS segments (single AS entry with 0/0 hop field), store as both
 		// Up and Down types to support bidirectional core-to-core peering links.
 		// The source core AS needs it as Up (edges go OUT), and the destination
 		// core AS needs it as Down (edges come IN).
-		if isOneHopSegment(b.Segment) {
+		if isSingleASSegment(b.Segment) {
 			oppositeType := seg.TypeUp
 			if r.Type == seg.TypeUp {
 				oppositeType = seg.TypeDown
@@ -563,10 +566,10 @@ func (w *GroupWriter) Write(
 	return writeStats, nil
 }
 
-// isOneHopSegment returns true if the segment is a one-hop segment, i.e., a segment
+// isSingleASSegment returns true if the segment is a single-AS segment, i.e., a segment
 // with a single AS entry where both ingress and egress interfaces are 0. These segments
 // are used to represent core ASes with peering links for path combination purposes.
-func isOneHopSegment(s *seg.PathSegment) bool {
+func isSingleASSegment(s *seg.PathSegment) bool {
 	if len(s.ASEntries) != 1 {
 		return false
 	}
