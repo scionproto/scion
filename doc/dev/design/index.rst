@@ -47,6 +47,7 @@ WIP
    :maxdepth: 1
 
    NAT-address-discovery
+   private-ISDs
 
 .. _design-docs-postponed:
 
