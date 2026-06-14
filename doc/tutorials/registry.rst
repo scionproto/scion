@@ -50,7 +50,7 @@ Return to the login screen, enter your email address and password, and click ‘
 
 **Step 2**:
 
-Upon successful login, you can now complete and submit your personal profile and enable two-factor authentication. Please note that your personal information will not be displayed on the public registry website. 
+Upon successful login, you can now complete and submit your personal profile and enable two-factor authentication. Please note that your personal information will not be displayed on the public registry website.
 
 .. figure:: registry/profile.png
    :width: 100 %
@@ -74,7 +74,7 @@ You need to agree to the Terms and Conditions and to also select a personal prof
    :width: 100 %
    :figwidth: 100 %
 
-When your Organization profile has been submitted, you will receive a message that this is pending. Organization profiles must be approved upon creation by the SCION Association, which will normally happen within 1-3 working days. 
+When your Organization profile has been submitted, you will receive a message that this is pending. Organization profiles must be approved upon creation by the SCION Association, which will normally happen within 1-3 working days.
 
 .. figure:: registry/org-pending.png
    :width: 100 %
