@@ -9,7 +9,7 @@ import os
 # -- Project information -----------------------------------------------------
 
 project = "SCION"
-copyright = "2025, Anapaya Systems, ETH Zurich, SCION Association"
+copyright = "2026, Anapaya Systems, ETH Zurich, SCION Association"
 author = "Anapaya Systems, ETH Zurich, SCION Association"
 
 
