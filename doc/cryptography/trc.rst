@@ -1,5 +1,5 @@
 ********************************************
-Trust Root Configuration (TRC) Specification
+Trust Root Configuration (TRC)
 ********************************************
 
 The **Trust Root Configuration (TRC)** is a signed collection of `X.509 v3
