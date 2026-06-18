@@ -52,20 +52,6 @@ This implementation supports all three mandatory algorithms - *ECDSA* with the c
 - NIST P-384
 - NIST P-521
 
-Issuer and Subject
-------------------
-
-The ``issuer`` field contains the distinguished name (DN) of the CA that created
-the certificate and the ``subject`` field contains the DN of the entity that owns
-it. Both are defined the same way (the ``Name`` syntax is defined in [X501]_)
-and MUST be non-empty. The DN is built from standard attributes plus the
-SCION-specific *ISD-AS number* attribute (``id-at-ia``), which MUST be present
-exactly once and uses the canonical ISD-AS string formatting (e.g.
-``1-ff00:0:110``). The attribute set, the ``id-at-ia`` OID and the canonical
-formatting are specified in the `Issuer
-<https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-issuer>`_
-section of the SCION PKI draft.
-
 Extensions
 ----------
 
