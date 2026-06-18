@@ -56,11 +56,11 @@ section and `Appendix A
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-certificate-extensions-in-a>`_
 of the SCION PKI draft.
 
-Issuer
-------
+Issuer and Subject
+------------------
 
 The ``issuer`` field contains the distinguished name (DN) of the CA that created
-the certificate; the ``subject`` field contains the DN of the entity that owns
+the certificate and the ``subject`` field contains the DN of the entity that owns
 it. Both are defined the same way (the ``Name`` syntax is defined in [X501]_)
 and MUST be non-empty. The DN is built from standard attributes plus the
 SCION-specific *ISD-AS number* attribute (``id-at-ia``), which MUST be present
