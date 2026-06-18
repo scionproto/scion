@@ -8,12 +8,9 @@ SCION uses three types of X.509 v3 **Control Plane (CP) certificates** that buil
 on top of [RFC5280]_ (which in turn builds on [X509]_), adding more restrictive
 SCION-specific constraints:
 
-- **CP Root Certificate** — a self-signed CA certificate, owned by a CA AS and
-  embedded in a TRC, that signals which ASes may act as certificate authorities in
-  an ISD.
-- **CP CA Certificate** — used by a CA AS to sign CP AS certificates.
-- **CP AS Certificate** — the end-entity certificate an AS uses to sign
-  control-plane messages.
+- :ref:`CP Root Certificate <cp-root-certificate>`
+- :ref:`CP CA Certificate <cp-ca-certificate>`
+- :ref:`CP AS Certificate <cp-as-certificate>`
 
 The full normative specification — certificate fields, per-type profiles,
 extensions and the ASN.1 syntax — is defined in the `SCION PKI draft
@@ -41,16 +38,19 @@ or constrained in SCION — are given in `X.509 Certificate Profiles and Constra
 Signature
 ---------
 
-For security reasons, SCION uses a custom list of acceptable algorithms. The list
-currently contains only the *ECDSA* signature algorithm (defined in [X962]_) with
-the NIST P-256, P-384 and P-521 curves.
-
-The accepted algorithms and curves, their OIDs and the ``AlgorithmIdentifier``
+For security reasons, SCION uses a custom list of acceptable algorithms.
+The accepted algorithms and curves and the ``AlgorithmIdentifier``
 ASN.1 are listed in the `Signature field
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-signature>`_
 section and `Appendix A
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-certificate-extensions-in-a>`_
 of the SCION PKI draft.
+
+This implementation supports all three mandatory algorithms - *ECDSA* with the curves:
+
+- NIST P-256
+- NIST P-384
+- NIST P-521
 
 Issuer and Subject
 ------------------
@@ -89,8 +89,6 @@ key usage, extended key usage (including ``id-kp-root``) and basic constraints
 Certificate
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-control-plane-root-certific>`_.
 
-The recommended maximum validity period of a **CP Root certificate** is 1 year.
-
 .. _cp-ca-certificate:
 
 CP CA Certificate
@@ -101,8 +99,6 @@ are self-issued CA certificates, signed by a **CP Root Certificate**. Their full
 profile — key usage, extended key usage and basic constraints (``cA`` TRUE,
 ``pathLenConstraint`` 0) — is specified in `Control Plane Issuing CA Certificate
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-control-plane-issuing-ca-ce>`_.
-
-The recommended maximum validity period of a **CP CA certificate** is 1 week.
 
 .. _cp-as-certificate:
 
@@ -115,5 +111,3 @@ extended key usage (``id-kp-timeStamping``, and ``id-kp-serverAuth`` /
 ``id-kp-clientAuth`` for CP TLS sessions) and basic constraints — is specified in
 `Control Plane AS Certificate
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-control-plane-as-certificat>`_.
-
-The recommended maximum validity period of a **CP AS certificate** is 3 days.
