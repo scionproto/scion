@@ -1,5 +1,5 @@
 *************************
-Certificate Specification
+Certificates
 *************************
 
 .. highlight:: text
