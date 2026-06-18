@@ -8,9 +8,13 @@ Once a new ISD is established through the completion of a key signing ceremony,
 certificates can be generated for the Certificate Authorities and ASes of
 the ISD.
 
-Trust within an ISD flows from the TRC. The TRC contains one or more Root Certificates,
-which are used to sign new CA Certificates, which are in turn used to sign one or more AS
-Certificates.
+Trust within an ISD flows from the TRC: the Root Certificates it contains are used
+to sign CA Certificates, which are in turn used to sign AS Certificates. For the
+architectural procedure of issuing AS certificates, see `Issuing Control Plane AS
+Certificates
+<https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-issuing-control-plane-as-ce>`_
+in the SCION PKI draft. The steps below walk through running a manual CA for
+testing.
 
 The process of creating new CA Certificates is described in section `CA Certificates`_.
 The process of creating new AS Certificates is described in section `AS Certificates`_.
