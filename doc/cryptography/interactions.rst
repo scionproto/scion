@@ -3,7 +3,7 @@ Cryptographic Interactions
 **************************
 
 The main purpose of the SCION control plane PKI is to distribute and authenticate
-the public keys used to verify control-plane messages and information. For example,
+the public keys used to verify control plane messages and information. For example,
 SCION path segments are signed with keys that are authenticated through the CP-PKI.
 
 These interactions cover how certificates are distributed, how they are used to
@@ -20,7 +20,7 @@ plane messages, and establishing a secure channel.
 Authentic control plane messages
 --------------------------------
 
-Most SCION control-plane messages (for example, each AS's hop information in a path
+Most SCION control plane messages (for example, each AS's hop information in a path
 segment) are signed, and any relying party can verify them via the CP-PKI. The
 signer attaches signature metadata — at minimum the ISD-AS and the Subject Key
 Identifier of the signing key, and typically the latest TRC's serial/base number
@@ -70,7 +70,7 @@ Messages
 .. note::
 
    The wire formats of the queries and responses below are not specified here.
-   They are defined by the SCION control-plane specification; see `Distribution of
+   They are defined by the SCION control plane specification; see `Distribution of
    Cryptographic Material
    <https://scionassociation.github.io/scion-cp_I-D/draft-dekater-scion-controlplane.html#name-distribution-of-cryptograph>`_.
 
