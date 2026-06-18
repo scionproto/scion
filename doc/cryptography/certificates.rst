@@ -46,15 +46,11 @@ Signature
 ---------
 
 For security reasons, SCION uses a custom list of acceptable algorithms. The list
-currently contains only the *ECDSA* signature algorithm (defined in [X962]_). The
-only accepted curves are NIST P-256, P-384 and P-521 (named ``secp256r1``,
-``secp384r1`` and ``secp521r1`` in [RFC5480]_; see also [NISTFIPS186-4]_), used
-with SHA-256, SHA-384 and SHA-512 respectively (the ECDSA OIDs are defined in
-[RFC5758]_). Implementations MUST include support for P-256, P-384 and P-521, and
-**MUST reject cryptographic algorithms not found on the list.**
+currently contains only the *ECDSA* signature algorithm (defined in [X962]_) with
+the NIST P-256, P-384 and P-521 curves.
 
-The signature-algorithm OIDs, curve OIDs and ``AlgorithmIdentifier`` ASN.1 are
-listed in the `Signature field
+The accepted algorithms and curves, their OIDs and the ``AlgorithmIdentifier``
+ASN.1 are listed in the `Signature field
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-signature>`_
 section and `Appendix A
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-certificate-extensions-in-a>`_
