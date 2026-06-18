@@ -92,7 +92,7 @@ CP AS Certificate
 =================
 
 **CP AS Certificates** are the end-entity certificates SCION ASes use to sign
-control-plane messages. Their full profile — key usage (``digitalSignature``),
+control plane messages. Their full profile — key usage (``digitalSignature``),
 extended key usage (``id-kp-timeStamping``, and ``id-kp-serverAuth`` /
 ``id-kp-clientAuth`` for CP TLS sessions) and basic constraints — is specified in
 `Control Plane AS Certificate
