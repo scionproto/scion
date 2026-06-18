@@ -12,6 +12,10 @@ SCION-specific constraints:
 - :ref:`CP CA Certificate <cp-ca-certificate>`
 - :ref:`CP AS Certificate <cp-as-certificate>`
 
+Additionally, SCION uses two **voting certificates** - the *sensitive voting
+certificate* and the *regular voting certificate* - which carry the keys that
+cast votes in the TRC update process (see the :doc:`TRC Specification <trc>`).
+
 The full normative specification — certificate fields, per-type profiles,
 extensions and the ASN.1 syntax — is defined in the `SCION PKI draft
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html>`_.
