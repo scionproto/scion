@@ -36,10 +36,6 @@ certificates. The detailed requirements for the ``version``, ``serialNumber``,
 or constrained in SCION — are given in `X.509 Certificate Profiles and Constraints
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-x509-certificate-profiles-a>`_.
 
-One SCION-specific constraint: all certificates MUST have a
-well-defined expiration date. Certificates that use the ``99991231235959Z``
-GeneralizedTime value to indicate no well-defined expiration are not valid.
-
 .. _certificate-signature:
 
 Signature
