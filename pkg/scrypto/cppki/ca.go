@@ -18,6 +18,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/x509"
@@ -134,6 +135,19 @@ func SubjectKeyID(pub crypto.PublicKey) ([]byte, error) {
 		// SA1019: fix later (https://github.com/scionproto/scion/issues/4777).
 		//nolint:staticcheck
 		skid := sha1.Sum(elliptic.Marshal(k.Curve, k.X, k.Y))
+		return skid[:], nil
+	case *mldsa.PublicKey:
+		// Unlike the ECDSA case (which hashes the raw EC point), ML-DSA has no
+		// equivalent raw-bytes encoding, so we hash the full PKIX
+		// SubjectPublicKeyInfo DER. This matches RFC 5280 §4.2.1.2 method (1)
+		// and is sufficient for Phase 1: the SKID only needs to be
+		// deterministic and non-empty.
+		raw, err := x509.MarshalPKIXPublicKey(k)
+		if err != nil {
+			return nil, serrors.Wrap("marshaling ML-DSA public key", err)
+		}
+		//nolint:staticcheck // SHA-1 SKID per RFC 5280 §4.2.1.2
+		skid := sha1.Sum(raw)
 		return skid[:], nil
 	default:
 		return nil, serrors.New("not supported")

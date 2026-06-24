@@ -15,6 +15,7 @@
 package key_test
 
 import (
+	"crypto/mldsa"
 	"os"
 	"testing"
 
@@ -95,6 +96,37 @@ func TestNewPrivateCmd(t *testing.T) {
 			info, err := os.Stat(filename)
 			require.NoError(t, err)
 			assert.Equal(t, os.FileMode(0600), info.Mode())
+		})
+	}
+}
+
+func TestGeneratePrivateKeyMLDSA(t *testing.T) {
+	testCases := map[string]struct {
+		curve      string
+		wantParams mldsa.Parameters
+	}{
+		"ml-dsa-44": {
+			curve:      "ml-dsa-44",
+			wantParams: mldsa.MLDSA44(),
+		},
+		"ml-dsa-65": {
+			curve:      "ml-dsa-65",
+			wantParams: mldsa.MLDSA65(),
+		},
+		"ml-dsa-87": {
+			curve:      "ml-dsa-87",
+			wantParams: mldsa.MLDSA87(),
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			signer, err := key.GeneratePrivateKey(tc.curve)
+			require.NoError(t, err)
+			require.NotNil(t, signer)
+
+			pub, ok := signer.Public().(*mldsa.PublicKey)
+			require.True(t, ok, "expected *mldsa.PublicKey, got %T", signer.Public())
+			assert.Equal(t, tc.wantParams, pub.Parameters())
 		})
 	}
 }

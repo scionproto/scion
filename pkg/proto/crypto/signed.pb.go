@@ -29,6 +29,9 @@ const (
 	SignatureAlgorithm_SIGNATURE_ALGORITHM_ECDSA_WITH_SHA256 SignatureAlgorithm = 1
 	SignatureAlgorithm_SIGNATURE_ALGORITHM_ECDSA_WITH_SHA384 SignatureAlgorithm = 2
 	SignatureAlgorithm_SIGNATURE_ALGORITHM_ECDSA_WITH_SHA512 SignatureAlgorithm = 3
+	SignatureAlgorithm_SIGNATURE_ALGORITHM_ML_DSA_44         SignatureAlgorithm = 4
+	SignatureAlgorithm_SIGNATURE_ALGORITHM_ML_DSA_65         SignatureAlgorithm = 5
+	SignatureAlgorithm_SIGNATURE_ALGORITHM_ML_DSA_87         SignatureAlgorithm = 6
 )
 
 // Enum value maps for SignatureAlgorithm.
@@ -38,12 +41,18 @@ var (
 		1: "SIGNATURE_ALGORITHM_ECDSA_WITH_SHA256",
 		2: "SIGNATURE_ALGORITHM_ECDSA_WITH_SHA384",
 		3: "SIGNATURE_ALGORITHM_ECDSA_WITH_SHA512",
+		4: "SIGNATURE_ALGORITHM_ML_DSA_44",
+		5: "SIGNATURE_ALGORITHM_ML_DSA_65",
+		6: "SIGNATURE_ALGORITHM_ML_DSA_87",
 	}
 	SignatureAlgorithm_value = map[string]int32{
 		"SIGNATURE_ALGORITHM_UNSPECIFIED":       0,
 		"SIGNATURE_ALGORITHM_ECDSA_WITH_SHA256": 1,
 		"SIGNATURE_ALGORITHM_ECDSA_WITH_SHA384": 2,
 		"SIGNATURE_ALGORITHM_ECDSA_WITH_SHA512": 3,
+		"SIGNATURE_ALGORITHM_ML_DSA_44":         4,
+		"SIGNATURE_ALGORITHM_ML_DSA_65":         5,
+		"SIGNATURE_ALGORITHM_ML_DSA_87":         6,
 	}
 )
 
@@ -270,12 +279,15 @@ const file_proto_crypto_v1_signed_proto_rawDesc = "" +
 	"\x16associated_data_length\x18\x05 \x01(\x05R\x14associatedDataLength\";\n" +
 	"\rHeaderAndBody\x12\x16\n" +
 	"\x06header\x18\x01 \x01(\fR\x06header\x12\x12\n" +
-	"\x04body\x18\x02 \x01(\fR\x04body*\xba\x01\n" +
+	"\x04body\x18\x02 \x01(\fR\x04body*\xa3\x02\n" +
 	"\x12SignatureAlgorithm\x12#\n" +
 	"\x1fSIGNATURE_ALGORITHM_UNSPECIFIED\x10\x00\x12)\n" +
 	"%SIGNATURE_ALGORITHM_ECDSA_WITH_SHA256\x10\x01\x12)\n" +
 	"%SIGNATURE_ALGORITHM_ECDSA_WITH_SHA384\x10\x02\x12)\n" +
-	"%SIGNATURE_ALGORITHM_ECDSA_WITH_SHA512\x10\x03B.Z,github.com/scionproto/scion/pkg/proto/cryptob\x06proto3"
+	"%SIGNATURE_ALGORITHM_ECDSA_WITH_SHA512\x10\x03\x12!\n" +
+	"\x1dSIGNATURE_ALGORITHM_ML_DSA_44\x10\x04\x12!\n" +
+	"\x1dSIGNATURE_ALGORITHM_ML_DSA_65\x10\x05\x12!\n" +
+	"\x1dSIGNATURE_ALGORITHM_ML_DSA_87\x10\x06B.Z,github.com/scionproto/scion/pkg/proto/cryptob\x06proto3"
 
 var (
 	file_proto_crypto_v1_signed_proto_rawDescOnce sync.Once
