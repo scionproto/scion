@@ -88,12 +88,19 @@ class Results:
         self.checked = True
         for tc in self.cases:
             want = expectations.get(tc["case"])
-            if want is not None:
-                slow = tc["rate"] < want
-                unsaturated = not tc["full"]
-                if slow or unsaturated:
-                    self.failed.append({"case": tc["case"],
-                                        "expected": want, "slow": slow, "unsaturated": unsaturated})
+            if want is None:
+                # No expectation set for this case, so there is nothing to check.
+                continue
+            slow = tc["rate"] < want
+            unsaturated = not tc["full"]
+            # Only a rate below the expectation is a failure. An unsaturated run means
+            # brload, not the router, was the bottleneck, so the rate is under-reported,
+            # never over-reported. That can't turn a slow router into a false pass,
+            # so we don't fail on it; we keep the flag as context for slow results,
+            # where it may mean the measurement is unreliable.
+            if slow:
+                self.failed.append({"case": tc["case"], "expected": want,
+                                    "slow": slow, "unsaturated": unsaturated})
 
     def as_json(self) -> str:
         return json.dumps({
