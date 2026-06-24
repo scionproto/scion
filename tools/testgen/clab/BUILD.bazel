@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["clab.go"],
+    importpath = "github.com/scionproto/scion/tools/testgen/clab",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tools/testgen/hydrate:go_default_library",
+        "//tools/testgen/out:go_default_library",
+    ],
+)
