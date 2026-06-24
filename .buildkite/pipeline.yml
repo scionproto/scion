@@ -174,3 +174,21 @@ steps:
       timeout_in_minutes: 15
       key: docker_integration_e2e_default
       retry: *automatic-retry
+    - label: "E2E: default (clab)"
+      command:
+        # TODO: remove
+        - bash -c "$(curl -sL https://get.containerlab.dev)"
+        - echo "--- build"
+        - bazel run //testing/clab:clab_node.load
+        - echo "--- start topology"
+        - clab deploy -t gen/scion.clab.yml
+        - go run ./testing/clab/await_connectivity || ( echo "^^^ +++" && false )
+        - echo "--- run tests (scion)"
+        - go run ./testing/clab/e2e_scion || ( echo "^^^ +++" && false )
+        - echo "--- run tests (http)"
+        - go run ./testing/clab/e2e_http || ( echo "^^^ +++" && false )
+      plugins: *scion-run-hooks
+      artifact_paths: *scion-run-artifact-paths
+      timeout_in_minutes: 15
+      key: docker_integration_e2e_default
+      retry: *automatic-retry

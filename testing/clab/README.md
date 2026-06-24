@@ -315,9 +315,15 @@ result matrix. The tests deliberately do not share code.
   (`quic.Transport`) and speak HTTP/3 over it; the driver starts a server in
   every AS node and fetches from every server out of every other node. The
   `e2e_http` binary is bundled into the node image (`/app/e2e_http`).
+- [`await_connectivity`](await_connectivity) — a readiness gate: it polls each
+  AS's control service segments API (over the management bridge) until
+  beaconing has established full connectivity (every core AS has a core segment
+  from every other core AS; every non-core AS has an up segment), or times out.
+  Run it before the e2e tests.
 
 ```bash
 # against a deployed lab (see Quick start), from the repo root:
+go run ./testing/clab/await_connectivity -gen gen
 go run ./testing/clab/e2e_scion -gen gen -lab scion -docker "sudo docker"
 go run ./testing/clab/e2e_http run -gen gen -lab scion -docker "sudo docker"
 ```
