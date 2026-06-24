@@ -17,10 +17,13 @@
 package testgen
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -48,6 +51,8 @@ type Config struct {
 	ASValidity time.Duration
 	// ISDDir groups ASes under per-ISD directories.
 	ISDDir bool
+	// LabName is the containerlab lab name.
+	LabName string
 	// Writer receives progress output.
 	Writer io.Writer
 }
@@ -61,6 +66,7 @@ func DefaultConfig() Config {
 		NetworkV4:  def.NetworkV4,
 		NetworkV6:  def.NetworkV6,
 		ASValidity: 365 * 24 * time.Hour,
+		LabName:    "scion",
 	}
 }
 
@@ -69,6 +75,12 @@ func Run(cfg Config) error {
 	w := cfg.Writer
 	if w == nil {
 		w = io.Discard
+	}
+
+	if _, err := os.Stat(cfg.OutDir); err == nil {
+		if err := os.RemoveAll(cfg.OutDir); err != nil {
+			return serrors.Wrap("removing output directory", err)
+		}
 	}
 
 	// Phase 1: parse + validate.
@@ -117,9 +129,20 @@ func Run(cfg Config) error {
 	}); err != nil {
 		return serrors.Wrap("generating crypto", err)
 	}
+	if err := generateMasterKeys(network, dir); err != nil {
+		return serrors.Wrap("generating master keys", err)
+	}
 
-	// Phase 6: clab (no-op for MVP).
-	if err := clab.Generate(network, dir, w); err != nil {
+	// Phase 6: clab.
+	labName := cfg.LabName
+	if labName == "" {
+		labName = "scion"
+	}
+	if err := clab.Generate(network, dir, clab.Options{
+		LabName: labName,
+		MgmtV4:  mgmtV4(cfg.NetworkV4),
+		MgmtV6:  cfg.NetworkV6,
+	}, w); err != nil {
 		return err
 	}
 
@@ -130,6 +153,37 @@ func Run(cfg Config) error {
 
 	fmt.Fprintf(w, "done: output written to %s\n", dir.Base())
 	return nil
+}
+
+// generateMasterKeys writes the per-AS master secrets (master0.key,
+// master1.key) into each AS's keys directory. They are base64-encoded 16-byte
+// random values, shared by all the AS's hosts (border routers derive hop-field
+// MAC keys from them, the control service derives DRKey secrets).
+func generateMasterKeys(network *hydrate.Network, dir out.Dir) error {
+	for _, as := range network.ASes {
+		keysDir := filepath.Join(dir.AS(as.IA), "keys")
+		for _, name := range []string{"master0.key", "master1.key"} {
+			buf := make([]byte, 16)
+			if _, err := rand.Read(buf); err != nil {
+				return serrors.Wrap("reading random bytes", err)
+			}
+			enc := base64.StdEncoding.EncodeToString(buf)
+			if err := out.WriteFile(filepath.Join(keysDir, name), []byte(enc)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// mgmtV4 returns the management subnet for the clab nodes: the /16 region of
+// the allocator base network that holds the AS-internal /24s. Returns the zero
+// value if base is unset.
+func mgmtV4(base netip.Prefix) netip.Prefix {
+	if !base.IsValid() {
+		return netip.Prefix{}
+	}
+	return netip.PrefixFrom(base.Addr(), 16).Masked()
 }
 
 // generateConfigs writes, for each AS, the shared topology.json, and for each

@@ -173,6 +173,12 @@ INTERFACE  LINK  ADDRESS      STATUS
 eth1       up    10.1.1.1/30  present
 ```
 
+At startup the controller also creates the service **data directory** (default
+`/var/lib/scion`, override with `--data-dir` / `SCION_DATA_DIR`): SCION services
+open their SQLite databases there but do not create the parent directory. Like
+the log and status directories, this is best-effort — a service whose database
+lives elsewhere still works.
+
 The controller writes the status file (default `/var/run/scion/status.json`,
 override with `--status-file` / `SCION_STATUS_FILE`) on every service state
 change. Writing is best-effort: if its directory can't be created the node still

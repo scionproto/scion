@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v3"
 )
 
@@ -199,6 +200,14 @@ func configureInterface(eth ethernet, timeout, interval time.Duration, log *slog
 		if err != nil {
 			log.Error("invalid address; skipping", "iface", eth.Name, "addr", a, "err", err)
 			continue
+		}
+		// Skip Duplicate Address Detection for IPv6 addresses. DAD leaves a
+		// freshly-added address "tentative" for a moment, during which a bind
+		// to it fails with EADDRNOTAVAIL — which is fatal for the SCION router,
+		// as it binds its underlay address at startup. The addresses are
+		// pre-assigned and unique by construction, so DAD adds nothing here.
+		if addr.IP.To4() == nil {
+			addr.Flags |= unix.IFA_F_NODAD
 		}
 		if err := netlink.AddrAdd(link, addr); err != nil {
 			// EEXIST means the address is already assigned; treat as success so

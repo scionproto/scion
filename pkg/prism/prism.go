@@ -22,6 +22,8 @@ import (
 
 	controlconfig "github.com/scionproto/scion/control/config"
 	daemonconfig "github.com/scionproto/scion/daemon/config"
+	dispatcherconfig "github.com/scionproto/scion/dispatcher/config"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/env"
@@ -64,6 +66,14 @@ func Render(cfg Config) ([]ServiceFile, error) {
 				return nil, serrors.Wrap("rendering control", err, "id", as.Control.ID)
 			}
 			files = append(files, f)
+			// The shim dispatcher is co-located with the control service: it
+			// receives SVC (CS/DS) traffic on the well-known port and forwards
+			// it to the local control service.
+			d, err := renderDispatcher(as.ISDAS, as.Control)
+			if err != nil {
+				return nil, serrors.Wrap("rendering dispatcher", err, "id", as.Control.ID)
+			}
+			files = append(files, d)
 		}
 		if as.Daemon != nil {
 			f, err := renderDaemon(as.Daemon)
@@ -100,6 +110,25 @@ func renderControl(c *Control) (ServiceFile, error) {
 		CA:       controlconfig.CA{Mode: mode},
 	}
 	return marshal(c.ID+".toml", cfg)
+}
+
+func renderDispatcher(ia addr.IA, c *Control) (ServiceFile, error) {
+	id := "disp_" + c.ID
+	cfg := dispatcherconfig.Config{
+		Logging: consoleLog(),
+		Dispatcher: dispatcherconfig.Dispatcher{
+			ID:                 id,
+			LocalUDPForwarding: true,
+			// UnderlayAddr is left unset: the shim then listens on :: (all
+			// interfaces), so SVC traffic forwarded by remote border routers
+			// over the management network is received.
+			ServiceAddresses: map[addr.Addr]netip.AddrPort{
+				{IA: ia, Host: addr.HostSVC(addr.SvcCS)}: c.Address,
+				{IA: ia, Host: addr.HostSVC(addr.SvcDS)}: c.Address,
+			},
+		},
+	}
+	return marshal(id+".toml", cfg)
 }
 
 func renderDaemon(d *Daemon) (ServiceFile, error) {

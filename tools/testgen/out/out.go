@@ -45,8 +45,10 @@ func (d Dir) NetworkAllocations() string {
 	return filepath.Join(d.base, "network-allocations.yml")
 }
 
-// Clab returns the path of the containerlab topology file.
-func (d Dir) Clab() string { return filepath.Join(d.base, "clab.yml") }
+// Clab returns the path of the containerlab topology file for the given lab.
+func (d Dir) Clab(labName string) string {
+	return filepath.Join(d.base, labName+".clab.yml")
+}
 
 // Instructions returns the path of the run instructions file.
 func (d Dir) Instructions() string { return filepath.Join(d.base, "INSTRUCTIONS.md") }

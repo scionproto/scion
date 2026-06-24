@@ -24,6 +24,7 @@ import (
 
 	controlconfig "github.com/scionproto/scion/control/config"
 	daemonconfig "github.com/scionproto/scion/daemon/config"
+	dispatcherconfig "github.com/scionproto/scion/dispatcher/config"
 	"github.com/scionproto/scion/pkg/addr"
 	routerconfig "github.com/scionproto/scion/router/config"
 )
@@ -96,6 +97,12 @@ func TestRenderDecodesThroughRealConfigs(t *testing.T) {
 	require.Contains(t, byName, "br1-ff00_0_110-1.toml")
 	require.Contains(t, byName, "cs1-ff00_0_110-1.toml")
 	require.Contains(t, byName, "sd1-ff00_0_110.toml")
+	// A dispatcher is rendered alongside the control service.
+	require.Contains(t, byName, "disp_cs1-ff00_0_110-1.toml")
+	var disp dispatcherconfig.Config
+	require.NoError(t, toml.Unmarshal(byName["disp_cs1-ff00_0_110-1.toml"], &disp))
+	assert.True(t, disp.Dispatcher.LocalUDPForwarding)
+	assert.Len(t, disp.Dispatcher.ServiceAddresses, 2)
 
 	var rc routerconfig.Config
 	require.NoError(t, toml.Unmarshal(byName["br1-ff00_0_110-1.toml"], &rc))

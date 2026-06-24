@@ -17,7 +17,6 @@
 package config
 
 import (
-	"fmt"
 	"net/netip"
 	"sort"
 
@@ -37,13 +36,10 @@ func HostConfig(a *hydrate.AS, h *hydrate.Host) prism.Config {
 		Core:  a.Attrs.Core,
 		MTU:   a.MTU,
 	}
-	ifs := prism.Interfaces{
-		Ethernets: []prism.Ethernet{{
-			Name:      "eth-internal",
-			Addresses: []string{cidr(h.Addr, a.Subnet.Bits())},
-			MTU:       a.MTU,
-		}},
-	}
+	// eth0 is the containerlab management interface (carries the host's
+	// AS-internal address); only the inter-AS data-plane links (eth1, eth2, …)
+	// are modeled here.
+	var ifs prism.Interfaces
 
 	if br := h.BorderRouter; br != nil {
 		as.Router = &prism.Router{
@@ -55,7 +51,7 @@ func HostConfig(a *hydrate.AS, h *hydrate.Host) prism.Config {
 		as.Neighbors = neighbors(br)
 		for _, intf := range br.Interfaces {
 			ifs.Ethernets = append(ifs.Ethernets, prism.Ethernet{
-				Name:      fmt.Sprintf("eth-%d", intf.IfID),
+				Name:      intf.EthName,
 				Addresses: []string{cidr(intf.Local.Addr(), intf.Net.Bits())},
 				MTU:       intf.MTU,
 			})

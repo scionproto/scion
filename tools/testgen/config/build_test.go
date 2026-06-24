@@ -70,9 +70,10 @@ func TestHostConfigBorderRouterHost(t *testing.T) {
 	// Neighbor 111 is reachable as a CHILD.
 	require.Len(t, got.Neighbors, 1)
 	assert.Equal(t, addr.MustParseIA("1-ff00:0:111"), got.Neighbors[0].ISDAS)
-	// Interface section binds internal + external addresses.
+	// Interface section binds the inter-AS data-plane link (eth1+); the mgmt
+	// interface (eth0) is configured by containerlab.
 	require.NotEmpty(t, cfg.Interfaces.Ethernets)
-	assert.Equal(t, "eth-internal", cfg.Interfaces.Ethernets[0].Name)
+	assert.Equal(t, "eth1", cfg.Interfaces.Ethernets[0].Name)
 }
 
 func TestTopologyJSON(t *testing.T) {

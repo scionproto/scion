@@ -41,6 +41,7 @@ func main() {
 		configDir       string
 		binDir          string
 		logDir          string
+		dataDir         string
 		networkConfig   string
 		statusFile      string
 		shutdownTimeout time.Duration
@@ -65,7 +66,7 @@ configuration directory at start time; there is no configuration API yet.`,
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(flags.configDir, flags.binDir, flags.logDir,
+			return run(flags.configDir, flags.binDir, flags.logDir, flags.dataDir,
 				flags.networkConfig, flags.statusFile, flags.shutdownTimeout)
 		},
 	}
@@ -85,6 +86,8 @@ configuration directory at start time; there is no configuration API yet.`,
 		"file the controller writes live service status to (read by `list services`)")
 	cmd.Flags().StringVar(&flags.logDir, "log-dir", envOr("SCION_LOG_DIR", "/var/log/scion"),
 		"directory for per-service log files; empty disables them (output still goes to stdout)")
+	cmd.Flags().StringVar(&flags.dataDir, "data-dir", envOr("SCION_DATA_DIR", "/var/lib/scion"),
+		"directory created at startup for service databases; empty disables creation")
 	cmd.Flags().DurationVar(&flags.shutdownTimeout, "shutdown-timeout", 10*time.Second,
 		"grace period for services to stop on shutdown before SIGKILL")
 
@@ -157,7 +160,7 @@ to the static set of services discovered from the configuration directory.`,
 // hands control to the supervisor, which blocks until shutdown. It returns an
 // error only for misconfiguration; a clean shutdown exits the process directly
 // from the supervisor.
-func run(configDir, binDir, logDir, networkConfig, statusFile string,
+func run(configDir, binDir, logDir, dataDir, networkConfig, statusFile string,
 	shutdownTimeout time.Duration) error {
 	// Tag the controller's own diagnostics so they are distinguishable from
 	// the "[<service>]"-prefixed service output the supervisor forwards.
@@ -175,6 +178,15 @@ func run(configDir, binDir, logDir, networkConfig, statusFile string,
 		}
 		applyNetworkConfig(netCfg, log)
 		log.Info("applied network configuration", "config", networkConfig)
+	}
+
+	// Create the data directory before starting services: SCION services open
+	// their SQLite databases there but do not create the parent directory. This
+	// is best-effort — a service whose database lives elsewhere still works.
+	if dataDir != "" {
+		if err := os.MkdirAll(dataDir, 0o755); err != nil {
+			log.Warn("cannot create data directory", "dir", dataDir, "err", err)
+		}
 	}
 
 	services, err := discover(configDir, binDir)

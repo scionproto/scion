@@ -97,13 +97,15 @@ func (a *clabAllocator) AS(ia addr.IA, u topo.UnderlayType) (ASAlloc, error) {
 	if !ok {
 		return ASAlloc{}, serrors.New("AS not known to allocator", "as", ia)
 	}
+	// Index 0 (the first /24 and first /64) is reserved for the containerlab
+	// management-network gateway, so AS subnets start at slot i+1.
 	if u.IsIPv6() {
-		// fd00:f00d:cafe:<i>::/64 — the subnet id is the 4th hextet.
-		base := withHextet3(a.cfg.NetworkV6.Addr(), uint16(i))
+		// fd00:f00d:cafe:<i+1>::/64 — the subnet id is the 4th hextet.
+		base := withHextet3(a.cfg.NetworkV6.Addr(), uint16(i+1))
 		return ASAlloc{Subnet: netip.PrefixFrom(base, 64)}, nil
 	}
-	// First region of the v4 space, one /24 per AS: base + i*256.
-	base := offset(a.cfg.NetworkV4.Addr(), uint64(i)*256)
+	// First region of the v4 space, one /24 per AS: base + (i+1)*256.
+	base := offset(a.cfg.NetworkV4.Addr(), uint64(i+1)*256)
 	return ASAlloc{Subnet: netip.PrefixFrom(base, 24)}, nil
 }
 

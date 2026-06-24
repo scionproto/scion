@@ -90,6 +90,7 @@ type BorderRouter struct {
 // Interface is a resolved external (inter-AS) interface.
 type Interface struct {
 	IfID       iface.ID
+	EthName    string        // host-local data-plane interface name (e.g. "eth1")
 	LinkType   topo.LinkType // relationship of the neighbor as seen from this AS
 	Underlay   topo.UnderlayType
 	Net        netip.Prefix // the link's underlay network
@@ -220,6 +221,13 @@ func layoutHosts(a *AS) {
 		br.Host = name
 		br.InternalAddr = netip.AddrPortFrom(ha, routerInternalPort)
 		br.APIAddr = netip.AddrPortFrom(ha, routerAPIPort)
+		// Assign data-plane interface names (eth1, eth2, …) to the border
+		// router's external interfaces, sorted by interface id. eth0 is the
+		// containerlab management interface.
+		sort.Slice(br.Interfaces, func(a, b int) bool { return br.Interfaces[a].IfID < br.Interfaces[b].IfID })
+		for j, intf := range br.Interfaces {
+			intf.EthName = fmt.Sprintf("eth%d", j+1)
+		}
 		a.Hosts = append(a.Hosts, &Host{Name: name, Addr: ha, BorderRouter: br})
 	}
 	// Control service and daemon live on host-1. If the AS has no border
@@ -237,7 +245,9 @@ func layoutHosts(a *AS) {
 		API:  netip.AddrPortFrom(h1.Addr, controlAPIPort),
 	}
 	a.Daemon = Service{
-		ID:   fmt.Sprintf("sd%s", iaFile),
+		// The daemon's element id is conventionally "sd"; the controller also
+		// keys on the exact file name sd.toml.
+		ID:   "sd",
 		Addr: netip.AddrPortFrom(h1.Addr, daemonPort),
 		API:  netip.AddrPortFrom(h1.Addr, daemonAPIPort),
 	}

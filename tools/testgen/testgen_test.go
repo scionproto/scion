@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	controlconfig "github.com/scionproto/scion/control/config"
+	"github.com/scionproto/scion/private/keyconf"
 	"github.com/scionproto/scion/private/topology"
 	routerconfig "github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/tools/testgen"
@@ -54,16 +55,26 @@ func TestPipelineEndToEnd(t *testing.T) {
 	// border router, so it has exactly one host.
 	for _, p := range []string{
 		"network-allocations.yml",
+		"scion.clab.yml",
 		"trcs/ISD1-B1-S1.trc",
 		"ASff00_0_110/host-1/config.yml",
 		"ASff00_0_110/host-1/topology.json",
+		"ASff00_0_110/host-1/network.yaml",
 		"ASff00_0_110/host-1/br1-ff00_0_110-1.toml",
 		"ASff00_0_110/host-1/cs1-ff00_0_110-1.toml",
-		"ASff00_0_110/host-1/sd1-ff00_0_110.toml",
+		"ASff00_0_110/host-1/disp_cs1-ff00_0_110-1.toml",
+		"ASff00_0_110/host-1/sd.toml",
 		"ASff00_0_110/crypto/as/cp-as.key",
+		"ASff00_0_110/keys/master0.key",
+		"ASff00_0_110/keys/master1.key",
 	} {
 		assert.FileExists(t, filepath.Join(gen, p), p)
 	}
+	// Master keys load through the real loader.
+	mk, err := keyconf.LoadMaster(filepath.Join(gen, "ASff00_0_110/keys"))
+	require.NoError(t, err)
+	assert.Len(t, mk.Key0, 16)
+	assert.Len(t, mk.Key1, 16)
 	// The two untagged links collapse onto one host, so there is no host-2.
 	assert.NoDirExists(t, filepath.Join(gen, "ASff00_0_110/host-2"))
 

@@ -36,7 +36,6 @@ is shaped so those follow-ups are additive.
 
 ## Non-Goals (MVP)
 
-- Generating the containerlab topology file (phase exists, no-op).
 - Generating run/teardown instructions (phase exists, no-op).
 - Gateway / SIG support.
 - Docker-compose / supervisor output (the Python tool's other backends).
@@ -346,14 +345,30 @@ and the crypto phase calls `Run` in process — no subprocess, no cobra plumbing
 Crypto is independent of phases 2–4 and only needs phase 1's file, so its
 ordering is flexible; it is placed after config to match the proposal.
 
-### Phase 6 — clab (no-op MVP)
+### Phase 6 — clab (`clab`)
 
-Will render a containerlab topology file from the generalized config +
-allocation: one node per service, links per the `interfaces`/link subnets,
-volume mounts for the per-AS config + crypto dirs. For MVP this phase is
-registered and logs that it is a no-op. The data model already carries
-everything it needs (per-link subnets, per-service addresses, interface
-bindings), so no upstream change is required to implement it.
+Renders a containerlab topology (`<name>.clab.yml`) and a per-host
+`network.yaml`, targeting the `testing/clab` node image and controller. One
+containerlab node = one host. The node binds its host directory to `/etc/scion`
+(where the controller globs the flat `disp_*`/`br*`/`cs*`/`sd.toml` configs it
+generates), plus the AS-level `crypto/` and the shared `trcs/`. The controller
+reads `network.yaml` to assign the inter-AS link addresses to the data-plane
+interfaces (`eth1`, `eth2`, …).
+
+Connectivity:
+
+- **Inter-AS links** are dedicated containerlab veth links between the two
+  hosts' data-plane interfaces, addressed from the per-link `/30` (or `/126`).
+- **Intra-AS connectivity** (between an AS's hosts when tags create more than
+  one) is provided by the containerlab **management network**: each host's
+  static management IP is its AS-internal address, so the hosts share an L2
+  segment without extra links or bridges. The management subnet (`/16` for v4)
+  excludes the link region, and the first subnet slot is reserved for the
+  management gateway, so allocations never collide. Longest-prefix routing keeps
+  inter-AS traffic on the dedicated links.
+
+The shim **dispatcher** (`disp_*.toml`) is generated on the control host so SVC
+(CS/DS) traffic forwarded by remote border routers is received.
 
 ### Phase 7 — instructions (no-op MVP)
 
@@ -374,16 +389,19 @@ gen/
     crypto/ certs/ keys/           # phase 5 (via testcrypto layout), shared by the AS's hosts
     host-1/                        # default host: named host-1 (untagged group)
       config.yml                   # phase 3 generalized config (this host)
+      network.yaml                 # phase 6 interface addressing (clab controller)
       br1-ff00_0_110-1.toml        # phase 4 service files for the elements on this host
       cs1-ff00_0_110-1.toml        #   the default host co-locates control + daemon
-      sd1-ff00_0_110.toml
+      disp_cs1-ff00_0_110-1.toml   #   + the shim dispatcher
+      sd.toml
       topology.json                # phase 4 shared runtime topology
     host-A/                        # only present if a link uses the -A suffix
       config.yml
+      network.yaml
       br1-ff00_0_110-2.toml
       topology.json
   ISD<n>/trcs/                      # phase 5 TRCs
-  clab.yml                         # phase 6 (follow-up)
+  <name>.clab.yml                  # phase 6 containerlab topology
   INSTRUCTIONS.md                  # phase 7 (follow-up)
 ```
 

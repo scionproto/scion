@@ -15,8 +15,8 @@ pkg_tar(
         "//scion/cmd/scion",
         "//testing/clab/controller",
     ],
-    package_dir = "/app",
     mode = "0755",
+    package_dir = "/app",
 )
 
 # Reuse the tester image as the base: it is a non-distroless Debian with a shell
@@ -26,13 +26,13 @@ pkg_tar(
 oci_image(
     name = "clab_node",
     base = "//docker:tester",
-    entrypoint = ["/app/controller"],
     # The controller derives the service set from the bind-mounted config; no
     # default cmd is needed. It runs as PID 1 and blocks until shutdown.
     cmd = None,
+    entrypoint = ["/app/controller"],
     tars = [":clab_node_bins"],
-    workdir = "/share",
     visibility = ["//visibility:public"],
+    workdir = "/share",
 )
 
 oci_load(

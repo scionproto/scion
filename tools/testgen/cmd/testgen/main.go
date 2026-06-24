@@ -42,6 +42,7 @@ func cmd() *cobra.Command {
 		networkV6  string
 		asValidity string
 		isdDir     bool
+		labName    string
 	}
 
 	c := &cobra.Command{
@@ -79,6 +80,7 @@ and instructions phases are not yet implemented.`,
 				NetworkV6:  networkV6,
 				ASValidity: validity,
 				ISDDir:     flags.isdDir,
+				LabName:    flags.labName,
 				Writer:     c.OutOrStdout(),
 			})
 		},
@@ -94,6 +96,7 @@ and instructions phases are not yet implemented.`,
 		"Base IPv6 network for the default allocator")
 	c.Flags().StringVar(&flags.asValidity, "as-validity", "1y", "AS certificate validity")
 	c.Flags().BoolVar(&flags.isdDir, "isd-dir", false, "Group ASes in per-ISD directories")
+	c.Flags().StringVar(&flags.labName, "name", "scion", "containerlab lab name")
 	c.MarkFlagRequired("topo")
 
 	return c
