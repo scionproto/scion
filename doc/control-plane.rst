@@ -308,23 +308,27 @@ This section distinguished peering links and peering shortcuts:
 - Peering shortcut: A peering link that is used when constructing a full path.
 
 All ASes may have physical peering links. However, for segment combinations, peering
-shortcuts are only allowed (and announced) between ASes that are on up- segment or down-segments.
-This trivially allows peering shortcuts between non-core ASes and ASes.
+shortcuts are only allowed (and announced) between ASes that are on up- or down-segments.
 
-Whenever an AS is queried for up- or down-segments that terminate in that same AS,
-and if the AS has any peering links, it will return a single-AS segment that contains only
-the AS itself and its peering links.
+Any core AS with peering links will also create one "single-AS" segment that contains only the AS itself
+and its peering links.
+When an AS is queried for up- or down-segments that terminate in itself (in the AS that is queried),
+and if the AS has any peering links, it will return this "single-AS" segment along
+with the the normal segments that result from beaconing.
 
-
-This ensures that, if the core ASes have peering links, any client will have at least one up- and one
-down-segment (even if source and destination AS are core ASes).
-The peering metadata from these single-AS up/down-segments, or any other up- or down-segments
-if they are available, can be used to create peering shortcuts.
+In cases where a path would normally begin or end with a core-segment, a client would not be able
+to construct peering shortcuts because core-segment don't contain peering information.
+However, with these additional single-AS segments, a client will always have up- and down-segments
+with peering information, so a client can always construct peering shortcuts if peering links are available.
 
 FAQ: Why do core segments not contain peering metadata?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Peering links enable two ASes to route traffic between each other and their respective downstream ASes while restricting global transit. Embedding this peering data within a core segment, which inherently facilitates transit, would directly contradict the non-transit nature of peering.
+Peering links enable two ASes to route traffic between each other and their
+respective downstream ASes while restricting global transit.
+Embedding this peering data within a core segment, which inherently facilitates
+transit, would directly contradict the non-transit nature of peering.
+
 
 Links
 =====
