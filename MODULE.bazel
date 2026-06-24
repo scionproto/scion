@@ -23,16 +23,23 @@ use_repo(linter, "apple_linters")
 bazel_dep(name = "rules_go", version = "0.60.0")
 single_version_override(
     module_name = "rules_go",
-    patches = ["//patches:rules_go/import.patch"],
+    patches = [
+        "//patches:rules_go/import.patch",
+        # Temporary: lets cgo build under Go 1.27 RCs (see patch header).
+        "//patches:rules_go/cgo_ldflags_response_file.patch",
+    ],
 )
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.download(version = "1.26.0")
+go_sdk.download(version = "1.27rc1")
 use_repo(go_sdk, "go_toolchains")
 
 register_toolchains("@go_toolchains//:all")
 
-go_sdk.nogo(nogo = "@//:nogo")
+# Disabled for Go 1.27 RCs: nogo's x/tools importer cannot read 1.27's export
+# data format ("export data version ... greater than maximum supported"). No
+# released or HEAD x/tools fixes this yet. Re-enable once x/tools supports 1.27.
+# go_sdk.nogo(nogo = "@//:nogo")
 
 # Gazelle
 bazel_dep(name = "gazelle", version = "0.47.0")
