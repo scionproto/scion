@@ -28,6 +28,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/asn1"
@@ -211,6 +212,10 @@ func getPublicKeyAlgorithm(algorithm x509.PublicKeyAlgorithm, key any) string {
 		params = strconv.Itoa(pk.Size() * 8)
 	case ed25519.PublicKey:
 		params = strconv.Itoa(len(pk) * 8)
+	case *mldsa.PublicKey:
+		// The parameter set (ML-DSA-44/65/87) is already encoded in the
+		// algorithm constant, so return it directly without a redundant suffix.
+		return pk.Parameters().String()
 	default:
 		params = "unknown"
 	}

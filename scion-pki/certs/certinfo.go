@@ -34,6 +34,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -255,6 +256,24 @@ func printSubjectInformation(subj *pkix.Name, pkAlgo x509.PublicKeyAlgorithm, pk
 			buf.WriteString("\n")
 		} else {
 			return errors.New("certinfo: Expected ed25519.PublicKey for type x509.ED25519")
+		}
+	case x509.MLDSA:
+		if mldsaKey, ok := pk.(*mldsa.PublicKey); ok {
+			keyBytes := mldsaKey.Bytes()
+			fmt.Fprintf(buf, "%s\n", mldsaKey.Parameters().String())
+			fmt.Fprintf(buf, "%16sPublic-Key: (%d bytes)", "", len(keyBytes))
+			for i, b := range keyBytes {
+				if (i % 15) == 0 {
+					fmt.Fprintf(buf, "\n%20s", "")
+				}
+				fmt.Fprintf(buf, "%02x", b)
+				if i != len(keyBytes)-1 {
+					buf.WriteString(":")
+				}
+			}
+			buf.WriteString("\n")
+		} else {
+			return errors.New("certinfo: Expected mldsa.PublicKey for ML-DSA algorithm")
 		}
 	default:
 		return errors.New("certinfo: Unknown public key type")

@@ -139,9 +139,11 @@ func SubjectKeyID(pub crypto.PublicKey) ([]byte, error) {
 	case *mldsa.PublicKey:
 		// Unlike the ECDSA case (which hashes the raw EC point), ML-DSA has no
 		// equivalent raw-bytes encoding, so we hash the full PKIX
-		// SubjectPublicKeyInfo DER. This matches RFC 5280 §4.2.1.2 method (1)
-		// and is sufficient for Phase 1: the SKID only needs to be
-		// deterministic and non-empty.
+		// SubjectPublicKeyInfo DER. For Phase 1 this is sufficient: the SKID
+		// only needs to be deterministic and non-empty.
+		// Note: RFC 5280 §4.2.1.2 method (1) hashes only the subjectPublicKey
+		// BIT STRING contents, not the full SPKI wrapper; this implementation
+		// hashes the full DER-encoded SPKI instead.
 		raw, err := x509.MarshalPKIXPublicKey(k)
 		if err != nil {
 			return nil, serrors.Wrap("marshaling ML-DSA public key", err)

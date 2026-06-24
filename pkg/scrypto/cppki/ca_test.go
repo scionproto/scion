@@ -164,8 +164,8 @@ func TestSubjectKeyID(t *testing.T) {
 	assert.Equal(t, chain[0].SubjectKeyId, skid)
 }
 
-// mldsaSKID computes the SHA-1 of the DER-encoded SubjectPublicKeyInfo, matching
-// the RFC 5280 §4.2.1.2 method (1) used by SubjectKeyID for ML-DSA keys.
+// mldsaSKID computes the SHA-1 of the full DER-encoded SubjectPublicKeyInfo,
+// mirroring the computation performed by SubjectKeyID for ML-DSA keys.
 func mldsaSKID(t *testing.T, pub *mldsa.PublicKey) []byte {
 	t.Helper()
 	raw, err := x509.MarshalPKIXPublicKey(pub)
