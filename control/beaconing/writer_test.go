@@ -141,14 +141,12 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ any) (beacon.GroupedBeacons, error) {
+				func(_, _ any) ([]beacon.Beacon, []beacon.RegistrationPolicy, error) {
 					res := make([]beacon.Beacon, 0, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
 					}
-					return beacon.GroupedBeacons{
-						beacon.DefaultGroup: res,
-					}, nil
+					return res, nil, nil
 				})
 
 			var stored []*seg.Meta
@@ -254,14 +252,12 @@ func TestRegistrarRun(t *testing.T) {
 
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ any) (beacon.GroupedBeacons, error) {
-					res := make([]beacon.Beacon, len(test.beacons))
+				func(_, _ any) ([]beacon.Beacon, []beacon.RegistrationPolicy, error) {
+					res := make([]beacon.Beacon, 0, len(test.beacons))
 					for _, desc := range test.beacons {
 						res = append(res, testBeacon(g, desc))
 					}
-					return beacon.GroupedBeacons{
-						beacon.DefaultGroup: res,
-					}, nil
+					return res, nil, nil
 				})
 			type regMsg struct {
 				Meta seg.Meta
@@ -369,13 +365,10 @@ func TestRegistrarRun(t *testing.T) {
 		require.NoError(t, err)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(),
 			seg.TypeDown).DoAndReturn(
-			func(_, _ any) (<-chan beacon.Beacon, error) {
-				res := make(chan beacon.Beacon, 1)
+			func(_, _ any) ([]beacon.Beacon, []beacon.RegistrationPolicy, error) {
 				b := testBeacon(g, []uint16{graph.If_120_X_111_B})
 				b.InIfID = 10
-				res <- b
-				close(res)
-				return res, nil
+				return []beacon.Beacon{b}, nil, nil
 			})
 		r.Run(context.Background())
 	})
