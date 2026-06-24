@@ -68,8 +68,12 @@ case, the host could have multiple SCION addresses.
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			defer span.Finish()
 
+			daemonAddr, err := envFlags.Daemon()
+			if err != nil {
+				return serrors.Wrap("determining SCION Daemon address", err)
+			}
 			sd, err := daemon.NewAutoConnector(traceCtx,
-				daemon.WithDaemon(envFlags.Daemon()),
+				daemon.WithDaemon(daemonAddr),
 				daemon.WithConfigDir(envFlags.ConfigDir()),
 			)
 			if err != nil {
