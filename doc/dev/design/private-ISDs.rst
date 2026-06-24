@@ -3,7 +3,7 @@ Multi-ISD ASes and Private ISDs
 *******************************
 
 - Author(s): Tilmann Zäschke (+ ideas from others)
-- Last updated: 2026-06-08
+- Last updated: 2026-06-24
 - Discussion at: :issue:`4934`
 - Status: **WIP**
 
@@ -47,7 +47,8 @@ Terminology
 - (P-)ISD - Private or public ISD
 - BR - Border router
 - CS - Control service, the service that performs beaconing and has a path database
-- PS - Path service, the that delivers path segment to endhosts. May be identical to CS.
+- E-API - The Endhost API service, that delivers path segment to endhosts.
+  This may be identical to CS.
 - Private AS - A Private AS is part of an P-ISD but not visible from
   outside their P-ISD. Private-ASes cannot have a parent AS outside the P-ISD.
   Every P-ISD must have at least one non-private (public) AS in order to
@@ -251,8 +252,8 @@ For increased security, or failure tolerance, or to handle becaoning load
 from large networks (public ISDs), it may still be desirable to
 handle different (P-)ISDs in separate CSes.
 
-Path Service
-------------
+Endhost API
+-----------
 
 When an endhost requests path segments, they should have single service in their
 AS that needs to be queried, regardless of the (P-)ISDs in which the path segments originate.
@@ -264,34 +265,34 @@ This can be done in two ways:
   endhosts, but is internally forwarding requests to different processes/machines
   with separate beacon stores.
 
-It is an implementation decision whether an endhost API is backed by a single CS that
+It is an implementation decision whether an endhost API (E-API) is backed by a single CS that
 managed all local (P-)ISDs, or whether it connects to multiple CS, one (or more) for each (P-)ISD.
 Both implementations are viable and the difference is not relevant for the following discussion.
-The endhost-facing API is called Path Service (PS), without specifying how it works internally.
 
-When a PS receives a segment request from an endhost, as default, the PS should
-return segments for through all available (P-)ISDs.
+When an E-API receives a segment request from an endhost, as default, it should
+return segments for all available (P-)ISDs.
 
 The endhost is responsible for constructing path that are either completely inside
 a single P-ISD or only in public ISDs. Segments from a given P-ISD must not be stitched
 with segments from other P-ISDs or from public ISDs.
 
-The PS can decide which segments are made available to a given endhost.
+The E-API can decide which segments are made available to a given endhost.
 
-This works best with the "new endhost API".
+This works best with the "new endhost API", see
+`issue 4884 <https://github.com/scionproto/scion/pull/4884>`_.
 
 The "new endhost API" allows segment requests to be answered in multiple responses.
-To indicate an AS's preference for a given path, the PS may decide to have the
+To indicate an AS's preference for a given path, the E-API may decide to have the
 first response contain only preferred segments (through preferred ISDs) and
 offer other segments only in follow-up responses.
 
 An endhost may indicate their preference for a given (P-)ISD in the segment request,
-but the PS is allowed to ignore this preference and offer segments from other (P-)ISDs.
+but the E-API is allowed to ignore this preference and offer segments from other (P-)ISDs.
 
 This gives the AS additional power in routing preference.
 This also simplifies endhost implementations such that they don't really need to
 know about participation in multiple ISDs, the just construct path from the first
-PS response. More complex implementations can of course take full advantage of
+E-API response. More complex implementations can of course take full advantage of
 multi-ISD participation.
 
 See also `Nested P-ISDs and Hierarchies`_.
@@ -299,7 +300,7 @@ See also `Nested P-ISDs and Hierarchies`_.
 Endhost: Sending Traffic
 ------------------------
 When requesting segments, an endhost may specify specific P-ISDs for which it
-requires segments. If no P-ISD is given, the path server should return
+requires segments. If no P-ISD is given, the E-API service should return
 any segments it deems fitting.
 
 When constructing a path, an endhost must take care to use segments
@@ -421,9 +422,9 @@ Advantages
 
 - P-ISDs can even be hidden from individual endhosts in ASes that participate
   in the P-ISD.
-  Either the path server can choose not to give P-ISD segments to the endhost,
-  or the path server itself could be hidden from some endhosts such
-  that the endhost would contact a different path server that serves only
+  Either the E-API service can choose not to give P-ISD segments to the endhost,
+  or the E-API service itself could be hidden from some endhosts such
+  that the endhost would contact a different E-API service that serves only
   non-P-ISD segments.
 - Similar to hiding P-ISDs from specific endhosts in ASes of the P-ISD,
   we can also hide the P-ISDs from child ASes of P-ISD-ASes.
@@ -528,38 +529,56 @@ Maybe it is still a better choice than "Private ISD"?
 Implementation
 ==============
 
-1. Control service & Path Service
+1. Control Service & Endhost API Service
 
-   - CS & PS: Multi-ISD support. There are two options, at least one needs to be implemented:
+   - CS & E-API: Multi-ISD support. There are several options, at least one needs to be implemented:
 
      - Option 1: Control services must be able to handle PCBs and paths from
        multiple (P-)ISDs.
-     - Option 2: If CS can handle only a single local (P-)ISD, the Path Service
+
+     - Option 2a: If CS can handle only a single local (P-)ISD, the E-API
        (new endhost API) needs to be adapted to relay segment requests to all
        relevant CS. Endhosts should need to contact only this single endhost API to
        retrieve all available paths for all local (P-)ISDs.
 
-   - PS: Multi-ISD support: The PS implementation need to support end to end segment
+       This option requires a change to service address handling in border routers, see below.
+       However, it provides cleaner separation of the local ISDs, potentially increasing resilience.
+
+     - Option 2b: A variation of Option 2a is to implement a separate service that implements
+       the new endhost API but is backed by separate E-APIs for each ISD. This way, E-API implementations
+       remain unchanged, instead we have a separate service that implements the same user-facing API.
+
+     - Option 3 (currently discouraged):
+       CS and E-API are not modified, instead endhost libraries must be adapted to
+       transparently discover and query multiple E-APIs. However, this means:
+
+       - Adapting the discovery mechanism to handle multiple E-APIs (and distinguish them
+         from normal redundant backup E-API instances). This needs further consideration.
+       - Increased network calls and processing for querying multiple E-APIs and
+         building paths from each query.
+       - Adapting *all* relevant endhost API libraries (instead of adapting only the CS or E-API).
+
+   - E-API: Multi-ISD support: The E-API implementation need to support end to end segment
      requests, i.e. are request (src ISD)-(dst ISD) must return all required up, core and
      down segments. This is consistent with the new endhost API design.
 
-   - (optional) The PS segment requests should have an additional (P-)ISD
+   - (optional) The E-API segment requests should have an additional (P-)ISD
      preference argument with three options:
 
-     - "Not set" (or "default"). The PS should return segments from
-       whatever (P-)ISD it thinks is best (configurable by the PS admin)
+     - "Not set" (or "default"). The E-API should return segments from
+       whatever (P-)ISD it thinks is best (configurable by the E-API admin)
      - "All" (or "*"). This should return segments from all (P-)ISDs that
-       the PS is willing to share.
-     - A list of (P-)ISDs. The PS should return segments only for (P-)ISDs
-       in the list. In case of result paging, the PS should try to provide
+       the E-API is willing to share.
+     - A list of (P-)ISDs. The E-API should return segments only for (P-)ISDs
+       in the list. In case of result paging, the E-API should try to provide
        in the first page one valid path for each ISD in the list.
 
-     In any case, the PS is free to ignore the preferred (P-)ISD and deliver
-     segments only for some (P-)ISDs (configuration option on the PS).
+     In any case, the E-API is free to ignore the preferred (P-)ISD and deliver
+     segments only for some (P-)ISDs (configuration option on the E-API).
      The client must be prepared to use ISDs that are not on the requested
      preference list.
 
-3. Border routers
+2. Border routers
 
    - Forwarding keys:
 
@@ -577,9 +596,9 @@ Implementation
      solved by the new service address API.
      See `#4388 <https://github.com/scionproto/scion/issues/4388>`_.
 
-4. Endhost libraries
+3. Endhost libraries
 
-   - Libraries and daemons need to be adapted to use the new PS API for
+   - Libraries and daemons need to be adapted to use the new endhost API for
      requesting segments.
    - Libraries need to ensure that they properly handle multiple local (P-)ISDs.
 
@@ -589,7 +608,7 @@ Implementation
 
    - Path policies may need to be extended to allow specifying (P-)ISD preference.
 
-5. Specification
+4. Specification
 
    - The SCION specification must be adapted to designate the ISD 32'768-65'535 as
      P-ISDs.
@@ -601,7 +620,7 @@ Implementation
        could leave the 0-65'535 range untouched and assign the range
        65'536-4'294'967'296 to P-ISDs.
 
-6. Other
+5. Other
 
    - The local topology runner in the scionproto reference implementation needs
      to be adapted to allow running topologies with multi-ISD ASes and with
