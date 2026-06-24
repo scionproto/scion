@@ -241,7 +241,8 @@ func newTestPacket(t *testing.T, payload []byte) *router.Packet {
 	pktv := reflect.ValueOf(&pkt).Elem()
 	bufferField := pktv.FieldByName("buffer")
 	bufferPtr := reflect.New(bufferField.Type().Elem())
-	reflect.NewAt(bufferField.Type(), unsafe.Pointer(bufferField.UnsafeAddr())).Elem().Set(bufferPtr)
+	reflect.NewAt(bufferField.Type(), unsafe.Pointer(bufferField.UnsafeAddr())).
+		Elem().Set(bufferPtr)
 
 	buffer := bufferPtr.Elem().Slice(0, bufferPtr.Elem().Len()).Interface().([]byte)
 	headroom := headers.LenEth + headers.LenIPv6 + headers.LenUDP + net.IPv6len + 2

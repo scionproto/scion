@@ -67,16 +67,16 @@ func (c *caseChoice) Allowed() string {
 
 var (
 	allCases = map[string]Case{
-		"in":            cases.In,
-		"out":           cases.Out,
-		"in_transit":    cases.InTransit,
-		"out_transit":   cases.OutTransit,
-		"br_transit":    cases.BrTransit,
-		"in6":           cases.In6,
-		"out6":          cases.Out6,
-		"in_transit6":   cases.InTransit6,
-		"out_transit6":  cases.OutTransit6,
-		"br_transit6":   cases.BrTransit6,
+		"in":           cases.In,
+		"out":          cases.Out,
+		"in_transit":   cases.InTransit,
+		"out_transit":  cases.OutTransit,
+		"br_transit":   cases.BrTransit,
+		"in6":          cases.In6,
+		"out6":         cases.Out6,
+		"in_transit6":  cases.InTransit6,
+		"out_transit6": cases.OutTransit6,
+		"br_transit6":  cases.BrTransit6,
 	}
 	logConsole          string
 	dir                 string

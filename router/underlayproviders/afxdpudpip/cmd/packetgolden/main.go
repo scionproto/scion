@@ -201,7 +201,8 @@ func normalizeCapturedFrame(captured []byte, tc goldenCase) ([]byte, error) {
 	}
 
 	if len(captured) < wantLen {
-		return nil, fmt.Errorf("captured frame too short: got %d want >= %d", len(captured), wantLen)
+		return nil, fmt.Errorf("captured frame too short: got %d want >= %d",
+			len(captured), wantLen)
 	}
 	frame := append([]byte(nil), captured[:wantLen]...)
 

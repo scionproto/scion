@@ -1,6 +1,10 @@
 # afxdpudpip — AF_XDP UDP/IP Underlay
 
-AF_XDP-based UDP/IP underlay implementation for the SCION router. Carries SCION traffic over raw AF_XDP sockets with Ethernet/IP/UDP encapsulation, binding queues in `XDP_ZEROCOPY` mode whenever the driver supports it and falling back to copy mode otherwise. On zerocopy queues, IPv6 UDP checksum offload is also enabled automatically when the kernel and driver advertise AF_XDP `tx-checksum`.
+AF_XDP-based UDP/IP underlay implementation for the SCION router. Carries SCION traffic over
+raw AF_XDP sockets with Ethernet/IP/UDP encapsulation, binding queues in `XDP_ZEROCOPY` mode
+whenever the driver supports it and falling back to copy mode otherwise. On zerocopy queues,
+IPv6 UDP checksum offload is also enabled automatically when the kernel and driver advertise
+AF_XDP `tx-checksum`.
 
 ## Scope & Limitations
 
@@ -178,19 +182,31 @@ flowchart LR
 
 ## Checksum Offload
 
-- IPv4 TX never uses AF_XDP checksum offload here. The IPv4 header checksum is always recomputed in software, and the IPv4 UDP checksum is left as zero.
-- IPv6 TX uses checksum offload automatically when the selected TX connection reports `csumOffload=true`. In that case userspace writes only the IPv6 UDP pseudo-header seed (the NIC sums the UDP header + payload but has no visibility into the pseudo-header fields, so the CPU must precompute that part) and submits AF_XDP TX metadata so the NIC finishes the checksum.
+- IPv4 TX never uses AF_XDP checksum offload here. The IPv4 header checksum is always
+  recomputed in software, and the IPv4 UDP checksum is left as zero.
+- IPv6 TX uses checksum offload automatically when the selected TX connection reports
+  `csumOffload=true`. In that case userspace writes only the IPv6 UDP pseudo-header seed (the
+  NIC sums the UDP header + payload but has no visibility into the pseudo-header fields, so the
+  CPU must precompute that part) and submits AF_XDP TX metadata so the NIC finishes the
+  checksum.
 - `csumOffload=true` requires all of the following:
   1. The running kernel accepted UMEM TX metadata registration (`XDP_UMEM_TX_METADATA_LEN`).
   2. The bound AF_XDP queue is operating in zerocopy mode.
   3. The netdevice advertises AF_XDP `xsk-features: tx-checksum` via the `netdev` generic-netlink family.
-- If any of those checks fail, IPv6 falls back to a full software UDP checksum. This avoids emitting only the pseudo-header seed on queues that would not complete the checksum.
-- The checksum decision is per selected TX connection, not per link. A multi-queue link can mix queues with different capabilities without corrupting packets.
-- TX metadata headroom may still be reserved in UMEM even when checksum offload is disabled. That keeps descriptor addressing consistent; it does not imply checksum offload is active.
+- If any of those checks fail, IPv6 falls back to a full software UDP checksum. This avoids
+  emitting only the pseudo-header seed on queues that would not complete the checksum.
+- The checksum decision is per selected TX connection, not per link. A multi-queue link can
+  mix queues with different capabilities without corrupting packets.
+- TX metadata headroom may still be reserved in UMEM even when checksum offload is disabled.
+  That keeps descriptor addressing consistent; it does not imply checksum offload is active.
 
 ## Metrics
 
-Packets dropped by the XDP program never reach userspace, so the router's normal RX counters cannot account for them. To preserve observability, the XDP program maintains kernel-side counters and the AF_XDP socket exposes its own drop/error statistics. Both are surfaced as Prometheus metrics: on each scrape, userspace reads the eBPF map and calls `getsockopt(XDP_STATISTICS)` once per socket. Nothing is read on the forwarding path.
+Packets dropped by the XDP program never reach userspace, so the router's normal RX counters
+cannot account for them. To preserve observability, the XDP program maintains kernel-side
+counters and the AF_XDP socket exposes its own drop/error statistics. Both are surfaced as
+Prometheus metrics: on each scrape, userspace reads the eBPF map and calls
+`getsockopt(XDP_STATISTICS)` once per socket. Nothing is read on the forwarding path.
 
 - `router_xdp_drops_total{nic, reason}` — XDP_DROP counts from the
   `drop_counters` PERCPU_ARRAY in
@@ -210,7 +226,15 @@ The C `DROP_REASON_*` indices and Go `ebpf.DropReasonNames` must match;
 
 ## Test Validation
 
-- `testdata/*.bin` contains golden Ethernet/IP/UDP frames captured from the Linux network stack on a veth pair, with kernel-variable fields normalized before committing them, i.e. rewritten to the fixed canonical values this implementation intentionally emits so the files stay deterministic across runs.
-- The ordinary package tests compare both `finishPacket` output and the lower-level `internal/headers` + `internal/checksum` builders against those golden frames byte-for-byte.
-- IPv6 checksum-offload seeding is covered separately: the golden files validate the finalized software-checksum packets, while a dedicated unit test checks that the AF_XDP offload path writes the expected pseudo-header seed.
-- Golden files are regenerated explicitly with `go run ./router/underlayproviders/afxdpudpip/cmd/packetgolden`; this is a maintainer workflow, not a CI requirement.
+- `testdata/*.bin` contains golden Ethernet/IP/UDP frames captured from the Linux network
+  stack on a veth pair, with kernel-variable fields normalized before committing them, i.e.
+  rewritten to the fixed canonical values this implementation intentionally emits so the files
+  stay deterministic across runs.
+- The ordinary package tests compare both `finishPacket` output and the lower-level
+  `internal/headers` + `internal/checksum` builders against those golden frames byte-for-byte.
+- IPv6 checksum-offload seeding is covered separately: the golden files validate the finalized
+  software-checksum packets, while a dedicated unit test checks that the AF_XDP offload path
+  writes the expected pseudo-header seed.
+- Golden files are regenerated explicitly with
+  `go run ./router/underlayproviders/afxdpudpip/cmd/packetgolden`; this is a maintainer
+  workflow, not a CI requirement.

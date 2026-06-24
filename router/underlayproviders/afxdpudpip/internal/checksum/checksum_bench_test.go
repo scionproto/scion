@@ -35,7 +35,7 @@ var payloadSizes = []struct {
 
 func BenchmarkIPv4Header(b *testing.B) {
 	hdr := make([]byte, 20)
-	rand.Read(hdr)
+	_, _ = rand.Read(hdr)
 	naive := func(header []byte) uint16 {
 		var sum uint32
 		for i := 0; i+1 < len(header); i += 2 {
@@ -102,14 +102,14 @@ func BenchmarkUDP6(b *testing.B) {
 	for _, ps := range payloadSizes {
 		b.Run(ps.name, func(b *testing.B) {
 			var srcIP, dstIP [16]byte
-			rand.Read(srcIP[:])
-			rand.Read(dstIP[:])
+			_, _ = rand.Read(srcIP[:])
+			_, _ = rand.Read(dstIP[:])
 			udpHdr := make([]byte, 8)
 			binary.BigEndian.PutUint16(udpHdr[0:2], 50000)
 			binary.BigEndian.PutUint16(udpHdr[2:4], 50001)
 			binary.BigEndian.PutUint16(udpHdr[4:6], uint16(8+ps.size))
 			payload := make([]byte, ps.size)
-			rand.Read(payload)
+			_, _ = rand.Read(payload)
 
 			total := int64(40 + 8 + ps.size)
 			b.Run("naive", func(b *testing.B) {
@@ -136,8 +136,8 @@ func BenchmarkUDP6(b *testing.B) {
 
 func BenchmarkUDP6Pseudo(b *testing.B) {
 	var srcIP, dstIP [16]byte
-	rand.Read(srcIP[:])
-	rand.Read(dstIP[:])
+	_, _ = rand.Read(srcIP[:])
+	_, _ = rand.Read(dstIP[:])
 	const udpLen = 1208
 	naive := func(srcIP, dstIP [16]byte, udpLen int) uint16 {
 		var sum uint32

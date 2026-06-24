@@ -79,7 +79,8 @@ func lookupGenlFamily(conn *netlink.Conn, name string) (uint16, uint8, error) {
 		return 0, 0, fmt.Errorf("encoding control-family request: %w", err)
 	}
 
-	msgs, err := conn.Execute(genlRequest(unix.GENL_ID_CTRL, genlControlVersion, unix.CTRL_CMD_GETFAMILY, attrs))
+	msgs, err := conn.Execute(
+		genlRequest(unix.GENL_ID_CTRL, genlControlVersion, unix.CTRL_CMD_GETFAMILY, attrs))
 	if err != nil {
 		return 0, 0, fmt.Errorf("looking up generic-netlink family %q: %w", name, err)
 	}
