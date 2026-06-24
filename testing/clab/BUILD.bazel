@@ -1,0 +1,50 @@
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+
+# All SCION binaries the controller supervises, plus the controller itself
+# (the image entrypoint / PID 1) and the scion CLI for in-node debugging.
+# They are packaged into /app, which is where the controller looks for them by
+# default (--bin-dir, SCION_BIN_DIR).
+pkg_tar(
+    name = "clab_node_bins",
+    srcs = [
+        "//control/cmd/control",
+        "//daemon/cmd/daemon",
+        "//dispatcher/cmd/dispatcher",
+        "//router/cmd/router",
+        "//scion/cmd/scion",
+        "//testing/clab/controller",
+    ],
+    package_dir = "/app",
+    mode = "0755",
+)
+
+# Reuse the tester image as the base: it is a non-distroless Debian with a shell
+# and network tooling (iproute2, iptables, tcpdump/tshark, ping, ...) already
+# installed, which is exactly what we want for `docker exec` debugging inside
+# containerlab nodes.
+oci_image(
+    name = "clab_node",
+    base = "//docker:tester",
+    entrypoint = ["/app/controller"],
+    # The controller derives the service set from the bind-mounted config; no
+    # default cmd is needed. It runs as PID 1 and blocks until shutdown.
+    cmd = None,
+    tars = [":clab_node_bins"],
+    workdir = "/share",
+    visibility = ["//visibility:public"],
+)
+
+oci_load(
+    name = "clab_node.load",
+    format = "docker",
+    image = ":clab_node",
+    repo_tags = ["scion/clab-node:latest"],
+)
+
+filegroup(
+    name = "clab_node.tarball",
+    srcs = [":clab_node.load"],
+    output_group = "tarball",
+    visibility = ["//visibility:public"],
+)

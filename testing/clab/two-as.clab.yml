@@ -1,0 +1,41 @@
+# Minimal 2-AS SCION lab: one core AS (1-ff00:0:110) and one child AS
+# (1-ff00:0:111), joined by a single inter-AS link.
+#
+#   as110 (core)  eth1 ──────── eth1  as111 (child)
+#   10.1.1.1/30                  10.1.1.2/30
+#
+# Each node is one ISD-AS running the clab-node image; the controller (PID 1)
+# discovers the bind-mounted /etc/scion config and starts the AS's services
+# (dispatcher, border router, control, daemon) inside the node's single netns.
+#
+# Build/load the image first:   bazel run //testing/clab:clab_node.load
+# Bring the lab up:             sudo clab deploy -t testing/clab/two-as.clab.yml
+# Look inside a node:           sudo docker exec -it clab-scion2-as110 bash
+# Tear it down:                 sudo clab destroy -t testing/clab/two-as.clab.yml
+
+name: scion2
+
+topology:
+  defaults:
+    kind: linux
+    image: scion/clab-node:latest
+
+  nodes:
+    as110:
+      binds:
+        - gen/ASff00_0_110:/etc/scion:rw
+      # The inter-AS link veth (eth1) comes up WITHOUT an address; clab does not
+      # configure data-plane link IPs. Assign the SCION underlay address here so
+      # the border router can bind it. Internal services use 127.0.0.1 and need
+      # no setup (see README "Shared network namespace").
+      exec:
+        - ip addr add 10.1.1.1/30 dev eth1
+
+    as111:
+      binds:
+        - gen/ASff00_0_111:/etc/scion:rw
+      exec:
+        - ip addr add 10.1.1.2/30 dev eth1
+
+  links:
+    - endpoints: ["as110:eth1", "as111:eth1"]
