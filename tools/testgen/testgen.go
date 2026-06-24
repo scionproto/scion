@@ -25,7 +25,10 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/scionproto/scion/pkg/prism"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -117,6 +120,9 @@ func Run(cfg Config) error {
 	if err := generateConfigs(network, dir); err != nil {
 		return err
 	}
+	if err := writeIntegrationMetadata(network, dir); err != nil {
+		return err
+	}
 
 	// Phase 5: crypto.
 	fmt.Fprintln(w, "crypto: generating TRCs and certificates")
@@ -153,6 +159,42 @@ func Run(cfg Config) error {
 
 	fmt.Fprintf(w, "done: output written to %s\n", dir.Base())
 	return nil
+}
+
+// writeIntegrationMetadata writes the gen-root files the integration framework
+// (tools/integration) consumes: as_list.yml (core/non-core grouping) and
+// sciond_addresses.json (ISD-AS -> daemon IP; the framework appends the daemon
+// API port). The daemon of each AS is reachable from the host over the
+// containerlab management network.
+func writeIntegrationMetadata(network *hydrate.Network, dir out.Dir) error {
+	type asList struct {
+		Core    []string `yaml:"Core"`
+		NonCore []string `yaml:"Non-core"`
+	}
+	var list asList
+	sciond := map[string]string{}
+	for _, as := range network.ASes {
+		ia := as.IA.String()
+		if as.Attrs.Core {
+			list.Core = append(list.Core, ia)
+		} else {
+			list.NonCore = append(list.NonCore, ia)
+		}
+		sciond[ia] = as.Daemon.Addr.Addr().String()
+	}
+
+	listRaw, err := yaml.Marshal(list)
+	if err != nil {
+		return serrors.Wrap("marshaling as_list.yml", err)
+	}
+	if err := out.WriteFile(filepath.Join(dir.Base(), "as_list.yml"), listRaw); err != nil {
+		return err
+	}
+	sciondRaw, err := json.MarshalIndent(sciond, "", "  ")
+	if err != nil {
+		return serrors.Wrap("marshaling sciond_addresses.json", err)
+	}
+	return out.WriteFile(filepath.Join(dir.Base(), "sciond_addresses.json"), sciondRaw)
 }
 
 // generateMasterKeys writes the per-AS master secrets (master0.key,
@@ -194,6 +236,11 @@ func generateConfigs(network *hydrate.Network, dir out.Dir) error {
 		if err != nil {
 			return serrors.Wrap("marshaling topology.json", err, "as", as.IA)
 		}
+		// A per-AS copy at the AS directory root is what the integration
+		// framework's CSAddr lookup reads (gen/AS<...>/topology.json).
+		if err := out.WriteFile(filepath.Join(dir.AS(as.IA), "topology.json"), topoRaw); err != nil {
+			return err
+		}
 		for _, host := range as.Hosts {
 			hostDir := dir.Host(as.IA, host.Name)
 			cfg := config.HostConfig(as, host)
@@ -215,6 +262,14 @@ func generateConfigs(network *hydrate.Network, dir out.Dir) error {
 			for _, f := range files {
 				if err := out.WriteFile(filepath.Join(hostDir, f.Name), f.Content); err != nil {
 					return err
+				}
+				// tools/await-connectivity reads the control service config at
+				// the AS-directory root (gen/AS<...>/cs*.toml) to find the CS
+				// API address; mirror it there.
+				if strings.HasPrefix(f.Name, "cs") {
+					if err := out.WriteFile(filepath.Join(dir.AS(as.IA), f.Name), f.Content); err != nil {
+						return err
+					}
 				}
 			}
 		}

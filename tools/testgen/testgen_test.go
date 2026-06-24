@@ -24,9 +24,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	controlconfig "github.com/scionproto/scion/control/config"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/keyconf"
 	"github.com/scionproto/scion/private/topology"
 	routerconfig "github.com/scionproto/scion/router/config"
+	"github.com/scionproto/scion/tools/integration"
 	"github.com/scionproto/scion/tools/testgen"
 )
 
@@ -56,6 +58,9 @@ func TestPipelineEndToEnd(t *testing.T) {
 	for _, p := range []string{
 		"network-allocations.yml",
 		"scion.clab.yml",
+		"as_list.yml",
+		"sciond_addresses.json",
+		"ASff00_0_110/topology.json",
 		"trcs/ISD1-B1-S1.trc",
 		"ASff00_0_110/host-1/config.yml",
 		"ASff00_0_110/host-1/topology.json",
@@ -75,6 +80,16 @@ func TestPipelineEndToEnd(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, mk.Key0, 16)
 	assert.Len(t, mk.Key1, 16)
+
+	// The integration framework's gen-files load and resolve.
+	al, err := integration.LoadASList(filepath.Join(gen, "as_list.yml"))
+	require.NoError(t, err)
+	assert.Len(t, al.Core, 1)
+	assert.Len(t, al.NonCore, 2)
+	sd, err := integration.GetSCIONDAddress(
+		filepath.Join(gen, "sciond_addresses.json"), addr.MustParseIA("1-ff00:0:110"))
+	require.NoError(t, err)
+	assert.Equal(t, "[10.0.1.1]:30255", sd)
 	// The two untagged links collapse onto one host, so there is no host-2.
 	assert.NoDirExists(t, filepath.Join(gen, "ASff00_0_110/host-2"))
 

@@ -1,0 +1,36 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "integration.go",
+        "main.go",
+    ],
+    importpath = "github.com/scionproto/scion/testing/clab/e2e_scion",
+    visibility = ["//visibility:private"],
+    deps = ["@in_gopkg_yaml_v3//:go_default_library"],
+)
+
+scion_go_binary(
+    name = "integration",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["integration_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "e2e_scion",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
