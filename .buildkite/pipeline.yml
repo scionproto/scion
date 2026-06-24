@@ -190,5 +190,5 @@ steps:
       plugins: *scion-run-hooks
       artifact_paths: *scion-run-artifact-paths
       timeout_in_minutes: 15
-      key: docker_integration_e2e_default
+      key: clab_integration_e2e_default
       retry: *automatic-retry
