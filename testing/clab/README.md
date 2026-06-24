@@ -10,6 +10,35 @@ setup; no config API yet) and the `//testing/clab:clab_node` image. Still open:
 the configuration API and the address/port plan generator (see
 [Open items](#open-items)).
 
+## Quick start
+
+Spin up the example two-AS lab ([`two-as.clab.yml`](two-as.clab.yml)) and look
+inside. Run from the repository root; `clab` needs root for netns/veth work.
+
+```bash
+# 1. Build the node image and load it into Docker (tag: scion/clab-node:latest)
+bazel run //testing/clab:clab_node.load
+
+# 2. Deploy the lab (two nodes: as110 core, as111 child, one inter-AS link)
+sudo clab deploy -t testing/clab/two-as.clab.yml
+
+# 3. Inspect a node: live service + interface status (see "Inspecting a node")
+sudo docker exec clab-scion2-as110 /app/controller services list
+sudo docker exec clab-scion2-as110 /app/controller network list
+
+# 4. Open a shell in a node for ad-hoc debugging (ip, tshark, scion CLI, ...)
+sudo docker exec -it clab-scion2-as110 bash
+
+# 5. Tear it down
+sudo clab destroy -t testing/clab/two-as.clab.yml
+```
+
+The controller assigns the inter-AS link address itself from the bind-mounted
+`network.yaml` (see [Network setup](#network-setup)), so no manual `ip addr add`
+is needed. Note the bind-mounted `gen/` service configs still use the old
+docker-bridge addressing, so the SCION services do not yet pass traffic
+end-to-end — that is the open [address/port plan generator](#open-items).
+
 ## Target picture
 
 One **containerlab node = one ISD-AS**, packaged as a single Docker/OCI image
