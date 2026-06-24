@@ -1,0 +1,44 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "client.go",
+        "discover.go",
+        "main.go",
+        "run.go",
+        "scion.go",
+        "server.go",
+    ],
+    importpath = "github.com/scionproto/scion/testing/clab/e2e_http",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/daemon:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/snet:go_default_library",
+        "//pkg/snet/addrutil:go_default_library",
+        "//private/app/path:go_default_library",
+        "@com_github_quic_go_quic_go//:go_default_library",
+        "@com_github_quic_go_quic_go//http3:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+        "@in_gopkg_yaml_v3//:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "e2e_http",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["discover_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

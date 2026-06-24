@@ -2,9 +2,10 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 # All SCION binaries the controller supervises, plus the controller itself
-# (the image entrypoint / PID 1) and the scion CLI for in-node debugging.
-# They are packaged into /app, which is where the controller looks for them by
-# default (--bin-dir, SCION_BIN_DIR).
+# (the image entrypoint / PID 1), the scion CLI for in-node debugging, and the
+# e2e_http server/client used by the HTTP/3 end-to-end test. They are packaged
+# into /app, which is where the controller looks for them by default
+# (--bin-dir, SCION_BIN_DIR).
 pkg_tar(
     name = "clab_node_bins",
     srcs = [
@@ -14,6 +15,7 @@ pkg_tar(
         "//router/cmd/router",
         "//scion/cmd/scion",
         "//testing/clab/controller",
+        "//testing/clab/e2e_http",
     ],
     mode = "0755",
     package_dir = "/app",
