@@ -16,9 +16,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"sort"
 	"strings"
+	"text/tabwriter"
 )
 
 // service is a single SCION process the controller supervises.
@@ -76,4 +78,17 @@ func discover(configDir, binDir string) ([]service, error) {
 		}
 	}
 	return services, nil
+}
+
+// printServices writes the discovered services as an aligned table: the service
+// id, the binary that runs it, and the arguments (the config file). The output
+// is the static view derived from the config directory, the same set the
+// supervisor would launch.
+func printServices(w io.Writer, services []service) error {
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "SERVICE\tBINARY\tARGS")
+	for _, s := range services {
+		fmt.Fprintf(tw, "%s\t%s\t%s\n", s.name, s.binary, strings.Join(s.args, " "))
+	}
+	return tw.Flush()
 }

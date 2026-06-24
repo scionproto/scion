@@ -5,9 +5,10 @@ future prompts) describing the SCION [containerlab](https://containerlab.dev/)
 node image we are building. Everything described here lives under
 `testing/clab/`.
 
-Implemented so far: the Go controller (PID 1 init + supervisor; no config API
-yet) and the `//testing/clab:clab_node` image. Still open: the configuration
-API and the address/port plan generator (see [Open items](#open-items)).
+Implemented so far: the Go controller (PID 1 init + supervisor + interface
+setup; no config API yet) and the `//testing/clab:clab_node` image. Still open:
+the configuration API and the address/port plan generator (see
+[Open items](#open-items)).
 
 ## Target picture
 
@@ -72,6 +73,81 @@ Implementation note: do **not** use `cmd.Wait()` per child alongside a central
 `Wait4(-1)` reaper — they race and `cmd.Wait()` errors with
 `waitid: no child process`. Spawn with `Start()`, record pids, and do all
 reaping centrally in the `SIGCHLD` handler.
+
+### Network setup
+
+containerlab wires the inter-AS links as veth pairs but leaves the data-plane
+interfaces (`eth1`, `eth2`, …) **up without an address** — only the management
+interface (`eth0`) gets one automatically. The SCION router does not configure
+interfaces; it only binds a UDP socket to its underlay `local` address, which
+must already exist on a link. So before starting any service the controller
+assigns the node's interface addresses itself.
+
+The addressing is supplied as a small file (`--network-config` /
+`SCION_NETWORK_CONFIG`), accepted in **YAML or JSON** (decoded with
+`gopkg.in/yaml.v3`, which parses both). The shape is netplan-like:
+
+```yaml
+config:
+  interfaces:
+    ethernets:
+      - name: eth1
+        addresses: ["10.1.1.1/30"]   # inter-AS underlay (SCION link)
+      - name: eth2
+        addresses: ["192.168.1.11/24"]
+```
+
+For each entry the controller adds the addresses and brings the link up; it is
+idempotent (an address already present is left in place, so the controller can
+restart against a live node). This requires **`CAP_NET_ADMIN`** in the node's
+netns, which containerlab grants by default (nodes run privileged). Setup is
+skipped entirely when no config is given, so a node whose links are addressed
+out-of-band still works.
+
+containerlab attaches the inter-AS link veths and moves them into the node's
+netns **after** the container (and thus the controller, PID 1) has started, so a
+configured interface is normally missing for the first moment of boot. The
+controller therefore *waits* for each interface to appear (polling, up to a
+timeout) before configuring it. The whole step is best-effort and never fails
+the node: an interface that never shows up is logged and skipped, as are
+per-address errors — a hard failure in PID 1 would take the node down.
+
+Only inter-AS links need an address this way. Services *inside* the AS share the
+node's single netns and bind `127.0.0.1:<port>`, which needs no setup (see
+[Shared network namespace](#shared-network-namespace)).
+
+### Inspecting a node
+
+The controller binary doubles as an inspection CLI that reports **live status**,
+handy over `docker exec`. The two subcommands draw on different sources of
+truth, because the CLI is a separate process from the running controller:
+
+- `services list` reads the **status file** the controller publishes (see
+  below): running/stopped, PID, restart count, uptime, and the last exit. A
+  non-empty `LAST EXIT` on a running service, or a climbing `RESTARTS`, is how
+  you spot a crash-looping service. If the status file is absent (controller not
+  running) it falls back to the static configured set.
+- `network list` queries the **kernel** (netlink) in the node's netns, so it
+  shows whether each configured address is actually assigned and the link is up
+  — i.e. whether the controller's [network setup](#network-setup) succeeded.
+
+```console
+$ docker exec clab-scion2-as110 /app/controller services list
+SERVICE               STATUS   PID  RESTARTS  UPTIME  LAST EXIT
+disp_cs1-ff00_0_110-1 running  31   0         2m14s   -
+br1-ff00_0_110-1      running  34   0         2m14s   -
+cs1-ff00_0_110-1      running  58   3         12s     exit code 1
+sd                    running  37   0         2m14s   -
+
+$ docker exec clab-scion2-as110 /app/controller network list
+INTERFACE  LINK  ADDRESS      STATUS
+eth1       up    10.1.1.1/30  present
+```
+
+The controller writes the status file (default `/var/run/scion/status.json`,
+override with `--status-file` / `SCION_STATUS_FILE`) on every service state
+change. Writing is best-effort: if its directory can't be created the node still
+runs, only `services list` loses live status and falls back.
 
 ### Configuration API
 
@@ -173,12 +249,19 @@ topology:
     as110:
       kind: linux
       image: scion/clab-node:latest
+      env:
+        SCION_NETWORK_CONFIG: /etc/scion/network.yaml
       binds:
         - bin:/app:ro                       # optional: host-built binaries
         - gen/ASff00_0_110:/etc/scion:rw    # seed config (controller owns it)
   links:
     - endpoints: ["as110:eth1", "as120:eth1"]   # inter-AS link
 ```
+
+The controller reads `network.yaml` (or `.json`) from the seed config and
+assigns the link addresses at startup, so no out-of-band `ip addr add` /
+containerlab `exec:` is needed. A runnable two-AS example lives in
+[`two-as.clab.yml`](two-as.clab.yml).
 
 ## Open items
 
@@ -188,5 +271,6 @@ topology:
    adaptation of the existing `topogen` output).
 3. Per-service supervision policy (restart/backoff defaults, fail-stop vs
    keep-others-running when one service dies).
-4. Capabilities required per node (raw UDP for the data plane; `cap_net_admin`
-   if gateway/tunnel services are added later).
+4. Capabilities required per node: `NET_ADMIN` is needed for the controller's
+   interface setup (above); raw UDP for the data plane, plus more if
+   gateway/tunnel services are added later.

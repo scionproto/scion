@@ -16,6 +16,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -48,6 +49,9 @@ type managed struct {
 	proc      *os.Process
 	restarts  int
 	startedAt time.Time
+	// lastExit describes the most recent exit, or is empty if the service has
+	// not exited yet. Surfaced through the status file for `list services`.
+	lastExit string
 }
 
 // supervisor runs as PID 1: it starts the discovered services, reaps every
@@ -64,6 +68,9 @@ type supervisor struct {
 	// logDir, if non-empty, is where per-service "<name>.log" files are
 	// written (in addition to the merged, prefixed stream on out).
 	logDir string
+	// statusPath, if non-empty, is the file the supervisor rewrites on every
+	// service state change so `list services` can report live status.
+	statusPath string
 
 	// out receives the merged, per-line-prefixed output of all services.
 	// outMu serializes writes so lines from different services never tear.
@@ -84,6 +91,7 @@ func newSupervisor(
 	log *slog.Logger,
 	shutdownTimeout time.Duration,
 	logDir string,
+	statusPath string,
 ) *supervisor {
 	managedSvcs := make([]*managed, len(services))
 	for i, svc := range services {
@@ -93,6 +101,7 @@ func newSupervisor(
 		log:             log,
 		shutdownTimeout: shutdownTimeout,
 		logDir:          logDir,
+		statusPath:      statusPath,
 		out:             os.Stdout,
 		services:        managedSvcs,
 		byPID:           make(map[int]*managed),
@@ -159,6 +168,7 @@ func (s *supervisor) start(m *managed) {
 	m.startedAt = time.Now()
 	s.byPID[cmd.Process.Pid] = m
 	s.log.Info("started service", "service", m.svc.name, "pid", cmd.Process.Pid)
+	s.persistStatusLocked()
 }
 
 // pump forwards one service's output from r until EOF. Every line is written
@@ -224,14 +234,18 @@ func (s *supervisor) reap() {
 			continue
 		}
 		delete(s.byPID, pid)
+		m.proc = nil
 		if ws.Signaled() {
+			m.lastExit = fmt.Sprintf("signal %s", ws.Signal())
 			s.log.Info("service exited", "service", m.svc.name, "pid", pid, "signal", ws.Signal())
 		} else {
+			m.lastExit = fmt.Sprintf("exit code %d", ws.ExitStatus())
 			s.log.Info("service exited", "service", m.svc.name, "pid", pid, "exit_code", ws.ExitStatus())
 		}
 
 		switch {
 		case s.shuttingDown:
+			s.persistStatusLocked()
 			if len(s.byPID) == 0 {
 				s.log.Info("all services stopped; exiting")
 				s.mu.Unlock()
@@ -258,6 +272,7 @@ func (s *supervisor) scheduleRestart(m *managed) {
 	m.proc = nil
 	s.log.Info("scheduling restart",
 		"service", m.svc.name, "delay", delay, "attempt", m.restarts)
+	s.persistStatusLocked()
 
 	time.AfterFunc(delay, func() {
 		s.mu.Lock()
@@ -267,6 +282,33 @@ func (s *supervisor) scheduleRestart(m *managed) {
 		}
 		s.start(m)
 	})
+}
+
+// persistStatusLocked rewrites the status file from the current managed state.
+// The caller must hold s.mu. It is best-effort: a write error is logged and the
+// supervisor carries on (status reporting must never take the node down).
+func (s *supervisor) persistStatusLocked() {
+	if s.statusPath == "" {
+		return
+	}
+	statuses := make([]serviceStatus, len(s.services))
+	for i, m := range s.services {
+		st := serviceStatus{
+			Name:     m.svc.name,
+			Binary:   m.svc.binary,
+			Restarts: m.restarts,
+			LastExit: m.lastExit,
+		}
+		if m.proc != nil {
+			st.Running = true
+			st.PID = m.proc.Pid
+			st.StartedAt = m.startedAt
+		}
+		statuses[i] = st
+	}
+	if err := writeStatusFile(s.statusPath, statuses); err != nil {
+		s.log.Warn("failed to write status file", "path", s.statusPath, "err", err)
+	}
 }
 
 // forward relays sig to every running managed service.

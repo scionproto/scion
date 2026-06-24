@@ -99,6 +99,30 @@ func TestDiscover(t *testing.T) {
 	}
 }
 
+// TestPrintServices checks the rendered table lists each service with its
+// binary and arguments.
+func TestPrintServices(t *testing.T) {
+	services := []service{
+		{name: "br1-ff00_0_110-1", binary: "/app/router", args: []string{"--config", "/etc/scion/br1-ff00_0_110-1.toml"}},
+		{name: "sd", binary: "/app/daemon", args: []string{"--config", "/etc/scion/sd.toml"}},
+	}
+
+	var buf bytes.Buffer
+	if err := printServices(&buf, services); err != nil {
+		t.Fatalf("printServices: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"SERVICE", "BINARY", "ARGS",
+		"br1-ff00_0_110-1", "/app/router", "--config /etc/scion/br1-ff00_0_110-1.toml",
+		"sd", "/app/daemon", "--config /etc/scion/sd.toml",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("printServices output missing %q; got:\n%s", want, out)
+		}
+	}
+}
+
 // TestSupervise is the automated form of the manual smoke test: it runs the
 // real controller against fake binaries and asserts it starts every service
 // (including the dispatcher), restarts a crashing one with backoff, and shuts
@@ -124,6 +148,7 @@ func TestSupervise(t *testing.T) {
 	}
 
 	logDir := t.TempDir()
+	statusFile := filepath.Join(t.TempDir(), "status.json")
 
 	// One pipe for the controller's stdout+stderr; its children inherit the
 	// same fds, so all output lands here without racing on the buffer.
@@ -135,6 +160,7 @@ func TestSupervise(t *testing.T) {
 		"--config-dir", cfgDir,
 		"--bin-dir", binDir,
 		"--log-dir", logDir,
+		"--status-file", statusFile,
 		"--shutdown-timeout", "2s",
 	)
 	cmd.Env = append(os.Environ(), "CLAB_TEST_ROLE=controller")
@@ -219,5 +245,24 @@ func TestSupervise(t *testing.T) {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("log file for %q missing %q; got:\n%s", name, want, data)
 		}
+	}
+
+	// The controller published live status to the status file, listing every
+	// service, and recorded the crash-looper's restarts and last exit.
+	statuses, err := readStatusFile(statusFile)
+	if err != nil {
+		t.Fatalf("reading status file: %v", err)
+	}
+	byName := make(map[string]serviceStatus, len(statuses))
+	for _, s := range statuses {
+		byName[s.Name] = s
+	}
+	for _, name := range []string{"disp_test", "br-test", "cs-test", "sd"} {
+		if _, ok := byName[name]; !ok {
+			t.Errorf("status file missing service %q; got %+v", name, statuses)
+		}
+	}
+	if cs := byName["cs-test"]; cs.Restarts == 0 || cs.LastExit == "" {
+		t.Errorf("crash-looping control should show restarts and a last exit; got %+v", cs)
 	}
 }

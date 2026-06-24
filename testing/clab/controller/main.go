@@ -41,6 +41,8 @@ func main() {
 		configDir       string
 		binDir          string
 		logDir          string
+		networkConfig   string
+		statusFile      string
 		shutdownTimeout time.Duration
 	}
 
@@ -63,20 +65,87 @@ configuration directory at start time; there is no configuration API yet.`,
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(flags.configDir, flags.binDir, flags.logDir, flags.shutdownTimeout)
+			return run(flags.configDir, flags.binDir, flags.logDir,
+				flags.networkConfig, flags.statusFile, flags.shutdownTimeout)
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.configDir, "config-dir", envOr("SCION_CONFIG_DIR", "/etc/scion"),
+	// Inputs the list subcommands share with the controller are persistent so
+	// they are inherited by every subcommand; run-only knobs stay local.
+	cmd.PersistentFlags().StringVar(&flags.configDir, "config-dir",
+		envOr("SCION_CONFIG_DIR", "/etc/scion"),
 		"directory holding the bind-mounted SCION service configuration")
-	cmd.Flags().StringVar(&flags.binDir, "bin-dir", envOr("SCION_BIN_DIR", "/app"),
+	cmd.PersistentFlags().StringVar(&flags.binDir, "bin-dir", envOr("SCION_BIN_DIR", "/app"),
 		"directory holding the SCION service binaries")
+	cmd.PersistentFlags().StringVar(&flags.networkConfig, "network-config",
+		envOr("SCION_NETWORK_CONFIG", ""),
+		"path to the interface address config (YAML or JSON); empty disables network setup")
+	cmd.PersistentFlags().StringVar(&flags.statusFile, "status-file",
+		envOr("SCION_STATUS_FILE", "/var/run/scion/status.json"),
+		"file the controller writes live service status to (read by `list services`)")
 	cmd.Flags().StringVar(&flags.logDir, "log-dir", envOr("SCION_LOG_DIR", "/var/log/scion"),
 		"directory for per-service log files; empty disables them (output still goes to stdout)")
 	cmd.Flags().DurationVar(&flags.shutdownTimeout, "shutdown-timeout", 10*time.Second,
 		"grace period for services to stop on shutdown before SIGKILL")
 
-	cmd.AddCommand(command.NewVersion(cmd))
+	servicesCmd := &cobra.Command{
+		Use:   "services",
+		Short: "Inspect the node's SCION services",
+		Args:  cobra.NoArgs,
+	}
+	servicesCmd.AddCommand(&cobra.Command{
+		Use:   "list",
+		Short: "List the SCION services and their live status",
+		Long: `List the SCION services and their live status (running, PID, restarts,
+last exit), as published by the running controller to the status file.
+
+If the status file is absent — the controller is not running — this falls back
+to the static set of services discovered from the configuration directory.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			out := cmd.OutOrStdout()
+			statuses, err := readStatusFile(flags.statusFile)
+			if err == nil {
+				return printServiceStatus(out, statuses, time.Now())
+			}
+			if !os.IsNotExist(err) {
+				return err
+			}
+			// No status file: the controller is not running. Show the
+			// configured services so the command is still useful.
+			fmt.Fprintln(cmd.ErrOrStderr(),
+				"controller not running; showing configured services (no live status)")
+			services, err := discover(flags.configDir, flags.binDir)
+			if err != nil {
+				return err
+			}
+			return printServices(out, services)
+		},
+	})
+
+	networkCmd := &cobra.Command{
+		Use:   "network",
+		Short: "Inspect the node's network configuration",
+		Args:  cobra.NoArgs,
+	}
+	networkCmd.AddCommand(&cobra.Command{
+		Use:   "list",
+		Short: "List the interface configuration and its live status",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if flags.networkConfig == "" {
+				return fmt.Errorf(
+					"no network config set; pass --network-config or set SCION_NETWORK_CONFIG")
+			}
+			cfg, err := loadNetworkConfig(flags.networkConfig)
+			if err != nil {
+				return err
+			}
+			return printNetworkStatus(cmd.OutOrStdout(), networkStatus(cfg))
+		},
+	})
+
+	cmd.AddCommand(servicesCmd, networkCmd, command.NewVersion(cmd))
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
@@ -84,14 +153,29 @@ configuration directory at start time; there is no configuration API yet.`,
 	}
 }
 
-// run discovers the services and hands control to the supervisor, which blocks
-// until shutdown. It returns an error only for misconfiguration; a clean
-// shutdown exits the process directly from the supervisor.
-func run(configDir, binDir, logDir string, shutdownTimeout time.Duration) error {
+// run optionally configures the node's interfaces, discovers the services, and
+// hands control to the supervisor, which blocks until shutdown. It returns an
+// error only for misconfiguration; a clean shutdown exits the process directly
+// from the supervisor.
+func run(configDir, binDir, logDir, networkConfig, statusFile string,
+	shutdownTimeout time.Duration) error {
 	// Tag the controller's own diagnostics so they are distinguishable from
 	// the "[<service>]"-prefixed service output the supervisor forwards.
 	out := &linePrefixWriter{w: os.Stderr, prefix: []byte("[controller] ")}
 	log := slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	// Set up interfaces before starting services: the router binds its underlay
+	// address at startup, so the address must already be on the link. This waits
+	// for clab to attach the link veths and is best-effort (see
+	// applyNetworkConfig), so it never blocks the node from coming up.
+	if networkConfig != "" {
+		netCfg, err := loadNetworkConfig(networkConfig)
+		if err != nil {
+			return err
+		}
+		applyNetworkConfig(netCfg, log)
+		log.Info("applied network configuration", "config", networkConfig)
+	}
 
 	services, err := discover(configDir, binDir)
 	if err != nil {
@@ -114,7 +198,17 @@ func run(configDir, binDir, logDir string, shutdownTimeout time.Duration) error 
 		}
 	}
 
-	newSupervisor(services, log, shutdownTimeout, logDir).run()
+	// The status file is likewise best-effort: if its directory can't be created
+	// the node still runs, only `list services` loses live status.
+	if statusFile != "" {
+		if err := os.MkdirAll(filepath.Dir(statusFile), 0o755); err != nil {
+			log.Warn("cannot create status directory; live status disabled",
+				"dir", filepath.Dir(statusFile), "err", err)
+			statusFile = ""
+		}
+	}
+
+	newSupervisor(services, log, shutdownTimeout, logDir, statusFile).run()
 	return nil
 }
 
