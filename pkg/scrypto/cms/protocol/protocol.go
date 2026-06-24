@@ -6,6 +6,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	_ "crypto/sha1" // for crypto.SHA1
 	"crypto/x509"
@@ -649,7 +650,15 @@ func (sd *SignedData) AddSignerInfo(chain []*x509.Certificate, signer crypto.Sig
 	}
 	digestAlgorithmID := digestAlgorithmForPublicKey(signer.Public())
 
-	signatureAlgorithmOID, ok := oid.X509PublicKeyAndDigestAlgorithmToSignatureAlgorithm[cert.PublicKeyAlgorithm][digestAlgorithmID.Algorithm.String()] // nolint:lll
+	_, isMLDSA := signer.Public().(*mldsa.PublicKey)
+
+	var signatureAlgorithmOID asn1.ObjectIdentifier
+	var ok bool
+	if isMLDSA {
+		signatureAlgorithmOID, ok = mldsaSignatureOID(signer.Public())
+	} else {
+		signatureAlgorithmOID, ok = oid.X509PublicKeyAndDigestAlgorithmToSignatureAlgorithm[cert.PublicKeyAlgorithm][digestAlgorithmID.Algorithm.String()] // nolint:lll
+	}
 	if !ok {
 		return errors.New("unsupported certificate public key algorithm")
 	}
@@ -704,17 +713,25 @@ func (sd *SignedData) AddSignerInfo(chain []*x509.Certificate, signer crypto.Sig
 		return err
 	}
 
-	// Signature is over the marshaled signed attributes
+	// Signature is over the marshaled signed attributes.
+	// ML-DSA is pure (not hash-then-sign): sign the raw bytes directly with
+	// crypto.Hash(0).  All other algorithms pre-hash with the digest algorithm.
 	sm, err := si.SignedAttrs.MarshaledForSigning()
 	if err != nil {
 		return err
 	}
-	smd := hash.New()
-	if _, errr := smd.Write(sm); errr != nil {
-		return errr
-	}
-	if si.Signature, err = signer.Sign(rand.Reader, smd.Sum(nil), hash); err != nil {
-		return err
+	if isMLDSA {
+		if si.Signature, err = signer.Sign(rand.Reader, sm, crypto.Hash(0)); err != nil {
+			return err
+		}
+	} else {
+		smd := hash.New()
+		if _, errr := smd.Write(sm); errr != nil {
+			return errr
+		}
+		if si.Signature, err = signer.Sign(rand.Reader, smd.Sum(nil), hash); err != nil {
+			return err
+		}
 	}
 	sd.AddDigestAlgorithm(si.DigestAlgorithm)
 	sd.SignerInfos = append(sd.SignerInfos, si)
@@ -732,6 +749,27 @@ func sortAttributes(attrs ...Attribute) ([]Attribute, error) {
 	})
 
 	return attrs, nil
+}
+
+// mldsaSignatureOID returns the CMS signature-algorithm OID for an ML-DSA public
+// key based on its parameter set. This parameter-set dispatch mirrors the one in
+// pkg/scrypto/signed.SelectSignatureAlgorithm; the two should be consolidated in
+// the Phase 2 crypto-agility refactor.
+// Returns (nil, false) for non-ML-DSA keys or unrecognised parameter sets.
+func mldsaSignatureOID(pub crypto.PublicKey) (asn1.ObjectIdentifier, bool) {
+	p, ok := pub.(*mldsa.PublicKey)
+	if !ok {
+		return nil, false
+	}
+	switch p.Parameters() {
+	case mldsa.MLDSA44():
+		return oid.SignatureAlgorithmMLDSA44, true
+	case mldsa.MLDSA65():
+		return oid.SignatureAlgorithmMLDSA65, true
+	case mldsa.MLDSA87():
+		return oid.SignatureAlgorithmMLDSA87, true
+	}
+	return nil, false
 }
 
 // algorithmsForPublicKey takes an opinionated stance on what algorithms to use

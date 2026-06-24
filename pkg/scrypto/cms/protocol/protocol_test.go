@@ -3,12 +3,17 @@ package protocol
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/mldsa"
+	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
 	"io"
+	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/pkcs12"
 
@@ -678,6 +683,141 @@ var fixturePFX = mustBase64Decode("" +
 	"BgkqhkiG9w0BCRUxFgQU7q/jH1Mc5Ctiwkdl0Hx9xKSYy90wMTAhMAkGBSsOAwIa" +
 	"BQAEFDPX7JM9l8ZnTwGGaDQQvlp7RiBKBAg2WsoFwawSzwICCAA=",
 )
+
+// TestSignerInfoMLDSA exercises the CMS SignedData path for all three ML-DSA
+// parameter sets (MLDSA44, MLDSA65, MLDSA87). For each it verifies that:
+//   - X509SignatureAlgorithm() resolves to the expected x509.MLDSA* algorithm
+//   - cert.CheckSignature verifies the signature over the raw signed attributes
+//
+// It is modelled on TestSignerInfo but builds in-memory signers + certs
+// rather than decoding a PFX fixture, because no ML-DSA PFX fixture exists.
+func TestSignerInfoMLDSA(t *testing.T) {
+	cases := []struct {
+		name          string
+		params        mldsa.Parameters
+		expectedAlgo  x509.SignatureAlgorithm
+	}{
+		{
+			name:         "MLDSA44",
+			params:       mldsa.MLDSA44(),
+			expectedAlgo: x509.MLDSA44,
+		},
+		{
+			name:         "MLDSA65",
+			params:       mldsa.MLDSA65(),
+			expectedAlgo: x509.MLDSA65,
+		},
+		{
+			name:         "MLDSA87",
+			params:       mldsa.MLDSA87(),
+			expectedAlgo: x509.MLDSA87,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Generate ML-DSA key pair for this parameter set.
+			priv, err := mldsa.GenerateKey(tc.params)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pub := priv.Public().(*mldsa.PublicKey)
+
+			// Build a minimal self-signed certificate.
+			serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+			if err != nil {
+				t.Fatal(err)
+			}
+			now := time.Now().UTC()
+			tmpl := &x509.Certificate{
+				SerialNumber: serial,
+				Subject: pkix.Name{
+					CommonName:   "ML-DSA CMS Test",
+					Organization: []string{"SCION Test"},
+				},
+				NotBefore:             now.Add(-time.Hour),
+				NotAfter:              now.Add(24 * time.Hour),
+				KeyUsage:              x509.KeyUsageDigitalSignature,
+				BasicConstraintsValid: true,
+			}
+			certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, pub, priv)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cert, err := x509.ParseCertificate(certDER)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Build CMS SignedData with the ML-DSA signer.
+			msg := []byte("hello, ML-DSA!")
+			eci, err := NewEncapsulatedContentInfo(oid.ContentTypeData, msg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sd, err := NewSignedData(eci)
+			if err != nil {
+				t.Fatal(err)
+			}
+			chain := []*x509.Certificate{cert}
+			if err = sd.AddSignerInfo(chain, priv); err != nil {
+				t.Fatal(err)
+			}
+
+			// Round-trip through DER.
+			der, err := sd.ContentInfoDER()
+			if err != nil {
+				t.Fatal(err)
+			}
+			ci, err := ParseContentInfo(der)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sd2, err := ci.SignedDataContent()
+			if err != nil {
+				t.Fatal(err)
+			}
+			msg2, err := sd2.EncapContentInfo.DataEContent()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(msg, msg2) {
+				t.Fatal("round-trip content mismatch")
+			}
+
+			// Verify each SignerInfo.
+			certs2, err := sd2.X509Certificates()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(sd2.SignerInfos) != 1 {
+				t.Fatalf("expected 1 SignerInfo, got %d", len(sd2.SignerInfos))
+			}
+			si := sd2.SignerInfos[0]
+
+			// Check that the signature algorithm resolves correctly.
+			algo := si.X509SignatureAlgorithm()
+			if algo != tc.expectedAlgo {
+				t.Fatalf("expected %v signature algorithm, got %v", tc.expectedAlgo, algo)
+			}
+
+			// Find the signer's certificate.
+			signerCert, err := si.FindCertificate(certs2)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Verify the signature over the raw signed attributes (no pre-hash for ML-DSA).
+			signedAttrs, err := si.SignedAttrs.MarshaledForSigning()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = signerCert.CheckSignature(algo, signedAttrs, si.Signature); err != nil {
+				t.Fatalf("ML-DSA signature verification failed: %v", err)
+			}
+		})
+	}
+}
 
 func mustBase64Decode(b64 string) []byte {
 	decoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(b64))

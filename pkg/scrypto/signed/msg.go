@@ -17,6 +17,7 @@ package signed
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/mldsa"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -127,6 +128,10 @@ func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
 		if !ecdsa.VerifyASN1(pub, input, signed.Signature) {
 			return nil, errors.New("ECDSA verification failure")
 		}
+	case *mldsa.PublicKey:
+		if err := mldsa.Verify(pub, input, signed.Signature, nil); err != nil {
+			return nil, serrors.Wrap("ML-DSA verification failure", err)
+		}
 	default:
 		return nil, serrors.New("public key algorithm not implemented")
 	}
@@ -171,6 +176,12 @@ func checkPubKeyAlgo(signAlgo SignatureAlgorithm, pubKey crypto.PublicKey) error
 		if d.pubKeyAlgo != pkECDSA {
 			return serrors.New("signature algorithm is incompatible with key",
 				"signature_algorithm", signAlgo, "public_key_algorithm", "ECDSA")
+		}
+		return nil
+	case *mldsa.PublicKey:
+		if d.pubKeyAlgo != pkMLDSA {
+			return serrors.New("signature algorithm is incompatible with key",
+				"signature_algorithm", signAlgo, "public_key_algorithm", "ML-DSA")
 		}
 		return nil
 	default:

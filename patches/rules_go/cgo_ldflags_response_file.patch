@@ -1,0 +1,34 @@
+This patch makes rules_go's cgo builder avoid the "-ldflags @file" form on
+Go 1.27+, falling back to the CGO_LDFLAGS environment variable.
+
+Go 1.27 (golang/go #77177) added generic @response-file expansion to
+cmd/internal/objabi.Flagparse, which cmd/cgo calls before parsing its own
+flags. The "@file" that rules_go passes to cgo's -ldflags option is therefore
+expanded too early, scattering the linker flags (e.g. -B/usr/bin) into the
+argument vector as bare cgo flags and failing with:
+
+    flag provided but not defined: -B/usr/bin
+
+This is a temporary local patch for testing Go 1.27 release candidates. Remove
+it once rules_go supports Go 1.27 upstream.
+
+--- go/tools/builders/cgo2.go
++++ go/tools/builders/cgo2.go
+@@ -103,6 +103,17 @@
+ 	if err != nil {
+ 		return "", nil, nil, err
+ 	}
++	// Go 1.27 added generic @response-file expansion to objabi.Flagparse
++	// (golang/go #77177). cgo calls Flagparse, so the "@file" passed to its
++	// -ldflags option is expanded before flag parsing, scattering the linker
++	// flags (e.g. -B/usr/bin) into the argument vector as bare cgo flags and
++	// failing with "flag provided but not defined". Fall back to CGO_LDFLAGS on
++	// Go 1.27+ to avoid the collision.
++	geq27, err := onVersionOrHigher(27)
++	if err != nil {
++		return "", nil, nil, err
++	}
++	canUseLdflagsFile = canUseLdflagsFile && !geq27
+
+ 	var ldflagsFile *os.File
+ 	combinedLdFlagsStr := strings.Join(combinedLdFlags, " ")

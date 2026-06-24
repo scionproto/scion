@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"encoding/base64"
 	"errors"
@@ -35,14 +36,14 @@ import (
 
 // IsX509Signer returns true if the given signer is supported by Go's
 // crypto/x509 package to sign X509 certificates. This methods returns true
-// for ECDSA, RSA and Ed25519 keys.
+// for ECDSA, RSA, Ed25519, and ML-DSA keys.
 func IsX509Signer(signer crypto.Signer) bool {
 	if signer == nil {
 		return false
 	}
 	pub := signer.Public()
 	switch pub.(type) {
-	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
+	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey, *mldsa.PublicKey:
 		return true
 	default:
 		return false

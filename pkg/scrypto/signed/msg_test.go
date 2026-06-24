@@ -19,6 +19,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -464,6 +465,39 @@ func TestComputeSignatureInput(t *testing.T) {
 			t.Parallel()
 			in, _ := signed.ComputeSignatureInput(tc.Algo, tc.HeaderAndBody, tc.AssociatedData...)
 			assert.Equal(t, tc.Expected, in)
+		})
+	}
+}
+
+func TestSignVerifyMLDSARoundtrip(t *testing.T) {
+	paramSets := []struct {
+		name   string
+		params mldsa.Parameters
+	}{
+		{"MLDSA44", mldsa.MLDSA44()},
+		{"MLDSA65", mldsa.MLDSA65()},
+		{"MLDSA87", mldsa.MLDSA87()},
+	}
+	for _, ps := range paramSets {
+		t.Run(ps.name, func(t *testing.T) {
+			t.Parallel()
+			sk, err := mldsa.GenerateKey(ps.params)
+			require.NoError(t, err)
+			algo, err := signed.SelectSignatureAlgorithm(sk.Public())
+			require.NoError(t, err)
+			hdr := signed.Header{SignatureAlgorithm: algo}
+			msg, err := signed.Sign(hdr, []byte("hello-pq"), sk)
+			require.NoError(t, err)
+
+			// Verifies with the right key.
+			_, err = signed.Verify(msg, sk.Public())
+			require.NoError(t, err)
+
+			// Fails with a different key.
+			other, err := mldsa.GenerateKey(ps.params)
+			require.NoError(t, err)
+			_, err = signed.Verify(msg, other.Public())
+			require.ErrorContains(t, err, "ML-DSA verification failure")
 		})
 	}
 }

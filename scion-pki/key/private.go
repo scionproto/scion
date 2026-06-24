@@ -18,6 +18,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
@@ -75,7 +76,7 @@ The contents are the private key in PKCS #8 ASN.1 DER format.
 		},
 	}
 	cmd.Flags().StringVar(&flags.curve, "curve", "P-256",
-		"The elliptic curve to use (P-256|P-384|P-521)",
+		"The key type to use (P-256|P-384|P-521|ml-dsa-44|ml-dsa-65|ml-dsa-87)",
 	)
 	cmd.Flags().BoolVar(&flags.force, "force", false,
 		"Force overwritting existing private key",
@@ -92,6 +93,12 @@ func GeneratePrivateKey(curve string) (crypto.Signer, error) {
 		return ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	case "p-521", "p521":
 		return ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	case "ml-dsa-44":
+		return mldsa.GenerateKey(mldsa.MLDSA44())
+	case "ml-dsa-65":
+		return mldsa.GenerateKey(mldsa.MLDSA65())
+	case "ml-dsa-87":
+		return mldsa.GenerateKey(mldsa.MLDSA87())
 	default:
 		return nil, serrors.New("unsupported curve", "curve", curve)
 	}

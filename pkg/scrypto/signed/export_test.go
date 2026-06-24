@@ -16,6 +16,8 @@ package signed
 
 import (
 	"crypto"
+
+	pbcrypto "github.com/scionproto/scion/pkg/proto/crypto"
 )
 
 const (
@@ -38,3 +40,7 @@ func init() {
 }
 
 var ComputeSignatureInput = computeSignatureInput
+
+var SignatureAlgorithmFromPB = signatureAlgorithmFromPB
+
+func SignatureAlgorithmToPB(a SignatureAlgorithm) pbcrypto.SignatureAlgorithm { return a.toPB() }

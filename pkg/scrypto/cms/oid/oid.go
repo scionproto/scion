@@ -73,6 +73,9 @@ var (
 	SignatureAlgorithmECDSAWithSHA384 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3}
 	SignatureAlgorithmECDSAWithSHA512 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 4}
 	SignatureAlgorithmISOSHA1WithRSA  = asn1.ObjectIdentifier{1, 3, 14, 3, 2, 29}
+	SignatureAlgorithmMLDSA44         = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 17}
+	SignatureAlgorithmMLDSA65         = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 18}
+	SignatureAlgorithmMLDSA87         = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 19}
 )
 
 // X.509v3 exetension identifiers.
@@ -159,6 +162,9 @@ var SignatureAlgorithmToX509SignatureAlgorithm = map[string]x509.SignatureAlgori
 	SignatureAlgorithmECDSAWithSHA384.String(): x509.ECDSAWithSHA384,
 	SignatureAlgorithmECDSAWithSHA512.String(): x509.ECDSAWithSHA512,
 	SignatureAlgorithmDSAWithSHA1.String():     x509.DSAWithSHA1,
+	SignatureAlgorithmMLDSA44.String():         x509.MLDSA44,
+	SignatureAlgorithmMLDSA65.String():         x509.MLDSA65,
+	SignatureAlgorithmMLDSA87.String():         x509.MLDSA87,
 }
 
 // X509PublicKeyAndDigestAlgorithmToSignatureAlgorithm maps X509 public key and
