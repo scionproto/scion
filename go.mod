@@ -1,11 +1,11 @@
 module github.com/scionproto/scion
 
-go 1.26.0
+go 1.26.4
 
 require (
-	connectrpc.com/connect v1.18.1
+	connectrpc.com/connect v1.19.1
 	github.com/antlr4-go/antlr/v4 v4.13.1
-	github.com/bazelbuild/rules_go v0.60.0
+	github.com/bazelbuild/rules_go v0.61.1
 	github.com/buildkite/go-buildkite/v4 v4.14.1
 	github.com/cilium/ebpf v0.18.0
 	github.com/dchest/cmac v1.0.0
