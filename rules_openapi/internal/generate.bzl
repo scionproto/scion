@@ -1,6 +1,24 @@
 load("@bazel_skylib//lib:shell.bzl", "shell")
 
 def _openapi_generate_go(ctx):
+    # oapi-codegen shells out to `go` (via goimports) to format the generated
+    # code. Provide it hermetically from the rules_go toolchain instead of
+    # relying on a `go` binary on the ambient PATH.
+    go_sdk = ctx.toolchains["@rules_go//go:toolchain"].sdk
+    sdk_inputs = depset(
+        direct = [go_sdk.go, go_sdk.root_file, go_sdk.package_list],
+        transitive = [go_sdk.libs, go_sdk.srcs, go_sdk.tools, go_sdk.headers],
+    )
+
+    # Make `go` discoverable and give it a writable build cache inside the
+    # sandbox. GOROOT is auto-detected by the (relocatable) SDK binary from its
+    # own location, so it does not need to be set explicitly.
+    # The SDK path is relative to the exec root; resolve it to an absolute path
+    # because Go refuses to run a binary found via a relative PATH entry.
+    env_prefix = "export PATH=\"$(cd {go_bin_dir} && pwd):$PATH\" GOCACHE=\"$(mktemp -d)\"; ".format(
+        go_bin_dir = shell.quote(go_sdk.go.dirname),
+    )
+
     generate = {
         "types": ctx.outputs.out_types,
         "server": ctx.outputs.out_server,
@@ -14,7 +32,7 @@ def _openapi_generate_go(ctx):
         generate_kind = k
         if generate_kind == "server":
             generate_kind = "chi-server"
-        cmd = "{bin} -package {package} -generate {generate} -o {out}".format(
+        cmd = env_prefix + "{bin} -package {package} -generate {generate} -o {out}".format(
             bin = ctx.executable._oapi_codegen.path,
             package = shell.quote(ctx.attr.package),
             generate = generate_kind,
@@ -43,7 +61,10 @@ def _openapi_generate_go(ctx):
 
         ctx.actions.run_shell(
             outputs = [out_file],
-            inputs = [ctx.file.src] + extra_inputs + ctx.files.templates,
+            inputs = depset(
+                direct = [ctx.file.src] + extra_inputs + ctx.files.templates,
+                transitive = [sdk_inputs],
+            ),
             tools = [ctx.executable._oapi_codegen],
             command = cmd,
             mnemonic = "OpenAPIGoGen",
@@ -102,4 +123,5 @@ openapi_generate_go = rule(
             mandatory = False,
         ),
     },
+    toolchains = ["@rules_go//go:toolchain"],
 )
