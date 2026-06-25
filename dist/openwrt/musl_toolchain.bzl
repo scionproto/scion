@@ -46,7 +46,7 @@ load(
     "tool_path",
     "with_feature_set",
 )
-load("@rules_cc//cc:defs.bzl", "cc_toolchain")
+load("@rules_cc//cc:defs.bzl", "CcToolchainConfigInfo", "cc_toolchain")
 
 all_link_actions = [
     _CPP_LINK_EXECUTABLE_ACTION_NAME,
