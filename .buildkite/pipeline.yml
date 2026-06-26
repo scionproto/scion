@@ -9,6 +9,7 @@ steps:
         # TODO: remove
         - bash -c "$(curl -sL https://get.containerlab.dev)"
         - echo "--- build"
+        - go run ./tools/testgen/cmd/testgen -- -c topology/default-no-peers.topo
         - bazel run //testing/clab:clab_node.load
         - docker image ls
         - echo "--- show topology"
