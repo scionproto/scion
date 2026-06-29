@@ -28,7 +28,7 @@ from typing import Mapping
 import yaml
 
 # SCION
-from topology.defines import DOCKER_COMPOSE_CONFIG_VERSION, PROM_FILE
+from topology.defines import PROM_FILE
 from topology.util import write_file
 from topology.common import (
     ArgsTopoDicts,
@@ -167,7 +167,6 @@ class MonitoringGenerator(object):
     def _write_dc_file(self):
         # Merged yeager and prometheus files.
         monitoring_dc = {
-            'version': DOCKER_COMPOSE_CONFIG_VERSION,
             'name': 'monitoring',
             'services': {
                 'prometheus': {
