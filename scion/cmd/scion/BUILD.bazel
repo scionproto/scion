@@ -31,6 +31,7 @@ go_library(
         "//private/app/path:go_default_library",
         "//private/env:go_default_library",
         "//private/path/pathpol:go_default_library",
+        "//private/svc:go_default_library",
         "//private/topology:go_default_library",
         "//private/tracing:go_default_library",
         "//scion/ping:go_default_library",
