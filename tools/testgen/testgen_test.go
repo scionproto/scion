@@ -89,7 +89,7 @@ func TestPipelineEndToEnd(t *testing.T) {
 	sd, err := integration.GetSCIONDAddress(
 		filepath.Join(gen, "sciond_addresses.json"), addr.MustParseIA("1-ff00:0:110"))
 	require.NoError(t, err)
-	assert.Equal(t, "[10.0.1.1]:30255", sd)
+	assert.Equal(t, "[10.0.1.2]:30255", sd)
 	// The two untagged links collapse onto one host, so there is no host-2.
 	assert.NoDirExists(t, filepath.Join(gen, "ASff00_0_110/host-2"))
 

@@ -203,7 +203,10 @@ func assignBorderRouters(t *topo.Topo, ases map[addr.IA]*AS, alloc Allocator) er
 // "host-1".
 func layoutHosts(a *AS) {
 	iaFile := addr.FormatIA(a.IA, addr.WithFileSeparator())
-	hostAddr := func(n int) netip.Addr { return offset(a.Subnet.Addr(), uint64(n)) }
+	// Offset 0 is the subnet's network address and offset 1 is reserved for the
+	// containerlab/docker management-network gateway, so host addresses start at
+	// offset 2 (host n -> subnet + n + 1).
+	hostAddr := func(n int) netip.Addr { return offset(a.Subnet.Addr(), uint64(n)+1) }
 
 	// Stable-sort the default (empty label) border router to the front while
 	// preserving the encounter order of the tagged ones.

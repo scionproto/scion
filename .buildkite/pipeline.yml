@@ -27,7 +27,7 @@ steps:
             pre-command: .buildkite/cleanup-leftovers.sh
             post-command: |
               echo "~~~ Shutting down SCION topology"
-              ./scion.sh stop
+              clab destroy -t gen/scion.clab.yml
             pre-artifact: |
               if [ -f "gen/scion-dc.yml" ]; then
                   tools/dc collect_logs scion logs/
