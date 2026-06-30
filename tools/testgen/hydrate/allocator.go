@@ -55,8 +55,9 @@ type ClabConfig struct {
 	// first half and inter-AS link /30s from its second half. Must be at most a
 	// /16 prefix wide (e.g. 10.0.0.0/8).
 	NetworkV4 netip.Prefix
-	// NetworkV6 is the base IPv6 network. AS-internal /64s and link /126s are
-	// carved from it.
+	// NetworkV6 is the base IPv6 network. AS-internal /120s are carved from its
+	// base /64 (one /64 total, so all host management addresses share it) and
+	// inter-AS link /126s from a separate region (4th hextet 0x8000).
 	NetworkV6 netip.Prefix
 }
 
@@ -100,9 +101,14 @@ func (a *clabAllocator) AS(ia addr.IA, u topo.UnderlayType) (ASAlloc, error) {
 	// Index 0 (the first /24 and first /64) is reserved for the containerlab
 	// management-network gateway, so AS subnets start at slot i+1.
 	if u.IsIPv6() {
-		// fd00:f00d:cafe:<i+1>::/64 — the subnet id is the 4th hextet.
-		base := withHextet3(a.cfg.NetworkV6.Addr(), uint16(i+1))
-		return ASAlloc{Subnet: netip.PrefixFrom(base, 64)}, nil
+		// All AS-internal v6 subnets are carved from the base /64, mirroring the
+		// v4 layout (offset (i+1)*256, a /120 per AS). Every host management
+		// address therefore lands in a single /64. This matters because docker's
+		// IPv6 IPAM only tracks the base /64 of a network: with a /64 per AS the
+		// per-AS host offsets collapse onto the same low-64 slots and collide
+		// ("Address already in use" on deploy). Keeping one /64 avoids that.
+		base := offset(a.cfg.NetworkV6.Addr(), uint64(i+1)*256)
+		return ASAlloc{Subnet: netip.PrefixFrom(base, 120)}, nil
 	}
 	// First region of the v4 space, one /24 per AS: base + (i+1)*256.
 	base := offset(a.cfg.NetworkV4.Addr(), uint64(i+1)*256)

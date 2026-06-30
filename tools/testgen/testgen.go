@@ -147,7 +147,7 @@ func Run(cfg Config) error {
 	if err := clab.Generate(network, dir, clab.Options{
 		LabName: labName,
 		MgmtV4:  mgmtV4(cfg.NetworkV4),
-		MgmtV6:  cfg.NetworkV6,
+		MgmtV6:  mgmtV6(cfg.NetworkV6),
 	}, w); err != nil {
 		return err
 	}
@@ -226,6 +226,18 @@ func mgmtV4(base netip.Prefix) netip.Prefix {
 		return netip.Prefix{}
 	}
 	return netip.PrefixFrom(base.Addr(), 16).Masked()
+}
+
+// mgmtV6 returns the IPv6 management subnet for the clab nodes: the base /64 of
+// the allocator network, which holds every AS's host addresses. It is a /64
+// (not the wider base) because docker's IPv6 IPAM only tracks a network's base
+// /64; handing it a wider subnet makes per-host static addresses collide.
+// Returns the zero value if base is unset.
+func mgmtV6(base netip.Prefix) netip.Prefix {
+	if !base.IsValid() {
+		return netip.Prefix{}
+	}
+	return netip.PrefixFrom(base.Addr(), 64).Masked()
 }
 
 // generateConfigs writes, for each AS, the shared topology.json, and for each
