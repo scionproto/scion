@@ -78,8 +78,14 @@ The image is **built with Bazel**, reusing the existing OCI image tooling
 
 ## Layout under `testing/clab/`
 
-- `testing/clab/controller/` — the Go controller (PID 1) source + `BUILD.bazel`
-  (`//testing/clab/controller`).
+- `testing/clab/cmd/controller/` — the Go controller (PID 1) source +
+  `BUILD.bazel` (`//testing/clab/cmd/controller`).
+- `testing/clab/cmd/{e2e_scion,e2e_http,await_connectivity}/` — the end-to-end
+  test drivers (`//testing/clab/cmd/...`).
+- `testing/clab/cmd/testgen/` — the testgen CLI (`//testing/clab/cmd/testgen`).
+- `testing/clab/testgen/` — the testgen library packages.
+- `testing/clab/e2e/` — shared code for the end-to-end test drivers (lab
+  discovery, docker exec, progress bar, result matrix).
 - `testing/clab/BUILD.bazel` — the `oci_image`/`oci_load` targets for the node
   image (`//testing/clab:clab_node`).
 - `testing/clab/` — example `*.clab.yml` topologies and any seed config.
@@ -245,7 +251,7 @@ pkg_tar(
         "//dispatcher/cmd/dispatcher",
         "//router/cmd/router",
         "//scion/cmd/scion",
-        "//testing/clab/controller",
+        "//testing/clab/cmd/controller",
     ],
     package_dir = "/app",
     mode = "0755",
@@ -268,8 +274,8 @@ oci_load(
 ```
 
 `bazel run //testing/clab:clab_node.load` loads the image into Docker for use by
-containerlab. The controller binary lives at `testing/clab/controller` and builds
-as a normal `scion_go_binary` (`//testing/clab/controller`).
+containerlab. The controller binary lives at `testing/clab/cmd/controller` and
+builds as a normal `scion_go_binary` (`//testing/clab/cmd/controller`).
 
 ## containerlab usage
 
@@ -323,9 +329,9 @@ result matrix. The tests deliberately do not share code.
 
 ```bash
 # against a deployed lab (see Quick start), from the repo root:
-go run ./testing/clab/await_connectivity -gen gen
-go run ./testing/clab/e2e_scion -gen gen -lab scion -docker "sudo docker"
-go run ./testing/clab/e2e_http run -gen gen -lab scion -docker "sudo docker"
+go run ./testing/clab/cmd/await_connectivity -gen gen
+go run ./testing/clab/cmd/e2e_scion -gen gen -lab scion -docker "sudo docker"
+go run ./testing/clab/cmd/e2e_http run -gen gen -lab scion -docker "sudo docker"
 ```
 
 ## Open items

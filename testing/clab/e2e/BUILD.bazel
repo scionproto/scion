@@ -1,0 +1,32 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "discover.go",
+        "docker.go",
+        "endpoint.go",
+        "progress.go",
+        "report.go",
+    ],
+    importpath = "github.com/scionproto/scion/testing/clab/e2e",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_pelletier_go_toml_v2//:go_default_library",
+        "@in_gopkg_yaml_v3//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "discover_test.go",
+        "endpoint_test.go",
+    ],
+    deps = [
+        ":go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

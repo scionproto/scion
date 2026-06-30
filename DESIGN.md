@@ -43,15 +43,15 @@ is shaped so those follow-ups are additive.
 
 ## Tool layout
 
-A new tool under `tools/testgen`, following the scio/cmd/scion layout. The
-phases are internal packages; `prism` lives outside the tool so it is importable
-without depending on the CLI.
+A tool under `testing/clab/testgen` (CLI at `testing/clab/cmd/testgen`),
+following the scio/cmd/scion layout. The phases are internal packages; `prism`
+lives outside the tool so it is importable without depending on the CLI.
 
 ```
-tools/testgen/
-  cmd/testgen/main.go      # cobra root command, exit-code handling
-  cmd/testgen/topo.go      # topo commands
-  cmd/testgen/...          # all other commands
+testing/clab/cmd/testgen/main.go   # cobra root command, exit-code handling
+testing/clab/cmd/testgen/topo.go   # topo commands
+testing/clab/cmd/testgen/...       # all other commands
+testing/clab/testgen/
   testgen.go               # Config struct + RunPipeline (ordered phase list)
   out/out.go               # output-dir type: one method per well-known path
 
@@ -81,7 +81,7 @@ pkg/prism/                 # phases 3+4: generalized-config model AND its render
 
 Rationale `prism` under `pkg/`: they are the reusable contract. `prism` must be
 importable by a service process per the proposal, neither may depend on
-`tools/testgen`. Dependency direction is strictly `tools/testgen →
+`testing/clab/testgen`. Dependency direction is strictly `testing/clab/testgen →
 pkg/prism`, never the reverse.
 
 ## Phase pipeline
