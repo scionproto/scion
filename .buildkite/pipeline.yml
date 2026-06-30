@@ -14,9 +14,10 @@ steps:
             post-command: |
               echo "~~~ Shutting down SCION topology"
               clab destroy -t gen/scion.clab.yml
+            pre-artifact: tar -chaf bazel-testlogs.tar.gz bazel-testlogs
             pre-exit: .buildkite/cleanup-leftovers.sh
-      artifact_paths: &scion-run-artifact-paths
-        - test-out.tar.gz
+      artifact_paths:
+        - bazel-testlogs.tar.gz
       timeout_in_minutes: 15
       key: clab_integration_e2e_default
       retry: &automatic-retry
