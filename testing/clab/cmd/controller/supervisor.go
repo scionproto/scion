@@ -199,13 +199,13 @@ func (s *supervisor) pump(name string, r *os.File) {
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if file != nil {
-			file.Write(line)
-			file.Write(nl)
+			_, _ = file.Write(line)
+			_, _ = file.Write(nl)
 		}
 		s.outMu.Lock()
-		s.out.Write(prefix)
-		s.out.Write(line)
-		s.out.Write(nl)
+		_, _ = s.out.Write(prefix)
+		_, _ = s.out.Write(line)
+		_, _ = s.out.Write(nl)
 		s.outMu.Unlock()
 	}
 	if err := scanner.Err(); err != nil {
@@ -240,7 +240,11 @@ func (s *supervisor) reap() {
 			s.log.Info("service exited", "service", m.svc.name, "pid", pid, "signal", ws.Signal())
 		} else {
 			m.lastExit = fmt.Sprintf("exit code %d", ws.ExitStatus())
-			s.log.Info("service exited", "service", m.svc.name, "pid", pid, "exit_code", ws.ExitStatus())
+			s.log.Info("service exited",
+				"service", m.svc.name,
+				"pid", pid,
+				"exit_code", ws.ExitStatus(),
+			)
 		}
 
 		switch {

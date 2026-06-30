@@ -88,11 +88,31 @@ func TestDiscover(t *testing.T) {
 
 	cfgArg := func(f string) []string { return []string{"--config", filepath.Join(cfg, f)} }
 	want := []service{
-		{name: "disp_cs1-ff00_0_110-1", binary: "/app/dispatcher", args: cfgArg("disp_cs1-ff00_0_110-1.toml")},
-		{name: "br1-ff00_0_110-1", binary: "/app/router", args: cfgArg("br1-ff00_0_110-1.toml")},
-		{name: "br1-ff00_0_110-2", binary: "/app/router", args: cfgArg("br1-ff00_0_110-2.toml")},
-		{name: "cs1-ff00_0_110-1", binary: "/app/control", args: cfgArg("cs1-ff00_0_110-1.toml")},
-		{name: "sd", binary: "/app/daemon", args: cfgArg("sd.toml")},
+		{
+			name:   "disp_cs1-ff00_0_110-1",
+			binary: "/app/dispatcher",
+			args:   cfgArg("disp_cs1-ff00_0_110-1.toml"),
+		},
+		{
+			name:   "br1-ff00_0_110-1",
+			binary: "/app/router",
+			args:   cfgArg("br1-ff00_0_110-1.toml"),
+		},
+		{
+			name:   "br1-ff00_0_110-2",
+			binary: "/app/router",
+			args:   cfgArg("br1-ff00_0_110-2.toml"),
+		},
+		{
+			name:   "cs1-ff00_0_110-1",
+			binary: "/app/control",
+			args:   cfgArg("cs1-ff00_0_110-1.toml"),
+		},
+		{
+			name:   "sd",
+			binary: "/app/daemon",
+			args:   cfgArg("sd.toml"),
+		},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("discover mismatch:\n got: %+v\nwant: %+v", got, want)
@@ -103,8 +123,16 @@ func TestDiscover(t *testing.T) {
 // binary and arguments.
 func TestPrintServices(t *testing.T) {
 	services := []service{
-		{name: "br1-ff00_0_110-1", binary: "/app/router", args: []string{"--config", "/etc/scion/br1-ff00_0_110-1.toml"}},
-		{name: "sd", binary: "/app/daemon", args: []string{"--config", "/etc/scion/sd.toml"}},
+		{
+			name:   "br1-ff00_0_110-1",
+			binary: "/app/router",
+			args:   []string{"--config", "/etc/scion/br1-ff00_0_110-1.toml"},
+		},
+		{
+			name:   "sd",
+			binary: "/app/daemon",
+			args:   []string{"--config", "/etc/scion/sd.toml"},
+		},
 	}
 
 	var buf bytes.Buffer
