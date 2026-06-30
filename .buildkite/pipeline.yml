@@ -7,21 +7,7 @@ steps:
     - label: "E2E: default (clab)"
       command:
         - bash -c "$(curl -sL https://get.containerlab.dev)"
-        - echo "--- build"
-        - bazel run --run_in_cwd //testing/clab/cmd/testgen -- -c topology/default-no-peers.topo
-        - bazel run //testing/clab:clab_node.load
-        - docker image ls
-        - echo "--- show topology"
-        - cat gen/scion.clab.yml
-        - echo "--- start topology"
-        - sudo netstat -tulpen
-        - .buildkite/debug-clab.sh pre
-        - clab deploy --debug -t gen/scion.clab.yml || (.buildkite/debug-clab.sh post && sudo netstat -tulpen && echo "^^^ +++" && false)
-        - bazel run --run_in_cwd //testing/clab/cmd/await_connectivity || ( echo "^^^ +++" && false )
-        - echo "--- run tests (scion)"
-        - bazel run --run_in_cwd //testing/clab/cmd/e2e_scion || ( echo "^^^ +++" && false )
-        - echo "--- run tests (http)"
-        - bazel run --run_in_cwd //testing/clab/cmd/e2e_http run || ( echo "^^^ +++" && false )
+        - bazel test //testing/clab/system_test:go_default_test --test_output=streamed --test_arg=-test.v || ( echo "^^^ +++" && false )
       plugins:
       - scionproto/metahook#v0.3.0:
             pre-command: .buildkite/cleanup-leftovers.sh

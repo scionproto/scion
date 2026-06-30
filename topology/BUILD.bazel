@@ -14,6 +14,7 @@ filegroup(
 
 exports_files(
     [
+        "default-no-peers.topo",
         "tiny.topo",
         "tiny4.topo",
     ],
