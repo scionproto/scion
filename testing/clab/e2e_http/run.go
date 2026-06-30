@@ -69,7 +69,7 @@ node and report a condensed source×destination result matrix.`,
 	cmd.Flags().StringVar(&dockerC, "docker", "docker", "docker command (e.g. \"sudo docker\")")
 	cmd.Flags().StringVar(&bin, "bin", "/app/e2e_http", "path of this binary inside the node")
 	cmd.Flags().IntVar(&port, "port", 40000, "SCION/UDP port the servers listen on")
-	cmd.Flags().IntVar(&parallel, "parallel", 16, "maximum concurrent client probes")
+	cmd.Flags().IntVar(&parallel, "parallel", 64, "maximum concurrent client probes")
 	cmd.Flags().DurationVar(&startup, "startup", 3*time.Second, "wait for servers to come up")
 	cmd.Flags().DurationVar(&duration, "server-duration", 120*time.Second,
 		"how long the servers run before self-terminating")

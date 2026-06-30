@@ -41,7 +41,7 @@ var (
 	count      = flag.Int("count", 1, "number of ping packets")
 	pingTO     = flag.Duration("timeout", 4*time.Second, "per-probe scion timeout")
 	cmdTO      = flag.Duration("cmd-timeout", 30*time.Second, "per-command wall-clock timeout")
-	parallel   = flag.Int("parallel", 16, "maximum number of probes to run concurrently")
+	parallel   = flag.Int("parallel", 64, "maximum number of probes to run concurrently")
 )
 
 // testKind describes one kind of probe and how to build/check it.
