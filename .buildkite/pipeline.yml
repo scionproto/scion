@@ -7,17 +7,18 @@ steps:
     - label: "E2E: default (clab)"
       command:
         - bash -c "$(curl -sL https://get.containerlab.dev)"
-        - bazel test //testing/clab/system_test:go_default_test --test_output=streamed --test_arg=-test.v || ( echo "^^^ +++" && false )
+        - bazel test //testing/clab/system_test:go_default_test --test_output=streamed --test_arg=-test.v --test_arg=--artifacts=$PWD || ( echo "^^^ +++" && false )
       plugins:
       - scionproto/metahook#v0.3.0:
             pre-command: .buildkite/cleanup-leftovers.sh
             post-command: |
               echo "~~~ Shutting down SCION topology"
               clab destroy -t gen/scion.clab.yml
-            pre-artifact: tar -chaf bazel-testlogs.tar.gz bazel-testlogs
+            pre-artifact: |
+              tar -chaf test-out.tar.gz $(ls -d bazel-testlogs gen) # ls -d to filter missing directories
             pre-exit: .buildkite/cleanup-leftovers.sh
       artifact_paths:
-        - bazel-testlogs.tar.gz
+        - test-out.tar.gz
       timeout_in_minutes: 15
       key: clab_integration_e2e_default
       retry: &automatic-retry
