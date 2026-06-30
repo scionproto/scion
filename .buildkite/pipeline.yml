@@ -14,11 +14,6 @@ steps:
             post-command: |
               echo "~~~ Shutting down SCION topology"
               clab destroy -t gen/scion.clab.yml
-            pre-artifact: |
-              if [ -f "gen/scion-dc.yml" ]; then
-                  tools/dc collect_logs scion logs/
-              fi
-              tar -chaf test-out.tar.gz $(ls -d logs traces gen gen-cache) # ls -d to filter missing directories
             pre-exit: .buildkite/cleanup-leftovers.sh
       artifact_paths: &scion-run-artifact-paths
         - test-out.tar.gz
