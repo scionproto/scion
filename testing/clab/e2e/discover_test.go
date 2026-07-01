@@ -15,6 +15,7 @@
 package e2e_test
 
 import (
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,6 +23,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/prism"
 	"github.com/scionproto/scion/testing/clab/e2e"
 )
 
@@ -32,15 +35,20 @@ func TestLoadASes(t *testing.T) {
 Non-core:
     - 1-ff00:0:111
 `), 0o644))
-	// cs config in go-toml format (single-quoted address).
-	writeCS := func(asFile, addr string) {
+	// The control host's prism config, mirrored to the AS directory root.
+	writeCS := func(asFile, ia, apiAddr string) {
 		d := filepath.Join(dir, "AS"+asFile)
 		require.NoError(t, os.MkdirAll(d, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(d, "cs"+asFile+"-1.toml"),
-			[]byte("[api]\naddr = '"+addr+"'\n"), 0o644))
+		cfg := prism.Config{SCION: prism.SCION{ASes: []prism.AS{{
+			ISDAS:   addr.MustParseIA(ia),
+			Control: &prism.Control{ID: "cs" + asFile + "-1", APIAddr: netip.MustParseAddrPort(apiAddr)},
+		}}}}
+		raw, err := cfg.EncodeYAML()
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(d, "config.yml"), raw, 0o644))
 	}
-	writeCS("ff00_0_110", "10.0.1.1:30452")
-	writeCS("ff00_0_111", "[fd00:f00d:cafe:2::1]:30452")
+	writeCS("ff00_0_110", "1-ff00:0:110", "10.0.1.1:30452")
+	writeCS("ff00_0_111", "1-ff00:0:111", "[fd00:f00d:cafe:2::1]:30452")
 
 	ases, err := e2e.LoadASes(dir)
 	require.NoError(t, err)

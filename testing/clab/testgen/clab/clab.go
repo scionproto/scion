@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package clab generates a containerlab topology from a resolved network, plus
-// the per-host network.yaml the clab-node controller consumes
-// (testing/clab/controller). Each containerlab node is one host; an AS's hosts
-// share the management network (their static management IP is the host's
-// AS-internal address), which provides intra-AS connectivity. Inter-AS links
-// are dedicated containerlab veth links between the hosts' data-plane
-// interfaces (eth1, eth2, …).
+// Package clab generates a containerlab topology from a resolved network. Each
+// containerlab node is one host; an AS's hosts share the management network
+// (their static management IP is the host's AS-internal address), which provides
+// intra-AS connectivity. Inter-AS links are dedicated containerlab veth links
+// between the hosts' data-plane interfaces (eth1, eth2, …). The clab-node
+// controller (testing/clab/controller) derives its interface addressing and its
+// services from the per-host prism config.yml bind-mounted into the node.
 package clab
 
 import (
@@ -49,8 +49,7 @@ type Options struct {
 	MgmtV6 netip.Prefix
 }
 
-// Generate writes the containerlab topology file and the per-host network.yaml
-// files.
+// Generate writes the containerlab topology file.
 func Generate(network *hydrate.Network, dir out.Dir, opts Options, w io.Writer) error {
 	topo, err := buildTopology(network, dir, opts)
 	if err != nil {
@@ -61,9 +60,6 @@ func Generate(network *hydrate.Network, dir out.Dir, opts Options, w io.Writer) 
 		return serrors.Wrap("marshaling clab topology", err)
 	}
 	if err := out.WriteFile(dir.Clab(opts.LabName), raw); err != nil {
-		return err
-	}
-	if err := writeNetworkConfigs(network, dir); err != nil {
 		return err
 	}
 	fmt.Fprintf(w, "clab: wrote %s\n", dir.Clab(opts.LabName))
@@ -148,7 +144,6 @@ func buildNode(as *hydrate.AS, host *hydrate.Host, dir out.Dir) (*node, error) {
 		return nil, serrors.Wrap("computing keys bind path", err)
 	}
 	n := &node{
-		Env: map[string]string{"SCION_NETWORK_CONFIG": "/etc/scion/network.yaml"},
 		Binds: []string{
 			hostRel + ":/etc/scion:rw",
 			cryptoRel + ":/etc/scion/crypto:ro",
@@ -226,50 +221,4 @@ func buildLinks(network *hydrate.Network) []link {
 // followed by the host name, e.g. "1-ff00_0_110-host-1".
 func nodeName(ia addr.IA, host string) string {
 	return fmt.Sprintf("%s-%s", addr.FormatIA(ia, addr.WithFileSeparator()), host)
-}
-
-// networkConfig is the controller's interface-addressing file (see
-// testing/clab/controller). Only the inter-AS data-plane interfaces are listed;
-// eth0 (management) is configured by containerlab.
-type networkConfig struct {
-	Config struct {
-		Interfaces struct {
-			Ethernets []ethernet `yaml:"ethernets"`
-		} `yaml:"interfaces"`
-	} `yaml:"config"`
-}
-
-type ethernet struct {
-	Name      string   `yaml:"name"`
-	Addresses []string `yaml:"addresses"`
-}
-
-func writeNetworkConfigs(network *hydrate.Network, dir out.Dir) error {
-	for _, as := range network.ASes {
-		for _, host := range as.Hosts {
-			var cfg networkConfig
-			if br := host.BorderRouter; br != nil {
-				for _, intf := range br.Interfaces {
-					cfg.Config.Interfaces.Ethernets = append(
-						cfg.Config.Interfaces.Ethernets,
-						ethernet{
-							Name: intf.EthName,
-							Addresses: []string{
-								netip.PrefixFrom(intf.Local.Addr(), intf.Net.Bits()).String(),
-							},
-						},
-					)
-				}
-			}
-			raw, err := yaml.Marshal(cfg)
-			if err != nil {
-				return serrors.Wrap("marshaling network config", err, "host", host.Name)
-			}
-			path := filepath.Join(dir.Host(as.IA, host.Name), "network.yaml")
-			if err := out.WriteFile(path, raw); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }

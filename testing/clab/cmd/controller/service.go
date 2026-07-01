@@ -17,10 +17,13 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/scionproto/scion/pkg/prism"
 )
 
 // service is a single SCION process the controller supervises.
@@ -33,56 +36,51 @@ type service struct {
 	args []string
 }
 
-// serviceKind ties a SCION service binary to the config-file glob that
-// topogen emits for it. For each config file the controller launches
-// "<binDir>/<binary> --config <configDir>/<file>".
-type serviceKind struct {
-	binary string
-	glob   string
+// startOrder ranks the service binaries so dispatchers start before the
+// services that register with them; the rest of the order is stable but
+// otherwise arbitrary.
+var startOrder = map[string]int{
+	"dispatcher": 0,
+	"router":     1,
+	"control":    2,
+	"daemon":     3,
 }
 
-// knownKinds enumerates the services the controller manages, matching the
-// file-naming convention produced by topogen (tools/topology). A node may run
-// several dispatchers (one per service that needs local UDP forwarding),
-// several routers, and several control services; the daemon is a single
-// instance per AS.
-//
-// Order matters: it is the start order. Dispatchers come first so their
-// forwarding sockets are up before the services that register with them.
-var knownKinds = []serviceKind{
-	{binary: "dispatcher", glob: "disp_*.toml"},
-	{binary: "router", glob: "br*.toml"},
-	{binary: "control", glob: "cs*.toml"},
-	{binary: "daemon", glob: "sd.toml"},
-}
-
-// discover scans configDir for the per-service TOML files produced by topogen
-// and returns the services to run, with their binaries resolved under binDir.
-// The result is deterministically ordered (kind order, then filename).
-func discover(configDir, binDir string) ([]service, error) {
-	var services []service
-	for _, k := range knownKinds {
-		matches, err := filepath.Glob(filepath.Join(configDir, k.glob))
-		if err != nil {
-			// The only possible error is ErrBadPattern, which is a bug here.
-			return nil, fmt.Errorf("globbing %q: %w", k.glob, err)
-		}
-		sort.Strings(matches)
-		for _, cfg := range matches {
-			name := strings.TrimSuffix(filepath.Base(cfg), ".toml")
-			services = append(services, service{
-				name:   name,
-				binary: filepath.Join(binDir, k.binary),
-				args:   []string{"--config", cfg},
-			})
-		}
+// renderServices renders the prism configuration into the per-service TOML
+// files, writes them into configDir, and returns the services to run with their
+// binaries resolved under binDir. The result is deterministically ordered
+// (dispatchers first, see startOrder, then by service id) so start order is
+// stable.
+func renderServices(cfg prism.Config, configDir, binDir string) ([]service, error) {
+	files, err := prism.Render(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("rendering service configs: %w", err)
 	}
+	var services []service
+	for _, f := range files {
+		path := filepath.Join(configDir, f.Name)
+		if err := os.WriteFile(path, f.Content, 0o644); err != nil {
+			return nil, fmt.Errorf("writing %q: %w", path, err)
+		}
+		services = append(services, service{
+			name:   strings.TrimSuffix(f.Name, ".toml"),
+			binary: filepath.Join(binDir, f.Binary),
+			args:   []string{"--config", path},
+		})
+	}
+	sort.Slice(services, func(i, j int) bool {
+		bi, bj := filepath.Base(services[i].binary), filepath.Base(services[j].binary)
+		if startOrder[bi] != startOrder[bj] {
+			return startOrder[bi] < startOrder[bj]
+		}
+		return services[i].name < services[j].name
+	})
 	return services, nil
 }
 
 // printServices writes the discovered services as an aligned table: the service
 // id, the binary that runs it, and the arguments (the config file). The output
-// is the static view derived from the config directory, the same set the
+// is the static view derived from the prism configuration, the same set the
 // supervisor would launch.
 func printServices(w io.Writer, services []service) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)

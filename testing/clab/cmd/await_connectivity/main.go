@@ -19,8 +19,8 @@
 // listens on its node's containerlab management address, reachable from the
 // host over the management bridge, so the segments API is queried directly over
 // HTTP. Discovery is driven by the generated gen/ directory (as_list.yml and
-// the per-AS cs*.toml). It exits 0 once full connectivity is established, or
-// non-zero at timeout.
+// the per-AS config.yml prism configuration). It exits 0 once full connectivity
+// is established, or non-zero at timeout.
 package main
 
 import (

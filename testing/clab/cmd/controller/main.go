@@ -13,12 +13,13 @@
 // limitations under the License.
 
 // Controller is the PID 1 init and process supervisor for a SCION
-// containerlab node (one ISD-AS per node). It discovers the SCION service
-// configurations bind-mounted into the node, launches the dispatcher, router,
-// control, and daemon processes, reaps children, and shuts them down cleanly.
+// containerlab node (one ISD-AS per node). It reads the generalized prism
+// configuration bind-mounted into the node, renders it into the per-service
+// configuration files, launches the dispatcher, router, control, and daemon
+// processes, reaps children, and shuts them down cleanly.
 //
-// There is no configuration API yet: the set of services is derived entirely
-// from the TOML files present in the config directory at start time.
+// There is no configuration API yet: the interface addressing and the set of
+// services are both derived from the prism configuration at start time.
 package main
 
 import (
@@ -31,6 +32,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/pkg/prism"
 	"github.com/scionproto/scion/private/app/command"
 )
 
@@ -39,10 +41,10 @@ func main() {
 
 	var flags struct {
 		configDir       string
+		configFile      string
 		binDir          string
 		logDir          string
 		dataDir         string
-		networkConfig   string
 		statusFile      string
 		shutdownTimeout time.Duration
 	}
@@ -53,21 +55,22 @@ func main() {
 		Long: executable + ` is the PID 1 init and process supervisor for a SCION
 containerlab node (one ISD-AS per node).
 
-It discovers the per-service SCION configuration bind-mounted into the node,
-launches the dispatcher, router, control, and daemon processes, reaps children
-(including reparented orphans), restarts crashed services with backoff, and
-shuts everything down cleanly on SIGTERM/SIGINT.
+It reads the generalized prism configuration bind-mounted into the node, renders
+it into the per-service SCION configuration files, launches the dispatcher,
+router, control, and daemon processes, reaps children (including reparented
+orphans), restarts crashed services with backoff, and shuts everything down
+cleanly on SIGTERM/SIGINT.
 
-The set of services is derived entirely from the TOML files present in the
-configuration directory at start time; there is no configuration API yet.`,
+The interface addressing and the set of services are both derived from the prism
+configuration at start time; there is no configuration API yet.`,
 		Args: cobra.NoArgs,
 		// Errors and usage are handled in main; don't let cobra print usage on
 		// a runtime error from RunE.
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(flags.configDir, flags.binDir, flags.logDir, flags.dataDir,
-				flags.networkConfig, flags.statusFile, flags.shutdownTimeout)
+			return run(flags.configDir, flags.configFile, flags.binDir, flags.logDir,
+				flags.dataDir, flags.statusFile, flags.shutdownTimeout)
 		},
 	}
 
@@ -75,12 +78,13 @@ configuration directory at start time; there is no configuration API yet.`,
 	// they are inherited by every subcommand; run-only knobs stay local.
 	cmd.PersistentFlags().StringVar(&flags.configDir, "config-dir",
 		envOr("SCION_CONFIG_DIR", "/etc/scion"),
-		"directory holding the bind-mounted SCION service configuration")
+		"directory holding the bind-mounted crypto material and where the rendered "+
+			"service configs are written")
+	cmd.PersistentFlags().StringVar(&flags.configFile, "config-file",
+		envOr("SCION_CONFIG_FILE", "/etc/scion/config.yml"),
+		"path to the generalized prism configuration (YAML or JSON) for this node")
 	cmd.PersistentFlags().StringVar(&flags.binDir, "bin-dir", envOr("SCION_BIN_DIR", "/app"),
 		"directory holding the SCION service binaries")
-	cmd.PersistentFlags().StringVar(&flags.networkConfig, "network-config",
-		envOr("SCION_NETWORK_CONFIG", ""),
-		"path to the interface address config (YAML or JSON); empty disables network setup")
 	cmd.PersistentFlags().StringVar(&flags.statusFile, "status-file",
 		envOr("SCION_STATUS_FILE", "/var/run/scion/status.json"),
 		"file the controller writes live service status to (read by `list services`)")
@@ -103,7 +107,7 @@ configuration directory at start time; there is no configuration API yet.`,
 last exit), as published by the running controller to the status file.
 
 If the status file is absent — the controller is not running — this falls back
-to the static set of services discovered from the configuration directory.`,
+to the static set of services rendered from the prism configuration.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
@@ -118,7 +122,11 @@ to the static set of services discovered from the configuration directory.`,
 			// configured services so the command is still useful.
 			fmt.Fprintln(cmd.ErrOrStderr(),
 				"controller not running; showing configured services (no live status)")
-			services, err := discover(flags.configDir, flags.binDir)
+			cfg, err := loadConfig(flags.configFile)
+			if err != nil {
+				return err
+			}
+			services, err := renderServices(cfg, flags.configDir, flags.binDir)
 			if err != nil {
 				return err
 			}
@@ -136,15 +144,11 @@ to the static set of services discovered from the configuration directory.`,
 		Short: "List the interface configuration and its live status",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if flags.networkConfig == "" {
-				return fmt.Errorf(
-					"no network config set; pass --network-config or set SCION_NETWORK_CONFIG")
-			}
-			cfg, err := loadNetworkConfig(flags.networkConfig)
+			cfg, err := loadConfig(flags.configFile)
 			if err != nil {
 				return err
 			}
-			return printNetworkStatus(cmd.OutOrStdout(), networkStatus(cfg))
+			return printNetworkStatus(cmd.OutOrStdout(), networkStatus(ethernets(cfg)))
 		},
 	})
 
@@ -160,24 +164,28 @@ to the static set of services discovered from the configuration directory.`,
 // hands control to the supervisor, which blocks until shutdown. It returns an
 // error only for misconfiguration; a clean shutdown exits the process directly
 // from the supervisor.
-func run(configDir, binDir, logDir, dataDir, networkConfig, statusFile string,
+func run(configDir, configFile, binDir, logDir, dataDir, statusFile string,
 	shutdownTimeout time.Duration) error {
 	// Tag the controller's own diagnostics so they are distinguishable from
 	// the "[<service>]"-prefixed service output the supervisor forwards.
 	out := &linePrefixWriter{w: os.Stderr, prefix: []byte("[controller] ")}
 	log := slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
+	// The generalized prism configuration is the single source of truth for the
+	// node: the interface addressing and the set of SCION services are both
+	// derived from it.
+	cfg, err := loadConfig(configFile)
+	if err != nil {
+		return err
+	}
+
 	// Set up interfaces before starting services: the router binds its underlay
 	// address at startup, so the address must already be on the link. This waits
 	// for clab to attach the link veths and is best-effort (see
 	// applyNetworkConfig), so it never blocks the node from coming up.
-	if networkConfig != "" {
-		netCfg, err := loadNetworkConfig(networkConfig)
-		if err != nil {
-			return err
-		}
-		applyNetworkConfig(netCfg, log)
-		log.Info("applied network configuration", "config", networkConfig)
+	if eths := ethernets(cfg); len(eths) > 0 {
+		applyNetworkConfig(eths, log)
+		log.Info("applied network configuration", "config", configFile)
 	}
 
 	// Create the data directory before starting services: SCION services open
@@ -189,12 +197,14 @@ func run(configDir, binDir, logDir, dataDir, networkConfig, statusFile string,
 		}
 	}
 
-	services, err := discover(configDir, binDir)
+	// Render the prism configuration into the per-service TOML files (written
+	// into configDir) and derive the services to supervise from them.
+	services, err := renderServices(cfg, configDir, binDir)
 	if err != nil {
 		return err
 	}
 	if len(services) == 0 {
-		return fmt.Errorf("no SCION service configuration found in %q", configDir)
+		return fmt.Errorf("no SCION services in configuration %q", configFile)
 	}
 	for _, svc := range services {
 		log.Info("discovered service", "service", svc.name, "binary", svc.binary, "args", svc.args)
@@ -222,6 +232,21 @@ func run(configDir, binDir, logDir, dataDir, networkConfig, statusFile string,
 
 	newSupervisor(services, log, shutdownTimeout, logDir, statusFile).run()
 	return nil
+}
+
+// loadConfig reads and decodes the generalized prism configuration at path. YAML
+// is a superset of JSON, so the YAML decoder handles either serialization that
+// testgen emits.
+func loadConfig(path string) (prism.Config, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return prism.Config{}, fmt.Errorf("reading config %q: %w", path, err)
+	}
+	cfg, err := prism.DecodeYAML(raw)
+	if err != nil {
+		return prism.Config{}, fmt.Errorf("parsing config %q: %w", path, err)
+	}
+	return cfg, nil
 }
 
 // envOr returns the value of the environment variable key, or def if unset.

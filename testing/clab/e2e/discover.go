@@ -20,8 +20,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
+
+	"github.com/scionproto/scion/pkg/prism"
 )
 
 // AS is one autonomous system: its ISD-AS, whether it is a core AS, and the
@@ -38,19 +39,9 @@ type asList struct {
 	NonCore []string `yaml:"Non-core"`
 }
 
-// controlConfig is the subset of a control service TOML we need: its API
-// address. testgen mirrors the cs*.toml to the AS directory root and the
-// address is the node's containerlab management address, reachable from the
-// host over the management bridge.
-type controlConfig struct {
-	API struct {
-		Addr string `toml:"addr"`
-	} `toml:"api"`
-}
-
 // LoadASes discovers the ASes from the generated lab: their core/non-core
 // grouping (gen/as_list.yml) and their control service API address
-// (gen/AS<file>/cs*.toml). The result is the list of ASes with their
+// (gen/AS<file>/config.yml). The result is the list of ASes with their
 // segments-API URL.
 func LoadASes(genDir string) ([]AS, error) {
 	raw, err := os.ReadFile(filepath.Join(genDir, "as_list.yml"))
@@ -84,24 +75,32 @@ func LoadASes(genDir string) ([]AS, error) {
 	return out, nil
 }
 
-// segmentsURL returns the control service segments-API URL for an AS.
+// segmentsURL returns the control service segments-API URL for an AS. It reads
+// the prism config mirrored to the AS directory root (the config of the host
+// running the control service) and extracts the control API address, the node's
+// containerlab management address reachable from the host over the management
+// bridge.
 func segmentsURL(genDir, ia string) (string, error) {
-	matches, err := filepath.Glob(filepath.Join(asDir(genDir, ia), "cs*.toml"))
-	if err != nil || len(matches) == 0 {
-		return "", fmt.Errorf("no control config for %s in %s", ia, asDir(genDir, ia))
-	}
-	raw, err := os.ReadFile(matches[0])
+	path := filepath.Join(asDir(genDir, ia), "config.yml")
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("reading control config for %s: %w", ia, err)
+		return "", fmt.Errorf("reading config for %s: %w", ia, err)
 	}
-	var cfg controlConfig
-	if err := toml.Unmarshal(raw, &cfg); err != nil {
-		return "", fmt.Errorf("parsing control config for %s: %w", ia, err)
+	cfg, err := prism.DecodeYAML(raw)
+	if err != nil {
+		return "", fmt.Errorf("parsing config for %s: %w", ia, err)
 	}
-	if cfg.API.Addr == "" {
-		return "", fmt.Errorf("no control API address for %s", ia)
+	for _, as := range cfg.SCION.ASes {
+		if as.Control == nil {
+			continue
+		}
+		apiAddr := as.Control.APIAddr
+		if !apiAddr.IsValid() {
+			return "", fmt.Errorf("no control API address for %s", ia)
+		}
+		return fmt.Sprintf("http://%s/api/v1/segments", apiAddr), nil
 	}
-	return fmt.Sprintf("http://%s/api/v1/segments", cfg.API.Addr), nil
+	return "", fmt.Errorf("no control service in config for %s", ia)
 }
 
 // asDir returns the gen directory of an AS, e.g. gen/ASff00_0_110.

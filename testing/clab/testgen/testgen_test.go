@@ -25,6 +25,7 @@ import (
 
 	controlconfig "github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/prism"
 	"github.com/scionproto/scion/private/keyconf"
 	"github.com/scionproto/scion/private/topology"
 	routerconfig "github.com/scionproto/scion/router/config"
@@ -62,13 +63,9 @@ func TestPipelineEndToEnd(t *testing.T) {
 		"sciond_addresses.json",
 		"ASff00_0_110/topology.json",
 		"trcs/ISD1-B1-S1.trc",
+		"ASff00_0_110/config.yml",
 		"ASff00_0_110/host-1/config.yml",
 		"ASff00_0_110/host-1/topology.json",
-		"ASff00_0_110/host-1/network.yaml",
-		"ASff00_0_110/host-1/br1-ff00_0_110-1.toml",
-		"ASff00_0_110/host-1/cs1-ff00_0_110-1.toml",
-		"ASff00_0_110/host-1/disp_cs1-ff00_0_110-1.toml",
-		"ASff00_0_110/host-1/sd.toml",
 		"ASff00_0_110/crypto/as/cp-as.key",
 		"ASff00_0_110/keys/master0.key",
 		"ASff00_0_110/keys/master1.key",
@@ -102,17 +99,26 @@ func TestPipelineEndToEnd(t *testing.T) {
 		assert.NoError(t, err, p)
 	}
 
-	// Generated TOMLs decode through the real config structs.
-	var rc routerconfig.Config
-	raw, err := os.ReadFile(filepath.Join(gen, "ASff00_0_110/host-1/br1-ff00_0_110-1.toml"))
+	// The prism config renders into service TOMLs that decode through the real
+	// config structs. testgen no longer writes these files; the node controller
+	// renders them at start time from config.yml.
+	raw, err := os.ReadFile(filepath.Join(gen, "ASff00_0_110/host-1/config.yml"))
 	require.NoError(t, err)
-	require.NoError(t, toml.Unmarshal(raw, &rc))
+	prismCfg, err := prism.DecodeYAML(raw)
+	require.NoError(t, err)
+	files, err := prism.Render(prismCfg)
+	require.NoError(t, err)
+	byName := map[string][]byte{}
+	for _, f := range files {
+		byName[f.Name] = f.Content
+	}
+
+	var rc routerconfig.Config
+	require.NoError(t, toml.Unmarshal(byName["br1-ff00_0_110-1.toml"], &rc))
 	assert.Equal(t, "br1-ff00_0_110-1", rc.General.ID)
 
 	var cc controlconfig.Config
-	raw, err = os.ReadFile(filepath.Join(gen, "ASff00_0_110/host-1/cs1-ff00_0_110-1.toml"))
-	require.NoError(t, err)
-	require.NoError(t, toml.Unmarshal(raw, &cc))
+	require.NoError(t, toml.Unmarshal(byName["cs1-ff00_0_110-1.toml"], &cc))
 	assert.Equal(t, controlconfig.InProcess, cc.CA.Mode)
 }
 

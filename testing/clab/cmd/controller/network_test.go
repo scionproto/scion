@@ -18,66 +18,32 @@ import (
 	"bytes"
 	"io"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/scionproto/scion/pkg/prism"
 )
 
-// TestLoadNetworkConfig checks that the same configuration parses identically
-// whether supplied as JSON or YAML, since the controller accepts either.
-func TestLoadNetworkConfig(t *testing.T) {
-	const jsonCfg = `{
-  "config": {
-    "interfaces": {
-      "ethernets": [
-        {
-          "addresses": ["169.254.10.9/30"],
-          "name": "wan"
-        },
-        {
-          "addresses": ["192.168.1.11/24"],
-          "name": "mgmt"
-        }
-      ]
-    }
-  }
-}`
-	const yamlCfg = `config:
-  interfaces:
-    ethernets:
-      - name: wan
-        addresses:
-          - 169.254.10.9/30
-      - name: mgmt
-        addresses:
-          - 192.168.1.11/24
-`
-
-	want := []ethernet{
-		{Name: "wan", Addresses: []string{"169.254.10.9/30"}},
-		{Name: "mgmt", Addresses: []string{"192.168.1.11/24"}},
+// TestEthernets checks that the node's inter-AS data-plane interfaces are
+// extracted from the prism configuration's interfaces section.
+func TestEthernets(t *testing.T) {
+	cfg := prism.Config{
+		Interfaces: prism.Interfaces{
+			Ethernets: []prism.Ethernet{
+				{Name: "eth1", Addresses: []string{"169.254.10.9/30"}},
+				{Name: "eth2", Addresses: []string{"192.168.1.11/24"}},
+			},
+		},
 	}
 
-	for _, tc := range []struct{ name, ext, data string }{
-		{name: "json", ext: ".json", data: jsonCfg},
-		{name: "yaml", ext: ".yaml", data: yamlCfg},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "network"+tc.ext)
-			if err := os.WriteFile(path, []byte(tc.data), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			cfg, err := loadNetworkConfig(path)
-			if err != nil {
-				t.Fatalf("loadNetworkConfig: %v", err)
-			}
-			if got := cfg.Config.Interfaces.Ethernets; !reflect.DeepEqual(got, want) {
-				t.Errorf("parsed mismatch:\n got: %+v\nwant: %+v", got, want)
-			}
-		})
+	want := []ethernet{
+		{Name: "eth1", Addresses: []string{"169.254.10.9/30"}},
+		{Name: "eth2", Addresses: []string{"192.168.1.11/24"}},
+	}
+	if got := ethernets(cfg); !reflect.DeepEqual(got, want) {
+		t.Errorf("ethernets mismatch:\n got: %+v\nwant: %+v", got, want)
 	}
 }
 

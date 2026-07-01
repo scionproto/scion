@@ -41,11 +41,23 @@ const dbDir = "/var/lib/scion"
 // logLevel is the console log level baked into generated configs.
 const logLevel = "debug"
 
-// ServiceFile is a single generated service configuration file.
+// ServiceFile is a single generated service configuration file. Binary is the
+// name of the SCION service executable that consumes it (e.g. "router",
+// "control", "dispatcher", "daemon"), so a caller can both write the file and
+// launch the process that runs it.
 type ServiceFile struct {
 	Name    string
+	Binary  string
 	Content []byte
 }
+
+// Service binary names, matching the executables shipped in the clab node image.
+const (
+	binRouter     = "router"
+	binControl    = "control"
+	binDispatcher = "dispatcher"
+	binDaemon     = "daemon"
+)
 
 // Render produces the service configuration file(s) for the elements present
 // in cfg (the host's local elements). It does not produce topology.json, which
@@ -92,7 +104,7 @@ func renderRouter(r *Router) (ServiceFile, error) {
 		Logging: consoleLog(),
 		API:     mgmtapi.Config{Addr: addrString(r.APIAddr)},
 	}
-	return marshal(r.ID+".toml", cfg)
+	return marshal(r.ID+".toml", binRouter, cfg)
 }
 
 func renderControl(c *Control) (ServiceFile, error) {
@@ -109,7 +121,7 @@ func renderControl(c *Control) (ServiceFile, error) {
 		PathDB:   db(c.ID, "path"),
 		CA:       controlconfig.CA{Mode: mode},
 	}
-	return marshal(c.ID+".toml", cfg)
+	return marshal(c.ID+".toml", binControl, cfg)
 }
 
 func renderDispatcher(ia addr.IA, c *Control) (ServiceFile, error) {
@@ -128,7 +140,7 @@ func renderDispatcher(ia addr.IA, c *Control) (ServiceFile, error) {
 			},
 		},
 	}
-	return marshal(id+".toml", cfg)
+	return marshal(id+".toml", binDispatcher, cfg)
 }
 
 func renderDaemon(d *Daemon) (ServiceFile, error) {
@@ -140,7 +152,7 @@ func renderDaemon(d *Daemon) (ServiceFile, error) {
 		PathDB:  db(d.ID, "path"),
 		SD:      daemonconfig.SDConfig{Address: addrString(d.Address)},
 	}
-	return marshal(d.ID+".toml", cfg)
+	return marshal(d.ID+".toml", binDaemon, cfg)
 }
 
 func consoleLog() log.Config {
@@ -158,10 +170,10 @@ func addrString(ap netip.AddrPort) string {
 	return ap.String()
 }
 
-func marshal(name string, v any) (ServiceFile, error) {
+func marshal(name, binary string, v any) (ServiceFile, error) {
 	raw, err := toml.Marshal(v)
 	if err != nil {
 		return ServiceFile{}, serrors.Wrap("marshaling TOML", err)
 	}
-	return ServiceFile{Name: name, Content: raw}, nil
+	return ServiceFile{Name: name, Binary: binary, Content: raw}, nil
 }

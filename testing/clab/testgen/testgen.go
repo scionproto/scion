@@ -25,12 +25,10 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/scionproto/scion/pkg/prism"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 	"github.com/scionproto/scion/testing/clab/testgen/clab"
@@ -241,7 +239,9 @@ func mgmtV6(base netip.Prefix) netip.Prefix {
 }
 
 // generateConfigs writes, for each AS, the shared topology.json, and for each
-// host the generalized config and the rendered service files.
+// host the generalized prism configuration. The per-service SCION configuration
+// files are no longer emitted here: the node controller renders them from the
+// prism config at start time.
 func generateConfigs(network *hydrate.Network, dir out.Dir) error {
 	for _, as := range network.ASes {
 		topoRaw, err := json.MarshalIndent(config.Topology(as), "", "  ")
@@ -268,22 +268,13 @@ func generateConfigs(network *hydrate.Network, dir out.Dir) error {
 			if err := out.WriteFile(filepath.Join(hostDir, "topology.json"), topoRaw); err != nil {
 				return err
 			}
-			files, err := prism.Render(cfg)
-			if err != nil {
-				return serrors.Wrap("rendering service files", err, "host", host.Name)
-			}
-			for _, f := range files {
-				if err := out.WriteFile(filepath.Join(hostDir, f.Name), f.Content); err != nil {
+			// The control service's prism config is what await-connectivity
+			// reads (gen/AS<...>/config.yml) to find the CS API address; mirror
+			// the host that runs it to the AS-directory root.
+			if host.Control {
+				asConfig := filepath.Join(dir.AS(as.IA), "config.yml")
+				if err := out.WriteFile(asConfig, cfgRaw); err != nil {
 					return err
-				}
-				// tools/await-connectivity reads the control service config at
-				// the AS-directory root (gen/AS<...>/cs*.toml) to find the CS
-				// API address; mirror it there.
-				if strings.HasPrefix(f.Name, "cs") {
-					// TODO: use PRISM.
-					if err := out.WriteFile(filepath.Join(dir.AS(as.IA), f.Name), f.Content); err != nil {
-						return err
-					}
 				}
 			}
 		}

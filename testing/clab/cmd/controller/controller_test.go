@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -27,6 +28,9 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/prism"
 )
 
 // TestMain lets the test binary impersonate both the controller and the SCION
@@ -65,37 +69,50 @@ func fakeCrash() {
 	os.Exit(3)
 }
 
-func TestDiscover(t *testing.T) {
-	cfg := t.TempDir()
-	for _, f := range []string{
-		"disp_cs1-ff00_0_110-1.toml",
-		"br1-ff00_0_110-1.toml",
-		"br1-ff00_0_110-2.toml",
-		"cs1-ff00_0_110-1.toml",
-		"sd.toml",
-		"topology.json",  // not a service config; must be ignored
-		"prometheus.yml", // ditto
-	} {
-		if err := os.WriteFile(filepath.Join(cfg, f), nil, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
+func TestRenderServices(t *testing.T) {
+	ia := addr.MustParseIA("1-ff00:0:110")
+	cfg := prism.Config{SCION: prism.SCION{ASes: []prism.AS{{
+		ISDAS: ia,
+		Core:  true,
+		Router: &prism.Router{
+			ID:                "br1-ff00_0_110-1",
+			InternalInterface: netip.MustParseAddrPort("10.1.0.1:30042"),
+			APIAddr:           netip.MustParseAddrPort("10.1.0.1:30442"),
+		},
+		Control: &prism.Control{
+			ID:      "cs1-ff00_0_110-1",
+			Address: netip.MustParseAddrPort("10.1.0.1:30252"),
+			APIAddr: netip.MustParseAddrPort("10.1.0.1:30452"),
+		},
+		Daemon: &prism.Daemon{
+			ID:      "sd",
+			Address: netip.MustParseAddrPort("127.0.0.1:30255"),
+			APIAddr: netip.MustParseAddrPort("10.1.0.1:30455"),
+		},
+	}}}}
 
-	got, err := discover(cfg, "/app")
+	confDir := t.TempDir()
+	got, err := renderServices(cfg, confDir, "/app")
 	if err != nil {
-		t.Fatalf("discover: %v", err)
+		t.Fatalf("renderServices: %v", err)
 	}
 
-	cfgArg := func(f string) []string { return []string{"--config", filepath.Join(cfg, f)} }
+	cfgArg := func(f string) []string { return []string{"--config", filepath.Join(confDir, f)} }
+	// Dispatcher first (start order), then by service id.
 	want := []service{
 		{name: "disp_cs1-ff00_0_110-1", binary: "/app/dispatcher", args: cfgArg("disp_cs1-ff00_0_110-1.toml")},
 		{name: "br1-ff00_0_110-1", binary: "/app/router", args: cfgArg("br1-ff00_0_110-1.toml")},
-		{name: "br1-ff00_0_110-2", binary: "/app/router", args: cfgArg("br1-ff00_0_110-2.toml")},
 		{name: "cs1-ff00_0_110-1", binary: "/app/control", args: cfgArg("cs1-ff00_0_110-1.toml")},
 		{name: "sd", binary: "/app/daemon", args: cfgArg("sd.toml")},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("discover mismatch:\n got: %+v\nwant: %+v", got, want)
+		t.Errorf("renderServices mismatch:\n got: %+v\nwant: %+v", got, want)
+	}
+	// Each service's config file was actually written to the config dir.
+	for _, s := range want {
+		if _, err := os.Stat(s.args[1]); err != nil {
+			t.Errorf("expected rendered config %q: %v", s.args[1], err)
+		}
 	}
 }
 
@@ -140,11 +157,24 @@ func TestSupervise(t *testing.T) {
 		}
 	}
 
+	// The prism config drives everything: one router, one control (which also
+	// yields a co-located dispatcher), and one daemon. The rendered service
+	// files are written into cfgDir at startup.
 	cfgDir := t.TempDir()
-	for _, f := range []string{"disp_test.toml", "br-test.toml", "cs-test.toml", "sd.toml"} {
-		if err := os.WriteFile(filepath.Join(cfgDir, f), nil, 0o644); err != nil {
-			t.Fatal(err)
-		}
+	cfg := prism.Config{SCION: prism.SCION{ASes: []prism.AS{{
+		ISDAS:   addr.MustParseIA("1-ff00:0:110"),
+		Core:    true,
+		Router:  &prism.Router{ID: "br-test", APIAddr: netip.MustParseAddrPort("127.0.0.1:30442")},
+		Control: &prism.Control{ID: "cs-test", Address: netip.MustParseAddrPort("127.0.0.1:30252")},
+		Daemon:  &prism.Daemon{ID: "sd", Address: netip.MustParseAddrPort("127.0.0.1:30255")},
+	}}}}
+	cfgRaw, err := cfg.EncodeYAML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	configFile := filepath.Join(cfgDir, "config.yml")
+	if err := os.WriteFile(configFile, cfgRaw, 0o644); err != nil {
+		t.Fatal(err)
 	}
 
 	logDir := t.TempDir()
@@ -158,6 +188,7 @@ func TestSupervise(t *testing.T) {
 	}
 	cmd := exec.Command(exe,
 		"--config-dir", cfgDir,
+		"--config-file", configFile,
 		"--bin-dir", binDir,
 		"--log-dir", logDir,
 		"--status-file", statusFile,
@@ -191,7 +222,7 @@ func TestSupervise(t *testing.T) {
 	}
 
 	// Every service, including the dispatcher, was started.
-	for _, name := range []string{"disp_test", "br-test", "cs-test", "sd"} {
+	for _, name := range []string{"disp_cs-test", "br-test", "cs-test", "sd"} {
 		if !strings.Contains(logs, `msg="started service" service=`+name) {
 			t.Errorf("service %q was never started", name)
 		}
@@ -220,7 +251,7 @@ func TestSupervise(t *testing.T) {
 	}
 
 	// Service output in the merged stream is tagged with the service name.
-	if !strings.Contains(logs, "[disp_test] FAKE service=dispatcher event=start") {
+	if !strings.Contains(logs, "[disp_cs-test] FAKE service=dispatcher event=start") {
 		t.Error("merged log stream is not prefixed with the service name")
 	}
 	// The controller's own diagnostics are tagged too.
@@ -232,7 +263,7 @@ func TestSupervise(t *testing.T) {
 	// Each service also got its own log file, carrying its raw (unprefixed)
 	// output.
 	for name, want := range map[string]string{
-		"disp_test": "FAKE service=dispatcher event=start",
+		"disp_cs-test": "FAKE service=dispatcher event=start",
 		"br-test":   "FAKE service=router event=start",
 		"sd":        "FAKE service=daemon event=start",
 		"cs-test":   "FAKE service=control event=crash",
@@ -257,7 +288,7 @@ func TestSupervise(t *testing.T) {
 	for _, s := range statuses {
 		byName[s.Name] = s
 	}
-	for _, name := range []string{"disp_test", "br-test", "cs-test", "sd"} {
+	for _, name := range []string{"disp_cs-test", "br-test", "cs-test", "sd"} {
 		if _, ok := byName[name]; !ok {
 			t.Errorf("status file missing service %q; got %+v", name, statuses)
 		}

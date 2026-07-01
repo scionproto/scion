@@ -34,8 +34,8 @@ sudo clab destroy -t testing/clab/two-as.clab.yml
 ```
 
 The controller assigns the inter-AS link address itself from the bind-mounted
-`network.yaml` (see [Network setup](#network-setup)), so no manual `ip addr add`
-is needed. Note the bind-mounted `gen/` service configs still use the old
+prism `config.yml` (see [Network setup](#network-setup)), so no manual
+`ip addr add` is needed. Note the bind-mounted `gen/` configs still use the old
 docker-bridge addressing, so the SCION services do not yet pass traffic
 end-to-end — that is the open [address/port plan generator](#open-items).
 
@@ -63,7 +63,8 @@ The image is **built with Bazel**, reusing the existing OCI image tooling
    ┌─────────────────────────────────────────────────────┐
    │  PID 1: Go controller                                │
    │    ├─ config API (HTTP/gRPC)  ◄── operator / tests   │
-   │    ├─ writes *.toml + topology.json into /etc/scion  │
+   │    ├─ reads prism config.yml from /etc/scion         │
+   │    ├─ renders *.toml into /etc/scion                  │
    │    └─ supervises (start/stop/reap/signal):           │
    │         ├─ /app/dispatcher --config /etc/scion/disp_*.toml
    │         ├─ /app/router   --config /etc/scion/br*.toml│
@@ -118,26 +119,26 @@ interfaces; it only binds a UDP socket to its underlay `local` address, which
 must already exist on a link. So before starting any service the controller
 assigns the node's interface addresses itself.
 
-The addressing is supplied as a small file (`--network-config` /
-`SCION_NETWORK_CONFIG`), accepted in **YAML or JSON** (decoded with
-`gopkg.in/yaml.v3`, which parses both). The shape is netplan-like:
+The addressing is taken from the same prism `config.yml` the controller renders
+the services from (`--config-file` / `SCION_CONFIG_FILE`), accepted in **YAML or
+JSON** (decoded with `gopkg.in/yaml.v3`, which parses both). The interfaces live
+in its `interfaces.ethernets` section:
 
 ```yaml
-config:
-  interfaces:
-    ethernets:
-      - name: eth1
-        addresses: ["10.1.1.1/30"]   # inter-AS underlay (SCION link)
-      - name: eth2
-        addresses: ["192.168.1.11/24"]
+interfaces:
+  ethernets:
+    - name: eth1
+      addresses: ["10.1.1.1/30"]   # inter-AS underlay (SCION link)
+    - name: eth2
+      addresses: ["192.168.1.11/24"]
 ```
 
 For each entry the controller adds the addresses and brings the link up; it is
 idempotent (an address already present is left in place, so the controller can
 restart against a live node). This requires **`CAP_NET_ADMIN`** in the node's
 netns, which containerlab grants by default (nodes run privileged). Setup is
-skipped entirely when no config is given, so a node whose links are addressed
-out-of-band still works.
+skipped entirely when the config lists no ethernets, so a node whose links are
+addressed out-of-band still works.
 
 containerlab attaches the inter-AS link veths and moves them into the node's
 netns **after** the container (and thus the controller, PID 1) has started, so a
@@ -195,8 +196,9 @@ runs, only `services list` loses live status and falls back.
 The controller owns `/etc/scion` and is the only writer of service config. It
 exposes an API (HTTP or gRPC — TBD) to:
 
-- set/update the node's SCION configuration — the AS's `topology.json`, the
-  per-service `*.toml`, keys/certs/TRCs;
+- set/update the node's SCION configuration — the prism `config.yml` (from which
+  the per-service `*.toml` are rendered), the AS's `topology.json`,
+  keys/certs/TRCs;
 - start/stop/restart individual services;
 - query service + config status.
 
@@ -290,19 +292,18 @@ topology:
     as110:
       kind: linux
       image: scion/clab-node:latest
-      env:
-        SCION_NETWORK_CONFIG: /etc/scion/network.yaml
       binds:
         - bin:/app:ro                       # optional: host-built binaries
-        - gen/ASff00_0_110:/etc/scion:rw    # seed config (controller owns it)
+        - gen/ASff00_0_110/host-1:/etc/scion:rw  # seed config (controller owns it)
   links:
     - endpoints: ["as110:eth1", "as120:eth1"]   # inter-AS link
 ```
 
-The controller reads `network.yaml` (or `.json`) from the seed config and
-assigns the link addresses at startup, so no out-of-band `ip addr add` /
-containerlab `exec:` is needed. A runnable two-AS example lives in
-[`two-as.clab.yml`](two-as.clab.yml).
+The controller reads the prism `config.yml` (default `/etc/scion/config.yml`,
+override with `--config-file` / `SCION_CONFIG_FILE`) from the seed config,
+assigns the link addresses and renders the service `*.toml` at startup, so no
+out-of-band `ip addr add` / containerlab `exec:` is needed. A runnable two-AS
+example lives in [`two-as.clab.yml`](two-as.clab.yml).
 
 ## End-to-end tests
 

@@ -5,8 +5,8 @@
 #   10.1.1.1/30                  10.1.1.2/30
 #
 # Each node is one ISD-AS running the clab-node image; the controller (PID 1)
-# assigns the link address from SCION_NETWORK_CONFIG, then discovers the
-# bind-mounted /etc/scion config and starts the AS's services (dispatcher,
+# reads the bind-mounted prism config.yml, assigns the link address from it,
+# renders the per-service configs and starts the AS's services (dispatcher,
 # border router, control, daemon) inside the node's single netns.
 #
 # Build/load the image first:   bazel run //testing/clab:clab_node.load
@@ -27,12 +27,14 @@ topology:
   nodes:
     as110:
       env:
-        SCION_NETWORK_CONFIG: /etc/scion/network.yaml
+        # The AS-root config.yml mirrors the control host, which for these
+        # single-host ASes is the whole node.
+        SCION_CONFIG_FILE: /etc/scion/config.yml
       binds:
         - ../../gen/ASff00_0_110:/etc/scion:rw
     as111:
       env:
-        SCION_NETWORK_CONFIG: /etc/scion/network.yaml
+        SCION_CONFIG_FILE: /etc/scion/config.yml
       binds:
         - ../../gen/ASff00_0_111:/etc/scion:rw
 

@@ -214,6 +214,9 @@ func layoutHosts(a *AS) {
 
 	// Stable-sort the default (empty label) border router to the front while
 	// preserving the encounter order of the tagged ones.
+	slices.SortStableFunc(a.BorderRouters, func(a, b *BorderRouter) int {
+		return cmp.Compare(a.Label, b.Label)
+	})
 	sort.SliceStable(a.BorderRouters, func(i, j int) bool {
 		return a.BorderRouters[i].Label == "" && a.BorderRouters[j].Label != ""
 	})

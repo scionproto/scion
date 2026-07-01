@@ -18,14 +18,12 @@ import (
 	"io"
 	"net/netip"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/testing/clab/testgen/hydrate"
 	"github.com/scionproto/scion/testing/clab/testgen/out"
 	"github.com/scionproto/scion/testing/clab/testgen/topo"
@@ -75,21 +73,7 @@ links:
 	n110 := clab.Topology.Nodes["1-ff00_0_110-host-1"]
 	require.NotNil(t, n110)
 	assert.NotEmpty(t, n110.MgmtIPv4)
-	assert.Equal(t, "/etc/scion/network.yaml", n110.Env["SCION_NETWORK_CONFIG"])
 	assert.Contains(t, n110.Binds, "ASff00_0_110/host-1:/etc/scion:rw")
-
-	// The per-host network.yaml lists the inter-AS interface.
-	networkFile := filepath.Join(
-		dir.Host(addr.MustParseIA("1-ff00:0:110"), "host-1"),
-		"network.yaml",
-	)
-	netRaw, err := os.ReadFile(networkFile)
-	require.NoError(t, err)
-	var nc networkConfig
-	require.NoError(t, yaml.Unmarshal(netRaw, &nc))
-	require.Len(t, nc.Config.Interfaces.Ethernets, 1)
-	assert.Equal(t, "eth1", nc.Config.Interfaces.Ethernets[0].Name)
-	require.Len(t, nc.Config.Interfaces.Ethernets[0].Addresses, 1)
 }
 
 func TestGenerateMultiHost(t *testing.T) {
