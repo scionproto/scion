@@ -28,8 +28,8 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 	"github.com/scionproto/scion/private/topology"
 	routerconfig "github.com/scionproto/scion/router/config"
-	"github.com/scionproto/scion/tools/integration"
 	"github.com/scionproto/scion/testing/clab/testgen"
+	"github.com/scionproto/scion/tools/integration"
 )
 
 const tinyTopo = `

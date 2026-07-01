@@ -69,7 +69,8 @@ links:
 	require.Len(t, clab.Topology.Links, 1)
 	assert.ElementsMatch(t,
 		[]string{"1-ff00_0_110-host-1:eth1", "1-ff00_0_111-host-1:eth1"},
-		clab.Topology.Links[0].Endpoints)
+		clab.Topology.Links[0].Endpoints,
+	)
 
 	n110 := clab.Topology.Nodes["1-ff00_0_110-host-1"]
 	require.NotNil(t, n110)
@@ -78,7 +79,11 @@ links:
 	assert.Contains(t, n110.Binds, "ASff00_0_110/host-1:/etc/scion:rw")
 
 	// The per-host network.yaml lists the inter-AS interface.
-	netRaw, err := os.ReadFile(filepath.Join(dir.Host(addr.MustParseIA("1-ff00:0:110"), "host-1"), "network.yaml"))
+	networkFile := filepath.Join(
+		dir.Host(addr.MustParseIA("1-ff00:0:110"), "host-1"),
+		"network.yaml",
+	)
+	netRaw, err := os.ReadFile(networkFile)
 	require.NoError(t, err)
 	var nc networkConfig
 	require.NoError(t, yaml.Unmarshal(netRaw, &nc))
@@ -100,7 +105,12 @@ links:
   - {a: "1-ff00:0:110-B#2", b: "1-ff00:0:112#1", linkAtoB: CHILD}
 `)
 	dir := out.New(t.TempDir(), false)
-	require.NoError(t, Generate(n, dir, Options{LabName: "m", MgmtV4: netip.MustParsePrefix("10.0.0.0/16")}, io.Discard))
+	err := Generate(n, dir, Options{
+		LabName: "m",
+		MgmtV4:  netip.MustParsePrefix("10.0.0.0/16")},
+		io.Discard,
+	)
+	require.NoError(t, err)
 
 	raw, err := os.ReadFile(dir.Clab("m"))
 	require.NoError(t, err)

@@ -36,7 +36,10 @@ func (t *Topo) Validate() error {
 		}
 		issuer, ok := t.ASes[e.CertIssuer]
 		if !ok {
-			return serrors.New("cert_issuer references unknown AS", "as", ia, "issuer", e.CertIssuer)
+			return serrors.New("cert_issuer references unknown AS",
+				"as", ia,
+				"issuer", e.CertIssuer,
+			)
 		}
 		if !issuer.Issuing {
 			return serrors.New("cert_issuer is not an issuing AS", "as", ia, "issuer", e.CertIssuer)

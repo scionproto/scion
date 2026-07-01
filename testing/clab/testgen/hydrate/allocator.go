@@ -15,8 +15,9 @@
 package hydrate
 
 import (
+	"maps"
 	"net/netip"
-	"sort"
+	"slices"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -81,13 +82,8 @@ type clabAllocator struct {
 // ordering (and therefore the allocation) is derived from the sorted ISD-AS
 // list so runs are byte-stable.
 func NewClabAllocator(t *topo.Topo, cfg ClabConfig) Allocator {
-	ias := make([]addr.IA, 0, len(t.ASes))
-	for ia := range t.ASes {
-		ias = append(ias, ia)
-	}
-	sort.Slice(ias, func(i, j int) bool { return ias[i].String() < ias[j].String() })
-	idx := make(map[addr.IA]int, len(ias))
-	for i, ia := range ias {
+	idx := make(map[addr.IA]int, len(t.ASes))
+	for i, ia := range slices.Sorted(maps.Keys(t.ASes)) {
 		idx[ia] = i
 	}
 	return &clabAllocator{cfg: cfg, asIndex: idx}

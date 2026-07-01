@@ -22,6 +22,7 @@
 package clab
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"net/netip"
@@ -167,12 +168,22 @@ func buildNode(as *hydrate.AS, host *hydrate.Host, dir out.Dir) (*node, error) {
 // border-router data-plane interfaces. Each link is emitted once, keyed off the
 // lexicographically smaller endpoint.
 func buildLinks(network *hydrate.Network) []link {
-	type endpoint struct{ node, eth string }
-	index := map[ifaceKey]endpoint{}
+	type (
+		endpoint struct {
+			node string
+			eth  string
+		}
+		intfKey struct {
+			ia   addr.IA
+			ifID uint64
+		}
+	)
+
+	index := map[intfKey]endpoint{}
 	for _, as := range network.ASes {
 		for _, br := range as.BorderRouters {
 			for _, intf := range br.Interfaces {
-				index[ifaceKey{as.IA, uint64(intf.IfID)}] = endpoint{
+				index[intfKey{as.IA, uint64(intf.IfID)}] = endpoint{
 					node: nodeName(as.IA, br.Host),
 					eth:  intf.EthName,
 				}
@@ -184,9 +195,17 @@ func buildLinks(network *hydrate.Network) []link {
 	for _, as := range network.ASes {
 		for _, br := range as.BorderRouters {
 			for _, intf := range br.Interfaces {
-				local := ifaceKey{as.IA, uint64(intf.IfID)}
-				remote := ifaceKey{intf.RemoteIA, uint64(intf.RemoteIfID)}
-				if local.less(remote) {
+				var (
+					local  = intfKey{as.IA, uint64(intf.IfID)}
+					remote = intfKey{intf.RemoteIA, uint64(intf.RemoteIfID)}
+
+					// We only want to add the link once.
+					less = cmp.Or(
+						cmp.Compare(local.ia, remote.ia),
+						cmp.Compare(local.ifID, remote.ifID),
+					) == -1
+				)
+				if less {
 					a := index[local]
 					b := index[remote]
 					links = append(links, link{Endpoints: []string{
@@ -201,18 +220,6 @@ func buildLinks(network *hydrate.Network) []link {
 		return links[i].Endpoints[0] < links[j].Endpoints[0]
 	})
 	return links
-}
-
-type ifaceKey struct {
-	ia   addr.IA
-	ifID uint64
-}
-
-func (k ifaceKey) less(o ifaceKey) bool {
-	if k.ia != o.ia {
-		return k.ia.String() < o.ia.String()
-	}
-	return k.ifID < o.ifID
 }
 
 // nodeName is the containerlab node name for a host: the AS in file format

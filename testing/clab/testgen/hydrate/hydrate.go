@@ -20,8 +20,11 @@
 package hydrate
 
 import (
+	"cmp"
 	"fmt"
+	"maps"
 	"net/netip"
+	"slices"
 	"sort"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -33,13 +36,13 @@ import (
 // Well-known service ports. Each host has a unique address, so reusing ports
 // across hosts is fine.
 const (
-	routerInternalPort = 30042
-	routerExternalPort = 50000 // BR external underlay UDP port
-	controlPort        = 30252
-	controlAPIPort     = 30452
+	routerInternalPort = 30100
+	routerExternalPort = 31000 // Range: 31000-39999
+	controlPort        = 40000
+	controlAPIPort     = 41000
 	daemonPort         = 30255
-	daemonAPIPort      = 30455
-	routerAPIPort      = 30442
+	daemonAPIPort      = 41300
+	routerAPIPort      = 41100
 )
 
 // Network is the fully resolved topology with all addressing assigned.
@@ -103,10 +106,11 @@ type Interface struct {
 
 // Hydrate resolves the topology into a fully addressed [Network].
 func Hydrate(t *topo.Topo, alloc Allocator) (*Network, error) {
-	ias := sortedIAs(t)
-
-	ases := make(map[addr.IA]*AS, len(ias))
-	net := &Network{}
+	var (
+		ias  = slices.Sorted(maps.Keys(t.ASes))
+		ases = make(map[addr.IA]*AS, len(ias))
+	)
+	var net Network
 	for _, ia := range ias {
 		entry := t.ASes[ia]
 		asAlloc, err := alloc.AS(ia, entry.Underlay.OrDefault())
@@ -134,7 +138,7 @@ func Hydrate(t *topo.Topo, alloc Allocator) (*Network, error) {
 	for _, a := range net.ASes {
 		layoutHosts(a)
 	}
-	return net, nil
+	return &net, nil
 }
 
 // assignBorderRouters walks the links in file order, grouping interfaces onto
@@ -227,7 +231,9 @@ func layoutHosts(a *AS) {
 		// Assign data-plane interface names (eth1, eth2, …) to the border
 		// router's external interfaces, sorted by interface id. eth0 is the
 		// containerlab management interface.
-		sort.Slice(br.Interfaces, func(a, b int) bool { return br.Interfaces[a].IfID < br.Interfaces[b].IfID })
+		slices.SortFunc(br.Interfaces, func(a, b *Interface) int {
+			return cmp.Compare(a.IfID, b.IfID)
+		})
 		for j, intf := range br.Interfaces {
 			intf.EthName = fmt.Sprintf("eth%d", j+1)
 		}
@@ -276,13 +282,4 @@ func invert(lt topo.LinkType) topo.LinkType {
 	default:
 		return lt
 	}
-}
-
-func sortedIAs(t *topo.Topo) []addr.IA {
-	ias := make([]addr.IA, 0, len(t.ASes))
-	for ia := range t.ASes {
-		ias = append(ias, ia)
-	}
-	sort.Slice(ias, func(i, j int) bool { return ias[i].String() < ias[j].String() })
-	return ias
 }

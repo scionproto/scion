@@ -45,9 +45,15 @@ func serverCmd() *cobra.Command {
 			return runServer(context.Background(), sciond, listen, duration)
 		},
 	}
-	cmd.Flags().StringVar(&sciond, "sciond", "127.0.0.1:30255", "SCION daemon address")
-	cmd.Flags().StringVar(&listen, "listen", "", "underlay address to listen on (host:port, required)")
-	cmd.Flags().DurationVar(&duration, "duration", 0, "shut down after this duration (0 = run forever)")
+	cmd.Flags().StringVar(&sciond, "sciond", "127.0.0.1:30255",
+		"SCION daemon address",
+	)
+	cmd.Flags().StringVar(&listen, "listen", "",
+		"underlay address to listen on (host:port, required)",
+	)
+	cmd.Flags().DurationVar(&duration, "duration", 0,
+		"shut down after this duration (0 = run forever)",
+	)
 	cmd.MarkFlagRequired("listen")
 	return cmd
 }

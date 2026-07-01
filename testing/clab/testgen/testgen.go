@@ -250,7 +250,8 @@ func generateConfigs(network *hydrate.Network, dir out.Dir) error {
 		}
 		// A per-AS copy at the AS directory root is what the integration
 		// framework's CSAddr lookup reads (gen/AS<...>/topology.json).
-		if err := out.WriteFile(filepath.Join(dir.AS(as.IA), "topology.json"), topoRaw); err != nil {
+		topoFile := filepath.Join(dir.AS(as.IA), "topology.json")
+		if err := out.WriteFile(topoFile, topoRaw); err != nil {
 			return err
 		}
 		for _, host := range as.Hosts {
@@ -279,6 +280,7 @@ func generateConfigs(network *hydrate.Network, dir out.Dir) error {
 				// the AS-directory root (gen/AS<...>/cs*.toml) to find the CS
 				// API address; mirror it there.
 				if strings.HasPrefix(f.Name, "cs") {
+					// TODO: use PRISM.
 					if err := out.WriteFile(filepath.Join(dir.AS(as.IA), f.Name), f.Content); err != nil {
 						return err
 					}

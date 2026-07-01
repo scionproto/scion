@@ -106,7 +106,12 @@ func runClient(ctx context.Context, sciond, remoteStr string) (string, error) {
 			ServerName:         "e2e-http",
 		},
 		QUICConfig: quicConfig(),
-		Dial: func(ctx context.Context, _ string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
+		Dial: func(
+			ctx context.Context,
+			_ string,
+			tlsCfg *tls.Config,
+			cfg *quic.Config,
+		) (*quic.Conn, error) {
 			return tr.Dial(ctx, remote, tlsCfg, cfg)
 		},
 	}

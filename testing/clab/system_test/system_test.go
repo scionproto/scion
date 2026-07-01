@@ -48,15 +48,24 @@ import (
 )
 
 var (
-	runSetup    = flag.Bool("setup", false, "run the setup phase (load image, generate topology, deploy)")
-	runExecute  = flag.Bool("execute", false, "run the execute phase (e2e_scion, e2e_http)")
-	runTeardown = flag.Bool("teardown", false, "run the teardown phase (clab destroy)")
-
+	labName  = flag.String("lab", "scion", "containerlab lab name")
+	dockerC  = flag.String("docker", "docker", "docker command")
+	clabC    = flag.String("clab", "clab", "containerlab command")
 	topoFile = flag.String("topo", envOr("CLAB_TOPO", "topology/default-no-peers.topo"),
-		"testgen topology description file")
-	labName = flag.String("lab", "scion", "containerlab lab name")
-	dockerC = flag.String("docker", "docker", "docker command")
-	clabC   = flag.String("clab", "clab", "containerlab command")
+		"testgen topology description file",
+	)
+
+	// Phases
+
+	runSetup = flag.Bool("setup", false,
+		"run the setup phase (load image, generate topology, deploy)",
+	)
+	runExecute = flag.Bool("execute", false,
+		"run the execute phase (e2e_scion, e2e_http)",
+	)
+	runTeardown = flag.Bool("teardown", false,
+		"run the teardown phase (clab destroy)",
+	)
 
 	// artifactsFlag pins the working directory (where the lab is generated and
 	// deployed). When running phases in separate bazel invocations (e.g. -setup
@@ -166,11 +175,19 @@ func (h *harness) setup(t *testing.T) {
 // output of each driver is captured as an artifact.
 func (h *harness) execute(t *testing.T) {
 	t.Run("e2e_scion", func(t *testing.T) {
-		out := h.run(t, h.workDir, h.e2eScion, "--gen", h.genDir, "--lab", *labName, "--docker", *dockerC)
+		out := h.run(t, h.workDir, h.e2eScion,
+			"--gen", h.genDir,
+			"--lab", *labName,
+			"--docker", *dockerC,
+		)
 		h.collectBytes(t, out, "e2e_scion.log")
 	})
 	t.Run("e2e_http", func(t *testing.T) {
-		out := h.run(t, h.workDir, h.e2eHTTP, "run", "--gen", h.genDir, "--lab", *labName, "--docker", *dockerC)
+		out := h.run(t, h.workDir, h.e2eHTTP, "run",
+			"--gen", h.genDir,
+			"--lab", *labName,
+			"--docker", *dockerC,
+		)
 		h.collectBytes(t, out, "e2e_http.log")
 	})
 }

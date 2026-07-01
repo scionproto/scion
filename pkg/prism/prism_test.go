@@ -123,8 +123,10 @@ func TestRenderDecodesThroughRealConfigs(t *testing.T) {
 func TestRenderOnlyPresentElements(t *testing.T) {
 	// A border-router-only host yields exactly one file.
 	c := Config{SCION: SCION{ASes: []AS{{
-		ISDAS:  addr.MustParseIA("1-ff00:0:110"),
-		Router: &Router{ID: "br1-ff00_0_110-2", InternalInterface: netip.MustParseAddrPort("10.0.0.2:30042")},
+		ISDAS: addr.MustParseIA("1-ff00:0:110"),
+		Router: &Router{ID: "br1-ff00_0_110-2",
+			InternalInterface: netip.MustParseAddrPort("10.0.0.2:30042"),
+		},
 	}}}}
 	files, err := Render(c)
 	require.NoError(t, err)

@@ -37,11 +37,14 @@ import (
 )
 
 var (
-	genDir     = flag.String("gen", "gen", "testgen output directory")
-	quiet      = flag.Duration("quiet", 10*time.Second, "stay silent for this long before reporting")
-	timeout    = flag.Duration("timeout", 60*time.Second, "give up after this long")
-	connectTO  = flag.Duration("connect-timeout", 5*time.Second, "per-request HTTP timeout")
-	interval   = flag.Duration("interval", time.Second, "polling interval")
+	genDir    = flag.String("gen", "gen", "testgen output directory")
+	timeout   = flag.Duration("timeout", 60*time.Second, "give up after this long")
+	connectTO = flag.Duration("connect-timeout", 5*time.Second, "per-request HTTP timeout")
+	interval  = flag.Duration("interval", time.Second, "polling interval")
+	quiet     = flag.Duration("quiet", 10*time.Second, "stay silent before reporting")
+)
+
+var (
 	httpClient = &http.Client{}
 )
 
