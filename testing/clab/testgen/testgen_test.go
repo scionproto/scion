@@ -25,7 +25,8 @@ import (
 
 	controlconfig "github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/prism"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/prism"
 	"github.com/scionproto/scion/private/keyconf"
 	"github.com/scionproto/scion/private/topology"
 	routerconfig "github.com/scionproto/scion/router/config"
@@ -104,7 +105,7 @@ func TestPipelineEndToEnd(t *testing.T) {
 	// renders them at start time from config.yml.
 	raw, err := os.ReadFile(filepath.Join(gen, "ASff00_0_110/host-1/config.yml"))
 	require.NoError(t, err)
-	prismCfg, err := prism.DecodeYAML(raw)
+	prismCfg, err := config.DecodeYAML(raw)
 	require.NoError(t, err)
 	files, err := prism.Render(prismCfg)
 	require.NoError(t, err)

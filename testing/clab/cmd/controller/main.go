@@ -32,7 +32,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/scionproto/scion/pkg/prism"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 	"github.com/scionproto/scion/private/app/command"
 )
 
@@ -237,14 +237,14 @@ func run(configDir, configFile, binDir, logDir, dataDir, statusFile string,
 // loadConfig reads and decodes the generalized prism configuration at path. YAML
 // is a superset of JSON, so the YAML decoder handles either serialization that
 // testgen emits.
-func loadConfig(path string) (prism.Config, error) {
+func loadConfig(path string) (config.Config, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return prism.Config{}, fmt.Errorf("reading config %q: %w", path, err)
+		return config.Config{}, fmt.Errorf("reading config %q: %w", path, err)
 	}
-	cfg, err := prism.DecodeYAML(raw)
+	cfg, err := config.DecodeYAML(raw)
 	if err != nil {
-		return prism.Config{}, fmt.Errorf("parsing config %q: %w", path, err)
+		return config.Config{}, fmt.Errorf("parsing config %q: %w", path, err)
 	}
 	return cfg, nil
 }

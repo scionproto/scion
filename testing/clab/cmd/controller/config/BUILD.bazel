@@ -4,30 +4,24 @@ load("//tools:go.bzl", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "discover.go",
-        "docker.go",
-        "endpoint.go",
-        "progress.go",
-        "report.go",
+        "encode.go",
+        "model.go",
     ],
-    importpath = "github.com/scionproto/scion/testing/clab/e2e",
+    importpath = "github.com/scionproto/scion/testing/clab/cmd/controller/config",
     visibility = ["//visibility:public"],
     deps = [
-        "//testing/clab/cmd/controller/config:go_default_library",
+        "//pkg/addr:go_default_library",
+        "//pkg/private/serrors:go_default_library",
         "@in_gopkg_yaml_v3//:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "discover_test.go",
-        "endpoint_test.go",
-    ],
+    srcs = ["encode_test.go"],
     deps = [
         ":go_default_library",
         "//pkg/addr:go_default_library",
-        "//testing/clab/cmd/controller/config:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],

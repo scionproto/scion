@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package prism renders the generalized SCION configuration model into the
+// service-specific files (router, control, daemon).
 package prism
 
 import (
@@ -30,6 +32,7 @@ import (
 	mgmtapi "github.com/scionproto/scion/private/mgmtapi"
 	"github.com/scionproto/scion/private/storage"
 	routerconfig "github.com/scionproto/scion/router/config"
+	clabconfig "github.com/scionproto/scion/testing/clab/cmd/controller/config"
 )
 
 // configDir is the in-container directory holding the topology, certs and keys.
@@ -62,7 +65,7 @@ const (
 // Render produces the service configuration file(s) for the elements present
 // in cfg (the host's local elements). It does not produce topology.json, which
 // is an AS-wide artifact generated separately.
-func Render(cfg Config) ([]ServiceFile, error) {
+func Render(cfg clabconfig.Config) ([]ServiceFile, error) {
 	var files []ServiceFile
 	for _, as := range cfg.SCION.ASes {
 		if as.Router != nil {
@@ -98,7 +101,7 @@ func Render(cfg Config) ([]ServiceFile, error) {
 	return files, nil
 }
 
-func renderRouter(r *Router) (ServiceFile, error) {
+func renderRouter(r *clabconfig.Router) (ServiceFile, error) {
 	cfg := routerconfig.Config{
 		General: env.General{ID: r.ID, ConfigDir: configDir},
 		Logging: consoleLog(),
@@ -107,7 +110,7 @@ func renderRouter(r *Router) (ServiceFile, error) {
 	return marshal(r.ID+".toml", binRouter, cfg)
 }
 
-func renderControl(c *Control) (ServiceFile, error) {
+func renderControl(c *clabconfig.Control) (ServiceFile, error) {
 	mode := controlconfig.Disabled
 	if c.Issuing {
 		mode = controlconfig.InProcess
@@ -124,7 +127,7 @@ func renderControl(c *Control) (ServiceFile, error) {
 	return marshal(c.ID+".toml", binControl, cfg)
 }
 
-func renderDispatcher(ia addr.IA, c *Control) (ServiceFile, error) {
+func renderDispatcher(ia addr.IA, c *clabconfig.Control) (ServiceFile, error) {
 	id := "disp_" + c.ID
 	cfg := dispatcherconfig.Config{
 		Logging: consoleLog(),
@@ -143,7 +146,7 @@ func renderDispatcher(ia addr.IA, c *Control) (ServiceFile, error) {
 	return marshal(id+".toml", binDispatcher, cfg)
 }
 
-func renderDaemon(d *Daemon) (ServiceFile, error) {
+func renderDaemon(d *clabconfig.Daemon) (ServiceFile, error) {
 	cfg := daemonconfig.Config{
 		General: env.General{ID: d.ID, ConfigDir: configDir},
 		Logging: consoleLog(),

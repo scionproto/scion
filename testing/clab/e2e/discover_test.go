@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/prism"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 	"github.com/scionproto/scion/testing/clab/e2e"
 )
 
@@ -39,9 +39,9 @@ Non-core:
 	writeCS := func(asFile, ia, apiAddr string) {
 		d := filepath.Join(dir, "AS"+asFile)
 		require.NoError(t, os.MkdirAll(d, 0o755))
-		cfg := prism.Config{SCION: prism.SCION{ASes: []prism.AS{{
+		cfg := config.Config{SCION: config.SCION{ASes: []config.AS{{
 			ISDAS:   addr.MustParseIA(ia),
-			Control: &prism.Control{ID: "cs" + asFile + "-1", APIAddr: netip.MustParseAddrPort(apiAddr)},
+			Control: &config.Control{ID: "cs" + asFile + "-1", APIAddr: netip.MustParseAddrPort(apiAddr)},
 		}}}}
 		raw, err := cfg.EncodeYAML()
 		require.NoError(t, err)

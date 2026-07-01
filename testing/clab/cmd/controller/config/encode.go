@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prism
+package config
 
 import (
 	"encoding/json"
@@ -26,7 +26,7 @@ import (
 func (c Config) EncodeYAML() ([]byte, error) {
 	raw, err := yaml.Marshal(c)
 	if err != nil {
-		return nil, serrors.Wrap("encoding prism config to YAML", err)
+		return nil, serrors.Wrap("encoding config to YAML", err)
 	}
 	return raw, nil
 }
@@ -35,7 +35,7 @@ func (c Config) EncodeYAML() ([]byte, error) {
 func (c Config) EncodeJSON() ([]byte, error) {
 	raw, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		return nil, serrors.Wrap("encoding prism config to JSON", err)
+		return nil, serrors.Wrap("encoding config to JSON", err)
 	}
 	return raw, nil
 }
@@ -44,7 +44,7 @@ func (c Config) EncodeJSON() ([]byte, error) {
 func DecodeYAML(raw []byte) (Config, error) {
 	var c Config
 	if err := yaml.Unmarshal(raw, &c); err != nil {
-		return Config{}, serrors.Wrap("decoding prism config from YAML", err)
+		return Config{}, serrors.Wrap("decoding config from YAML", err)
 	}
 	return c, nil
 }
@@ -53,7 +53,7 @@ func DecodeYAML(raw []byte) (Config, error) {
 func DecodeJSON(raw []byte) (Config, error) {
 	var c Config
 	if err := json.Unmarshal(raw, &c); err != nil {
-		return Config{}, serrors.Wrap("decoding prism config from JSON", err)
+		return Config{}, serrors.Wrap("decoding config from JSON", err)
 	}
 	return c, nil
 }

@@ -22,7 +22,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/scionproto/scion/pkg/prism"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 )
 
 // AS is one autonomous system: its ISD-AS, whether it is a core AS, and the
@@ -86,7 +86,7 @@ func segmentsURL(genDir, ia string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("reading config for %s: %w", ia, err)
 	}
-	cfg, err := prism.DecodeYAML(raw)
+	cfg, err := config.DecodeYAML(raw)
 	if err != nil {
 		return "", fmt.Errorf("parsing config for %s: %w", ia, err)
 	}

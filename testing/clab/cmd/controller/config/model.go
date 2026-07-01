@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package prism defines the generalized SCION configuration and renders it
-// into the service-specific files (router, control, daemon).
+// Package config defines the generalized SCION configuration model.
 //
 // A [Config] is the generalized configuration for a single host — the
 // equivalent of one appliance in the Anapaya configuration model. It describes
 // only the elements that host runs, never the rest of the AS. Because it is
-// purely local and self-contained, a service process can call [Render] on its
-// own config to produce its own files. The model is format-agnostic: it
-// serializes identically to YAML and JSON (see encode.go).
-package prism
+// purely local and self-contained, a service process can render its own config
+// into service-specific files (see the prism package). The model is
+// format-agnostic: it serializes identically to YAML and JSON (see encode.go).
+package config
 
 import (
 	"net/netip"

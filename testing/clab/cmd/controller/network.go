@@ -27,7 +27,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"github.com/scionproto/scion/pkg/prism"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 )
 
 const (
@@ -54,7 +54,7 @@ type ethernet struct {
 // so a node needs no out-of-band `ip addr add` (see README "Network setup").
 // eth0 (management) carries the AS-internal address and is configured by
 // containerlab, so it is not listed here.
-func ethernets(cfg prism.Config) []ethernet {
+func ethernets(cfg config.Config) []ethernet {
 	var eths []ethernet
 	for _, eth := range cfg.Interfaces.Ethernets {
 		eths = append(eths, ethernet{Name: eth.Name, Addresses: eth.Addresses})

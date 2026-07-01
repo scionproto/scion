@@ -23,7 +23,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/scionproto/scion/pkg/prism"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/prism"
 )
 
 // service is a single SCION process the controller supervises.
@@ -51,7 +52,7 @@ var startOrder = map[string]int{
 // binaries resolved under binDir. The result is deterministically ordered
 // (dispatchers first, see startOrder, then by service id) so start order is
 // stable.
-func renderServices(cfg prism.Config, configDir, binDir string) ([]service, error) {
+func renderServices(cfg config.Config, configDir, binDir string) ([]service, error) {
 	files, err := prism.Render(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("rendering service configs: %w", err)

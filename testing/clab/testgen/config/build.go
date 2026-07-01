@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package config builds the generalized per-host configuration (prism.Config)
+// Package config builds the generalized per-host configuration (clabconfig.Config)
 // and the shared per-AS topology.json from a resolved [hydrate.Network].
 package config
 
@@ -20,7 +20,7 @@ import (
 	"net/netip"
 	"sort"
 
-	"github.com/scionproto/scion/pkg/prism"
+	clabconfig "github.com/scionproto/scion/testing/clab/cmd/controller/config"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	topojson "github.com/scionproto/scion/private/topology/json"
 	"github.com/scionproto/scion/testing/clab/testgen/hydrate"
@@ -30,8 +30,8 @@ import (
 const endhostPortRange = "1024-65535"
 
 // HostConfig builds the generalized configuration for a single host.
-func HostConfig(a *hydrate.AS, h *hydrate.Host) prism.Config {
-	as := prism.AS{
+func HostConfig(a *hydrate.AS, h *hydrate.Host) clabconfig.Config {
+	as := clabconfig.AS{
 		ISDAS: a.IA,
 		Core:  a.Attrs.Core,
 		MTU:   a.MTU,
@@ -39,10 +39,10 @@ func HostConfig(a *hydrate.AS, h *hydrate.Host) prism.Config {
 	// eth0 is the containerlab management interface (carries the host's
 	// AS-internal address); only the inter-AS data-plane links (eth1, eth2, …)
 	// are modeled here.
-	var ifs prism.Interfaces
+	var ifs clabconfig.Interfaces
 
 	if br := h.BorderRouter; br != nil {
-		as.Router = &prism.Router{
+		as.Router = &clabconfig.Router{
 			ID:                br.ID,
 			InternalInterface: br.InternalAddr,
 			APIAddr:           br.APIAddr,
@@ -50,7 +50,7 @@ func HostConfig(a *hydrate.AS, h *hydrate.Host) prism.Config {
 		}
 		as.Neighbors = neighbors(br)
 		for _, intf := range br.Interfaces {
-			ifs.Ethernets = append(ifs.Ethernets, prism.Ethernet{
+			ifs.Ethernets = append(ifs.Ethernets, clabconfig.Ethernet{
 				Name:      intf.EthName,
 				Addresses: []string{cidr(intf.Local.Addr(), intf.Net.Bits())},
 				MTU:       intf.MTU,
@@ -58,7 +58,7 @@ func HostConfig(a *hydrate.AS, h *hydrate.Host) prism.Config {
 		}
 	}
 	if h.Control {
-		as.Control = &prism.Control{
+		as.Control = &clabconfig.Control{
 			ID:      a.Control.ID,
 			Address: a.Control.Addr,
 			APIAddr: a.Control.API,
@@ -66,43 +66,43 @@ func HostConfig(a *hydrate.AS, h *hydrate.Host) prism.Config {
 		}
 	}
 	if h.Daemon {
-		as.Daemon = &prism.Daemon{
+		as.Daemon = &clabconfig.Daemon{
 			ID:      a.Daemon.ID,
 			Address: a.Daemon.Addr,
 			APIAddr: a.Daemon.API,
 		}
 	}
-	return prism.Config{
-		SCION:      prism.SCION{ASes: []prism.AS{as}},
+	return clabconfig.Config{
+		SCION:      clabconfig.SCION{ASes: []clabconfig.AS{as}},
 		Interfaces: ifs,
 	}
 }
 
 // neighbors groups a border router's interfaces by neighboring AS.
-func neighbors(br *hydrate.BorderRouter) []prism.Neighbor {
+func neighbors(br *hydrate.BorderRouter) []clabconfig.Neighbor {
 	order := []string{}
-	byIA := map[string]*prism.Neighbor{}
+	byIA := map[string]*clabconfig.Neighbor{}
 	for _, intf := range br.Interfaces {
 		key := intf.RemoteIA.String()
 		n, ok := byIA[key]
 		if !ok {
 			order = append(order, key)
-			byIA[key] = &prism.Neighbor{
+			byIA[key] = &clabconfig.Neighbor{
 				ISDAS:        intf.RemoteIA,
-				Relationship: prism.LinkType(intf.LinkType),
+				Relationship: clabconfig.LinkType(intf.LinkType),
 			}
 			n = byIA[key]
 		}
-		n.Interfaces = append(n.Interfaces, prism.Interface{
+		n.Interfaces = append(n.Interfaces, clabconfig.Interface{
 			ID:       uint64(intf.IfID),
 			Underlay: string(intf.Underlay),
 			Address:  intf.Local,
-			Remote:   prism.Remote{Address: intf.Remote, ID: uint64(intf.RemoteIfID)},
+			Remote:   clabconfig.Remote{Address: intf.Remote, ID: uint64(intf.RemoteIfID)},
 			MTU:      intf.MTU,
 		})
 	}
 	sort.Strings(order)
-	out := make([]prism.Neighbor, 0, len(order))
+	out := make([]clabconfig.Neighbor, 0, len(order))
 	for _, k := range order {
 		out = append(out, *byIA[k])
 	}

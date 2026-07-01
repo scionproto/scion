@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/prism"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 )
 
 // TestMain lets the test binary impersonate both the controller and the SCION
@@ -71,20 +71,20 @@ func fakeCrash() {
 
 func TestRenderServices(t *testing.T) {
 	ia := addr.MustParseIA("1-ff00:0:110")
-	cfg := prism.Config{SCION: prism.SCION{ASes: []prism.AS{{
+	cfg := config.Config{SCION: config.SCION{ASes: []config.AS{{
 		ISDAS: ia,
 		Core:  true,
-		Router: &prism.Router{
+		Router: &config.Router{
 			ID:                "br1-ff00_0_110-1",
 			InternalInterface: netip.MustParseAddrPort("10.1.0.1:30042"),
 			APIAddr:           netip.MustParseAddrPort("10.1.0.1:30442"),
 		},
-		Control: &prism.Control{
+		Control: &config.Control{
 			ID:      "cs1-ff00_0_110-1",
 			Address: netip.MustParseAddrPort("10.1.0.1:30252"),
 			APIAddr: netip.MustParseAddrPort("10.1.0.1:30452"),
 		},
-		Daemon: &prism.Daemon{
+		Daemon: &config.Daemon{
 			ID:      "sd",
 			Address: netip.MustParseAddrPort("127.0.0.1:30255"),
 			APIAddr: netip.MustParseAddrPort("10.1.0.1:30455"),
@@ -161,12 +161,12 @@ func TestSupervise(t *testing.T) {
 	// yields a co-located dispatcher), and one daemon. The rendered service
 	// files are written into cfgDir at startup.
 	cfgDir := t.TempDir()
-	cfg := prism.Config{SCION: prism.SCION{ASes: []prism.AS{{
+	cfg := config.Config{SCION: config.SCION{ASes: []config.AS{{
 		ISDAS:   addr.MustParseIA("1-ff00:0:110"),
 		Core:    true,
-		Router:  &prism.Router{ID: "br-test", APIAddr: netip.MustParseAddrPort("127.0.0.1:30442")},
-		Control: &prism.Control{ID: "cs-test", Address: netip.MustParseAddrPort("127.0.0.1:30252")},
-		Daemon:  &prism.Daemon{ID: "sd", Address: netip.MustParseAddrPort("127.0.0.1:30255")},
+		Router:  &config.Router{ID: "br-test", APIAddr: netip.MustParseAddrPort("127.0.0.1:30442")},
+		Control: &config.Control{ID: "cs-test", Address: netip.MustParseAddrPort("127.0.0.1:30252")},
+		Daemon:  &config.Daemon{ID: "sd", Address: netip.MustParseAddrPort("127.0.0.1:30255")},
 	}}}}
 	cfgRaw, err := cfg.EncodeYAML()
 	if err != nil {

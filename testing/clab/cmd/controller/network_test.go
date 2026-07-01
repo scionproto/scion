@@ -23,15 +23,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/pkg/prism"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 )
 
 // TestEthernets checks that the node's inter-AS data-plane interfaces are
 // extracted from the prism configuration's interfaces section.
 func TestEthernets(t *testing.T) {
-	cfg := prism.Config{
-		Interfaces: prism.Interfaces{
-			Ethernets: []prism.Ethernet{
+	cfg := config.Config{
+		Interfaces: config.Interfaces{
+			Ethernets: []config.Ethernet{
 				{Name: "eth1", Addresses: []string{"169.254.10.9/30"}},
 				{Name: "eth2", Addresses: []string{"192.168.1.11/24"}},
 			},
