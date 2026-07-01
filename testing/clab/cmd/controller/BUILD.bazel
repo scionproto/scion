@@ -15,9 +15,10 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//private/app/command:go_default_library",
+        "//testing/clab/cmd/controller/config:go_default_library",
+        "//testing/clab/cmd/controller/prism:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@com_github_vishvananda_netlink//:go_default_library",
-        "@in_gopkg_yaml_v3//:go_default_library",
         "@org_golang_x_sys//unix:go_default_library",
     ],
 )
@@ -37,4 +38,10 @@ go_test(
         "status_test.go",
     ],
     embed = [":go_default_library"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//testing/clab/cmd/controller/config:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
 )

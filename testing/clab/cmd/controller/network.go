@@ -20,14 +20,13 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"os"
 	"syscall"
 	"text/tabwriter"
 	"time"
 
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -41,50 +40,6 @@ const (
 	// while waiting for it to appear.
 	linkWaitInterval = 250 * time.Millisecond
 )
-
-// networkConfig is the operator-supplied interface addressing for the node. It
-// is decoded with gopkg.in/yaml.v3, which parses both YAML and JSON (JSON is a
-// subset of YAML), so a single set of struct tags handles either format. The
-// shape is netplan-like:
-//
-//	config:
-//	  interfaces:
-//	    ethernets:
-//	      - name: eth1
-//	        addresses: ["10.1.1.1/30"]
-//	      - name: eth2
-//	        addresses: ["192.168.1.11/24"]
-//
-// containerlab brings each inter-AS link veth up without an address; this lets
-// the controller assign the SCION underlay addresses itself, so a node needs no
-// out-of-band `ip addr add` (see README "Network setup").
-type networkConfig struct {
-	Config struct {
-		Interfaces struct {
-			Ethernets []ethernet `yaml:"ethernets"`
-		} `yaml:"interfaces"`
-	} `yaml:"config"`
-}
-
-// ethernet is one interface and the addresses (CIDR) to assign to it.
-type ethernet struct {
-	Name      string   `yaml:"name"`
-	Addresses []string `yaml:"addresses"`
-}
-
-// loadNetworkConfig reads and decodes the network configuration at path. The
-// format (YAML or JSON) is auto-detected by the decoder.
-func loadNetworkConfig(path string) (*networkConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var cfg networkConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("parsing network config %q: %w", path, err)
-	}
-	return &cfg, nil
-}
 
 // addrStatus is one configured address and whether it is actually present on
 // the live interface.
@@ -107,9 +62,9 @@ type interfaceStatus struct {
 // live state of each configured interface. Because the inspection CLI runs in
 // the node's netns — the same one the controller configured — this reflects
 // what the controller actually managed to set up, not just what was requested.
-func networkStatus(cfg *networkConfig) []interfaceStatus {
-	out := make([]interfaceStatus, 0, len(cfg.Config.Interfaces.Ethernets))
-	for _, eth := range cfg.Config.Interfaces.Ethernets {
+func networkStatus(eths []config.Ethernet) []interfaceStatus {
+	out := make([]interfaceStatus, 0, len(eths))
+	for _, eth := range eths {
 		st := interfaceStatus{name: eth.Name}
 		link, err := netlink.LinkByName(eth.Name)
 		if err == nil {
@@ -179,8 +134,8 @@ func printNetworkStatus(w io.Writer, statuses []interfaceStatus) error {
 // PID 1, so a hard failure would kill the node), and per-address errors are
 // logged and skipped. It is also idempotent — an address already present is
 // left in place — so the controller can be restarted against a live node.
-func applyNetworkConfig(cfg *networkConfig, log *slog.Logger) {
-	for _, eth := range cfg.Config.Interfaces.Ethernets {
+func applyNetworkConfig(eths []config.Ethernet, log *slog.Logger) {
+	for _, eth := range eths {
 		configureInterface(eth, linkWaitTimeout, linkWaitInterval, log)
 	}
 }
@@ -188,7 +143,7 @@ func applyNetworkConfig(cfg *networkConfig, log *slog.Logger) {
 // configureInterface waits for eth's link to appear, then adds its addresses
 // and brings it up. All failures are logged and swallowed (see
 // applyNetworkConfig).
-func configureInterface(eth ethernet, timeout, interval time.Duration, log *slog.Logger) {
+func configureInterface(eth config.Ethernet, timeout, interval time.Duration, log *slog.Logger) {
 	link := waitForLink(eth.Name, timeout, interval, log)
 	if link == nil {
 		log.Warn("interface did not appear; skipping its network setup",

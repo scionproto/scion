@@ -18,15 +18,21 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 )
 
 // TestMain lets the test binary impersonate both the controller and the SCION
@@ -65,28 +71,34 @@ func fakeCrash() {
 	os.Exit(3)
 }
 
-func TestDiscover(t *testing.T) {
-	cfg := t.TempDir()
-	for _, f := range []string{
-		"disp_cs1-ff00_0_110-1.toml",
-		"br1-ff00_0_110-1.toml",
-		"br1-ff00_0_110-2.toml",
-		"cs1-ff00_0_110-1.toml",
-		"sd.toml",
-		"topology.json",  // not a service config; must be ignored
-		"prometheus.yml", // ditto
-	} {
-		if err := os.WriteFile(filepath.Join(cfg, f), nil, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
+func TestRenderServices(t *testing.T) {
+	ia := addr.MustParseIA("1-ff00:0:110")
+	cfg := config.Config{SCION: config.SCION{ASes: []config.AS{{
+		ISDAS: ia,
+		Core:  true,
+		Router: &config.Router{
+			ID:                "br1-ff00_0_110-1",
+			InternalInterface: netip.MustParseAddrPort("10.1.0.1:30042"),
+			APIAddr:           netip.MustParseAddrPort("10.1.0.1:30442"),
+		},
+		Control: &config.Control{
+			ID:      "cs1-ff00_0_110-1",
+			Address: netip.MustParseAddrPort("10.1.0.1:30252"),
+			APIAddr: netip.MustParseAddrPort("10.1.0.1:30452"),
+		},
+		Daemon: &config.Daemon{
+			ID:      "sd",
+			Address: netip.MustParseAddrPort("127.0.0.1:30255"),
+			APIAddr: netip.MustParseAddrPort("10.1.0.1:30455"),
+		},
+	}}}}
 
-	got, err := discover(cfg, "/app")
-	if err != nil {
-		t.Fatalf("discover: %v", err)
-	}
+	confDir := t.TempDir()
+	got, err := renderServices(cfg, confDir, "/app")
+	require.NoError(t, err)
 
-	cfgArg := func(f string) []string { return []string{"--config", filepath.Join(cfg, f)} }
+	cfgArg := func(f string) []string { return []string{"--config", filepath.Join(confDir, f)} }
+	// Dispatcher first (start order), then by service id.
 	want := []service{
 		{
 			name:   "disp_cs1-ff00_0_110-1",
@@ -99,11 +111,6 @@ func TestDiscover(t *testing.T) {
 			args:   cfgArg("br1-ff00_0_110-1.toml"),
 		},
 		{
-			name:   "br1-ff00_0_110-2",
-			binary: "/app/router",
-			args:   cfgArg("br1-ff00_0_110-2.toml"),
-		},
-		{
 			name:   "cs1-ff00_0_110-1",
 			binary: "/app/control",
 			args:   cfgArg("cs1-ff00_0_110-1.toml"),
@@ -114,8 +121,11 @@ func TestDiscover(t *testing.T) {
 			args:   cfgArg("sd.toml"),
 		},
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("discover mismatch:\n got: %+v\nwant: %+v", got, want)
+	assert.Equal(t, want, got)
+	// Each service's config file was actually written to the config dir.
+	for _, s := range want {
+		_, err := os.Stat(s.args[1])
+		assert.NoErrorf(t, err, "expected rendered config %q", s.args[1])
 	}
 }
 
@@ -136,18 +146,14 @@ func TestPrintServices(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := printServices(&buf, services); err != nil {
-		t.Fatalf("printServices: %v", err)
-	}
+	require.NoError(t, printServices(&buf, services))
 	out := buf.String()
 	for _, want := range []string{
 		"SERVICE", "BINARY", "ARGS",
 		"br1-ff00_0_110-1", "/app/router", "--config /etc/scion/br1-ff00_0_110-1.toml",
 		"sd", "/app/daemon", "--config /etc/scion/sd.toml",
 	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("printServices output missing %q; got:\n%s", want, out)
-		}
+		assert.Containsf(t, out, want, "printServices output missing %q", want)
 	}
 }
 
@@ -157,23 +163,37 @@ func TestPrintServices(t *testing.T) {
 // down cleanly on SIGTERM.
 func TestSupervise(t *testing.T) {
 	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	binDir := t.TempDir()
 	for _, b := range []string{"dispatcher", "router", "control", "daemon"} {
-		if err := os.Symlink(exe, filepath.Join(binDir, b)); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.Symlink(exe, filepath.Join(binDir, b)))
 	}
 
+	// The prism config drives everything: one router, one control (which also
+	// yields a co-located dispatcher), and one daemon. The rendered service
+	// files are written into cfgDir at startup.
 	cfgDir := t.TempDir()
-	for _, f := range []string{"disp_test.toml", "br-test.toml", "cs-test.toml", "sd.toml"} {
-		if err := os.WriteFile(filepath.Join(cfgDir, f), nil, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
+	cfg := config.Config{SCION: config.SCION{ASes: []config.AS{{
+		ISDAS: addr.MustParseIA("1-ff00:0:110"),
+		Core:  true,
+		Router: &config.Router{
+			ID:      "br-test",
+			APIAddr: netip.MustParseAddrPort("127.0.0.1:30442"),
+		},
+		Control: &config.Control{
+			ID:      "cs-test",
+			Address: netip.MustParseAddrPort("127.0.0.1:30252"),
+		},
+		Daemon: &config.Daemon{
+			ID:      "sd",
+			Address: netip.MustParseAddrPort("127.0.0.1:30255"),
+		},
+	}}}}
+	cfgRaw, err := cfg.EncodeYAML()
+	require.NoError(t, err)
+	configFile := filepath.Join(cfgDir, "config.yml")
+	require.NoError(t, os.WriteFile(configFile, cfgRaw, 0o644))
 
 	logDir := t.TempDir()
 	statusFile := filepath.Join(t.TempDir(), "status.json")
@@ -181,11 +201,10 @@ func TestSupervise(t *testing.T) {
 	// One pipe for the controller's stdout+stderr; its children inherit the
 	// same fds, so all output lands here without racing on the buffer.
 	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	cmd := exec.Command(exe,
 		"--config-dir", cfgDir,
+		"--config-file", configFile,
 		"--bin-dir", binDir,
 		"--log-dir", logDir,
 		"--status-file", statusFile,
@@ -194,9 +213,7 @@ func TestSupervise(t *testing.T) {
 	cmd.Env = append(os.Environ(), "CLAB_TEST_ROLE=controller")
 	cmd.Stdout = w
 	cmd.Stderr = w
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, cmd.Start())
 	w.Close() // children hold their own dups; EOF arrives once all exit.
 
 	var out bytes.Buffer
@@ -205,92 +222,84 @@ func TestSupervise(t *testing.T) {
 
 	// Give services time to start and the crash-looper to restart, then stop.
 	time.Sleep(1500 * time.Millisecond)
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, cmd.Process.Signal(syscall.SIGTERM))
 
 	waitErr := cmd.Wait()
 	<-done
 	logs := out.String()
 	t.Logf("controller output:\n%s", logs)
 
-	if waitErr != nil {
-		t.Fatalf("controller did not exit cleanly on SIGTERM: %v", waitErr)
-	}
+	require.NoErrorf(t, waitErr, "controller did not exit cleanly on SIGTERM")
 
 	// Every service, including the dispatcher, was started.
-	for _, name := range []string{"disp_test", "br-test", "cs-test", "sd"} {
-		if !strings.Contains(logs, `msg="started service" service=`+name) {
-			t.Errorf("service %q was never started", name)
-		}
+	for _, name := range []string{"disp_cs-test", "br-test", "cs-test", "sd"} {
+		assert.Containsf(t, logs,
+			`msg="started service" service=`+name,
+			"service %q was never started", name,
+		)
 	}
-	if !strings.Contains(logs, "FAKE service=dispatcher event=start") {
-		t.Error("dispatcher binary was not executed")
-	}
+	assert.Contains(t, logs, "FAKE service=dispatcher event=start",
+		"dispatcher binary was not executed",
+	)
 
 	// The crashing control service was restarted with backoff.
-	if crashes := strings.Count(logs, "FAKE service=control event=crash"); crashes < 2 {
-		t.Errorf("expected control to crash and restart at least twice, got %d", crashes)
-	}
-	if !strings.Contains(logs, `msg="scheduling restart" service=cs-test`) {
-		t.Error("control crash did not trigger a scheduled restart")
-	}
+	assert.GreaterOrEqualf(t, strings.Count(logs, "FAKE service=control event=crash"), 2,
+		"expected control to crash and restart at least twice",
+	)
+	assert.Contains(t, logs, `msg="scheduling restart" service=cs-test`,
+		"control crash did not trigger a scheduled restart",
+	)
 
 	// Clean shutdown: long-running services received SIGTERM and the
 	// controller exited only after the last child was reaped.
 	for _, name := range []string{"dispatcher", "router", "daemon"} {
-		if !strings.Contains(logs, fmt.Sprintf("FAKE service=%s event=stop", name)) {
-			t.Errorf("service %q did not receive a clean shutdown signal", name)
-		}
+		assert.Containsf(t, logs, fmt.Sprintf("FAKE service=%s event=stop", name),
+			"service %q did not receive a clean shutdown signal", name,
+		)
 	}
-	if !strings.Contains(logs, "all services stopped; exiting") {
-		t.Error("controller did not report a clean shutdown")
-	}
+	assert.Contains(t, logs, "all services stopped; exiting",
+		"controller did not report a clean shutdown",
+	)
 
 	// Service output in the merged stream is tagged with the service name.
-	if !strings.Contains(logs, "[disp_test] FAKE service=dispatcher event=start") {
-		t.Error("merged log stream is not prefixed with the service name")
-	}
+	assert.Contains(t, logs, "[disp_cs-test] FAKE service=dispatcher event=start",
+		"merged log stream is not prefixed with the service name",
+	)
 	// The controller's own diagnostics are tagged too.
-	if !strings.Contains(logs, `[controller] `) ||
-		!strings.Contains(logs, `[controller] time=`) {
-		t.Error("controller log lines are not prefixed with [controller]")
-	}
+	assert.Contains(t, logs, `[controller] `,
+		"controller log lines are not prefixed with [controller]",
+	)
+	assert.Contains(t, logs, `[controller] time=`,
+		"controller log lines are not prefixed with [controller]",
+	)
 
 	// Each service also got its own log file, carrying its raw (unprefixed)
 	// output.
 	for name, want := range map[string]string{
-		"disp_test": "FAKE service=dispatcher event=start",
-		"br-test":   "FAKE service=router event=start",
-		"sd":        "FAKE service=daemon event=start",
-		"cs-test":   "FAKE service=control event=crash",
+		"disp_cs-test": "FAKE service=dispatcher event=start",
+		"br-test":      "FAKE service=router event=start",
+		"sd":           "FAKE service=daemon event=start",
+		"cs-test":      "FAKE service=control event=crash",
 	} {
 		data, err := os.ReadFile(filepath.Join(logDir, name+".log"))
-		if err != nil {
-			t.Errorf("reading log file for %q: %v", name, err)
+		if !assert.NoErrorf(t, err, "reading log file for %q", name) {
 			continue
 		}
-		if !strings.Contains(string(data), want) {
-			t.Errorf("log file for %q missing %q; got:\n%s", name, want, data)
-		}
+		assert.Containsf(t, string(data), want, "log file for %q missing %q", name, want)
 	}
 
 	// The controller published live status to the status file, listing every
 	// service, and recorded the crash-looper's restarts and last exit.
 	statuses, err := readStatusFile(statusFile)
-	if err != nil {
-		t.Fatalf("reading status file: %v", err)
-	}
+	require.NoError(t, err)
 	byName := make(map[string]serviceStatus, len(statuses))
 	for _, s := range statuses {
 		byName[s.Name] = s
 	}
-	for _, name := range []string{"disp_test", "br-test", "cs-test", "sd"} {
-		if _, ok := byName[name]; !ok {
-			t.Errorf("status file missing service %q; got %+v", name, statuses)
-		}
+	for _, name := range []string{"disp_cs-test", "br-test", "cs-test", "sd"} {
+		assert.Containsf(t, byName, name, "status file missing service %q", name)
 	}
-	if cs := byName["cs-test"]; cs.Restarts == 0 || cs.LastExit == "" {
-		t.Errorf("crash-looping control should show restarts and a last exit; got %+v", cs)
-	}
+	cs := byName["cs-test"]
+	assert.NotZerof(t, cs.Restarts, "crash-looping control should show restarts; got %+v", cs)
+	assert.NotEmptyf(t, cs.LastExit, "crash-looping control should show a last exit; got %+v", cs)
 }

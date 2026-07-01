@@ -18,68 +18,12 @@ import (
 	"bytes"
 	"io"
 	"log/slog"
-	"os"
-	"path/filepath"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-// TestLoadNetworkConfig checks that the same configuration parses identically
-// whether supplied as JSON or YAML, since the controller accepts either.
-func TestLoadNetworkConfig(t *testing.T) {
-	const jsonCfg = `{
-  "config": {
-    "interfaces": {
-      "ethernets": [
-        {
-          "addresses": ["169.254.10.9/30"],
-          "name": "wan"
-        },
-        {
-          "addresses": ["192.168.1.11/24"],
-          "name": "mgmt"
-        }
-      ]
-    }
-  }
-}`
-	const yamlCfg = `config:
-  interfaces:
-    ethernets:
-      - name: wan
-        addresses:
-          - 169.254.10.9/30
-      - name: mgmt
-        addresses:
-          - 192.168.1.11/24
-`
-
-	want := []ethernet{
-		{Name: "wan", Addresses: []string{"169.254.10.9/30"}},
-		{Name: "mgmt", Addresses: []string{"192.168.1.11/24"}},
-	}
-
-	for _, tc := range []struct{ name, ext, data string }{
-		{name: "json", ext: ".json", data: jsonCfg},
-		{name: "yaml", ext: ".yaml", data: yamlCfg},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "network"+tc.ext)
-			if err := os.WriteFile(path, []byte(tc.data), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			cfg, err := loadNetworkConfig(path)
-			if err != nil {
-				t.Fatalf("loadNetworkConfig: %v", err)
-			}
-			if got := cfg.Config.Interfaces.Ethernets; !reflect.DeepEqual(got, want) {
-				t.Errorf("parsed mismatch:\n got: %+v\nwant: %+v", got, want)
-			}
-		})
-	}
-}
 
 // TestPrintNetworkStatus checks the rendered live-status table: one row per
 // configured address, with the link state and per-address presence.
@@ -99,18 +43,14 @@ func TestPrintNetworkStatus(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := printNetworkStatus(&buf, statuses); err != nil {
-		t.Fatalf("printNetworkStatus: %v", err)
-	}
+	require.NoError(t, printNetworkStatus(&buf, statuses))
 	out := buf.String()
 	for _, want := range []string{
 		"INTERFACE", "LINK", "ADDRESS", "STATUS",
 		"eth1", "up", "10.1.1.1/30", "present",
 		"mgmt", "missing", "192.168.1.11/24",
 	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("printNetworkStatus output missing %q; got:\n%s", want, out)
-		}
+		assert.Containsf(t, out, want, "printNetworkStatus output missing %q", want)
 	}
 }
 
@@ -125,13 +65,7 @@ func TestWaitForLinkTimeout(t *testing.T) {
 	link := waitForLink("clab-test-nonexistent0", timeout, 20*time.Millisecond, log)
 	elapsed := time.Since(start)
 
-	if link != nil {
-		t.Fatalf("expected nil for a nonexistent interface, got %v", link)
-	}
-	if elapsed < timeout {
-		t.Errorf("returned after %v, before the %v timeout", elapsed, timeout)
-	}
-	if elapsed > 5*time.Second {
-		t.Errorf("took %v; wait did not honor the timeout", elapsed)
-	}
+	require.Nil(t, link, "expected nil for a nonexistent interface")
+	assert.GreaterOrEqualf(t, elapsed, timeout, "returned before the %v timeout", timeout)
+	assert.LessOrEqual(t, elapsed, 5*time.Second, "wait did not honor the timeout")
 }
