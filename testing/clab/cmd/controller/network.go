@@ -24,9 +24,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 )
 
 const (
