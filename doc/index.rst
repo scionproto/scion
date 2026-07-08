@@ -107,8 +107,12 @@ Guides and Tutorials
    :hidden:
 
    tutorials/deploy
+   tutorials/registry
 
 * :doc:`tutorials/deploy`: Follow step by step instructions and see what a running SCION network could look like.
+
+* :doc:`tutorials/registry`: How to use the SCION Registry.
+
 
 Developer Documentation
 ^^^^^^^^^^^^^^^^^^^^^^^
