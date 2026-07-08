@@ -143,13 +143,13 @@ When your SCION AS number application has been submitted, you will receive a mes
 
 Once your SCION AS number application has been checked and approved by the SCION Association, you will receive an email notification and your application will now show as *Approved, awaiting payment* if payment is due.
 
-.. figure:: registry/awaiting-payment.png
+.. figure:: registry/as-awaiting-payment.png
    :width: 100 %
    :figwidth: 100 %
 
 Once payment has been received by the SCION Association, or if no payment is due, then your application will show as *Approved*.
 
-.. figure:: registry/approved.png
+.. figure:: registry/as-approved.png
    :width: 100 %
    :figwidth: 100 %
 
@@ -182,6 +182,6 @@ Once your ISD number application has been checked and approved by the SCION Asso
 
 Once payment has been received by the SCION Association, or if no payment is due, then your application will show as ‘Approved’.
 
-.. figure:: registry/isd-approval.png
+.. figure:: registry/isd-approved.png
    :width: 100 %
    :figwidth: 100 %
