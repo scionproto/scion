@@ -109,9 +109,7 @@ Guides and Tutorials
    tutorials/deploy
    tutorials/registry
 
-* :doc:`tutorials/deploy`: Follow step by step instructions and see what a running SCION network could look like.
-
-* :doc:`tutorials/registry`: How to use the SCION Registry.
+* :doc:`tutorials/registry`: Applying for and registering ISD and SCION AS numbers.
 
 
 Developer Documentation

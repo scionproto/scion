@@ -5,9 +5,9 @@ SCION networks are required to use globally unique numbers to identify Isolation
 
 ISD and SCION AS numbers are assigned and registered by the SCION Registry in order to ensure global uniqueness. This is operated by the SCION Association on behalf of the SCION community, in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_ and governed by the `Registry Committee <https://www.scion.org/association/#committees>`_.
 
-The SCION Registry records ISD and SCION AS number assignments, the organisations or individuals who have been assigned ISD and/or SCION AS numbers (known as ‘Resource Holders’), and the details of the roles and/or persons who are the administrative and technical contacts for the Resource Holders. The SCION Registry portal allows Resource Holders to assign, update and remove contact information, as well as request ISD and SCION AS numbers. It is also possible for a Resource Holder to assign another organisation to manage resources on their behalf, such as in scenarios where their network management is outsourced.
+The SCION Registry records ISD and SCION AS number assignments, the organizations or individuals who have been assigned ISD and/or SCION AS numbers (known as ‘Resource Holders’), and the details of the roles and/or persons who are the administrative and technical contacts for the Resource Holders. The SCION Registry portal allows Resource Holders to assign, update and remove contact information, as well as request ISD and SCION AS numbers. It is also possible for a Resource Holder to assign another organization to manage resources on their behalf, such as in scenarios where their network management is outsourced.
 
-This tutorial outlines how to create an account for your organisation, assign administrative and technical contacts, and request ISD and SCION AS numbers.
+This tutorial outlines how to create an account for your organization, assign administrative and technical contacts, and request ISD and SCION AS numbers.
 
 Creating your account
 ---------------------
@@ -20,7 +20,7 @@ The SCION Registry portal can be found at https://registry.scion.org
 
 **Step 1**:
 
-If you don’t already have an account, then click on ‘Create an account’. Enter the email address and password that you wish to use as your personal login. You can later create other personal accounts and role profiles and assign them permissions to manage your SCION number resources and organisational details.
+If you don’t already have an account, then click on ‘Create an account’. Enter the email address and password that you wish to use as your personal login. You can later create other personal accounts and role profiles and assign them permissions to manage your SCION number resources and organizational details.
 
 .. figure:: registry/register.png
    :width: 100 %
@@ -66,7 +66,7 @@ The next step is to create your Organization profile. Click on ‘My Application
    :width: 100 %
    :figwidth: 100 %
 
-Then click on ``Apply for Org`` to complete and submit your Organization profile. Please note the organization information may be accessible on the public registry website, so it is advisable to use a corporate postal address, telephone number, and email address.
+Then click on ``Apply for Organization`` to complete and submit your Organization profile. Please note the organization information may be accessible on the public registry website, so it is advisable to use a corporate postal address, telephone number, and email address.
 
 You need to agree to the Terms and Conditions and to also select a personal profile to be linked to the *Admin* and *Technical* (and optionally *Abuse*) Roles. In this example, there is currently only one personal profile available, but additional personal accounts and role profiles may be created or linked later.
 
@@ -80,7 +80,7 @@ When your Organization profile has been submitted, you will receive a message th
    :width: 100 %
    :figwidth: 100 %
 
-Once your organization’s details have been checked and approved by the SCION Association, you will receive an email notification and your Organization application will now show as approved.
+Once your organization’s details have been checked and approved by the SCION Association, you will receive an email notification and your organization application will now show as approved.
 
 .. figure:: registry/org-approved.png
    :width: 100 %
@@ -95,7 +95,7 @@ If you click on ``My Roles`` in the top menu, you can view the roles (*Admin Con
 Requesting SCION AS numbers
 ---------------------------
 
-When your organisation has been registered in the SCION Registry, you can request SCION AS numbers in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_.
+When your organization has been registered in the SCION Registry, you can request SCION AS numbers in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_.
 
 There are two types of SCION AS numbers:
 
@@ -164,7 +164,7 @@ Requesting ISD numbers
 
 An ISD number is used to identify a group of SCION ASes that share a common purpose and trust policy (e.g. Secure Swiss Finance Network). An ISD is usually set-up and operated by a small number of SCION ASes within the group known as *Voting Members*, and only one of these needs to apply for and register an ISD number.
 
-However, if your organisation is a Voting Member of an ISD and is designated to be the holder of the ISD number required to identify it, you can also use the SCION Registry portal to apply for one in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_.
+However, if your organization is a Voting Member of an ISD and is designated to be the holder of the ISD number required to identify it, you can also use the SCION Registry portal to apply for one in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_.
 
 To apply for a ISD number, click on ``My Applications`` in the top menu, followed by ``Apply for ISD``. Then complete the request form:
 
