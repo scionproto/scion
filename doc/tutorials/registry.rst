@@ -95,7 +95,7 @@ If you click on ``My Roles`` in the top menu, you can view the roles (*Admin Con
 Requesting SCION AS numbers
 ---------------------------
 
-When your organization has been registered in the SCION Registry, you can request SCION AS numbers in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`.
+When your organization has been registered in the SCION Registry, you can request SCION AS numbers in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_.
 
 There are two types of SCION AS numbers:
 
@@ -164,7 +164,7 @@ Requesting ISD numbers
 
 An ISD number is used to identify a group of SCION ASes that share a common purpose and trust policy (e.g. Secure Swiss Finance Network). An ISD is usually set-up and operated by a small number of SCION ASes within the group known as *Voting Members*, and only one of these needs to apply for and register an ISD number.
 
-However, if your organization is a Voting Member of an ISD and is designated to be the holder of the ISD number required to identify it, you can also use the SCION Registry portal to apply for one in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`.
+However, if your organization is a Voting Member of an ISD and is designated to be the holder of the ISD number required to identify it, you can also use the SCION Registry portal to apply for one in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_.
 
 To apply for a ISD number, click on ``My Applications`` in the top menu, followed by ``Apply for ISD``. Then complete the request form:
 
