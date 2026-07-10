@@ -23,8 +23,7 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/pkg/addr"
-	libmetrics "github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/prom"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -124,7 +123,7 @@ type CachingInspector struct {
 	// Cache keeps track of recently used certificates. If nil no cache is used.
 	// This API is experimental.
 	Cache              *cache.Cache
-	CacheHits          libmetrics.Counter
+	CacheHits          func(typ, result string) metrics.Counter
 	MaxCacheExpiration time.Duration
 }
 
@@ -177,10 +176,9 @@ func (i CachingInspector) cacheGet(key string, reqType string) (any, bool) {
 	if !ok {
 		resultValue = "miss"
 	}
-	libmetrics.CounterInc(libmetrics.CounterWith(i.CacheHits,
-		"type", reqType,
-		prom.LabelResult, resultValue,
-	))
+	if i.CacheHits != nil {
+		metrics.CounterInc(i.CacheHits(reqType, resultValue))
+	}
 
 	return result, ok
 }

@@ -17,17 +17,18 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc/peer"
 
-	trustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/tracing"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -41,19 +42,19 @@ type MaterialServer struct {
 
 	// Requests aggregates all the incoming requests received by the handler. If
 	// it is not initialized, nothing is reported.
-	Requests metrics.Counter
+	Requests func(client, reqType, result string) metrics.Counter
 }
 
 func (s MaterialServer) Chains(ctx context.Context,
 	req *cppb.ChainsRequest) (*cppb.ChainsResponse, error) {
 
 	labels := requestLabels{
-		ReqType: trustmetrics.ChainReq,
+		ReqType: chainReq,
 		Client:  "unknown",
 	}
 	peer, ok := peer.FromContext(ctx)
 	if ok {
-		labels.Client = trustmetrics.PeerToLabel(peer.Addr, s.IA)
+		labels.Client = peerToLabel(peer.Addr, s.IA)
 	}
 	span := opentracing.SpanFromContext(ctx)
 	logger := log.FromCtx(ctx)
@@ -61,7 +62,7 @@ func (s MaterialServer) Chains(ctx context.Context,
 	query, err := requestToChainQuery(req)
 	if err != nil {
 		logger.Debug("Invalid chain request", "peer", peer.Addr, "err", err)
-		s.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
+		s.updateMetric(span, labels.WithResult(prom.ErrParse), err)
 		return nil, err
 	}
 	setChainsTags(span, query)
@@ -70,22 +71,22 @@ func (s MaterialServer) Chains(ctx context.Context,
 	chains, err := s.Provider.GetChains(ctx, query, trust.AllowInactive(), trust.Client(peer.Addr))
 	if err != nil {
 		logger.Info("Unable to retrieve chains", "query", query, "err", err)
-		s.updateMetric(span, labels.WithResult(trustmetrics.ErrInternal), err)
+		s.updateMetric(span, labels.WithResult(prom.ErrInternal), err)
 		return nil, err
 	}
 	logger.Debug("Replied with chains", "count", len(chains))
-	s.updateMetric(span, labels.WithResult(trustmetrics.Success), nil)
+	s.updateMetric(span, labels.WithResult(prom.Success), nil)
 	return chainsToResponse(chains), nil
 }
 
 func (s MaterialServer) TRC(ctx context.Context, req *cppb.TRCRequest) (*cppb.TRCResponse, error) {
 	labels := requestLabels{
-		ReqType: trustmetrics.TRCReq,
+		ReqType: trcReq,
 		Client:  "unknown",
 	}
 	peer, ok := peer.FromContext(ctx)
 	if ok {
-		labels.Client = trustmetrics.PeerToLabel(peer.Addr, s.IA)
+		labels.Client = peerToLabel(peer.Addr, s.IA)
 	}
 	span := opentracing.SpanFromContext(ctx)
 	logger := log.FromCtx(ctx)
@@ -93,7 +94,7 @@ func (s MaterialServer) TRC(ctx context.Context, req *cppb.TRCRequest) (*cppb.TR
 	id, err := requestToTRCQuery(req)
 	if err != nil {
 		logger.Debug("Invalid TRC request", "peer", peer.Addr, "err", err)
-		s.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
+		s.updateMetric(span, labels.WithResult(prom.ErrParse), err)
 		return nil, err
 	}
 	setTRCTags(span, id)
@@ -102,17 +103,17 @@ func (s MaterialServer) TRC(ctx context.Context, req *cppb.TRCRequest) (*cppb.TR
 	trc, err := s.Provider.GetSignedTRC(ctx, id, trust.AllowInactive(), trust.Client(peer.Addr))
 	if err != nil {
 		logger.Info("Unable to retrieve TRC", "id", id, "err", err)
-		s.updateMetric(span, labels.WithResult(trustmetrics.ErrInternal), err)
+		s.updateMetric(span, labels.WithResult(prom.ErrInternal), err)
 		return nil, err
 	}
 	logger.Debug("Replied with TRC", "id", id)
-	s.updateMetric(span, labels.WithResult(trustmetrics.Success), nil)
+	s.updateMetric(span, labels.WithResult(prom.Success), nil)
 	return trcToResponse(trc), nil
 }
 
 func (s MaterialServer) updateMetric(span opentracing.Span, l requestLabels, err error) {
 	if s.Requests != nil {
-		s.Requests.With(l.Expand()...).Add(1)
+		metrics.CounterInc(s.Requests(l.Client, l.ReqType, l.Result))
 	}
 	if span != nil {
 		tracing.ResultLabel(span, l.Result)
@@ -153,4 +154,34 @@ func (l requestLabels) Expand() []string {
 func (l requestLabels) WithResult(result string) requestLabels {
 	l.Result = result
 	return l
+}
+
+// Request types
+const (
+	trcReq   = "trc_request"
+	chainReq = "chain_request"
+)
+
+// peerToLabel converts the peer address to a peer metric label.
+func peerToLabel(peer net.Addr, local addr.IA) string {
+	var ia addr.IA
+	switch v := peer.(type) {
+	case *snet.SVCAddr:
+		ia = v.IA
+	case *snet.UDPAddr:
+		ia = v.IA
+	case *net.TCPAddr:
+		return "as_local"
+	default:
+		return "unknown"
+	}
+
+	switch {
+	case ia.Equal(local):
+		return "as_local"
+	case ia.ISD() == local.ISD():
+		return "isd_local"
+	default:
+		return "isd_remote"
+	}
 }

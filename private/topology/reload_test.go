@@ -102,7 +102,7 @@ func TestLoader(t *testing.T) {
 			File:   "testdata/basic.json",
 			Reload: reloadCh,
 			Metrics: topology.LoaderMetrics{
-				ReadErrors: mockCtr,
+				Errors: mockCtr,
 			},
 		})
 		assert.NoError(t, err)
@@ -139,7 +139,7 @@ func TestLoader(t *testing.T) {
 			Reload:    reloadCh,
 			Validator: mockValidator,
 			Metrics: topology.LoaderMetrics{
-				ValidationErrors: mockCtr,
+				Errors: mockCtr,
 			},
 		})
 		assert.NoError(t, err)

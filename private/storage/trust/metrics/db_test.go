@@ -20,7 +20,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/storage"
 	"github.com/scionproto/scion/private/storage/db"
@@ -49,6 +48,6 @@ func newDatabase(t *testing.T) storage.TrustDB {
 	require.NoError(t, err)
 	return metrics.WrapDB(db, metrics.Config{
 		Driver:       "mem-sqlite",
-		QueriesTotal: libmetrics.NewTestCounter(),
+		QueriesTotal: nil,
 	})
 }
