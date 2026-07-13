@@ -89,7 +89,38 @@ var (
 	internAddrOverrides []string
 	publicAddrOverrides []string
 	useIPv6             bool
+
+	// AF_XDP transmit tunables.
+	txQueues     int
+	firstTxQueue int
+	cpuOffset    int
+	maxPPS       uint64
+	maxMbps      uint64
+	zerocopy     bool
+	hugepages    bool
+	numFrames    uint32
+	frameSize    uint32
+	txRing       uint32
+	txBatchSize  uint32
 )
+
+// xdpConfig carries the tunables for the AF_XDP transmit path. It is consumed by
+// [newXdpSender] (see xdp.go / xdp_stub.go).
+type xdpConfig struct {
+	txQueues        int    // number of TX sockets/queues; 0 = auto-detect
+	firstQueue      int    // base NIC queue id to bind
+	cpuOffset       int    // pin worker i to CPU cpuOffset+i (best effort)
+	numStreams      uint16 // distinct SCION flow IDs
+	maxPPS          uint64 // global max packet rate; 0 = unlimited
+	maxMbps         uint64 // global max wire bitrate (Mbit/s); 0 = unlimited
+	preferZerocopy  bool
+	preferHugepages bool
+	numFrames       uint32
+	frameSize       uint32
+	txRing          uint32
+	batchSize       uint32
+	maxPackets      int // stop after this many packets; <= 0 = unlimited
+}
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -110,9 +141,12 @@ func main() {
 			os.Exit(run(cmd))
 		},
 	}
-	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15, "Test duration")
-	runCmd.Flags().IntVar(&numPackets, "num-packets", -1, "Maximum number of packets")
-	runCmd.Flags().IntVar(&packetSize, "packet-size", 172, "Total size of each packet sent")
+	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15,
+		"Test duration")
+	runCmd.Flags().IntVar(&numPackets, "num-packets", -1,
+		"Maximum number of packets")
+	runCmd.Flags().IntVar(&packetSize, "packet-size", 172,
+		"Total size of each packet sent")
 	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
 	runCmd.Flags().StringVar(&logConsole, "log.console", "error",
@@ -120,28 +154,56 @@ func main() {
 	runCmd.Flags().StringVar(&dir, "artifacts", "", "Artifacts directory")
 	runCmd.Flags().Var(&caseToRun, "case", "Case to run. "+caseToRun.Allowed())
 	runCmd.Flags().StringArrayVar(&interfaces, "interface", []string{},
-		`label=<host_interface>[,<MACaddr>] where <host_interface> is the host device that matches
- the <label> requirement from --show-interfaces and <MACaddr> is the local address to assume for it.
- <MACaddr> defaults to the real address assigned to the device`)
-	runCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override", []string{},
-		`<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of one router
-of that AS, and <IP addr> is the IP address assigned to the internal interface of that
-router`)
-	runCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override", []string{},
+		"label=<host_interface>[,<MACaddr>] where <host_interface> is the host device "+
+			"that matches the <label> requirement from --show-interfaces and "+
+			"<MACaddr> is the local address to assume for it. "+
+			"<MACaddr> defaults to the real address assigned to the device")
+	runCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override",
+		[]string{},
+		"<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of "+
+			"one router of that AS, and <IP addr> is the IP address assigned to the "+
+			"internal interface of that router")
+	runCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override",
+		[]string{},
 		`<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers,
 and <IP addr> is the IP address assigned on the side of localAS`)
 	runCmd.Flags().BoolVar(&useIPv6, "ipv6", false, "Use IPv6 underlay addresses")
+	runCmd.Flags().IntVar(&txQueues, "tx-queues", 0,
+		"Number of AF_XDP TX sockets/queues (generator parallelism). 0 = auto "+
+			"(min of NIC TX queues and GOMAXPROCS)")
+	runCmd.Flags().IntVar(&firstTxQueue, "first-tx-queue", 0,
+		"Base NIC queue id to bind AF_XDP TX sockets to")
+	runCmd.Flags().IntVar(&cpuOffset, "cpu-offset", 0,
+		"Pin TX worker i to CPU (cpu-offset + i); best effort")
+	runCmd.Flags().Uint64Var(&maxPPS, "max-pps", 0,
+		"Global max send rate in packets/s (0 = unlimited)")
+	runCmd.Flags().Uint64Var(&maxMbps, "max-mbps", 0,
+		"Global max send rate in Mbit/s wire rate (0 = unlimited). If both "+
+			"--max-pps and --max-mbps are set, the tighter one applies")
+	runCmd.Flags().BoolVar(&zerocopy, "zerocopy", true,
+		"Prefer AF_XDP zero-copy mode (falls back to copy mode per queue)")
+	runCmd.Flags().BoolVar(&hugepages, "hugepages", true, "Prefer hugepage-backed UMEM")
+	runCmd.Flags().Uint32Var(&numFrames, "num-frames", 0,
+		"UMEM frames per socket (0 = default)")
+	runCmd.Flags().Uint32Var(&frameSize, "frame-size", 0,
+		"UMEM frame size in bytes (0 = default)")
+	runCmd.Flags().Uint32Var(&txRing, "tx-ring", 0,
+		"TX descriptor ring size (0 = default)")
+	runCmd.Flags().Uint32Var(&txBatchSize, "batch-size", 0,
+		"TX batch size (0 = default)")
 	runCmd.MarkFlagRequired("case")
 	runCmd.MarkFlagRequired("interface")
 
 	intfCmd.Flags().BoolVar(&useIPv6, "ipv6", false, "Use IPv6 underlay addresses")
-	intfCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override", []string{},
-		`<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of one router
-of that AS, and <IP addr> is the IP address assigned to the internal interface of that
-router`)
-	intfCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override", []string{},
-		`<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers,
-and <IP addr> is the IP address assigned on the side of localAS`)
+	intfCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override",
+		[]string{},
+		"<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of "+
+			"one router of that AS, and <IP addr> is the IP address assigned to the "+
+			"internal interface of that router")
+	intfCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override",
+		[]string{},
+		"<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers, "+
+			"and <IP addr> is the IP address assigned on the side of localAS")
 
 	rootCmd.AddCommand(intfCmd)
 	rootCmd.AddCommand(runCmd)
@@ -173,12 +235,14 @@ func rttCheck(
 	rawPkt []byte,
 	payload []byte,
 ) (time.Duration, error) {
-	// Zero the UDP checksum. For IPv4 it's optional (set to 0). For IPv6 it was already
-	// computed by gopacket during serialization, but we zero it here because the payload
-	// will be modified per-batch (flowID patching). The router's receiver doesn't validate
-	// the underlay UDP checksum.
-	udpCsumOff := underlayUDPChecksumOffset(rawPkt)
-	binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
+	// IPv4: zero the (optional) UDP checksum. IPv6: leave gopacket's computed
+	// checksum in place — IPv6 mandates a non-zero UDP checksum and a kernel-socket
+	// underlay (inet) drops zero-checksum datagrams. The AF_XDP sender recomputes
+	// it per packet after patching the flow ID.
+	if !isIPv6(rawPkt) {
+		udpCsumOff := underlayOffsetsOf(rawPkt).udpCsum
+		binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
+	}
 
 	// Prepare a batch of 1 packet.
 	allPkts := make([][]byte, 1)
@@ -267,9 +331,12 @@ func run(cmd *cobra.Command) int {
 	packetChan := packetSource.Packets()
 	listenerChan := make(chan int)
 
-	// Zero the UDP checksum (see underlayUDPChecksumOffset for details).
-	udpCsumOff := underlayUDPChecksumOffset(rawPkt)
-	binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
+	// IPv4: zero the (optional) UDP checksum. IPv6 keeps a valid checksum (see
+	// rttCheck) because a kernel-socket underlay drops zero-checksum datagrams.
+	if !isIPv6(rawPkt) {
+		udpCsumOff := underlayOffsetsOf(rawPkt).udpCsum
+		binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
+	}
 
 	// Measure the rtt with one packet.
 	rtt, err := rttCheck(writePktTo, packetChan, rawPkt, payload)
@@ -285,52 +352,40 @@ func run(cmd *cobra.Command) int {
 		listenerChan <- receivePackets(packetChan, payload)
 	}()
 
-	// Prepare a batch worth of packets.
-	batchSize := int(64)
-	allPkts := make([][]byte, batchSize)
-	for i := range batchSize {
-		allPkts[i] = make([]byte, len(rawPkt))
-		copy(allPkts[i], rawPkt)
+	// Build the AF_XDP transmit sender on the injection interface. TX fans out
+	// across multiple queues/cores so no single generator core bottlenecks it;
+	// the rttCheck above and the listener below stay on afpacket. Each stream
+	// uses a distinct SCION flow ID.
+	sender, err := newXdpSender(caseDevIn, rawPkt, xdpConfig{
+		txQueues:        txQueues,
+		firstQueue:      firstTxQueue,
+		cpuOffset:       cpuOffset,
+		numStreams:      numStreams,
+		maxPPS:          maxPPS,
+		maxMbps:         maxMbps,
+		preferZerocopy:  zerocopy,
+		preferHugepages: hugepages,
+		numFrames:       numFrames,
+		frameSize:       frameSize,
+		txRing:          txRing,
+		batchSize:       txBatchSize,
+		maxPackets:      numPackets,
+	})
+	if err != nil {
+		log.Error("Creating AF_XDP sender failed", "err", err)
+		return 1
 	}
+	defer sender.close()
 
-	// Share them with a multi-packets sender. We modify the flowIDs in-place for each batch.
-	sender := newMpktSender(writePktTo)
-	sender.setPkts(allPkts)
-
-	// We started everything that could be started. So the best window for perf mertics
+	// We started everything that could be started. So the best window for perf metrics
 	// opens somewhere around now.
-	begin := time.Now()
-	metricsBegin := begin.Unix()
+	metricsBegin := time.Now().Unix()
 
-	numPkt := 0
-out:
-	for time.Since(begin) < testDuration {
-		// we break every 1000 batches to check the time
-		for range 1000 {
-			// Rotate through flowIDs. We patch it directly into the SCION header of the packet.
-			// The SCION header starts after Ethernet + IP + UDP. The flowID is the 20 least
-			// significant bits of the first 32-bit field (+2 bytes into SCION header).
-			flowIDOff := underlayFlowIDOffset(allPkts[0])
-			for j := range batchSize {
-				binary.BigEndian.PutUint16(allPkts[j][flowIDOff:flowIDOff+2],
-					uint16((numPkt+j)%int(numStreams)))
-			}
-
-			if n, err := sender.sendAll(); err == nil {
-				// n can be less than a batch if sendAll is made non-blocking.
-				numPkt += n
-			} else {
-				log.Error("writing input packet", "case", string(caseToRun), "error", err)
-				return 1
-			}
-			// We check packet count in one batch increment.
-			if numPackets > 0 && numPackets <= numPkt {
-				break out
-			}
-		}
-	}
+	sender.start()
+	sender.wait(testDuration)
 
 	metricsEnd := time.Now().Unix()
+	log.Info("Transmit complete", "packets", sender.sent())
 
 	// The test harness looks for this output. [metricsBegin, metricsEnd] needs to be fully
 	// contained in the period when we were actually transmitting, but can be a bit smaller.
@@ -430,27 +485,33 @@ func loadKey(artifactsDir string) (hash.Hash, error) {
 	return macGen(), nil
 }
 
-// underlayUDPChecksumOffset returns the byte offset of the UDP checksum field
-// in a raw packet. It detects IPv4 vs IPv6 via the EtherType at bytes 12-13.
-func underlayUDPChecksumOffset(pkt []byte) int {
-	etherType := binary.BigEndian.Uint16(pkt[12:14])
-	switch etherType {
-	case 0x86DD: // IPv6: 14 (eth) + 40 (ipv6) + 6 (udp checksum offset)
-		return 60
-	default: // IPv4: 14 (eth) + 20 (ipv4) + 6 (udp checksum offset)
-		return 40
-	}
+// underlayOffsets holds the byte offsets, within a raw Ethernet+IP+UDP+SCION
+// frame, of the fields brload reads or rewrites. They depend only on the IP
+// version, which is fixed for a whole run, so they are computed once (see
+// underlayOffsetsOf) rather than re-detected per field or per packet.
+//
+// SCION common header layout (Version|TrafficClass|FlowID = 4|8|20 bits):
+// https://scionassociation.github.io/scion-dp_I-D/draft-dekater-scion-dataplane.html#name-common-header
+type underlayOffsets struct {
+	udpCsum int // outer UDP checksum
+	flowID  int // low 16 bits of the 20-bit SCION FlowID (bytes 2-3; common header)
 }
 
-// underlayFlowIDOffset returns the byte offset of the SCION FlowID field
-// (the last 16 bits of the first 32-bit word) in a raw packet.
-func underlayFlowIDOffset(pkt []byte) int {
-	etherType := binary.BigEndian.Uint16(pkt[12:14])
-	switch etherType {
-	case 0x86DD: // IPv6: 14 + 40 + 8 (UDP) + 2 (into SCION header)
-		return 64
-	default: // IPv4: 14 + 20 + 8 (UDP) + 2 (into SCION header)
-		return 44
+// isIPv6 reports whether the frame's EtherType is IPv6.
+func isIPv6(pkt []byte) bool {
+	return binary.BigEndian.Uint16(pkt[12:14]) == 0x86DD
+}
+
+// underlayOffsetsOf detects IPv4 vs IPv6 via the EtherType and derives every
+// offset from the Ethernet+IP header length.
+func underlayOffsetsOf(pkt []byte) underlayOffsets {
+	base := 14 + 20 // IPv4: Ethernet + IPv4 header
+	if isIPv6(pkt) {
+		base = 14 + 40 // IPv6: Ethernet + IPv6 header
+	}
+	return underlayOffsets{
+		udpCsum: base + 6,  // UDP checksum
+		flowID:  base + 10, // UDP header (8) + 2 into the SCION common header
 	}
 }
 

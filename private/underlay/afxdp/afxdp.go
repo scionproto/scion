@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/private/underlay/ebpf"
 
 	ciliumebpf "github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/asm"
 	"github.com/cilium/ebpf/link"
 	"golang.org/x/sys/unix"
 )
@@ -58,6 +59,9 @@ type Interface struct {
 	spec    *ciliumebpf.CollectionSpec
 	coll    *ciliumebpf.Collection
 	xdpLink link.Link
+	// txProg holds a standalone XDP_PASS program for TX-only interfaces
+	// (see NewTxInterface). nil for interfaces created via NewInterface.
+	txProg *ciliumebpf.Program
 }
 
 // NewInterface creates and attaches an XDP program to the specified network interface.
@@ -115,6 +119,54 @@ func NewInterface(ifaceName string) (*Interface, error) {
 	}, nil
 }
 
+// NewTxInterface resolves a netdevice for TX-only AF_XDP use. Unlike
+// [NewInterface] it loads no sockfilter program and creates no eBPF collection
+// (spec/coll == nil, so no RX redirection or drop counters). It does attach a
+// trivial XDP_PASS program, because drivers such as mlx5 only allocate the XSK
+// queues an AF_XDP socket binds to once the netdevice is in XDP mode; without an
+// attached program the bind fails with EINVAL. XDP_PASS leaves all RX traffic to
+// the normal stack. It is meant for pure packet generators (e.g. the router
+// benchmark's brload). Sockets opened against such an interface must set
+// [SocketConfig.TxOnly].
+func NewTxInterface(ifaceName string) (*Interface, error) {
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return nil, fmt.Errorf("fetching interface by name: %w", err)
+	}
+
+	// A minimal XDP program that passes every packet to the kernel stack. Built
+	// in-code so no .o artifact is needed. It uses no helpers, so the "GPL"
+	// license string is a formality.
+	prog, err := ciliumebpf.NewProgram(&ciliumebpf.ProgramSpec{
+		Name:    "afxdp_txpass",
+		Type:    ciliumebpf.XDP,
+		License: "GPL",
+		Instructions: asm.Instructions{
+			asm.Mov.Imm(asm.R0, 2), // XDP_PASS
+			asm.Return(),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating XDP_PASS program: %w", err)
+	}
+
+	xdpLink, err := link.AttachXDP(link.XDPOptions{
+		Program:   prog,
+		Interface: iface.Index,
+	})
+	if err != nil {
+		prog.Close()
+		return nil, fmt.Errorf("attaching XDP_PASS program: %w", err)
+	}
+
+	return &Interface{
+		ifIndex: iface.Index,
+		iface:   iface,
+		xdpLink: xdpLink,
+		txProg:  prog,
+	}, nil
+}
+
 // Close detaches the XDP program and releases all eBPF resources.
 func (i *Interface) Close() error {
 	var errs []error
@@ -128,6 +180,12 @@ func (i *Interface) Close() error {
 		i.coll.Close()
 		i.coll = nil
 	}
+	if i.txProg != nil {
+		if err := i.txProg.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("closing XDP_PASS program: %w", err))
+		}
+		i.txProg = nil
+	}
 	return errors.Join(errs...)
 }
 
@@ -138,7 +196,7 @@ func (i *Interface) Name() string {
 }
 
 // ReadDropCounters returns the current per-reason XDP_DROP totals summed across
-// all online CPUs. Indices align with ebpf.DropReasonNames.
+// all online CPUs. Indices align with [ebpf.DropReasonNames].
 func (i *Interface) ReadDropCounters() ([len(ebpf.DropReasonNames)]uint64, error) {
 	var totals [len(ebpf.DropReasonNames)]uint64
 	m := i.coll.Maps["drop_counters"]
@@ -212,6 +270,10 @@ type SocketConfig struct {
 	// Very large values do not help and can hurt copy-mode performance,
 	// so we clamp them in ValidateAndSetDefaults.
 	BatchSize uint32
+	// TxOnly binds the socket for transmit only: no RX or fill ring is set up
+	// and no XDP redirection is registered. Requires an Interface created with
+	// NewTxInterface. RxSize is forced to 0.
+	TxOnly bool
 }
 
 func (c *SocketConfig) ValidateAndSetDefaults() error {
@@ -221,7 +283,12 @@ func (c *SocketConfig) ValidateAndSetDefaults() error {
 	if c.FrameSize == 0 {
 		c.FrameSize = DefaultFrameSize
 	}
-	if c.RxSize == 0 {
+	if c.TxOnly {
+		// A TX-only socket has no RX or fill ring. Leaving RxSize at 0 also
+		// makes the freelist span all UMEM frames and reduces the NumFrames
+		// check below to NumFrames >= TxSize.
+		c.RxSize = 0
+	} else if c.RxSize == 0 {
 		c.RxSize = DefaultRxQueueSize
 	}
 	if c.TxSize == 0 {
@@ -650,6 +717,31 @@ func (s *Socket) FreeFrames() uint32 {
 	return uint32(len(s.freeFrames))
 }
 
+// PrefillTx writes template into the packet region of every TX-pool UMEM frame.
+// Generators that transmit a mostly-fixed packet with a few mutable fields can
+// then patch only those fields in the buffer returned by NextFrame before
+// Submit, avoiding a full per-packet copy on the hot path. The kernel never
+// mutates TX payload, so frames retain the template across completion-ring
+// reuse. len(template) must be <= FrameSize - TxMetadataLen; longer templates
+// are truncated. This must be called before any Submit.
+func (s *Socket) PrefillTx(template []byte) {
+	frameSize := s.conf.FrameSize
+	if frameSize == 0 {
+		frameSize = DefaultFrameSize
+	}
+	capacity := int(frameSize) - int(s.txMetadataLen)
+	n := len(template)
+	if n > capacity {
+		n = capacity
+	}
+	// TX-pool frames are indices [RxSize, NumFrames): the same range used to
+	// build s.freeFrames in Open.
+	for i := s.conf.RxSize; i < s.conf.NumFrames; i++ {
+		base := int(uint64(i)*uint64(frameSize)) + int(s.txMetadataLen)
+		copy(s.umem[base:base+n], template[:n])
+	}
+}
+
 // Open creates and initializes an AF_XDP socket. It allocates UMEM, maps rings,
 // configures kernel structures, binds to the target NIC queue and registers the
 // socket in xsks_map. The iface parameter must be a properly initialized
@@ -733,8 +825,14 @@ func Open(
 		hasTxMetadata = true
 	}
 
-	// UMEM ring sizes.
+	// UMEM ring sizes. A socket that owns its UMEM must register both a fill and
+	// a completion ring at bind time, even when it only transmits: the kernel
+	// rejects the bind otherwise (EINVAL). A TX-only socket therefore registers a
+	// small fill ring (RxSize is 0 for it) and simply never populates it.
 	fillSize := conf.RxSize
+	if conf.TxOnly {
+		fillSize = conf.CqSize
+	}
 	compSize := conf.CqSize
 	if err := setsockopt(
 		fd, unix.SOL_XDP, unix.XDP_UMEM_FILL_RING,
@@ -758,13 +856,15 @@ func Open(
 		return nil, fail("setsockopt XDP_TX_RING: %w", err)
 	}
 
-	// RX ring size on socket.
-	rxSize := conf.RxSize
-	if err := setsockopt(
-		fd, unix.SOL_XDP, unix.XDP_RX_RING,
-		unsafe.Pointer(&rxSize), unsafe.Sizeof(rxSize),
-	); err != nil {
-		return nil, fail("setsockopt XDP_RX_RING: %w", err)
+	// RX ring size on socket. TX-only sockets have no RX ring.
+	if !conf.TxOnly {
+		rxSize := conf.RxSize
+		if err := setsockopt(
+			fd, unix.SOL_XDP, unix.XDP_RX_RING,
+			unsafe.Pointer(&rxSize), unsafe.Sizeof(rxSize),
+		); err != nil {
+			return nil, fail("setsockopt XDP_RX_RING: %w", err)
+		}
 	}
 
 	// Query mmap offsets for all rings.
@@ -790,21 +890,7 @@ func Open(
 		return nil, fail("mmap CQ ring: %w", err)
 	}
 
-	// Map RX ring
-	rxRegionLen := uintptr(offs.Rx.Desc) + uintptr(conf.RxSize)*unsafe.Sizeof(unix.XDPDesc{})
-	rxRegion, err = mmapRegion(fd, rxRegionLen, unix.XDP_PGOFF_RX_RING)
-	if err != nil {
-		return nil, fail("mmap RX ring: %w", err)
-	}
-
-	// Map FQ ring (UMEM fill ring, uint64 addresses)
-	fqRegionLen := uintptr(offs.Fr.Desc) + uintptr(conf.RxSize)*unsafe.Sizeof(uint64(0))
-	fqRegion, err = mmapRegion(fd, fqRegionLen, unix.XDP_UMEM_PGOFF_FILL_RING)
-	if err != nil {
-		return nil, fail("mmap FQ ring: %w", err)
-	}
-
-	// Build queues.
+	// Build TX and completion queues (always needed).
 	txQ, err := makeQueue(txRegion, offs.Tx, conf.TxSize, true)
 	if err != nil {
 		return nil, fail("making TX queue: %w", err)
@@ -813,16 +899,37 @@ func Open(
 	if err != nil {
 		return nil, fail("making CQ queue: %w", err)
 	}
-	rxQ, err := makeQueue(rxRegion, offs.Rx, conf.RxSize, false)
-	if err != nil {
-		return nil, fail("making RX queue: %w", err)
+
+	// The RX ring only exists for sockets that receive. A TX-only socket leaves
+	// rxQ nil (and rxRegion unmapped).
+	var rxQ *xdpUQueue
+	if !conf.TxOnly {
+		rxRegionLen := uintptr(offs.Rx.Desc) + uintptr(conf.RxSize)*unsafe.Sizeof(unix.XDPDesc{})
+		rxRegion, err = mmapRegion(fd, rxRegionLen, unix.XDP_PGOFF_RX_RING)
+		if err != nil {
+			return nil, fail("mmap RX ring: %w", err)
+		}
+		rxQ, err = makeQueue(rxRegion, offs.Rx, conf.RxSize, false)
+		if err != nil {
+			return nil, fail("making RX queue: %w", err)
+		}
 	}
-	fqQ, err := makeUMemQueue(fqRegion, offs.Fr, conf.RxSize)
+
+	// The fill ring exists on every UMEM-owning socket (see fillSize above). For
+	// a TX-only socket it is created but never populated, so all UMEM frames
+	// remain available for the TX freelist below.
+	fqRegionLen := uintptr(offs.Fr.Desc) + uintptr(fillSize)*unsafe.Sizeof(uint64(0))
+	fqRegion, err = mmapRegion(fd, fqRegionLen, unix.XDP_UMEM_PGOFF_FILL_RING)
+	if err != nil {
+		return nil, fail("mmap FQ ring: %w", err)
+	}
+	fqQ, err := makeUMemQueue(fqRegion, offs.Fr, fillSize)
 	if err != nil {
 		return nil, fail("making FQ queue: %w", err)
 	}
 
-	{ // Populate FQ with initial UMEM frames.
+	if !conf.TxOnly {
+		// Populate FQ with initial UMEM frames for RX.
 		prod := atomic.LoadUint32(fqQ.prod)
 		for i := range fqQ.size {
 			idx := (prod + i) & fqQ.mask
@@ -865,8 +972,11 @@ func Open(
 	}
 
 	// Register the socket FD in the xsks_map so the XDP program can redirect packets to it.
-	if err := registerXSK(iface, fd, conf.QueueID); err != nil {
-		return nil, fail("registering XSK: %w", err)
+	// TX-only sockets never receive redirected packets and have no eBPF collection.
+	if !conf.TxOnly {
+		if err := registerXSK(iface, fd, conf.QueueID); err != nil {
+			return nil, fail("registering XSK: %w", err)
+		}
 	}
 
 	// Local free-frame pool for TX only: frames [RxSize .. NumFrames-1].
@@ -877,7 +987,7 @@ func Open(
 	}
 
 	// txMetadataLen tracks the metadata headroom registered with the kernel.
-	// This MUST always match what was passed to XDP_UMEM_REG, regardless of
+	// This must always match what was passed to XDP_UMEM_REG, regardless of
 	// whether we actually use offloading, because the kernel's TX path expects
 	// d.Addr to point past the metadata region.
 	var txMdLen uint32

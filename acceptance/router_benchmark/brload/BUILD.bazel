@@ -6,14 +6,14 @@ go_library(
     srcs = [
         "main.go",
         "mmsg.go",
+        "xdp.go",
+        "xdp_stub.go",
     ],
     importpath = "github.com/scionproto/scion/acceptance/router_benchmark/brload",
     visibility = ["//visibility:private"],
     deps = select({
         "@rules_go//go/platform:android": [
             "//acceptance/router_benchmark/cases:go_default_library",
-            "//pkg/log:go_default_library",
-            "//pkg/private/serrors:go_default_library",
             "//pkg/scrypto:go_default_library",
             "//pkg/slayers:go_default_library",
             "//private/keyconf:go_default_library",
@@ -21,12 +21,9 @@ go_library(
             "@com_github_gopacket_gopacket//afpacket:go_default_library",
             "@com_github_gopacket_gopacket//layers:go_default_library",
             "@com_github_spf13_cobra//:go_default_library",
-            "@org_golang_x_sys//unix:go_default_library",
         ],
         "@rules_go//go/platform:linux": [
             "//acceptance/router_benchmark/cases:go_default_library",
-            "//pkg/log:go_default_library",
-            "//pkg/private/serrors:go_default_library",
             "//pkg/scrypto:go_default_library",
             "//pkg/slayers:go_default_library",
             "//private/keyconf:go_default_library",
@@ -34,6 +31,91 @@ go_library(
             "@com_github_gopacket_gopacket//afpacket:go_default_library",
             "@com_github_gopacket_gopacket//layers:go_default_library",
             "@com_github_spf13_cobra//:go_default_library",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "@rules_go//go/platform:android_386": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:android_amd64": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "//private/underlay/afxdp:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:android_arm": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:android_arm64": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "//private/underlay/afxdp:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_386": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_amd64": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "//private/underlay/afxdp:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_arm": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_arm64": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "//private/underlay/afxdp:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_mips": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_mips64": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_mips64le": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_mipsle": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_ppc64": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_ppc64le": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_riscv64": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_s390x": [
+            "//pkg/log:go_default_library",
+            "//pkg/private/serrors:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
         "//conditions:default": [],
