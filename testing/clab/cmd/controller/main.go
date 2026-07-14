@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build linux
+
 // Controller is the PID 1 init and process supervisor for a SCION containerlab
 // node (one ISD-AS per node).
 package main
@@ -26,7 +28,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
 )
 
@@ -153,9 +154,6 @@ to the static set of services rendered from configuration.`,
 			return printNetworkStatus(cmd.OutOrStdout(), networkStatus(cfg.Interfaces.Ethernets))
 		},
 	})
-
-	cmd.AddCommand(servicesCmd, networkCmd, command.NewVersion(cmd))
-
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
@@ -195,7 +193,7 @@ func run(configDir, configFile, binDir, logDir, dataDir, statusFile string,
 	// is best-effort — a service whose database lives elsewhere still works.
 	if dataDir != "" {
 		if err := os.MkdirAll(dataDir, 0o755); err != nil {
-			log.Warn("cannot create data directory", "dir", dataDir, "err", err)
+			return fmt.Errorf("creating data directory: %w", err)
 		}
 	}
 
@@ -216,9 +214,7 @@ func run(configDir, configFile, binDir, logDir, dataDir, statusFile string,
 	// we keep the merged stdout stream rather than failing the whole node.
 	if logDir != "" {
 		if err := os.MkdirAll(logDir, 0o755); err != nil {
-			log.Warn("cannot create log directory; per-service files disabled",
-				"dir", logDir, "err", err)
-			logDir = ""
+			return fmt.Errorf("creating log directory: %w", err)
 		}
 	}
 
@@ -226,9 +222,7 @@ func run(configDir, configFile, binDir, logDir, dataDir, statusFile string,
 	// the node still runs, only `list services` loses live status.
 	if statusFile != "" {
 		if err := os.MkdirAll(filepath.Dir(statusFile), 0o755); err != nil {
-			log.Warn("cannot create status directory; live status disabled",
-				"dir", filepath.Dir(statusFile), "err", err)
-			statusFile = ""
+			return fmt.Errorf("creating status directory: %w", err)
 		}
 	}
 
