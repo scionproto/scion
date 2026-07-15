@@ -198,6 +198,7 @@ func TestSupervise(t *testing.T) {
 	require.NoError(t, os.WriteFile(configFile, cfgRaw, 0o644))
 
 	logDir := t.TempDir()
+	dataDir := t.TempDir()
 	statusFile := filepath.Join(t.TempDir(), "status.json")
 
 	// One pipe for the controller's stdout+stderr; its children inherit the
@@ -209,6 +210,7 @@ func TestSupervise(t *testing.T) {
 		"--config-file", configFile,
 		"--bin-dir", binDir,
 		"--log-dir", logDir,
+		"--data-dir", dataDir,
 		"--status-file", statusFile,
 		"--shutdown-timeout", "2s",
 	)
