@@ -361,6 +361,12 @@ type queuePtrs struct {
 	// mmap'ed region. For completion rings, this is advanced by
 	// userspace as entries are reclaimed; for fill rings, by the kernel.
 	cons *uint32
+
+	// flags points into the shared ring header flags field. With
+	// XDP_USE_NEED_WAKEUP the kernel sets XDP_RING_NEED_WAKEUP when it needs a
+	// syscall kick (sendto for TX) and clears it while actively polling, letting
+	// the busy TX path skip the sendto.
+	flags *uint32
 }
 
 // xdpUQueue is conceptually identical to xdpUMemQueue in terms of indexing.
@@ -507,6 +513,7 @@ func makeQueue(
 
 	prod := (*uint32)(unsafe.Add(base, off.Producer))
 	cons := (*uint32)(unsafe.Add(base, off.Consumer))
+	flags := (*uint32)(unsafe.Add(base, off.Flags))
 
 	descPtr := unsafe.Add(base, off.Desc)
 	descs := unsafe.Slice((*unix.XDPDesc)(descPtr), size)
@@ -522,6 +529,7 @@ func makeQueue(
 			size:       size,
 			prod:       prod,
 			cons:       cons,
+			flags:      flags,
 			cachedProd: 0,
 			cachedCons: cachedCons,
 		},
@@ -540,12 +548,14 @@ func makeUMemQueue(
 
 	prod := (*uint32)(unsafe.Add(base, off.Producer))
 	cons := (*uint32)(unsafe.Add(base, off.Consumer))
+	flags := (*uint32)(unsafe.Add(base, off.Flags))
 
 	addrPtr := unsafe.Add(base, off.Desc)
 	addrs := unsafe.Slice((*uint64)(addrPtr), size)
 
 	return &xdpUMemQueue{
 		queuePtrs: queuePtrs{
+			flags:      flags,
 			mask:       size - 1,
 			size:       size,
 			prod:       prod,
@@ -948,11 +958,13 @@ func Open(
 		Queue_id: conf.QueueID,
 	}
 
+	// XDP_USE_NEED_WAKEUP lets the kernel tell us (via the ring NEED_WAKEUP flag)
+	// when a TX sendto kick is actually needed, so the busy path skips the syscall.
 	zerocopy := preferZerocopy
 	if zerocopy {
-		sa.Flags = unix.XDP_ZEROCOPY
+		sa.Flags = unix.XDP_ZEROCOPY | unix.XDP_USE_NEED_WAKEUP
 	} else {
-		sa.Flags = unix.XDP_COPY
+		sa.Flags = unix.XDP_COPY | unix.XDP_USE_NEED_WAKEUP
 	}
 
 	err = rawBind(fd, sa)
@@ -962,7 +974,7 @@ func Open(
 		// check fails (e.g. veth lacks ndo_xsk_wakeup → EOPNOTSUPP).
 		if errno, ok := err.(unix.Errno); ok &&
 			(errno == unix.EPROTONOSUPPORT || errno == unix.EOPNOTSUPP) {
-			sa.Flags = unix.XDP_COPY
+			sa.Flags = unix.XDP_COPY | unix.XDP_USE_NEED_WAKEUP
 			zerocopy = false
 			err = rawBind(fd, sa)
 		}
@@ -1336,6 +1348,12 @@ retry:
 func (s *Socket) FlushTx() error {
 	// Commit all pending descriptors and ring the doorbell.
 	commitTxDescriptors(s.tx.prod, s.tx.cachedProd)
+	// With XDP_USE_NEED_WAKEUP the kernel only needs a sendto kick when it has set
+	// NEED_WAKEUP; while it is actively draining the TX ring the flag is clear and
+	// we skip the syscall entirely (the dominant case under load).
+	if atomic.LoadUint32(s.tx.flags)&unix.XDP_RING_NEED_WAKEUP == 0 {
+		return nil
+	}
 	return wakeupTxQueue(s.fd)
 }
 
