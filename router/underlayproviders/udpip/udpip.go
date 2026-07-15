@@ -68,11 +68,11 @@ func (uo) UDPCanReuseLocal() bool {
 	return conn.UDPCanReuseLocal()
 }
 
-// provider implements UnderlayProvider by making and returning Udp/Ip links.
+// underlay implements Underlay by making and returning Udp/Ip links.
 //
 // This is currently the only implementation. The goal of splitting out this code from the router
 // is to enable other implementations.
-type provider struct {
+type underlay struct {
 	mu                 sync.Mutex // Prevents race between adding connections and Start/Stop.
 	batchSize          int
 	allLinks           map[netip.AddrPort]udpLink
@@ -96,16 +96,22 @@ type udpLink interface {
 }
 
 func init() {
-	// Register ourselves as an underlay provider. The registration consists of a constructor, not
+	// Register ourselves as an underlay provider. The registration consists of a factory, not
 	// a provider object, because multiple router instances each must have their own underlay
 	// provider. The provider is not re-entrant.
-	router.AddUnderlay("udpip", newProvider)
+	router.AddUnderlayProvider("udpip:inet", underlayProvider{})
 }
+
+type underlayProvider struct{}
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
 // TODO(multi_underlay): batchSize should be an underlay-specific config.
-func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
-	return &provider{
+func (underlayProvider) New(
+	batchSize int,
+	receiveBufferSize int,
+	sendBufferSize int,
+) router.Underlay {
+	return &underlay{
 		batchSize:         batchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
 		connOpener:        uo{},
@@ -117,30 +123,30 @@ func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) route
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
 // panic will ensue. Only for use in unit tests.
-func (u *provider) SetConnOpener(opener any) {
+func (u *underlay) SetConnOpener(opener any) {
 	u.connOpener = opener.(ConnOpener)
 }
 
-func (u *provider) NumConnections() int {
+func (u *underlay) NumConnections() int {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	return len(u.allLinks)
 }
 
-func (u *provider) Headroom() int {
+func (u *underlay) Headroom() int {
 	// This underlay does not add any header of its own: the UDP socket API manages the header
 	// independently.
 	return 0
 }
 
-func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
+func (u *underlay) SetDispatchPorts(start, end, redirect uint16) {
 	u.dispatchStart = start
 	u.dispatchEnd = end
 	u.dispatchRedirect = redirect
 }
 
 // AddSvc adds the address for the given service.
-func (u *provider) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
+func (u *underlay) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	// We pre-resolve the addresses, which is trivial for this underlay.
 	addr := netip.AddrPortFrom(host.IP(), port)
 	if !addr.IsValid() {
@@ -151,7 +157,7 @@ func (u *provider) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (u *provider) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
+func (u *underlay) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	addr := netip.AddrPortFrom(host.IP(), port)
 	if !addr.IsValid() {
 		return errInvalidServiceAddress
@@ -162,7 +168,7 @@ func (u *provider) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 
 // The queues to be used by the receiver task are supplied at this point because they must be
 // sized according to the number of connections that will be started.
-func (u *provider) Start(
+func (u *underlay) Start(
 	ctx context.Context, pool router.PacketPool, procQs []chan *router.Packet,
 ) {
 	u.mu.Lock()
@@ -184,7 +190,7 @@ func (u *provider) Start(
 	}
 }
 
-func (u *provider) Stop() {
+func (u *underlay) Stop() {
 	u.mu.Lock()
 	connSnapshot := slices.Clone(u.allConnections)
 	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
@@ -389,10 +395,11 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			sc := router.ClassOfSize(len(pkts[written].RawPacket))
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			pool.Put(pkts[written])
-			toWrite -= (written + 1)
+			written++ // Not to-be-written any more
+			toWrite -= written
 			// Shift the leftovers to the head of the buffers.
 			for i := range toWrite {
-				pkts[i] = pkts[i+written+1]
+				pkts[i] = pkts[i+written]
 			}
 		} else {
 			toWrite = 0
@@ -405,13 +412,13 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 // the proc queue where a packet should be delivered. All links that share
 // an underlying connection (therefore a receive loop) use the same hash seed.
 func makeHashSeed() uint32 {
-	hashSeed := fnv1aOffset32
+	hashSeed := router.Fnv1aOffset32
 	randomBytes := make([]byte, 4)
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("Error while generating random value")
 	}
 	for _, c := range randomBytes {
-		hashSeed = hashFNV1a(hashSeed, c)
+		hashSeed = router.HashFNV1a(hashSeed, c)
 	}
 	return hashSeed
 }
@@ -433,11 +440,12 @@ type connectedLink struct {
 
 // NewExternalLink returns an external link over the UDP/IP underlay. It is always implemented with
 // a connectedLink.
-func (u *provider) NewExternalLink(
+func (u *underlay) NewExternalLink(
 	qSize int,
 	bfd *bfd.Session,
 	local string,
 	remote string,
+	_ string, // this underlay provider doesn't have link options
 	ifID uint16,
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
@@ -461,7 +469,7 @@ func (u *provider) NewExternalLink(
 	return u.newConnectedLink(qSize, bfd, localAddr, remoteAddr, ifID, metrics, router.External)
 }
 
-func (u *provider) newConnectedLink(
+func (u *underlay) newConnectedLink(
 	qSize int,
 	bfd *bfd.Session,
 	localAddr netip.AddrPort,
@@ -557,11 +565,16 @@ func (l *connectedLink) Send(p *router.Packet) bool {
 	select {
 	case l.egressQ <- p:
 	default:
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 		return false
 	}
 	return true
 }
 
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *connectedLink) SendBlocking(p *router.Packet) {
 	// We use a bound and connected socket so we don't need to specify the destination.
 	l.egressQ <- p
@@ -611,11 +624,12 @@ type detachedLink struct {
 // We de-duplicate sibling links. The router gives us a BFDSession in all cases and we might throw
 // it away (there are no persistent resources attached to it). This could be fixed by moving some
 // BFD related code in-here.
-func (u *provider) NewSiblingLink(
+func (u *underlay) NewSiblingLink(
 	qSize int,
 	bfd *bfd.Session,
 	local string,
 	remote string,
+	_ string, // this underlay provider doesn't have link options
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 	localAddr, err := conn.ResolveAddrPortOrPort(local)
@@ -644,7 +658,7 @@ func (u *provider) NewSiblingLink(
 	return u.newDetachedLink(bfd, remoteAddr, metrics)
 }
 
-func (u *provider) newDetachedLink(
+func (u *underlay) newDetachedLink(
 	bfd *bfd.Session,
 	remoteAddr netip.AddrPort,
 	metrics *router.InterfaceMetrics,
@@ -730,11 +744,16 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 	select {
 	case l.egressQ <- p:
 	default:
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 		return false
 	}
 	return true
 }
 
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *detachedLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the destination address.
 	p.RemoteAddr = unsafe.Pointer(l.remote)
@@ -784,7 +803,7 @@ type internalLink struct {
 //
 // TODO(multi_underlay): We still go with the assumption that internal links are always
 // udpip, so we don't expect a string here. That should change.
-func (u *provider) NewInternalLink(
+func (u *underlay) NewInternalLink(
 	local string, qSize int, metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 	u.mu.Lock()
@@ -882,12 +901,8 @@ func (l *internalLink) runProcessor() {
 				l.pool.Put(p)
 				continue
 			}
-			if !egressLink.Send(p) {
-				sc := router.ClassOfSize(len(p.RawPacket))
-				l.metrics[sc].DroppedPacketsBusyForwarder.Inc()
-				l.pool.Put(p)
-				continue
-			}
+			// Send always consumes the packet (returns it to pool on drop).
+			egressLink.Send(p)
 		case <-l.procStop:
 			for {
 				select {
@@ -975,14 +990,15 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 		panic(fmt.Sprintf("unexpected address type returned from DstAddr: %s", dst.Type()))
 	}
 	// if port is outside the configured port range we send to the fixed port.
-	if port < l.dispatchStart && port > l.dispatchEnd {
+	if port < l.dispatchStart || port > l.dispatchEnd {
 		port = l.dispatchRedirect
 	}
 
 	// Packets that get here must have come from an external or a sibling link; neither of which
 	// attach a RemoteAddr to the packet (besides; it could be a different type).  So, RemoteAddr is
 	// not generally usable. We must allocate a new object. The precautions needed to pool them cost
-	// more than the pool saves (verified experimentally).
+	// more than the pool saves (verified experimentally). We should do like the afpacket underlay
+	// and store the bits at the head of the packet buffer instead.
 	p.RemoteAddr = unsafe.Pointer(&net.UDPAddr{
 		IP:   dstAddr.AsSlice(),
 		Zone: dstAddr.Zone(),
@@ -991,18 +1007,23 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
-// The packet's destination is already in the packet's meta-data.
 func (l *internalLink) Send(p *router.Packet) bool {
+	// The packet's destination is in the packet's meta-data.
 	select {
 	case l.egressQ <- p:
 	default:
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 		return false
 	}
 	return true
 }
 
-// The packet's destination is already in the packet's meta-data.
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *internalLink) SendBlocking(p *router.Packet) {
+	// The packet's destination is in the packet's meta-data.
 	l.egressQ <- p
 }
 
@@ -1063,14 +1084,14 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, b
 	s := hashSeed
 
 	// inject the flowID
-	s = hashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
+	s = router.HashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
 	for _, c := range data[2:4] {
-		s = hashFNV1a(s, c)
+		s = router.HashFNV1a(s, c)
 	}
 
 	// Inject the src/dst addresses
 	for _, c := range data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen] {
-		s = hashFNV1a(s, c)
+		s = router.HashFNV1a(s, c)
 	}
 
 	return s % uint32(numProcRoutines), true
