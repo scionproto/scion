@@ -51,6 +51,9 @@ func (c *caseChoice) String() string {
 func (c *caseChoice) Set(v string) error {
 	_, ok := allCases[v]
 	if !ok {
+		_, ok = mixCases[v]
+	}
+	if !ok {
 		return errors.New("no such case")
 	}
 	*c = caseChoice(v)
@@ -62,7 +65,8 @@ func (c *caseChoice) Type() string {
 }
 
 func (c *caseChoice) Allowed() string {
-	return fmt.Sprintf("One of: %v", reflect.ValueOf(allCases).MapKeys())
+	return fmt.Sprintf("One of: %v (or mixed: %v)",
+		reflect.ValueOf(allCases).MapKeys(), reflect.ValueOf(mixCases).MapKeys())
 }
 
 var (
@@ -310,6 +314,13 @@ func run(cmd *cobra.Command) int {
 	registerScionPorts()
 
 	log.Info("BRLoad acceptance tests:")
+
+	// Mix cases inject several forwarding patterns across multiple links at once;
+	// dedicated driver in mix.go.
+	if mixFn, ok := mixCases[string(caseToRun)]; ok {
+		return runMix(mixFn, handles, hfMAC)
+	}
+
 	caseFunc := allCases[string(caseToRun)] // key already checked.
 	caseDevIn, caseDevOut, payload, rawPkt := caseFunc(packetSize, hfMAC)
 

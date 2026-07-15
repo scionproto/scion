@@ -10,6 +10,7 @@ go_library(
         "in6.go",
         "in_transit.go",
         "in_transit6.go",
+        "mix.go",
         "out.go",
         "out6.go",
         "out_transit.go",

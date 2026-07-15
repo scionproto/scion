@@ -5,6 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "main.go",
+        "mix.go",
         "mmsg.go",
         "xdp.go",
         "xdp_stub.go",

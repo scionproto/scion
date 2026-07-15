@@ -31,6 +31,10 @@ func newXdpSender(_ string, _ []byte, _ xdpConfig) (*xdpSender, error) {
 	return nil, serrors.New("AF_XDP TX sender requires amd64 or arm64")
 }
 
+func newXdpSenderMulti(_ string, _ [][]byte, _ xdpConfig) (*xdpSender, error) {
+	return nil, serrors.New("AF_XDP TX sender requires amd64 or arm64")
+}
+
 func (s *xdpSender) start()               {}
 func (s *xdpSender) wait(_ time.Duration) {}
 func (s *xdpSender) sent() uint64         { return 0 }

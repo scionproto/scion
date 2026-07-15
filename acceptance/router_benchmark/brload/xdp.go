@@ -75,7 +75,11 @@ type txWorker struct {
 	pktLen      uint32
 	batchSize   int
 	limiter     *pacer // nil = unlimited
-	sent        atomic.Uint64
+	// templates holds more than one frame template only in mix mode: the worker
+	// copies the next template into each frame round-robin. nil or len 1: the
+	// prefilled template is reused with no per-frame copy.
+	templates [][]byte
+	sent      atomic.Uint64
 }
 
 // xdpSender fans packet generation out across several TX queues/cores.
@@ -108,11 +112,36 @@ func detectTxQueues(dev string) (int, error) {
 
 // newXdpSender opens one TX-only AF_XDP socket per queue on devName and prepares
 // the workers. template is a full Ethernet+IP+UDP+SCION frame whose outer UDP
-// checksum has already been zeroed; workers patch only the outer source port and
-// the SCION flow ID per packet.
+// checksum has already been zeroed; workers patch only the SCION flow ID per
+// packet (and, for IPv6, recompute the UDP checksum).
 func newXdpSender(devName string, template []byte, cfg xdpConfig) (*xdpSender, error) {
+	return newXdpSenderMulti(devName, [][]byte{template}, cfg)
+}
+
+// newXdpSenderMulti is [newXdpSender] with several frame templates on one device,
+// each worker cycling them round-robin. Used by the mix case to inject different
+// forwarding patterns on one ingress link.
+// Requirement: all templates share one length (one packet size and IP version,
+// hence one flow-ID offset and TX length).
+func newXdpSenderMulti(devName string, templates [][]byte, cfg xdpConfig) (*xdpSender, error) {
 	if cfg.numStreams == 0 {
 		return nil, serrors.New("num-streams must be >= 1")
+	}
+	if len(templates) == 0 {
+		return nil, serrors.New("at least one template is required")
+	}
+	template := templates[0]
+	for _, t := range templates {
+		if len(t) != len(template) {
+			return nil, serrors.New("mixed-traffic templates must share one length",
+				"first", len(template), "other", len(t))
+		}
+	}
+	// Copy mode only with more than one template; the single-template path keeps
+	// its prefill-only loop with no per-frame copy.
+	var multi [][]byte
+	if len(templates) > 1 {
+		multi = templates
 	}
 
 	txQueues := cfg.txQueues
@@ -192,6 +221,7 @@ func newXdpSender(devName string, template []byte, cfg xdpConfig) (*xdpSender, e
 			pktLen:      uint32(len(template)),
 			batchSize:   int(batchSize),
 			limiter:     limiter,
+			templates:   multi,
 		})
 	}
 
@@ -290,6 +320,7 @@ func (s *xdpSender) runWorker(w *txWorker) {
 	}
 
 	stream := w.startStream
+	tmplIdx := 0
 	for !s.stop.Load() {
 		n := w.batchSize
 		if w.limiter != nil {
@@ -303,6 +334,16 @@ func (s *xdpSender) runWorker(w *txWorker) {
 				f = w.sock.NextFrame()
 				if f.Buf == nil {
 					break // freelist still empty; flush and retry next round
+				}
+			}
+			// Mix mode: overwrite the frame with the next template so one queue
+			// emits every forwarding pattern. Single-template mode leaves the
+			// prefilled frame untouched.
+			if w.templates != nil {
+				copy(f.Buf[:w.pktLen], w.templates[tmplIdx])
+				tmplIdx++
+				if tmplIdx >= len(w.templates) {
+					tmplIdx = 0
 				}
 			}
 			binary.BigEndian.PutUint16(f.Buf[w.flowIDOff:], uint16(stream))
