@@ -52,6 +52,7 @@ rm -rf $DSTDIR/org_modernc_libc/testdata
 rm -rf $DSTDIR/com_github_getkin_kin_openapi/openapi3/license.go
 rm -rf $DSTDIR/rules_python/tests
 rm -rf $DSTDIR/aspect_rules_js/npm/private/test
+rm -rf $DSTDIR/com_github_quic_go_quic_go/assets/
 find $DSTDIR/ -name "*.go" -type f -delete
 find $DSTDIR/ -name "*.sh" -type f -delete
 find $DSTDIR/ -path "*/testdata/*" -type f -delete
