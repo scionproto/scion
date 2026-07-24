@@ -84,6 +84,52 @@ func TestNewPublishingRoutingTableLate(t *testing.T) {
 	require.NoError(t, rtw.Close())
 }
 
+func TestPublishingRoutingTableClearSessionAfterClose(t *testing.T) {
+	// ClearSession on a closed routing table must return an error instead of
+	// panicking with a nil-pointer dereference on the closed publisher.
+
+	chains, routeV4, routeV6 := getRoutingChains(t)
+
+	ctrl := gomock.NewController(t)
+
+	publisher := mock_control.NewMockPublisher(ctrl)
+	publisher.EXPECT().AddRoute(routeV4)
+	publisher.EXPECT().AddRoute(routeV6)
+	publisher.EXPECT().Close().Times(1)
+
+	routingTable := mock_control.NewMockRoutingTable(ctrl)
+	routingTable.EXPECT().SetSession(1, gomock.Any()).Times(1)
+	routingTable.EXPECT().Close().Times(1)
+
+	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
+		routeSourceIPv4, routeSourceIPv6)
+
+	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
+	require.NoError(t, rtw.Close())
+	require.Error(t, rtw.ClearSession(1))
+}
+
+func TestPublishingRoutingTableSetSessionAfterClose(t *testing.T) {
+	// SetSession on a closed routing table must return an error instead of
+	// panicking with a nil-pointer dereference on the closed publisher.
+
+	chains, _, _ := getRoutingChains(t)
+
+	ctrl := gomock.NewController(t)
+
+	publisher := mock_control.NewMockPublisher(ctrl)
+	publisher.EXPECT().Close().Times(1)
+
+	routingTable := mock_control.NewMockRoutingTable(ctrl)
+	routingTable.EXPECT().Close().Times(1)
+
+	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
+		routeSourceIPv4, routeSourceIPv6)
+
+	require.NoError(t, rtw.Close())
+	require.Error(t, rtw.SetSession(1, testPktWriter{}))
+}
+
 func TestNewPublishingRoutingTableHealthiness(t *testing.T) {
 	// Make sure that one healthy traffic class is sufficient not to retract the routes.
 

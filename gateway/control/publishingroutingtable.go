@@ -22,6 +22,7 @@ import (
 	"github.com/gopacket/gopacket/layers"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
 // NewPublishingRoutingTable publishes routes from rt via the routePublisher. The methods
@@ -59,6 +60,9 @@ type publishingRoutingTable struct {
 	nextHop        net.IP
 	sourceIPv4     net.IP
 	sourceIPv6     net.IP
+	// closed is set by Close. Once set, session updates are rejected because
+	// the route publisher is no longer available.
+	closed bool
 	// remoteSites is a list of remote sites. Site is a part of remote AS serving
 	// particular set of prefixes.
 	remoteSites []*remoteSite
@@ -113,6 +117,10 @@ func (rtw *publishingRoutingTable) Close() error {
 	rtw.mutex.Lock()
 	defer rtw.mutex.Unlock()
 
+	if rtw.closed {
+		return nil
+	}
+	rtw.closed = true
 	rtw.routePublisher.Close()
 	rtw.routePublisher = nil
 
@@ -120,6 +128,9 @@ func (rtw *publishingRoutingTable) Close() error {
 }
 
 func (rtw *publishingRoutingTable) setSessionLocked(index int, session PktWriter) error {
+	if rtw.closed {
+		return serrors.New("routing table is closed")
+	}
 	if err := rtw.routingTable.SetSession(index, session); err != nil {
 		return err
 	}
@@ -149,6 +160,9 @@ func (rtw *publishingRoutingTable) ClearSession(index int) error {
 	rtw.mutex.Lock()
 	defer rtw.mutex.Unlock()
 
+	if rtw.closed {
+		return serrors.New("routing table is closed")
+	}
 	if err := rtw.routingTable.ClearSession(index); err != nil {
 		return err
 	}
