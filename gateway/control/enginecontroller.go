@@ -178,18 +178,21 @@ func (c *EngineController) run(ctx context.Context) error {
 
 		logger.Debug("Swapping data-plane routing to use new forwarding engine.")
 		old := c.RoutingTableSwapper.SetRoutingTable(routingTable)
-		if old != nil {
-			if err := old.Close(); err != nil {
-				return serrors.Wrap("closing old routing table", err)
-			}
-		}
 
+		// Close the old engine before its routing table: the engine's router
+		// keeps publishing session events until it is stopped.
 		if c.engine != nil {
 			logger.Debug("Shutting down old forwarding engine.")
 			if err := c.engine.Close(ctx); err != nil {
 				return serrors.Wrap("shutting down engine", err)
 			}
 			logger.Debug("Shut down old forwarding engine")
+		}
+
+		if old != nil {
+			if err := old.Close(); err != nil {
+				return serrors.Wrap("closing old routing table", err)
+			}
 		}
 
 		c.stateMtx.Lock()
