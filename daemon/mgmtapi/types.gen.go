@@ -14,6 +14,20 @@ const (
 	Info  LogLevelLevel = "info"
 )
 
+// Valid indicates whether the value is a known member of the LogLevelLevel enum.
+func (e LogLevelLevel) Valid() bool {
+	switch e {
+	case Debug:
+		return true
+	case Error:
+		return true
+	case Info:
+		return true
+	default:
+		return false
+	}
+}
+
 // Certificate defines model for Certificate.
 type Certificate struct {
 	DistinguishedName string       `json:"distinguished_name"`
