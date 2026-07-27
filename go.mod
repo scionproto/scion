@@ -28,7 +28,7 @@ require (
 	github.com/mdlayher/arp v0.0.0-20220512170110-6706a2966875
 	github.com/mdlayher/ethernet v0.0.0-20220221185849-529eae5b6118
 	github.com/oapi-codegen/oapi-codegen/v2 v2.7.1
-	github.com/oapi-codegen/runtime v1.1.1
+	github.com/oapi-codegen/runtime v1.6.0
 	github.com/olekukonko/tablewriter v1.0.7
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
@@ -86,7 +86,7 @@ require (
 	github.com/lestrrat-go/httprc/v3 v3.0.0-beta1 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/mailru/easyjson v0.9.1 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mdlayher/packet v1.1.2 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
