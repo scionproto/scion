@@ -76,7 +76,7 @@ Once your personal Profile has been created, you will be assigned a NIC handle (
 
 **Step 3**:
 
-The next step is to create your Organization profile. Click on ``My Activity`` and ``Applications`` the in the top menu:
+The next step is to create your Organization profile. Click on ``My Activity`` then ``Applications`` in the top menu:
 
 .. figure:: registry/applications.png
    :width: 100 %
@@ -90,11 +90,17 @@ Then click on ``Apply for Organization`` to complete and submit your Organizatio
 
 You need to indicate whether your organization is a SCION Association Member, whether you wish to subscribe to the SCION mailing list, and you must agree to the Terms and Conditions.
 
-You also need to provide email addresses for the Admin and Technical Contacts. The same email address may be used - which may also be the same as the organizational email address - but using a personal email address is not recommended as these addresses are used to create the Admin and Technical roles to which different Personal profiles may be linked.
+You also need to provide email addresses for the *Admin Contact* and *Technical Contact*. The same email address may be used - which may also be the same as the organizational email address - but using a personal email address is not recommended as these addresses are used to create the Admin and Technical roles to which different Personal profiles may be linked.
 
-The person creating the Organization profile will automatically become a Maintainer, Admin Contact and Tech Contact for this, but you can also link additional Personal profiles to each of these roles. You can invite someone to create an account by entering their email address, or if they have already created a Personal profile, by searching for and entering their handle.
+The person creating the Organization profile will automatically become a *Maintainer*, *Admin Contact* and *Tech Contact* for this, but you can also link additional Personal profiles to each of these roles. You can invite someone to create an account by entering their email address, or if they have already created a Personal profile, by searching for and entering their NIC handle.
 
 .. figure:: registry/organization-2.png
+   :width: 100 %
+   :figwidth: 100 %
+   
+You can also invite additional contacts at any by clicking on ``My Activity`` then ``Invitations`` in the top menu:
+
+.. figure:: registry/invitations.png
    :width: 100 %
    :figwidth: 100 %
 
@@ -115,6 +121,13 @@ If you click on ``My Roles`` in the top menu, you can view the roles (*Admin Con
 .. figure:: registry/myroles.png
    :width: 100 %
    :figwidth: 100 %
+   
+   
+You can further check your Organization(s) by clicking on ``My Resources``and then ``Organizations`` in the top menu:
+
+.. figure:: registry/my-orgs.png
+   :width: 100 %
+   :figwidth: 100 %
 
 Requesting SCION AS numbers
 ---------------------------
@@ -131,7 +144,13 @@ Please note that assignments incur fees upon approval (starting from 1 January 2
 
 **Step 1**:
 
-To apply for a SCION AS number, click on ``My Applications`` in the top menu, followed by ``Apply for SCION AS``. Then complete the request form:
+To apply for a SCION AS number, click on ``My Activity`` then ``Applications`` in the top menu:
+
+.. figure:: registry/applications.png
+   :width: 100 %
+   :figwidth: 100 %
+
+Then click on ``Apply for AS`` and complete the request form:
 
 .. figure:: registry/apply-for-as.png
    :width: 100 %
@@ -153,9 +172,9 @@ If you are requesting a block of SCION AS numbers, please select ``SCION-Native 
 
 **Step 3**:
 
-The remaining step is to assign the *Admin Contacts* and *Technical Contacts*:
+The remaining step is to assign the *Admin Contacts* and *Technical Contacts*. You must agree to the *Contract for SCION Registry Services*:
 
-.. figure:: registry/contacts.png
+.. figure:: registry/as-contacts.png
    :width: 100 %
    :figwidth: 100 %
 
@@ -177,7 +196,7 @@ Once payment has been received by the SCION Association, or if no payment is due
    :width: 100 %
    :figwidth: 100 %
 
-You can further check your SCION AS number assignments by clicking on ‘Public Registry’ in the top menu, and then ‘ASes’:
+You can further check your SCION AS number assignments by clicking on ``My Resources``and then ``SCION AS numbers`` in the top menu:
 
 .. figure:: registry/as-registered.png
    :width: 100 %
@@ -190,13 +209,31 @@ An ISD number is used to identify a group of SCION ASes that share a common purp
 
 However, if your organization is a Voting Member of an ISD and is designated to be the holder of the ISD number required to identify it, you can also use the SCION Registry portal to apply for one in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_.
 
-To apply for a ISD number, click on ``My Applications`` in the top menu, followed by ``Apply for ISD``. Then complete the request form:
+To apply for an ISD number, click on ``My Activity`` then ``Applications`` in the top menu:
+
+.. figure:: registry/applications.png
+   :width: 100 %
+   :figwidth: 100 %
+   
+Then click on ``Apply for ISD`` and complete the request form:
 
 .. figure:: registry/apply-for-isd.png
    :width: 100 %
    :figwidth: 100 %
+   
+The ISD's Trusted Root Configuration (TRC) can also be referenced as a link or uploaded to the registry.
+
+The remaining step is to assign the *Admin Contacts* and *Technical Contacts*. You must also agree to the *Contract for SCION Registry Services*:
+
+.. figure:: registry/isd-contacts.png
+   :width: 100 %
+   :figwidth: 100 %
 
 When your ISD number application has been submitted, you will receive a message that this is pending. Applications must be approved by the SCION Association, which will normally happen within 1-3 working days.
+
+.. figure:: registry/isd-pending.png
+   :width: 100 %
+   :figwidth: 100 %
 
 Once your ISD number application has been checked and approved by the SCION Association, you will receive an email notification and your application will now show as *Approved, awaiting payment* if payment is due.
 
@@ -209,3 +246,10 @@ Once payment has been received by the SCION Association, or if no payment is due
 .. figure:: registry/isd-approved.png
    :width: 100 %
    :figwidth: 100 %
+   
+You can further check your ISD number assignments by clicking on ``My Resources``and then ``ISD numbers`` in the top menu:
+
+.. figure:: registry/isd-registered.png
+   :width: 100 %
+   :figwidth: 100 %
+
