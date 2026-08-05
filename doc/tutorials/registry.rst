@@ -20,19 +20,29 @@ The SCION Registry portal can be found at https://registry.scion.org
 
 **Step 1**:
 
+Select 'Sign in' on the portal menu.
+
 If you don’t already have an account, then click on ‘Create an account’. Enter the email address and password that you wish to use as your personal login. You can later create other personal accounts and role profiles and assign them permissions to manage your SCION number resources and organizational details.
+
+Alternatively, if you have a Google account, you may use this to sign-in.
 
 .. figure:: registry/register.png
    :width: 100 %
    :figwidth: 100 %
+   
+If you're creating an account, you'll then be asked to secure it by generating a two-factor authentication code. Scan the QR code using your preferred authenticator app, and then enter the provided one-time code:
 
-You will then be sent an email to the email address you provided, asking you to verify it:
-
-.. figure:: registry/verify.png
+.. figure:: registry/2fa.png
    :width: 100 %
    :figwidth: 100 %
 
-Verify your email address by clicking on ‘Verify link’ in the email:
+Make a note of the recovery code as this will be needed if you ever need to log in without your authenticator app.
+
+.. figure:: registry/recovery-code.png
+   :width: 100 %
+   :figwidth: 100 %
+
+You will also be sent an email to the email address you provided, asking you to verify it by clicking on 'Verify link' in the email:
 
 .. figure:: registry/verify-link.png
    :width: 100 %
@@ -47,20 +57,26 @@ Return to the login screen, enter your email address and password, and click ‘
 .. figure:: registry/login.png
    :width: 100 %
    :figwidth: 100 %
+   
+Verify your identity with the one-time code shown in your authenticator app:
+
+.. figure:: registry/verify-identity.png
+   :width: 100 %
+   :figwidth: 100 %
 
 **Step 2**:
 
-Upon successful login, you can now complete and submit your personal profile and enable two-factor authentication. Please note that your personal information will not be displayed on the public registry website.
+Upon successful login, you can now complete and submit your Personal profile and enable two-factor authentication. Please note that your personal information will not be displayed on the public registry website.
 
 .. figure:: registry/profile.png
    :width: 100 %
    :figwidth: 100 %
 
-Once your personal profile has been created, you will be assigned a NIC handle (e.g. PERS-KM32-SCION).
+Once your personal Profile has been created, you will be assigned a NIC handle (e.g. PERS-KM2-SCION). You can return to your profile and edit it from ``My Applications`` in the top menu.
 
 **Step 3**:
 
-The next step is to create your Organization profile. Click on ‘My Applications’ in the top menu:
+The next step is to create your Organization profile. Click on ``My Activity`` and ``Applications`` the in the top menu:
 
 .. figure:: registry/applications.png
    :width: 100 %
@@ -68,9 +84,17 @@ The next step is to create your Organization profile. Click on ‘My Application
 
 Then click on ``Apply for Organization`` to complete and submit your Organization profile. Please note the organization information may be accessible on the public registry website, so it is advisable to use a corporate postal address, telephone number, and email address.
 
-You need to agree to the Terms and Conditions and to also select a personal profile to be linked to the *Admin* and *Technical* (and optionally *Abuse*) Roles. In this example, there is currently only one personal profile available, but additional personal accounts and role profiles may be created or linked later.
+.. figure:: registry/organization-1.png
+   :width: 100 %
+   :figwidth: 100 %
 
-.. figure:: registry/organization.png
+You need to indicate whether your organization is a SCION Association Member, whether you wish to subscribe to the SCION mailing list, and you must agree to the Terms and Conditions.
+
+You also need to provide email addresses for the Admin and Technical Contacts. The same email address may be used - which may also be the same as the organizational email address - but using a personal email address is not recommended as these addresses are used to create the Admin and Technical roles to which different Personal profiles may be linked.
+
+The person creating the Organization profile will automatically become a Maintainer, Admin Contact and Tech Contact for this, but you can also link additional Personal profiles to each of these roles. You can invite someone to create an account by entering their email address, or if they have already created a Personal profile, by searching for and entering their handle.
+
+.. figure:: registry/organization-2.png
    :width: 100 %
    :figwidth: 100 %
 
