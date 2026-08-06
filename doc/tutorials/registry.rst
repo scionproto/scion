@@ -57,7 +57,7 @@ Return to the login screen, enter your email address and password, and click ‘
 .. figure:: registry/login.png
    :width: 100 %
    :figwidth: 100 %
-   
+
 Verify your identity with the one-time code shown in your authenticator app:
 
 .. figure:: registry/verify-identity.png
@@ -97,7 +97,7 @@ The person creating the Organization profile will automatically become a *Mainta
 .. figure:: registry/organization-2.png
    :width: 100 %
    :figwidth: 100 %
-   
+
 You can also invite additional contacts at any by clicking on ``My Activity`` then ``Invitations`` in the top menu:
 
 .. figure:: registry/invitations.png
@@ -121,9 +121,8 @@ If you click on ``My Roles`` in the top menu, you can view the roles (*Admin Con
 .. figure:: registry/myroles.png
    :width: 100 %
    :figwidth: 100 %
-   
-   
-You can further check your Organization(s) by clicking on ``My Resources``and then ``Organizations`` in the top menu:
+
+You can further check your Organization(s) by clicking on ``My Resources`` then ``Organizations`` in the top menu:
 
 .. figure:: registry/my-orgs.png
    :width: 100 %
@@ -196,7 +195,7 @@ Once payment has been received by the SCION Association, or if no payment is due
    :width: 100 %
    :figwidth: 100 %
 
-You can further check your SCION AS number assignments by clicking on ``My Resources``and then ``SCION AS numbers`` in the top menu:
+You can further check your SCION AS number assignments by clicking on ``My Resources`` then ``SCION AS numbers`` in the top menu:
 
 .. figure:: registry/as-registered.png
    :width: 100 %
@@ -214,13 +213,13 @@ To apply for an ISD number, click on ``My Activity`` then ``Applications`` in th
 .. figure:: registry/applications.png
    :width: 100 %
    :figwidth: 100 %
-   
+
 Then click on ``Apply for ISD`` and complete the request form:
 
 .. figure:: registry/apply-for-isd.png
    :width: 100 %
    :figwidth: 100 %
-   
+
 The ISD's Trusted Root Configuration (TRC) can also be referenced as a link or uploaded to the registry.
 
 The remaining step is to assign the *Admin Contacts* and *Technical Contacts*. You must also agree to the *Contract for SCION Registry Services*:
@@ -247,9 +246,8 @@ Once payment has been received by the SCION Association, or if no payment is due
    :width: 100 %
    :figwidth: 100 %
    
-You can further check your ISD number assignments by clicking on ``My Resources``and then ``ISD numbers`` in the top menu:
+You can further check your ISD number assignments by clicking on ``My Resources`` then ``ISD numbers`` in the top menu:
 
 .. figure:: registry/isd-registered.png
    :width: 100 %
    :figwidth: 100 %
-
