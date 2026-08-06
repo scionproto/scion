@@ -17,10 +17,13 @@ else
 fi
 DEBUG=${DEBUG:-0}
 
-# Architecture of the packages under test, default the host's. The container runs a
-# userland of this architecture. i386 runs natively on x86_64, no emulation. arm64 and
-# armel would need qemu, see dist/test/README.md.
-SCION_DEB_ARCH=${SCION_DEB_ARCH:-$(dpkg --print-architecture)}
+# Architecture of the packages under test. The container runs a userland of this
+# architecture. i386 runs natively on x86_64, no emulation.
+# arm64 and armel would need qemu, see dist/test/README.md.
+#
+# Do not probe the host for this. dpkg is not on PATH in the bazel test sandbox,
+# and the bazel targets pin the packages to one architecture anyway.
+SCION_DEB_ARCH=${SCION_DEB_ARCH:-amd64}
 case "${SCION_DEB_ARCH}" in
     amd64) platform="linux/amd64" ;;
     i386)  platform="linux/386" ;;

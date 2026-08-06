@@ -45,6 +45,7 @@ sh_test(
     ],
     env = {
         "SCION_DEB_PACKAGES": "$(locations //dist:deb_linux_amd64)",
+        "SCION_DEB_ARCH": "amd64",
     },
     tags = [
         "exclusive",
