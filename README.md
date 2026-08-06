@@ -33,8 +33,13 @@ SCION can be built with `go build`. To build all binaries used in a SCION deploy
 excluding the testing and development tools), run
 
 ```sh
-CGO_ENABLED=0 go build -o bin ./router/... ./control/... ./dispatcher/... ./daemon/... ./scion/... ./scion-pki/... ./gateway/...
+go build -o bin ./router/... ./control/... ./dispatcher/... ./daemon/... ./scion/... ./scion-pki/... ./gateway/...
 ```
+
+> [!WARNING]
+> The control service and the daemon need cgo for their sqlite driver. Building them
+> requires a C compiler. Without one, `go` silently sets `CGO_ENABLED=0`, the build still
+> succeeds, but both binaries fail at startup, as soon as they try to open their database.
 
 The default way to build SCION, however, uses Bazel.
 In particular, this allows to run all the tests, linters etc.

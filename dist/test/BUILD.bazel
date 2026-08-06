@@ -1,14 +1,50 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
+# Checks that the packaged binaries are built with cgo. It only reads the binaries and
+# never runs them. That way it also covers the architectures we cannot execute here.
+#
+# One test per architecture on purpose. The binaries of all architectures share the same
+# runfiles paths. A single test would only ever see one of them.
+[
+    sh_test(
+        name = "cgo_test_" + arch,
+        srcs = ["cgo_test.sh"],
+        data = ["//dist:package_binaries_linux_" + arch],
+        env = {
+            "SCION_PACKAGE_BINARIES": "$(locations //dist:package_binaries_linux_" + arch + ")",
+        },
+        tags = ["integration"],
+    )
+    for arch in [
+        "amd64",
+        "arm64",
+        "386",
+        "arm",
+    ]
+]
+
+test_suite(
+    name = "cgo_test",
+    tags = ["integration"],
+    tests = [
+        "cgo_test_386",
+        "cgo_test_amd64",
+        "cgo_test_arm",
+        "cgo_test_arm64",
+    ],
+)
+
+# Uses the amd64 release artifacts, not a host build. The two are built differently.
+# A host build tells us nothing about what we ship.
 sh_test(
     name = "deb_test",
     srcs = ["deb_test.sh"],
     data = [
         "Dockerfile",
-        "//dist:deb",
+        "//dist:deb_linux_amd64",
     ],
     env = {
-        "SCION_DEB_PACKAGES": "$(locations //dist:deb)",
+        "SCION_DEB_PACKAGES": "$(locations //dist:deb_linux_amd64)",
     },
     tags = [
         "exclusive",
@@ -32,15 +68,38 @@ sh_test(
     ],
 )
 
+# Same as deb_test, for i386. Runs natively on an x86_64 agent, no emulation.
+#
+# Tagged manual to keep it out of the per-PR integration steps, which come from a bazel
+# query that skips manual targets (see .buildkite/pipeline_lib.sh).
+# Run by `make dist-test-release`. arm64 and armel cannot be run this way.
+# See dist/test/README.md.
+sh_test(
+    name = "deb_test_i386",
+    srcs = ["deb_test.sh"],
+    data = [
+        "Dockerfile",
+        "//dist:deb_linux_386",
+    ],
+    env = {
+        "SCION_DEB_PACKAGES": "$(locations //dist:deb_linux_386)",
+        "SCION_DEB_ARCH": "i386",
+    },
+    tags = [
+        "exclusive",
+        "manual",
+    ],
+)
+
 sh_test(
     name = "rpm_test",
     srcs = ["rpm_test.sh"],
     data = [
         "Dockerfile.rpm",
-        "//dist:rpm",
+        "//dist:rpm_linux_amd64",
     ],
     env = {
-        "SCION_RPM_PACKAGES": "$(locations //dist:rpm)",
+        "SCION_RPM_PACKAGES": "$(locations //dist:rpm_linux_amd64)",
     },
     tags = [
         "exclusive",
