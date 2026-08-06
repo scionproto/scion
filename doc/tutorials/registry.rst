@@ -29,7 +29,7 @@ Alternatively, if you have a Google account, you may use this to sign-in.
 .. figure:: registry/register.png
    :width: 100 %
    :figwidth: 100 %
-   
+
 If you're creating an account, you'll then be asked to secure it by generating a two-factor authentication code. Scan the QR code using your preferred authenticator app, and then enter the provided one-time code:
 
 .. figure:: registry/2fa.png
@@ -245,7 +245,7 @@ Once payment has been received by the SCION Association, or if no payment is due
 .. figure:: registry/isd-approved.png
    :width: 100 %
    :figwidth: 100 %
-   
+
 You can further check your ISD number assignments by clicking on ``My Resources`` then ``ISD numbers`` in the top menu:
 
 .. figure:: registry/isd-registered.png
