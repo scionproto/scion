@@ -193,7 +193,7 @@ func NewPostAuthTokenRequestWithBody(server string, contentType string, body io.
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), body)
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func NewGetHealthcheckRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -247,14 +247,14 @@ func NewPostCertificateRenewalRequestWithBody(server string, isdNumber int, asNu
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "isd-number", runtime.ParamLocationPath, isdNumber)
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "isd-number", isdNumber, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
 	if err != nil {
 		return nil, err
 	}
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "as-number", runtime.ParamLocationPath, asNumber)
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "as-number", asNumber, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +274,7 @@ func NewPostCertificateRenewalRequestWithBody(server string, isdNumber int, asNu
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), body)
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -367,6 +367,14 @@ func (r PostAuthTokenResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PostAuthTokenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetHealthcheckResponse struct {
 	Body                      []byte
 	HTTPResponse              *http.Response
@@ -389,6 +397,14 @@ func (r GetHealthcheckResponse) StatusCode() int {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetHealthcheckResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type PostCertificateRenewalResponse struct {
@@ -416,6 +432,14 @@ func (r PostCertificateRenewalResponse) StatusCode() int {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PostCertificateRenewalResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 // PostAuthTokenWithBodyWithResponse request with arbitrary body returning *PostAuthTokenResponse

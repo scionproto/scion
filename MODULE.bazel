@@ -243,6 +243,29 @@ register_toolchains(
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_cc", version = "0.2.20")
 
+# Hermetic C cross compilers for the package builds. The sqlite driver needs cgo,
+# which needs a C toolchain for the target platform.
+#
+# Only selected for platforms that ask for musl (see //dist).
+# Host builds and container images keep using the host C toolchain.
+bazel_dep(name = "hermetic_cc_toolchain", version = "4.3.0")
+single_version_override(
+    module_name = "hermetic_cc_toolchain",
+    # Upstream only declares x86_64 and aarch64. Add i386 and armel zig musl targets.
+    patch_strip = 1,
+    patches = ["//patches:hermetic_cc_toolchain/32bit.patch"],
+)
+
+zig_toolchains = use_extension("@hermetic_cc_toolchain//toolchain:ext.bzl", "toolchains")
+use_repo(zig_toolchains, "zig_sdk")
+
+register_toolchains(
+    "@zig_sdk//libc_aware/toolchain:linux_amd64_musl",
+    "@zig_sdk//libc_aware/toolchain:linux_arm64_musl",
+    "@zig_sdk//libc_aware/toolchain:linux_386_musl",
+    "@zig_sdk//libc_aware/toolchain:linux_arm_musl",
+)
+
 # Antlr
 bazel_dep(name = "rules_java", version = "9.6.1")
 

@@ -11,13 +11,23 @@ import (
 )
 
 const (
-	BearerAuthScopes = "BearerAuth.Scopes"
+	BearerAuthScopes bearerAuthContextKey = "BearerAuth.Scopes"
 )
 
 // Defines values for AccessTokenTokenType.
 const (
 	Bearer AccessTokenTokenType = "Bearer"
 )
+
+// Valid indicates whether the value is a known member of the AccessTokenTokenType enum.
+func (e AccessTokenTokenType) Valid() bool {
+	switch e {
+	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for HealthCheckStatusStatus.
 const (
@@ -26,6 +36,22 @@ const (
 	Stopping    HealthCheckStatusStatus = "stopping"
 	Unavailable HealthCheckStatusStatus = "unavailable"
 )
+
+// Valid indicates whether the value is a known member of the HealthCheckStatusStatus enum.
+func (e HealthCheckStatusStatus) Valid() bool {
+	switch e {
+	case Available:
+		return true
+	case Starting:
+		return true
+	case Stopping:
+		return true
+	case Unavailable:
+		return true
+	default:
+		return false
+	}
+}
 
 // AS defines model for AS.
 type AS = string
@@ -152,6 +178,9 @@ type N500InternalServerError = Problem
 // N503ServiceUnavailable Error message encoded as specified in
 // [RFC7807](https://tools.ietf.org/html/rfc7807)
 type N503ServiceUnavailable = Problem
+
+// bearerAuthContextKey is the context key for BearerAuth security scheme
+type bearerAuthContextKey string
 
 // PostAuthTokenJSONRequestBody defines body for PostAuthToken for application/json ContentType.
 type PostAuthTokenJSONRequestBody = AccessCredentials

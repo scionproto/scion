@@ -1,4 +1,4 @@
-.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
+.PHONY: all build build-dev dist-check-cgo dist-deb dist-test-release antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
 
 build-dev:
 	rm -f bin/*
@@ -14,12 +14,16 @@ build:
 
 # BFLAGS is optional. It may contain additional command line flags for CI builds. Currently this is:
 # "--file_name_version=$(tools/git-version)" to include the git version in the artifacts names.
-dist-deb:
+dist-deb: dist-check-cgo
 	bazel build //dist:deb_all $(BFLAGS)
 	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
 	@ mkdir -p installables
 	@ cd installables ; ln -sfv ../bazel-out/*/bin/dist/*.deb .
 
+# No dist-check-cgo here: cgo_test only covers the deb and rpm architectures.
+# The openwrt platform has no cgo_off and its own musl C toolchain,
+# see //dist/openwrt:openwrt_amd64 and //dist/openwrt:x86_64_openwrt_toolchain.
+# These packages were always built with cgo.
 dist-openwrt:
 	bazel build //dist:openwrt_all $(BFLAGS)
 	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
@@ -32,11 +36,27 @@ dist-openwrt-testing:
 	@ mkdir -p installables
 	@ cd installables ; ln -sfv ../bazel-out/*/bin/dist/*.ipk .
 
-dist-rpm:
+dist-rpm: dist-check-cgo
 	bazel build //dist:rpm_all $(BFLAGS)
 	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
 	@ mkdir -p installables
 	@ cd installables ; ln -sfv ../bazel-out/*/bin/dist/*.rpm .
+
+# Checks that the binaries we are about to package are built with cgo. Without cgo their
+# sqlite driver is a stub that fails at runtime.
+dist-check-cgo:
+	bazel test //dist/test:cgo_test $(BFLAGS)
+
+# Install every package and start the services from their units. Includes tests excluded
+# from the per-PR runs, hence the explicit target list. Only covers architectures we can
+# execute, see dist/test/README.md.
+dist-test-release:
+	bazel test $(BFLAGS) \
+		//dist/test:cgo_test \
+		//dist/test:deb_test \
+		//dist/test:deb_test_i386 \
+		//dist/test:rpm_test \
+		//dist/test:openwrt_test
 
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the
