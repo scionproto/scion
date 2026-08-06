@@ -1,0 +1,85 @@
+Adds 32 bit linux musl targets (i386 and armel) to hermetic_cc_toolchain.
+
+Upstream only declares x86_64 and aarch64 linux targets, but we ship deb and rpm
+packages for i386 and armel as well. Those packages contain cgo binaries (the sqlite
+driver), so they need a C cross compiler for every architecture we release,
+see https://github.com/scionproto/scion/issues/4960.
+
+Zig itself supports these targets; only hermetic_cc_toolchain's target list has to be
+extended. Two details differ from the 64 bit targets and are therefore parameterized:
+the zig cpu name does not match the @platforms//cpu constraint value (x86 vs x86_32,
+arm vs armv7), and 32 bit arm needs an explicit eabi in the zig triple.
+
+Upstream issue: https://github.com/uber/hermetic_cc_toolchain/issues/10
+
+diff --git a/toolchain/private/defs.bzl b/toolchain/private/defs.bzl
+index f900205..1960b33 100644
+--- a/toolchain/private/defs.bzl
++++ b/toolchain/private/defs.bzl
+@@ -43,6 +43,19 @@ def zig_tool_path(os):
+     else:
+         return _ZIG_TOOL_PATH
+ 
++# 32 bit linux targets, declared for musl only.
++#
++# Their zig cpu name does not match the @platforms//cpu constraint value, and 32 bit arm
++# additionally needs an explicit eabi in the zig triple, so both are spelled out here:
++# (zig cpu, go arch, @platforms//cpu constraint, zig libc/abi).
++#
++# The arm entry uses the soft float "musleabi" rather than "musleabihf", to match the
++# Debian armel port and the soft float binaries this repository already ships.
++_LINUX_MUSL_32BIT_CPUS = (
++    ("x86", "386", "x86_32", "musl"),
++    ("arm", "arm", "armv7", "musleabi"),
++)
++
+ def target_structs():
+     ret = []
+     for zigcpu, gocpu in (("x86_64", "amd64"), ("aarch64", "arm64")):
+@@ -51,6 +64,8 @@ def target_structs():
+         ret.append(_target_linux_musl(gocpu, zigcpu))
+         for glibc in _GLIBCS:
+             ret.append(_target_linux_gnu(gocpu, zigcpu, glibc))
++    for zigcpu, gocpu, bzlcpu, abi in _LINUX_MUSL_32BIT_CPUS:
++        ret.append(_target_linux_musl(gocpu, zigcpu, bzlcpu = bzlcpu, abi = abi))
+     ret.append(_target_wasm())
+     ret.append(_target_wasm_no_wasi())
+     return ret
+@@ -185,10 +200,12 @@ def _target_linux_gnu(gocpu, zigcpu, glibc_version):
+         artifact_name_patterns = [],
+     )
+ 
+-def _target_linux_musl(gocpu, zigcpu):
++def _target_linux_musl(gocpu, zigcpu, bzlcpu = None, abi = "musl"):
+     return struct(
+         gotarget = "linux_{}_musl".format(gocpu),
+-        zigtarget = "{}-linux-musl".format(zigcpu),
++        # The eabi suffix belongs in the compiler triple, but not in the header search
++        # paths: zig ships those under the plain "-linux-musl" name for every abi.
++        zigtarget = "{}-linux-{}".format(zigcpu, abi),
+         includes = [
+                        "libc/include/{}-linux-musl".format(zigcpu),
+                        "libc/include/generic-musl",
+@@ -206,7 +223,7 @@ def _target_linux_musl(gocpu, zigcpu):
+         bazel_target_cpu = "k8",
+         constraint_values = [
+             "@platforms//os:linux",
+-            "@platforms//cpu:{}".format(zigcpu),
++            "@platforms//cpu:{}".format(bzlcpu or zigcpu),
+         ],
+         libc_constraint = "@zig_sdk//libc:musl",
+         ld_zig_subcmd = "ld.lld",
+diff --git a/toolchain/zig-wrapper.zig b/toolchain/zig-wrapper.zig
+index 172b518..c0df428 100644
+--- a/toolchain/zig-wrapper.zig
++++ b/toolchain/zig-wrapper.zig
+@@ -378,7 +378,8 @@ fn getRunMode(self_exe: []const u8, self_base_noexe: []const u8) error{BadParent
+     var it = mem.splitScalar(u8, triple, '-');
+ 
+     const arch = it.next() orelse return error.BadParent;
+-    if (mem.indexOf(u8, "aarch64,x86_64,wasm32", arch) == null)
++    // Note that this is a substring match, so "x86" is accepted via "x86_64".
++    if (mem.indexOf(u8, "aarch64,arm,x86_64,wasm32", arch) == null)
+         return error.BadParent;
+ 
+     const got_os = it.next() orelse return error.BadParent;
