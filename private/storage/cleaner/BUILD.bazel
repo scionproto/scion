@@ -8,9 +8,8 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/log:go_default_library",
-        "//pkg/private/prom:go_default_library",
+        "//pkg/metrics/v2:go_default_library",
         "//private/periodic:go_default_library",
-        "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )
 

@@ -21,7 +21,6 @@ import (
 	"strconv"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/daemon/grpc"
 	"github.com/scionproto/scion/pkg/addr"
@@ -29,8 +28,6 @@ import (
 	"github.com/scionproto/scion/pkg/daemon/asinfo"
 	"github.com/scionproto/scion/pkg/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/daemon/private/engine"
-	"github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/private/drkey"
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/revcache"
@@ -56,6 +53,7 @@ type ServerConfig struct {
 	Engine      trust.Engine
 	LocalASInfo asinfo.LocalASInfo
 	DRKeyClient *drkey.ClientEngine
+	Metrics     grpc.Metrics
 }
 
 // NewServer constructs a daemon API server.
@@ -73,84 +71,7 @@ func NewServer(cfg ServerConfig) *grpc.DaemonServer {
 			RevCache:    cfg.RevCache,
 			DRKeyClient: cfg.DRKeyClient,
 		},
-		Metrics: grpc.Metrics{
-			PathsRequests: grpc.RequestMetrics{
-				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
-					Namespace: "sd",
-					Subsystem: "path",
-					Name:      "requests_total",
-					Help:      "The amount of path requests received.",
-				}, grpc.PathsRequestsLabels),
-				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
-					Namespace: "sd",
-					Subsystem: "path",
-					Name:      "request_duration_seconds",
-					Help:      "Time to handle path requests.",
-					Buckets:   prom.DefaultLatencyBuckets,
-				}, grpc.LatencyLabels),
-			},
-			ASRequests: grpc.RequestMetrics{
-				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
-					Namespace: "sd",
-					Subsystem: "as_info",
-					Name:      "requests_total",
-					Help:      "The amount of AS requests received.",
-				}, grpc.ASRequestsLabels),
-				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
-					Namespace: "sd",
-					Subsystem: "as_info",
-					Name:      "request_duration_seconds",
-					Help:      "Time to handle AS requests.",
-					Buckets:   prom.DefaultLatencyBuckets,
-				}, grpc.LatencyLabels),
-			},
-			InterfacesRequests: grpc.RequestMetrics{
-				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
-					Namespace: "sd",
-					Subsystem: "if_info",
-					Name:      "requests_total",
-					Help:      "The amount of interfaces requests received.",
-				}, grpc.InterfacesRequestsLabels),
-				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
-					Namespace: "sd",
-					Subsystem: "if_info",
-					Name:      "request_duration_seconds",
-					Help:      "Time to handle interfaces requests.",
-					Buckets:   prom.DefaultLatencyBuckets,
-				}, grpc.LatencyLabels),
-			},
-			ServicesRequests: grpc.RequestMetrics{
-				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
-					Namespace: "sd",
-					Subsystem: "service_info",
-					Name:      "requests_total",
-					Help:      "The amount of services requests received.",
-				}, grpc.ServicesRequestsLabels),
-				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
-					Namespace: "sd",
-					Subsystem: "service_info",
-					Name:      "request_duration_seconds",
-					Help:      "Time to handle services requests.",
-					Buckets:   prom.DefaultLatencyBuckets,
-				}, grpc.LatencyLabels),
-			},
-			InterfaceDownNotifications: grpc.RequestMetrics{
-				Requests: metrics.NewPromCounter(prom.SafeRegister(
-					prometheus.NewCounterVec(prometheus.CounterOpts{
-						Namespace: "sd",
-						Name:      "received_revocations_total",
-						Help:      "The amount of revocations received.",
-					}, grpc.InterfaceDownNotificationsLabels)).(*prometheus.CounterVec),
-				),
-				Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
-					Namespace: "sd",
-					Subsystem: "revocation",
-					Name:      "notification_duration_seconds",
-					Help:      "Time to handle interface down notifications.",
-					Buckets:   prom.DefaultLatencyBuckets,
-				}, grpc.LatencyLabels),
-			},
-		},
+		Metrics: cfg.Metrics,
 	}
 }
 

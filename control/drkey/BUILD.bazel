@@ -5,6 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "arc.go",
+        "metrics.go",
         "prefetcher.go",
         "secret_value_mgr.go",
         "service_engine.go",

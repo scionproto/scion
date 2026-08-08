@@ -27,13 +27,14 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto/cms/protocol"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
-	"github.com/scionproto/scion/private/trust/internal/metrics"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 // Signer is used to sign control plane messages with the AS private key.
@@ -48,6 +49,7 @@ type Signer struct {
 	TRCID         cppki.TRCID
 	ChainValidity cppki.Validity
 	InGrace       bool
+	Signatures    func(result string) metrics.Counter
 }
 
 // Sign signs the message with the associated data and returns a SignedMessage protobuf payload. The
@@ -58,10 +60,14 @@ func (s Signer) Sign(
 	associatedData ...[]byte,
 ) (*cryptopb.SignedMessage, error) {
 
-	l := metrics.SignerLabels{}
+	record := func(result string) {
+		if s.Signatures != nil {
+			metrics.CounterInc(s.Signatures(result))
+		}
+	}
 	now := time.Now()
 	if err := s.validate(ctx, now); err != nil {
-		metrics.Signer.Sign(l.WithResult(metrics.ErrValidate)).Inc()
+		record(trustmetrics.ErrValidate)
 		return nil, err
 	}
 
@@ -73,7 +79,7 @@ func (s Signer) Sign(
 	}
 	rawID, err := proto.Marshal(id)
 	if err != nil {
-		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
+		record(trustmetrics.ErrInternal)
 		return nil, serrors.Wrap("packing verification_key_id", err)
 	}
 	hdr := signed.Header{
@@ -84,41 +90,45 @@ func (s Signer) Sign(
 	}
 	signedMsg, err := signed.Sign(hdr, msg, s.PrivateKey, associatedData...)
 	if err != nil {
-		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
+		record(trustmetrics.ErrInternal)
 		return nil, err
 	}
-	metrics.Signer.Sign(l.WithResult(metrics.Success)).Inc()
+	record(trustmetrics.Success)
 	return signedMsg, nil
 }
 
 // SignCMS signs the message and returns a CMS/PKCS7 encoded payload.
 func (s Signer) SignCMS(ctx context.Context, msg []byte) ([]byte, error) {
-	l := metrics.SignerLabels{}
+	record := func(result string) {
+		if s.Signatures != nil {
+			metrics.CounterInc(s.Signatures(result))
+		}
+	}
 	if err := s.validate(ctx, time.Now()); err != nil {
-		metrics.Signer.Sign(l.WithResult(metrics.ErrValidate)).Inc()
+		record(trustmetrics.ErrValidate)
 		return nil, err
 	}
 
 	eci, err := protocol.NewDataEncapsulatedContentInfo(msg)
 	if err != nil {
-		metrics.Signer.Sign(l.WithResult(metrics.ErrParse)).Inc()
+		record(trustmetrics.ErrParse)
 		return nil, err
 	}
 	sd, err := protocol.NewSignedData(eci)
 	if err != nil {
-		metrics.Signer.Sign(l.WithResult(metrics.ErrParse)).Inc()
+		record(trustmetrics.ErrParse)
 		return nil, err
 	}
 	if err := sd.AddSignerInfo(s.Chain, s.PrivateKey); err != nil {
-		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
+		record(trustmetrics.ErrInternal)
 		return nil, err
 	}
 	encoded, err := sd.ContentInfoDER()
 	if err != nil {
-		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
+		record(trustmetrics.ErrInternal)
 		return nil, err
 	}
-	metrics.Signer.Sign(l.WithResult(metrics.Success)).Inc()
+	record(trustmetrics.Success)
 	return encoded, nil
 }
 
