@@ -31,6 +31,7 @@ type topo struct {
 		Core          bool    `yaml:"core"`
 		Issuing       bool    `yaml:"issuing"`
 		Voting        bool    `yaml:"voting"`
+		EKUAny        bool    `yaml:"eku_any"`
 	} `yaml:"ASes"`
 }
 
