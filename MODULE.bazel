@@ -20,14 +20,14 @@ linter.configure(
 use_repo(linter, "apple_linters")
 
 # Bazel rules for Golang
-bazel_dep(name = "rules_go", version = "0.60.0")
+bazel_dep(name = "rules_go", version = "0.61.1")
 single_version_override(
     module_name = "rules_go",
     patches = ["//patches:rules_go/import.patch"],
 )
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.download(version = "1.26.0")
+go_sdk.download(version = "1.26.4")
 use_repo(go_sdk, "go_toolchains")
 
 register_toolchains("@go_toolchains//:all")
@@ -35,7 +35,7 @@ register_toolchains("@go_toolchains//:all")
 go_sdk.nogo(nogo = "@//:nogo")
 
 # Gazelle
-bazel_dep(name = "gazelle", version = "0.47.0")
+bazel_dep(name = "gazelle", version = "0.51.3")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
@@ -112,7 +112,7 @@ use_repo(
 )
 
 # npm
-bazel_dep(name = "rules_nodejs", version = "6.7.3")
+bazel_dep(name = "rules_nodejs", version = "6.7.4")
 bazel_dep(name = "aspect_rules_js", version = "2.9.2")
 
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
@@ -130,7 +130,7 @@ pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
 use_repo(pnpm, "pnpm")
 
 # Python rules
-bazel_dep(name = "rules_python", version = "1.8.4")
+bazel_dep(name = "rules_python", version = "1.9.0")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")
@@ -159,7 +159,7 @@ use_repo(
 )
 
 # Rules for container image building
-bazel_dep(name = "rules_oci", version = "2.2.7")
+bazel_dep(name = "rules_oci", version = "2.3.0")
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(
@@ -218,7 +218,7 @@ use_repo(find_rpm, "rules_pkg_rpmbuild")
 register_toolchains("@rules_pkg_rpmbuild//:all")
 
 # Debian rules
-bazel_dep(name = "rules_distroless", version = "0.6.2")
+bazel_dep(name = "rules_distroless", version = "0.8.0")
 
 apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
 apt.install(
@@ -241,11 +241,34 @@ register_toolchains(
 )
 
 # Support cross building and packaging for openwrt_amd64 via the openwrt SDK
-bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.20")
+
+# Hermetic C cross compilers for the package builds. The sqlite driver needs cgo,
+# which needs a C toolchain for the target platform.
+#
+# Only selected for platforms that ask for musl (see //dist).
+# Host builds and container images keep using the host C toolchain.
+bazel_dep(name = "hermetic_cc_toolchain", version = "4.3.0")
+single_version_override(
+    module_name = "hermetic_cc_toolchain",
+    # Upstream only declares x86_64 and aarch64. Add i386 and armel zig musl targets.
+    patch_strip = 1,
+    patches = ["//patches:hermetic_cc_toolchain/32bit.patch"],
+)
+
+zig_toolchains = use_extension("@hermetic_cc_toolchain//toolchain:ext.bzl", "toolchains")
+use_repo(zig_toolchains, "zig_sdk")
+
+register_toolchains(
+    "@zig_sdk//libc_aware/toolchain:linux_amd64_musl",
+    "@zig_sdk//libc_aware/toolchain:linux_arm64_musl",
+    "@zig_sdk//libc_aware/toolchain:linux_386_musl",
+    "@zig_sdk//libc_aware/toolchain:linux_arm_musl",
+)
 
 # Antlr
-bazel_dep(name = "rules_java", version = "8.11.0")
+bazel_dep(name = "rules_java", version = "9.6.1")
 
 antlr = use_extension("//:antlr.bzl", "antlr")
 antlr.download(version = "4.13.1")
@@ -262,7 +285,6 @@ use_repo(
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "rules_proto", version = "7.1.0")
-bazel_dep(name = "rules_proto_grpc", version = "5.8.0")
-bazel_dep(name = "protobuf", version = "31.1")
-bazel_dep(name = "rules_shell", version = "0.6.1")
-bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.2")
+bazel_dep(name = "protobuf", version = "35.1")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2")

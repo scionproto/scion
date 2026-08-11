@@ -356,7 +356,7 @@ func (b *beaconAsPath) Metadata() *snet.PathMetadata {
 		// For the AS entries that are not the last, add the interface with egress interface.
 		if i < len(b.beacon.Segment.ASEntries)-1 {
 			md.Interfaces = append(md.Interfaces, snet.PathInterface{
-				IA: entry.Next,
+				IA: entry.Local,
 				ID: iface.ID(entry.HopEntry.HopField.ConsEgress),
 			})
 		}

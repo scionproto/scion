@@ -219,12 +219,13 @@ func (m *MockSegmentProvider) EXPECT() *MockSegmentProviderMockRecorder {
 }
 
 // SegmentsToRegister mocks base method.
-func (m *MockSegmentProvider) SegmentsToRegister(arg0 context.Context, arg1 segment.Type) (beacon.GroupedBeacons, error) {
+func (m *MockSegmentProvider) SegmentsToRegister(arg0 context.Context, arg1 segment.Type) ([]beacon.Beacon, []beacon.RegistrationPolicy, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SegmentsToRegister", arg0, arg1)
-	ret0, _ := ret[0].(beacon.GroupedBeacons)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].([]beacon.Beacon)
+	ret1, _ := ret[1].([]beacon.RegistrationPolicy)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // SegmentsToRegister indicates an expected call of SegmentsToRegister.

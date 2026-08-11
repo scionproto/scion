@@ -1,0 +1,9 @@
+--- a/antlr/impl.bzl
++++ b/antlr/impl.bzl
+@@ -1,5 +1,6 @@
+ """The common ANTLR rule implementation."""
+
++load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+ load(":lang.bzl", "C", "CPP", "GO", "OBJC", "PYTHON", "PYTHON2", "PYTHON3")
+
+ AntlrInfo = provider(

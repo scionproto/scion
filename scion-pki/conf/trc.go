@@ -35,7 +35,7 @@ type TRC struct {
 	SerialVersion     scrypto.Version `toml:"serial_version"`
 	BaseVersion       scrypto.Version `toml:"base_version"`
 	VotingQuorum      uint8           `toml:"voting_quorum"`
-	GracePeriod       util.DurWrap    `toml:"grace_period"`
+	GracePeriod       *util.DurWrap   `toml:"grace_period"`
 	NoTrustReset      bool            `toml:"no_trust_reset"`
 	Validity          Validity        `toml:"validity"`
 	CoreASes          []addr.AS       `toml:"core_ases"`
@@ -54,6 +54,9 @@ func LoadTRC(file string) (TRC, error) {
 	}
 	if err := cfg.Validity.Validate(); err != nil {
 		return TRC{}, serrors.Wrap("validating 'validity' section", err)
+	}
+	if cfg.GracePeriod == nil && cfg.SerialVersion != cfg.BaseVersion {
+		return TRC{}, serrors.New("grace_period must be set for non-base TRCs")
 	}
 	cfg.relPath = filepath.Dir(file)
 	return cfg, nil

@@ -43,7 +43,14 @@ Build
 
    .. code-block:: bash
 
-      CGO_ENABLED=0 go build -o bin/ ./{router,control,dispatcher,daemon,scion,scion-pki,gateway}/cmd/...
+      go build -o bin/ ./{router,control,dispatcher,daemon,scion,scion-pki,gateway}/cmd/...
+
+   .. warning::
+
+      The control service and the daemon need cgo for their sqlite driver
+      (``github.com/mattn/go-sqlite3``). Building them requires a C compiler. Without one,
+      ``go`` silently sets ``CGO_ENABLED=0``, the build still succeeds, but both binaries
+      fail at startup, as soon as they try to open their database.
 
 * **Build all**
 

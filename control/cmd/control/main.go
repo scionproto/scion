@@ -28,9 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -806,8 +803,12 @@ func realMain(ctx context.Context) error {
 		cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
 	}
 
+	intraProtocols := new(http.Protocols)
+	intraProtocols.SetHTTP1(true)
+	intraProtocols.SetUnencryptedHTTP2(true)
 	intraServer := http.Server{
-		Handler: h2c.NewHandler(libconnect.AttachPeer(connectIntra), &http2.Server{}),
+		Handler:   libconnect.AttachPeer(connectIntra),
+		Protocols: intraProtocols,
 	}
 	g.Go(func() error {
 		defer log.HandlePanic()

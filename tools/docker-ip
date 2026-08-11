@@ -7,4 +7,8 @@ set -e -o pipefail
 
 [ $# -eq 0 ] || { echo "ERROR: set \$DOCKER_IF if you want to specify an interface"; exit 1; }
 
+# `ip` lives in /sbin or /usr/sbin, which are not part of the hermetic PATH
+# that Bazel sets for test/run actions. Make sure they are searched.
+export PATH="$PATH:/usr/sbin:/sbin"
+
 ip -o -4 addr ls dev ${DOCKER_IF:-docker0} 2> /dev/null | awk '{print $4}' | cut -f1 -d'/'
