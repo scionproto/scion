@@ -302,21 +302,16 @@ func (l *linkInternal) sendBacklog(dstAddr netip.Addr) {
 		return
 	}
 
-	givenup := false
 	for {
 		select {
 		case p := <-backlog:
-			if givenup {
-				sc := router.ClassOfSize(len(p.RawPacket))
-				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-				l.pool.Put(p)
-				continue
-			}
 			// Compute connection index BEFORE finishPacket prepends headers.
 			connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 			if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
-				givenup = true
-				continue
+				// The MAC is still unresolved; finishPacket has put the packet
+				// back on the backlog. Leave it, and everything behind it,
+				// for the drain that the eventual RTM_NEWNEIGH will trigger.
+				return
 			}
 			select {
 			case l.txConns[connIdx].queue <- p:
