@@ -286,9 +286,9 @@ func (l *linkPTP) sendBacklog() {
 			// Compute connection index BEFORE finishPacket prepends headers.
 			connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 			if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
-				// The MAC is still unresolved; finishPacket has put the packet
-				// back on the backlog. Leave it, and everything behind it,
-				// for the drain that the eventual RTM_NEWNEIGH will trigger.
+				// The MAC address is not known yet. finishPacket has put the
+				// packet back on the backlog. Leave it there with the rest.
+				// The flush that follows a successful lookup sends them.
 				return
 			}
 			select {

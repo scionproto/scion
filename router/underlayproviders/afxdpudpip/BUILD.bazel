@@ -87,6 +87,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "afxdpudpip_test.go",
+        "backlog_repro_test.go",
         "options_test.go",
         "stats_collector_test.go",
     ],
