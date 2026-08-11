@@ -2,8 +2,8 @@
 NAT IP/port discovery
 *********************
 
-- Author(s): Marc Frei, Tilmann Zäschke
-- Last updated: 2024-07-01
+- Author(s): Marc Frei, Jan Luan, Tilmann Zäschke
+- Last updated: 2024-12-22
 - Status: **WIP**
 - Discussion at: :issue:`4517`
 
@@ -15,8 +15,8 @@ This address may not be easy to discover if the sender is separated from the rec
 
 We want to propose a solution that allows SCION endhosts (and endhost libraries) to discover and use
 the address that is visible to the first hop border router as the source host address in outbound packets.
-The most elegant and most reliable solution appears to be to have
-the border router itself detect the NATed IP/port and report it to the client (to the sending endhost).
+The most elegant and most reliable solution appears to be to have the client (the sending endhost)
+detect its NATed IP/port by querying the border router for its publicly visible address.
 
 Background
 ==========
@@ -65,6 +65,13 @@ To avoid potential misunderstandings: this proposal only addresses the problem o
 the goal to also support NAT traversal techniques such as NAT hole punching SCION-based servers and peer-to-peer
 scenarios.
 
+Furthermore, the proposed solution involving border routers is only necessary for traffic between separate ASes.
+For intra-AS traffic, the NAT problem can be solved by changing the endhost implentation such that returning packets are always sent back to the
+underlay source address (which may be a NAT'ed) instead of the SCION source address.
+This is possible since within the local AS, the underlay headers do not change during transit as opposed to the inter-AS case.
+We note that this only works for servers listening on ports that are not routed through a SHIM dispatcher.
+However, we hope that by the time our solution rolls out, SHIM dispatchers would have become obsolete.
+
 The implementation on the protocol level could be done in several ways:
 
 1.  STUN: The BR needs to detect if an incoming packet is a STUN packet, and if it is, respond to the STUN request.
@@ -75,19 +82,74 @@ The implementation on the protocol level could be done in several ways:
 2.  Extend SCMP with a new INFO message
 
     -  Advantages: One less dependency on an external library and protocol
-    -  Disadvantages: More standardization effort? How do we solve authentication?
+    -  Disadvantages: More standardization effort?
 
-3.  Extend SCMP with a new ERROR message: "invalid source address for first hop pkt", similar to error 33.
-    The router can verify that for first hop packets, the IP src address (and L4 port if applicable) matches the SCION
-    src address (and L4 port).
-    If not, it returns an error. The actual source address would need to be attached somewhere, unless we decide
-    to change the payload so it contains the IP header of the offending packet (and the IP header should contain the
-    NATed IP/port).
+An implementation with STUN seems like the better solution, since it is an existing, well known protocol.
+Creating a new SCMP extension that provides essentially the same functionality as STUN seems redundant
+and doesn't provide any obvious advantages apart from the one mentioned above.
 
-    -  Advantages: One less dependency on an external library and protocol. Also one roundtrip less in case an endhost
-       doesn't sit behind a NAT or similar.
-    -  Disadvantages: Conceptually a bit of a hack. The BR would need to check every outbound packet as part of the fast
-       path. More standardization effort? How do we solve authentication?
+Regarding the STUN solution, there are multiple ways to send a STUN message over the wire:
+
+1. STUN/UDP/IP: The standard way of sending STUN packets as proposed in the IETF standard.
+
+   -  Easy to implement. However, the border router must distinguish between STUN packets and SCION packets.
+      This may be done using the magic cookie value, which is part of the STUN header.
+      The optional ``FINGERPRINT`` attribute of STUN may also be used as an aid for distinguishing.
+
+      -  Part of the magic cookie field overlaps with the SCION ``nexthdr`` field.
+         Reserving the value in that part of the magic cookie (33) would make the distinction unambiguous.
+         However, this value is assigned by IANA to "Datagram Congestion Control Protocol",
+         which might complicate standardization should we want to support this protocol over SCION in the future.
+      -  The ``FINGERPRINT`` attribute contains a CRC-32 checksum of the STUN packet, XOR'ed with the value 0x5354554e.
+         This attribute can be checked in addition to the basic check using the magic cookie.
+   -  Disadvantage: We cannot use SCION's Packet Authenticator Option
+      (`SPAO <https://docs.scion.org/en/latest/protocols/authenticator-option.html>`_) for message integrity.
+      If we want to have message integrity/authentication, we need to implement it separately.
+
+      -  The STUN standard provides an optional extension for username/password based authentication.
+         This authentication method is probably impractical to implement for our use case.
+         However, we might be able to "misuse" the ``MESSAGE-INTEGRITY`` STUN attribute of this mechanism,
+         which contains an HMAC of the STUN packet, for our own purpose.
+         We might be able to use DRKey to provide the shared secrets for computing the HMAC.
+
+2. STUN/SCION/UDP/IP: Carry the STUN packet (without UDP headers) inside a SCION packet.
+
+   -  Cleaner solution. We can assign a SCION ``nexthdr`` value to STUN to unambiguously distinguish STUN packets from
+      regular dataplane packets. (This is also how we handle BFD messages.)
+   -  Encapsulating STUN inside a SCION packet makes it possible to use SCION's built-in authentication functionality
+      (SPAO) for message integrity/authentication.
+   -  Conceptually awkward. STUN was designed as a transport layer payload (to be carried over UDP or TCP).
+      If SCION is viewed as a layer-3 protocol (same as IP), carrying STUN messages directly over SCION without
+      encapsulation in a transport layer header would be as if we carried STUN directly over IP without UDP or TCP.
+
+3. STUN/UDP/SCION/UDP/IP: Carry an entire STUN packet with UDP headers inside a SCION packet.
+
+   -  Difficult for BR to distinguish from normal dataplane packets.
+      The BR would need to look inside every UDP over SCION packet.
+   -  Conceptually unclear distinction from normal STUN/UDP messages carried over SCION.
+   -  Useless UDP header between SCION header and STUN packet.
+      The NAT would only rewrite the underlay UDP/IP headers. We would therefore only look at the underlay anyway.
+      The UDP header between SCION and STUN would only be confusing.
+   -  From a conceptual point of view, since the problem we are solving is not NAT detection for SCION,
+      but for the UDP/IP underlay, it is desirable to keep the solution on the layer of the underlay.
+      This way, STUN/UDP over SCION could be reserved for an eventual future use case to detect SCION NATs, if needed.
+
+Remark on message integrity/authentication:
+
+An attacker may spoof NAT address discovery (e.g. STUN) message replies to fool the client into assuming a wrong NAT'ed src address.
+This would cause returning traffic from subsequent communication by the client to be forwarded to the wrong destination.
+In the case of STUN, this attack is mitigated by a 96-bit TxID unique to each request.
+It is very unlikely that an attacker can guess the correct TxID at random,
+and thus send a spoofed STUN reply message that the client actually expects.
+However, an on-path attacker may still be able to modify STUN messages in transit (which have the correct TxID) to cause the same issue.
+This could be mitigated by some form of message integrity/authentication, as described above.
+On the other hand, it is to be noted that an attacker with such far-reaching abilities could also just intercept plain dataplane packets.
+Overall, the threat model is similar to the question about whether we need authentication for intra-AS SCMP messages.
+
+Decision
+--------
+After discussion with the open-source contributors, it was decided that the STUN/UDP/IP solution is preferred, since it is the standard approach.
+It was agreed that message authentication would not yield any significant benefits in terms of security.
 
 Rationale
 =========
@@ -121,6 +183,18 @@ Alternatives:
    -  This approach may be be problematic with sensitive NATs.
    -  We need to somehow standardize the STUN IP/port and/or communicate it to endhosts, e.g. via the topology.json file
       or the bootstrapping service.
+
+-  Extend SCMP with a new ERROR message: "invalid source address for first hop pkt", similar to error 33.
+   The router can verify that for first hop packets, the IP src address (and L4 port if applicable) matches the SCION
+   src address (and L4 port).
+   If not, it returns an error, with the actual source address attached somewhere, unless we decide
+   to change the payload so it contains the IP header of the offending packet (and the IP header should contain the
+   NATed IP/port).
+
+   -  Advantage: One roundtrip less in case an endhost doesn't sit behind a NAT or similar.
+   -  Disadvantages: Conceptually a bit of a hack. Complicated to implement.
+      The BR would need to check every outbound packet as part of the fast path.
+      The client would need to somehow buffer sent packets in case of errors to resend them with the correct src address.
 
 -  Remove all NATs and use IPv6 instead. This is technically possible but unlikely to happen anytime soon, especially
    because scarcity of IPv4 addresses is not the only reason why NATs are deployed.
@@ -161,6 +235,26 @@ Transition
 
 Implementation
 ==============
-[A description of the steps in the implementation, which components need to be changed and in which order.]
+Necessary border router and snet library modifications have been coded for three approaches proposed in the *Proposal* section:
+STUN/UDP/IP, STUN/SCION/UDP/IP, and SCMP message extension.
+It was agreed that a PR would be created for the STUN/UDP/IP variant.
+The STUN specification used is the newer specification (`RFC 5389 <https://datatracker.ietf.org/doc/html/rfc5389>`_).
+Support in client libraries (PAN, JPAN) will be added subsequently.
 
-TBD when decision for one of the proposed implementation variants has been made.
+Client Side Considerations
+--------------------------
+- AS local traffic:
+  For communication within the same AS, the endhost should send returning packets to the underlay source address of the sender
+  instead of the SCION source address. The sending endhost would then not need to use STUN.
+
+  Rationale: Since AS local communication does not involve a border router, it would be unclear which border router the client
+  should choose, if it were to send a STUN request. The AS may be split into multiple subnets, with different border routers in each subnet.
+  Therefore, not using STUN at all and instead using the above method seems like the best option in this case.
+
+- NAT mapping time-out:
+  The (private port <-> public port) mappings kept by the NAT device expire if no traffic is sent for some time (> ~5min).
+  If the client does not send packets to a border router for some longer period of time, the STUN procedure needs to be repeated
+  to determine whether the NAT has assigned a new public port for the client. This causes additional latency when the client starts sending packets again,
+  which may be undesirable if the application is time-sensitive (e.g. latency measurement with Ping).
+  Alternatively, the client library could send some sort of "keep-alive" packets to the BR on a regular interval to ensure the NAT mapping stays alive.
+  This could be implemented as a configurable option, if needed. -> TBD
