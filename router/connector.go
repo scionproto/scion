@@ -58,6 +58,7 @@ func NewConnector(config config.RouterConfig, features env.Features) *Connector 
 				ReceiveBufferSize:     config.ReceiveBufferSize,
 				SendBufferSize:        config.SendBufferSize,
 				PreferredUnderlays:    config.PreferredUnderlays,
+				ProcessorQueue:        config.ProcessorQueue,
 			},
 			features.ExperimentalSCMPAuthentication,
 		),

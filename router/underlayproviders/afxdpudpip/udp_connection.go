@@ -24,6 +24,8 @@ import (
 	"sync/atomic"
 
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/private/queue"
+	"github.com/scionproto/scion/private/queue/lfring"
 	"github.com/scionproto/scion/private/underlay/afxdp"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers"
@@ -54,8 +56,8 @@ type udpConnection struct {
 	ptpLinks     map[fourTuple]udpLink // Link map for specific remote addresses.
 	intLinks     map[addrPort]udpLink  // Link map for unknown remote addresses.
 
-	// queue is the outgoing packet queue (packets with headers prepended)
-	queue        chan *router.Packet
+	// queue holds outgoing packets, headers already prepended.
+	queue        queue.Queue[*router.Packet]
 	metrics      *router.InterfaceMetrics
 	receiverDone chan struct{}
 	senderDone   chan struct{}
@@ -94,7 +96,7 @@ func (u *udpConnection) stop() {
 	wasRunning := u.running.Swap(false)
 
 	if wasRunning {
-		close(u.queue) // Unblock sender
+		u.queue.Close() // Unblock sender
 		<-u.receiverDone
 		<-u.senderDone
 		if u.socket != nil {
@@ -245,7 +247,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 
 	for u.running.Load() {
 		// Block on first packet.
-		pkt, ok := <-u.queue
+		pkt, ok := u.queue.Dequeue()
 		if !ok {
 			break
 		}
@@ -254,21 +256,12 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 
 		// Batch more packets (non-blocking).
 		for toWrite < batchSize {
-			select {
-			case pkt, ok = <-u.queue:
-				if !ok {
-					goto flush
-				}
-				pkts[toWrite] = pkt
-				toWrite++
-			default:
-				goto flush
+			pkt, ok = u.queue.TryDequeue()
+			if !ok {
+				break
 			}
-		}
-
-	flush:
-		if toWrite == 0 {
-			continue
+			pkts[toWrite] = pkt
+			toWrite++
 		}
 
 		sent = sent[:0]
@@ -367,7 +360,10 @@ func newUdpConnection(
 		hwAddr = zeroMacAddr[:]
 	}
 
-	queue := make(chan *router.Packet, qSize)
+	// This queue is rarely empty. The ring spins instead of taking a lock.
+	// At AF_XDP packet rates the spin costs less CPU than the lock contention it avoids.
+	// The udpip underlay runs at lower rates and uses a channel.
+	queue := lfring.New[*router.Packet](qSize)
 
 	return &udpConnection{
 		localMAC:     hwAddr,

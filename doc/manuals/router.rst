@@ -196,6 +196,22 @@ considers the following options.
       The batch size used by the receiver and forwarder to
       read or write from / to the network socket.
 
+   .. option:: router.processor_queue = <string> (Default: "auto")
+
+      Selects the queue implementation that hands packets from the receivers to the
+      packet processors. One of:
+
+      * "auto": use "ring" when the "udpip" underlay resolves to "afxdp", "chan"
+        otherwise.
+      * "ring": a lock-free ring buffer. The consumer spins briefly before parking,
+        which pays off only when the queue is rarely empty.
+      * "chan": a buffered Go channel. The consumer parks as soon as the queue is
+        empty.
+
+      The ring is faster only at AF_XDP packet rates. At the lower rates of a kernel
+      socket it costs CPU and adds no throughput. Leave this at "auto" unless you
+      are measuring the difference.
+
    .. object:: bfd
 
       .. option:: disable = <bool> (Default: false)

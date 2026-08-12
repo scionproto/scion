@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/private/queue"
 	"github.com/scionproto/scion/router/bfd"
 )
 
@@ -105,7 +106,7 @@ type Underlay interface {
 	// incoming packets to its output channels and will send packets present on its input
 	// channels. Only connection in existence at the time of calling Start() will be
 	// started. Calling Start has no effect on already running connections.
-	Start(ctx context.Context, pool PacketPool, proQs []chan *Packet)
+	Start(ctx context.Context, pool PacketPool, proQs []queue.Queue[*Packet])
 
 	// Stop puts the provider in the stopped state. In that state, the provider no longer delivers
 	// incoming packets and ignores packets present on its input channels. The provider is fully

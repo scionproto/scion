@@ -35,8 +35,8 @@ from random import randint
 
 logger = logging.getLogger(__name__)
 
-# Default packet length for CI testing
-BM_PACKET_SIZE = 1500
+# Default packet length for CI testing; override with PACKET_SIZE (bazel --test_env).
+BM_PACKET_SIZE = int(os.environ.get("PACKET_SIZE", 1500))
 
 # Router profiling ON or OFF?
 PROFILING = False
@@ -47,7 +47,13 @@ DEBUG_RUN = False
 # MAX_CPUS: the total number of cpus that the test will try to harness. The standard for this
 # test is 5: 2 for brload and 3 for the router. Any different number invalidates the performance
 # index (which will be reported as 0).
-MAX_CPUS = 5
+MAX_CPUS = 12
+
+# BRLOAD_CPUS: how many of MAX_CPUS go to the traffic generator.
+# The rest go to the router. 6 comes from sweeping the split on the physical rig.
+# The router saturates around 6 cores.
+# Extra cores are better spent on brload, which otherwise cannot saturate the router.
+BRLOAD_CPUS = 6
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
@@ -56,6 +62,7 @@ TEST_CASES = {
     "in_transit": 700000,
     "out_transit": 716000,
     "br_transit": 720000,
+    "mix": 900000,
 }
 
 # Convenience types to carry interface request params.
@@ -270,13 +277,13 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         # Make the best of what we got. All but the last cpu go to the router. Those are the
         # best choice.
-        if len(chosen) < 3:
+        if len(chosen) <= BRLOAD_CPUS:
             # When you have lemons...
             self.router_cpus = chosen
             self.brload_cpus = chosen
         else:
-            self.router_cpus = chosen[:-2]
-            self.brload_cpus = chosen[-2:]
+            self.router_cpus = chosen[:-BRLOAD_CPUS]
+            self.brload_cpus = chosen[-BRLOAD_CPUS:]
 
         logger.info(f"router cpus: {self.router_cpus}")
         logger.info(f"brload cpus: {self.brload_cpus}")

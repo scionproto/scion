@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/private/queue"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
 	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/checksum"
@@ -36,7 +37,7 @@ import (
 // Multiple AF_XDP sockets (one per NIC queue) are used for parallel TX/RX.
 // TX packets are routed to sockets via a flow hash to prevent reordering.
 type linkInternal struct {
-	procQs           []chan *router.Packet
+	procQs           []queue.Queue[*router.Packet]
 	pool             router.PacketPool
 	localAddr        *netip.AddrPort
 	rxConns          []*udpConnection
@@ -199,7 +200,7 @@ func (l *linkInternal) finishPacket(p *router.Packet, csumOffload bool) bool {
 
 func (l *linkInternal) start(
 	ctx context.Context,
-	procQs []chan *router.Packet,
+	procQs []queue.Queue[*router.Packet],
 	pool router.PacketPool,
 ) {
 	wasRunning := l.running.Swap(true)
@@ -318,9 +319,7 @@ func (l *linkInternal) sendBacklog(dstAddr netip.Addr) {
 				givenup = true
 				continue
 			}
-			select {
-			case l.txConns[connIdx].queue <- p:
-			default:
+			if !l.txConns[connIdx].queue.Enqueue(p) {
 				sc := router.ClassOfSize(len(p.RawPacket))
 				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
 				l.pool.Put(p)
@@ -337,9 +336,7 @@ func (l *linkInternal) Send(p *router.Packet) bool {
 	if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 		return false
 	}
-	select {
-	case l.txConns[connIdx].queue <- p:
-	default:
+	if !l.txConns[connIdx].queue.Enqueue(p) {
 		sc := router.ClassOfSize(len(p.RawPacket))
 		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
 		l.pool.Put(p)
@@ -352,7 +349,7 @@ func (l *linkInternal) SendBlocking(p *router.Packet) {
 	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if l.finishPacket(p, l.txConns[connIdx].csumOffload) {
-		l.txConns[connIdx].queue <- p
+		l.txConns[connIdx].queue.EnqueueBlocking(p)
 	}
 }
 

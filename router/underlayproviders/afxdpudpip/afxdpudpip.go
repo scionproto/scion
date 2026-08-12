@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/private/queue"
 	"github.com/scionproto/scion/private/underlay/afxdp"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
@@ -144,7 +145,11 @@ type underlay struct {
 
 type udpLink interface {
 	router.Link
-	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
+	start(
+		ctx context.Context,
+		procQs []queue.Queue[*router.Packet],
+		pool router.PacketPool,
+	)
 	stop()
 	receive(p *router.Packet)
 }
@@ -270,7 +275,7 @@ func (u *underlay) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 
 // Start activates all connections and links.
 func (u *underlay) Start(
-	ctx context.Context, pool router.PacketPool, procQs []chan *router.Packet,
+	ctx context.Context, pool router.PacketPool, procQs []queue.Queue[*router.Packet],
 ) {
 	u.mu.Lock()
 	if len(procQs) == 0 {
@@ -322,7 +327,7 @@ func receivePacket(
 	p *router.Packet,
 	link router.Link,
 	metrics *router.InterfaceMetrics,
-	procQs []chan *router.Packet,
+	procQs []queue.Queue[*router.Packet],
 	seed uint32,
 	pool router.PacketPool,
 ) {
@@ -339,9 +344,7 @@ func receivePacket(
 
 	p.Link = link
 
-	select {
-	case procQs[procID] <- p:
-	default:
+	if !procQs[procID].Enqueue(p) {
 		pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}

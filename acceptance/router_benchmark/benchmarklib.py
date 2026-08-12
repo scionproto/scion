@@ -80,6 +80,7 @@ class Results:
             perf = round(self.perf_index(rate), 1)
         self.cases.append({"case": name,
                            "perf": perf, "rate": rate, "drop": dropRatio,
+                           "drop_pps": round(droppage),
                            "bit_rate": rate * self.packet_size * 8,
                            "raw_pkt_rate": raw_rate,
                            "full": saturated})
@@ -209,11 +210,19 @@ class RouterBM():
         # We measure the rate over 10s. For best results we only look at the last 10 seconds.
         # "end" reports a time when the transmission was still going on at maximum rate.
         sampleTime = int(end)
+        # "mix" blends several single patterns in one run. The router labels each
+        # packet by its own type. There is no type="mix". Sum the component types.
+        if case == "mix":
+            type_sel = 'type=~"in|out|br_transit|in_transit|out_transit"'
+        elif case == "mix6":
+            type_sel = 'type=~"in6|out6|br_transit6|in_transit6|out_transit6"'
+        else:
+            type_sel = f'type="{case}"'
         prom_query = urlencode({
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job) ('
-                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
+                f'  rate(router_output_pkts_total{{job="BR", {type_sel}}}[10s])'
                 ')'
                 '/ on (instance, job) group_left()'
                 'sum by (instance, job) ('
@@ -243,7 +252,7 @@ class RouterBM():
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job) ('
-                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
+                f'  rate(router_output_pkts_total{{job="BR", {type_sel}}}[10s])'
                 ')'
             )
         })

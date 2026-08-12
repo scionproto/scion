@@ -40,12 +40,28 @@ import (
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/private/queue"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/control"
 	"github.com/scionproto/scion/router/mock_router"
 )
 
 var testKey = []byte("testkey_xxxxxxxx")
+
+// dequeueWithin polls q until a packet arrives or the timeout elapses.
+// A [queue.Queue] has no channel to select on.
+func dequeueWithin(q queue.Queue[*Packet], d time.Duration) (*Packet, bool) {
+	deadline := time.Now().Add(d)
+	for {
+		if p, ok := q.TryDequeue(); ok {
+			return p, true
+		}
+		if time.Now().After(deadline) {
+			return nil, false
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
 
 // TestReceiver sets up a mocked batchConn, starts the receiver that reads from
 // this batchConn and forwards it to the processing routines channels. We verify
@@ -95,15 +111,15 @@ func TestReceiver(t *testing.T) {
 
 	dp.initPacketPool(64)
 	procCh, _ := dp.initQueues(64)
-	initialPoolSize := len(dp.packetPool.pool)
+	initialPoolSize := dp.packetPool.pool.Len()
 	dp.setRunning()
 	dp.underlays["udpip"].Start(context.Background(), dp.packetPool, procCh)
 	ptrMap := make(map[uintptr]struct{})
 	for i := range 21 {
-		select {
-		case pkt := <-procCh[0]:
+		pkt, ok := dequeueWithin(procCh[0], 50*time.Millisecond)
+		if ok {
 			// make sure that the pool size has decreased
-			assert.Greater(t, initialPoolSize, len(dp.packetPool.pool))
+			assert.Greater(t, initialPoolSize, dp.packetPool.pool.Len())
 			// make sure that the packet has the right size
 			assert.Equal(t, 84+i%10*18, len(pkt.RawPacket))
 			// make sure that the source address was set correctly
@@ -116,7 +132,7 @@ func TestReceiver(t *testing.T) {
 			ptr := reflect.ValueOf(pkt.RawPacket).Pointer()
 			assert.NotContains(t, ptrMap, ptr)
 			ptrMap[ptr] = struct{}{}
-		case <-time.After(50 * time.Millisecond):
+		} else {
 			// make sure that the processing routine received exactly 20 messages
 			if i != 20 {
 				t.Fail()
@@ -128,7 +144,7 @@ func TestReceiver(t *testing.T) {
 	dp.setStopping()
 
 	// make sure that the packet pool has the expected size after the test
-	assert.Equal(t, initialPoolSize-dp.RunConfig.BatchSize-20, len(dp.packetPool.pool))
+	assert.Equal(t, initialPoolSize-dp.RunConfig.BatchSize-20, dp.packetPool.pool.Len())
 	dp.underlays["udpip"].Stop()
 }
 
@@ -231,7 +247,7 @@ func TestForwarder(t *testing.T) {
 	procQs, _ := dp.initQueues(64)
 	intf := dp.interfaces[0]
 	extf := dp.interfaces[42]
-	initialPoolSize := len(dp.packetPool.pool)
+	initialPoolSize := dp.packetPool.pool.Len()
 	dp.setRunning()
 	dp.underlays["udpip"].Start(context.Background(), dp.packetPool, procQs)
 	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
@@ -243,7 +259,7 @@ func TestForwarder(t *testing.T) {
 			pkt.RemoteAddr = unsafe.Pointer(dstAddr)
 		}
 
-		assert.NotEqual(t, initialPoolSize, len(dp.packetPool.pool))
+		assert.NotEqual(t, initialPoolSize, dp.packetPool.pool.Len())
 
 		// Normal use would be
 		// intf.Send(pkt):
@@ -265,7 +281,7 @@ func TestForwarder(t *testing.T) {
 		dp.underlays["udpip"].Stop()
 		dp.setStopping()
 		time.Sleep(100 * time.Millisecond)
-		assert.Equal(t, initialPoolSize, len(dp.packetPool.pool))
+		assert.Equal(t, initialPoolSize, dp.packetPool.pool.Len())
 	case <-time.After(100 * time.Millisecond):
 		dp.underlays["udpip"].Stop()
 		dp.setStopping()

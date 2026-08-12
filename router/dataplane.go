@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"hash"
 	"math"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -50,9 +51,13 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/spao"
 	"github.com/scionproto/scion/private/drkey/drkeyutil"
+	"github.com/scionproto/scion/private/queue"
+	"github.com/scionproto/scion/private/queue/chanq"
+	"github.com/scionproto/scion/private/queue/lfring"
 	"github.com/scionproto/scion/private/topology"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/bfd"
+	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 )
 
@@ -236,7 +241,9 @@ func (p *Packet) HeadBytes(n int) []byte {
 // is more efficient) because headroom is never changed after construction and channel is a
 // reference type.
 type PacketPool struct {
-	pool     chan *Packet
+	// pool is a free list. Many receivers Get and many processors and senders
+	// Put, once per packet each. Both take a single atomic and no lock.
+	pool     *lfring.Ring[*Packet]
 	headroom int
 }
 
@@ -246,14 +253,31 @@ type PacketPool struct {
 // However they may only use the preceding portion of the packet buffer to store a link-layer
 // header. See also WithHeader
 func (p *PacketPool) Get() *Packet {
-	pkt := <-p.pool
-	pkt.reset(p.headroom)
-	return pkt
+	// The pool holds every packet buffer in existence. TryPop misses only while all
+	// buffers are in flight. Retry until one returns.
+	for {
+		if pkt, ok := p.pool.TryPop(); ok {
+			pkt.reset(p.headroom)
+			return pkt
+		}
+		// Only another goroutine putting a buffer back ends this wait, and it
+		// needs a CPU to do that. Yield, for the reason queue/lfring's package
+		// doc gives. It matters here in particular: the router runs as many
+		// busy goroutines as the machine has cores, and none of them is idle.
+		runtime.Gosched()
+	}
 }
 
 // Put returns the given packet to the pool.
 func (p *PacketPool) Put(pkt *Packet) {
-	p.pool <- pkt
+	// TryPush can report full while the ring still has room: a consumer in TryPop
+	// claims its slot by CAS before it stores the seq that frees the slot.
+	// Dropping the packet there would retire a buffer permanently.
+	for !p.pool.TryPush(pkt) {
+		// Gosched for the same reason Get does. The consumer that frees the
+		// slot needs a CPU to finish, and this loop has nothing to sleep on.
+		runtime.Gosched()
+	}
 }
 
 // ResetPacket resets the packet as if it had been obtained from Get.
@@ -264,7 +288,7 @@ func (p *PacketPool) ResetPacket(pkt *Packet) {
 // makePacketPool creates a packetpool of size poolSize, that configures packet buffers with the
 // given headroom. The pool is initially empty. Packets must be added separately.
 func makePacketPool(poolSize, headroom int) PacketPool {
-	return PacketPool{pool: make(chan *Packet, poolSize), headroom: headroom}
+	return PacketPool{pool: lfring.NewRing[*Packet](poolSize), headroom: headroom}
 }
 
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
@@ -737,6 +761,9 @@ type RunConfig struct {
 	ReceiveBufferSize     int
 	SendBufferSize        int
 	PreferredUnderlays    map[string]string
+	// ProcessorQueue selects the processor queue implementation.
+	// See [config.RouterConfig.ProcessorQueue].
+	ProcessorQueue string
 }
 
 func (d *dataPlane) Run(ctx context.Context) error {
@@ -819,72 +846,134 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 }
 
 // initializes the processing routines and queues
-func (d *dataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *Packet) {
-	procQs := make([]chan *Packet, d.RunConfig.NumProcessors)
-	for i := range d.RunConfig.NumProcessors {
-		procQs[i] = make(chan *Packet, processorQueueSize)
+func (d *dataPlane) initQueues(
+	processorQueueSize int,
+) ([]queue.Queue[*Packet], []queue.Queue[*Packet]) {
+	procQs := make([]queue.Queue[*Packet], d.RunConfig.NumProcessors)
+
+	queueKind := config.ProcessorQueueChan
+	switch d.RunConfig.ProcessorQueue {
+	case config.ProcessorQueueAuto:
+		if d.RunConfig.PreferredUnderlays["udpip"] == "afxdp" {
+			queueKind = config.ProcessorQueueRing
+		}
+	case config.ProcessorQueueRing:
+		queueKind = config.ProcessorQueueRing
 	}
-	slowQs := make([]chan *Packet, d.RunConfig.NumSlowPathProcessors)
+
+	log.Info("Initializing processor queues",
+		"impl", queueKind, "configured", d.RunConfig.ProcessorQueue,
+		"size", processorQueueSize)
+	for i := range d.RunConfig.NumProcessors {
+		if queueKind == config.ProcessorQueueRing {
+			procQs[i] = lfring.New[*Packet](processorQueueSize)
+		} else {
+			procQs[i] = chanq.New[*Packet](processorQueueSize)
+		}
+	}
+	slowQs := make([]queue.Queue[*Packet], d.RunConfig.NumSlowPathProcessors)
 	for i := range d.RunConfig.NumSlowPathProcessors {
-		slowQs[i] = make(chan *Packet, processorQueueSize)
+		if queueKind == config.ProcessorQueueRing {
+			slowQs[i] = lfring.New[*Packet](processorQueueSize)
+		} else {
+			slowQs[i] = chanq.New[*Packet](processorQueueSize)
+		}
 	}
 	return procQs, slowQs
 }
 
-func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet) {
+func (d *dataPlane) runProcessor(
+	id int, q queue.Reader[*Packet], slowQ queue.Writer[*Packet],
+) {
 	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
-	for d.isRunning() {
-		p, ok := <-q
-		if !ok {
-			continue
-		}
-		disp := processor.processPkt(p)
 
+	// ProcessedPackets is a per-packet atomic on a counter shared by all processors.
+	// At one size class that is a contended cache line. Accumulate per link and flush
+	// when the link changes or the queue drains. That pays the atomic once per run of
+	// same-link packets. Rare drop counters stay per-packet.
+	var accMetrics *InterfaceMetrics
+	var accCount [maxSizeClass]uint64
+	flush := func() {
+		if accMetrics == nil {
+			return
+		}
+		for sc := range accCount {
+			if accCount[sc] > 0 {
+				accMetrics[sc].ProcessedPackets.Add(float64(accCount[sc]))
+				accCount[sc] = 0
+			}
+		}
+		accMetrics = nil
+	}
+
+	handle := func(p *Packet) {
+		disp := processor.processPkt(p)
 		sc := ClassOfSize(len(p.RawPacket))
 		metrics := p.Link.Metrics()
-		metrics[sc].ProcessedPackets.Inc()
+		if metrics != accMetrics {
+			flush()
+			accMetrics = metrics
+		}
+		accCount[sc]++
 
 		switch disp {
 		case pForward:
 			// Normal processing proceeds.
 		case pSlowPath:
 			// Not an error, processing continues on the slow path.
-			select {
-			case slowQ <- p:
-			default:
+			if !slowQ.Enqueue(p) {
 				metrics[sc].DroppedPacketsBusySlowPath.Inc()
 				d.packetPool.Put(p)
 			}
-			continue
+			return
 		case pDone: // Packets that don't need more processing (e.g. BFD)
 			d.packetPool.Put(p)
-			continue
+			return
 		case pDiscard: // Everything else
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			d.packetPool.Put(p)
-			continue
+			return
 		default: // Newly added dispositions need to be handled.
 			log.Debug("Unknown packet disposition", "disp", disp)
 			d.packetPool.Put(p)
-			continue
+			return
 		}
 		fwLink := d.interfaces[p.egress]
 		if fwLink == nil {
 			log.Debug("Error determining forwarder. Egress is invalid", "egress", p.egress)
 			d.packetPool.Put(p)
 			metrics[sc].DroppedPacketsInvalid.Inc()
-			continue
+			return
 		}
 		fwLink.Send(p)
 	}
+
+	for d.isRunning() {
+		p, ok := q.Dequeue()
+		if !ok {
+			flush()
+			continue
+		}
+		handle(p)
+		// Drain the rest before flushing. The accumulator then spans the whole burst.
+		for {
+			p, ok = q.TryDequeue()
+			if !ok {
+				break
+			}
+			handle(p)
+		}
+		flush()
+	}
+	flush()
 }
 
-func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
+func (d *dataPlane) runSlowPathProcessor(id int, q queue.Reader[*Packet]) {
 	log.Debug("Initialize slow-path processor with", "id", id)
 	processor := newSlowPathProcessor(d)
 	for d.isRunning() {
-		p, ok := <-q
+		p, ok := q.Dequeue()
 		if !ok {
 			continue
 		}

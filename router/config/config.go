@@ -54,6 +54,11 @@ type RouterConfig struct {
 	DispatchedPortStart *int              `toml:"dispatched_port_start,omitempty"`
 	DispatchedPortEnd   *int              `toml:"dispatched_port_end,omitempty"`
 	PreferredUnderlays  map[string]string `toml:"preferred_underlays,omitempty"`
+	// ProcessorQueue sets the implementation of the packet processor queues:
+	// "auto", "ring" or "chan". "auto" resolves to "ring" for the afxdp underlay
+	// and to "chan" for the rest. The ring is only faster at afxdp packet rates.
+	// At the slower rates of a kernel socket it costs CPU and adds no throughput.
+	ProcessorQueue string `toml:"processor_queue,omitempty"`
 }
 
 // BFD configuration. Unfortunately cannot be shared with topology.BFD
@@ -64,6 +69,16 @@ type BFD struct {
 	DesiredMinTxInterval  util.DurWrap `toml:"desired_min_tx_interval,omitempty"`
 	RequiredMinRxInterval util.DurWrap `toml:"required_min_rx_interval,omitempty"`
 }
+
+// Accepted values of [RouterConfig.ProcessorQueue].
+const (
+	// ProcessorQueueAuto picks the implementation from the preferred underlay.
+	ProcessorQueueAuto = "auto"
+	// ProcessorQueueRing forces the lock-free ring.
+	ProcessorQueueRing = "ring"
+	// ProcessorQueueChan forces the channel.
+	ProcessorQueueChan = "chan"
+)
 
 func (cfg *RouterConfig) ConfigName() string {
 	return "router"
@@ -84,6 +99,12 @@ func (cfg *RouterConfig) Validate() error {
 	}
 	if cfg.NumSlowPathProcessors < 1 {
 		return serrors.New("Provided router config is invalid. NumSlowPathProcessors < 1")
+	}
+	switch cfg.ProcessorQueue {
+	case "", ProcessorQueueAuto, ProcessorQueueRing, ProcessorQueueChan:
+	default:
+		return serrors.New("provided router config is invalid. Unknown ProcessorQueue",
+			"value", cfg.ProcessorQueue)
 	}
 	if cfg.DispatchedPortStart != nil {
 		if cfg.DispatchedPortEnd == nil {
@@ -148,6 +169,9 @@ func (cfg *RouterConfig) InitDefaults() {
 	}
 	if cfg.PreferredUnderlays == nil {
 		cfg.PreferredUnderlays = map[string]string{"udpip": "afxdp"}
+	}
+	if cfg.ProcessorQueue == "" {
+		cfg.ProcessorQueue = ProcessorQueueAuto
 	}
 }
 
