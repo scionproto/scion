@@ -242,6 +242,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 	pkts := make([]*router.Packet, batchSize)
 	sent := make([]*router.Packet, 0, batchSize)
 	metrics := u.metrics
+	maxFrameLen := u.socket.TxFrameLen()
 
 	for u.running.Load() {
 		// Block on first packet.
@@ -273,6 +274,16 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 
 		sent = sent[:0]
 		for i := 0; i < toWrite; i++ {
+			// Check the size before borrowing a frame: a frame that we borrow but
+			// do not submit has to be handed back explicitly.
+			raw := pkts[i].RawPacket
+			if len(raw) > maxFrameLen {
+				sc := router.ClassOfSize(len(raw))
+				metrics[sc].DroppedPacketsInvalid.Inc()
+				pool.Put(pkts[i])
+				continue
+			}
+
 			frame := u.socket.NextFrame()
 			if frame.Buf == nil {
 				// No free frames; drop remaining packets.
@@ -282,14 +293,6 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 					pool.Put(pkts[j])
 				}
 				break
-			}
-
-			raw := pkts[i].RawPacket
-			if len(raw) > len(frame.Buf) {
-				sc := router.ClassOfSize(len(raw))
-				metrics[sc].DroppedPacketsInvalid.Inc()
-				pool.Put(pkts[i])
-				continue
 			}
 
 			copy(frame.Buf[:len(raw)], raw)
@@ -309,6 +312,9 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			}
 			if submitErr != nil {
 				log.Debug("AF_XDP submit error", "err", submitErr)
+				// The frame was never handed to the kernel. No completion will
+				// ever come back for it. Return it to the freelist ourselves.
+				u.socket.ReleaseTxFrame(frame.Addr)
 				sc := router.ClassOfSize(len(raw))
 				metrics[sc].DroppedPacketsBusyForwarder[pkts[i].TrafficType].Inc()
 				pool.Put(pkts[i])

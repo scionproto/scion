@@ -672,10 +672,12 @@ type Socket struct {
 	isCsumOffload bool
 	// txMetadataLen is the metadata headroom registered with the kernel at UMEM
 	// registration. Non-zero whenever the kernel accepted the registration,
-	// independent of whether checksum offload is actually in use (see
-	// isCsumOffload).
+	// independent of whether checksum offload is actually in use (see isCsumOffload).
 	txMetadataLen uint32
-	fd            int
+	// txFrameLen is the packet capacity of a TX frame,
+	// [SocketConfig.FrameSize] minus the metadata headroom. Fixed at [Open].
+	txFrameLen int
+	fd         int
 
 	// umem is the contiguous UMEM region backing all RX/TX frames.
 	// Both RX and TX rings reference offsets into this slice.
@@ -731,23 +733,15 @@ func (s *Socket) FreeFrames() uint32 {
 // Generators that transmit a mostly-fixed packet with a few mutable fields can
 // then patch only those fields in the buffer returned by NextFrame before
 // Submit, avoiding a full per-packet copy on the hot path. The kernel never
-// mutates TX payload, so frames retain the template across completion-ring
-// reuse. len(template) must be <= FrameSize - TxMetadataLen; longer templates
-// are truncated. This must be called before any Submit.
+// mutates TX payload, so frames retain the template across completion-ring reuse.
+// len(template) must be <= FrameSize - TxMetadataLen; longer templates are truncated.
+// This must be called before any Submit.
 func (s *Socket) PrefillTx(template []byte) {
-	frameSize := s.conf.FrameSize
-	if frameSize == 0 {
-		frameSize = DefaultFrameSize
-	}
-	capacity := int(frameSize) - int(s.txMetadataLen)
-	n := len(template)
-	if n > capacity {
-		n = capacity
-	}
+	n := min(len(template), s.txFrameLen)
 	// TX-pool frames are indices [RxSize, NumFrames): the same range used to
 	// build s.freeFrames in Open.
 	for i := s.conf.RxSize; i < s.conf.NumFrames; i++ {
-		base := int(uint64(i)*uint64(frameSize)) + int(s.txMetadataLen)
+		base := int(uint64(i)*uint64(s.conf.FrameSize)) + int(s.txMetadataLen)
 		copy(s.umem[base:base+n], template[:n])
 	}
 }
@@ -1027,6 +1021,7 @@ func Open(
 		isHugepages:   hugepages,
 		isCsumOffload: csumOffload,
 		txMetadataLen: txMdLen,
+		txFrameLen:    int(conf.FrameSize) - int(txMdLen),
 		fd:            fd,
 		umem:          umem,
 		tx:            txQ,
@@ -1243,18 +1238,27 @@ func (s *Socket) NextFrame() Frame {
 	addr := s.freeFrames[n]
 	s.freeFrames = s.freeFrames[:n]
 
-	frameSize := s.conf.FrameSize
-	if frameSize == 0 {
-		frameSize = DefaultFrameSize
-	}
-
 	start := int(addr) + int(s.txMetadataLen)
-	end := int(addr) + int(frameSize)
 
 	return Frame{
-		Buf:  s.umem[start:end],
+		Buf:  s.umem[start : start+s.txFrameLen],
 		Addr: addr,
 	}
+}
+
+// ReleaseTxFrame returns a frame from [Socket.NextFrame] to the TX freelist
+// without transmitting it. Call it for every frame not handed to [Socket.Submit]
+// or [Socket.SubmitCsumOffload]: only kernel completions replenish the freelist,
+// and only submitted frames complete, leaving an unreleased frame lost for the
+// lifetime of the socket. addr is [Frame.Addr], not adjusted for metadata headroom.
+func (s *Socket) ReleaseTxFrame(addr uint64) {
+	s.freeFrames = append(s.freeFrames, addr)
+}
+
+// TxFrameLen returns the length of the [Frame.Buf] returned by [Socket.NextFrame].
+// Use it to discard oversized packets before borrowing a frame.
+func (s *Socket) TxFrameLen() int {
+	return s.txFrameLen
 }
 
 // Submit publishes the frame to the TX ring.
