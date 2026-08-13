@@ -32,7 +32,7 @@ import (
 )
 
 // linkInternal is a link without a fixed remote address.
-// The destination is determined per-packet via Resolve().
+// The destination is determined per-packet via [linkInternal.Resolve].
 // Multiple AF_XDP sockets (one per NIC queue) are used for parallel TX/RX.
 // TX packets are routed to sockets via a flow hash to prevent reordering.
 type linkInternal struct {
@@ -44,8 +44,6 @@ type linkInternal struct {
 	metrics          *router.InterfaceMetrics
 	neighbors        *neighborCache
 	svc              *router.Services[netip.AddrPort]
-	backlogCheck     chan netip.Addr
-	sendBacklogDone  chan struct{}
 	running          atomic.Bool
 	seed             uint32
 	dispatchStart    uint16
@@ -112,8 +110,8 @@ func (l *linkInternal) packHeader() {
 
 // finishPacket prepends headers and patches destination + lengths + checksums.
 // On success (true), the packet is ready to send and the caller owns it.
-// On failure (false), the packet has already been disposed of (backlogged or
-// returned to pool); the caller must not touch it.
+// On failure (false), the packet has already been returned to the pool;
+// the caller must not touch it.
 func (l *linkInternal) finishPacket(p *router.Packet, csumOffload bool) bool {
 	dstIPBytes, dstPort := getRemoteAddr(p, l.is4)
 	dstIP, ok := netip.AddrFromSlice(dstIPBytes)
@@ -125,19 +123,16 @@ func (l *linkInternal) finishPacket(p *router.Packet, csumOffload bool) bool {
 		return false
 	}
 
-	// Resolve destination MAC
+	// Resolve destination MAC. [neighborCache.get] probes on a miss,
+	// and the packet is dropped while that runs. The endpoints retransmit it.
 	l.neighbors.lock.Lock()
-	dstMac, backlog := l.neighbors.get(dstIP)
+	dstMac, known := l.neighbors.get(dstIP)
 	l.neighbors.lock.Unlock()
 
-	if dstMac == nil {
-		select {
-		case backlog <- p:
-		default:
-			sc := router.ClassOfSize(len(p.RawPacket))
-			l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-			l.pool.Put(p)
-		}
+	if !known {
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+		l.pool.Put(p)
 		return false
 	}
 
@@ -157,9 +152,8 @@ func (l *linkInternal) finishPacket(p *router.Packet, csumOffload bool) bool {
 			p.RawPacket[headers.LenEth+headers.LenIPv4+4:], uint16(headers.LenUDP+payloadLen),
 		)
 
-		// IPv4 header checksum is always computed in software: 20 bytes is too
-		// cheap to be worth offloading, and the NIC metadata path only covers
-		// the L4 checksum.
+		// IPv4 header checksum is always computed in software: 20 bytes is too cheap to
+		// be worth offloading, and the NIC metadata path only covers the L4 checksum.
 		p.RawPacket[headers.LenEth+10] = 0
 		p.RawPacket[headers.LenEth+11] = 0
 		csum := checksum.IPv4Header(p.RawPacket[headers.LenEth : headers.LenEth+headers.LenIPv4])
@@ -183,8 +177,8 @@ func (l *linkInternal) finishPacket(p *router.Packet, csumOffload bool) bool {
 		dstIP6 := dstIP.As16()
 
 		if csumOffload {
-			// Seed the UDP checksum field with the pseudo-header partial sum; the
-			// NIC folds in the rest at TX time.
+			// Seed the UDP checksum field with the pseudo-header partial sum;
+			// the NIC folds in the rest at TX time.
 			csum := checksum.UDP6Pseudo(srcIP, dstIP6, udpTotalLen)
 			binary.BigEndian.PutUint16(p.RawPacket[udpOff+6:], csum)
 		} else {
@@ -217,27 +211,10 @@ func (l *linkInternal) start(
 	localIP := l.localAddr.Addr()
 	l.neighbors.seekNeighbor(&localIP)
 
-	// Backlog sender
-	go func() {
-		defer log.HandlePanic()
-		dstAddr := netip.Addr{}
-		for l.running.Load() {
-			l.sendBacklog(dstAddr)
-			dstAddr = <-l.backlogCheck
-		}
-		close(l.sendBacklogDone)
-	}()
 }
 
 func (l *linkInternal) stop() {
-	wasRunning := l.running.Swap(false)
-	if wasRunning {
-		select {
-		case l.backlogCheck <- netip.Addr{}:
-		default:
-		}
-		<-l.sendBacklogDone
-	}
+	l.running.Store(false)
 	l.neighbors.stop()
 }
 
@@ -293,41 +270,9 @@ func (l *linkInternal) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
-func (l *linkInternal) sendBacklog(dstAddr netip.Addr) {
-	l.neighbors.lock.Lock()
-	backlog := l.neighbors.getBacklog(dstAddr)
-	l.neighbors.lock.Unlock()
-
-	if backlog == nil {
-		return
-	}
-
-	for {
-		select {
-		case p := <-backlog:
-			// Compute connection index BEFORE finishPacket prepends headers.
-			connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
-			if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
-				// The MAC address is not known yet. finishPacket has put the
-				// packet back on the backlog. Leave it there with the rest.
-				// The flush that follows a successful lookup sends them.
-				return
-			}
-			select {
-			case l.txConns[connIdx].queue <- p:
-			default:
-				sc := router.ClassOfSize(len(p.RawPacket))
-				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-				l.pool.Put(p)
-			}
-		default:
-			return
-		}
-	}
-}
-
 func (l *linkInternal) Send(p *router.Packet) bool {
-	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
+	// Compute connection index from SCION payload BEFORE
+	// [linkInternal.finishPacket] prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 		return false
@@ -344,7 +289,8 @@ func (l *linkInternal) Send(p *router.Packet) bool {
 }
 
 func (l *linkInternal) SendBlocking(p *router.Packet) {
-	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
+	// Compute connection index from SCION payload BEFORE
+	// [linkInternal.finishPacket] prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 		l.txConns[connIdx].queue <- p
@@ -368,25 +314,20 @@ func newInternalLink(
 		txConns:          txConns,
 		metrics:          metrics,
 		svc:              svc,
-		backlogCheck:     make(chan netip.Addr, 1),
-		sendBacklogDone:  make(chan struct{}),
 		seed:             txConns[0].seed,
 		dispatchStart:    dispatchStart,
 		dispatchEnd:      dispatchEnd,
 		dispatchRedirect: dispatchRedirect,
 		is4:              localAddr.Addr().Is4(),
 	}
+	// No update callback: this link patches the destination MAC per packet,
+	// so it has no header to rebuild when a neighbor changes.
 	il.neighbors = newNeighborCache(
 		"internal",
 		txConns[0].localMAC,
 		localAddr.Addr(),
 		txConns[0].ifIndex,
-		func(ip netip.Addr) {
-			select {
-			case il.backlogCheck <- ip:
-			default:
-			}
-		},
+		nil,
 	)
 	il.packHeader()
 

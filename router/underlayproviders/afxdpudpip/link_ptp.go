@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/netip"
 	"sync/atomic"
+	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -45,8 +46,8 @@ type linkPTP struct {
 	metrics         *router.InterfaceMetrics
 	bfdSession      *bfd.Session
 	neighbors       *neighborCache
-	backlogCheck    chan struct{}
-	sendBacklogDone chan struct{}
+	neighborUpdated chan struct{}
+	stopped         chan struct{}
 	running         atomic.Bool
 	scope           router.LinkScope
 	seed            uint32
@@ -59,13 +60,14 @@ type linkPTP struct {
 }
 
 // buildHeader constructs the Ethernet+IP+UDP header template.
+// It does nothing while the peer MAC is unresolved, which leaves [linkPTP.header] nil.
 // Must be called with the neighbor cache locked.
-func (l *linkPTP) buildHeader() chan *router.Packet {
+func (l *linkPTP) buildHeader() {
 	dstIP := l.remoteAddr.Addr()
 
-	dstMac, backlog := l.neighbors.get(dstIP)
-	if dstMac == nil {
-		return backlog
+	dstMac, known := l.neighbors.get(dstIP)
+	if !known {
+		return
 	}
 
 	srcIP := l.localAddr.Addr()
@@ -107,30 +109,26 @@ func (l *linkPTP) buildHeader() chan *router.Packet {
 	}
 
 	l.header.Store(&hdr)
-	return nil
 }
 
 // finishPacket prepends headers to the packet and fixes up length/checksum fields.
 // On success (true), the packet is ready to send and the caller owns it.
-// On failure (false), the packet has already been disposed of (backlogged or
-// returned to pool); the caller must not touch it.
+// On failure (false), the packet has already been returned to the pool;
+// the caller must not touch it.
 func (l *linkPTP) finishPacket(p *router.Packet, csumOffload bool) bool {
 	hdrp := l.header.Load()
 	if hdrp == nil {
-		// Try to build header
+		// The peer MAC is not resolved yet. [linkPTP.buildHeader] probes on a
+		// miss, and the packet is dropped while that runs.
 		l.neighbors.lock.Lock()
-		backlog := l.buildHeader()
+		l.buildHeader()
 		hdrp = l.header.Load()
 		l.neighbors.lock.Unlock()
 
 		if hdrp == nil {
-			select {
-			case backlog <- p:
-			default:
-				sc := router.ClassOfSize(len(p.RawPacket))
-				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-				l.pool.Put(p)
-			}
+			sc := router.ClassOfSize(len(p.RawPacket))
+			l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+			l.pool.Put(p)
 			return false
 		}
 	}
@@ -149,9 +147,8 @@ func (l *linkPTP) finishPacket(p *router.Packet, csumOffload bool) bool {
 			uint16(headers.LenUDP+payloadLen),
 		)
 
-		// IPv4 header checksum is always computed in software: 20 bytes is too
-		// cheap to be worth offloading, and the NIC metadata path only covers
-		// the L4 checksum.
+		// IPv4 header checksum is always computed in software: 20 bytes is too cheap to
+		// be worth offloading, and the NIC metadata path only covers the L4 checksum.
 		p.RawPacket[headers.LenEth+10] = 0
 		p.RawPacket[headers.LenEth+11] = 0
 		csum := checksum.IPv4Header(p.RawPacket[headers.LenEth : headers.LenEth+headers.LenIPv4])
@@ -172,8 +169,8 @@ func (l *linkPTP) finishPacket(p *router.Packet, csumOffload bool) bool {
 		dstIP := l.remoteAddr.Addr().As16()
 
 		if csumOffload {
-			// Seed the UDP checksum field with the pseudo-header partial sum; the
-			// NIC folds in the rest at TX time.
+			// Seed the UDP checksum field with the pseudo-header partial sum;
+			// the NIC folds in the rest at TX time.
 			csum := checksum.UDP6Pseudo(srcIP, dstIP, udpTotalLen)
 			binary.BigEndian.PutUint16(p.RawPacket[udpOff+6:], csum)
 		} else {
@@ -199,20 +196,10 @@ func (l *linkPTP) start(
 	l.procQs = procQs
 	l.pool = pool
 
-	// Start neighbor cache ticker
+	// Start the netlink watcher before the first lookup,
+	// so an update that arrives while we probe is not missed.
 	l.neighbors.start(l.pool)
 
-	// Backlog sender
-	go func() {
-		defer log.HandlePanic()
-		for l.running.Load() {
-			l.sendBacklog()
-			<-l.backlogCheck
-		}
-		close(l.sendBacklogDone)
-	}()
-
-	// Try to resolve peer MAC address
 	peerIP := l.remoteAddr.Addr()
 	l.neighbors.seekNeighbor(&peerIP)
 
@@ -221,6 +208,12 @@ func (l *linkPTP) start(
 	}
 	go func() {
 		defer log.HandlePanic()
+		// A BFD packet sent before the peer MAC is known is dropped,
+		// and the session then waits a full detection interval for the next one.
+		// Nothing else probes while the session is down, hence the wait here.
+		if !l.awaitNeighbor(peerIP) {
+			return
+		}
 		if err := l.bfdSession.Run(ctx); err != nil &&
 			!errors.Is(err, bfd.ErrAlreadyRunning) {
 			log.Error("BFD session failed to start",
@@ -230,14 +223,28 @@ func (l *linkPTP) start(
 	}()
 }
 
-func (l *linkPTP) stop() {
-	wasRunning := l.running.Swap(false)
-	if wasRunning {
-		select {
-		case l.backlogCheck <- struct{}{}:
-		default:
+// awaitNeighbor blocks until the peer MAC is resolved, re-probing on a timer.
+// It reports false when the link stops first.
+func (l *linkPTP) awaitNeighbor(peerIP netip.Addr) bool {
+	t := time.NewTicker(neighborRetryInterval)
+	defer t.Stop()
+	for {
+		if l.neighbors.resolved(peerIP) {
+			return true
 		}
-		<-l.sendBacklogDone
+		select {
+		case <-l.neighborUpdated:
+		case <-t.C:
+			l.neighbors.seekNeighbor(&peerIP)
+		case <-l.stopped:
+			return false
+		}
+	}
+}
+
+func (l *linkPTP) stop() {
+	if wasRunning := l.running.Swap(false); wasRunning {
+		close(l.stopped)
 	}
 	if l.bfdSession != nil {
 		l.bfdSession.Close()
@@ -270,42 +277,9 @@ func (l *linkPTP) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 	return errResolveOnNonInternalLink
 }
 
-func (l *linkPTP) sendBacklog() {
-	dstAddr := l.remoteAddr.Addr()
-	l.neighbors.lock.Lock()
-	backlog := l.neighbors.getBacklog(dstAddr)
-	l.neighbors.lock.Unlock()
-
-	if backlog == nil {
-		return
-	}
-
-	for {
-		select {
-		case p := <-backlog:
-			// Compute connection index BEFORE finishPacket prepends headers.
-			connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
-			if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
-				// The MAC address is not known yet. finishPacket has put the
-				// packet back on the backlog. Leave it there with the rest.
-				// The flush that follows a successful lookup sends them.
-				return
-			}
-			select {
-			case l.txConns[connIdx].queue <- p:
-			default:
-				sc := router.ClassOfSize(len(p.RawPacket))
-				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-				l.pool.Put(p)
-			}
-		default:
-			return
-		}
-	}
-}
-
 func (l *linkPTP) Send(p *router.Packet) bool {
-	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
+	// Compute connection index from SCION payload BEFORE
+	// [linkPTP.finishPacket] prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 		return false
@@ -322,7 +296,8 @@ func (l *linkPTP) Send(p *router.Packet) bool {
 }
 
 func (l *linkPTP) SendBlocking(p *router.Packet) {
-	// Compute connection index from SCION payload BEFORE finishPacket prepends headers.
+	// Compute connection index from SCION payload BEFORE
+	// [linkPTP.finishPacket] prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if l.finishPacket(p, l.txConns[connIdx].csumOffload) {
 		l.txConns[connIdx].queue <- p
@@ -348,8 +323,8 @@ func newPtpLinkExternal(
 		txConns:         txConns,
 		metrics:         metrics,
 		bfdSession:      bfd,
-		backlogCheck:    make(chan struct{}, 1),
-		sendBacklogDone: make(chan struct{}),
+		neighborUpdated: make(chan struct{}, 1),
+		stopped:         make(chan struct{}),
 		scope:           router.External,
 		seed:            txConns[0].seed,
 		ifID:            ifID,
@@ -361,9 +336,10 @@ func newPtpLinkExternal(
 		localAddr.Addr(),
 		txConns[0].ifIndex,
 		func(netip.Addr) {
+			// Rebuild the header on the next packet, and wake [linkPTP.awaitNeighbor].
 			l.header.Store(nil)
 			select {
-			case l.backlogCheck <- struct{}{}:
+			case l.neighborUpdated <- struct{}{}:
 			default:
 			}
 		},
@@ -398,8 +374,8 @@ func newPtpLinkSibling(
 		txConns:         txConns,
 		metrics:         metrics,
 		bfdSession:      bfd,
-		backlogCheck:    make(chan struct{}, 1),
-		sendBacklogDone: make(chan struct{}),
+		neighborUpdated: make(chan struct{}, 1),
+		stopped:         make(chan struct{}),
 		scope:           router.Sibling,
 		seed:            txConns[0].seed,
 		ifID:            0,
@@ -411,9 +387,10 @@ func newPtpLinkSibling(
 		localAddr.Addr(),
 		txConns[0].ifIndex,
 		func(netip.Addr) {
+			// Rebuild the header on the next packet, and wake [linkPTP.awaitNeighbor].
 			l.header.Store(nil)
 			select {
-			case l.backlogCheck <- struct{}{}:
+			case l.neighborUpdated <- struct{}{}:
 			default:
 			}
 		},

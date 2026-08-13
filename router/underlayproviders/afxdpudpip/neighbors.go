@@ -21,6 +21,7 @@ import (
 	"net/netip"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -29,14 +30,10 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
-// NeighborCacheMaxBacklog is the maximum number of packets that can be queued
-// while waiting for ARP/NDP resolution for a given neighbor. ARP/NDP typically
-// resolves in milliseconds, but without a backlog the first packets after startup
-// or a MAC change are always dropped. This matters for BFD session establishment,
-// where a dropped initial packet costs a full BFD interval before retry.
-// A small value (3) is sufficient to hold a BFD packet plus a couple of data
-// packets during the brief resolution window without wasting memory per neighbor.
-var NeighborCacheMaxBacklog = 3
+// neighborRetryInterval is how often a link re-probes a peer whose MAC address
+// is still unknown. Only the BFD startup path waits for a neighbor,
+// and a session that cannot start is already down, so a slow retry is enough.
+const neighborRetryInterval = 500 * time.Millisecond
 
 // nudUsable is the set of NUD states in which a neighbor's MAC address
 // is considered valid for forwarding.
@@ -49,26 +46,24 @@ var (
 
 // neighbor represents one neighbor entry.
 type neighbor struct {
-	mac     *[6]byte
-	backlog chan *router.Packet
+	mac     [6]byte
+	known   bool // True once mac holds a resolved address.
 	probing bool // True while a probe is in-flight; prevents probe storms.
 }
 
 // neighborCache manages IP to MAC address mappings scoped to a single
 // network interface (ifIndex). It queries the kernel's neighbor table on
-// first use and subscribes to netlink notifications (RTM_NEWNEIGH /
-// RTM_DELNEIGH) for subsequent updates.
+// first use and subscribes to netlink notifications
+// (RTM_NEWNEIGH / RTM_DELNEIGH) for subsequent updates.
 //
-// When the MAC for a destination is not yet known, outgoing packets are
-// buffered in a per-neighbor backlog channel while a UDP probe triggers
-// ARP/NDP resolution via the kernel. The onUpdate callback notifies the
-// owning link when a neighbor's MAC changes so it can rebuild headers
-// or drain backlogged packets.
+// A packet for an unresolved MAC is dropped, while a UDP probe triggers ARP/NDP
+// resolution via the kernel. The [neighborCache.onUpdate] callback tells the
+// owning link that a neighbor's MAC changed, which is when it rebuilds its header.
 //
-// On loopback interfaces (isLoop), the cache acts as a stub: get() always
-// returns a zero MAC and no backlog.
+// On loopback interfaces ([neighborCache.isLoop]), the cache acts as a stub:
+// [neighborCache.get] always returns a zero MAC.
 //
-// Callers must hold lock when calling get() and getBacklog().
+// Callers must hold [neighborCache.lock] when calling [neighborCache.get].
 type neighborCache struct {
 	lock sync.Mutex
 
@@ -79,34 +74,32 @@ type neighborCache struct {
 	mappings map[netip.Addr]neighbor
 	// onUpdate is called (outside lock) when a tracked neighbor's MAC changes.
 	onUpdate func(netip.Addr)
-	done     chan struct{}
-	running  atomic.Bool
-	ifIndex  int // Kernel interface index for filtering neighbor entries.
-	is4      bool
-	isLoop   bool // If true, the cache is just a stub.
+	// kernelLookup replaces the kernel neighbor table lookup.
+	// Tests set it to keep the lookup off the host; it is nil in production.
+	kernelLookup func(netip.Addr) ([6]byte, bool)
+	done         chan struct{}
+	running      atomic.Bool
+	ifIndex      int // Kernel interface index for filtering neighbor entries.
+	is4          bool
+	isLoop       bool // If true, the cache is just a stub.
 }
 
 // seekNeighbor ensures there is an entry for the given IP and attempts to populate
 // it from the kernel's neighbor table. If not found, it triggers ARP resolution
-// via the kernel by sending a UDP probe. The result will be picked up
-// asynchronously by watchNeighborUpdates.
+// via the kernel by sending a UDP probe.
+// The result will be picked up asynchronously by [neighborCache.watchNeighborUpdates].
 func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
 	if cache.isLoop {
 		return
 	}
 	cache.lock.Lock()
 
-	entry, ok := cache.mappings[*remoteIP]
-	if !ok {
-		entry = neighbor{
-			backlog: make(chan *router.Packet, NeighborCacheMaxBacklog),
-		}
-	}
-	if entry.mac == nil {
-		entry.mac = cache.queryKernelNeighbor(*remoteIP)
+	entry := cache.mappings[*remoteIP]
+	if !entry.known {
+		entry.mac, entry.known = cache.queryKernel(*remoteIP)
 	}
 	cache.mappings[*remoteIP] = entry
-	needsProbe := entry.mac == nil
+	needsProbe := !entry.known
 	cache.lock.Unlock()
 
 	if needsProbe {
@@ -115,8 +108,8 @@ func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
 }
 
 // probeNeighbor triggers ARP/NDP resolution by sending a UDP packet via the kernel
-// network stack. The kernel handles neighbor resolution as a side effect. The probe
-// targets the discard port (9), so it is harmless to the remote host.
+// network stack. The kernel handles neighbor resolution as a side effect.
+// The probe targets the discard port (9), so it is harmless to the remote host.
 func (cache *neighborCache) probeNeighbor(remoteIP netip.Addr) {
 	laddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(cache.localIP, 0))
 	raddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(remoteIP, 9))
@@ -132,9 +125,18 @@ func (cache *neighborCache) probeNeighbor(remoteIP netip.Addr) {
 	_ = conn.Close()
 }
 
+// queryKernel looks up an IP address in the kernel's neighbor table,
+// or in the stub that a test installed in [neighborCache.kernelLookup].
+func (cache *neighborCache) queryKernel(ip netip.Addr) ([6]byte, bool) {
+	if cache.kernelLookup != nil {
+		return cache.kernelLookup(ip)
+	}
+	return cache.queryKernelNeighbor(ip)
+}
+
 // queryKernelNeighbor looks up an IP address in the kernel's neighbor table.
-// Returns the MAC address if found and reachable, nil otherwise.
-func (cache *neighborCache) queryKernelNeighbor(ip netip.Addr) *[6]byte {
+// It reports whether the neighbor was found and is reachable.
+func (cache *neighborCache) queryKernelNeighbor(ip netip.Addr) ([6]byte, bool) {
 	family := unix.AF_INET6
 	if cache.is4 {
 		family = unix.AF_INET
@@ -142,7 +144,7 @@ func (cache *neighborCache) queryKernelNeighbor(ip netip.Addr) *[6]byte {
 	neighbors, err := netlink.NeighList(cache.ifIndex, family)
 	if err != nil {
 		log.Debug("Failed to list neighbors", "err", err)
-		return nil
+		return zeroMacAddr, false
 	}
 
 	for _, n := range neighbors {
@@ -156,58 +158,47 @@ func (cache *neighborCache) queryKernelNeighbor(ip netip.Addr) *[6]byte {
 		// Check if the neighbor is reachable
 		if n.State&nudUsable != 0 {
 			if len(n.HardwareAddr) == 6 {
-				mac := [6]byte(n.HardwareAddr)
-				return &mac
+				return [6]byte(n.HardwareAddr), true
 			}
 		}
 	}
-	return nil
+	return zeroMacAddr, false
 }
 
-// get returns the MAC address for the given IP, or nil if not resolved.
-// Returns a backlog channel for queuing packets while resolution is pending.
-// Caller must hold cache.lock.
-func (cache *neighborCache) get(ip netip.Addr) (*[6]byte, chan *router.Packet) {
+// get returns the MAC address for the given IP and reports whether it is resolved.
+// A miss starts a probe and the caller drops the packet.
+//
+// Caller must hold [neighborCache.lock].
+func (cache *neighborCache) get(ip netip.Addr) ([6]byte, bool) {
 	if cache.isLoop {
-		return &zeroMacAddr, nil
+		return zeroMacAddr, true
 	}
 
-	entry, ok := cache.mappings[ip]
-	if !ok {
-		entry = neighbor{
-			backlog: make(chan *router.Packet, NeighborCacheMaxBacklog),
+	entry := cache.mappings[ip]
+	if !entry.known {
+		// Covers both new entries and previously-failed resolutions
+		// (e.g. [neighborCache.seekNeighbor] at startup before the peer was reachable).
+		entry.mac, entry.known = cache.queryKernel(ip)
+		if entry.known {
+			entry.probing = false
+		} else if !entry.probing {
+			entry.probing = true
+			go cache.probeNeighbor(ip)
 		}
 		cache.mappings[ip] = entry
 	}
-
-	if entry.mac == nil {
-		// Covers both new entries and previously-failed resolutions
-		// (e.g. seekNeighbor at startup before the peer was reachable).
-		entry.mac = cache.queryKernelNeighbor(ip)
-		if entry.mac != nil {
-			entry.probing = false
-			cache.mappings[ip] = entry
-		} else if !entry.probing {
-			entry.probing = true
-			cache.mappings[ip] = entry
-			go cache.probeNeighbor(ip)
-		}
-	}
-
-	if entry.mac != nil {
-		return entry.mac, nil
-	}
-	return nil, entry.backlog
+	return entry.mac, entry.known
 }
 
-// getBacklog returns the backlog channel for the given IP.
-// Returns nil if the IP is not tracked.
-// Caller must hold cache.lock.
-func (cache *neighborCache) getBacklog(ip netip.Addr) chan *router.Packet {
+// resolved reports whether the MAC for the given IP is known.
+// It takes the lock, so callers must not hold it.
+func (cache *neighborCache) resolved(ip netip.Addr) bool {
 	if cache.isLoop {
-		return nil
+		return true
 	}
-	return cache.mappings[ip].backlog
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
+	return cache.mappings[ip].known
 }
 
 // watchNeighborUpdates subscribes to kernel neighbor table changes via netlink
@@ -254,18 +245,18 @@ func (cache *neighborCache) watchNeighborUpdates() {
 			// NUD_PERMANENT: statically configured, never expires.
 			if update.State&nudUsable != 0 && len(update.HardwareAddr) == 6 {
 				mac := [6]byte(update.HardwareAddr)
-				if entry.mac == nil || *entry.mac != mac {
-					entry.mac = &mac
+				if !entry.known || entry.mac != mac {
+					entry.mac, entry.known = mac, true
 					entry.probing = false
 					cache.mappings[ip] = entry
 					changed = true
 				}
 			} else if update.State&netlink.NUD_FAILED != 0 {
 				// Resolution failed (no ARP/NDP reply after retries).
-				// Clear probing so the next get() can re-probe.
+				// Clear probing so the next [neighborCache.get] can re-probe.
 				entry.probing = false
-				if entry.mac != nil {
-					entry.mac = nil
+				if entry.known {
+					entry.mac, entry.known = zeroMacAddr, false
 					changed = true
 				}
 				cache.mappings[ip] = entry
@@ -273,8 +264,8 @@ func (cache *neighborCache) watchNeighborUpdates() {
 		case unix.RTM_DELNEIGH:
 			// Neighbor removed from kernel table (GC, manual flush, etc.).
 			entry.probing = false
-			if entry.mac != nil {
-				entry.mac = nil
+			if entry.known {
+				entry.mac, entry.known = zeroMacAddr, false
 				changed = true
 			}
 			cache.mappings[ip] = entry
@@ -284,8 +275,7 @@ func (cache *neighborCache) watchNeighborUpdates() {
 		}
 		cache.lock.Unlock()
 
-		// Notify the link outside the lock so it can rebuild headers
-		// or drain backlogged packets.
+		// Notify the link outside the lock so it can rebuild its header.
 		if changed && cache.onUpdate != nil {
 			cache.onUpdate(ip)
 		}

@@ -229,7 +229,7 @@ func buildWithHeadersAndChecksum(t *testing.T, tc goldenCase) []byte {
 func staticNeighborCache(ip netip.Addr, mac [6]byte) *neighborCache {
 	return &neighborCache{
 		mappings: map[netip.Addr]neighbor{
-			ip: {mac: &mac},
+			ip: {mac: mac, known: true},
 		},
 	}
 }
