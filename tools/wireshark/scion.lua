@@ -16,6 +16,7 @@ local addrTypes = {
 }
 
 local hdrTypes = {
+    [6] = "TCP",
     [17] = "UDP",
     [200] = "HOP_BY_HOP",
     [201] = "END_TO_END",
@@ -128,33 +129,6 @@ scion_proto.experts = {
     e_bad_src_addr_expert,
     e_nosup_proto,
 }
-
--- This function heuristically identifies SCION packets. If the packet looks like it may be
--- a SCION packet, it returns true, which causes the associated scion disector to be invoked.
--- This doesn't have much data available to weed out non-SCION packets. False positives end-up being
--- described as broken SCION packets and are not passed to the vanilla UDP parser.
--- However, with the removal of the dispatcher, we have no narrow set of UDP ports to identify
--- SCION traffic from. So, there's no choice.
-local function scion_proto_filter(tvbuf, pktinfo, root)
-    local version_valid = (bit.rshift(tvbuf(0,1):uint(), 4) == 0)
-    local next_hdr_valid = (hdrTypes[tvbuf(4, 1):uint()] ~= nil)
-    local path_type_valid = (tvbuf(8, 1):uint() < 5)
-    local addr_type_dst_valid = (addrTypes[bit.rshift(tvbuf(9, 1):uint(), 4)] ~= nil)
-    local addr_type_src_valid = (addrTypes[bit.band(tvbuf(9, 1):uint(), 0xf)] ~= nil)
-    local rsv_valid = (tvbuf(10, 2):uint() == 0)
-    
-    if not (version_valid and next_hdr_valid and path_type_valid and addr_type_dst_valid and addr_type_src_valid and rsv_valid) then
-       return false
-    end
-
-    -- This looks like a SCION packet, dissect it.
-    scion_proto.dissector(tvbuf, pktinfo, root)
-    -- Set the scion_proto dissector for the conversation, so that all packets with the same
-    -- 4-tuple use directly the scion_proto dissector (instead of calling again this
-    -- heuristic function).
-    pktinfo.conversation = scion_proto
-    return true
-end
 
 function scion_proto.dissector(tvbuf, pktinfo, root)
     local tree = root:add(scion_proto, tvbuf())
@@ -271,9 +245,9 @@ function scion_proto.dissector(tvbuf, pktinfo, root)
         next_proto, rest = scion_extn_dissect(rest, pktinfo, root, next_proto)
     end
 
-    --pktinfo.cols.protocol:set("SCION")
     pktinfo.cols.info:append(string.format(" SCION %s -> %s %s", scion.src, scion.dst, next_proto))
 
+    --pktinfo.cols.protocol:set("SCION")
     if next_proto == "UDP" then
         scion_udp_dst_port = scion_udp_proto_dissect(rest(0, 8), pktinfo, root)
         -- change the port number if running with non-standard gateway data port
@@ -285,6 +259,9 @@ function scion_proto.dissector(tvbuf, pktinfo, root)
         scmp_proto_dissect(rest, pktinfo, root)
     elseif next_proto == "BFD" then
         Dissector.get("bfd"):call(rest:tvb(), pktinfo, root)
+    elseif next_proto == "TCP" then
+        scion_tcp_dst_port = scion_tcp_proto_dissect(rest:tvb(), pktinfo, root)
+        pktinfo.cols.info:prepend(string.format("SCION %s -> %s ", scion.src, scion.dst))
     end
 end
 
@@ -307,9 +284,9 @@ end
 function addr_str(buf, addrTypeLen, with_svc)
     local addrType = addrTypes[addrTypeLen]
     if addrType == "IPv4" then
-        return string.format("%s", tostring(buf:ipv4()))
+        return string.format("%s", buf:ipv4())
     elseif addrType == "IPv6" then
-        return string.format("%s", tostring(buf:ipv6()))
+        return string.format("%s", buf:ipv6())
     elseif with_svc and addrType == "SVC" then
         local svcVal = buf(0, 2):uint()
         local svc = svcTypes[svcVal]
@@ -531,6 +508,8 @@ local scion_extn_tlv_option_types = {
   [0] = "Pad1",
   [1] = "PadN",
   [2] = "Packet Authenticator Option",
+  [3] = "Packet Identifier",
+  [4] = "Fabrid Extension",
 }
 
 local scion_extn_tlv_option_type = ProtoField.uint8("scion_extn_tlv_option.type", "Type", base.DEC, scion_extn_tlv_option_types)
@@ -582,6 +561,8 @@ function scion_extn_tlv_option_dissect(tvbuf, pktinfo, root)
     local ret_len
     if tlv["type"]:uint() == 2 then
         ret_len = scion_packet_authenticator_option_dissect(tvbuf(2, data_len), pktinfo, tree)
+    elseif tlv["type"]:uint() == 4 then
+        ret_len = scion_fabrid_extension_dissect(tvbuf(2, data_len), pktinfo, tree)
     else
         -- no specific dissector
         ret_len = data_len
@@ -763,6 +744,60 @@ function scion_packet_authenticator_option_dissect(buffer, pktinfo, tree)
 
     return length
 end
+scion_fabrid_path_validation_field = Proto("scion_fabrid_path_validation_field", "Path Validation Field")
+scion_fabrid_extension = Proto("scion_fabrid_extension", "Hop Validation Field")
+scion_fabrid_extension_encrypted_policy_id = ProtoField.uint8("scion_fabrid_extension.encrypted_policy_id", "Encrypted Policy ID", base.HEX)
+scion_fabrid_extension_enabled = ProtoField.uint8("scion_fabrid_extension.enabled", "FABRID Enabled", base.DEC, nil, 0x80)
+scion_fabrid_extension_as_level_key = ProtoField.uint8("scion_fabrid_extension.as_level_key", "AS-Level key", base.DEC, nil, 0x40)
+scion_fabrid_extension_hop_validation_field = ProtoField.uint32("scion_fabrid_extension.hop_validation_field", "Hop Validation Field", base.HEX)
+scion_fabrid_path_validation_field_value = ProtoField.uint32("scion_fabrid_path_validation_field.value", "Value", base.HEX)
+scion_fabrid_path_validation_field.fields = {
+    scion_fabrid_path_validation_field_value
+}
+scion_fabrid_extension.fields = {
+  scion_fabrid_extension_encrypted_policy_id,
+  scion_fabrid_extension_enabled,
+  scion_fabrid_extension_as_level_key,
+  scion_fabrid_extension_hop_validation_field
+}
+-- FABRID dissector
+function scion_fabrid_extension_dissect(buffer, pktinfo, root)
+    local length = buffer:len()
+    if length < 4 then
+        root:add_proto_expert_info(e_too_short)
+        return -1
+    end
+
+    local offset = 0
+    while offset < (buffer:len() - 4)
+    do
+      local len = scion_fabrid_hop_validation_dissect(buffer(offset, buffer:len()-offset), pktinfo, root)
+      if len <= 0 then
+        return -1
+      end
+      offset = offset + len
+    end
+    local tree = root:add(scion_fabrid_path_validation_field, buffer(offset, 4))
+    tree:add(scion_fabrid_path_validation_field_value, buffer(offset,4))
+    return length
+end
+
+function scion_fabrid_hop_validation_dissect(buffer, pktinfo, root)
+    local length = buffer:len()
+    if length < 4 then
+        tree:add_proto_expert_info(e_too_short)
+        return -1
+    end
+
+    local tree = root:add(scion_fabrid_extension, buffer(0, length))
+    tree:add(scion_fabrid_extension_encrypted_policy_id, buffer(0,1))
+    tree:add(scion_fabrid_extension_enabled, buffer(1,1))
+    tree:add(scion_fabrid_extension_as_level_key, buffer(1,1))
+    tree:add(scion_fabrid_extension_hop_validation_field, buffer(1,3))
+
+    return 4
+end
+
 
 -- EPIC Path
 epic_path = Proto("epic_path", "EPIC Path")
@@ -865,6 +900,37 @@ function scion_udp_proto_dissect(tvbuf, pktinfo, root)
 
     return udp.dst_port:uint()
 end
+
+-- SCION TCP
+local scion_tcp_proto = Proto("scion_tcp", "SCION Transmission Control Protocol")
+
+local tcp_src_port = ProtoField.uint16("scion_tcp.src_port", "Source Port", base.DEC)
+local tcp_dst_port = ProtoField.uint16("scion_tcp.dst_port", "Destination Port", base.DEC)
+local tcp_length = ProtoField.uint16("scion_tcp.length", "Length", base.DEC)
+local tcp_cksum = ProtoField.uint16("scion_tcp.cksum", "Checksum", base.HEX)
+
+scion_tcp_proto.fields = {
+    tcp_src_port,
+    tcp_dst_port,
+    tcp_length,
+    tcp_cksum,
+}
+
+function scion_tcp_proto_dissect(tvbuf, pktinfo, root)
+    local tcp_dissector = Dissector.get("tcp")
+    if tcp_dissector then
+        tcp_dissector:call(tvbuf, pktinfo, root)
+    end
+
+    local tree = root:add(scion_tcp_proto, tvbuf(0,0))
+    tree:set_hidden()
+
+    tree:add(tcp_src_port, tvbuf(0, 2))
+    tree:add(tcp_dst_port, tvbuf(2, 2))
+    tree:add(tcp_length, tvbuf(4, 2))
+    tree:add(tcp_cksum, tvbuf(6, 2)):append_text(" [unverified]")
+end
+
 
 scion_gateway_frame_proto = Proto("scion_gateway_frame", "SCION/IP gateway frame")
 
@@ -1179,28 +1245,21 @@ function scmp_proto_dissect(tvbuf, pktinfo, root)
 end
 
 
+-- Below we configure Wireshark to identify SCION as the next protocol when using
+-- the specified range of ports.
+--
 -- SCION packet on UDP/IP overlay.
--- Two options are available. Identify SCION traffic by port number, or heuristically, by
--- looking for clues in the header. The heuristic is not extremely robust. It may mistake
--- non-SCION packet for SCION packets. If you know precisely which ports carry SCION
--- traffic (which is made difficult by the removal of the dispatcher), you may prefer to
--- identify them by port. Keep the unwanted option commented out.
-
--- Heuristic selection
-scion_proto:register_heuristic("udp", scion_proto_filter)
-
--- Port-based selection
--- table_udp = DissectorTable.get("udp.port")
--- -- intra-AS traffic
--- for i = 31000, 32767, 1 do
---    table_udp:add(i, scion_proto)
--- end
--- -- inter-AS BR traffic
--- for i = 40000, 40050, 1 do
---    table_udp:add(i, scion_proto)
--- end
--- -- FIXME remove once acceptance tests are updated to use ports above
--- -- acceptance tests
--- for i = 50000, 50050, 1 do
---     table_udp:add(i, scion_proto)
--- end
+table_udp = DissectorTable.get("udp.port")
+-- intra-AS traffic
+for i = 30000, 32000, 1 do
+    table_udp:add(i, scion_proto)
+end
+-- inter-AS BR traffic
+for i = 40000, 40050, 1 do
+    table_udp:add(i, scion_proto)
+end
+-- FIXME remove once acceptance tests are updated to use ports above
+-- acceptance tests
+for i = 50000, 50050, 1 do
+    table_udp:add(i, scion_proto)
+end
