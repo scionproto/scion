@@ -7,7 +7,7 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bazelbuild/rules_go v0.61.1
 	github.com/buildkite/go-buildkite/v4 v4.14.1
-	github.com/cilium/ebpf v0.18.0
+	github.com/cilium/ebpf v0.22.0
 	github.com/dchest/cmac v1.0.0
 	github.com/fatih/color v1.18.0
 	github.com/getkin/kin-openapi v0.144.0
@@ -39,8 +39,8 @@ require (
 	github.com/quic-go/quic-go v0.59.1
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
-	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.11.1
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
