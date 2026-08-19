@@ -1,0 +1,20 @@
+# Scheduled version updates: npm only. Most JS vulnerabilities arrive as
+# transitive dependencies of @redocly/cli, so keeping the mgmtapi tools
+# current eliminates the alert churn in this ecosystem. Go and Python stay
+# security-updates-only: ecosystems absent from this file get no version
+# updates.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/private/mgmtapi/tools"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"
+    groups:
+      npm-tools:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
