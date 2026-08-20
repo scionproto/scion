@@ -26,8 +26,8 @@ import (
 	"github.com/scionproto/scion/router/control"
 )
 
-// Connector implements the Dataplane interface used by the router control API. It sets
-// up connections for the data plane.
+// Connector implements the Dataplane interface used by the router control API.
+// It sets up connections for the data plane.
 type Connector struct {
 	DataPlane dataPlane
 
@@ -46,8 +46,8 @@ type Connector struct {
 
 var errMultiIA = serrors.New("different IA not allowed")
 
-// NewConnector returns a new connector: a data plane decorated with
-// a configuration interface.
+// NewConnector returns a new connector:
+// a data plane decorated with a configuration interface.
 func NewConnector(config config.RouterConfig, features env.Features) *Connector {
 	return &Connector{
 		DataPlane: makeDataPlane(
@@ -58,6 +58,13 @@ func NewConnector(config config.RouterConfig, features env.Features) *Connector 
 				ReceiveBufferSize:     config.ReceiveBufferSize,
 				SendBufferSize:        config.SendBufferSize,
 				PreferredUnderlays:    config.PreferredUnderlays,
+				Neighbor: NeighborConfig{
+					QueueLen:      config.Neighbor.QueueLen,
+					QueueTotal:    config.Neighbor.QueueTotal,
+					CacheMax:      config.Neighbor.CacheMax,
+					ProbeInterval: config.Neighbor.ProbeInterval.Duration,
+					ProbeAttempts: config.Neighbor.ProbeAttempts,
+				},
 			},
 			features.ExperimentalSCMPAuthentication,
 		),

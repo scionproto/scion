@@ -146,7 +146,7 @@ type Underlay interface {
 	NewInternalLink(localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error)
 }
 
-// ProviderFactory allows the instantiation of a provider.
+// UnderlayProvider allows the instantiation of a provider.
 type UnderlayProvider interface {
-	New(batchSize, receiveBufferSize, sendBufferSize int) Underlay
+	New(runConfig RunConfig) Underlay
 }

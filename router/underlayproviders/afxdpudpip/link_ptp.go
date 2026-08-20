@@ -62,12 +62,15 @@ type linkPTP struct {
 // buildHeader constructs the Ethernet+IP+UDP header template.
 // It does nothing while the peer MAC is unresolved, which leaves [linkPTP.header] nil.
 // Must be called with the neighbor cache locked.
-func (l *linkPTP) buildHeader() {
+//
+// It reports whether the caller must send what is queued for the peer once it has
+// released the lock. See [neighborCache.get].
+func (l *linkPTP) buildHeader() bool {
 	dstIP := l.remoteAddr.Addr()
 
-	dstMac, known := l.neighbors.get(dstIP)
+	dstMac, known, flush := l.neighbors.get(dstIP)
 	if !known {
-		return
+		return false
 	}
 
 	srcIP := l.localAddr.Addr()
@@ -109,6 +112,7 @@ func (l *linkPTP) buildHeader() {
 	}
 
 	l.header.Store(&hdr)
+	return flush
 }
 
 // finishPacket prepends headers to the packet and fixes up length/checksum fields.
@@ -119,16 +123,31 @@ func (l *linkPTP) finishPacket(p *router.Packet, csumOffload bool) bool {
 	hdrp := l.header.Load()
 	if hdrp == nil {
 		// The peer MAC is not resolved yet. [linkPTP.buildHeader] probes on a
-		// miss, and the packet is dropped while that runs.
+		// miss and the packet waits in the peer's queue.
+		peerIP := l.remoteAddr.Addr()
 		l.neighbors.lock.Lock()
-		l.buildHeader()
+		flush := l.buildHeader()
 		hdrp = l.header.Load()
+		held := false
+		var evicted *router.Packet
+		if hdrp == nil {
+			evicted, held = l.neighbors.hold(peerIP, p)
+		}
 		l.neighbors.lock.Unlock()
 
+		if evicted != nil {
+			l.dropPackets([]*router.Packet{evicted})
+		}
+
+		if flush {
+			l.sendQueued()
+		}
 		if hdrp == nil {
-			sc := router.ClassOfSize(len(p.RawPacket))
-			l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-			l.pool.Put(p)
+			if !held {
+				sc := router.ClassOfSize(len(p.RawPacket))
+				l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+				l.pool.Put(p)
+			}
 			return false
 		}
 	}
@@ -277,6 +296,23 @@ func (l *linkPTP) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 	return errResolveOnNonInternalLink
 }
 
+// sendQueued sends the packets that waited for the peer's MAC address.
+// Callers must not hold [neighborCache.lock].
+// dropPackets counts packets the neighbor cache gave up on and frees them.
+func (l *linkPTP) dropPackets(pkts []*router.Packet) {
+	for _, p := range pkts {
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+		l.pool.Put(p)
+	}
+}
+
+func (l *linkPTP) sendQueued() {
+	for _, p := range l.neighbors.takeQueue(l.remoteAddr.Addr()) {
+		l.Send(p)
+	}
+}
+
 func (l *linkPTP) Send(p *router.Packet) bool {
 	// Compute connection index from SCION payload BEFORE
 	// [linkPTP.finishPacket] prepends headers.
@@ -314,6 +350,7 @@ func newPtpLinkExternal(
 	rxConns, txConns []*udpConnection,
 	bfd *bfd.Session,
 	ifID uint16,
+	conf NeighborConfig,
 	metrics *router.InterfaceMetrics,
 ) *linkPTP {
 	l := &linkPTP{
@@ -335,15 +372,19 @@ func newPtpLinkExternal(
 		txConns[0].localMAC,
 		localAddr.Addr(),
 		txConns[0].ifIndex,
+		conf,
 		func(netip.Addr) {
-			// Rebuild the header on the next packet, and wake [linkPTP.awaitNeighbor].
+			// Rebuild the header on the next packet, wake [linkPTP.awaitNeighbor],
+			// and send what waited for the address.
 			l.header.Store(nil)
 			select {
 			case l.neighborUpdated <- struct{}{}:
 			default:
 			}
+			l.sendQueued()
 		},
 	)
+	l.neighbors.onDrop = l.dropPackets
 
 	// Register this link in all RX connections so any RX queue can dispatch to it.
 	ft := fourTuple{
@@ -365,6 +406,7 @@ func newPtpLinkSibling(
 	remoteAddr *netip.AddrPort,
 	rxConns, txConns []*udpConnection,
 	bfd *bfd.Session,
+	conf NeighborConfig,
 	metrics *router.InterfaceMetrics,
 ) *linkPTP {
 	l := &linkPTP{
@@ -386,15 +428,19 @@ func newPtpLinkSibling(
 		txConns[0].localMAC,
 		localAddr.Addr(),
 		txConns[0].ifIndex,
+		conf,
 		func(netip.Addr) {
-			// Rebuild the header on the next packet, and wake [linkPTP.awaitNeighbor].
+			// Rebuild the header on the next packet, wake [linkPTP.awaitNeighbor],
+			// and send what waited for the address.
 			l.header.Store(nil)
 			select {
 			case l.neighborUpdated <- struct{}{}:
 			default:
 			}
+			l.sendQueued()
 		},
 	)
+	l.neighbors.onDrop = l.dropPackets
 
 	// Register this link in all RX connections so any RX queue can dispatch to it.
 	ft := fourTuple{

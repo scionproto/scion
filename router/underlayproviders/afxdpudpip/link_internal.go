@@ -123,16 +123,33 @@ func (l *linkInternal) finishPacket(p *router.Packet, csumOffload bool) bool {
 		return false
 	}
 
-	// Resolve destination MAC. [neighborCache.get] probes on a miss,
-	// and the packet is dropped while that runs. The endpoints retransmit it.
+	// Resolve destination MAC. [neighborCache.get] probes on a miss and
+	// the packet waits in the neighbor's queue,
+	// which is what makes first contact with a host work.
 	l.neighbors.lock.Lock()
-	dstMac, known := l.neighbors.get(dstIP)
+	dstMac, known, flush := l.neighbors.get(dstIP)
+	held := false
+	var evicted *router.Packet
+	if !known {
+		evicted, held = l.neighbors.hold(dstIP, p)
+	}
 	l.neighbors.lock.Unlock()
 
+	if evicted != nil {
+		l.dropPackets([]*router.Packet{evicted})
+	}
+
+	if flush {
+		// This lookup resolved the MAC. No netlink update follows it, so nothing
+		// else would send what is already queued.
+		l.sendQueued(dstIP)
+	}
 	if !known {
-		sc := router.ClassOfSize(len(p.RawPacket))
-		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
-		l.pool.Put(p)
+		if !held {
+			sc := router.ClassOfSize(len(p.RawPacket))
+			l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+			l.pool.Put(p)
+		}
 		return false
 	}
 
@@ -270,6 +287,23 @@ func (l *linkInternal) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
+// sendQueued sends the packets that waited for the given neighbor.
+// Callers must not hold [neighborCache.lock].
+// dropPackets counts packets the neighbor cache gave up on and frees them.
+func (l *linkInternal) dropPackets(pkts []*router.Packet) {
+	for _, p := range pkts {
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc()
+		l.pool.Put(p)
+	}
+}
+
+func (l *linkInternal) sendQueued(dstIP netip.Addr) {
+	for _, p := range l.neighbors.takeQueue(dstIP) {
+		l.Send(p)
+	}
+}
+
 func (l *linkInternal) Send(p *router.Packet) bool {
 	// Compute connection index from SCION payload BEFORE
 	// [linkInternal.finishPacket] prepends headers.
@@ -306,6 +340,7 @@ func newInternalLink(
 	rxConns, txConns []*udpConnection,
 	svc *router.Services[netip.AddrPort],
 	dispatchStart, dispatchEnd, dispatchRedirect uint16,
+	conf NeighborConfig,
 	metrics *router.InterfaceMetrics,
 ) *linkInternal {
 	il := &linkInternal{
@@ -320,15 +355,17 @@ func newInternalLink(
 		dispatchRedirect: dispatchRedirect,
 		is4:              localAddr.Addr().Is4(),
 	}
-	// No update callback: this link patches the destination MAC per packet,
-	// so it has no header to rebuild when a neighbor changes.
+	// This link patches the destination MAC per packet, so it has no header to
+	// rebuild. It only has to send what waited for the address.
 	il.neighbors = newNeighborCache(
 		"internal",
 		txConns[0].localMAC,
 		localAddr.Addr(),
 		txConns[0].ifIndex,
-		nil,
+		conf,
+		func(ip netip.Addr) { il.sendQueued(ip) },
 	)
+	il.neighbors.onDrop = il.dropPackets
 	il.packHeader()
 
 	// Register this link in all RX connections so any RX queue can dispatch to it.

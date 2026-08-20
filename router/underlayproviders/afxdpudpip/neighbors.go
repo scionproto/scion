@@ -46,7 +46,14 @@ var (
 
 // neighbor represents one neighbor entry.
 type neighbor struct {
-	mac     [6]byte
+	mac [6]byte
+	// queue holds packets waiting for the MAC address, oldest first.
+	// The kernel does the same for its own traffic ([NeighborConfig.QueueLen]),
+	// and without it every first packet to a neighbor is lost.
+	queue []*router.Packet
+	// probes counts how often this address was asked for since it was last known.
+	// The kernel counts solicitations the same way and gives up at mcast_solicit.
+	probes  int
 	known   bool // True once mac holds a resolved address.
 	probing bool // True while a probe is in-flight; prevents probe storms.
 }
@@ -56,9 +63,10 @@ type neighbor struct {
 // first use and subscribes to netlink notifications
 // (RTM_NEWNEIGH / RTM_DELNEIGH) for subsequent updates.
 //
-// A packet for an unresolved MAC is dropped, while a UDP probe triggers ARP/NDP
-// resolution via the kernel. The [neighborCache.onUpdate] callback tells the
-// owning link that a neighbor's MAC changed, which is when it rebuilds its header.
+// A packet for an unresolved MAC waits in the neighbor's queue while a UDP probe
+// triggers ARP/NDP resolution via the kernel. The [neighborCache.onUpdate]
+// callback tells the owning link that a neighbor's MAC changed,
+// which is when it rebuilds its header and sends what is queued.
 //
 // On loopback interfaces ([neighborCache.isLoop]), the cache acts as a stub:
 // [neighborCache.get] always returns a zero MAC.
@@ -74,10 +82,15 @@ type neighborCache struct {
 	mappings map[netip.Addr]neighbor
 	// onUpdate is called (outside lock) when a tracked neighbor's MAC changes.
 	onUpdate func(netip.Addr)
+	// onDrop is called (outside lock) with packets the cache gives up on.
+	// The link counts them and returns them to the pool.
+	onDrop func([]*router.Packet)
 	// kernelLookup replaces the kernel neighbor table lookup.
 	// Tests set it to keep the lookup off the host; it is nil in production.
 	kernelLookup func(netip.Addr) ([6]byte, bool)
 	done         chan struct{}
+	conf         NeighborConfig
+	queued       int // Packets held across all entries, bounded by conf.QueueTotal.
 	running      atomic.Bool
 	ifIndex      int // Kernel interface index for filtering neighbor entries.
 	is4          bool
@@ -85,8 +98,8 @@ type neighborCache struct {
 }
 
 // seekNeighbor ensures there is an entry for the given IP and attempts to populate
-// it from the kernel's neighbor table. If not found, it triggers ARP resolution
-// via the kernel by sending a UDP probe.
+// it from the kernel's neighbor table.
+// If not found, it triggers ARP resolution via the kernel by sending a UDP probe.
 // The result will be picked up asynchronously by [neighborCache.watchNeighborUpdates].
 func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
 	if cache.isLoop {
@@ -94,14 +107,25 @@ func (cache *neighborCache) seekNeighbor(remoteIP *netip.Addr) {
 	}
 	cache.lock.Lock()
 
-	entry := cache.mappings[*remoteIP]
+	entry, tracked := cache.mappings[*remoteIP]
+	if !tracked {
+		cache.evictLocked()
+	}
+	flush := false
 	if !entry.known {
 		entry.mac, entry.known = cache.queryKernel(*remoteIP)
+		flush = entry.known && len(entry.queue) > 0
 	}
 	cache.mappings[*remoteIP] = entry
 	needsProbe := !entry.known
 	cache.lock.Unlock()
 
+	// This path resolves an address without a netlink update behind it,
+	// so it has to send what waited for the address itself.
+	// Leaving that to the next update strands the packets: no update is coming.
+	if flush && cache.onUpdate != nil {
+		cache.onUpdate(*remoteIP)
+	}
 	if needsProbe {
 		cache.probeNeighbor(*remoteIP)
 	}
@@ -165,29 +189,147 @@ func (cache *neighborCache) queryKernelNeighbor(ip netip.Addr) ([6]byte, bool) {
 	return zeroMacAddr, false
 }
 
-// get returns the MAC address for the given IP and reports whether it is resolved.
-// A miss starts a probe and the caller drops the packet.
+// get returns the MAC address for the given IP and reports whether it is known.
+// A miss starts a probe, and the caller queues the packet with [neighborCache.hold].
+//
+// The last return value reports that this call resolved the MAC while packets
+// were already queued. Resolving here bypasses watchNeighborUpdates,
+// the usual trigger for a flush, so the caller must send what is
+// queued once it has released the lock.
 //
 // Caller must hold [neighborCache.lock].
-func (cache *neighborCache) get(ip netip.Addr) ([6]byte, bool) {
+func (cache *neighborCache) get(ip netip.Addr) (mac [6]byte, known, flush bool) {
 	if cache.isLoop {
-		return zeroMacAddr, true
+		return zeroMacAddr, true, false
 	}
 
-	entry := cache.mappings[ip]
+	entry, tracked := cache.mappings[ip]
+	if !tracked {
+		cache.evictLocked()
+	}
 	if !entry.known {
 		// Covers both new entries and previously-failed resolutions
 		// (e.g. [neighborCache.seekNeighbor] at startup before the peer was reachable).
 		entry.mac, entry.known = cache.queryKernel(ip)
 		if entry.known {
-			entry.probing = false
+			entry.probing, entry.probes = false, 0
+			flush = len(entry.queue) > 0
 		} else if !entry.probing {
 			entry.probing = true
 			go cache.probeNeighbor(ip)
 		}
 		cache.mappings[ip] = entry
 	}
-	return entry.mac, entry.known
+	return entry.mac, entry.known, flush
+}
+
+// evictLocked makes room for one more entry. Entries go without regard for age:
+// the cache is a cache, and a wrongly evicted neighbor costs one kernel lookup.
+// What matters is that a sender aiming at addresses that never resolve cannot
+// grow the table without end.
+//
+// Caller must hold [neighborCache.lock].
+func (cache *neighborCache) evictLocked() {
+	for len(cache.mappings) >= cache.conf.CacheMax {
+		for ip, entry := range cache.mappings {
+			cache.dropQueue(entry)
+			delete(cache.mappings, ip)
+			break
+		}
+	}
+}
+
+// hold queues a packet until the MAC address for ip is known. It reports false
+// when the caller must drop the packet instead, which happens once the neighbor
+// holds [NeighborConfig.QueueLen] packets or the link holds [NeighborConfig.QueueTotal].
+//
+// A neighbor whose queue is full gives up its oldest packet for the newest,
+// as the kernel does. The returned packet is the one that lost its place,
+// and the caller counts and frees it.
+//
+// Caller must hold [neighborCache.lock].
+func (cache *neighborCache) hold(ip netip.Addr, p *router.Packet) (*router.Packet, bool) {
+	entry, ok := cache.mappings[ip]
+	if !ok || entry.known || cache.conf.QueueLen <= 0 {
+		return nil, false
+	}
+	var evicted *router.Packet
+	switch {
+	case len(entry.queue) >= cache.conf.QueueLen:
+		evicted = entry.queue[0]
+		entry.queue = append(entry.queue[:0], entry.queue[1:]...)
+		cache.queued--
+	case cache.queued >= cache.conf.QueueTotal:
+		return nil, false
+	}
+	entry.queue = append(entry.queue, p)
+	cache.queued++
+	cache.mappings[ip] = entry
+	return evicted, true
+}
+
+// sweep mirrors the kernel's neighbor timer. It probes every address that is still
+// unresolved and drops what is queued for an address that has not answered
+// after [NeighborConfig.ProbeAttempts] tries.
+// The kernel calls that state NUD_FAILED and empties the queue in the same way.
+func (cache *neighborCache) sweep() {
+	var expired []*router.Packet
+	var reprobe []netip.Addr
+
+	cache.lock.Lock()
+	for ip, entry := range cache.mappings {
+		if entry.known || (len(entry.queue) == 0 && !entry.probing) {
+			continue
+		}
+		entry.probes++
+		if entry.probes >= cache.conf.ProbeAttempts {
+			expired = append(expired, entry.queue...)
+			cache.queued -= len(entry.queue)
+			entry.queue = nil
+			entry.probing = false
+			entry.probes = 0
+		} else {
+			reprobe = append(reprobe, ip)
+		}
+		cache.mappings[ip] = entry
+	}
+	cache.lock.Unlock()
+
+	for i := range reprobe {
+		cache.seekNeighbor(&reprobe[i])
+	}
+	if len(expired) > 0 && cache.onDrop != nil {
+		cache.onDrop(expired)
+	}
+}
+
+// takeQueue removes and returns the packets waiting for ip.
+// The caller sends them and must not hold [neighborCache.lock].
+func (cache *neighborCache) takeQueue(ip netip.Addr) []*router.Packet {
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
+
+	entry, ok := cache.mappings[ip]
+	if !ok || len(entry.queue) == 0 {
+		return nil
+	}
+	queue := entry.queue
+	cache.queued -= len(queue)
+	entry.queue = nil
+	cache.mappings[ip] = entry
+	return queue
+}
+
+// dropQueue returns the packets waiting in the entry to the pool.
+// It is used when resolution fails, where holding them any longer only pins buffers.
+// Caller must hold [neighborCache.lock].
+func (cache *neighborCache) dropQueue(entry neighbor) neighbor {
+	for _, p := range entry.queue {
+		cache.pool.Put(p)
+	}
+	cache.queued -= len(entry.queue)
+	entry.queue = nil
+	return entry
 }
 
 // resolved reports whether the MAC for the given IP is known.
@@ -247,14 +389,16 @@ func (cache *neighborCache) watchNeighborUpdates() {
 				mac := [6]byte(update.HardwareAddr)
 				if !entry.known || entry.mac != mac {
 					entry.mac, entry.known = mac, true
-					entry.probing = false
+					entry.probing, entry.probes = false, 0
 					cache.mappings[ip] = entry
 					changed = true
 				}
 			} else if update.State&netlink.NUD_FAILED != 0 {
 				// Resolution failed (no ARP/NDP reply after retries).
 				// Clear probing so the next [neighborCache.get] can re-probe.
+				// Nothing will ever send what is queued, so let it go.
 				entry.probing = false
+				entry = cache.dropQueue(entry)
 				if entry.known {
 					entry.mac, entry.known = zeroMacAddr, false
 					changed = true
@@ -296,6 +440,19 @@ func (cache *neighborCache) start(pool router.PacketPool) {
 		defer log.HandlePanic()
 		cache.watchNeighborUpdates()
 	}()
+	go func() {
+		defer log.HandlePanic()
+		t := time.NewTicker(cache.conf.ProbeInterval)
+		defer t.Stop()
+		for {
+			select {
+			case <-cache.done:
+				return
+			case <-t.C:
+				cache.sweep()
+			}
+		}
+	}()
 }
 
 func (cache *neighborCache) stop() {
@@ -313,6 +470,7 @@ func newNeighborCache(
 	localMAC net.HardwareAddr,
 	localIP netip.Addr,
 	ifIndex int,
+	conf NeighborConfig,
 	onUpdate func(netip.Addr),
 ) *neighborCache {
 	return &neighborCache{
@@ -321,6 +479,7 @@ func newNeighborCache(
 		localIP:  localIP,
 		mappings: make(map[netip.Addr]neighbor),
 		onUpdate: onUpdate,
+		conf:     conf.withDefaults(),
 		ifIndex:  ifIndex,
 		is4:      localIP.Is4(),
 		isLoop:   ([6]byte(localMAC) == zeroMacAddr),

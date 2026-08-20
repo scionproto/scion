@@ -239,6 +239,75 @@ considers the following options.
          Can be overridden for specific inter-AS BFD sessions with
          :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
 
+   .. object:: neighbor
+
+      Limits for the packets a router keeps while it looks up a neighbor's MAC address.
+      These settings are read only by the "afxdp" underlay.
+      With "inet" the kernel does the lookup and its own settings apply.
+
+      The lookup takes a few milliseconds. Packets sent to unresolved neighbors wait
+      in a queue for that time instead of being dropped. Without the queue, the first
+      packets sent to a neighbor are always lost. That costs a beacon interval at
+      every hop while a topology comes up, and it breaks anything that sends once and
+      waits, such as ``scion ping -c 1``, since nothing sends those packets again.
+
+      The router follows what the Linux neighbor subsystem does, and takes its
+      defaults from the kernel it runs on. It differs in four places:
+
+      * The kernel measures its queue in bytes and allocates memory as it goes.
+        The router counts packets and takes them from a pool it allocated at startup,
+        which is why ``queue_len`` and ``queue_total`` exist.
+      * The kernel ages unused entries out of its table.
+        The router only enforces ``cache_max``.
+      * The router sends no ARP or NDP itself. It sends one UDP packet to the discard
+        port of the address, which makes the kernel do the lookup.
+      * The kernel answers the sender with an ICMP error when it gives up on an address.
+        The router says nothing, it just counts the packets it drops and leaves
+        the sender to time out.
+
+      .. option:: queue_len = <int> (Default: 3)
+
+         How many packets are kept for one neighbor.
+         They are sent in the order they arrived.
+         When the queue is full, the oldest one is dropped to make room for the newest.
+         :rfc:`1122`, section 2.3.2.2 asks for at least one.
+
+      .. option:: queue_total = <int> (Default: 64)
+
+         How many packets a link keeps for all of its neighbors together.
+         This puts a ceiling on the buffers that someone sending to addresses that
+         never answer can tie up.
+
+      .. option:: cache_max = <int> (Default: ``net.ipv4.neigh.default.gc_thresh3``)
+
+         How many neighbors a link remembers. Older entries are dropped to stay under
+         this number. Dropping one costs a single kernel lookup the next time that
+         neighbor is used.
+
+         The default is read once at startup from
+         ``/proc/sys/net/ipv4/neigh/default/gc_thresh3``, or ``1024`` when that file cannot
+         be read. The IPv6 table holds the same values as the IPv4 one, which is why
+         only the latter is read.
+
+      .. option:: probe_interval = <duration> (Default: ``net.ipv4.neigh.default.retrans_time_ms``)
+
+         How long to wait before asking again for an address that has not answered.
+
+         The default is read once at startup from
+         ``/proc/sys/net/ipv4/neigh/default/retrans_time_ms``,
+         or ``1s`` when that file cannot be read.
+
+      .. option:: probe_attempts = <int> (Default: ``net.ipv4.neigh.default.mcast_solicit``)
+
+         How many times an address is asked for before the router gives up and drops the
+         packets waiting for it. With ``probe_interval`` this sets the longest a packet
+         can wait. A packet that arrives after its sender gave up is of no use,
+         and it holds a buffer until then.
+
+         The default is read once at startup from
+         ``/proc/sys/net/ipv4/neigh/default/mcast_solicit``,
+         or ``3`` when that file cannot be read.
+
    .. object:: preferred_underlays
 
       .. option:: udpip = <string>, default = "afxdp"

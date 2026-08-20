@@ -7,6 +7,7 @@ go_library(
         "afxdpudpip.go",
         "link_internal.go",
         "link_ptp.go",
+        "neighborconf.go",
         "neighbors.go",
         "options.go",
         "stats_collector.go",

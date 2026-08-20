@@ -362,9 +362,9 @@ func newDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
 	return &x
 }
 
-// makeDataPlane returns a zero-valued data plane structure. This is the same as newDataPlane
-// but returns by value to facilitate the initialization of composed structs without an temporary
-// copy.
+// makeDataPlane returns a zero-valued data plane structure.
+// This is the same as newDataPlane but returns by value to facilitate the
+// initialization of composed structs without an temporary copy.
 func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 	// So many tests need the udpip underlay provider instantiated early that we do it here rather
 	// than in AddInternalInterface. Currently there can be no dataplane without a udpip provider,
@@ -375,11 +375,7 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 	}
 	return dataPlane{
 		underlays: map[string]Underlay{
-			"udpip": udpip.New(
-				runConfig.BatchSize,
-				runConfig.SendBufferSize,
-				runConfig.ReceiveBufferSize,
-			),
+			"udpip": udpip.New(runConfig),
 		},
 		Metrics:                        metrics,
 		ExperimentalSCMPAuthentication: authSCMP,
@@ -502,8 +498,8 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, protocol, localAdd
 }
 
 // AddExternalInterface adds the inter AS connection for the given interface ID.
-// If a connection for the given ID is already set this method will return an
-// error. This can only be called on a not yet running dataplane.
+// If a connection for the given ID is already set this method will return an error.
+// This can only be called on a not yet running dataplane.
 func (d *dataPlane) AddExternalInterface(
 	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host,
 ) error {
@@ -530,11 +526,7 @@ func (d *dataPlane) AddExternalInterface(
 		if !exists {
 			panic(fmt.Sprintf("no provider for underlay protocol: %q", link.Protocol))
 		}
-		underlay = underlayProvider.New(
-			d.RunConfig.BatchSize,
-			d.RunConfig.SendBufferSize,
-			d.RunConfig.ReceiveBufferSize,
-		)
+		underlay = underlayProvider.New(d.RunConfig)
 		underlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
 		d.underlays[link.Protocol] = underlay
 	}
@@ -678,19 +670,15 @@ func (d *dataPlane) AddNextHop(
 		if !exists {
 			panic(fmt.Sprintf("no provider for underlay protocol: %q", link.Protocol))
 		}
-		underlay = underlayProvider.New(
-			d.RunConfig.BatchSize,
-			d.RunConfig.SendBufferSize,
-			d.RunConfig.ReceiveBufferSize,
-		)
+		underlay = underlayProvider.New(d.RunConfig)
 		underlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
 		d.underlays[link.Protocol] = underlay
 	}
 	d.linkTypes[ifID] = link.LinkTo
 
 	// Note that a link to the same sibling router might already exist. If so, it will be
-	// returned instead of creating a new one. As a result, the bfd session and metrics will be
-	// ignored and simply garbage collected.
+	// returned instead of creating a new one. As a result,
+	// the bfd session and metrics will be ignored and simply garbage collected.
 	iMetrics := newInterfaceMetrics(
 		d.Metrics, ifID, d.localIA, link.Remote.Addr, d.neighborIAs[ifID])
 	lk, err := underlay.NewSiblingLink(
@@ -737,6 +725,19 @@ type RunConfig struct {
 	ReceiveBufferSize     int
 	SendBufferSize        int
 	PreferredUnderlays    map[string]string
+	// Neighbor bounds what an underlay holds while it resolves MAC addresses.
+	// Only underlays that resolve addresses themselves read it.
+	Neighbor NeighborConfig
+}
+
+// NeighborConfig bounds an underlay's neighbor cache. Zero values mean the
+// underlay picks a default. See the router configuration for what they are.
+type NeighborConfig struct {
+	QueueLen      int
+	QueueTotal    int
+	CacheMax      int
+	ProbeInterval time.Duration
+	ProbeAttempts int
 }
 
 func (d *dataPlane) Run(ctx context.Context) error {

@@ -106,18 +106,14 @@ type underlayProvider struct{}
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
 // TODO(multi_underlay): batchSize should be an underlay-specific config.
-func (underlayProvider) New(
-	batchSize int,
-	receiveBufferSize int,
-	sendBufferSize int,
-) router.Underlay {
+func (underlayProvider) New(runConfig router.RunConfig) router.Underlay {
 	return &underlay{
-		batchSize:         batchSize,
+		batchSize:         runConfig.BatchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
 		connOpener:        uo{},
 		svc:               router.NewServices[netip.AddrPort](),
-		receiveBufferSize: receiveBufferSize,
-		sendBufferSize:    sendBufferSize,
+		receiveBufferSize: runConfig.ReceiveBufferSize,
+		sendBufferSize:    runConfig.SendBufferSize,
 	}
 }
 
