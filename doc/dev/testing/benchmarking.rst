@@ -4,10 +4,10 @@ Router Benchmark
 
 :program:`acceptance/router_benchmark/benchmark.py` is a tool to benchmark an external router.
 
-The usage is simply: ``acceptance/router_benchmark/benchmark.py``.
+The usage is simply: ``bazel run acceptance/router_benchmark/benchmark.py``.
 
 Without any options, the tool outputs instructions. Those instructions comprise how to configure
-the subject router and how to re-execute the tool so it actually carries the measurement.
+the subject router and how to re-execute the tool so it actually carries out the measurement.
 
 In order to accomplish the tool's instructions one will need to:
 

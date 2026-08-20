@@ -182,6 +182,8 @@ func SCMPBadMAC(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPBadMAC",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPBadMAC"),
@@ -334,6 +336,8 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPBadMACInternal",
 		WriteTo:         "veth_int_host",
 		ReadFrom:        "veth_int_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPBadMACInternal"),

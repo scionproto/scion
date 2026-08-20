@@ -216,7 +216,7 @@ func TestForwarder(t *testing.T) {
 		rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 		nobfd := control.BFD{Disable: ptr.To(true)}
 		link := control.LinkInfo{
-			Provider: "udpip",
+			Protocol: "udpip",
 			Local:    l,
 			Remote:   r,
 			BFD:      nobfd,
