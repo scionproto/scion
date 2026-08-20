@@ -27,6 +27,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vishvananda/netlink"
 
 	"github.com/scionproto/scion/router"
 )
@@ -360,4 +361,29 @@ func TestSweepGivesUp(t *testing.T) {
 	}
 	assert.Empty(t, cache.mappings[remote].queue)
 	assert.Equal(t, 0, cache.queued)
+}
+
+// TestNudStatesUsable checks which kernel states count as a usable address.
+// A neighbor enters DELAY and PROBE when it is used after going stale, and its MAC
+// address is good throughout. Treating those as unknown holds up traffic to every
+// neighbor that goes quiet for a while.
+func TestNudStatesUsable(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		state int
+		want  bool
+	}{
+		{"reachable", netlink.NUD_REACHABLE, true},
+		{"stale", netlink.NUD_STALE, true},
+		{"delay", netlink.NUD_DELAY, true},
+		{"probe", netlink.NUD_PROBE, true},
+		{"permanent", netlink.NUD_PERMANENT, true},
+		{"noarp", netlink.NUD_NOARP, true},
+		{"incomplete", netlink.NUD_INCOMPLETE, false},
+		{"failed", netlink.NUD_FAILED, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.state&nudUsable != 0)
+		})
+	}
 }

@@ -35,9 +35,15 @@ import (
 // and a session that cannot start is already down, so a slow retry is enough.
 const neighborRetryInterval = 500 * time.Millisecond
 
-// nudUsable is the set of NUD states in which a neighbor's MAC address
-// is considered valid for forwarding.
-const nudUsable = netlink.NUD_REACHABLE | netlink.NUD_STALE | netlink.NUD_PERMANENT
+// nudUsable is the set of NUD states in which a neighbor's MAC address is
+// usable for forwarding. It is the kernel's own NUD_VALID.
+//
+// DELAY and PROBE belong in it. A neighbor enters them when its entry is used
+// after going stale, and the kernel keeps forwarding with the address it has
+// while it revalidates. Leaving them out makes the router treat a known address
+// as unknown for several seconds every time traffic to it pauses.
+const nudUsable = netlink.NUD_PERMANENT | netlink.NUD_NOARP | netlink.NUD_REACHABLE |
+	netlink.NUD_PROBE | netlink.NUD_STALE | netlink.NUD_DELAY
 
 var (
 	zeroMacAddr = [6]byte{0, 0, 0, 0, 0, 0}
