@@ -3,7 +3,7 @@ Tutorial: How to use the SCION Registry
 
 SCION networks are required to use globally unique numbers to identify Isolation Domains (ISDs), and it is operationally desirable to use globally unique numbers to identify SCION Autonomous Systems (ASes). ISDs are identified with a 16-bit number, whilst SCION ASes are identified by a 48-bit number.
 
-ISD and SCION AS numbers are assigned and registered by the SCION Registry in order to ensure global uniqueness. This is operated by the SCION Association on behalf of the SCION community, in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_ and governed by the `Registry Committee <https://www.scion.org/association/#committees>`_.
+ISD and SCION AS numbers are assigned and registered by the SCION Registry in order to ensure global uniqueness. This is operated by the SCION Association on behalf of the SCION community, in accordance with the `SCION Registry Policy`_ and governed by the `Registry Committee <https://www.scion.org/association/#committees>`_.
 
 The SCION Registry records ISD and SCION AS number assignments, the organizations or individuals who have been assigned ISD and/or SCION AS numbers (known as ‘Resource Holders’), and the details of the roles and/or persons who are the administrative and technical contacts for the Resource Holders. The SCION Registry portal allows Resource Holders to assign, update and remove contact information, as well as request ISD and SCION AS numbers. It is also possible for a Resource Holder to assign another organization to manage resources on their behalf, such as in scenarios where their network management is outsourced.
 
@@ -131,7 +131,7 @@ You can further check your Organization(s) by clicking on ``My Resources`` then 
 Requesting SCION AS numbers
 ---------------------------
 
-When your organization has been registered in the SCION Registry, you can request SCION AS numbers in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_.
+When your organization has been registered in the SCION Registry, you can request SCION AS numbers in accordance with the `SCION Registry Policy`_.
 
 There are two types of SCION AS numbers:
 
@@ -206,7 +206,7 @@ Requesting ISD numbers
 
 An ISD number is used to identify a group of SCION ASes that share a common purpose and trust policy (e.g. Secure Swiss Finance Network). An ISD is usually set-up and operated by a small number of SCION ASes within the group known as *Voting Members*, and only one of these needs to apply for and register an ISD number.
 
-However, if your organization is a Voting Member of an ISD and is designated to be the holder of the ISD number required to identify it, you can also use the SCION Registry portal to apply for one in accordance with the `SCION Registry Policy <https://www.scion.org/wp-content/uploads/2025/10/SCION-Registry-Policy.pdf>`_.
+However, if your organization is a Voting Member of an ISD and is designated to be the holder of the ISD number required to identify it, you can also use the SCION Registry portal to apply for one in accordance with the `SCION Registry Policy`_.
 
 To apply for an ISD number, click on ``My Activity`` then ``Applications`` in the top menu:
 
@@ -251,3 +251,6 @@ You can further check your ISD number assignments by clicking on ``My Resources`
 .. figure:: registry/isd-registered.png
    :width: 100 %
    :figwidth: 100 %
+
+
+.. _SCION Registry Policy: https://www.scion.org/wp-content/uploads/2026/04/SCION-Registry-Policy-v1.0-1.pdf
