@@ -10,8 +10,8 @@ packageExtensionsChecksum: 1d0362919f9ce218c6d89557ecf994d5
 
 dependencies:
   '@redocly/cli':
-    specifier: ^2.46.1
-    version: 2.46.1
+    specifier: ^2.47.0
+    version: 2.47.0
   '@stoplight/spectral-cli':
     specifier: ^6.16.3
     version: 6.16.3
@@ -72,8 +72,8 @@ packages:
       fastq: 1.20.1
     dev: false
 
-  /@redocly/cli@2.46.1:
-    resolution: {integrity: sha512-FSUSq2FU8VN7DmTobTmq7zb3zPnDkRKSMd3n38D62JFJUUZKnLMQtn7BUhsD2dCFH2WgF05I3fbN7QHDQyCBeA==}
+  /@redocly/cli@2.47.0:
+    resolution: {integrity: sha512-4sv638LZxiUSsNGqfWPzA2hrNM4KrNRc9jOaH9igqDJlZimiGCYliVpbdrWvfL/YlaSnIBpJE1O1CveXDYTTWw==}
     engines: {node: '>=22.12.0 || >=20.19.0 <21.0.0', npm: '>=10'}
     hasBin: true
     dev: false
