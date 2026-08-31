@@ -18,6 +18,7 @@ package launcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,7 +47,7 @@ type Application struct {
 // Run will exit the application if it encounters a fatal error.
 func (a *Application) Run() {
 	if err := a.run(); err != nil {
-		fmt.Fprintf(a.getErrorWriter(), "fatal error: %v\n", err)
+		fmt.Fprintf(a.getErrorWriter(), "fatal error: %v\n %#v\n", err, errors.Unwrap(err))
 		os.Exit(1)
 	}
 }
