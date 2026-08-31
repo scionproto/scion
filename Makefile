@@ -1,4 +1,4 @@
-.PHONY: all build build-dev dist-check-cgo dist-deb dist-test-release antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
+.PHONY: all build build-dev copyright copyright-update dist-check-cgo dist-deb dist-test-release antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
 
 build-dev:
 	rm -f bin/*
@@ -111,6 +111,15 @@ gazelle: go.mod
 
 licenses:
 	tools/licenses.sh
+
+# Report Go files whose copyright lines do not match who worked on them.
+# Exits non-zero if any are out of date. See tools/copyright/README.md.
+copyright:
+	bazel run //tools/copyright -- -dir "${PWD}"
+
+# Bring those copyright lines up to date.
+copyright-update:
+	bazel run //tools/copyright -- -dir "${PWD}" -w
 
 antlr:
 	antlr/generate.sh fix

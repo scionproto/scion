@@ -1,0 +1,35 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "doc.go",
+        "header.go",
+        "history.go",
+        "main.go",
+    ],
+    embedsrcs = ["affiliations.json"],
+    importpath = "github.com/scionproto/scion/tools/copyright",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "copyright",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "config_test.go",
+        "header_test.go",
+        "history_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
