@@ -18,6 +18,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/pem"
 	"os"
 	"strconv"
@@ -697,6 +698,75 @@ func TestNewCreateCmdCSR(t *testing.T) {
 				}
 				tc.Validate(t, csr)
 			}
+		})
+	}
+}
+
+func TestParseOID(t *testing.T) {
+	testCases := map[string]struct {
+		input     string
+		want      asn1.ObjectIdentifier
+		assertErr assert.ErrorAssertionFunc
+	}{
+		"two arcs": {
+			input:     "1.2",
+			want:      asn1.ObjectIdentifier{1, 2},
+			assertErr: assert.NoError,
+		},
+		"extended key usage": {
+			input:     "1.3.6.1.5.5.7.3.1",
+			want:      asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 1},
+			assertErr: assert.NoError,
+		},
+		"zero arcs": {
+			input:     "0.0",
+			want:      asn1.ObjectIdentifier{0, 0},
+			assertErr: assert.NoError,
+		},
+		"second arc unrestricted under joint-iso-itu-t": {
+			input:     "2.999",
+			want:      asn1.ObjectIdentifier{2, 999},
+			assertErr: assert.NoError,
+		},
+		"empty":                     {input: "", assertErr: assert.Error},
+		"single arc":                {input: "1", assertErr: assert.Error},
+		"negative first arc":        {input: "-1.2", assertErr: assert.Error},
+		"negative arc":              {input: "1.-2", assertErr: assert.Error},
+		"negative trailing arc":     {input: "1.2.3.-4.5", assertErr: assert.Error},
+		"explicit sign":             {input: "1.+2", assertErr: assert.Error},
+		"leading zero in first arc": {input: "01.2", assertErr: assert.Error},
+		"leading zero in later arc": {input: "1.02", assertErr: assert.Error},
+		"empty arc":                 {input: "1..2", assertErr: assert.Error},
+		"trailing dot":              {input: "1.2.", assertErr: assert.Error},
+		"not a number":              {input: "1.a", assertErr: assert.Error},
+		"whitespace":                {input: "1. 2", assertErr: assert.Error},
+		"first arc too large":       {input: "3.2", assertErr: assert.Error},
+		"second arc too large":      {input: "1.40", assertErr: assert.Error},
+		"arc exceeds int32":         {input: "1.2.2147483648", assertErr: assert.Error},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			oid, err := parseOID(tc.input)
+			tc.assertErr(t, err)
+			assert.Equal(t, tc.want, oid)
+		})
+	}
+}
+
+func TestParseOIDMarshals(t *testing.T) {
+	// Whatever parseOID accepts must survive a round trip through the ASN.1 encoder,
+	// otherwise the OID baked into the certificate is not the one the user asked for.
+	for _, input := range []string{"1.2", "0.0", "2.999", "1.3.6.1.5.5.7.3.1", "1.2.2147483647"} {
+		t.Run(input, func(t *testing.T) {
+			oid, err := parseOID(input)
+			require.NoError(t, err)
+
+			raw, err := asn1.Marshal(oid)
+			require.NoError(t, err)
+			var parsed asn1.ObjectIdentifier
+			_, err = asn1.Unmarshal(raw, &parsed)
+			require.NoError(t, err)
+			assert.Equal(t, input, parsed.String())
 		})
 	}
 }

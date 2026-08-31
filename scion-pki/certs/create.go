@@ -778,16 +778,43 @@ func keyUsage() pkix.Extension {
 	}
 }
 
+// parseOID parses an OID in dotted decimal notation. It only accepts OIDs that are
+// unambiguous and that Go's x509 library can parse back out of the certificate.
 func parseOID(s string) (asn1.ObjectIdentifier, error) {
 	parts := strings.Split(s, ".")
+	if len(parts) < 2 {
+		return nil, serrors.New("OID must consist of at least two arcs", "input", s)
+	}
 	oid := make(asn1.ObjectIdentifier, len(parts))
-
 	for i, part := range parts {
-		val, err := strconv.Atoi(part)
-		if err != nil {
-			return nil, fmt.Errorf("invalid OID part %q in %q: %w", part, s, err)
+		if !isOIDNumber(part) {
+			return nil, serrors.New("invalid OID arc", "arc", part, "input", s)
 		}
-		oid[i] = val
+		val, err := strconv.ParseInt(part, 10, 32)
+		if err != nil {
+			return nil, serrors.Wrap("parsing OID arc", err, "arc", part, "input", s)
+		}
+		oid[i] = int(val)
+	}
+	if oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) {
+		return nil, serrors.New("OID arcs out of range", "input", s)
 	}
 	return oid, nil
+}
+
+// isOIDNumber reports whether s is a single digit, or a non-zero digit followed by
+// further digits. Signs and leading zeros are rejected rather than normalized.
+func isOIDNumber(s string) bool {
+	if s == "" {
+		return false
+	}
+	if len(s) > 1 && s[0] == '0' {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
