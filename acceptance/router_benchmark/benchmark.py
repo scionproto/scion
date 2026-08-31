@@ -105,6 +105,7 @@ class RouterBMTool(cli.Application, RouterBM):
     brload_cpus: list[int] = []
     artifacts = f"{os.getcwd()}/acceptance/router_benchmark"
     prom_address: str = "localhost:9090"
+    debug_run = False
 
     def host_interface(self, excl: bool):
         """Returns the next host interface that we should use for a brload links.
@@ -201,13 +202,14 @@ class RouterBMTool(cli.Application, RouterBM):
         # Check that the given interfaces are safe to use. We will wreck their config.
         for intf in avail_interfaces:
             output = sudo("ip", "addr", "show", "dev", intf)
-            if len(output.splitlines()) > 2:
-                logger.error(f"""\
-                Interface {intf} appears to be in some kind of use. Cowardly refusing to modify it.
-                If you have a network manager, tell it to disable or ignore that interface.
-                Else, how about \"sudo ip addr flush dev {intf}\"?
-                """)
-                raise RuntimeError("Interface in use")
+            for l in output.splitlines():
+                if l.strip().startswith("inet"):
+                    logger.error(f"""\
+                    Interface {intf} appears to be in some kind of use. Cowardly refusing to modify it.
+                    If you have a network manager, tell it to disable or ignore that interface.
+                    Else, how about \"sudo ip addr flush dev {intf}\"?
+                    """)
+                    raise RuntimeError("Interface in use")
 
         # Looks safe.
         self.avail_interfaces = avail_interfaces
@@ -290,13 +292,17 @@ class RouterBMTool(cli.Application, RouterBM):
         print(f"""
 INSTRUCTIONS:
 
-1 - Configure your subject router according to accept/router_benchmark/conf/router.toml")
+1 - Configure your subject router according to acceptance/router_benchmark/conf/.
     If using openwrt, an easy way to do that is to install the bmtools.ipk package. In addition,
     bmtools includes two microbenchmarks: scion-coremark and scion-mmbm. Those will run
     automatically and the results will be used to improve the benchmark report.
 
     Optional: If you did not install bmtools.ipk, install and run those microbenchmarks and make a
     note of the results: (scion-coremark; scion-mmbm).
+
+    On platforms for which the bmtools package is not available, the router can be configured by
+    copying *all* the files in acceptance/router_benchmark/conf/ to the subject router's
+    configuration directory (typically /etc/scion/).
 
 2 - Configure the following interfaces on your router (The procedure depends on your router
     UI) - All interfaces should have the mtu set to 9000:
@@ -307,7 +313,9 @@ INSTRUCTIONS:
     the "must reach" annotation matters. The '#' number is the order in which the corresponding host
     interface must be given on the command line in step 7.
 
-3 - Connect the corresponding ports into your test switch (best if dedicated for the test).
+3 - Connect the corresponding ports into your test switch (best if dedicated for the test). It is
+    highly recommended to connect *only* these ports. Leave other network interfaces un-connected
+    during the test.
 
 4 - Restart the scion-router service.
 
@@ -319,9 +327,9 @@ INSTRUCTIONS:
 6 - Connect the corresponding ports into your test switch. If using a partitioned network, make
     sure that port is reachable by the corresponding subject router port.
 
-7 - Execute this script with arguments: --run <interfaces>, where <interfaces> is the list
-    of names you collected in step 5. If using a partitioned network, make sure to supply them
-    in the order indicated in step 2.
+7 - Execute this script with arguments: --run <interfaces>, where <interfaces> is the
+    space-separated list of names you collected in step 5. If using a partitioned network, make
+    sure to supply them in the order indicated in step 2.
 
     If coremark and mmbm values are available, the report will include a performance index.
 
