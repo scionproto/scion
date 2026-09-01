@@ -2,7 +2,8 @@
 
 See [doc.go](doc.go) for documentation, or use `go doc ./tools/copyright`.
 
-Every line the tool adds or moves cites the contribution behind it:
+By default it reports how many files are out of date, and which identities it could not
+attribute. Under `-v`, every line it adds or moves cites the contribution behind it:
 
 ```
 private/storage/beacon/sqlite/db.go
@@ -79,5 +80,5 @@ which makes it safe to re-run the tool after editing the configuration.
 `goheader` in `.golangci.yml` enforces the shape of the header and the presence
 of the license text. It does not know who worked on the file.
 
-`make copyright` reports what is out of date; `make copyright-update` rewrites it.
+`make copyright-check` reports what is out of date; `make copyright-update` rewrites it.
 Neither is wired into `make lint`, deliberately, to avoid slowing down CI.

@@ -31,9 +31,13 @@
 //
 // Some files are left untouched: generated files, third-party notices,
 // headers whose holder is an organization the configuration does not declare,
-// and files carrying no header at all. The -v flag lists them, together with
-// the identities that have no known affiliation and so claim nothing,
-// and logs each file as it is rewritten.
+// and files carrying no header at all.
+//
+// By default the report is a count of the files that are out of date.
+// The -v flag lists them, with the contribution behind every line it adds or moves,
+// and lists the files it left untouched. Identities that have no known affiliation,
+// and so claim nothing, are listed either way:
+// the run cannot account for their work until they are added to the configuration.
 //
 // The run covers the directory it starts in and everything below it.
 // Starting from a package updates that package; starting from the

@@ -73,8 +73,9 @@ func run(args []string, out io.Writer) error {
 	fs.BoolVar(&opts.skipDirty, "committed-only", false,
 		"ignore uncommitted changes, considering git history alone")
 	fs.BoolVar(&opts.verbose, "v", false,
-		"log each file as it is rewritten, and list the files that were\n"+
-			"skipped and the identities with no known affiliation")
+		"verbose mode lists every file whose copyright lines change, "+
+			"and the contribution behind each, "+
+			"together with the files that were skipped")
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(),
 			"usage: copyright [flags] [path...]\n\n"+
@@ -290,47 +291,58 @@ func renderClaims(claims []claim) []string {
 }
 
 func (rep *report) print(w io.Writer, opts options) {
-	for _, ch := range rep.outdated {
-		fmt.Fprintf(w, "%s\n", ch.file)
-		for _, line := range diffLines(ch.before, ch.after) {
-			why, ok := ch.why[strings.TrimPrefix(line, "+ ")]
-			if !ok {
-				// A dropped line is explained by the one that replaces it.
-				fmt.Fprintf(w, "    %s\n", line)
-				continue
-			}
-			fmt.Fprintf(w, "    %-*s  (%s)\n", claimWidth(ch.after), line, why)
+	// gap separates the sections, without opening the report on a blank line.
+	first := true
+	gap := func() {
+		if !first {
+			fmt.Fprintln(w)
 		}
+		first = false
 	}
 	if opts.verbose {
+		if len(rep.outdated) > 0 {
+			gap()
+		}
+		for _, ch := range rep.outdated {
+			fmt.Fprintf(w, "%s\n", ch.file)
+			for _, line := range diffLines(ch.before, ch.after) {
+				why, ok := ch.why[strings.TrimPrefix(line, "+ ")]
+				if !ok {
+					// A dropped line is explained by the one that replaces it.
+					fmt.Fprintf(w, "    %s\n", line)
+					continue
+				}
+				fmt.Fprintf(w, "    %-*s  (%s)\n", claimWidth(ch.after), line, why)
+			}
+		}
 		for _, reason := range slices.Sorted(maps.Keys(rep.skipped)) {
 			files := rep.skipped[reason]
-			fmt.Fprintf(w, "\nskipped, %s (%d):\n", reason, len(files))
+			gap()
+			fmt.Fprintf(w, "skipped, %s (%d):\n", reason, len(files))
 			for _, f := range files {
 				fmt.Fprintf(w, "    %s\n", f)
 			}
 		}
 	}
 	if len(rep.unmapped) > 0 {
-		fmt.Fprintf(w, "\n%s no known affiliation; "+
+		gap()
+		fmt.Fprintf(w, "%s no known affiliation; "+
 			"their contributions are not claimed.\n",
 			count(len(rep.unmapped), "identity has", "identities have"))
 		fmt.Fprintf(w, "Add them to affiliations.json to attribute their work.\n")
-		if opts.verbose {
-			for _, email := range slices.Sorted(maps.Keys(rep.unmapped)) {
-				files := rep.unmapped[email]
-				fmt.Fprintf(w, "    %-55s %s\n", email,
-					count(len(files), "file", "files"))
-			}
+		for _, email := range slices.Sorted(maps.Keys(rep.unmapped)) {
+			files := rep.unmapped[email]
+			fmt.Fprintf(w, "    %-55s %s\n", email, count(len(files), "file", "files"))
 		}
 	}
+	gap()
 	switch {
 	case opts.write:
-		fmt.Fprintf(w, "\nupdated %s\n", count(rep.changed, "file", "files"))
+		fmt.Fprintf(w, "updated %s\n", count(rep.changed, "file", "files"))
 	case len(rep.outdated) == 0:
 		fmt.Fprintf(w, "all copyright lines up to date\n")
 	default:
-		fmt.Fprintf(w, "\n%s outdated copyright lines; "+
+		fmt.Fprintf(w, "%s outdated copyright lines; "+
 			"rerun with -w to update them\n",
 			count(len(rep.outdated), "file has", "files have"))
 	}
