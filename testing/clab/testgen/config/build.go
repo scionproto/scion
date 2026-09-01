@@ -18,7 +18,7 @@ package config
 
 import (
 	"net/netip"
-	"sort"
+	"slices"
 
 	"github.com/scionproto/scion/pkg/segment/iface"
 	topojson "github.com/scionproto/scion/private/topology/json"
@@ -101,7 +101,7 @@ func neighbors(br *hydrate.BorderRouter) []clabconfig.Neighbor {
 			MTU:      intf.MTU,
 		})
 	}
-	sort.Strings(order)
+	slices.Sort(order)
 	out := make([]clabconfig.Neighbor, 0, len(order))
 	for _, k := range order {
 		out = append(out, *byIA[k])

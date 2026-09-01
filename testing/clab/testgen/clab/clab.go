@@ -27,7 +27,7 @@ import (
 	"io"
 	"net/netip"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"gopkg.in/yaml.v3"
 
@@ -211,8 +211,8 @@ func buildLinks(network *hydrate.Network) []link {
 			}
 		}
 	}
-	sort.Slice(links, func(i, j int) bool {
-		return links[i].Endpoints[0] < links[j].Endpoints[0]
+	slices.SortFunc(links, func(a, b link) int {
+		return cmp.Compare(a.Endpoints[0], b.Endpoints[0])
 	})
 	return links
 }
