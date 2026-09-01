@@ -107,3 +107,7 @@ logger.log
 # Vagrant
 #########
 .vagrant
+
+# copyright tool: affiliation dates are kept out of the repository
+###################################################################
+/tools/copyright/affiliation-dates.json

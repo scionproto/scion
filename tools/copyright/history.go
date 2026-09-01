@@ -24,11 +24,22 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
+// contribution is one identity's work on a file, on the day it is dated.
+// The day resolves which organization the author belonged to,
+// which can change mid-year; its year is what a claim states.
 type contribution struct {
 	email string
-	year  int
+	date  string // YYYY-MM-DD
+}
+
+// year is the year a claim for this contribution states.
+// [History.add] admits no date it cannot be read from.
+func (c contribution) year() int {
+	year, _ := strconv.Atoi(c.date[:4])
+	return year
 }
 
 // source is where a contribution was seen. The zero value is the working tree,
@@ -38,7 +49,7 @@ type source struct {
 	commit string // abbreviated hash
 }
 
-// History records, per file, the years each identity touched it,
+// History records, per file, the days each identity touched it,
 // and where the most recent evidence for each of those contributions sits.
 type History struct {
 	// byFile is keyed by present-day path: [LoadHistory] resolves historical
@@ -50,11 +61,11 @@ func newHistory() *History {
 	return &History{byFile: make(map[string]map[contribution]source)}
 }
 
-// add drops incomplete entries: an unset author or year would claim copyright for nobody.
+// add drops incomplete entries: an unset author or date would claim copyright for nobody.
 // Revisions arrive newest first, so the first source recorded for a contribution
 // is its newest commit. Uncommitted work is newer still, and overwrites.
-func (h *History) add(file, email string, year int, where source) {
-	if file == "" || email == "" || year == 0 {
+func (h *History) add(file, email, date string, where source) {
+	if file == "" || email == "" || len(date) < len("YYYY") {
 		return
 	}
 	set, ok := h.byFile[file]
@@ -62,7 +73,7 @@ func (h *History) add(file, email string, year int, where source) {
 		set = make(map[contribution]source)
 		h.byFile[file] = set
 	}
-	c := contribution{email: email, year: year}
+	c := contribution{email: email, date: date}
 	if _, seen := set[c]; seen && where.commit != "" {
 		return
 	}
@@ -102,18 +113,23 @@ func (a attribution) newer(b attribution) bool {
 
 // Contributions returns the newest contribution each organization made to file,
 // and the identities the configuration has never heard of.
+// Contributions the configuration froze are left out of both:
+// see [Config.Since] for why that history is not read again.
 func (h *History) Contributions(file string, r *Resolver) (map[string]attribution, []string) {
 	orgs := make(map[string]attribution)
 	unmapped := make(map[string]struct{})
 	for c, where := range h.byFile[file] {
-		org, ok := r.Org(c.email, c.year)
+		if r.Frozen(c.date) {
+			continue
+		}
+		org, ok := r.Org(c.email, c.date)
 		if !ok {
 			if !r.Known(c.email) {
 				unmapped[c.email] = struct{}{}
 			}
 			continue
 		}
-		a := attribution{year: c.year, email: c.email, source: where}
+		a := attribution{year: c.year(), email: c.email, source: where}
 		if best, seen := orgs[org]; seen && !a.newer(best) {
 			continue
 		}
@@ -170,8 +186,7 @@ func LoadHistory(git gitRunner) (*History, error) {
 		return p
 	}
 
-	var email string
-	var year int
+	var email, date string
 	var where source
 	var renames [][2]string
 	scanner := bufio.NewScanner(bytes.NewReader(out))
@@ -186,16 +201,13 @@ func LoadHistory(git gitRunner) (*History, error) {
 			if len(fields) != 3 {
 				return nil, fmt.Errorf("malformed git log header: %q", line)
 			}
-			email = fields[1]
-			where = source{date: fields[2], commit: fields[0]}
-			// The date leads with the year, which is all a claim needs.
-			if len(fields[2]) < 4 {
-				return nil, fmt.Errorf("malformed date in %q", line)
+			email, date = fields[1], fields[2]
+			// A malformed date would compare wrongly against the spans in
+			// affiliations.json, and silently attribute the work elsewhere.
+			if _, err := time.Parse(time.DateOnly, date); err != nil {
+				return nil, fmt.Errorf("malformed date in %q: %w", line, err)
 			}
-			year, err = strconv.Atoi(fields[2][:4])
-			if err != nil {
-				return nil, fmt.Errorf("malformed year in %q: %w", line, err)
-			}
+			where = source{date: date, commit: fields[0]}
 			continue
 		}
 		if line == "" {
@@ -204,13 +216,13 @@ func LoadHistory(git gitRunner) (*History, error) {
 		fields := strings.Split(line, "\t")
 		switch {
 		case len(fields) == 2:
-			h.add(resolve(fields[1]), email, year, where)
+			h.add(resolve(fields[1]), email, date, where)
 		case len(fields) == 3 && strings.HasPrefix(fields[0], "R"):
-			h.add(resolve(fields[2]), email, year, where)
+			h.add(resolve(fields[2]), email, date, where)
 			renames = append(renames, [2]string{fields[1], fields[2]})
 		case len(fields) == 3 && strings.HasPrefix(fields[0], "C"):
 			// A copy leaves the original untouched.
-			h.add(resolve(fields[2]), email, year, where)
+			h.add(resolve(fields[2]), email, date, where)
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -228,7 +240,9 @@ func applyRenames(present map[string]string, resolve func(string) string, rename
 }
 
 // AddWorkingTree attributes staged, unstaged and untracked changes to the
-// current user in the current year.
+// current user in the current year. Such work carries no date of its own,
+// so the author's affiliation is read at the end of the year it is claimed for,
+// the newest day that year can stand for.
 // Work in progress is what most often needs a fresh copyright line.
 // The identity is only looked up once there is such work, so a clean tree needs none.
 func (h *History) AddWorkingTree(git gitRunner, year int) error {
@@ -240,8 +254,9 @@ func (h *History) AddWorkingTree(git gitRunner, year int) error {
 	if err != nil {
 		return err
 	}
+	date := fmt.Sprintf("%d-12-31", year)
 	for _, file := range files {
-		h.add(file, email, year, source{})
+		h.add(file, email, date, source{})
 	}
 	return nil
 }

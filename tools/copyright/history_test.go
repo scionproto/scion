@@ -65,13 +65,13 @@ func TestLoadHistory(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, map[contribution]source{
-		{email: "new@scion.org", year: 2026}:   on(2026, "h4"),
-		{email: "mid@anapaya.net", year: 2024}: on(2024, "h3"),
-		{email: "old@anapaya.net", year: 2020}: on(2020, "h2"),
-		{email: "old@anapaya.net", year: 2019}: on(2019, "h1"),
+		{email: "new@scion.org", date: "2026-01-01"}:   on(2026, "h4"),
+		{email: "mid@anapaya.net", date: "2024-01-01"}: on(2024, "h3"),
+		{email: "old@anapaya.net", date: "2020-01-01"}: on(2020, "h2"),
+		{email: "old@anapaya.net", date: "2019-01-01"}: on(2019, "h1"),
 	}, h.byFile["now/here.go"], "renames followed to the present name")
 	require.Equal(t, map[contribution]source{
-		{email: "old@anapaya.net", year: 2020}: on(2020, "h2"),
+		{email: "old@anapaya.net", date: "2020-01-01"}: on(2020, "h2"),
 	}, h.byFile["other.go"])
 	require.NotContains(t, h.byFile, "was/there.go")
 	require.NotContains(t, h.byFile, "original.go")
@@ -117,6 +117,32 @@ func TestContributions(t *testing.T) {
 		"the bot is excluded on purpose, and the mover is known")
 }
 
+// TestContributionsFrozen checks that the cutoff keeps settled history out of a run,
+// the addresses it could not attribute included.
+func TestContributionsFrozen(t *testing.T) {
+	log := commitOn("h3", "who@anapaya.net", "2026-02-01", "M\tfile.go") +
+		commitOn("h2", "stranger@example.com", "2020-06-01", "M\tfile.go") +
+		commitOn("h1", "mover@example.com", "2019-01-01", "A\tfile.go")
+
+	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
+	require.NoError(t, err)
+
+	r := testResolver(t)
+	orgs, unmapped := h.Contributions("file.go", r)
+	require.Len(t, orgs, 2, "without a cutoff the whole history counts")
+	require.Equal(t, []string{"stranger@example.com"}, unmapped)
+
+	r.since = "2025-01-01"
+	orgs, unmapped = h.Contributions("file.go", r)
+	require.Equal(t, map[string]attribution{
+		"Anapaya Systems": {
+			year: 2026, email: "who@anapaya.net",
+			source: source{date: "2026-02-01", commit: "h3"},
+		},
+	}, orgs, "the frozen years claim nothing, however the affiliations read")
+	require.Empty(t, unmapped, "a frozen contribution is not a gap to report")
+}
+
 // TestAddWorkingTree checks that uncommitted work counts.
 // A file must get its copyright line in the same change that edits it.
 func TestAddWorkingTree(t *testing.T) {
@@ -135,7 +161,7 @@ func TestAddWorkingTree(t *testing.T) {
 	})
 	require.NoError(t, h.AddWorkingTree(git, 2026))
 
-	me := map[contribution]source{{email: "who@scion.org", year: 2026}: {}}
+	me := map[contribution]source{{email: "who@scion.org", date: "2026-12-31"}: {}}
 	for _, file := range []string{
 		"modified.go", "untracked.go", "added.go", "renamed.go", "staged-and-dirty.go",
 	} {
@@ -202,14 +228,37 @@ func TestContributionsCitesNewestEvidence(t *testing.T) {
 }
 
 // TestContributionsKeepsNewestCommitPerIdentity checks that the older of two
-// commits by one identity in one year is not what gets cited.
+// commits by one identity on one day is not what gets cited.
 func TestContributionsKeepsNewestCommitPerIdentity(t *testing.T) {
 	log := commitOn("h2", "a@scion.org", "2025-11-30", "M\tfile.go") +
-		commitOn("h1", "a@scion.org", "2025-03-04", "M\tfile.go")
+		commitOn("h1", "a@scion.org", "2025-11-30", "M\tfile.go")
 	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
 	require.NoError(t, err)
 	require.Equal(t, source{date: "2025-11-30", commit: "h2"},
-		h.byFile["file.go"][contribution{email: "a@scion.org", year: 2025}])
+		h.byFile["file.go"][contribution{email: "a@scion.org", date: "2025-11-30"}])
+}
+
+// TestContributionsFollowAMidYearMove checks that a move between organizations
+// splits the year it happens in: what a date-bounded affiliation is for.
+func TestContributionsFollowAMidYearMove(t *testing.T) {
+	// testResolver has Mover at ETH Zurich until the end of 2022.
+	log := commitOn("h2", "mover@example.com", "2023-02-01", "M\tfile.go") +
+		commitOn("h1", "mover@example.com", "2022-11-30", "M\tfile.go")
+	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
+	require.NoError(t, err)
+
+	orgs, unmapped := h.Contributions("file.go", testResolver(t))
+	require.Equal(t, map[string]attribution{
+		"SCION Association": {
+			year: 2023, email: "mover@example.com",
+			source: source{date: "2023-02-01", commit: "h2"},
+		},
+		"ETH Zurich": {
+			year: 2022, email: "mover@example.com",
+			source: source{date: "2022-11-30", commit: "h1"},
+		},
+	}, orgs)
+	require.Empty(t, unmapped)
 }
 
 // TestGoFiles checks that only Go files are considered, without duplicates.

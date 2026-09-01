@@ -29,6 +29,8 @@ func TestEmbeddedConfig(t *testing.T) {
 	assert.NotEmpty(t, cfg.Organizations)
 	assert.NotEmpty(t, cfg.Domains)
 	assert.NotEmpty(t, cfg.Contributors)
+	assert.NotEmpty(t, cfg.Since,
+		"a cutoff must be set, or every run would need a -dates file")
 }
 
 // TestLoadConfigRejects covers the validation that stops a mistyped
@@ -36,7 +38,12 @@ func TestEmbeddedConfig(t *testing.T) {
 func TestLoadConfigRejects(t *testing.T) {
 	testCases := map[string]string{
 		"no organizations": `{"organizations": []}`,
-		"unknown field":    `{"organizations": ["A"], "orgnisations": []}`,
+		"malformed since":  `{"since": "2026-9-1", "organizations": ["A"]}`,
+		"since that is not a day": `{
+			"since": "2026-09",
+			"organizations": ["A"]
+		}`,
+		"unknown field": `{"organizations": ["A"], "orgnisations": []}`,
 		"organization with a comma": `{
 			"organizations": ["Some Corp, Inc."]
 		}`,
@@ -51,7 +58,7 @@ func TestLoadConfigRejects(t *testing.T) {
 		"contributor of an undeclared organization": `{
 			"organizations": ["A"],
 			"contributors": [
-				{"name": "N", "emails": ["n@x"], "affiliations": [{"org": "B"}]}
+				{"name": "N", "emails": ["n@x"], "affiliations": ["B"]}
 			]
 		}`,
 		"contributor without affiliations": `{
@@ -61,15 +68,28 @@ func TestLoadConfigRejects(t *testing.T) {
 		"email claimed twice": `{
 			"organizations": ["A"],
 			"contributors": [
-				{"name": "N", "emails": ["n@x"], "affiliations": [{"org": "A"}]},
-				{"name": "M", "emails": ["N@X"], "affiliations": [{"org": "A"}]}
+				{"name": "N", "emails": ["n@x"], "affiliations": ["A"]},
+				{"name": "M", "emails": ["N@X"], "affiliations": ["A"]}
 			]
 		}`,
-		"affiliation ending before it starts": `{
+		"contributor declared twice": `{
+			"organizations": ["A"],
+			"contributors": [
+				{"name": "N", "emails": ["n@x"], "affiliations": ["A"]},
+				{"name": "N", "emails": ["n@y"], "affiliations": ["A"]}
+			]
+		}`,
+		"organization listed twice for one contributor": `{
+			"organizations": ["A"],
+			"contributors": [
+				{"name": "N", "emails": ["n@x"], "affiliations": ["A", "A"]}
+			]
+		}`,
+		"dated affiliation, which belongs in a -dates file": `{
 			"organizations": ["A"],
 			"contributors": [
 				{"name": "N", "emails": ["n@x"],
-				 "affiliations": [{"org": "A", "from": 2020, "until": 2018}]}
+				 "affiliations": [{"org": "A", "from": "2020-01-01"}]}
 			]
 		}`,
 	}
@@ -85,40 +105,49 @@ func TestResolverOrg(t *testing.T) {
 	r := testResolver(t)
 	testCases := map[string]struct {
 		email string
-		year  int
+		date  string
 		org   string
 	}{
 		"by domain": {
-			email: "who@anapaya.net", year: 2020, org: "Anapaya Systems",
+			email: "who@anapaya.net", date: "2020-06-01", org: "Anapaya Systems",
 		},
 		"domain case is irrelevant": {
-			email: "Who@Anapaya.NET", year: 2020, org: "Anapaya Systems",
+			email: "Who@Anapaya.NET", date: "2020-06-01", org: "Anapaya Systems",
 		},
 		"unknown domain": {
-			email: "who@example.com", year: 2020, org: "",
+			email: "who@example.com", date: "2020-06-01", org: "",
 		},
 		"mover, before the move": {
-			email: "mover@example.com", year: 2020, org: "ETH Zurich",
+			email: "mover@example.com", date: "2020-06-01", org: "ETH Zurich",
 		},
 		"mover, after the move": {
-			email: "mover@example.com", year: 2024, org: "SCION Association",
+			email: "mover@example.com", date: "2024-06-01", org: "SCION Association",
 		},
 		"mover, between affiliations": {
-			email: "mover@example.com", year: 2017, org: "",
+			email: "mover@example.com", date: "2017-06-01", org: "",
+		},
+		"mover, on the first day of an affiliation": {
+			email: "mover@example.com", date: "2018-01-01", org: "ETH Zurich",
+		},
+		"mover, on the last day of an affiliation": {
+			email: "mover@example.com", date: "2022-12-31", org: "ETH Zurich",
+		},
+		"mover, the day after an affiliation ends": {
+			email: "mover@example.com", date: "2023-01-01", org: "SCION Association",
 		},
 		"ignored address": {
-			email: "bot@example.com", year: 2024, org: "",
+			email: "bot@example.com", date: "2024-06-01", org: "",
 		},
 		"not an address": {
-			email: "nobody", year: 2024, org: "",
+			email: "nobody", date: "2024-06-01", org: "",
 		},
 		"empty": {
-			email: "", year: 2024, org: "",
+			email: "", date: "2024-06-01", org: "",
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			org, ok := r.Org(tc.email, tc.year)
+			org, ok := r.Org(tc.email, tc.date)
 			assert.Equal(t, tc.org, org)
 			assert.Equal(t, tc.org != "", ok)
 		})
@@ -134,6 +163,18 @@ func TestResolverKnown(t *testing.T) {
 	assert.True(t, r.Known("bot@example.com"))
 	assert.False(t, r.Known("stranger@example.com"))
 	assert.False(t, r.Known("nobody"))
+}
+
+// TestResolverFrozen checks the cutoff that keeps a run without -dates
+// away from history the headers already record.
+func TestResolverFrozen(t *testing.T) {
+	r := testResolver(t)
+	assert.False(t, r.Frozen("1970-01-01"), "no cutoff leaves everything in scope")
+
+	r.since = "2026-09-01"
+	assert.True(t, r.Frozen("2026-08-31"))
+	assert.False(t, r.Frozen("2026-09-01"), "the cutoff day itself is in scope")
+	assert.False(t, r.Frozen("2026-09-02"))
 }
 
 func TestKnownOrg(t *testing.T) {

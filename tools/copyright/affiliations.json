@@ -1,4 +1,5 @@
 {
+  "since": "2026-09-01",
   "organizations": [
     "Anapaya Systems",
     "ETH Zurich",
@@ -15,117 +16,193 @@
   },
   "contributors": [
     {
+      "name": "Aaron Bojarski",
+      "emails": ["70529471+aaronbojarski@users.noreply.github.com", "abojarski@student.ethz.ch"],
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Andrea Tulimiero",
+      "emails": ["tulimiero.andrea@gmail.com"],
+      "affiliations": ["ETH Zurich"]
+    },
+    {
       "name": "Anton Ovchinnikov",
       "emails": ["revolver112@gmail.com"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2015, "until": 2015}]
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Benjamin Rothenberger",
+      "emails": ["benjamin.rothenberger@bluewin.ch", "benjamin.rothenberger@gmail.com"],
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Chris Pappas",
       "emails": ["chrispappas12@gmail.com"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2014, "until": 2015}]
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "David Barrera",
       "emails": ["davidbb@users.noreply.github.com"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2014, "until": 2015}]
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Dominik Roos",
       "emails": ["domi.roos@gmail.com"],
-      "affiliations": [{"org": "Anapaya Systems", "from": 2019}]
+      "affiliations": ["Anapaya Systems"]
+    },
+    {
+      "name": "Ercan Ucan",
+      "emails": ["ercanucan@users.noreply.github.com", "ercanucan@gmail.com"],
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Fabio Streun",
+      "emails": ["19747564+fstreun@users.noreply.github.com", "fabio.streun@inf.ethz.ch"],
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Frank Wirz",
       "emails": ["FR4NK-W@users.noreply.github.com"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2016}]
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Hendrik Zuellig",
       "emails": ["15653429+hendrikzuellig@users.noreply.github.com"],
-      "affiliations": [{"org": "Anapaya Systems", "from": 2022}]
+      "affiliations": ["Anapaya Systems"]
     },
     {
       "name": "Jason Lee",
       "emails": ["jasonlee0513@gmail.com"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2015, "until": 2016}]
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Joao Pereira",
+      "emails": ["joaopereira.19@gmail.com"],
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Jordi Subira Nieto",
+      "emails": ["jordi.subira.nieto@gmail.com"],
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Juan A. Garcia Pardo",
       "emails": ["juagargi@gmail.com"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2018, "until": 2022}]
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Katya Titkova",
+      "emails": ["katyatitkova@gmail.com"],
+      "affiliations": ["SCION Association"]
     },
     {
       "name": "Konstantinos Karampogias",
       "emails": ["karampok@gmail.com"],
-      "affiliations": [{"org": "Anapaya Systems", "from": 2020}]
+      "affiliations": ["Anapaya Systems"]
     },
     {
       "name": "Lars-Christian Schulz",
       "emails": ["larschristianschulz0@gmail.com"],
-      "affiliations": [{"org": "OVGU Magdeburg", "from": 2024}]
+      "affiliations": ["OVGU Magdeburg"]
     },
     {
       "name": "Lukas Bischofberger",
       "emails": ["me@worx.li"],
-      "affiliations": [{"org": "Anapaya Systems", "from": 2019}]
+      "affiliations": ["Anapaya Systems"]
     },
     {
       "name": "Lukas Vogel",
       "emails": ["lukedirtwalker@gmail.com"],
-      "affiliations": [{"org": "Anapaya Systems", "from": 2020}]
+      "affiliations": ["Anapaya Systems"]
+    },
+    {
+      "name": "Marc Frei",
+      "emails": ["marcfrei@users.noreply.github.com", "marc.frei@gmail.com"],
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Markus Legner",
+      "emails": ["mlegner@users.noreply.github.com"],
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Marten Gartner",
+      "emails": ["martenwallewein@web.de"],
+      "affiliations": ["OVGU Magdeburg"]
     },
     {
       "name": "Matthias Frei",
       "emails": ["42933359+matzf@users.noreply.github.com"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2018, "until": 2021}]
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Pawel Szalachowski",
       "emails": ["pawel.szalachowski@gmail.com"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2014, "until": 2016}]
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Pratyaksh Sharma",
       "emails": ["pratyakshs@users.noreply.github.com"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2015, "until": 2015}]
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Roman Sharkov",
       "emails": ["roman.scharkov@gmail.com", "rsc@scion.org"],
-      "affiliations": [{"org": "SCION Association", "from": 2025}]
+      "affiliations": ["SCION Association"]
     },
     {
       "name": "Samuel Hitz",
       "emails": ["samuel.hitz@gmail.com", "samuel.hitz@gmail"],
-      "affiliations": [{"org": "Anapaya Systems", "from": 2020}]
+      "affiliations": ["Anapaya Systems"]
     },
     {
       "name": "Sebastian Leisinger",
       "emails": ["bot.sebastian.leisinger@posteo.de"],
-      "affiliations": [{"org": "Anapaya Systems", "from": 2021}]
+      "affiliations": ["Anapaya Systems"]
     },
     {
       "name": "Sergio Gonzalez Monroy",
       "emails": ["sgmonroy@gmail.com"],
-      "affiliations": [{"org": "Anapaya Systems", "from": 2019}]
+      "affiliations": ["Anapaya Systems"]
+    },
+    {
+      "name": "Sergiu Costea",
+      "emails": ["sergiu.costea@gmail.com", "costea@anapaya.net"],
+      "affiliations": ["Anapaya Systems"]
+    },
+    {
+      "name": "Stephen Shirley",
+      "emails": ["kormat@gmail.com"],
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Steve Matsumoto",
       "emails": ["syclops@users.noreply.github.com", "steve@stevematsumoto.net"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2014, "until": 2016}]
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "Tilmann Zaeschke",
       "emails": ["tilmann_dev@gmx.de"],
-      "affiliations": [{"org": "ETH Zurich", "from": 2024}]
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Tobias Buner",
+      "emails": ["32924537+bunert@users.noreply.github.com", "buner@anapaya.net"],
+      "affiliations": ["Anapaya Systems"]
+    },
+    {
+      "name": "Tobias Klausmann",
+      "emails": ["klausman@users.noreply.github.com", "klausman@i-no.de", "klausman@schwarzvogel.de"],
+      "affiliations": ["ETH Zurich"]
     },
     {
       "name": "jiceatscion",
       "emails": [
+        "jice@scion.org",
         "139873336+jiceatscion@users.noreply.github.com",
         "139873336+jiceathome@users.noreply.github.com"
       ],
-      "affiliations": [{"org": "SCION Association", "from": 2023}]
+      "affiliations": ["SCION Association"]
     }
   ],
   "ignoreEmails": [

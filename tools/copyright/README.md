@@ -38,34 +38,33 @@ it can be added to the configuration.
 Leaving an identity out is safe. Guessing its affiliation is not.
 
 Uncommitted work is attributed to `git config user.email` and the current year.
-Without a `user.email`, the tool stops with an error. To go by git history alone,
-pass `-committed-only`, which needs no identity.
+It carries no date of its own, so the author's affiliation is read at the end of
+that year. Without a `user.email`, the tool stops with an error.
+To go by git history alone, pass `-committed-only`, which needs no identity.
 
 ## affiliations.json
 
-Resolution order for an (email, year) pair:
+Resolution order for an (email, date) pair:
 
 1. an entry in `contributors` whose `emails` contains the address
 2. the domain of the address in `domains`
 3. otherwise unaffiliated: nothing is claimed
 
-Affiliations are time-bounded, because people change employer while keeping the
-same address:
+An affiliation is an organization name, and carries no date:
 
 ```json
 {
   "name": "Some Contributor",
   "emails": ["some@example.com", "contributor@scion.org"],
-  "affiliations": [
-    {"org": "ETH Zurich", "from": 2018, "until": 2022},
-    {"org": "SCION Association", "from": 2023}
-  ]
+  "affiliations": ["ETH Zurich", "SCION Association"]
 }
 ```
 
-`from` and `until` are inclusive years and either may be omitted for an open end.
-A year covered by no affiliation claims nothing, which is how work from
-before a contributor joined any of these organizations stays unclaimed.
+That is all this file says. The dates live in a separate file, described below,
+which is neither embedded nor read by default: the repository does not
+publish when someone worked where. Without it the first organization listed
+answers for every day that address contributed, and `since` bounds how far
+back such a run may look.
 
 `ignoreEmails` drops bots. There is deliberately no list of excluded paths:
 which files are ours to edit is read from each file's header.
@@ -74,6 +73,77 @@ Nothing needs keeping in sync as files come and go.
 Adding an entry can only add claims,
 which makes it safe to re-run the tool after editing the configuration.
 `go test ./tools/copyright` validates the embedded configuration.
+
+## Affiliation dates
+
+People change employer while keeping the same address, and the day of the move
+splits that year's commits between the two organizations. `-dates` points at a
+file that records those spans:
+
+```json
+[
+  {
+    "name": "Some Contributor",
+    "affiliations": [
+      {"org": "ETH Zurich", "from": "2018-09-01", "until": "2022-11-30"},
+      {"org": "SCION Association", "from": "2022-12-01"}
+    ]
+  }
+]
+```
+
+```sh
+go run ./tools/copyright -w -dates ~/affiliation-dates.json
+```
+
+`from` and `until` are inclusive `YYYY-MM-DD` dates and either may be omitted
+for an open end. Where the exact day is unknown, `-01-01` and `-12-31` bound the
+year without claiming more than it. A day covered by no affiliation claims nothing,
+which is how work from before a contributor joined any of these
+organizations stays unclaimed.
+
+The file is a list of contributors that affiliations.json declares, named by
+`name`, and it must give each of them the same organizations it does, in the
+order they should be tried. Dating someone it does not declare, or leaving out
+an organization it gives them, is an error rather than a silent change of
+holder.
+
+Running without `-dates` claims more than running with it: a contributor who
+left an organization keeps claiming for it. The `since` cutoff keeps such a run
+off the history where that would show. See below.
+
+## The `since` cutoff
+
+`since` in affiliations.json is a `YYYY-MM-DD` day. Contributions made before it
+are not attributed at all, so a plain `make copyright-update` cannot reach the
+history the headers already record:
+
+```json
+{
+  "since": "2026-09-01",
+  "organizations": ["..."]
+}
+```
+
+Claims are only ever added. A run without `-dates` reads every affiliation as
+covering every day, so it can credit an organization the author had left, and
+that line then stays even once the dates are supplied. A cutoff puts that
+history out of reach instead.
+
+Passing `-dates` lifts the cutoff, since the dates are what date that history.
+`since` then moves to the day of that run:
+
+```sh
+go run ./tools/copyright -w -dates ~/affiliation-dates.json
+```
+
+A configuration with no `since` at all is an error without `-dates`: that run
+puts the whole history in scope with nothing to date it by, which is the case
+that misattributes work.
+
+The invariant: affiliations.json describes today, and the dates file describes
+what happened before `since`. When someone changes employer, date the move in
+the dates file, run with `-dates`, and advance `since` in the same commit.
 
 ## Not part of make lint
 

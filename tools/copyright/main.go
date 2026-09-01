@@ -45,10 +45,19 @@ func main() {
 // Only main acts on it, to distinguish a failed check from a failed run.
 var errOutdated = errors.New("copyright lines are out of date")
 
+// errNoDates reports a run with the whole history in scope and nothing to date
+// it by. Undated affiliations cover every day, so such a run can claim work for
+// an organization the author had left, and a claim is never taken back.
+// See [Config.Since].
+var errNoDates = errors.New("no \"since\" cutoff in affiliations.json and " +
+	"no -dates file: undated affiliations cover the whole history, " +
+	"which claims old work for the wrong organization; set \"since\", or pass -dates")
+
 type options struct {
 	write     bool
 	year      int
 	dir       string
+	dates     string
 	skipDirty bool
 	verbose   bool
 	// repo is the repository root. paths are pathspecs relative to it,
@@ -70,6 +79,9 @@ func run(args []string, out io.Writer) error {
 		"year to attribute uncommitted changes to (default: current system year)")
 	fs.StringVar(&opts.dir, "dir", ".",
 		"directory to process, recursively (default: the current directory)")
+	fs.StringVar(&opts.dates, "dates", "",
+		"file giving the days each affiliation covers, see README.md "+
+			"(default: none, every affiliation covers every day)")
 	fs.BoolVar(&opts.skipDirty, "committed-only", false,
 		"ignore uncommitted changes, considering git history alone")
 	fs.BoolVar(&opts.verbose, "v", false,
@@ -91,6 +103,16 @@ func run(args []string, out io.Writer) error {
 	conf, err := LoadConfig(nil)
 	if err != nil {
 		return err
+	}
+	if opts.dates != "" {
+		if err := applyDates(conf, opts.dates); err != nil {
+			return err
+		}
+		// Dates say which organization a commit belongs to whenever it was made,
+		// so drop the cutoff and read the whole history.
+		conf.Since = ""
+	} else if conf.Since == "" {
+		return errNoDates
 	}
 	resolver := conf.NewResolver()
 
@@ -120,6 +142,22 @@ func run(args []string, out io.Writer) error {
 	rep.print(out, opts)
 	if len(rep.outdated) > 0 && !opts.write {
 		return errOutdated
+	}
+	return nil
+}
+
+// applyDates dates the affiliations of conf from the file at path.
+func applyDates(conf *Config, path string) error {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	dates, err := LoadDates(raw)
+	if err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	if err := conf.ApplyDates(dates); err != nil {
+		return fmt.Errorf("%s: %w", path, err)
 	}
 	return nil
 }

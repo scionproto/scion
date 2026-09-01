@@ -18,15 +18,31 @@
 // For every file it collects the identities that changed it, in git history and
 // in the working tree, maps each identity to an organization via the embedded
 // affiliations.json, and gives that organization a claim for the most recent
-// year it contributed. Each line the report adds or moves cites the
-// contribution it rests on: the author, and the commit and date it came from,
-// or "uncommitted".
+// year it contributed.
+//
+// affiliations.json says who belongs to which organization, not when.
+// -dates points at an optional file giving the days each affiliation covers,
+// which matters for people who changed employer while keeping the same address.
+// Without it, an affiliation covers every day.
+//
+// The "since" day in affiliations.json freezes the history before it.
+// Those contributions are already recorded in the headers, and reading them again
+// without the dates could only claim them for the wrong organization.
+// Passing -dates lifts the cutoff, since the dates are what date that history;
+// a configuration with no cutoff at all therefore requires them.
+// Apply the dates and advance the cutoff in the same change,
+// and no later run touches settled claims.
+//
+// Each line the report adds or moves cites the contribution it rests on:
+// the author, and the commit and date it came from, or "uncommitted".
 //
 // Claims are only added or moved forward, never dropped and never moved back,
 // because git history is not the only evidence of authorship.
 //
-// Uncommitted work is credited to git config user.email. Without one, the tool
-// stops with an error rather than leave that work out and call every header up to date.
+// Uncommitted work is credited to git config user.email, and the author's
+// affiliation is read at the end of the year it is claimed for.
+// Without an address the tool stops with an error,
+// rather than leave that work out and call every header up to date.
 // Use -committed-only to ask for git history alone.
 //
 // Some files are left untouched: generated files, third-party notices,
@@ -50,4 +66,7 @@
 //	# a subtree somewhere else, or single files within it
 //	go run ./tools/copyright -w -dir router
 //	go run ./tools/copyright -w -dir router dataplane.go svc.go
+//	# with the dates the affiliations held for, which puts the whole history in scope:
+//	# advance "since" in affiliations.json in the same change
+//	go run ./tools/copyright -w -dates ~/affiliation-dates.json
 package main
