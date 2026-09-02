@@ -108,6 +108,6 @@ logger.log
 #########
 .vagrant
 
-# copyright tool: affiliation dates are kept out of the repository
-###################################################################
-/tools/copyright/affiliation-dates.json
+# copyright tool: the affiliation history is kept out of the repository
+#######################################################################
+/tools/copyright/affiliation-history.json

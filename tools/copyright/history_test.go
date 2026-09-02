@@ -117,32 +117,6 @@ func TestContributions(t *testing.T) {
 		"the bot is excluded on purpose, and the mover is known")
 }
 
-// TestContributionsFrozen checks that the cutoff keeps settled history out of a run,
-// the addresses it could not attribute included.
-func TestContributionsFrozen(t *testing.T) {
-	log := commitOn("h3", "who@anapaya.net", "2026-02-01", "M\tfile.go") +
-		commitOn("h2", "stranger@example.com", "2020-06-01", "M\tfile.go") +
-		commitOn("h1", "mover@example.com", "2019-01-01", "A\tfile.go")
-
-	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
-	require.NoError(t, err)
-
-	r := testResolver(t)
-	orgs, unmapped := h.Contributions("file.go", r)
-	require.Len(t, orgs, 2, "without a cutoff the whole history counts")
-	require.Equal(t, []string{"stranger@example.com"}, unmapped)
-
-	r.since = "2025-01-01"
-	orgs, unmapped = h.Contributions("file.go", r)
-	require.Equal(t, map[string]attribution{
-		"Anapaya Systems": {
-			year: 2026, email: "who@anapaya.net",
-			source: source{date: "2026-02-01", commit: "h3"},
-		},
-	}, orgs, "the frozen years claim nothing, however the affiliations read")
-	require.Empty(t, unmapped, "a frozen contribution is not a gap to report")
-}
-
 // TestAddWorkingTree checks that uncommitted work counts.
 // A file must get its copyright line in the same change that edits it.
 func TestAddWorkingTree(t *testing.T) {

@@ -113,15 +113,10 @@ func (a attribution) newer(b attribution) bool {
 
 // Contributions returns the newest contribution each organization made to file,
 // and the identities the configuration has never heard of.
-// Contributions the configuration froze are left out of both:
-// see [Config.Since] for why that history is not read again.
 func (h *History) Contributions(file string, r *Resolver) (map[string]attribution, []string) {
 	orgs := make(map[string]attribution)
 	unmapped := make(map[string]struct{})
 	for c, where := range h.byFile[file] {
-		if r.Frozen(c.date) {
-			continue
-		}
 		org, ok := r.Org(c.email, c.date)
 		if !ok {
 			if !r.Known(c.email) {

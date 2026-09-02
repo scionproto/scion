@@ -20,18 +20,14 @@
 // affiliations.json, and gives that organization a claim for the most recent
 // year it contributed.
 //
-// affiliations.json says who belongs to which organization, not when.
-// -dates points at an optional file giving the days each affiliation covers,
-// which matters for people who changed employer while keeping the same address.
-// Without it, an affiliation covers every day.
+// affiliations.json is undated: it says where people work now, so an affiliation
+// covers every day, and someone who has not contributed in a year is dropped.
 //
-// The "since" day in affiliations.json freezes the history before it.
-// Those contributions are already recorded in the headers, and reading them again
-// without the dates could only claim them for the wrong organization.
-// Passing -dates lifts the cutoff, since the dates are what date that history;
-// a configuration with no cutoff at all therefore requires them.
-// Apply the dates and advance the cutoff in the same change,
-// and no later run touches settled claims.
+// -history points at an optional file that dates the affiliations instead,
+// for a rewrite of older history: people change employer, and the snapshot has
+// dropped others outright. It replaces that snapshot rather than refining it,
+// so it carries its own addresses; only the organizations, domains and ignored
+// addresses still come from affiliations.json. Every span needs a "from" day.
 //
 // Each line the report adds or moves cites the contribution it rests on:
 // the author, and the commit and date it came from, or "uncommitted".
@@ -41,10 +37,11 @@
 //
 // -verify turns that around and checks the claims already in the headers,
 // reporting every organization no contribution accounts for, and removing it under -w.
-// It needs -dates, since the cutoff hides the contributions the older
-// claims rest on, and it leaves a file's claims as given when an identity that
-// touched it has no known affiliation. Even then the answer is a question,
-// not a verdict: code moves between files by hand, and work can predate this repository.
+// It needs -history, since the snapshot alone finds nothing behind a claim for an
+// organization its contributor has left, and it leaves a file's claims as given
+// when an identity that touched it has no known affiliation. Even then the answer
+// is a question, not a verdict: code moves between files by hand,
+// and work can predate this repository.
 // Read the report before writing it.
 //
 // Uncommitted work is credited to git config user.email, and the author's
@@ -74,9 +71,9 @@
 //	# a subtree somewhere else, or single files within it
 //	go run ./tools/copyright -w -dir router
 //	go run ./tools/copyright -w -dir router dataplane.go svc.go
-//	# with the dates the affiliations held for, which puts the whole history in scope:
-//	# advance "since" in affiliations.json in the same change
-//	go run ./tools/copyright -w -dates tools/copyright/affiliation-dates.json
+//	# rewrite older history from the days the affiliations held for,
+//	# in place of the snapshot in affiliations.json
+//	go run ./tools/copyright -w -history tools/copyright/affiliation-history.json
 //	# ask which claims no contribution accounts for, without touching anything
-//	go run ./tools/copyright -v -verify -dates tools/copyright/affiliation-dates.json
+//	go run ./tools/copyright -v -verify -history tools/copyright/affiliation-history.json
 package main

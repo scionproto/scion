@@ -34,17 +34,18 @@ func testResolver(t *testing.T) *Resolver {
 		},
 		Contributors: []Contributor{
 			{
-				Name:         "Mover",
-				Emails:       []string{"mover@example.com"},
-				Affiliations: []string{"SCION Association", "ETH Zurich"},
+				Name:        "Mover",
+				Emails:      []string{"mover@example.com"},
+				Affiliation: "SCION Association",
 			},
 		},
 		IgnoreEmails: []string{"bot@example.com"},
 	}
 	require.NoError(t, cfg.validate())
-	require.NoError(t, cfg.ApplyDates(Dates{{
-		Name: "Mover",
-		Affiliations: []Affiliation{
+	require.NoError(t, cfg.ApplyHistory(AffiliationHistory{{
+		Name:   "Mover",
+		Emails: []string{"mover@example.com"},
+		Affiliations: []AffiliationSpan{
 			{Org: "SCION Association", From: "2023-01-01"},
 			{Org: "ETH Zurich", From: "2018-01-01", Until: "2022-12-31"},
 		},

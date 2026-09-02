@@ -29,8 +29,6 @@ func TestEmbeddedConfig(t *testing.T) {
 	assert.NotEmpty(t, cfg.Organizations)
 	assert.NotEmpty(t, cfg.Domains)
 	assert.NotEmpty(t, cfg.Contributors)
-	assert.NotEmpty(t, cfg.Since,
-		"a cutoff must be set, or every run would need a -dates file")
 }
 
 // TestLoadConfigRejects covers the validation that stops a mistyped
@@ -38,12 +36,11 @@ func TestEmbeddedConfig(t *testing.T) {
 func TestLoadConfigRejects(t *testing.T) {
 	testCases := map[string]string{
 		"no organizations": `{"organizations": []}`,
-		"malformed since":  `{"since": "2026-9-1", "organizations": ["A"]}`,
-		"since that is not a day": `{
-			"since": "2026-09",
+		"unknown field":    `{"organizations": ["A"], "orgnisations": []}`,
+		"the since cutoff, which no longer exists": `{
+			"since": "2026-09-01",
 			"organizations": ["A"]
 		}`,
-		"unknown field": `{"organizations": ["A"], "orgnisations": []}`,
 		"organization with a comma": `{
 			"organizations": ["Some Corp, Inc."]
 		}`,
@@ -58,38 +55,38 @@ func TestLoadConfigRejects(t *testing.T) {
 		"contributor of an undeclared organization": `{
 			"organizations": ["A"],
 			"contributors": [
-				{"name": "N", "emails": ["n@x"], "affiliations": ["B"]}
+				{"name": "N", "emails": ["n@x"], "affiliation": "B"}
 			]
 		}`,
-		"contributor without affiliations": `{
+		"contributor without an affiliation": `{
 			"organizations": ["A"],
-			"contributors": [{"name": "N", "emails": ["n@x"], "affiliations": []}]
+			"contributors": [{"name": "N", "emails": ["n@x"], "affiliation": ""}]
 		}`,
 		"email claimed twice": `{
 			"organizations": ["A"],
 			"contributors": [
-				{"name": "N", "emails": ["n@x"], "affiliations": ["A"]},
-				{"name": "M", "emails": ["N@X"], "affiliations": ["A"]}
+				{"name": "N", "emails": ["n@x"], "affiliation": "A"},
+				{"name": "M", "emails": ["N@X"], "affiliation": "A"}
 			]
 		}`,
 		"contributor declared twice": `{
 			"organizations": ["A"],
 			"contributors": [
-				{"name": "N", "emails": ["n@x"], "affiliations": ["A"]},
-				{"name": "N", "emails": ["n@y"], "affiliations": ["A"]}
+				{"name": "N", "emails": ["n@x"], "affiliation": "A"},
+				{"name": "N", "emails": ["n@y"], "affiliation": "A"}
 			]
 		}`,
-		"organization listed twice for one contributor": `{
+		"several affiliations, which belong in an affiliation history": `{
 			"organizations": ["A"],
 			"contributors": [
-				{"name": "N", "emails": ["n@x"], "affiliations": ["A", "A"]}
+				{"name": "N", "emails": ["n@x"], "affiliations": ["A"]}
 			]
 		}`,
-		"dated affiliation, which belongs in a -dates file": `{
+		"dated affiliation, which belongs in an affiliation history": `{
 			"organizations": ["A"],
 			"contributors": [
 				{"name": "N", "emails": ["n@x"],
-				 "affiliations": [{"org": "A", "from": "2020-01-01"}]}
+				 "affiliation": {"org": "A", "from": "2020-01-01"}}
 			]
 		}`,
 	}
@@ -163,18 +160,6 @@ func TestResolverKnown(t *testing.T) {
 	assert.True(t, r.Known("bot@example.com"))
 	assert.False(t, r.Known("stranger@example.com"))
 	assert.False(t, r.Known("nobody"))
-}
-
-// TestResolverFrozen checks the cutoff that keeps a run without -dates
-// away from history the headers already record.
-func TestResolverFrozen(t *testing.T) {
-	r := testResolver(t)
-	assert.False(t, r.Frozen("1970-01-01"), "no cutoff leaves everything in scope")
-
-	r.since = "2026-09-01"
-	assert.True(t, r.Frozen("2026-08-31"))
-	assert.False(t, r.Frozen("2026-09-01"), "the cutoff day itself is in scope")
-	assert.False(t, r.Frozen("2026-09-02"))
 }
 
 func TestKnownOrg(t *testing.T) {

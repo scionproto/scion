@@ -175,9 +175,10 @@ func (h *header) update(contributions map[string]int) []claim {
 // A line that loses all its holders is dropped with them.
 //
 // A claim with nothing behind it in git is not proof of a mistake.
-// Code moves between files by hand, work can predate this repository, and history the
-// "since" cutoff hides is not read at all. That is why -verify asks for this,
-// rather than every run doing it, and why it needs the whole history.
+// Code moves between files by hand, work can predate this repository, and an
+// organization its contributor has since left holds copyright all the same.
+// That is why -verify asks for this, rather than every run doing it,
+// and why it needs the dated affiliation history.
 //
 // The claims cannot all fall away. A file is only processed when it has contributions,
 // and [header.update] gives every contributing organization a claim,

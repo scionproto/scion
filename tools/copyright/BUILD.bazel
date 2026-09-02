@@ -4,8 +4,8 @@ load("//tools:go.bzl", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "affiliation_history.go",
         "config.go",
-        "dates.go",
         "doc.go",
         "header.go",
         "history.go",
@@ -25,8 +25,8 @@ go_binary(
 go_test(
     name = "go_default_test",
     srcs = [
+        "affiliation_history_test.go",
         "config_test.go",
-        "dates_test.go",
         "header_test.go",
         "history_test.go",
     ],

@@ -45,26 +45,19 @@ func main() {
 // Only main acts on it, to distinguish a failed check from a failed run.
 var errOutdated = errors.New("copyright lines are out of date")
 
-// errNoDates reports a run with the whole history in scope and nothing to date
-// it by. Undated affiliations cover every day, so such a run can claim work for
-// an organization the author had left, and a claim is never taken back.
-// See [Config.Since].
-var errNoDates = errors.New("no \"since\" cutoff in affiliations.json and " +
-	"no -dates file: undated affiliations cover the whole history, " +
-	"which claims old work for the wrong organization; set \"since\", or pass -dates")
-
-// errVerifyNeedsDates reports -verify without the dates it needs.
-// The cutoff hides the contributions the older claims rest on,
-// so every one of them would be reported, and -w would then remove them all.
-var errVerifyNeedsDates = errors.New("-verify needs -dates: " +
-	"the \"since\" cutoff hides the contributions the older claims rest on, " +
-	"so without the dates every one of them looks unaccounted for")
+// errVerifyNeedsHistory reports -verify without the affiliation history it needs.
+// affiliations.json says where people work today, so a claim held by an
+// organization its contributor has since left has no contribution behind it,
+// and -w would remove a line that is right.
+var errVerifyNeedsHistory = errors.New("-verify needs -history: " +
+	"affiliations.json says where people work today, so a claim for an " +
+	"organization its contributor has since left looks unaccounted for")
 
 type options struct {
 	write     bool
 	year      int
 	dir       string
-	dates     string
+	history   string
 	verify    bool
 	skipDirty bool
 	verbose   bool
@@ -87,13 +80,14 @@ func run(args []string, out io.Writer) error {
 		"year to attribute uncommitted changes to (default: current system year)")
 	fs.StringVar(&opts.dir, "dir", ".",
 		"directory to process, recursively (default: the current directory)")
-	fs.StringVar(&opts.dates, "dates", "",
-		"file giving the days each affiliation covers, see README.md "+
-			"(default: none, every affiliation covers every day)")
+	fs.StringVar(&opts.history, "history", "",
+		"file giving the days each affiliation covered, for rewriting older "+
+			"history, see README.md (default: none, affiliations.json answers "+
+			"for every day)")
 	fs.BoolVar(&opts.verify, "verify", false,
 		"also check the claims already in the headers, and report every one "+
 			"that no contribution in git history accounts for; -w removes them. "+
-			"Needs -dates, and holds off on files whose contributors are not "+
+			"Needs -history, and holds off on files whose contributors are not "+
 			"all known (default: existing claims are taken as given)")
 	fs.BoolVar(&opts.skipDirty, "committed-only", false,
 		"ignore uncommitted changes, considering git history alone")
@@ -117,18 +111,14 @@ func run(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if opts.dates != "" {
-		if err := applyDates(conf, opts.dates); err != nil {
+	if opts.history != "" {
+		// The history stands in for the snapshot in affiliations.json,
+		// which is why the two are never read together.
+		if err := applyHistory(conf, opts.history); err != nil {
 			return err
 		}
-		// Dates say which organization a commit belongs to whenever it was made,
-		// so drop the cutoff and read the whole history.
-		conf.Since = ""
-	} else if conf.Since == "" {
-		return errNoDates
-	}
-	if opts.verify && opts.dates == "" {
-		return errVerifyNeedsDates
+	} else if opts.verify {
+		return errVerifyNeedsHistory
 	}
 	resolver := conf.NewResolver()
 
@@ -162,17 +152,17 @@ func run(args []string, out io.Writer) error {
 	return nil
 }
 
-// applyDates dates the affiliations of conf from the file at path.
-func applyDates(conf *Config, path string) error {
+// applyHistory dates the affiliations of conf from the file at path.
+func applyHistory(conf *Config, path string) error {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	dates, err := LoadDates(raw)
+	history, err := LoadAffiliationHistory(raw)
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
-	if err := conf.ApplyDates(dates); err != nil {
+	if err := conf.ApplyHistory(history); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
 	return nil
