@@ -5,7 +5,7 @@ See [doc.go](doc.go) for documentation, or use `go doc ./tools/copyright`.
 By default it reports how many files are out of date, and which identities it could not
 attribute. Under `-v`, every line it adds or moves cites the contribution behind it:
 
-```
+```txt
 private/storage/beacon/sqlite/db.go
     - // Copyright 2019 Anapaya Systems
     + // Copyright 2025 Anapaya Systems    (roos@anapaya.net, 2025-09-30 38e79c43f)
@@ -155,7 +155,7 @@ the dates file, run with `-dates`, and advance `since` in the same commit.
 By default an existing claim is taken as given. `-verify` checks them too,
 and reports every organization that no contribution to that file accounts for:
 
-```
+```txt
 pkg/private/util/fs.go
     - // Copyright 2019 ETH Zurich       (no contribution from ETH Zurich)
     + // Copyright 2022 Anapaya Systems  (roos@anapaya.net, 2022-03-12 15d455f11)
