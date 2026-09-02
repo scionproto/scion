@@ -15,7 +15,7 @@ go_library(
         "//testing/clab/testgen/instructions:go_default_library",
         "//testing/clab/testgen/out:go_default_library",
         "//testing/clab/testgen/topo:go_default_library",
-        "@in_gopkg_yaml_v3//:go_default_library",
+        "@in_yaml_go_yaml_v4//:go_default_library",
     ],
 )
 
