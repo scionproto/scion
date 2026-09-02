@@ -187,4 +187,3 @@ someone else's patch. Read the report and decide; don't pipe it into `-w`.
 of the license text. It does not know who worked on the file.
 
 `make copyright-check` reports what is out of date; `make copyright-update` rewrites it.
-Neither is wired into `make lint`, deliberately, to avoid slowing down CI.

@@ -107,6 +107,9 @@ steps:
       timeout_in_minutes: 20
     - label: "Check Generated :bash:"
       command:
+        # Runs first: the sections below dirty the working tree it reads.
+        - echo "--- copyright"
+        - make copyright-check
         - echo "--- go.mod"
         - mkdir -p /tmp/test-artifacts
         - cp go.mod go.sum /tmp/test-artifacts/
