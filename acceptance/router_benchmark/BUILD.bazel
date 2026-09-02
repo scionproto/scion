@@ -32,15 +32,47 @@ data = [
     "//tools/mmbm:mmbm",
 ]
 
+# The router benchmarks are excluded from CI. Some underlays require special hardware and
+# driver support that CI agents do not provide. The AF_XDP underlay, for instance, falls back
+# to XDP_COPY without a driver that supports XDP_ZEROCOPY, which does not measure what the
+# benchmark is meant to measure. Performance regression testing is scheduled on baremetal.
 raw_test(
-    name = "test",
+    name = "test_afxdp",
     src = "test.py",
-    args = args,
+    args = args + [
+        "--underlay",
+        "afxdp",
+    ],
     data = data,
     homedir = "$(rootpath //docker:router.tarball)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
+    tags = ["manual"],
     deps = ["benchmarklib"],
+)
+
+raw_test(
+    name = "test_inet",
+    src = "test.py",
+    args = args + [
+        "--underlay",
+        "inet",
+    ],
+    data = data,
+    homedir = "$(rootpath //docker:router.tarball)",
+    # This test uses sudo and accesses /var/run/netns.
+    local = True,
+    tags = ["manual"],
+    deps = ["benchmarklib"],
+)
+
+test_suite(
+    name = "test",
+    tags = ["manual"],
+    tests = [
+        ":test_afxdp",
+        ":test_inet",
+    ],
 )
 
 py_library(
@@ -48,8 +80,6 @@ py_library(
     srcs = ["benchmarklib.py"],
 )
 
-# To ensure that the linter runs over this. Cannot actually be run with
-# bazel run; it is meant to be executed from the command line.
 py_binary(
     name = "benchmark",
     srcs = ["benchmark.py"],
@@ -57,9 +87,7 @@ py_binary(
         "--brload",
         "$(location //acceptance/router_benchmark/brload:brload)",
     ],
-    data = [
-        "//acceptance/router_benchmark/brload",
-    ],
+    data = data,
     imports = ["."],
     visibility = ["//visibility:public"],
     deps = [

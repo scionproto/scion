@@ -22,6 +22,8 @@ import shutil
 import time
 import os
 
+import toml
+
 from acceptance.common import base
 from benchmarklib import Intf, RouterBM
 from collections import defaultdict, namedtuple
@@ -38,6 +40,14 @@ BM_PACKET_SIZE = 1500
 
 # Router profiling ON or OFF?
 PROFILING = False
+
+# DEBUG run: set this to True to reduce number of packets and skip microbenchmarks and warmup.
+DEBUG_RUN = False
+
+# MAX_CPUS: the total number of cpus that the test will try to harness. The standard for this
+# test is 5: 2 for brload and 3 for the router. Any different number invalidates the performance
+# index (which will be reported as 0).
+MAX_CPUS = 5
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
@@ -73,13 +83,13 @@ def choose_cpus_from_unshared_cache(caches: list[int], cores: list[int]) -> list
     is the configuration that causes the least performance variability.
 
     Returns:
-      A list of up to 4 vcpus. All are first choice.
+      A list of up to MAX_CPUS vcpus. All are first choice.
     """
 
     chosen = [cpus[0] for cpus in caches.values() if len(cpus) == 1]
 
     logger.info(f"CPUs from unshared cache: best={len(chosen)}")
-    return sorted(chosen)[0:4]
+    return sorted(chosen)[0:MAX_CPUS]
 
 
 def choose_cpus_from_single_cache(caches: list[int], cores: list[int]) -> list[int]:
@@ -93,16 +103,16 @@ def choose_cpus_from_single_cache(caches: list[int], cores: list[int]) -> list[i
     activities.
 
     Returns:
-      A list of up to 4 vcpus. The ones at the head of the list are the best.
+      A list of up to MAX_CPUS vcpus. The ones at the head of the list are the best.
     """
 
     best = {cpus[0] for cpus in cores.values() if len(cpus) == 1}
     chosen = set()
     for cpus in caches.values():
         chosen = set(cpus) & best
-        if len(chosen) >= 4:
+        if len(chosen) >= MAX_CPUS:
             logger.info(f"CPUs from single cache: best={len(chosen)}")
-            return sorted(chosen)[0:4]
+            return sorted(chosen)[0:MAX_CPUS]
 
     # Not enough. Add second-best CPUs (one from each hyperthreaded core)
     # and filter the cache sets again.
@@ -122,7 +132,7 @@ def choose_cpus_from_single_cache(caches: list[int], cores: list[int]) -> list[i
                 f"best={len(chosen & best)} "
                 f"second_best={len(chosen & second_best)}")
 
-    return (sorted(chosen & best) + sorted(chosen & second_best))[0:4]
+    return (sorted(chosen & best) + sorted(chosen & second_best))[0:MAX_CPUS]
 
 
 def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int]:
@@ -130,13 +140,13 @@ def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int
 
     This variant gives up on cache discrimination and applies only the second level criteria:
 
-    Collect up to 4 cpus by selecting, in that order:
+    Collect up to MAX_CPUS cpus by selecting, in that order:
     * cpus of non-hyperthreaded cores.
     * only one cpu of each hyperthreaded core.
     * any remaining cpu.
 
     Returns:
-      A list of up to 4 vcpus. The ones at the head of the list are the best.
+      A list of up to MAX_CPUS vcpus. The ones at the head of the list are the best.
     """
 
     cpus_by_core = list(cores.values())  # What we get is a list of cpu groups.
@@ -150,7 +160,7 @@ def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int
     quality += 1
 
     # Collect the rest, one round at a time.
-    while len(cpus_by_core) > 0 and len(chosen) < 4:
+    while len(cpus_by_core) > 0 and len(chosen) < MAX_CPUS:
         other = ([cpus.pop(0) for cpus in cpus_by_core])
         cpus_by_core = [cpus for cpus in cpus_by_core if len(cpus) > 0]
         report[quality] += len(other)
@@ -161,7 +171,7 @@ def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int
                 f"best={report[0]} second_best={report[1]} other={report[2]}")
 
     # The last round can get too many, so truncate to promised length.
-    return chosen[0:4]
+    return chosen[0:MAX_CPUS]
 
 
 class RouterBMTest(base.TestBase, RouterBM):
@@ -185,21 +195,25 @@ class RouterBMTest(base.TestBase, RouterBM):
     Pretend traffic is injected by brload's. See the test cases for details.
     """
 
-    # TODO(jiceatscion): We construct intf_map during setup and we use it later, during
-    # _run(). As a result, running setup, run, at teardown separately is not possible for
-    # this test. May be it would be possible to reconstruct the map without actually setup the
-    # interfaces, assuming brload isn't being changed in-between.
+    # We construct intf_map during setup and we use it later, during _run(). As a result, running
+    # setup, run, and teardown separately is difficult.  During run and teardown, we reconstruct the
+    # map without actually setup the interfaces. This assumes that brload isn't being changed
+    # in-between, since the map is based on the requirements that it outputs.
 
+    debug_run: bool = DEBUG_RUN
     router_cpus: list[int] = [0]
 
     # Used by the RouterBM mixin:
     coremark: int = 0
     mmbm: int = 0
+    log_level: str = "error"
     packet_size: int = BM_PACKET_SIZE
     intf_map: dict[str, Intf] = {}
     brload: LocalCommand = None
     brload_cpus: list[int] = [0]
     prom_address: str = "localhost:9999"
+    intern_over_args = []
+    public_over_args = []
 
     ci = cli.Flag(
         "ci",
@@ -215,9 +229,9 @@ class RouterBMTest(base.TestBase, RouterBM):
         self.choose_cpus()
 
     def choose_cpus(self):
-        """Chooses 4 cpus and assigns 3 for the router and 1 for the blaster.
+        """Chooses MAX_CPUS cpus and assigns 1 to the blaster and the rest to the router.
 
-        Try various policies in decreasing order of preference. We use fewer than 4 cores
+        Try various policies in decreasing order of preference. We use fewer than MAX_CPUS cores
         only as a last resort
         """
 
@@ -249,25 +263,25 @@ class RouterBMTest(base.TestBase, RouterBM):
             cores[core].append(cpu)
 
         chosen = choose_cpus_from_unshared_cache(caches, cores)
-        if len(chosen) < 4:
+        if len(chosen) < MAX_CPUS:
             chosen = choose_cpus_from_single_cache(caches, cores)
-        if len(chosen) < 4:
+        if len(chosen) < MAX_CPUS:
             chosen = choose_cpus_from_best_cores(caches, cores)
 
         # Make the best of what we got. All but the last cpu go to the router. Those are the
         # best choice.
-        if len(chosen) == 1:
+        if len(chosen) < 3:
             # When you have lemons...
             self.router_cpus = chosen
             self.brload_cpus = chosen
         else:
-            self.router_cpus = chosen[:-1]
-            self.brload_cpus = chosen[-1:]
+            self.router_cpus = chosen[:-2]
+            self.brload_cpus = chosen[-2:]
 
         logger.info(f"router cpus: {self.router_cpus}")
         logger.info(f"brload cpus: {self.brload_cpus}")
 
-    def create_interface(self, req: IntfReq, ns: str):
+    def create_interface(self, req: IntfReq, ns: str, doit: bool):
         """Creates a pair of virtual interfaces, with one end in the given network namespace and the
         other in the host stack.
 
@@ -306,7 +320,10 @@ class RouterBMTest(base.TestBase, RouterBM):
             * The IP address to be assigned to that interface.
             * The IP address of one neighbor.
           ns: The network namespace where that interface must exist.
-
+          doit: If true, do it for real. Else, assume it is already done and just re-populate the
+                interface map. That is necessary for split operations, where test_setup, test_run,
+                and test_teardown are used. Of course this will only work well if requested
+                interfaces have not changed.
         """
 
         phys_label = req.label if req.exclusive == "true" else "mx"
@@ -323,40 +340,45 @@ class RouterBMTest(base.TestBase, RouterBM):
         else:
             peer_mac = mac_for_ip(req.peer_ip)
             mac = mac_for_ip(req.ip)
-            sudo("ip", "link", "add", host_intf, "type", "veth", "peer", "name", br_intf)
-            sudo("ip", "link", "set", host_intf, "mtu", "9000")
-            sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure the real addr isn't used
+            if doit:
+                # Create veth pair with MTU set at creation (like router_multi)
+                sudo("ip", "link", "add", host_intf, "mtu", "3400",
+                     "type", "veth", "peer", "name", br_intf, "mtu", "3400")
+                sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure real addr not used
 
-            # Do not assign the host addresses but create one link-local addr.
-            # Brload needs some src IP to send arp requests.
-            sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
-                 "broadcast", "169.254.255.255",
-                 "dev", host_intf, "scope", "link")
+                # Do not assign the host addresses but create one link-local addr.
+                # Brload needs some src IP to send arp requests.
+                sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
+                     "broadcast", "169.254.255.255",
+                     "dev", host_intf, "scope", "link")
 
-            sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
-            sudo("ethtool", "-K", br_intf, "rx", "off", "tx", "off")
-            sudo("ip", "link", "set", br_intf, "mtu", "9000")
-            sudo("ip", "link", "set", br_intf, "address", mac)
+                sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
+                # Bring host interface up BEFORE moving container interface to namespace
+                sudo("ip", "link", "set", host_intf, "up")
 
-            # The network namespace
-            sudo("ip", "link", "set", br_intf, "netns", ns)
+                sudo("ip", "link", "set", br_intf, "address", mac)
+
+                # The network namespace
+                sudo("ip", "link", "set", br_intf, "netns", ns)
+                sudo("ip", "netns", "exec", ns,
+                     "sysctl", "-qw", f"net.ipv6.conf.{br_intf}.disable_ipv6=1")
+                sudo("ip", "netns", "exec", ns,
+                     "ethtool", "-K", br_intf, "rx", "off", "tx", "off")
+                sudo("ip", "netns", "exec", ns,
+                     "sysctl", "-qw", "net.ipv4.conf.all.rp_filter=0")
+                sudo("ip", "netns", "exec", ns,
+                     "sysctl", "-qw", f"net.ipv4.conf.{br_intf}.rp_filter=0")
+
+        if doit:
+            # Add the router side IP addresses (even if we're multiplexing on an existing intf).
             sudo("ip", "netns", "exec", ns,
-                 "sysctl", "-qw", f"net.ipv6.conf.{br_intf}.disable_ipv6=1")
-            sudo("ip", "netns", "exec", ns,
-                 "sysctl", "-qw", "net.ipv4.conf.all.rp_filter=0")
-            sudo("ip", "netns", "exec", ns,
-                 "sysctl", "-qw", f"net.ipv4.conf.{br_intf}.rp_filter=0")
+                 "ip", "addr", "add", f"{req.ip}/{req.prefix_len}",
+                 "broadcast",
+                 ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False).broadcast_address,
+                 "dev", br_intf)
 
-        # Add the router side IP addresses (even if we're multiplexing on an existing interface).
-        sudo("ip", "netns", "exec", ns,
-             "ip", "addr", "add", f"{req.ip}/{req.prefix_len}",
-             "broadcast",
-             ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False).broadcast_address,
-             "dev", br_intf)
-
-        # Fit for duty.
-        sudo("ip", "link", "set", host_intf, "up")
-        sudo("ip", "netns", "exec", ns, "ip", "link", "set", br_intf, "up")
+            # Bring container interface up after all configuration
+            sudo("ip", "netns", "exec", ns, "ip", "link", "set", br_intf, "up")
 
         # Ship it.
         self.intf_map[req.label] = Intf(host_intf, mac, peer_mac)
@@ -366,6 +388,8 @@ class RouterBMTest(base.TestBase, RouterBM):
             self.profiling_addr = req.ip
 
     def fetch_horsepower(self):
+        if self.debug_run:
+            return
         try:
             coremark_exe = self.get_executable("coremark")
             output = taskset("-c", self.router_cpus[0], coremark_exe.executable)
@@ -389,11 +413,43 @@ class RouterBMTest(base.TestBase, RouterBM):
         except Exception as e:
             logger.info(e)
 
+    # Args:
+    #   doit: If True, the interfaces realy need to be created. Otherwise, this is just to re-
+    #         populate the map (needed if invoked in several phases (setup, run, teardown).
+    #
+    def create_interfaces(self, doit: bool):
+        # Run test brload test with --show-interfaces and set up the veth that it needs.
+        # The router uses one end and the test uses the other end to feed it with (and possibly
+        # capture) traffic.
+        # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
+        output = self.brload("show-interfaces")
+        for line in output.splitlines():
+            elems = line.split(",")
+            if len(elems) != 5:
+                continue
+            t = IntfReq._make(elems)
+
+            # If we're supposed to re-populate the map with already created interfaces, and if we
+            # see that the map is already populated; we can just stop.
+            if t.label in self.intf_map and not doit:
+                break
+            self.create_interface(t, "benchmark", doit)
+
     def setup_prepare(self):
         super().setup_prepare()
 
         # get the config where the router can find it.
         shutil.copytree("acceptance/router_benchmark/conf/", self.artifacts / "conf")
+
+        if self.underlay is not None:
+            config_path = self.artifacts / "conf" / "router.toml"
+            with open(config_path, "r") as f:
+                config = toml.load(f)
+            config.setdefault("router", {})["preferred_underlays"] = {
+                "udpip": self.underlay,
+            }
+            with open(config_path, "w") as f:
+                toml.dump(config, f)
 
         # We need a custom network so can create veth interfaces of our own chosing.
         docker("network", "create",  "-d", "bridge", "benchmark")
@@ -426,21 +482,15 @@ class RouterBMTest(base.TestBase, RouterBM):
         # value 64, so that packets sent from router will match the expected value.
         sudo("ip", "netns", "exec", "benchmark", "sysctl", "-w", "net.ipv4.ip_default_ttl=64")
 
-        # Run test brload test with --show-interfaces and set up the veth that it needs.
-        # The router uses one end and the test uses the other end to feed it with (and possibly
-        # capture) traffic.
-        # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
-        output = self.brload("show-interfaces")
-
-        for line in output.splitlines():
-            elems = line.split(",")
-            if len(elems) != 5:
-                continue
-            t = IntfReq._make(elems)
-            self.create_interface(t, "benchmark")
+        self.create_interfaces(True)
 
         # Now the router can start.
         docker("run",
+               "--cap-add=NET_RAW",
+               "--cap-add=NET_ADMIN",
+               "--cap-add=BPF",
+               "--cap-add=SYS_ADMIN",
+               "--cap-add=IPC_LOCK",
                "-v", f"{self.artifacts}/conf:/etc/scion",
                "-d",
                "-e", f"GOMAXPROCS={len(self.router_cpus)}",
@@ -469,8 +519,11 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         # We don't need that symlink any more
         sudo("rm", "/var/run/netns/benchmark")
+        logger.info("Setup complete")
 
     def teardown(self):
+        super().teardown()
+        self.create_interfaces(False)
         docker["logs", "router"].run_fg(retcode=None)
         docker("rm", "-f", "prometheus")
         docker("rm", "-f", "router")
@@ -478,6 +531,7 @@ class RouterBMTest(base.TestBase, RouterBM):
         sudo("chown", "-R", whoami().strip(), self.artifacts)
 
     def _run(self):
+        self.create_interfaces(False)
         results = self.run_bm(list(TEST_CASES.keys()))
         if results.cores != len(self.router_cpus):
             raise RuntimeError("Wrong number of cores used by the router; "

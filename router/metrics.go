@@ -90,7 +90,7 @@ func NewMetrics() *Metrics {
 				Name: "router_dropped_pkts_total",
 				Help: "Total number of packets dropped by the router.",
 			},
-			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "reason"},
+			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "type", "reason"},
 		),
 		InterfaceUp: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -182,6 +182,7 @@ const (
 	ttInTransit
 	ttOutTransit
 	ttBrTransit
+	ttSlowPath
 	ttMax
 )
 
@@ -198,6 +199,8 @@ func (t trafficType) String() string {
 		return "out_transit"
 	case ttBrTransit:
 		return "br_transit"
+	case ttSlowPath:
+		return "slow_path"
 	}
 	return "other"
 }
@@ -265,7 +268,7 @@ type trafficMetrics struct {
 	InputPacketsTotal           prometheus.Counter
 	DroppedPacketsInvalid       prometheus.Counter
 	DroppedPacketsBusyProcessor prometheus.Counter
-	DroppedPacketsBusyForwarder prometheus.Counter
+	DroppedPacketsBusyForwarder [ttMax]prometheus.Counter
 	DroppedPacketsBusySlowPath  prometheus.Counter
 	ProcessedPackets            prometheus.Counter
 	Output                      [ttMax]outputMetrics
@@ -306,36 +309,40 @@ func newTrafficMetrics(
 		ProcessedPackets:  metrics.ProcessedPackets.MustCurryWith(ifLabels).With(scLabels),
 	}
 
-	// Output metrics have the extra "trafficType" label.
-	for t := ttOther; t < ttMax; t++ {
-		ttLabels := prometheus.Labels{"type": t.String()}
-		c.Output[t] = newOutputMetrics(metrics, ifLabels, scLabels, ttLabels)
-	}
-
 	// Dropped metrics have the extra "Reason" label.
 	reasonMap := map[string]string{}
 
+	// Output metrics have the extra "trafficType" label and so does the dropped metrics with
+	// the reason "busy_forwarder".
+	reasonMap["reason"] = "busy_forwarder"
+	for t := ttOther; t < ttMax; t++ {
+		ttLabels := prometheus.Labels{"type": t.String()}
+		c.Output[t] = newOutputMetrics(metrics, ifLabels, scLabels, ttLabels)
+		c.DroppedPacketsBusyForwarder[t] = metrics.DroppedPacketsTotal.MustCurryWith(
+			ifLabels).MustCurryWith(scLabels).MustCurryWith(ttLabels).With(reasonMap)
+		c.DroppedPacketsBusyForwarder[t].Add(0)
+	}
+
+	ttLabels := prometheus.Labels{"type": ttOther.String()}
 	reasonMap["reason"] = "invalid"
 	c.DroppedPacketsInvalid =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(
+			ttLabels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_processor"
 	c.DroppedPacketsBusyProcessor =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).With(reasonMap)
-
-	reasonMap["reason"] = "busy_forwarder"
-	c.DroppedPacketsBusyForwarder =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(
+			ttLabels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_slow_path"
 	c.DroppedPacketsBusySlowPath =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(
+			ttLabels).With(reasonMap)
 
 	c.InputBytesTotal.Add(0)
 	c.InputPacketsTotal.Add(0)
 	c.DroppedPacketsInvalid.Add(0)
 	c.DroppedPacketsBusyProcessor.Add(0)
-	c.DroppedPacketsBusyForwarder.Add(0)
 	c.DroppedPacketsBusySlowPath.Add(0)
 	c.ProcessedPackets.Add(0)
 	return c
@@ -408,7 +415,7 @@ func UpdateOutputMetrics(metrics *InterfaceMetrics, packets []*Packet) {
 	for _, p := range packets {
 		s := len(p.RawPacket)
 		sc := ClassOfSize(s)
-		tt := p.trafficType
+		tt := p.TrafficType
 		writtenPkts[tt][sc]++
 		writtenBytes[tt][sc] += s
 	}
