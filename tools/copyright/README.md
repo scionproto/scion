@@ -94,8 +94,12 @@ file that records those spans:
 ```
 
 ```sh
-go run ./tools/copyright -w -dates ~/affiliation-dates.json
+go run ./tools/copyright -w -dates tools/copyright/affiliation-dates.json
 ```
+
+`.gitignore` reserves that path, so the file can sit next to the configuration
+uncommitted, but it may live anywhere. Through `make`, give an absolute path:
+`bazel run` does not start in the repository root.
 
 `from` and `until` are inclusive `YYYY-MM-DD` dates and either may be omitted
 for an open end. Where the exact day is unknown, `-01-01` and `-12-31` bound the
@@ -135,7 +139,7 @@ Passing `-dates` lifts the cutoff, since the dates are what date that history.
 `since` then moves to the day of that run:
 
 ```sh
-go run ./tools/copyright -w -dates ~/affiliation-dates.json
+go run ./tools/copyright -w -dates tools/copyright/affiliation-dates.json
 ```
 
 A configuration with no `since` at all is an error without `-dates`: that run
@@ -160,7 +164,7 @@ pkg/private/util/fs.go
 Read-only without `-w`, applied with it, like every other change:
 
 ```sh
-make copyright-check COPYRIGHT_FLAGS="-v -verify -dates ~/affiliation-dates.json"
+make copyright-check COPYRIGHT_FLAGS="-v -verify -dates $PWD/tools/copyright/affiliation-dates.json" > report.txt 2>/dev/null
 ```
 
 A shared line keeps its other holders, and no file loses all its claims: a file

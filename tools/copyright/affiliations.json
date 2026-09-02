@@ -1,18 +1,18 @@
 {
   "since": "2026-09-01",
   "organizations": [
+    "SCION Association",
     "Anapaya Systems",
     "ETH Zurich",
-    "OVGU Magdeburg",
-    "SCION Association"
+    "OVGU Magdeburg"
   ],
   "domains": {
+    "scion.org": "SCION Association",
     "anapaya.net": "Anapaya Systems",
     "ethz.ch": "ETH Zurich",
     "inf.ethz.ch": "ETH Zurich",
-    "ovgu.de": "OVGU Magdeburg",
-    "scion.org": "SCION Association",
-    "student.ethz.ch": "ETH Zurich"
+    "student.ethz.ch": "ETH Zurich",
+    "ovgu.de": "OVGU Magdeburg"
   },
   "contributors": [
     {
@@ -73,6 +73,11 @@
     {
       "name": "Jason Lee",
       "emails": ["jasonlee0513@gmail.com"],
+      "affiliations": ["ETH Zurich"]
+    },
+    {
+      "name": "Jelte van Bommel",
+      "emails": ["46663111+jeltevanbommel@users.noreply.github.com"],
       "affiliations": ["ETH Zurich"]
     },
     {

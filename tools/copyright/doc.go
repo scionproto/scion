@@ -76,7 +76,7 @@
 //	go run ./tools/copyright -w -dir router dataplane.go svc.go
 //	# with the dates the affiliations held for, which puts the whole history in scope:
 //	# advance "since" in affiliations.json in the same change
-//	go run ./tools/copyright -w -dates ~/affiliation-dates.json
+//	go run ./tools/copyright -w -dates tools/copyright/affiliation-dates.json
 //	# ask which claims no contribution accounts for, without touching anything
-//	go run ./tools/copyright -v -verify -dates ~/affiliation-dates.json
+//	go run ./tools/copyright -v -verify -dates tools/copyright/affiliation-dates.json
 package main
