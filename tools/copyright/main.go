@@ -53,11 +53,19 @@ var errNoDates = errors.New("no \"since\" cutoff in affiliations.json and " +
 	"no -dates file: undated affiliations cover the whole history, " +
 	"which claims old work for the wrong organization; set \"since\", or pass -dates")
 
+// errVerifyNeedsDates reports -verify without the dates it needs.
+// The cutoff hides the contributions the older claims rest on,
+// so every one of them would be reported, and -w would then remove them all.
+var errVerifyNeedsDates = errors.New("-verify needs -dates: " +
+	"the \"since\" cutoff hides the contributions the older claims rest on, " +
+	"so without the dates every one of them looks unaccounted for")
+
 type options struct {
 	write     bool
 	year      int
 	dir       string
 	dates     string
+	verify    bool
 	skipDirty bool
 	verbose   bool
 	// repo is the repository root. paths are pathspecs relative to it,
@@ -82,6 +90,11 @@ func run(args []string, out io.Writer) error {
 	fs.StringVar(&opts.dates, "dates", "",
 		"file giving the days each affiliation covers, see README.md "+
 			"(default: none, every affiliation covers every day)")
+	fs.BoolVar(&opts.verify, "verify", false,
+		"also check the claims already in the headers, and report every one "+
+			"that no contribution in git history accounts for; -w removes them. "+
+			"Needs -dates, and holds off on files whose contributors are not "+
+			"all known (default: existing claims are taken as given)")
 	fs.BoolVar(&opts.skipDirty, "committed-only", false,
 		"ignore uncommitted changes, considering git history alone")
 	fs.BoolVar(&opts.verbose, "v", false,
@@ -113,6 +126,9 @@ func run(args []string, out io.Writer) error {
 		conf.Since = ""
 	} else if conf.Since == "" {
 		return errNoDates
+	}
+	if opts.verify && opts.dates == "" {
+		return errVerifyNeedsDates
 	}
 	resolver := conf.NewResolver()
 
@@ -238,7 +254,11 @@ type report struct {
 	outdated []change
 	skipped  map[skipReason][]string
 	unmapped map[string][]string
-	changed  int
+	// unchecked lists the files -verify left the existing claims of alone,
+	// because an identity that touched them has no known affiliation and could
+	// be the very contributor a claim rests on.
+	unchecked []string
+	changed   int
 }
 
 // process brings each file's copyright lines up to date, writing them back when
@@ -279,6 +299,16 @@ func process(
 			continue
 		}
 		updated := hdr.update(years(contributions))
+		why := reasons(hdr.claims, updated, contributions)
+		if opts.verify {
+			if len(unmapped) > 0 {
+				rep.unchecked = append(rep.unchecked, file)
+			} else {
+				var doubted []string
+				updated, doubted = confirm(updated, contributions)
+				maps.Copy(why, doubts(hdr.claims, doubted))
+			}
+		}
 		before, after := renderClaims(hdr.claims), renderClaims(updated)
 		if slices.Equal(before, after) {
 			continue
@@ -287,7 +317,7 @@ func process(
 			file:   file,
 			before: before,
 			after:  after,
-			why:    reasons(hdr.claims, updated, contributions),
+			why:    why,
 		})
 		if !opts.write {
 			continue
@@ -344,7 +374,9 @@ func (rep *report) print(w io.Writer, opts options) {
 		for _, ch := range rep.outdated {
 			fmt.Fprintf(w, "%s\n", ch.file)
 			for _, line := range diffLines(ch.before, ch.after) {
-				why, ok := ch.why[strings.TrimPrefix(line, "+ ")]
+				why, ok := ch.why[strings.TrimPrefix(
+					strings.TrimPrefix(line, "+ "), "- ",
+				)]
 				if !ok {
 					// A dropped line is explained by the one that replaces it.
 					fmt.Fprintf(w, "    %s\n", line)
@@ -360,6 +392,15 @@ func (rep *report) print(w io.Writer, opts options) {
 			for _, f := range files {
 				fmt.Fprintf(w, "    %s\n", f)
 			}
+		}
+	}
+	if opts.verbose && len(rep.unchecked) > 0 {
+		gap()
+		fmt.Fprintf(w, "existing claims left as given, "+
+			"an identity that touched them has no known affiliation (%d):\n",
+			len(rep.unchecked))
+		for _, f := range rep.unchecked {
+			fmt.Fprintf(w, "    %s\n", f)
 		}
 	}
 	if len(rep.unmapped) > 0 {

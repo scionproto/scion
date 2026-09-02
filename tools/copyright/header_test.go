@@ -52,6 +52,56 @@ func testResolver(t *testing.T) *Resolver {
 	return cfg.NewResolver()
 }
 
+// TestConfirm covers the claims -verify reports, and removes under -w.
+func TestConfirm(t *testing.T) {
+	contributions := map[string]attribution{
+		"SCION Association": {year: 2026, email: "who@scion.org", source: on(2026, "h1")},
+		"Anapaya Systems":   {year: 2019, email: "who@anapaya.net", source: on(2019, "h2")},
+	}
+	claims := []claim{
+		{year: 2026, holders: []string{"SCION Association"}},
+		{year: 2019, holders: []string{"ETH Zurich", "Anapaya Systems"}},
+		{year: 2015, holders: []string{"ETH Zurich"}},
+	}
+
+	kept, unconfirmed := confirm(claims, contributions)
+	assert.Equal(t, []string{"ETH Zurich"}, unconfirmed)
+	assert.Equal(t, []claim{
+		{year: 2026, holders: []string{"SCION Association"}},
+		{year: 2019, holders: []string{"Anapaya Systems"}},
+	}, kept, "the shared line keeps its other holder, the lone line goes")
+
+	assert.Equal(t, map[string]string{
+		"// Copyright 2019 ETH Zurich, Anapaya Systems": "no contribution from ETH Zurich",
+		"// Copyright 2015 ETH Zurich":                  "no contribution from ETH Zurich",
+	}, doubts(claims, unconfirmed))
+}
+
+// TestConfirmKeepsEverythingClaimed checks that a fully accounted-for header is
+// left exactly as it was, so -verify reports nothing to do.
+func TestConfirmKeepsEverythingClaimed(t *testing.T) {
+	contributions := map[string]attribution{
+		"SCION Association": {year: 2026, email: "who@scion.org", source: on(2026, "h1")},
+	}
+	claims := []claim{{year: 2019, holders: []string{"SCION Association"}}}
+	kept, unconfirmed := confirm(claims, contributions)
+	assert.Empty(t, unconfirmed)
+	assert.Equal(t, claims, kept)
+	assert.Empty(t, doubts(claims, unconfirmed))
+}
+
+// TestConfirmLeavesAClaim checks that the claims never all fall away:
+// whatever the header said, the contributions an update folds in are accounted for.
+func TestConfirmLeavesAClaim(t *testing.T) {
+	hdr := &header{claims: []claim{{year: 2013, holders: []string{"ETH Zurich"}}}, end: 1}
+	contributions := map[string]attribution{
+		"Anapaya Systems": {year: 2026, email: "who@anapaya.net", source: on(2026, "h1")},
+	}
+	kept, unconfirmed := confirm(hdr.update(years(contributions)), contributions)
+	assert.Equal(t, []string{"ETH Zurich"}, unconfirmed)
+	assert.Equal(t, []claim{{year: 2026, holders: []string{"Anapaya Systems"}}}, kept)
+}
+
 const licenseBlock = `//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.

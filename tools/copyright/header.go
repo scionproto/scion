@@ -170,6 +170,58 @@ func (h *header) update(contributions map[string]int) []claim {
 	return claims
 }
 
+// confirm checks the claims against the contributions behind them.
+// It returns the claims that hold, and the organizations no contribution accounts for.
+// A line that loses all its holders is dropped with them.
+//
+// A claim with nothing behind it in git is not proof of a mistake.
+// Code moves between files by hand, work can predate this repository, and history the
+// "since" cutoff hides is not read at all. That is why -verify asks for this,
+// rather than every run doing it, and why it needs the whole history.
+//
+// The claims cannot all fall away. A file is only processed when it has contributions,
+// and [header.update] gives every contributing organization a claim,
+// which is by definition one that holds.
+func confirm(claims []claim, contributions map[string]attribution) ([]claim, []string) {
+	var unconfirmed []string
+	kept := make([]claim, 0, len(claims))
+	for _, c := range claims {
+		holders := make([]string, 0, len(c.holders))
+		for _, org := range c.holders {
+			if _, ok := contributions[org]; ok {
+				holders = append(holders, org)
+				continue
+			}
+			if !slices.Contains(unconfirmed, org) {
+				unconfirmed = append(unconfirmed, org)
+			}
+		}
+		if len(holders) > 0 {
+			kept = append(kept, claim{year: c.year, holders: holders})
+		}
+	}
+	slices.Sort(unconfirmed)
+	return kept, unconfirmed
+}
+
+// doubts explains each claim line [confirm] took a holder from, keyed by the
+// line as it read before. [reasons] covers the lines an update added instead.
+func doubts(old []claim, unconfirmed []string) map[string]string {
+	out := make(map[string]string, len(old))
+	for _, c := range old {
+		var gone []string
+		for _, org := range c.holders {
+			if slices.Contains(unconfirmed, org) {
+				gone = append(gone, org)
+			}
+		}
+		if len(gone) > 0 {
+			out[c.String()] = "no contribution from " + strings.Join(gone, ", ")
+		}
+	}
+	return out
+}
+
 // claimedYears is the highest year each organization already claims.
 func claimedYears(claims []claim) map[string]int {
 	claimed := make(map[string]int)

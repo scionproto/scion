@@ -39,6 +39,14 @@
 // Claims are only added or moved forward, never dropped and never moved back,
 // because git history is not the only evidence of authorship.
 //
+// -verify turns that around and checks the claims already in the headers,
+// reporting every organization no contribution accounts for, and removing it under -w.
+// It needs -dates, since the cutoff hides the contributions the older
+// claims rest on, and it leaves a file's claims as given when an identity that
+// touched it has no known affiliation. Even then the answer is a question,
+// not a verdict: code moves between files by hand, and work can predate this repository.
+// Read the report before writing it.
+//
 // Uncommitted work is credited to git config user.email, and the author's
 // affiliation is read at the end of the year it is claimed for.
 // Without an address the tool stops with an error,
@@ -69,4 +77,6 @@
 //	# with the dates the affiliations held for, which puts the whole history in scope:
 //	# advance "since" in affiliations.json in the same change
 //	go run ./tools/copyright -w -dates ~/affiliation-dates.json
+//	# ask which claims no contribution accounts for, without touching anything
+//	go run ./tools/copyright -v -verify -dates ~/affiliation-dates.json
 package main

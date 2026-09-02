@@ -16,6 +16,7 @@ private/storage/beacon/sqlite/db.go
 
 The tool only adds claims and moves years forward. It never drops a claim or
 moves a year back, because git history is not the only evidence of authorship.
+`-verify` is the one way to ask it to drop one; see below.
 
 It declines in these cases: `-v` lists them, and logs each file it rewrites:
 
@@ -144,6 +145,37 @@ that misattributes work.
 The invariant: affiliations.json describes today, and the dates file describes
 what happened before `since`. When someone changes employer, date the move in
 the dates file, run with `-dates`, and advance `since` in the same commit.
+
+## Claims nothing accounts for
+
+By default an existing claim is taken as given. `-verify` checks them too,
+and reports every organization that no contribution to that file accounts for:
+
+```
+pkg/private/util/fs.go
+    - // Copyright 2019 ETH Zurich       (no contribution from ETH Zurich)
+    + // Copyright 2022 Anapaya Systems  (roos@anapaya.net, 2022-03-12 15d455f11)
+```
+
+Read-only without `-w`, applied with it, like every other change:
+
+```sh
+make copyright-check COPYRIGHT_FLAGS="-v -verify -dates ~/affiliation-dates.json"
+```
+
+A shared line keeps its other holders, and no file loses all its claims: a file
+is only processed when it has contributions, and those get claims of their own.
+
+Two limits, both on purpose:
+
+- It needs `-dates`. The `since` cutoff hides the older contributions, so without
+  the dates every old claim would look unaccounted for.
+- It leaves a file's claims alone when someone who touched it has no known
+  affiliation: that person may be who a claim rests on. `-v` lists those files.
+
+**A claim with nothing behind it is a question, not a verdict.** Code gets copied
+between files by hand, work can predate this repository, and a commit can carry
+someone else's patch. Read the report and decide; don't pipe it into `-w`.
 
 ## Not part of make lint
 
