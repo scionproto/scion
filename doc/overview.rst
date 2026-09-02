@@ -52,14 +52,92 @@ ISD and AS Numbering
 SCION decouples :term:`endpoint` addressing from inter-domain routing.
 Routing is based on the ISD-AS tuple, agnostic of endpoint addressing.
 
-ISD numbers are 16-bit identifiers.
-The 48-bit AS numbers are globally unique, and use a superset of the existing BGP AS numbering
-scheme.
-Formatting rules and allocations are currently described in `wiki page "ISD and AS numbering" <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
+An ISD-AS number is 64 bits, with the top 16 bits indicating the ISD, and the bottom 48 bits indicating the AS. The text representation uses a ``-`` separator between the ISD and AS numbers. For example, ``4-ff00:1:f``.
 
-The endpoint local address is not used for inter-domain routing or forwarding, does not need to be
-globally unique, and can thus be an IPv4, IPv6, or MAC address, for example.
-A SCION endpoint address is the ``ISD-AS,local address`` 3-tuple.
+ISD and AS numbering is described in Section 1.5 "Addressing" of the `Control Plane Internet Draft <https://scionassociation.github.io/scion-cp_I-D/draft-dekater-scion-controlplane.html>`_. SCION ISD and AS numbers are assigned and registered by the `SCION Registry <https://www.scion.org/registry>`_, operated by the `SCION Association <https://www.scion.org>`_.
+
+ISD Numbers
+"""""""""""
+
+ISD numbers are 16-bit identifiers, formatted as decimal.
+
+.. list-table:: ISD Allocations
+   :header-rows: 1
+   :widths: 20 80
+
+   * - ISD
+     - Description
+   * - 0
+     - The wildcard ISD.
+   * - 1 - 15
+     - Reserved for documentation and sample code (analogous to
+       `RFC 5398 <http://www.iana.org/go/rfc5398>`_).
+   * - 16 - 63
+     - Private use (analogous to `RFC 6996 <http://www.iana.org/go/rfc6996>`_) -- can be used
+       for testing and private deployments.
+   * - 64 - 4094
+     - Public ISDs. They must be globally unique.
+   * - 4095
+     - Reserved.
+   * - 4096 - 65535
+     - Unallocated.
+
+AS Numbers
+""""""""""
+
+AS numbering is globally unique, and uses a superset of the existing BGP AS numbering scheme.
+
+The default formatting for AS numbers is similar to IPv6 (`RFC 5952 <https://tools.ietf.org/html/rfc5952>`_). It uses a 16-bit ``:``-separated lower-case hex encoding with leading zeros omitted: ``0:0:0`` to ``ffff:ffff:ffff``.
+
+Note that the ``::`` zero-compression feature of IPv6 is *not* supported. It has very limited use in a 48-bit address space and would add extra complexity for very little gain.
+
+As ``:`` is not a legal filename character on Windows and macOS, file or directory names containing an AS number should use ``_`` as a separator instead. For example, a directory for ``1-11:bc:1c`` could be ``ISD1-AS11_bc_1c``.
+
+In order to provide easy comparison with BGP AS numbers, any AS number in the BGP range (0 to 2\ :sup:`32` - 1) is represented as *decimal*. While it is legal to write a BGP AS number using the SCION AS syntax, programs should always use the decimal representation for display. For example, if a program receives ``0:1:f`` it would display it as ``65551``.
+
+.. list-table:: AS Allocations
+   :header-rows: 1
+   :widths: 30 15 55
+
+   * - AS
+     - Size
+     - Description
+   * - 0
+     - 1
+     - The wildcard AS.
+   * - 1 - 4294967295 (~\ ``0:0:0/16``)
+     - ~4.3 billion
+     - Mapped to 32-bit `BGP AS numbers <https://www.iana.org/assignments/as-numbers/>`_,
+       formatted as decimal. A BGP AS deploying SCION should use the same AS number for both
+       BGP and SCION.
+   * - ``1:0:0`` - ``1:ffff:ffff``
+     - ~4.3 billion
+     - Unallocated.
+   * - ``2:0:0`` - ``2:ffff:ffff``
+     - ~4.3 billion
+     - Public SCION AS numbers -- ASes created for SCION that are not existing BGP ASes.
+   * - ``3:0:0`` - ``feff:ffff:ffff``
+     - ~280 trillion
+     - Unallocated.
+   * - ``ff00:0:0/32``
+     - 65535
+     - Reserved for documentation and sample code (analogous to
+       `RFC 5398 <http://www.iana.org/go/rfc5398>`_).
+   * - ``ff00:1:0`` - ``ffa9:ffff:ffff``
+     - ~730 billion
+     - Unallocated.
+   * - ``ffaa:0:0`` - ``ffaa:ff:ffff``
+     - ~16.8 million
+     - Private use (analogous to `RFC 6996 <http://www.iana.org/go/rfc6996>`_) -- can be used
+       for testing and private deployments.
+   * - ``ffaa:100:0`` - ``ffff:ffff:fffe``
+     - ~369 billion
+     - Unallocated.
+   * - ``ffff:ffff:ffff``
+     - 1
+     - Reserved.
+
+The endpoint local address is not used for inter-domain routing or forwarding, does not need to be globally unique, and can thus be an IPv4, IPv6, or MAC address, for example. A SCION endpoint address is the ``ISD-AS,local address`` 3-tuple.
 
 .. _overview-as-roles:
 
