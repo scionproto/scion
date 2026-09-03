@@ -66,5 +66,6 @@ Join us in our #dev room on our federated [matrix instance](https://matrix.scion
 [![License](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
 
 For more details, please read our [Licensing Documentation](https://docs.scion.org/en/latest/dev/licensing.html).
+See [NOTICE](NOTICE) for attribution and patent information, including a patent pledge covering certain SCION technologies.
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
