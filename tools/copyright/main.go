@@ -57,6 +57,7 @@ type options struct {
 	write     bool
 	year      int
 	dir       string
+	base      string
 	history   string
 	verify    bool
 	skipDirty bool
@@ -80,6 +81,11 @@ func run(args []string, out io.Writer) error {
 		"year to attribute uncommitted changes to (default: current system year)")
 	fs.StringVar(&opts.dir, "dir", ".",
 		"directory to process, recursively (default: the current directory)")
+	fs.StringVar(&opts.base, "base", "origin/master",
+		"revision whose history is settled: without -history, only the commits "+
+			"it does not reach are read, which is the work on this branch. "+
+			"Empty reads the whole history, and affiliations.json then claims "+
+			"old work for whoever its contributors work for today")
 	fs.StringVar(&opts.history, "history", "",
 		"file giving the days each affiliation covered, for rewriting older "+
 			"history, see README.md (default: none, affiliations.json answers "+
@@ -100,7 +106,9 @@ func run(args []string, out io.Writer) error {
 			"usage: copyright [flags] [path...]\n\n"+
 				"Updates the copyright lines of Go files from git history.\n"+
 				"Works on -dir and everything below it. Any path given is\n"+
-				"taken relative to -dir, and narrows the run to it.\n\n")
+				"taken relative to -dir, and narrows the run to it.\n"+
+				"Only the commits -base does not reach are read, unless\n"+
+				"-history dates them all.\n\n")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args[1:]); err != nil {
@@ -114,9 +122,11 @@ func run(args []string, out io.Writer) error {
 	if opts.history != "" {
 		// The history stands in for the snapshot in affiliations.json,
 		// which is why the two are never read together.
+		// It dates every revision, so -base has nothing left to keep out of reach.
 		if err := applyHistory(conf, opts.history); err != nil {
 			return err
 		}
+		opts.base = ""
 	} else if opts.verify {
 		return errVerifyNeedsHistory
 	}
@@ -131,7 +141,7 @@ func run(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	history, err := LoadHistory(git)
+	history, err := LoadHistory(git, opts.base)
 	if err != nil {
 		return err
 	}

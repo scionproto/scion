@@ -61,7 +61,7 @@ func TestLoadHistory(t *testing.T) {
 		commit("h2", "old@anapaya.net", 2020, "M\twas/there.go", "A\tother.go") +
 		commit("h1", "old@anapaya.net", 2019, "R100\toriginal.go\twas/there.go")
 
-	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
+	h, err := LoadHistory(fakeGit(map[string]string{"log": log}), "")
 	require.NoError(t, err)
 
 	require.Equal(t, map[contribution]source{
@@ -80,18 +80,58 @@ func TestLoadHistory(t *testing.T) {
 // TestLoadHistoryCopy checks that a copy attributes only the new file.
 func TestLoadHistoryCopy(t *testing.T) {
 	log := commit("h1", "who@scion.org", 2026, "C080\tsource.go\tcopy.go")
-	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
+	h, err := LoadHistory(fakeGit(map[string]string{"log": log}), "")
 	require.NoError(t, err)
 	require.Contains(t, h.byFile, "copy.go")
 	require.NotContains(t, h.byFile, "source.go")
 }
 
+// TestLoadHistoryBase checks the scope of a run that has only the undated
+// affiliations.json to go by: the commits base does not reach, and no others.
+func TestLoadHistoryBase(t *testing.T) {
+	var revs []string
+	git := func(args ...string) ([]byte, error) {
+		switch args[0] {
+		case "rev-parse":
+			return []byte("2b1cfa9c1\n"), nil
+		case "log":
+			revs = append(revs, args[len(args)-1])
+			return []byte(commit("h1", "who@scion.org", 2026, "M\tfile.go")), nil
+		}
+		return nil, fmt.Errorf("unexpected git %s", strings.Join(args, " "))
+	}
+	_, err := LoadHistory(git, "origin/master")
+	require.NoError(t, err)
+	require.Equal(t, []string{"origin/master..HEAD"}, revs)
+
+	revs = nil
+	_, err = LoadHistory(git, "")
+	require.NoError(t, err)
+	require.Equal(t, []string{"HEAD"}, revs, "an empty base reads every revision")
+}
+
+// TestLoadHistoryBaseMissing checks that an unreachable base stops the run.
+// Reading the whole history instead would claim settled work for whoever its
+// author works for today, and a claim is never taken back.
+func TestLoadHistoryBaseMissing(t *testing.T) {
+	git := func(args ...string) ([]byte, error) {
+		if args[0] == "rev-parse" {
+			return nil, fmt.Errorf("unknown revision")
+		}
+		t.Errorf("git %s must not run", strings.Join(args, " "))
+		return nil, nil
+	}
+	_, err := LoadHistory(git, "origin/master")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "-base")
+}
+
 // TestLoadHistoryMalformed checks that unparseable output is an error rather
 // than a silently empty history.
 func TestLoadHistoryMalformed(t *testing.T) {
-	_, err := LoadHistory(fakeGit(map[string]string{"log": "\x00h1\x1fwho@scion.org\n"}))
+	_, err := LoadHistory(fakeGit(map[string]string{"log": "\x00h1\x1fwho@scion.org\n"}), "")
 	require.Error(t, err)
-	_, err = LoadHistory(fakeGit(map[string]string{"log": "\x00h1\x1fwho@scion.org\x1flast\n"}))
+	_, err = LoadHistory(fakeGit(map[string]string{"log": "\x00h1\x1fwho@scion.org\x1flast\n"}), "")
 	require.Error(t, err)
 }
 
@@ -104,7 +144,7 @@ func TestContributions(t *testing.T) {
 		commit("h2", "mover@example.com", 2019, "M\tfile.go") +
 		commit("h1", "who@anapaya.net", 2020, "A\tfile.go")
 
-	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
+	h, err := LoadHistory(fakeGit(map[string]string{"log": log}), "")
 	require.NoError(t, err)
 
 	orgs, unmapped := h.Contributions("file.go", testResolver(t))
@@ -181,7 +221,7 @@ func TestContributionsCitesNewestEvidence(t *testing.T) {
 	log := commitOn("h3", "b@scion.org", "2025-03-04", "M\tfile.go") +
 		commitOn("h2", "a@scion.org", "2025-11-30", "M\tfile.go") +
 		commitOn("h1", "a@scion.org", "2024-01-01", "M\tfile.go")
-	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
+	h, err := LoadHistory(fakeGit(map[string]string{"log": log}), "")
 	require.NoError(t, err)
 
 	orgs, _ := h.Contributions("file.go", testResolver(t))
@@ -206,7 +246,7 @@ func TestContributionsCitesNewestEvidence(t *testing.T) {
 func TestContributionsKeepsNewestCommitPerIdentity(t *testing.T) {
 	log := commitOn("h2", "a@scion.org", "2025-11-30", "M\tfile.go") +
 		commitOn("h1", "a@scion.org", "2025-11-30", "M\tfile.go")
-	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
+	h, err := LoadHistory(fakeGit(map[string]string{"log": log}), "")
 	require.NoError(t, err)
 	require.Equal(t, source{date: "2025-11-30", commit: "h2"},
 		h.byFile["file.go"][contribution{email: "a@scion.org", date: "2025-11-30"}])
@@ -218,7 +258,7 @@ func TestContributionsFollowAMidYearMove(t *testing.T) {
 	// testResolver has Mover at ETH Zurich until the end of 2022.
 	log := commitOn("h2", "mover@example.com", "2023-02-01", "M\tfile.go") +
 		commitOn("h1", "mover@example.com", "2022-11-30", "M\tfile.go")
-	h, err := LoadHistory(fakeGit(map[string]string{"log": log}))
+	h, err := LoadHistory(fakeGit(map[string]string{"log": log}), "")
 	require.NoError(t, err)
 
 	orgs, unmapped := h.Contributions("file.go", testResolver(t))

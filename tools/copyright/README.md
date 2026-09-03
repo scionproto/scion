@@ -62,6 +62,23 @@ not appeared for a year is dropped. Earlier spans live in the file below, which
 is neither embedded nor read by default — the repository does not publish when
 someone worked where.
 
+The entries have no dates, so a plain run must skip the old commits. `-base`
+draws the line between old and new: a commit that `-base` already contains is old,
+and the tool reads only the commits that it does not.
+
+```sh
+go run ./tools/copyright # default -base origin/master: this branch only
+go run ./tools/copyright -base upstream/master   # on a fork, name the real upstream
+go run ./tools/copyright -base '' # read every commit, with today's entries
+```
+
+The commits `-base` reaches are done. Their claims are already in the headers.
+Reading them again would use today's entries, and give that old work to the
+organization the author works for now.
+
+If `-base` doesn't exist, the tool stops with an error.
+It doesn't quietly read the whole history instead.
+
 `ignoreEmails` drops bots. There is deliberately no list of excluded paths:
 which files are ours to edit is read from each file's header.
 
@@ -106,8 +123,10 @@ Its organizations must be declared in affiliations.json, but need not be current
 Only `organizations`, `domains` and `ignoreEmails` are still read from there:
 those hold whenever an address was used.
 
-Running without `-history` claims more: someone who left an organization keeps
-claiming for it, and the people the snapshot dropped claim nothing.
+Dating every revision is what puts the whole history in scope, so `-history`
+ignores `-base`. Within a branch's own commits the two agree; over older history
+the snapshot claims more, since someone who left an organization keeps claiming
+for it, and the people it dropped claim nothing.
 
 ## Claims nothing accounts for
 

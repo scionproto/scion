@@ -22,12 +22,19 @@
 //
 // affiliations.json is undated: it says where people work now, so an affiliation
 // covers every day, and someone who has not contributed in a year is dropped.
+// A run therefore reads only the commits -base does not reach, the work on this branch,
+// where that snapshot is current by definition. Everything -base reaches is settled:
+// its claims are in the headers already, and reading it again undated could only
+// claim it for whoever its author works for today.
+// -base defaults to origin/master, and an empty one reads the whole history.
 //
 // -history points at an optional file that dates the affiliations instead,
 // for a rewrite of older history: people change employer, and the snapshot has
 // dropped others outright. It replaces that snapshot rather than refining it,
 // so it carries its own addresses; only the organizations, domains and ignored
 // addresses still come from affiliations.json. Every span needs a "from" day.
+// Dating every revision is what puts the whole history back in scope,
+// so -history ignores -base.
 //
 // Each line the report adds or moves cites the contribution it rests on:
 // the author, and the commit and date it came from, or "uncommitted".

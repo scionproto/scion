@@ -115,9 +115,9 @@ licenses:
 # Report how many Go files carry copyright lines that do not match who worked on them,
 # and who could not be attributed. Exits non-zero if any are out of date.
 # See tools/copyright/README.md for more info.
-# COPYRIGHT_FLAGS passes extra flags through, such as -history or -verify.
+# COPYRIGHT_FLAGS passes extra flags through, such as -base, -history or -verify.
 copyright-check:
-	bazel run //tools/copyright -- -dir "${PWD}" $(COPYRIGHT_FLAGS)
+	bazel run //tools/copyright -- -v -dir "${PWD}" $(COPYRIGHT_FLAGS)
 
 # Bring copyright claims up to date.
 copyright-update:

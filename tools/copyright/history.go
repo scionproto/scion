@@ -161,12 +161,28 @@ func runGit(dir string) gitRunner {
 	}
 }
 
-// LoadHistory walks the whole history once and attributes every change to the
-// file's present-day path, following renames. One pass over this repository's
-// 5700 revisions takes about 0.5s, against about 0.1s per file for --follow.
-func LoadHistory(git gitRunner) (*History, error) {
+// LoadHistory walks the history once and attributes every change to the file's
+// present-day path, following renames. One pass over this repository's 5700
+// revisions takes about 0.5s, against about 0.1s per file for --follow.
+//
+// base bounds the walk to the revisions it does not reach, which is the work on
+// this branch. Only there is the undated affiliations.json current by definition.
+// Older revisions are settled: their claims are in the headers already,
+// and reading them again without the dated affiliation history could only claim them
+// for whoever their author works for now. An empty base walks everything,
+// which is what -history asks for.
+func LoadHistory(git gitRunner, base string) (*History, error) {
+	rev := "HEAD"
+	if base != "" {
+		if _, err := git("rev-parse", "--verify", "--quiet", base); err != nil {
+			return nil, fmt.Errorf("-base %q is not a revision here: fetch it, "+
+				"name another with -base, or pass -base '' for the whole history: %w",
+				base, err)
+		}
+		rev = base + "..HEAD"
+	}
 	out, err := git("log", "--format=%x00%h%x1f%ae%x1f%ad", "--date=short",
-		"--name-status", "-M", "HEAD")
+		"--name-status", "-M", rev)
 	if err != nil {
 		return nil, err
 	}
