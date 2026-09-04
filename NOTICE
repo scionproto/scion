@@ -1,0 +1,86 @@
+Additional IP Rights Grant (Patents)
+====================================
+
+Anapaya Systems AG holds patents for which it has issued a formal
+open-source patent pledge.  Its terms and patents covered are available
+at:
+
+    https://learn.anapaya.net/docs/resources/patent-pledge/
+
+
+
+Patent-Covered Contributions
+============================
+
+If you are contributing code that you know or believe implements a technique covered by a
+patent, please follow the disclosure steps below.
+
+- Add an entry in the list of patents in this NOTICE file, if not there yet
+
+- Add a header comment to source files known to implement such a technique
+
+    - If you do not own the patent, your contribution must rely on a patent pledge.
+      Please include a link to the specific third-party patent pledge in this NOTICE.
+      A comment example is:
+
+        // PATENT-NOTICE: EP1234567B1, US1234567B2
+        // This file implements a technique described in the patent(s) above.
+        // Use of this file relies on an Open Source Patent Pledge. See NOTICE.
+
+
+    - If you are contributing code that implements a technique covered by a patent that
+     you or your employer own, note that patent rights come from you as the contributor
+     according to the Apache License 2.0:
+
+        // PATENT-NOTICE: EP1234567B1
+        // This file implements a technique described in the patent(s) above, owned by
+        // <you/your organization>. As the patent owner and contributor of this code, you
+        // license these claims to all users under the Apache License 2.0, Section 3.
+
+
+
+Known Patents
+=============
+
+Patent Numbers                             Description
+----------------------------------------   -------------------------------------------------
+EP3756317B1, CN111771359B, US11240140B2    SCION-to-IP Gateway (SIG) including traffic
+                                            classification, path evaluation, high-availability
+                                            deployment.
+
+EP3941006B1, US11362930B2                  Hides a SCION network behind a single BGP AS, with
+                                           gateways exchanging routes with legacy networks via
+                                            BGP.
+
+EP3941003B1, US11362932B2                  High availability for SCION AS control services via
+                                            sharding into independent shards, so control and
+                                            data planes keep working through failures; also
+                                            covers interoperation between SCION and BGP.
+
+                                            
+Please contact the maintainers or submit a PR if you become aware of
+any other patents that should be mentioned here.
+
+FAQ
+===
+
+
+1. Can I use this implementation because of the patents?
+
+  Should this implementation use any of the patents above, 
+  the Apache License 2.0, Section 3 grants a patent
+  license for any contributions from patent owners.
+
+  There are currently no known contributions from non-patent owners.
+  Once they come, such contributions will be disclosed according to 
+  the process in this NOTICE. Their use would be dependent on a patent
+  pledge. 
+  
+
+2. Which parts of the codebase implement a patented technique?
+
+  Search the codebase for the PATENT-NOTICE marker.
+
+3. I have more questions:
+
+  Feel free to contact the SCION Association at info@scion.org 

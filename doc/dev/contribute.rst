@@ -243,3 +243,18 @@ Learning resources
 
    :doc:`wireshark`
       Install :doc:`wireshark` and the SCION packet dissector plugin to inspect packets on the wire.
+
+
+.. _licensing:
+
+Licensing and Intellectual Property
+===================================
+
+The SCION open-source implementation is released under the `Apache License, Version 2.0 <https://github.com/scionproto/scion/blob/master/LICENSE>`_.
+
+You may use, reproduce, and distribute the software in compliance with the License.
+
+Anapaya Systems AG holds patents related to certain SCION technologies, for which it has issued an open-source patent pledge.
+For more information see the `NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file.
+
+See the file above if your contribution implements a technique that you know or believe is covered by a patent.
