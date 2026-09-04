@@ -255,6 +255,6 @@ The SCION open-source implementation is released under the `Apache License, Vers
 You may use, reproduce, and distribute the software in compliance with the License.
 
 Anapaya Systems AG holds patents related to certain SCION technologies, for which it has issued an open-source patent pledge.
-For more information see the `NOTICE<https://github.com/scionproto/scion/blob/master/NOTICE>` file.
+For more information see the `NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file.
 
 See the file above if your contribution implements a technique that you know or believe is covered by a patent.
