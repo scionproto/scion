@@ -125,7 +125,6 @@ Developer Documentation
    dev/style/index
    dev/testing/index
    dev/dependencies
-   dev/licensing
    dev/design/index
 
 Start with the :doc:`dev/contribute` to contribute to the open-source SCION implementation.
@@ -143,4 +142,3 @@ Start with the :doc:`dev/contribute` to contribute to the open-source SCION impl
   :doc:`dev/testing/index`
 
 * :doc:`dev/design/index`
-* :doc:`dev/licensing`
