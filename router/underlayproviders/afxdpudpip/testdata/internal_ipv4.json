@@ -1,0 +1,10 @@
+{
+  "name": "internal_ipv4",
+  "link_type": "internal",
+  "family": "ipv4",
+  "local": "10.10.0.1:53003",
+  "remote": "10.10.0.2:45000",
+  "src_mac": "b6:a7:75:0e:c7:68",
+  "dst_mac": "02:00:00:bb:bb:02",
+  "payload_hex": "7363696f6e2d616678647075647069702d696e742d69707634"
+}

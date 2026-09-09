@@ -9,6 +9,7 @@ g++
 gcc
 git
 jq
+libcap2-bin
 llvm
 make
 moreutils

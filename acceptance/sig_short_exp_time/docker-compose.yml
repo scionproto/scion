@@ -95,6 +95,5 @@ services:
       bridge2:
         ipv4_address: 242.254.200.10
     privileged: true
-version: '2.4'
 volumes:
   vol_logs: null

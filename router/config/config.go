@@ -48,11 +48,35 @@ type RouterConfig struct {
 	BatchSize             int `toml:"batch_size,omitempty"`
 	BFD                   BFD `toml:"bfd,omitempty"`
 	// TODO: These two values were introduced to override the port range for
-	// configured router in the context of acceptance tests. However, this
-	// introduces two sources for the port configuration. We should remove this
-	// and adapt the acceptance tests.
-	DispatchedPortStart *int `toml:"dispatched_port_start,omitempty"`
-	DispatchedPortEnd   *int `toml:"dispatched_port_end,omitempty"`
+	// configured router in the context of acceptance tests.
+	// However, this introduces two sources for the port configuration.
+	// We should remove this and adapt the acceptance tests.
+	DispatchedPortStart *int              `toml:"dispatched_port_start,omitempty"`
+	DispatchedPortEnd   *int              `toml:"dispatched_port_end,omitempty"`
+	PreferredUnderlays  map[string]string `toml:"preferred_underlays,omitempty"`
+	Neighbor            Neighbor          `toml:"neighbor,omitempty"`
+}
+
+// Neighbor bounds what an underlay's neighbor cache holds while it resolves
+// MAC addresses. It applies to underlays that resolve addresses themselves,
+// which today means udpip:afxdp. Zero values take a default, and CacheMax and
+// StaleTime take theirs from the kernel's own neighbor table settings.
+type Neighbor struct {
+	// QueueLen is the number of packets held per unresolved neighbor.
+	// Default 1, which is the minimum RFC 1122 asks for.
+	QueueLen int `toml:"queue_len,omitempty"`
+	// QueueTotal is the number of packets a link holds across
+	// all of its unresolved neighbors. Default 64.
+	QueueTotal int `toml:"queue_total,omitempty"`
+	// CacheMax is the number of neighbors a link tracks.
+	// Default net.ipv4.neigh.default.gc_thresh3.
+	CacheMax int `toml:"cache_max,omitempty"`
+	// ProbeInterval is the time between probes for an address that has not answered.
+	// Default net.ipv4.neigh.default.retrans_time_ms.
+	ProbeInterval util.DurWrap `toml:"probe_interval,omitempty"`
+	// ProbeAttempts is how often an address is probed before the router drops
+	// what is queued for it. Default net.ipv4.neigh.default.mcast_solicit.
+	ProbeAttempts int `toml:"probe_attempts,omitempty"`
 }
 
 // BFD configuration. Unfortunately cannot be shared with topology.BFD
@@ -144,6 +168,9 @@ func (cfg *RouterConfig) InitDefaults() {
 	}
 	if cfg.BFD.RequiredMinRxInterval.Duration == 0 {
 		cfg.BFD.RequiredMinRxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
+	}
+	if cfg.PreferredUnderlays == nil {
+		cfg.PreferredUnderlays = map[string]string{"udpip": "afxdp"}
 	}
 }
 

@@ -18,10 +18,13 @@ package main
 
 import (
 	"reflect"
+	"runtime"
 	"unsafe"
 
 	"github.com/gopacket/gopacket/afpacket"
 	"golang.org/x/sys/unix"
+
+	"github.com/scionproto/scion/pkg/log"
 )
 
 type mmsgHdr struct {
@@ -48,6 +51,21 @@ func newMpktSender(tp *afpacket.TPacket) *mpktSender {
 	sender.fd = int(fdv.Int())
 	// This is to make sure that tp cannot be finalized before we're done abusing its file desc.
 	sender.tp = tp
+
+	// Try and bypass queuing discipline. If that doesn't work, we'll survive.
+	err := unix.SetsockoptInt(sender.fd, unix.SOL_PACKET, unix.PACKET_QDISC_BYPASS, 1)
+	if err != nil {
+		log.Info("Could not bypass queuing discipline", "err", err)
+	}
+
+	// If we're going to send, we need to make sure we're not receiving our own stuff. The default
+	// behaviour is less than clear. The loopback doesn't work with veth, but likely does with
+	// everything else.
+	err = unix.SetsockoptInt(sender.fd, unix.SOL_PACKET, unix.PACKET_IGNORE_OUTGOING, 1)
+	if err != nil {
+		panic(err)
+	}
+
 	return sender
 }
 
@@ -67,16 +85,27 @@ func (sender *mpktSender) setPkts(ps [][]byte) {
 }
 
 func (sender *mpktSender) sendAll() (int, error) {
-	// This will hog a core (as far as the Go scheduler is concerned) for the duration of the call
-	// as the Go run-time has no idea that this is a blocking write. This is perfectly fine for our
-	// use case.
-	n, _, err := unix.Syscall6(unix.SYS_SENDMMSG,
-		uintptr(sender.fd),
-		uintptr(unsafe.Pointer(&sender.msgs[0])),
-		uintptr(len(sender.msgs)),
-		0, 0, 0)
-	if err == 0 {
-		return int(n), nil
+	for {
+		// This will hog a core (as far as the Go scheduler is concerned) for the duration of the
+		// call as the Go run-time has no idea that this is a blocking write. This is perfectly fine
+		// for our use case. This can be made non-blocking if that helps sending faster.
+		n, _, err := unix.Syscall6(unix.SYS_SENDMMSG,
+			uintptr(sender.fd),
+			uintptr(unsafe.Pointer(&sender.msgs[0])),
+			uintptr(len(sender.msgs)),
+			0, // uintptr(unix.MSG_DONTWAIT),
+			0, 0)
+		if err == 0 {
+			// we sent some packets.
+			return int(n), nil
+		}
+		if err == unix.EWOULDBLOCK || err == unix.EAGAIN {
+			// We sent nothing at all. The queue is completely full. Take a breather (cheaper than
+			// using poll or select). That happens only in non-blocking mode.
+			runtime.Gosched()
+			continue
+		}
+		// Some error other than EWOULDBLOCK. Nothing was sent either
+		return 0, err
 	}
-	return int(n), err
 }

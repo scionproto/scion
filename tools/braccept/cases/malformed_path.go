@@ -145,6 +145,8 @@ func MalformedPathSingletonSegment(artifactsDir string, mac hash.Hash) runner.Ca
 		Name:     "MalformedPathSingletonSegment",
 		WriteTo:  "veth_151_host",
 		ReadFrom: "no_pkt_expected",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     nil,
 		StoreDir: filepath.Join(artifactsDir, "MalformedPathSingletonSegment"),
@@ -252,6 +254,8 @@ func MalformedPathCurrHFNotInCurrINF(artifactsDir string, mac hash.Hash) runner.
 		Name:     "MalformedPathCurrHFNotInCurrINF",
 		WriteTo:  "veth_131_host",
 		ReadFrom: "no_pkt_expected",
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     nil,
 		StoreDir: filepath.Join(artifactsDir, "MalformedPathCurrHFNotInCurrINF"),

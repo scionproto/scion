@@ -153,6 +153,8 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:              "ExternalBFD",
 		WriteTo:           "veth_131_host",
 		ReadFrom:          "veth_131_host",
+		LocalMAC:          ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:           ip.DstIP,        // Recipient of the "want packet".
 		Input:             input.Bytes(),
 		Want:              want.Bytes(),
 		StoreDir:          filepath.Join(artifactsDir, "ExternalBFD"),
@@ -247,6 +249,8 @@ func InternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:              "InternalBFD",
 		WriteTo:           "veth_int_host",
 		ReadFrom:          "veth_int_host",
+		LocalMAC:          ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:           ip.DstIP,        // Recipient of the "want packet".
 		Input:             input.Bytes(),
 		Want:              want.Bytes(),
 		StoreDir:          filepath.Join(artifactsDir, "InternalBFD"),
