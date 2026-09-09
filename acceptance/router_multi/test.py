@@ -76,6 +76,11 @@ class RouterTest(base.TestBase):
         help="use BFD",
     )
 
+    conndown = cli.Flag(
+        "conndown",
+        help="run connectivity down tests (BFD enabled)",
+    )
+
     def setup_prepare(self):
         super().setup_prepare()
 
@@ -94,7 +99,7 @@ class RouterTest(base.TestBase):
     def setup_start(self):
         super().setup_start()
 
-        if self.bfd:
+        if self.bfd or self.conndown:
             exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
                         "--network container:pause --name router "
                         "scion/router:latest")
@@ -107,10 +112,12 @@ class RouterTest(base.TestBase):
 
     def _run(self):
         braccept = self.get_executable("braccept")
-        bfd_arg = ""
+        extra_args = ""
         if self.bfd:
-            bfd_arg = "--bfd"
-        sudo("%s --artifacts %s %s" % (braccept.executable, self.artifacts, bfd_arg))
+            extra_args = "--bfd"
+        elif self.conndown:
+            extra_args = "--conndown"
+        sudo("%s --artifacts %s %s" % (braccept.executable, self.artifacts, extra_args))
 
     def teardown(self):
         cmd.docker["logs", "router"].run_fg(retcode=None)
