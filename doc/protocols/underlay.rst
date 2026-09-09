@@ -128,6 +128,6 @@ Control Plane Instances
 
 Control plane components communicate with each other and with end-hosts through RPC messages transported via Connect RPC.
 
-For inter-AS communication, traffic is transported over ConnectRPC/HTTP3/QUIC/UDP/SCION/UDP/IP between control service instances. Identification of the relevant control service addresses and ports is provided by `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-15#name-control-service-discovery>`_.
+For inter-AS communication, traffic is transported over ConnectRPC/HTTP3/QUIC/UDP/SCION/UDP/IP between control service instances. Identification of the relevant control service addresses and ports is provided by `Service discovery <https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-18#name-control-service-discovery>`_.
 
 For intra-AS communication, traffic is transported over ConnectRPC/HTTP/TCP/IP between end-hosts and control service instances. The port used by control service instances is configured by operators, and configured on end-hosts. For a comprehensive list of ports used by this implementation, refer to the :ref:`control-port-table`.
