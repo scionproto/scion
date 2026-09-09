@@ -254,7 +254,35 @@ The SCION open-source implementation is released under the `Apache License, Vers
 
 You may use, reproduce, and distribute the software in compliance with the License.
 
+Patent Disclosure Process
+=========================
+
 Anapaya Systems AG holds patents related to certain SCION technologies, for which it has issued an open-source patent pledge.
 For more information see the `NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file.
 
-See the file above if your contribution implements a technique that you know or believe is covered by a patent.
+If you are contributing code that you know or believe implements a technique covered by a
+patent, you are encouraged to follow these disclosure steps
+
+- Add an entry in the list of patents in the `NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file,
+if not listed there yet.
+
+- Add a header comment to source files known to implement such a technique
+
+    - If you do not own the patent, your contribution must rely on a patent pledge.
+      Please include a link to the specific third-party patent pledge in this NOTICE.
+      A comment example is:
+
+        // PATENT-NOTICE: EP1234567B1, US1234567B2
+        // This file implements a technique described in the patent(s) above.
+        // Use of this file relies on an Open Source Patent Pledge. See NOTICE.
+
+
+    - If you are contributing code that implements a technique covered by a patent that
+     you or your employer own, note that patent rights come from you as the contributor
+     according to the Apache License 2.0:
+        
+        // PATENT-NOTICE:
+        // This file implements a technique described in the patent(s) < EP1234567B1>, 
+        // owned by <owner>. This code was contributed by the patent owner under the
+        // Apache License 2.0, Section 3.
+

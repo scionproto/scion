@@ -7,37 +7,19 @@ at:
 
     https://learn.anapaya.net/docs/resources/patent-pledge/
 
+Last accessed: 9 September 2026
+
+The pledge applies to Free or Open Source Software and internal-only use,
+not to hardware or to distribution in combination with proprietary software.
+
 
 
 Patent-Covered Contributions
 ============================
 
 If you are contributing code that you know or believe implements a technique covered by a
-patent, please follow the disclosure steps below.
-
-- Add an entry in the list of patents in this NOTICE file, if not there yet
-
-- Add a header comment to source files known to implement such a technique
-
-    - If you do not own the patent, your contribution must rely on a patent pledge.
-      Please include a link to the specific third-party patent pledge in this NOTICE.
-      A comment example is:
-
-        // PATENT-NOTICE: EP1234567B1, US1234567B2
-        // This file implements a technique described in the patent(s) above.
-        // Use of this file relies on an Open Source Patent Pledge. See NOTICE.
-
-
-    - If you are contributing code that implements a technique covered by a patent that
-     you or your employer own, note that patent rights come from you as the contributor
-     according to the Apache License 2.0:
-
-        // PATENT-NOTICE: EP1234567B1
-        // This file implements a technique described in the patent(s) above, owned by
-        // <you/your organization>. As the patent owner and contributor of this code, you
-        // license these claims to all users under the Apache License 2.0, Section 3.
-
-
+patent, you are encouraged to follow the disclosure steps described in
+https://docs.scion.org/en/latest/dev/contribute.html
 
 Known Patents
 =============
@@ -67,9 +49,11 @@ FAQ
 
 1. Can I use this implementation because of the patents?
 
-  Should this implementation use any of the patents above, 
-  the Apache License 2.0, Section 3 grants a patent
-  license for any contributions from patent owners.
+  FOSS development, distribution, and internal-only use are covered
+  by the pledge; contributors also grant patent licenses for their
+  own contributions under Apache-2.0 Section 3. Combining with
+  proprietary software or hardware for distribution is outside
+  the pledge.
 
   There are currently no known contributions from non-patent owners.
   Once they come, such contributions will be disclosed according to 
