@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/extensions/discovery"
@@ -36,10 +36,28 @@ import (
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/revcache"
+	"github.com/scionproto/scion/private/storage/cleaner"
 	"github.com/scionproto/scion/private/trust"
 )
 
 var ErrDefaultSegmentRegPlugin = serrors.New("default segment registration plugin not registered")
+
+type TaskMetrics struct {
+	BeaconingOriginatedTotal func(egressIntf uint16, result string) metrics.Counter
+	BeaconingPropagatedTotal func(
+		startIA addr.IA,
+		ingress uint16,
+		egress uint16,
+		result string,
+	) metrics.Counter
+	BeaconingPropagatorInternalErrorsTotal metrics.Counter
+	BeaconingRegistrarInternalErrorsTotal  func(segType string) metrics.Counter
+	SegmentExpirationDeficient             metrics.Gauge
+
+	PathStorageCleanerMetrics  cleaner.Metrics
+	RevocationCleanerMetrics   cleaner.Metrics
+	DRKeyServiceCleanerMetrics drkey.ServiceCleanerMetrics
+}
 
 // TasksConfig holds the necessary configuration to start the periodic tasks a
 // CS is expected to run.
@@ -62,7 +80,7 @@ type TasksConfig struct {
 	BeaconStore           Store
 	SignerGen             beaconing.SignerGen
 	Inspector             trust.Inspector
-	Metrics               *Metrics
+	Metrics               TaskMetrics
 	DRKeyEngine           *drkey.ServiceEngine
 
 	MACGen        func() hash.Hash
@@ -168,9 +186,7 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 		AllInterfaces:         t.AllInterfaces,
 		OriginationInterfaces: t.OriginationInterfaces,
 		Tick:                  beaconing.NewTick(t.OriginationInterval),
-	}
-	if t.Metrics != nil {
-		s.Originated = metrics.NewPromCounter(t.Metrics.BeaconingOriginatedTotal)
+		Originated:            t.Metrics.BeaconingOriginatedTotal,
 	}
 	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(s, 500*time.Millisecond, t.OriginationInterval)
@@ -189,11 +205,10 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		PropagationInterfaces: t.PropagationInterfaces,
 		AllowIsdLoop:          t.AllowIsdLoop,
 		Tick:                  beaconing.NewTick(t.PropagationInterval),
+		InternalErrors:        t.Metrics.BeaconingPropagatorInternalErrorsTotal,
+		Propagated:            t.Metrics.BeaconingPropagatedTotal,
 	}
-	if t.Metrics != nil {
-		p.Propagated = metrics.NewPromCounter(t.Metrics.BeaconingPropagatedTotal)
-		p.InternalErrors = metrics.NewPromCounter(t.Metrics.BeaconingPropagatorInternalErrorsTotal)
-	}
+
 	//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
 	return periodic.Start(p, 500*time.Millisecond, t.PropagationInterval)
 }
@@ -227,11 +242,14 @@ func (t *TasksConfig) segmentWriter(
 			Extender: t.extender("segment_writer", t.IA, t.MTU, func() uint8 {
 				return t.BeaconStore.MaxExpTime(policyType.PolicyType())
 			}),
-			InternalErrors: metrics.CounterWith(
-				metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal),
-				"seg_type",
-				policyType.SegmentType().String(),
-			),
+			InternalErrors: func() metrics.Counter {
+				if t.Metrics.BeaconingRegistrarInternalErrorsTotal == nil {
+					return nil
+				}
+				return t.Metrics.BeaconingRegistrarInternalErrorsTotal(
+					policyType.SegmentType().String(),
+				)
+			}(),
 		},
 		Tick: beaconing.NewTick(t.RegistrationInterval),
 	}
@@ -252,22 +270,17 @@ func (t *TasksConfig) extender(
 ) beaconing.Extender {
 
 	return &beaconing.DefaultExtender{
-		IA:                   ia,
-		SignerGen:            t.SignerGen,
-		MAC:                  t.MACGen,
-		Intfs:                t.AllInterfaces,
-		MTU:                  mtu,
-		MaxExpTime:           func() uint8 { return maxExp() },
-		StaticInfo:           t.StaticInfo,
-		DiscoveryInformation: t.DiscoveryInfo,
-		Task:                 task,
-		EPIC:                 t.EPIC,
-		SegmentExpirationDeficient: func() metrics.Gauge {
-			if t.Metrics == nil {
-				return nil
-			}
-			return metrics.NewPromGauge(t.Metrics.SegmentExpirationDeficient)
-		}(),
+		IA:                         ia,
+		SignerGen:                  t.SignerGen,
+		MAC:                        t.MACGen,
+		Intfs:                      t.AllInterfaces,
+		MTU:                        mtu,
+		MaxExpTime:                 func() uint8 { return maxExp() },
+		StaticInfo:                 t.StaticInfo,
+		DiscoveryInformation:       t.DiscoveryInfo,
+		Task:                       task,
+		EPIC:                       t.EPIC,
+		SegmentExpirationDeficient: t.Metrics.SegmentExpirationDeficient,
 	}
 }
 
@@ -276,7 +289,7 @@ func (t *TasksConfig) DRKeyCleaners() []*periodic.Runner {
 		return nil
 	}
 	cleanerPeriod := 2 * t.DRKeyEpochInterval
-	cleaners := t.DRKeyEngine.CreateStorageCleaners()
+	cleaners := t.DRKeyEngine.CreateStorageCleaners(t.Metrics.DRKeyServiceCleanerMetrics)
 	cleanerTasks := make([]*periodic.Runner, len(cleaners))
 	for i, cleaner := range cleaners {
 		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
@@ -314,9 +327,10 @@ type Tasks struct {
 }
 
 func StartTasks(cfg TasksConfig) (*Tasks, error) {
-
-	segCleaner := pathdb.NewCleaner(cfg.PathDB, "control_pathstorage_segments")
-	segRevCleaner := revcache.NewCleaner(cfg.RevCache, "control_pathstorage_revocation")
+	segCleaner := pathdb.NewCleaner(cfg.PathDB, "control_pathstorage_segments",
+		cfg.Metrics.PathStorageCleanerMetrics)
+	segRevCleaner := revcache.NewCleaner(cfg.RevCache, "control_pathstorage_revocation",
+		cfg.Metrics.RevocationCleanerMetrics)
 	return &Tasks{
 		Originator: cfg.Originator(),
 		Propagator: cfg.Propagator(),

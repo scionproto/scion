@@ -1,4 +1,4 @@
-// Copyright 2019 Anapaya Systems
+// Copyright 2026 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics_test
+package drkey
 
-import (
-	"testing"
+import "github.com/scionproto/scion/private/storage/cleaner"
 
-	"github.com/scionproto/scion/pkg/private/prom/promtest"
-	"github.com/scionproto/scion/private/segment/segfetcher/internal/metrics"
-)
-
-func TestLabels(t *testing.T) {
-	promtest.CheckLabelsStruct(t, metrics.RequestLabels{})
-	promtest.CheckLabelsStruct(t, metrics.RevocationLabels{})
+// ClientCleanerMetrics contains the metrics for the DRKey client storage cleaners.
+type ClientCleanerMetrics struct {
+	ASHost   cleaner.Metrics
+	HostAS   cleaner.Metrics
+	HostHost cleaner.Metrics
 }

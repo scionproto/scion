@@ -23,7 +23,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/pathdb"
@@ -51,7 +51,7 @@ const (
 
 type Config struct {
 	Driver       string
-	QueriesTotal metrics.Counter
+	QueriesTotal func(driver, operation, result string) metrics.Counter
 }
 
 // WrapDB wraps the given PathDB into one that also exports metrics. dbName will
@@ -85,7 +85,9 @@ func (c *Observer) Observe(ctx context.Context, op promOp, action func(ctx conte
 		Operation: string(op),
 		Result:    label,
 	}
-	metrics.CounterInc(metrics.CounterWith(c.Cfg.QueriesTotal, labels.Expand()...))
+	if c.Cfg.QueriesTotal != nil {
+		metrics.CounterInc(c.Cfg.QueriesTotal(labels.Driver, labels.Operation, labels.Result))
+	}
 }
 
 type queryLabels struct {
@@ -225,7 +227,10 @@ func (db *metricsExecutor) Get(ctx context.Context, params *query.Params) (query
 		Operation: string(promOpGet),
 		Result:    label,
 	}
-	metrics.CounterInc(metrics.CounterWith(db.metrics.Cfg.QueriesTotal, labels.Expand()...))
+	if db.metrics.Cfg.QueriesTotal != nil {
+		metrics.CounterInc(db.metrics.Cfg.QueriesTotal(labels.Driver, labels.Operation,
+			labels.Result))
+	}
 
 	tracing.Error(span, err)
 	tracing.ResultLabel(span, label)

@@ -17,10 +17,45 @@ package segfetcher
 import (
 	"errors"
 
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/segment/seghandler"
 )
+
+// Metrics contains the metrics for the segfetcher.
+type Metrics struct {
+	// Requests counts the number of requests by result.
+	Requests func(result error) metrics.Counter
+	// Revocations counts the number of revocations by result and source.
+	Revocations func(result error, src string) metrics.Counter
+}
+
+// NewMetrics exposes the metrics constructor.
+func NewMetrics(opts ...metrics.Option) Metrics {
+	auto := metrics.ApplyOptions(opts...).Auto()
+	requests := auto.NewCounterVec(prometheus.CounterOpts{
+		Name: "segfetcher_requests_total",
+		Help: "The number of segment requests sent.",
+	}, []string{prom.LabelResult})
+	revocations := auto.NewCounterVec(prometheus.CounterOpts{
+		Name: "segfetcher_received_revocations_total",
+		Help: "The number of revocations received.",
+	}, []string{prom.LabelResult, prom.LabelSrc})
+	return Metrics{
+		Requests: func(result error) metrics.Counter {
+			return requests.With(prometheus.Labels{prom.LabelResult: ErrToMetricsLabel(result)})
+		},
+		Revocations: func(result error, src string) metrics.Counter {
+			return revocations.With(prometheus.Labels{
+				prom.LabelResult: ErrToMetricsLabel(result),
+				prom.LabelSrc:    src,
+			})
+		},
+	}
+}
 
 // ErrToMetricsLabel classifies the error from the segfetcher into metrics
 // labels.

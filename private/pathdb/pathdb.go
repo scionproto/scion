@@ -78,8 +78,8 @@ type DB interface {
 }
 
 // NewCleaner creates a cleaner task that deletes expired segments.
-func NewCleaner(db DB, namespace string) *cleaner.Cleaner {
+func NewCleaner(db DB, namespace string, metrics cleaner.Metrics) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return db.DeleteExpired(ctx, time.Now())
-	}, namespace)
+	}, namespace, metrics)
 }

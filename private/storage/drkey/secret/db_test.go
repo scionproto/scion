@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/private/storage/drkey/secret"
 	"github.com/scionproto/scion/private/storage/drkey/secret/dbtest"
 	"github.com/scionproto/scion/private/storage/drkey/secret/sqlite"

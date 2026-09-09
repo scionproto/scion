@@ -55,6 +55,8 @@ type FetcherConfig struct {
 	RevCache revcache.RevCache
 	// RPC is the RPC used to request segments.
 	RPC segfetcher.RPC
+	// Metrics contains the metrics for the segfetcher.
+	Metrics segfetcher.Metrics
 }
 
 // NewFetcher creates a segment fetcher configured for fetching segments from
@@ -93,7 +95,7 @@ func NewFetcher(cfg FetcherConfig) *segfetcher.Fetcher {
 			DstProvider: d,
 			MaxRetries:  20,
 		},
-		Metrics: segfetcher.NewFetcherMetrics("control"),
+		Metrics: cfg.Metrics,
 	}
 
 	d.router = newRouter(cfg, fetcher)

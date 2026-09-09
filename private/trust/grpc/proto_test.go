@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/trust"
 	trustgrpc "github.com/scionproto/scion/private/trust/grpc"
-	trustmetrics "github.com/scionproto/scion/private/trust/internal/metrics"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 func TestChainQueryToReq(t *testing.T) {

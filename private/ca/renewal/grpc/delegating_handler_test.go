@@ -34,7 +34,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -301,14 +301,20 @@ func TestDelegatingHandler(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 
-			ctr := metrics.NewTestCounter()
+			counters := map[string]metrics.Counter{
+				"err_bad_request": metrics.NewTestCounter(),
+				"err_internal":    metrics.NewTestCounter(),
+				"err_unavailable": metrics.NewTestCounter(),
+				"ok_success":      metrics.NewTestCounter(),
+			}
+
 			h := renewalgrpc.DelegatingHandler{
 				Client: tc.Client(t, ctrl),
 				Metrics: renewalgrpc.DelegatingHandlerMetrics{
-					BadRequests:   ctr.With("result", "err_bad_request"),
-					InternalError: ctr.With("result", "err_internal"),
-					Unavailable:   ctr.With("result", "err_unavailable"),
-					Success:       ctr.With("result", "ok_success"),
+					BadRequests:   counters["err_bad_request"],
+					InternalError: counters["err_internal"],
+					Unavailable:   counters["err_unavailable"],
+					Success:       counters["ok_success"],
 				},
 			}
 			chain, err := h.HandleCMSRequest(
@@ -332,7 +338,7 @@ func TestDelegatingHandler(t *testing.T) {
 				if res == tc.Metric {
 					expected = 1
 				}
-				assert.Equal(t, expected, metrics.CounterValue(ctr.With("result", res)), res)
+				assert.Equal(t, expected, metrics.CounterValue(counters[res]), res)
 			}
 		})
 	}

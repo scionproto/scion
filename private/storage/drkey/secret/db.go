@@ -22,7 +22,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	dblib "github.com/scionproto/scion/private/storage/db"
 	st_drkey "github.com/scionproto/scion/private/storage/drkey"
 	"github.com/scionproto/scion/private/tracing"
