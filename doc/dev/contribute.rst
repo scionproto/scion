@@ -264,7 +264,7 @@ If you are contributing code that you know or believe implements a technique cov
 patent, you are encouraged to follow these disclosure steps
 
 - Add an entry in the list of patents in the `NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file,
-if not listed there yet.
+  if not listed there yet.
 
 - Add a header comment to source files known to implement such a technique
 
@@ -272,17 +272,20 @@ if not listed there yet.
       Please include a link to the specific third-party patent pledge in this NOTICE.
       A comment example is:
 
-        // PATENT-NOTICE: EP1234567B1, US1234567B2
-        // This file implements a technique described in the patent(s) above.
-        // Use of this file relies on an Open Source Patent Pledge. See NOTICE.
+      .. code-block:: go
 
+          // PATENT-NOTICE:
+          // This file implements a technique described in the patent(s) <patent n.>,
+          // Use of this implementation relies on an Open Source Patent Pledge. See NOTICE.
 
     - If you are contributing code that implements a technique covered by a patent that
-     you or your employer own, note that patent rights come from you as the contributor
-     according to the Apache License 2.0:
-        
-        // PATENT-NOTICE:
-        // This file implements a technique described in the patent(s) < EP1234567B1>, 
-        // owned by <owner>. This code was contributed by the patent owner under the
-        // Apache License 2.0, Section 3.
+      you or your employer own, note that patent rights come from you as the contributor
+      according to the Apache License 2.0:
+
+      .. code-block:: go
+
+          // PATENT-NOTICE:
+          // This file implements a technique described in the patent(s) <patent n.>,
+          // owned by <owner>. This implementation is contributed by the patent owner
+          // under the Apache License 2.0, Section 3.
 
