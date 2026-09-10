@@ -51,16 +51,18 @@ FAQ
 
 1. Can I use this implementation because of the patents?
 
-  FOSS development, distribution, and internal-only use are covered
-  by the pledge; contributors also grant patent licenses for their
-  own contributions under Apache-2.0 Section 3. Combining with
-  proprietary software or hardware for distribution is outside
-  the pledge.
-
   There are currently no known contributions from non-patent owners.
-  Once they come, such contributions will be disclosed according to 
-  the process in this NOTICE. Their use would be dependent on a patent
+  Once they come, such contributions should be disclosed according to 
+  the process linked above. Their use would be dependent on a patent
   pledge. 
+
+  The above linked pledge by Anapaya covers FOSS development,
+  distribution, and internal-only use; combining with proprietary
+  software or hardware for distribution is outside of the pledge scope.
+  Refer to the actual 
+
+  Note that contributors grant patent licenses for their own contributions 
+  under Apache-2.0 Section 3.
   
 
 2. Which parts of the codebase implement a patented technique?
