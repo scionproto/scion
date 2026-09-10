@@ -56,8 +56,10 @@ FAQ
   the process linked above. Their use would be dependent on a patent
   pledge. 
 
-  The Anapaya pledge linked above covers FOSS development, distribution, and internal-only use, but not distribution combined with proprietary
-  software or hardware. The pledge itself is the ultimate source of truth; this is only a summary and does not modify or supersede it. 
+  The Anapaya pledge linked above covers FOSS development, distribution,
+  and internal-only use, but not distribution combined with proprietary
+  software or hardware. The pledge itself is the ultimate source of truth;
+  this is only a summary and does not modify or supersede it. 
 
   Note that contributors grant patent licenses for their own contributions 
   under Apache-2.0 Section 3.
