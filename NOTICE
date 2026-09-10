@@ -1,0 +1,74 @@
+Patent Notice
+====================================
+
+Anapaya Systems AG holds patents for which it has issued a formal
+open-source patent pledge.  Its terms and patents covered are available
+at:
+
+    https://learn.anapaya.net/docs/resources/patent-pledge/
+
+Last accessed: 9 September 2026
+
+The pledge applies to Free or Open Source Software and internal-only use,
+not to hardware or to distribution in combination with proprietary software.
+
+
+
+Patent-Covered Contributions
+============================
+
+If you are contributing code that you know or believe implements a technique covered by a
+patent, you are encouraged to follow the disclosure steps described in
+https://docs.scion.org/en/latest/dev/contribute.html
+
+Known Patents
+=============
+
+Known patents relating to the SCION technology are: 
+
+Patent Numbers                             Description
+----------------------------------------   -------------------------------------------------
+EP3756317B1, CN111771359B, US11240140B2    SCION-to-IP Gateway (SIG) including traffic
+                                            classification, path evaluation, high-availability
+                                            deployment.
+
+EP3941006B1, US11362930B2                  Hides a SCION network behind a single BGP AS, with
+                                           gateways exchanging routes with legacy networks via
+                                            BGP.
+
+EP3941003B1, US11362932B2                  High availability for SCION AS control services via
+                                            sharding into independent shards, so control and
+                                            data planes keep working through failures; also
+                                            covers interoperation between SCION and BGP.
+
+                                            
+Please contact the maintainers or submit a PR if you become aware of
+any other patents that should be mentioned here.
+
+FAQ
+===
+
+
+1. Can I use this implementation because of the patents?
+
+  There are currently no known contributions from non-patent owners.
+  Once they come, such contributions should be disclosed according to 
+  the process linked above. Their use would be dependent on a patent
+  pledge. 
+
+  The Anapaya pledge linked above covers FOSS development, distribution,
+  and internal-only use, but not distribution combined with proprietary
+  software or hardware. The pledge itself is the ultimate source of truth;
+  this is only a summary and does not modify or supersede it. 
+
+  Note that contributors grant patent licenses for their own contributions 
+  under Apache-2.0 Section 3.
+  
+
+2. Which parts of the codebase implement a patented technique?
+
+  Search the codebase for the PATENT-NOTICE marker.
+
+3. I have more questions:
+
+  Feel free to contact the SCION Association at info@scion.org 
