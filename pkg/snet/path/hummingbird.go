@@ -379,7 +379,7 @@ func (r *Reservation) setupReservationWithScion(
 		return err
 	}
 	// hopsFromDP will skip crossovers.
-	hopsFromDP, err := scionDataplaneToBaseHops(&dec)
+	hopsFromDP, indices, err := scionDataplaneToBaseHops(&dec)
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func (r *Reservation) setupReservationWithScion(
 	r.Hops = make([]*Hop, len(r.Dec.HopFields))
 	r.blocksPerAk = make([]cipher.Block, len(r.Hops))
 
-	return r.assignFlyovers(seq, hopsFromDP)
+	return r.assignFlyovers(seq, hopsFromDP, indices)
 }
 
 func (r *Reservation) setupReservationWithHummDecoded(
@@ -402,7 +402,7 @@ func (r *Reservation) setupReservationWithHummDecoded(
 	r.cloneAggregatedMACsFromHummDecoded()
 
 	// hopsFromDP will skip crossovers.
-	hopsFromDP, err := hummDataplaneToBaseHops(r.Dec)
+	hopsFromDP, indices, err := hummDataplaneToBaseHops(r.Dec)
 	if err != nil {
 		return err
 	}
@@ -412,14 +412,14 @@ func (r *Reservation) setupReservationWithHummDecoded(
 	r.Hops = make([]*Hop, len(r.Dec.HopFields))
 	r.blocksPerAk = make([]cipher.Block, len(r.Hops))
 
-	return r.assignFlyovers(seq, hopsFromDP)
+	return r.assignFlyovers(seq, hopsFromDP, indices)
 }
 
 func (r *Reservation) assignFlyovers(
 	seq FlyoverSequence,
 	hopsFromDP []BaseHop,
+	hfIndices []uint8,
 ) error {
-	hfIndices := reservationHopFieldIndicesForFlyovers(r.Dec)
 	if len(hopsFromDP) != len(seq) || len(hopsFromDP) != len(hfIndices) {
 		return serrors.New("inconsistent hummingbird dataplane to flyover mapping",
 			"base_hops", len(hopsFromDP),
@@ -513,105 +513,100 @@ func (r *Reservation) SetHopAndFlyover(
 	return nil
 }
 
-// reservationHopFieldIndicesForFlyovers returns the hop field indices in the Hummingbird path
-// where flyovers would be written.
-// I.e., Hummingbird requires its crossover hop between segments seg1->seg2
-// to contain the flyover at the first hop, which is the last hop of seg1. Not all hop fields can
-// contain flyovers.
-func reservationHopFieldIndicesForFlyovers(dec *hummingbird.Decoded) []uint8 {
-	indices := make([]uint8, 0, len(dec.HopFields))
-	if dec.NumINF == 0 {
-		return indices
-	}
-
-	segmentStart := 0
-
-	// Segment 0: include all hops.
-	hopCount := int(dec.Base.PathMeta.SegLen[0]) / hummingbird.HopLines
-	for hopInSegment := 0; hopInSegment < hopCount; hopInSegment++ {
-		indices = append(indices, uint8(segmentStart+hopInSegment))
-	}
-	segmentStart += hopCount
-
-	// Remaining segments: skip the first hop in each segment.
-	for segIdx := 1; segIdx < dec.NumINF; segIdx++ {
-		hopCount = int(dec.Base.PathMeta.SegLen[segIdx]) / hummingbird.HopLines
-		for hopInSegment := 1; hopInSegment < hopCount; hopInSegment++ {
-			indices = append(indices, uint8(segmentStart+hopInSegment))
-		}
-		segmentStart += hopCount
-	}
-	return indices
-}
-
 // scionDataplaneToBaseHops maps a decoded SCION dataplane path to its logical ingress/egress
 // hop sequence. Segment crossover pairs are collapsed into one logical hop.
-func scionDataplaneToBaseHops(dec *scion.Decoded) ([]BaseHop, error) {
-	if len(dec.HopFields) == 0 {
-		return nil, nil
-	}
-
-	baseHops := make([]BaseHop, 0, len(dec.HopFields)-dec.NumINF+1)
-	for segIdx, hopIdx := 0, 0; segIdx < dec.NumINF; segIdx++ {
-		for hopInSegment := 0; hopInSegment < int(dec.PathMeta.SegLen[segIdx]); hopInSegment++ {
-			h := dec.HopFields[hopIdx]
-			in := h.ConsIngress
-			eg := h.ConsEgress
-			if !dec.InfoFields[segIdx].ConsDir {
-				// In reverse construction direction, swap ingress with egress.
-				in, eg = eg, in
-			}
-			hop := BaseHop{
-				Ingress: in,
-				Egress:  eg,
-			}
-			// Check for crossovers.
-			if segIdx > 0 && hopInSegment == 0 {
-				// Crossover. Replace the previous zero egress with the one in this hop field.
-				baseHops[len(baseHops)-1].Egress = eg
-			} else {
-				// Not a crossover. Add the new hop field.
-				baseHops = append(baseHops, hop)
-			}
-			hopIdx++
-		}
-	}
-	return baseHops, nil
+func scionDataplaneToBaseHops(dec *scion.Decoded) ([]BaseHop, []uint8, error) {
+	return dataplaneToBaseHops(
+		dec.NumINF,
+		func(i int) dppath.InfoField { return dec.InfoFields[i] },
+		[3]int{
+			int(dec.PathMeta.SegLen[0]),
+			int(dec.PathMeta.SegLen[1]),
+			int(dec.PathMeta.SegLen[2]),
+		},
+		func(i int) dppath.HopField { return dec.HopFields[i] },
+	)
 }
 
 // hummDataplaneToBaseHops maps a decoded Hummingbird dataplane path to its logical ingress/egress
 // hop sequence. Segment crossover pairs are collapsed into one logical hop.
-func hummDataplaneToBaseHops(dec *hummingbird.Decoded) ([]BaseHop, error) {
-	if len(dec.HopFields) == 0 {
-		return nil, nil
-	}
+func hummDataplaneToBaseHops(dec *hummingbird.Decoded) ([]BaseHop, []uint8, error) {
+	return dataplaneToBaseHops(
+		dec.NumINF,
+		func(i int) dppath.InfoField { return dec.InfoFields[i] },
+		[3]int{
+			dec.NumberOfHFsInSegment(0),
+			dec.NumberOfHFsInSegment(1),
+			dec.NumberOfHFsInSegment(2),
+		},
+		func(i int) dppath.HopField { return dec.HopFields[i].HopField },
+	)
+}
 
-	baseHops := make([]BaseHop, 0, len(dec.HopFields)-dec.NumINF+1)
-	for segIdx, hopIdx := 0, 0; segIdx < dec.NumINF; segIdx++ {
-		for hopInSegment := 0; hopInSegment < dec.NumberOfHFsInSegment(segIdx); hopInSegment++ {
-			h := dec.HopFields[hopIdx]
-			in := h.HopField.ConsIngress
-			eg := h.HopField.ConsEgress
-			if !dec.InfoFields[segIdx].ConsDir {
-				// In reverse construction direction, swap ingress with egress.
+// dataplaneToBaseHops converts a path into a BaseHop sequence.
+// numINF: number of segments.
+// getInf: function to return segment i.
+// hfCountPerSegment: number of hop fields, per segment. Not lines, but actual hop field count.
+// getHF: function to return hop field i.
+// Returns:
+// - BaseHop sequence, ingress/egress in the right order, and crossover hops merged.
+// - Index sequence (crossover hops not present in this sequence).
+func dataplaneToBaseHops(
+	numINF int,
+	getINF func(i int) dppath.InfoField,
+	hfCountPerSegment [3]int, // Number of hops (not lines)
+	getHF func(i int) dppath.HopField,
+) ([]BaseHop, []uint8, error) {
+	if numINF > 3 {
+		return nil, nil, serrors.New("inconsistent path", "num_inf", numINF)
+	}
+	// BaseHop sequence, with capacity for all hops (it might end being less, from crossovers).
+	totalHfCount := hfCountPerSegment[0] + hfCountPerSegment[1] + hfCountPerSegment[2]
+	baseHops := make([]BaseHop, 0, totalHfCount)
+	indices := make([]uint8, 0, totalHfCount)
+
+	hfIdx := 0
+	for segIdx := range numINF {
+		inf := getINF(segIdx)
+		if hfCountPerSegment[segIdx] == 0 {
+			return nil, nil, serrors.New("segment with no hops", "seg_idx", segIdx)
+		}
+		// Check peering consistency.
+		if segIdx > 0 && getINF(segIdx-1).Peer != inf.Peer {
+			// Peering inconsistent.
+			return nil, nil, serrors.New("inconsistent path, joined segments peering disagreement",
+				"num_inf", numINF, "seg_idx", segIdx,
+				"prev_peer", getINF(segIdx-1).Peer, "curr_peer", inf.Peer)
+		}
+		// For each hop in this segment.
+		for hopInSegment := range hfCountPerSegment[segIdx] {
+			hf := getHF(hfIdx)
+			in := hf.ConsIngress
+			eg := hf.ConsEgress
+			if !inf.ConsDir {
 				in, eg = eg, in
 			}
-			hop := BaseHop{
-				Ingress: in,
-				Egress:  eg,
-			}
-			// Check for crossovers.
-			if segIdx > 0 && hopInSegment == 0 {
-				// Crossover. Replace the previous zero egress with the one in this hop field.
+
+			// Check for crossovers and shortcuts.
+			if segIdx > 0 && hopInSegment == 0 && !inf.Peer {
+				// Crossover. Replace the previous egress with the one in this hop field:
+				// - If it is a core AS (crossover): Previous egress was zero.
+				// - If not core AS (shortcut): Previous egress was the parent-facing interface ID.
 				baseHops[len(baseHops)-1].Egress = eg
 			} else {
 				// Not a crossover. Add the new hop field.
+				hop := BaseHop{
+					Ingress: in,
+					Egress:  eg,
+				}
 				baseHops = append(baseHops, hop)
+				indices = append(indices, uint8(hfIdx))
 			}
-			hopIdx++
+			hfIdx++
 		}
 	}
-	return baseHops, nil
+
+	return baseHops, indices, nil
 }
 
 // BaseHop describes a pair of Ingress and Egress interfaces in a specific AS
@@ -837,6 +832,8 @@ func deserializeHops(buff []byte) ([]*Hop, error) {
 type FlyoverSequence []*Hop
 
 // InterfacesToBaseHops maps path metadata interfaces to per-AS ingress/egress hop tuples.
+// Crossovers are removed directly by the metadata setting logic at pathSolution.Path()
+// in package private/path/combinator .
 func InterfacesToBaseHops(ifaces []snet.PathInterface) []BaseHop {
 	if len(ifaces) == 0 {
 		return nil

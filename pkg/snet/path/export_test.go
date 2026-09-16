@@ -58,3 +58,7 @@ func (r *Reservation) SetupWithHummDecoded(
 ) error {
 	return r.setupReservationWithHummDecoded(dec, dstIA, seq)
 }
+
+func HummDataplaneToBaseHops(dec *dphum.Decoded) ([]BaseHop, []uint8, error) {
+	return hummDataplaneToBaseHops(dec)
+}

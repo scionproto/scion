@@ -315,8 +315,6 @@ func TestDecodeSegmentStartingAtLastHopField(t *testing.T) {
 	assert.Equal(t, p.FirstHopPerSeg, s.FirstHopPerSeg)
 	assert.Equal(t, 1, s.NumberOfHFsInSegment(0))
 	assert.Equal(t, 1, s.NumberOfHFsInSegment(1))
-	assert.Equal(t, -1, s.IsCrossOver(0))
-	assert.Equal(t, 1, s.IsCrossOver(1))
 }
 
 // TestDecodePeeringPathSegmentBoundaries decodes the four Hummingbird peering paths that braccept
@@ -453,6 +451,225 @@ func TestDecodePeeringPathSegmentBoundaries(t *testing.T) {
 			assert.Equal(t, tc.hops, dec.HopFields)
 		})
 	}
+}
+
+// TestIsCrossOverTable checks IsCrossOver over both crossover-joined and peering-joined paths.
+func TestIsCrossOverTable(t *testing.T) {
+	hop := func(in, eg uint16) hummingbird.FlyoverHopField {
+		return hummingbird.FlyoverHopField{
+			HopField: path.HopField{ConsIngress: in, ConsEgress: eg},
+		}
+	}
+
+	testCases := map[string]struct {
+		segLen [3]uint8
+		infos  []path.InfoField
+		hops   []hummingbird.FlyoverHopField
+		// want holds the expected IsCrossOver value per hop field index.
+		want []int
+	}{
+		"one segment": {
+			segLen: [3]uint8{6, 0, 0},
+			infos:  []path.InfoField{{ConsDir: false}},
+			hops:   []hummingbird.FlyoverHopField{hop(0, 1), hop(41, 0)},
+			want:   []int{0, 0},
+		},
+		"two segments, crossover": {
+			// Tiny topo 111->112: the crossover is core AS 110, present as hop fields 1 and 2.
+			segLen: [3]uint8{6, 6, 0},
+			infos:  []path.InfoField{{ConsDir: false}, {ConsDir: true}},
+			hops: []hummingbird.FlyoverHopField{
+				hop(0, 1), hop(41, 0), hop(0, 2), hop(1, 0),
+			},
+			want: []int{0, -1, +1, 0},
+		},
+		"three segments, two crossovers": {
+			segLen: [3]uint8{6, 6, 6},
+			infos:  []path.InfoField{{ConsDir: false}, {ConsDir: true}, {ConsDir: true}},
+			hops: []hummingbird.FlyoverHopField{
+				hop(0, 1), hop(41, 0), hop(0, 2), hop(1, 0), hop(0, 3), hop(2, 0),
+			},
+			want: []int{0, -1, +1, -1, +1, 0},
+		},
+		"child to peer": {
+			// AS 5 --(511|151)-- AS 1 ==peer(121|211)== AS 2. The segment boundary is the
+			// peering link, so neither side of it is a crossover hop, and hop field 2 is the
+			// destination AS.
+			segLen: [3]uint8{6, 3, 0},
+			infos: []path.InfoField{
+				{ConsDir: false, Peer: true}, {ConsDir: true, Peer: true},
+			},
+			hops: []hummingbird.FlyoverHopField{
+				hop(511, 0), hop(121, 151), hop(211, 0),
+			},
+			want: []int{0, 0, 0},
+		},
+		"peering upstream": {
+			// Same peering link, one hop further away from it.
+			segLen: [3]uint8{9, 3, 0},
+			infos: []path.InfoField{
+				{ConsDir: false, Peer: true}, {ConsDir: true, Peer: true},
+			},
+			hops: []hummingbird.FlyoverHopField{
+				hop(511, 0), hop(121, 151), hop(121, 0), hop(211, 0),
+			},
+			want: []int{0, 0, 0, 0},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			numLines := 0
+			for _, l := range tc.segLen {
+				numLines += int(l)
+			}
+			original := &hummingbird.Decoded{
+				Base: hummingbird.Base{
+					PathMeta: hummingbird.MetaHdr{SegLen: tc.segLen},
+					NumINF:   len(tc.infos),
+					NumLines: numLines,
+				},
+				InfoFields: tc.infos,
+				HopFields:  tc.hops,
+			}
+			// Take FirstHopPerSeg from the decoder rather than hand-writing it here.
+			buff := make([]byte, original.Len())
+			require.NoError(t, original.SerializeTo(buff))
+			dec := &hummingbird.Decoded{}
+			require.NoError(t, dec.DecodeFromBytes(buff))
+
+			got := make([]int, len(tc.hops))
+			for i := range tc.hops {
+				got[i] = dec.IsCrossOver(uint8(i))
+			}
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestLongPathLineCounts covers paths whose line offsets run past what a uint8 can hold.
+// MetaHdr carries each SegLen in 7 bits, so a segment holds at most 127 lines and a path at most
+// 3*127 = 381 of them, while GetHopField and InfIndexForHFIndex accumulate their line counts in a
+// uint8. Every case below uses a path that is representable on the wire.
+//
+// Note that Base.InfIndexForHF's SegLen[0]+SegLen[1] sum cannot overflow: with 7-bit segment
+// lengths it tops out at 254.
+func TestLongPathLineCounts(t *testing.T) {
+	// 25 flyover hop fields fill a segment almost exactly: 25*FlyoverLines = 125 of the 127 lines
+	// a SegLen can express. Three such segments make 75 hop fields spanning 375 lines, which runs
+	// past the uint8 range while staying representable and under MaxHops.
+	const hopsPerSeg = 25
+	const linesPerSeg = hopsPerSeg * hummingbird.FlyoverLines // 125
+	dec := &hummingbird.Decoded{
+		Base: hummingbird.Base{
+			PathMeta: hummingbird.MetaHdr{
+				SegLen: [3]uint8{linesPerSeg, linesPerSeg, linesPerSeg},
+			},
+			NumINF:   3,
+			NumLines: 3 * linesPerSeg,
+		},
+		InfoFields: []path.InfoField{
+			{ConsDir: false}, {ConsDir: true}, {ConsDir: true},
+		},
+	}
+	for i := range 3 * hopsPerSeg {
+		dec.HopFields = append(dec.HopFields, hummingbird.FlyoverHopField{
+			// ConsIngress identifies the hop field, so a wrong answer names the culprit.
+			HopField: path.HopField{ConsIngress: uint16(i + 1)},
+			Flyover:  true,
+			Bw:       1,
+			Duration: 1,
+		})
+	}
+	// Hop field i starts at line 5*i, so hop field 51 starts at line 255 and hop field 52 at 260.
+	require.NoError(t, dec.SerializeTo(make([]byte, dec.Len())), "fixture must be representable")
+
+	t.Run("InfIndexForHFIndex", func(t *testing.T) {
+		testCases := map[string]struct {
+			hfIdx uint8
+			want  uint8
+		}{
+			"first hop field, line 0":               {0, 0},
+			"first hop of segment 1, line 125":      {hopsPerSeg, 1},
+			"first hop of segment 2, line 250":      {2 * hopsPerSeg, 2},
+			"hop field 51, line 255":                {51, 2},
+			"hop field 52, line 260 wraps to 4":     {52, 2},
+			"last hop field, line 370 wraps to 114": {3*hopsPerSeg - 1, 2},
+		}
+		for name, tc := range testCases {
+			t.Run(name, func(t *testing.T) {
+				assert.Equal(t, tc.want, dec.InfIndexForHFIndex(tc.hfIdx))
+			})
+		}
+	})
+
+	t.Run("GetHopField", func(t *testing.T) {
+		testCases := map[string]struct {
+			hfLine uint8
+			// wantIngress is the ConsIngress of the expected hop field, or 0 to expect an error.
+			wantIngress uint16
+		}{
+			"line 0 starts hop field 0":       {0, 1},
+			"line 5 starts hop field 1":       {hummingbird.FlyoverLines, 2},
+			"line 250 starts hop field 50":    {250, 51},
+			"line 255 starts hop field 51":    {255, 52},
+			"line 4 is inside hop field 0":    {4, 0},
+			"line 9 is inside hop field 1":    {9, 0},
+			"line 254 is inside hop field 50": {254, 0},
+		}
+		for name, tc := range testCases {
+			t.Run(name, func(t *testing.T) {
+				hf, err := dec.GetHopField(tc.hfLine)
+				if tc.wantIngress == 0 {
+					assert.Error(t, err)
+					return
+				}
+				assert.NoError(t, err)
+				assert.Equal(t, tc.wantIngress, hf.HopField.ConsIngress)
+			})
+		}
+	})
+
+	t.Run("MaxHops is enforced when decoding", func(t *testing.T) {
+		// 42 plain hop fields fill a segment: 42*HopLines = 126 of the 127 available lines.
+		// Three of them make 126 hop fields, well past MaxHops, yet representable on the wire.
+		const plainHopsPerSeg = 42
+		const plainLinesPerSeg = plainHopsPerSeg * hummingbird.HopLines
+		require.Greater(t, 3*plainHopsPerSeg, hummingbird.MaxHops)
+
+		long := &hummingbird.Decoded{
+			Base: hummingbird.Base{
+				PathMeta: hummingbird.MetaHdr{
+					SegLen: [3]uint8{plainLinesPerSeg, plainLinesPerSeg, plainLinesPerSeg},
+				},
+				NumINF:   3,
+				NumLines: 3 * plainLinesPerSeg,
+			},
+			InfoFields: []path.InfoField{
+				{ConsDir: false}, {ConsDir: true}, {ConsDir: true},
+			},
+		}
+		for i := 0; i < 3*plainHopsPerSeg; i++ {
+			long.HopFields = append(long.HopFields, hummingbird.FlyoverHopField{
+				HopField: path.HopField{ConsIngress: uint16(i + 1)},
+			})
+		}
+		buff := make([]byte, long.Len())
+		require.NoError(t, long.SerializeTo(buff))
+
+		got := &hummingbird.Decoded{}
+		assert.Error(t, got.DecodeFromBytes(buff))
+	})
+
+	t.Run("SegLen too large to represent is rejected", func(t *testing.T) {
+		// MetaHdr keeps 7 bits per SegLen. Serializing a larger value masks it down to 0x7F and
+		// silently produces a different path, rather than reporting that it cannot be encoded.
+		// SetHopAndFlyover grows SegLen by two lines per flyover it installs, so a segment can be
+		// pushed over the limit by ordinary use.
+		m := hummingbird.MetaHdr{SegLen: [3]uint8{128, 3, 0}}
+		buff := make([]byte, hummingbird.MetaLen)
+		require.Error(t, m.SerializeTo(buff))
+	})
 }
 
 func mkTiny2Segments(t *testing.T) *hummingbird.Decoded {

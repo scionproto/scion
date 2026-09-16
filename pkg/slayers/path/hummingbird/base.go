@@ -24,6 +24,10 @@ import (
 
 const MetaLen = 12
 
+// MaxSegLen is the largest segment length, in lines, that MetaHdr can encode. The meta header
+// keeps each of the three SegLen values in 7 bits.
+const MaxSegLen = 0x7F
+
 func RegisterPath() {
 	path.RegisterPath(path.Metadata{
 		Type: PathType,
@@ -98,11 +102,19 @@ func (s *Base) IsFirstHopAfterXover() bool {
 
 // InfIndexForHF returns the segment to which the HopField hf belongs
 // The argument hfLines is the line count until the first line of this hop field.
+// Line offsets beyond what a uint8 holds cannot be expressed here; use infIndexForLine for those.
 func (s *Base) InfIndexForHF(hfLines uint8) uint8 {
+	return s.infIndexForLine(int(hfLines))
+}
+
+// infIndexForLine is InfIndexForHF over an int line count. A path may span up to
+// MaxINFs*MaxSegLen lines, more than a uint8 can address, so callers that walk hop fields
+// themselves must accumulate the line count in an int and come through here.
+func (s *Base) infIndexForLine(hfLines int) uint8 {
 	switch {
-	case hfLines < s.PathMeta.SegLen[0]:
+	case hfLines < int(s.PathMeta.SegLen[0]):
 		return 0
-	case hfLines < s.PathMeta.SegLen[0]+s.PathMeta.SegLen[1]:
+	case hfLines < int(s.PathMeta.SegLen[0])+int(s.PathMeta.SegLen[1]):
 		return 1
 	default:
 		return 2
@@ -152,6 +164,13 @@ func (m *MetaHdr) DecodeFromBytes(raw []byte) error {
 func (m *MetaHdr) SerializeTo(b []byte) error {
 	if len(b) < MetaLen {
 		return serrors.New("buffer for MetaHdr too short", "expected", MetaLen, "actual", len(b))
+	}
+	// Check the max length of the segments.
+	for i, segLen := range m.SegLen {
+		if segLen > MaxSegLen {
+			return serrors.New("segment too long to encode in MetaHdr",
+				"seg_idx", i, "seg_len", segLen, "max", MaxSegLen)
+		}
 	}
 	line := uint32(m.CurrINF)<<30 | uint32(m.CurrHF)<<22
 	line |= uint32(m.SegLen[0]&0x7F) << 14

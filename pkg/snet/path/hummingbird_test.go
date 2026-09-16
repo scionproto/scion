@@ -456,98 +456,240 @@ func TestSerializeDeserializeMultipleHops(t *testing.T) {
 	require.Equal(t, hops, gotHops)
 }
 
-// TestReservationFromDecodedPeeringPath builds a Hummingbird peering path, serializes it,
-// and decodes it back with DecodeFromBytes before handing it to the reservation setup.
-//
-// The four cases contain a single plain hop field as the last segment.
-// That happens when the destination AS is the peer on the far side of the peering link.
-//
-// This checks that the reservation setup agrees with the decoded path on how many logical hops it
-// has: hummDataplaneToBaseHops counts them from the decoded segment boundaries, while
-// reservationHopFieldIndicesForFlyovers derives them from SegLen, and assignFlyovers rejects the
-// path when the two disagree. The segment boundaries the decoder recovers for these same paths are
-// checked in hummingbird.TestDecodePeeringPathSegmentBoundaries.
-func TestReservationFromDecodedPeeringPath(t *testing.T) {
+// TestDataplaneToBaseHops checks the mapping from a dataplane path to its logical hop sequence.
+func TestDataplaneToBaseHops(t *testing.T) {
 	t.Parallel()
 
-	// Topology for every case below, (using braccept's hummingbirdPeeringCase IDs):
-	//
-	//	AS 5 --(511 | 151)-- AS 1 ==(121 | 211)== AS 2
-	//	                              peering
-	//
-	// The path goes up from AS 5 to AS 1 against construction direction (segment 0),
-	// crosses the peering link, and ends at AS 2 in construction direction (segment 1).
-	const (
-		ifaceUp   = 511 // AS 5 towards AS 1.
-		ifaceDown = 151 // AS 1 towards AS 5.
-		ifacePeer = 121 // AS 1 towards AS 2, the peering link.
-		ifaceDst  = 211 // AS 2 towards AS 1, the peering link.
-	)
-	hop := func(in, eg uint16) dphumm.FlyoverHopField {
+	plain := func(in, eg uint16) dphumm.FlyoverHopField {
 		return dphumm.FlyoverHopField{
 			HopField: dppath.HopField{ConsIngress: in, ConsEgress: eg},
 		}
 	}
-	flyoverHop := func(in, eg uint16) dphumm.FlyoverHopField {
-		h := hop(in, eg)
+	flyover := func(in, eg uint16) dphumm.FlyoverHopField {
+		h := plain(in, eg)
 		h.Flyover = true
 		h.ResID = 42
 		h.Bw = 129
-		h.ResStartTime = 5
 		h.Duration = 301
 		return h
 	}
 
 	testCases := map[string]struct {
-		segLen [3]uint8
-		hops   []dphumm.FlyoverHopField
-		// wantLogicalHops is the length of the flyover sequence the reservation setup accepts,
-		// i.e. the number of hops hummDataplaneToBaseHops reports.
-		wantLogicalHops int
+		infos []dppath.InfoField
+		// hops holds the hop fields of each segment.
+		hops [][]dphumm.FlyoverHopField
+		// wantErr expects the mapping to be rejected; wantHops and wantIndices are then unused.
+		wantErr     bool
+		wantHops    []path.BaseHop
+		wantIndices []uint8
 	}{
-		"child to peer, best-effort": {
-			// braccept HummingbirdBestEffortChildToPeer.
-			segLen: [3]uint8{6, 3, 0},
-			hops: []dphumm.FlyoverHopField{
-				hop(ifaceUp, 0),
-				hop(ifacePeer, ifaceDown),
-				hop(ifaceDst, 0),
+		// One down segment, cons dir so no ingress/egress swap:
+		// AS a [0->11], AS b [12->13], AS c [14->0]. The next three cases repeat it with
+		// increasingly many flyovers, which change the segment's line count but not its hop
+		// field count, so the answer must not move.
+		"one segment, no flyovers": {
+			infos: []dppath.InfoField{{ConsDir: true}},
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(0, 11), plain(12, 13), plain(14, 0)},
 			},
-			wantLogicalHops: 2, // deleteme: current bug in xover
+			wantHops:    []path.BaseHop{{Ingress: 0, Egress: 11}, {Ingress: 12, Egress: 13}, {Ingress: 14, Egress: 0}},
+			wantIndices: []uint8{0, 1, 2},
 		},
-		"child to peer, flyover": {
-			// braccept HummingbirdFlyoverChildToPeer. The flyover hop takes five lines instead
-			// of three, which is why SegLen[0] grows by two while the hop count is unchanged.
-			segLen: [3]uint8{8, 3, 0},
-			hops: []dphumm.FlyoverHopField{
-				hop(ifaceUp, 0),
-				flyoverHop(ifacePeer, ifaceDown),
-				hop(ifaceDst, 0),
+		"one segment, one flyover": {
+			// SegLen is 11 lines and SegLen/HopLines is 3, so the old derivation happened to
+			// agree here. It stops agreeing at two flyovers.
+			infos: []dppath.InfoField{{ConsDir: true}},
+			hops: [][]dphumm.FlyoverHopField{
+				{flyover(0, 11), plain(12, 13), plain(14, 0)},
 			},
-			wantLogicalHops: 2, // deleteme: current bug in xover
+			wantHops:    []path.BaseHop{{Ingress: 0, Egress: 11}, {Ingress: 12, Egress: 13}, {Ingress: 14, Egress: 0}},
+			wantIndices: []uint8{0, 1, 2},
 		},
-		"peering upstream, best-effort": {
+		"one segment, two flyovers": {
+			// SegLen is 16 lines; SegLen/HopLines would be 5, one more than the path holds.
+			infos: []dppath.InfoField{{ConsDir: true}},
+			hops: [][]dphumm.FlyoverHopField{
+				{flyover(0, 11), flyover(12, 13), plain(14, 15), plain(16, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 11}, {Ingress: 12, Egress: 13},
+				{Ingress: 14, Egress: 15}, {Ingress: 16, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 2, 3},
+		},
+		"one segment, all flyovers": {
+			// SegLen is 20 lines; SegLen/HopLines would be 6.
+			infos: []dppath.InfoField{{ConsDir: true}},
+			hops: [][]dphumm.FlyoverHopField{
+				{flyover(0, 11), flyover(12, 13), flyover(14, 15), flyover(16, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 11}, {Ingress: 12, Egress: 13},
+				{Ingress: 14, Egress: 15}, {Ingress: 16, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 2, 3},
+		},
+		// Tiny topo 111->112: an up segment and a down segment glued at core AS 110.
+		// Crossover at hop fields 1 and 2, they fold into the single logical hop 110 [1->2],
+		// carried only by hop field 1.
+		"two segments, crossover": {
+			infos: []dppath.InfoField{{ConsDir: false}, {ConsDir: true}},
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(41, 0), plain(0, 1)},
+				{plain(0, 2), plain(1, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 41}, {Ingress: 1, Egress: 2}, {Ingress: 1, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 3},
+		},
+		"two segments, crossover, flyovers in both": {
+			// The same path with five-line hop fields throughout: the answer must not move.
+			infos: []dppath.InfoField{{ConsDir: false}, {ConsDir: true}},
+			hops: [][]dphumm.FlyoverHopField{
+				{flyover(41, 0), flyover(0, 1)},
+				{flyover(0, 2), flyover(1, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 41}, {Ingress: 1, Egress: 2}, {Ingress: 1, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 3},
+		},
+		// A shortcut joins two segments at a non-core AS, so that AS sits mid-segment in both,
+		// and each of its hop fields carries a non-zero ConsIngress: interface 99,
+		// toward its parent, which the packet never traverses.
+		// The crossover fold must still produce 71->72 and drop 99 unconditionally without
+		// assuming that egress was zero.
+		// The control plane makes the same choice from the other side,
+		// by leaving interface 99 out of the path metadata entirely.
+		"two segments, shortcut at a non-core AS": {
+			infos: []dppath.InfoField{{ConsDir: false}, {ConsDir: true}},
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(41, 0), plain(99, 71)},
+				{plain(99, 72), plain(1, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 41}, {Ingress: 71, Egress: 72}, {Ingress: 1, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 3},
+		},
+		"three segments, two crossovers": {
+			infos: []dppath.InfoField{{ConsDir: false}, {ConsDir: true}, {ConsDir: true}},
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(41, 0), plain(0, 1)},
+				{plain(0, 2), plain(1, 0)},
+				{plain(0, 3), plain(2, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 41}, {Ingress: 1, Egress: 2},
+				{Ingress: 1, Egress: 3}, {Ingress: 2, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 3, 5},
+		},
+		// AS 5 --(511|151)-- AS 1 ==peer(121|211)== AS 2. Hop fields 1 and 2 sit on either side
+		// of the peering link and belong to different ASes, so neither folds away and both can
+		// carry a flyover. The destination AS is the peer itself, which is what leaves the last
+		// segment holding a single hop field.
+		//
+		// This and the next three cases are the four shapes braccept covers in
+		// hummingbirdPeeringCase.
+		"peering, child to peer": {
+			infos: []dppath.InfoField{
+				{ConsDir: false, Peer: true}, {ConsDir: true, Peer: true},
+			},
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(511, 0), plain(121, 151)},
+				{plain(211, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 511}, {Ingress: 151, Egress: 121}, {Ingress: 211, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 2},
+		},
+		"peering, child to peer, flyover": {
+			// braccept HummingbirdFlyoverChildToPeer. The five-line hop field must not move the
+			// answer.
+			infos: []dppath.InfoField{
+				{ConsDir: false, Peer: true}, {ConsDir: true, Peer: true},
+			},
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(511, 0), flyover(121, 151)},
+				{plain(211, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 511}, {Ingress: 151, Egress: 121}, {Ingress: 211, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 2},
+		},
+		"peering, upstream": {
 			// braccept HummingbirdBestEffortPeeringUpstream: one hop further from the peering
-			// link, so segment 0 has three hop fields.
-			segLen: [3]uint8{9, 3, 0},
-			hops: []dphumm.FlyoverHopField{
-				hop(ifaceUp, 0),
-				hop(ifacePeer, ifaceDown),
-				hop(ifacePeer, 0),
-				hop(ifaceDst, 0),
+			// link, so the first segment holds three hop fields.
+			infos: []dppath.InfoField{
+				{ConsDir: false, Peer: true}, {ConsDir: true, Peer: true},
 			},
-			wantLogicalHops: 3, // deleteme: current bug in xover
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(511, 0), plain(121, 151), plain(121, 0)},
+				{plain(211, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 511}, {Ingress: 151, Egress: 121},
+				{Ingress: 0, Egress: 121}, {Ingress: 211, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 2, 3},
 		},
-		"peering upstream, flyover": {
+		"peering, upstream, flyover": {
 			// braccept HummingbirdFlyoverPeeringUpstream.
-			segLen: [3]uint8{11, 3, 0},
-			hops: []dphumm.FlyoverHopField{
-				hop(ifaceUp, 0),
-				flyoverHop(ifacePeer, ifaceDown),
-				hop(ifacePeer, 0),
-				hop(ifaceDst, 0),
+			infos: []dppath.InfoField{
+				{ConsDir: false, Peer: true}, {ConsDir: true, Peer: true},
 			},
-			wantLogicalHops: 3, // deleteme: current bug in xover
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(511, 0), flyover(121, 151), plain(121, 0)},
+				{plain(211, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 511}, {Ingress: 151, Egress: 121},
+				{Ingress: 0, Egress: 121}, {Ingress: 211, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 2, 3},
+		},
+		// A path is either peering or not: both of its info fields carry the peer flag, or
+		// neither does. Only one of them carrying it leaves no way to tell whether the two
+		// segments are joined by a crossover or by a peering link, so the path is rejected
+		// rather than guessed at. Unlike a bad segment count, this one survives the wire: the
+		// peer flag is a per-info-field bit and nothing cross-checks the two while decoding.
+		"inconsistent peering, peer then non-peer": {
+			infos: []dppath.InfoField{
+				{ConsDir: false, Peer: true}, {ConsDir: true, Peer: false},
+			},
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(511, 0), plain(121, 151)},
+				{plain(211, 0)},
+			},
+			wantErr: true,
+		},
+		"inconsistent peering, non-peer then peer": {
+			infos: []dppath.InfoField{
+				{ConsDir: false, Peer: false}, {ConsDir: true, Peer: true},
+			},
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(511, 0), plain(121, 151)},
+				{plain(211, 0)},
+			},
+			wantErr: true,
+		},
+		"peering, two hops after the link": {
+			infos: []dppath.InfoField{
+				{ConsDir: false, Peer: true}, {ConsDir: true, Peer: true},
+			},
+			hops: [][]dphumm.FlyoverHopField{
+				{plain(511, 0), plain(121, 151)},
+				{plain(211, 212), plain(1, 0)},
+			},
+			wantHops: []path.BaseHop{
+				{Ingress: 0, Egress: 511}, {Ingress: 151, Egress: 121},
+				{Ingress: 211, Egress: 212}, {Ingress: 1, Egress: 0},
+			},
+			wantIndices: []uint8{0, 1, 2, 3},
 		},
 	}
 
@@ -555,45 +697,57 @@ func TestReservationFromDecodedPeeringPath(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			numLines := 0
-			for _, l := range tc.segLen {
-				numLines += int(l)
+			dec := &dphumm.Decoded{
+				Base:       dphumm.Base{NumINF: len(tc.infos)},
+				InfoFields: tc.infos,
 			}
-			original := &dphumm.Decoded{
-				Base: dphumm.Base{
-					PathMeta: dphumm.MetaHdr{SegLen: tc.segLen},
-					NumINF:   2,
-					NumLines: numLines,
-				},
-				InfoFields: []dppath.InfoField{
-					// Up segment, against construction direction.
-					{ConsDir: false, Peer: true},
-					// Down segment, in construction direction, one hop field long.
-					{ConsDir: true, Peer: true},
-				},
-				HopFields: tc.hops,
+			for segIdx, seg := range tc.hops {
+				for _, hf := range seg {
+					lines := dphumm.HopLines
+					if hf.Flyover {
+						lines = dphumm.FlyoverLines
+					}
+					dec.PathMeta.SegLen[segIdx] += uint8(lines)
+					dec.NumLines += lines
+					dec.HopFields = append(dec.HopFields, hf)
+				}
 			}
-
-			// Serialize/Deserialize on purpose to avoid plain Decoded construction:
-			buff := make([]byte, original.Len())
-			require.NoError(t, original.SerializeTo(buff))
-			dec := &dphumm.Decoded{}
+			// Take FirstHopPerSeg from the decoder rather than hand-writing it here.
+			buff := make([]byte, dec.Len())
+			require.NoError(t, dec.SerializeTo(buff))
 			require.NoError(t, dec.DecodeFromBytes(buff))
 
-			// A sequence with no flyovers is enough: the setup still has to agree on how many
-			// logical hops the path has before it can decide there is nothing to assign.
-			r := &path.Reservation{}
-			err := r.SetupWithHummDecoded(dec, addr.MustParseIA("1-ff00:0:2"),
-				make(path.FlyoverSequence, tc.wantLogicalHops))
+			gotHops, gotIndices, err := path.HummDataplaneToBaseHops(dec)
+			if tc.wantErr {
+				require.Error(t, err)
+				// The reservation setup must refuse the path for the same reason.
+				r := &path.Reservation{}
+				require.Error(t, r.SetupWithHummDecoded(dec, addr.MustParseIA("1-ff00:0:2"),
+					make(path.FlyoverSequence, len(dec.HopFields))))
+				return
+			}
 			require.NoError(t, err)
-			require.Equal(t, len(tc.hops), len(r.Hops))
+			require.Equal(t, tc.wantHops, gotHops)
+			require.Equal(t, tc.wantIndices, gotIndices)
+			// Each logical hop is carried by exactly one hop field of the path.
+			require.Len(t, gotIndices, len(gotHops))
+			for _, i := range gotIndices {
+				require.Less(t, int(i), len(dec.HopFields), "index past the end of the path")
+			}
 
-			// A sequence of the wrong length must be rejected, so that a future regression in
-			// the hop accounting cannot pass this test by making both sides wrong together.
+			// The reservation setup must agree on how many logical hops the path has.
+			// A sequence with no flyovers is enough: the setup still has to settle the count
+			// before it can decide there is nothing to assign.
+			r := &path.Reservation{}
+			require.NoError(t, r.SetupWithHummDecoded(dec, addr.MustParseIA("1-ff00:0:2"),
+				make(path.FlyoverSequence, len(tc.wantHops))))
+			require.Len(t, r.Hops, len(dec.HopFields))
+
+			// A sequence of the wrong length must be rejected, so that a regression in the hop
+			// accounting cannot pass this test by making both sides wrong together.
 			r = &path.Reservation{}
-			err = r.SetupWithHummDecoded(dec, addr.MustParseIA("1-ff00:0:2"),
-				make(path.FlyoverSequence, tc.wantLogicalHops+1))
-			require.Error(t, err)
+			require.Error(t, r.SetupWithHummDecoded(dec, addr.MustParseIA("1-ff00:0:2"),
+				make(path.FlyoverSequence, len(tc.wantHops)+1)))
 		})
 	}
 }

@@ -323,32 +323,7 @@ func getHopsFromPath(p snet.Path) ([]path.BaseHop, error) {
 		return nil, fmt.Errorf("requested path does not have metadata")
 	}
 
-	ifaces := p.Metadata().Interfaces
-	// numHops := len(ifaces)/2 + 1
-	hops := make([]path.BaseHop, len(ifaces)/2+1)
-
-	// First hop.
-	hops[0] = path.BaseHop{
-		IA:      ifaces[0].IA,
-		Ingress: 0,
-		Egress:  uint16(ifaces[0].ID),
-	}
-	// Rest of hops excluding last.
-	// 0, [1,2], [3,4], 5
-	// 0    1      2    3
-	i := 1
-	for ; i < len(hops)-1; i++ {
-		hops[i].IA = ifaces[i*2-1].IA
-		hops[i].Ingress = uint16(ifaces[i*2-1].ID)
-		hops[i].Egress = uint16(ifaces[i*2].ID)
-	}
-	// Last hop.
-	for ; i < len(hops); i++ {
-		hops[i].IA = ifaces[i*2-1].IA
-		hops[i].Ingress = uint16(ifaces[i*2-1].ID)
-		hops[i].Egress = 0
-	}
-	return hops, nil
+	return path.InterfacesToBaseHops(p.Metadata().Interfaces), nil
 }
 
 func getRequestsForHops(

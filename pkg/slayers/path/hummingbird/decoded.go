@@ -91,6 +91,10 @@ func (s *Decoded) decodeAllHFs(data []byte) error {
 		}
 	}
 
+	if hfIdx > MaxHops {
+		return serrors.New("too many hop fields", "max", MaxHops, "actual", hfIdx)
+	}
+
 	// Cull the HF slice to the last HF.
 	s.HopFields = s.HopFields[:hfIdx]
 
@@ -245,10 +249,15 @@ func (s *Decoded) ToRaw() (*Raw, error) {
 
 // GetHopField returns the hop field starting at the specified line offset.
 func (s *Decoded) GetHopField(hfLine uint8) (FlyoverHopField, error) {
-	lineCount := uint8(0)
+	// A path can span more lines than a uint8, use int.
+	lineCount := 0
 	for _, hop := range s.HopFields {
-		if lineCount == hfLine {
+		if lineCount == int(hfLine) {
 			return hop, nil
+		}
+		if lineCount > int(hfLine) {
+			// hfLine falls inside the previous hop field rather than at the start of one.
+			break
 		}
 		if hop.Flyover {
 			lineCount += FlyoverLines
@@ -257,7 +266,7 @@ func (s *Decoded) GetHopField(hfLine uint8) (FlyoverHopField, error) {
 		}
 	}
 	return FlyoverHopField{}, serrors.New(
-		"HopField index out of bounds", "max", lineCount, "actual", hfLine)
+		"no hop field starts at this line", "max", lineCount, "actual", hfLine)
 }
 
 // GetCurrentHopField returns the current hop field pointed to by CurrHF.
@@ -268,15 +277,16 @@ func (s *Decoded) GetCurrentHopField() (FlyoverHopField, error) {
 // InfIndexForHFIndex takes the index of the hop field in the HopFields slice and returns its
 // corresponding info field index in the InfoFields slice. Expected 0 <= hfIdx < len(HopFields).
 func (s *Decoded) InfIndexForHFIndex(hfIdx uint8) uint8 {
-	lineCount := uint8(0)
-	for i := uint8(0); i < hfIdx; i++ {
+	// A path can span more lines than a uint8, use int.
+	lineCount := 0
+	for i := range hfIdx {
 		if s.HopFields[i].Flyover {
 			lineCount += FlyoverLines
 		} else {
 			lineCount += HopLines
 		}
 	}
-	return s.InfIndexForHF(lineCount)
+	return s.infIndexForLine(lineCount)
 }
 
 func (s Decoded) NumberOfHFsInSegment(segmentIndex int) int {
@@ -298,27 +308,42 @@ func (s Decoded) NumberOfHFsInSegment(segmentIndex int) int {
 }
 
 // IsCrossOver returns -1 for the first hop of a crossover, +1 for the second, or 0 for none.
+// This function returns no-crossover for peering links, as opposed to the scion.Base.IsXover,
+// which is true even in the presence of peering links.
 func (s Decoded) IsCrossOver(hfIdx uint8) int {
 	// A crossover is the "joining" of two segments.
-	// A crossover hop is that one that participates in a crossover, i.e., having two segments
-	// participating in a crossover, the last hop of the first segment, or the first hop of the
-	// last segment.
+	//
+	// A peering link joins two segments as well, but it is not a crossover: the two hop fields on
+	// either side of it belong to two different ASes and each describes a real traversal, whereas
+	// the two hop fields of a crossover describe the same AS and collapse into one logical hop.
 
 	idx := int(hfIdx)
 	for i := range s.NumINF - 1 {
 		c := s.NumberOfHFsInSegment(i)
-		if idx == c-1 {
+		peering := s.isPeeringBoundary(i)
+		if idx == c-1 && !peering {
 			// Last hop of first segment of the crossover.
 			return -1
 		}
 		idx -= c
-		if idx == 0 {
+		if idx == 0 && !peering && int(hfIdx) != len(s.HopFields)-1 {
 			// First hop of second segment of the crossover, and not destination AS.
 			return 1
 		}
 	}
 
 	return 0
+}
+
+// isPeeringBoundary returns whether the segments segIdx and segIdx+1 are joined by a peering link
+// instead of by a crossover. Both info fields of a peering path carry the peer flag; a path where
+// only one of them does is malformed, and is reported as peering so that no hop field is lost to
+// a crossover collapse.
+func (s Decoded) isPeeringBoundary(segIdx int) bool {
+	if segIdx < 0 || segIdx+1 >= len(s.InfoFields) {
+		return false
+	}
+	return s.InfoFields[segIdx].Peer || s.InfoFields[segIdx+1].Peer
 }
 
 // Converts a SCiON decoded path to a hummingbird decoded path
