@@ -386,9 +386,9 @@ func TestProcessHbirdPacket(t *testing.T) {
 					addr.MustParseIA("1-ff00:0:110"), nil, key, hbirdKey)
 			},
 			mockMsg: func(t *testing.T, afterProcessing bool, _ *router.DataPlane) *router.Packet {
-				// Story: the packet lands on the last (peering) hop of
-				// segment 0. After processing, the packet is ready to
-				// be processed by the first (peering) hop of segment 1.
+				// Story: the packet lands on the last (peering) hop of segment 0.
+				// After processing, the packet is ready to be processed by
+				// the first (peering) hop of segment 1.
 				spkt, _ := prepHbirdMsg(now)
 				dpath := &hummingbird.Decoded{
 					Base: hummingbird.Base{
@@ -1541,7 +1541,7 @@ func TestProcessHbirdPacket(t *testing.T) {
 						PathMeta: hummingbird.MetaHdr{
 							CurrHF:  6,
 							CurrINF: 1,
-							SegLen:  [3]uint8{1, 11, 0},
+							SegLen:  [3]uint8{3, 11, 0}, // 1x3, 2x3 + 1x5
 							BaseTS:  util.TimeToSecs(now),
 						},
 						NumINF:   2,

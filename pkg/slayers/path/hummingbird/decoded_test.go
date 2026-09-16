@@ -291,6 +291,170 @@ func TestIsCrossOver(t *testing.T) {
 	assert.Equal(t, 0, dec.IsCrossOver(1))
 }
 
+func TestDecodeSegmentStartingAtLastHopField(t *testing.T) {
+	p := mkDecodedHbirdPath(t,
+		hbirdPathCase{
+			infos: []bool{false, true},
+			hops: [][]hbirdHopCase{
+				{hbirdHopCase{ingress: 0, egress: 1, flyover: false}},
+				{hbirdHopCase{ingress: 2, egress: 0, flyover: false}},
+			},
+		},
+		0, 0)
+	// A single-hop segment only occurs behind a peering link.
+	p.InfoFields[0].Peer = true
+	p.InfoFields[1].Peer = true
+	require.Equal(t, [3]uint8{3, 3, 0}, p.PathMeta.SegLen)
+
+	buff := make([]byte, p.Len())
+	require.NoError(t, p.SerializeTo(buff))
+
+	s := &hummingbird.Decoded{}
+	require.NoError(t, s.DecodeFromBytes(buff))
+
+	assert.Equal(t, p.FirstHopPerSeg, s.FirstHopPerSeg)
+	assert.Equal(t, 1, s.NumberOfHFsInSegment(0))
+	assert.Equal(t, 1, s.NumberOfHFsInSegment(1))
+	assert.Equal(t, -1, s.IsCrossOver(0))
+	assert.Equal(t, 1, s.IsCrossOver(1))
+}
+
+// TestDecodePeeringPathSegmentBoundaries decodes the four Hummingbird peering paths that braccept
+// exercises in hummingbirdPeeringCase, and checks the segment boundaries the decoder recovers.
+//
+// Their common shape is a last segment consisting of a single plain hop field. That is only
+// reachable across a peering link: at a crossover the two hop fields flanking the boundary belong
+// to the same AS, so the second segment's first hop field has a zero ingress and a one-hop last
+// segment would be degenerate. Across a peering link the flanking hop fields belong to different
+// ASes, and the last segment's lone hop field carries the peering ingress interface, which happens
+// when the destination AS is the peer on the far side of the link.
+//
+// See also TestDecodeSegmentStartingAtLastHopField, which covers the minimal version of this shape
+// and the resulting IsCrossOver values.
+func TestDecodePeeringPathSegmentBoundaries(t *testing.T) {
+	// Topology shared by every case below, as in braccept's hummingbirdPeeringCase:
+	//
+	//	AS 5 --(511 | 151)-- AS 1 ==(121 | 211)== AS 2
+	//	                                peering
+	//
+	// The path goes up from AS 5 to AS 1 against construction direction (segment 0), crosses the
+	// peering link, and ends at AS 2 in construction direction (segment 1).
+	const (
+		ifaceUp   = 511 // AS 5 towards AS 1.
+		ifaceDown = 151 // AS 1 towards AS 5.
+		ifacePeer = 121 // AS 1 towards AS 2, the peering link.
+		ifaceDst  = 211 // AS 2 towards AS 1, the peering link.
+	)
+	hop := func(in, eg uint16) hummingbird.FlyoverHopField {
+		return hummingbird.FlyoverHopField{
+			HopField: path.HopField{ConsIngress: in, ConsEgress: eg},
+		}
+	}
+	flyoverHop := func(in, eg uint16) hummingbird.FlyoverHopField {
+		h := hop(in, eg)
+		h.Flyover = true
+		h.ResID = 42
+		h.Bw = 129
+		h.ResStartTime = 5
+		h.Duration = 301
+		return h
+	}
+
+	testCases := map[string]struct {
+		segLen [3]uint8
+		hops   []hummingbird.FlyoverHopField
+		// wantFirstHopPerSeg is the index of the first hop field of segments 1 and 2. There is no
+		// third segment here, so the second entry is the total hop field count.
+		wantFirstHopPerSeg [2]uint8
+		// wantHFsPerSeg is the hop field count of segments 0 and 1.
+		wantHFsPerSeg [2]int
+	}{
+		"child to peer, best-effort": {
+			// braccept HummingbirdBestEffortChildToPeer.
+			segLen: [3]uint8{6, 3, 0},
+			hops: []hummingbird.FlyoverHopField{
+				hop(ifaceUp, 0),
+				hop(ifacePeer, ifaceDown),
+				hop(ifaceDst, 0),
+			},
+			wantFirstHopPerSeg: [2]uint8{2, 3},
+			wantHFsPerSeg:      [2]int{2, 1},
+		},
+		"child to peer, flyover": {
+			// braccept HummingbirdFlyoverChildToPeer. The flyover hop takes five lines instead of
+			// three, which is why SegLen[0] grows by two while the hop field count is unchanged.
+			segLen: [3]uint8{8, 3, 0},
+			hops: []hummingbird.FlyoverHopField{
+				hop(ifaceUp, 0),
+				flyoverHop(ifacePeer, ifaceDown),
+				hop(ifaceDst, 0),
+			},
+			wantFirstHopPerSeg: [2]uint8{2, 3},
+			wantHFsPerSeg:      [2]int{2, 1},
+		},
+		"peering upstream, best-effort": {
+			// braccept HummingbirdBestEffortPeeringUpstream: one hop further from the peering
+			// link, so segment 0 has three hop fields.
+			segLen: [3]uint8{9, 3, 0},
+			hops: []hummingbird.FlyoverHopField{
+				hop(ifaceUp, 0),
+				hop(ifacePeer, ifaceDown),
+				hop(ifacePeer, 0),
+				hop(ifaceDst, 0),
+			},
+			wantFirstHopPerSeg: [2]uint8{3, 4},
+			wantHFsPerSeg:      [2]int{3, 1},
+		},
+		"peering upstream, flyover": {
+			// braccept HummingbirdFlyoverPeeringUpstream.
+			segLen: [3]uint8{11, 3, 0},
+			hops: []hummingbird.FlyoverHopField{
+				hop(ifaceUp, 0),
+				flyoverHop(ifacePeer, ifaceDown),
+				hop(ifacePeer, 0),
+				hop(ifaceDst, 0),
+			},
+			wantFirstHopPerSeg: [2]uint8{3, 4},
+			wantHFsPerSeg:      [2]int{3, 1},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			numLines := 0
+			for _, l := range tc.segLen {
+				numLines += int(l)
+			}
+			original := &hummingbird.Decoded{
+				Base: hummingbird.Base{
+					PathMeta: hummingbird.MetaHdr{SegLen: tc.segLen},
+					NumINF:   2,
+					NumLines: numLines,
+				},
+				InfoFields: []path.InfoField{
+					// Up segment, against construction direction.
+					{ConsDir: false, Peer: true},
+					// Down segment, in construction direction, one hop field long.
+					{ConsDir: true, Peer: true},
+				},
+				HopFields: tc.hops,
+			}
+
+			// Go through the wire format on purpose: building a Decoded by hand assigns
+			// FirstHopPerSeg directly and would never exercise the decoder.
+			buff := make([]byte, original.Len())
+			require.NoError(t, original.SerializeTo(buff))
+			dec := &hummingbird.Decoded{}
+			require.NoError(t, dec.DecodeFromBytes(buff))
+
+			assert.Equal(t, tc.wantFirstHopPerSeg, dec.FirstHopPerSeg)
+			assert.Equal(t, tc.wantHFsPerSeg[0], dec.NumberOfHFsInSegment(0))
+			assert.Equal(t, tc.wantHFsPerSeg[1], dec.NumberOfHFsInSegment(1))
+			assert.Equal(t, tc.hops, dec.HopFields)
+		})
+	}
+}
+
 func mkTiny2Segments(t *testing.T) *hummingbird.Decoded {
 	return mkDecodedHbirdPath(
 		t,

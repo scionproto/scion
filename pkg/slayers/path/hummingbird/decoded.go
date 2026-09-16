@@ -40,6 +40,63 @@ type Decoded struct {
 	FirstHopPerSeg [2]uint8
 }
 
+func (s *Decoded) decodeAllHFs(data []byte) error {
+	origData := data
+	l := s.NumLines * LineLen
+	if len(data) < l {
+		return serrors.New("buffer too small", "expected", l, "actual", len(data))
+	}
+	data = data[:l]
+
+	// Allocate maximum number of possible hopfields based on length
+	s.HopFields = make([]FlyoverHopField, s.NumLines/HopLines)
+
+	hfIdx := 0
+	for segIdx, segRemFromHeader := range s.PathMeta.SegLen {
+		// segIdx is the segment index [0,1,2]
+		// segRem is the lines-to-be-read remainder.
+		segRem := int(segRemFromHeader)
+		for ; segRem > 0; hfIdx++ {
+			if len(data) < hopLen {
+				return serrors.New("malformed hummingbird path or buffer too small",
+					"hf_idx", hfIdx, "buff_size", len(origData))
+			}
+			isFlyover := data[0]&0x80 == 0x80
+			bLen := hopLen
+			if isFlyover {
+				bLen = flyoverLen
+			}
+			// Check we are not out of bounds.
+			if bLen > len(data) {
+				return serrors.New("flyover hopfield truncated in buffer",
+					"hf_idx", hfIdx, "buff_size", len(origData))
+			}
+			segRem -= (bLen / LineLen)
+
+			// Parse the hop field.
+			if err := s.HopFields[hfIdx].DecodeFromBytes(data[:bLen]); err != nil {
+				return serrors.Join(err, nil, "hf_idx", hfIdx)
+			}
+
+			// Advance the buffer by the size of the last hop field.
+			data = data[bLen:]
+		}
+		if segRem != 0 {
+			return serrors.New("malformed hummingbird path",
+				"hf_idx", hfIdx, "seg_idx", segIdx, "seg_remainder", segRem)
+		}
+		if segIdx < 2 {
+			// If we finished the segment 0 or 1, record where the next one starts.
+			s.FirstHopPerSeg[segIdx] = uint8(hfIdx)
+		}
+	}
+
+	// Cull the HF slice to the last HF.
+	s.HopFields = s.HopFields[:hfIdx]
+
+	return nil
+}
+
 // DecodeFromBytes fully decodes the Hummingbird path into the corresponding fields.
 func (s *Decoded) DecodeFromBytes(data []byte) error {
 	if err := s.Base.DecodeFromBytes(data); err != nil {
@@ -57,48 +114,8 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 		}
 		offset += path.InfoLen
 	}
-
-	// Allocate maximum number of possible hopfields based on length
-	s.HopFields = make([]FlyoverHopField, s.NumLines/HopLines)
-	// Safe default: if we never discover a segment boundary while decoding,
-	// treat the missing boundary as "after the last hop".
-	s.HopFields = make([]FlyoverHopField, s.NumLines/HopLines)
-	s.FirstHopPerSeg[0] = uint8(len(s.HopFields))
-	s.FirstHopPerSeg[1] = uint8(len(s.HopFields))
-
-	i, j := 0, 0
-	// If last hop is not a flyover hop, decode it with only 12 bytes slice
-	for ; j < s.NumLines-HopLines; i++ {
-		if err := s.HopFields[i].DecodeFromBytes(data[offset : offset+flyoverLen]); err != nil {
-			return err
-		}
-		// Set FirstHopPerSeg
-		if j == int(s.PathMeta.SegLen[0]) {
-			s.FirstHopPerSeg[0] = uint8(i)
-		} else if j == int(s.PathMeta.SegLen[0])+int(s.PathMeta.SegLen[1]) {
-			s.FirstHopPerSeg[1] = uint8(i)
-		}
-
-		if s.HopFields[i].Flyover {
-			offset += flyoverLen
-			j += FlyoverLines
-		} else {
-			offset += hopLen
-			j += HopLines
-		}
-	}
-	if j == s.NumLines-HopLines {
-		if err := s.HopFields[i].DecodeFromBytes(data[offset : offset+hopLen]); err != nil {
-			return err
-		}
-		i++
-	}
-	s.HopFields = s.HopFields[:i]
-	if s.PathMeta.SegLen[1] == 0 {
-		s.FirstHopPerSeg[0] = uint8(i)
-		s.FirstHopPerSeg[1] = uint8(i)
-	} else if s.PathMeta.SegLen[2] == 0 {
-		s.FirstHopPerSeg[1] = uint8(i)
+	if err := s.decodeAllHFs(data[offset:]); err != nil {
+		return err
 	}
 
 	return nil

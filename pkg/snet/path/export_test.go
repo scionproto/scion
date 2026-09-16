@@ -17,7 +17,9 @@ package path
 import (
 	"crypto/cipher"
 
+	"github.com/scionproto/scion/pkg/addr"
 	dppath "github.com/scionproto/scion/pkg/slayers/path"
+	dphum "github.com/scionproto/scion/pkg/slayers/path/hummingbird"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
@@ -47,4 +49,12 @@ func SerializeHops(buff []byte, hops []*Hop) (int, error) {
 
 func DeserializeHops(buff []byte) ([]*Hop, error) {
 	return deserializeHops(buff)
+}
+
+func (r *Reservation) SetupWithHummDecoded(
+	dec *dphum.Decoded,
+	dstIA addr.IA,
+	seq FlyoverSequence,
+) error {
+	return r.setupReservationWithHummDecoded(dec, dstIA, seq)
 }

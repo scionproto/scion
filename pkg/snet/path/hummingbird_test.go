@@ -456,6 +456,148 @@ func TestSerializeDeserializeMultipleHops(t *testing.T) {
 	require.Equal(t, hops, gotHops)
 }
 
+// TestReservationFromDecodedPeeringPath builds a Hummingbird peering path, serializes it,
+// and decodes it back with DecodeFromBytes before handing it to the reservation setup.
+//
+// The four cases contain a single plain hop field as the last segment.
+// That happens when the destination AS is the peer on the far side of the peering link.
+//
+// This checks that the reservation setup agrees with the decoded path on how many logical hops it
+// has: hummDataplaneToBaseHops counts them from the decoded segment boundaries, while
+// reservationHopFieldIndicesForFlyovers derives them from SegLen, and assignFlyovers rejects the
+// path when the two disagree. The segment boundaries the decoder recovers for these same paths are
+// checked in hummingbird.TestDecodePeeringPathSegmentBoundaries.
+func TestReservationFromDecodedPeeringPath(t *testing.T) {
+	t.Parallel()
+
+	// Topology for every case below, (using braccept's hummingbirdPeeringCase IDs):
+	//
+	//	AS 5 --(511 | 151)-- AS 1 ==(121 | 211)== AS 2
+	//	                              peering
+	//
+	// The path goes up from AS 5 to AS 1 against construction direction (segment 0),
+	// crosses the peering link, and ends at AS 2 in construction direction (segment 1).
+	const (
+		ifaceUp   = 511 // AS 5 towards AS 1.
+		ifaceDown = 151 // AS 1 towards AS 5.
+		ifacePeer = 121 // AS 1 towards AS 2, the peering link.
+		ifaceDst  = 211 // AS 2 towards AS 1, the peering link.
+	)
+	hop := func(in, eg uint16) dphumm.FlyoverHopField {
+		return dphumm.FlyoverHopField{
+			HopField: dppath.HopField{ConsIngress: in, ConsEgress: eg},
+		}
+	}
+	flyoverHop := func(in, eg uint16) dphumm.FlyoverHopField {
+		h := hop(in, eg)
+		h.Flyover = true
+		h.ResID = 42
+		h.Bw = 129
+		h.ResStartTime = 5
+		h.Duration = 301
+		return h
+	}
+
+	testCases := map[string]struct {
+		segLen [3]uint8
+		hops   []dphumm.FlyoverHopField
+		// wantLogicalHops is the length of the flyover sequence the reservation setup accepts,
+		// i.e. the number of hops hummDataplaneToBaseHops reports.
+		wantLogicalHops int
+	}{
+		"child to peer, best-effort": {
+			// braccept HummingbirdBestEffortChildToPeer.
+			segLen: [3]uint8{6, 3, 0},
+			hops: []dphumm.FlyoverHopField{
+				hop(ifaceUp, 0),
+				hop(ifacePeer, ifaceDown),
+				hop(ifaceDst, 0),
+			},
+			wantLogicalHops: 2, // deleteme: current bug in xover
+		},
+		"child to peer, flyover": {
+			// braccept HummingbirdFlyoverChildToPeer. The flyover hop takes five lines instead
+			// of three, which is why SegLen[0] grows by two while the hop count is unchanged.
+			segLen: [3]uint8{8, 3, 0},
+			hops: []dphumm.FlyoverHopField{
+				hop(ifaceUp, 0),
+				flyoverHop(ifacePeer, ifaceDown),
+				hop(ifaceDst, 0),
+			},
+			wantLogicalHops: 2, // deleteme: current bug in xover
+		},
+		"peering upstream, best-effort": {
+			// braccept HummingbirdBestEffortPeeringUpstream: one hop further from the peering
+			// link, so segment 0 has three hop fields.
+			segLen: [3]uint8{9, 3, 0},
+			hops: []dphumm.FlyoverHopField{
+				hop(ifaceUp, 0),
+				hop(ifacePeer, ifaceDown),
+				hop(ifacePeer, 0),
+				hop(ifaceDst, 0),
+			},
+			wantLogicalHops: 3, // deleteme: current bug in xover
+		},
+		"peering upstream, flyover": {
+			// braccept HummingbirdFlyoverPeeringUpstream.
+			segLen: [3]uint8{11, 3, 0},
+			hops: []dphumm.FlyoverHopField{
+				hop(ifaceUp, 0),
+				flyoverHop(ifacePeer, ifaceDown),
+				hop(ifacePeer, 0),
+				hop(ifaceDst, 0),
+			},
+			wantLogicalHops: 3, // deleteme: current bug in xover
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			numLines := 0
+			for _, l := range tc.segLen {
+				numLines += int(l)
+			}
+			original := &dphumm.Decoded{
+				Base: dphumm.Base{
+					PathMeta: dphumm.MetaHdr{SegLen: tc.segLen},
+					NumINF:   2,
+					NumLines: numLines,
+				},
+				InfoFields: []dppath.InfoField{
+					// Up segment, against construction direction.
+					{ConsDir: false, Peer: true},
+					// Down segment, in construction direction, one hop field long.
+					{ConsDir: true, Peer: true},
+				},
+				HopFields: tc.hops,
+			}
+
+			// Serialize/Deserialize on purpose to avoid plain Decoded construction:
+			buff := make([]byte, original.Len())
+			require.NoError(t, original.SerializeTo(buff))
+			dec := &dphumm.Decoded{}
+			require.NoError(t, dec.DecodeFromBytes(buff))
+
+			// A sequence with no flyovers is enough: the setup still has to agree on how many
+			// logical hops the path has before it can decide there is nothing to assign.
+			r := &path.Reservation{}
+			err := r.SetupWithHummDecoded(dec, addr.MustParseIA("1-ff00:0:2"),
+				make(path.FlyoverSequence, tc.wantLogicalHops))
+			require.NoError(t, err)
+			require.Equal(t, len(tc.hops), len(r.Hops))
+
+			// A sequence of the wrong length must be rejected, so that a future regression in
+			// the hop accounting cannot pass this test by making both sides wrong together.
+			r = &path.Reservation{}
+			err = r.SetupWithHummDecoded(dec, addr.MustParseIA("1-ff00:0:2"),
+				make(path.FlyoverSequence, tc.wantLogicalHops+1))
+			require.Error(t, err)
+		})
+	}
+}
+
 // createHummingbirdPath creates a valid Hummingbird path between 111 and 112 from the tiny topo.
 // This path contains no flyovers.
 func createHummingbirdPath(iniTime time.Time) *dphumm.Decoded {
