@@ -1,0 +1,15 @@
+load("//acceptance/common:topogen.bzl", "topogen_test")
+
+topogen_test(
+    name = "test",
+    src = "test.py",
+    args = [
+        "--executable=test-client:$(location //acceptance/multihomed/test-client)",
+        "--executable=test-server:$(location //acceptance/multihomed/test-server)",
+    ],
+    data = [
+        "//acceptance/multihomed/test-client",
+        "//acceptance/multihomed/test-server",
+    ],
+    topo = "//topology:tiny.topo",
+)
