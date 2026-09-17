@@ -1,25 +1,26 @@
 Patent Notice
 ====================================
 
-Anapaya Systems AG holds patents for which it has issued a formal
-open-source patent pledge.  Its terms and patents covered are available
-at:
+There may be patents related to certain SCION technologies for which
+an open-source patent pledge was issued.
 
+Known pledges are listed below. Their terms and patents covered are available
+at the respective link: 
+
+- Anapaya Systems AG:
     https://learn.anapaya.net/docs/resources/patent-pledge/
-
-Last accessed: 9 September 2026
-
-The pledge applies to Free or Open Source Software and internal-only use,
-not to hardware or to distribution in combination with proprietary software.
+    Last accessed: 9 September 2026
+    The pledge applies to Free or Open Source Software and internal-only use,
+    not to hardware or to distribution in combination with proprietary software.
 
 
 
 Patent-Covered Contributions
 ============================
 
-If you are contributing code that you know or believe implements a technique covered by a
-patent, you are encouraged to follow the disclosure steps described in
-https://docs.scion.org/en/latest/dev/contribute.html
+If you are contributing code that you know or believe implements a technique
+covered by a patent, you are encouraged to follow the disclosure steps described
+in https://docs.scion.org/en/latest/dev/contribute.html
 
 Known Patents
 =============
@@ -41,20 +42,25 @@ EP3941003B1, US11362932B2                  High availability for SCION AS contro
                                             data planes keep working through failures; also
                                             covers interoperation between SCION and BGP.
 
-                                            
+
+This is a purely informative non-comprehensive list of patents directly
+relating to the SCION technology. Note that these patent are not necessarily
+implemented in the code of this repository. Conversely, there may be implementations
+of patents that are not listed here. 
+
 Please contact the maintainers or submit a PR if you become aware of
-any other patents that should be mentioned here.
+any other patents relating to the SCION technology or to this
+implementation that should be mentioned here.
 
 FAQ
 ===
 
 
-1. Can I use this implementation because of the patents?
+1. Can I use this implementation in spite of the patents?
 
-  There are currently no known contributions from non-patent owners.
-  Once they come, such contributions should be disclosed according to 
-  the process linked above. Their use would be dependent on a patent
-  pledge. 
+  Contributions of code covered by patents from non-patent owners
+  should be disclosed according to the process linked above.
+  Their use would be dependent on a patent pledge. 
 
   The Anapaya pledge linked above covers FOSS development, distribution,
   and internal-only use, but not distribution combined with proprietary
