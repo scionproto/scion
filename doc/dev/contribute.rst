@@ -297,20 +297,22 @@ relating to the SCION technology. Note that these patent are not necessarily
 implemented in the code of this repository. Conversely, there may be implementations
 of patents that are not listed here. 
 
-Patent Numbers                             Description
-----------------------------------------   -------------------------------------------------
-EP3756317B1, CN111771359B, US11240140B2    SCION-to-IP Gateway (SIG) including traffic
-                                            classification, path evaluation, high-availability
-                                            deployment.
+=======================================  ===================================================
+Patent Numbers                           Description
+=======================================  ===================================================
+EP3756317B1, CN111771359B, US11240140B2  SCION-to-IP Gateway (SIG) including traffic
+                                         classification, path evaluation, high-availability
+                                         deployment.
 
-EP3941006B1, US11362930B2                  Hides a SCION network behind a single BGP AS, with
-                                           gateways exchanging routes with legacy networks via
-                                            BGP.
+EP3941006B1, US11362930B2                Hides a SCION network behind a single BGP AS, with
+                                         gateways exchanging routes with legacy networks via
+                                         BGP.
 
-EP3941003B1, US11362932B2                  High availability for SCION AS control services via
-                                            sharding into independent shards, so control and
-                                            data planes keep working through failures; also
-                                            covers interoperation between SCION and BGP.
+EP3941003B1, US11362932B2                High availability for SCION AS control services via
+                                         sharding into independent shards, so control and
+                                         data planes keep working through failures; also
+                                         covers interoperation between SCION and BGP.
+=======================================  ===================================================
 
 
 
