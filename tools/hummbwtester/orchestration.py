@@ -12,11 +12,13 @@ from datetime import datetime
 import ipaddress
 import json
 import math
+import os
 from pathlib import Path
 import re
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from dataclasses import dataclass, replace
@@ -75,6 +77,16 @@ class HummingbirdReservation:
 
 
 @dataclass(frozen=True)
+class MarketplaceConfig:
+    """The non-secret marketplace identity and location for one workload."""
+
+    url: str
+    username: str
+    password_env: str
+    sub_account: str | None
+
+
+@dataclass(frozen=True)
 class Client:
     # The runner adds the derived metric port and the client kind to the JSON configuration.
     client_id: str
@@ -88,8 +100,7 @@ class Client:
     payload_size: int | None
     pong_rate: float | int | None
     reservation_source: str
-    marketplace_username: str | None
-    marketplace_password: str | None
+    marketplace: MarketplaceConfig | None
 
 
 @dataclass(frozen=True)
@@ -209,7 +220,7 @@ def parse_endpoint(
 
 def parse_client(
     entry: dict[str, Any], hummingbird: bool, context: str, reservation_source: str,
-    marketplace_credentials: tuple[str, str] | None,
+    marketplace: MarketplaceConfig | None,
 ) -> Client:
     """Validate one client configuration and retain its workload and optional tuning settings."""
     required = {"client_id", "isd_as", "host", "port", "bandwidth", "maxburst", "duration"}
@@ -282,8 +293,7 @@ def parse_client(
         payload_size=payload_size,
         pong_rate=pong_rate,
         reservation_source=reservation_source,
-        marketplace_username=(marketplace_credentials[0] if marketplace_credentials else None),
-        marketplace_password=(marketplace_credentials[1] if marketplace_credentials else None),
+        marketplace=marketplace,
     )
 
 
@@ -338,18 +348,25 @@ def load_config(path: Path) -> tuple[Endpoint, list[Client], dict[str, int], dic
     reservation_source = hummingbird_config["reservation_source"]
     if reservation_source not in ("keys", "marketplace"):
         raise ConfigError("hummingbird.reservation_source must be \"keys\" or \"marketplace\"")
-    marketplace_credentials: tuple[str, str] | None = None
+    marketplace_config: MarketplaceConfig | None = None
     if reservation_source == "marketplace":
         marketplace = hummingbird_config.get("marketplace")
         if not isinstance(marketplace, dict):
             raise ConfigError("hummingbird.marketplace is required in marketplace mode")
-        require_fields(marketplace, {"username", "password"}, "hummingbird.marketplace")
-        username, password = marketplace["username"], marketplace["password"]
+        require_fields(marketplace, {"url", "username", "password_env"},
+                       "hummingbird.marketplace", {"sub_account"})
+        url, username, password_env = (
+            marketplace["url"], marketplace["username"], marketplace["password_env"])
+        if not isinstance(url, str) or not url.startswith(("https://", "http://")):
+            raise ConfigError("hummingbird.marketplace.url must be an HTTP(S) URL")
         if not isinstance(username, str) or not username:
             raise ConfigError("hummingbird.marketplace.username must be a non-empty string")
-        if not isinstance(password, str) or not password:
-            raise ConfigError("hummingbird.marketplace.password must be a non-empty string")
-        marketplace_credentials = username, password
+        if (not isinstance(password_env, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", password_env)):
+            raise ConfigError("hummingbird.marketplace.password_env must name an environment variable")
+        sub_account = marketplace.get("sub_account")
+        if sub_account is not None and (not isinstance(sub_account, str) or not sub_account):
+            raise ConfigError("hummingbird.marketplace.sub_account must be a non-empty string")
+        marketplace_config = MarketplaceConfig(url, username, password_env, sub_account)
     elif "marketplace" in hummingbird_config:
         raise ConfigError("hummingbird.marketplace is only valid in marketplace mode")
     if not isinstance(root["server"], dict):
@@ -374,7 +391,7 @@ def load_config(path: Path) -> tuple[Endpoint, list[Client], dict[str, int], dic
     parsed: list[Client] = []
     for entry, hummingbird, context in raw_clients:
         parsed.append(parse_client(entry, hummingbird, context, reservation_source,
-                                   marketplace_credentials))
+                                   marketplace_config))
     # Sorting makes a client's metrics port stable when the JSON array order changes.
     parsed.sort(key=lambda item: item.client_id)
     if len({item.client_id for item in parsed}) != len(parsed):
@@ -710,17 +727,20 @@ def verify_binaries(server: Endpoint, clients: list[Client]) -> None:
 
 
 def launch(
-    service: str, pidfile: str, args: list[str], logfile: Path, marketplace_jwt: str | None = None,
+    service: str, pidfile: str, args: list[str], logfile: Path, marketplace_jwt_file: str | None = None,
 ) -> subprocess.Popen[str]:
     """Start one tester process through Compose and record its in-container PID and output."""
     logfile.parent.mkdir(parents=True, exist_ok=True)
     # The shell PID becomes the tester PID after exec. Saving it lets cleanup target exactly this
     # experiment process instead of broadly killing every hummbwtester in the shared container.
-    command = "echo $$ > " + shlex.quote(pidfile) + "; exec " + shlex.join(args)
+    command = "echo $$ > " + shlex.quote(pidfile) + "; "
+    if marketplace_jwt_file is not None:
+        # The token is read by the shell inside the container. The Compose invocation and this
+        # command contain only its fixed path, never the JWT itself.
+        command += "export SCION_MARKETPLACE_JWT=$(cat " + shlex.quote(marketplace_jwt_file) + "); "
+    command += "exec " + shlex.join(args)
     print(f"logging {service} to {logfile}")
     compose_args = dc_args("exec", "-T")
-    if marketplace_jwt is not None:
-        compose_args.extend(["-e", f"SCION_MARKETPLACE_JWT={marketplace_jwt}"])
     compose_args.extend([service, "/bin/bash", "-c", command])
     return subprocess.Popen(compose_args, cwd=ROOT,
                             stdout=logfile.open("w"), stderr=subprocess.STDOUT, text=True)
@@ -771,18 +791,13 @@ def client_args(client: Client, server: Endpoint, sciond: str) -> list[str]:
 
 
 def marketplace_registration_website() -> str:
-    """Find the unique TCP registration website advertised by the generated topology."""
+    """Find the unique TCP registration website advertised by the generated Docker topology."""
     websites: set[str] = set()
     for path in sorted(GEN.glob("AS*/staticInfoConfig.json")):
         try:
             static_info = json.loads(path.read_text())
-        except (OSError, json.JSONDecodeError) as err:
-            raise ConfigError(f"reading marketplace advertisement {path}: {err}") from err
-        if not isinstance(static_info, dict) or not isinstance(static_info.get("note", "{}"), str):
-            raise ConfigError(f"marketplace advertisement {path} has an invalid note")
-        try:
             note = json.loads(static_info.get("note", "{}"))
-        except json.JSONDecodeError as err:
+        except (OSError, json.JSONDecodeError, AttributeError) as err:
             raise ConfigError(f"reading marketplace advertisement {path}: {err}") from err
         if not isinstance(note, dict):
             raise ConfigError(f"marketplace advertisement {path} is not an object")
@@ -798,23 +813,67 @@ def marketplace_registration_website() -> str:
     if not websites:
         raise ConfigError("no marketplace registration website advertised in gen/AS*/staticInfoConfig.json")
     if len(websites) != 1:
-        raise ConfigError("multiple marketplace registration websites advertised: " + ", ".join(sorted(websites)))
+        raise ConfigError("multiple marketplace registration websites advertised: " +
+                          ", ".join(sorted(websites)))
     return next(iter(websites))
 
 
-def obtain_marketplace_jwt(username: str, password: str) -> str:
-    """Log in through the generated marketplace web app and return a fresh JWT."""
-    website = marketplace_registration_website()
+def obtain_marketplace_jwt(marketplace: MarketplaceConfig) -> str:
+    """Request the configured user's JWT without exposing its password or token in argv."""
+    if not os.environ.get(marketplace.password_env):
+        raise ConfigError(
+            f"marketplace password environment variable {marketplace.password_env} is not set")
+    command = [sys.executable, str(ROOT / "marketplace" / "tools" / "get_jwt.py"),
+               marketplace.username, "--url", marketplace.url,
+               "--password-env", marketplace.password_env]
+    if marketplace.sub_account is not None:
+        command.extend(["--sub-account", marketplace.sub_account])
     result = subprocess.run(
-        [str(ROOT / "marketplace" / "tools" / "get-jwt.sh"), username, password, website],
+        command,
         cwd=ROOT, check=False, capture_output=True, text=True,
     )
     if result.returncode != 0:
-        raise ConfigError(f"marketplace login failed at {website}: {result.stderr.strip()}")
+        raise ConfigError(f"marketplace login failed at {marketplace.url}: {result.stderr.strip()}")
     token = result.stdout.strip()
     if not token:
         raise ConfigError("marketplace login returned an empty JWT")
     return token
+
+
+def write_private_jwt(token: str) -> Path:
+    """Write token to an owner-only temporary file and return its path."""
+    fd, name = tempfile.mkstemp(prefix="hummbwtester-jwt-", text=True)
+    path = Path(name)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w") as file:
+            file.write(token)
+            file.write("\n")
+    except BaseException:
+        path.unlink(missing_ok=True)
+        raise
+    return path
+
+
+def install_docker_jwt(token: str, services: set[str]) -> tuple[Path, str]:
+    """Copy a private JWT file to selected containers and return local/remote paths."""
+    local = write_private_jwt(token)
+    remote = "/tmp/hummbwtester-marketplace.jwt"
+    try:
+        for service in sorted(services):
+            run(dc_args("cp", str(local), f"{service}:{remote}"), cwd=ROOT)
+            run(dc_args("exec", "-T", service, "chmod", "600", remote), cwd=ROOT)
+    except BaseException:
+        local.unlink(missing_ok=True)
+        raise
+    return local, remote
+
+
+def remove_docker_jwt(services: set[str], remote: str) -> None:
+    """Best-effort removal of an experiment's JWT from its containers."""
+    for service in sorted(services):
+        run(dc_args("exec", "-T", service, "rm", "-f", remote), cwd=ROOT,
+            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def metric_samples(body: str, metric: str) -> dict[str, float]:
@@ -1070,25 +1129,31 @@ def run_experiment(config_path: Path) -> int:
     args = server_args(server, endpoint_sciond(server, daemons))
     processes: list[tuple[Client, str, subprocess.Popen[str]]] = []
     interfaces = router_interfaces()
-    marketplace_jwt = None
+    marketplace_jwt_file: Path | None = None
+    remote_jwt_file: str | None = None
+    marketplace_services: set[str] = set()
     hummingbird_clients = [client for client in clients if client.hummingbird]
-    if hummingbird_clients and hummingbird_clients[0].reservation_source == "marketplace":
-        client = hummingbird_clients[0]
-        assert client.marketplace_username is not None
-        assert client.marketplace_password is not None
-        marketplace_jwt = obtain_marketplace_jwt(
-            client.marketplace_username, client.marketplace_password)
-    server_process = launch(server_service, server_pidfile, args, log_dir / "server.log")
+    server_process: subprocess.Popen[str] | None = None
     try:
+        if hummingbird_clients and hummingbird_clients[0].reservation_source == "marketplace":
+            client = hummingbird_clients[0]
+            assert client.marketplace is not None
+            marketplace_services = {tester_service(client.endpoint.isd_as) for client in hummingbird_clients}
+            # A Docker topology advertises the registration endpoint that is actually reachable
+            # from this controller. The workload URL is for the SSH backend, where gen/ is absent.
+            marketplace = replace(client.marketplace, url=marketplace_registration_website())
+            marketplace_jwt_file, remote_jwt_file = install_docker_jwt(
+                obtain_marketplace_jwt(marketplace), marketplace_services)
+        server_process = launch(server_service, server_pidfile, args, log_dir / "server.log")
         # Give the server a predictable head start before clients begin selecting paths and dialing.
         time.sleep(2)
         for client in clients:
             suffix = client.client_id
             args = client_args(client, server, endpoint_sciond(client.endpoint, daemons))
             pidfile = f"/tmp/hummbwtester-{suffix}.pid"
-            jwt = marketplace_jwt if client.hummingbird else None
+            jwt_file = remote_jwt_file if client.hummingbird else None
             processes.append((client, pidfile, launch(tester_service(client.endpoint.isd_as), pidfile, args,
-                                                       log_dir / f"{suffix}.log", jwt)))
+                                                       log_dir / f"{suffix}.log", jwt_file)))
         failure = False
         previous_report = report_snapshot(compose, interfaces)
         next_report = time.monotonic() + 60
@@ -1117,11 +1182,16 @@ def run_experiment(config_path: Path) -> int:
             if process.poll() is None:
                 process.terminate()
         stop_remote(server_service, server_pidfile)
-        if server_process.poll() is None:
+        if server_process is not None and server_process.poll() is None:
             server_process.terminate()
         for _, _, process in processes:
             process.wait(timeout=10)
-        server_process.wait(timeout=10)
+        if server_process is not None:
+            server_process.wait(timeout=10)
+        if remote_jwt_file is not None:
+            remove_docker_jwt(marketplace_services, remote_jwt_file)
+        if marketplace_jwt_file is not None:
+            marketplace_jwt_file.unlink(missing_ok=True)
 
 
 def main(default_mode: str | None = None) -> int:

@@ -25,11 +25,12 @@ border router's network namespace.
 In tiny topology this shapes the `110 <-> 111` and `110 <-> 112` links,
 while leaving the intra-AS bridges unshaped.
 
-`tools/hummbwtester/run-humm-bwtester.py` starts the server, waits two seconds, and starts all clients concurrently.
+`tools/hummbwtester/run-humm-bwtester-local.py` starts the Docker-topology server,
+waits two seconds, and starts all clients concurrently.
 Hummingbird clients either derive reservations from `/share/gen` master keys or buy them from the
 marketplace advertised by the selected SCION path, according to the global `hummingbird` setting.
-Marketplace runs log in through the advertised TCP registration website and pass a fresh JWT to the
-client processes.
+Marketplace runs log in through the registration website configured in the workload JSON and pass
+the resulting JWT to client processes through an owner-only file.
 Key-derived Hummingbird clients choose a random nonzero 22-bit reservation ID when they start and
 reuse it across reservation renewals. Marketplace reservations use the IDs returned by the
 marketplace. Client workload and reservation settings are read from the JSON configuration.
@@ -47,7 +48,9 @@ Edit [hummbwtester.json](hummbwtester.json). It has six required top-level secti
   `egress_batch_size`, and `egress_queue_size`.
 - `tc`: TBF `rate`, `burst`, and explicit queue `limit` values passed to `tc`.
 - `hummingbird`: required global reservation source (`keys` or `marketplace`). Marketplace mode also
-  requires a `marketplace` object with `username` and `password`.
+  requires a `marketplace` object with `url`, `username`, and `password_env`; `sub_account` is
+  optional. The password is read from the named environment variable, never from JSON. The Docker
+  runner discovers the reachable registration URL from `gen/`; `url` is used by SSH runs.
 
 Linux doubles the requested `SO_SNDBUF` and `SO_RCVBUF` internally. The sample requests a 16 KiB
 send buffer and uses a deliberately larger 256 KiB TBF limit, so socket-memory backpressure should
@@ -183,10 +186,34 @@ applies the qdiscs, and copies the binary built by `make build-dev`.
 Start the experiment with:
 
 ```bash
-./tools/hummbwtester/run-humm-bwtester.py
+./tools/hummbwtester/run-humm-bwtester-local.py
 ```
 
 Logs are written beneath `logs/hummbwtester/`, one file per `client_id` plus `server.log`.
+
+## SSH real-topology runs
+
+For SSH-accessible SCION hosts, copy [ssh-inventory.json.example](ssh-inventory.json.example) to
+`ssh-inventory.json` and configure it. List only dedicated interfaces that may be shaped.
+SSH aliases may use `ProxyJump`; the runner uses them unchanged.
+
+Set the password named by `hummingbird.marketplace.password_env`, build the artifact, then run:
+
+```bash
+make build-dev
+./tools/hummbwtester/run-humm-bwtester-ssh.py \
+  --config tools/hummbwtester/hummbwtester.json \
+  --inventory tools/hummbwtester/ssh-inventory.json
+```
+
+The controller verifies and uploads the built binary,
+obtains the configured user's JWT from `hummingbird.marketplace.url`,
+and uploads it to an owner-only per-run remote file.
+The SSH launch shell reads that file only immediately before `exec`;
+it is never placed in command arguments or the inventory.
+The runner creates SSH metric tunnels and Prometheus file-SD targets under `gen/hummbwtester-prometheus/`,
+removes remote PID/JWT files on exit, and removes a `tc`-set TBF only when
+the inventory explicitly declares a `noqueue` dedicated-link interface.
 
 ## Regular run cycle
 
@@ -194,7 +221,7 @@ For a configuration change, run setup again before running the experiment:
 
 ```bash
 ./tools/hummbwtester/setup-topology.py
-./tools/hummbwtester/run-humm-bwtester.py
+./tools/hummbwtester/run-humm-bwtester-local.py
 ```
 
 For a tester source change, first rebuild the standard development artifacts, then run setup:
@@ -202,7 +229,7 @@ For a tester source change, first rebuild the standard development artifacts, th
 ```bash
 make build-dev
 ./tools/hummbwtester/setup-topology.py
-./tools/hummbwtester/run-humm-bwtester.py
+./tools/hummbwtester/run-humm-bwtester-local.py
 ```
 
 For a router source change, rebuild and reload the Docker images as well before setup:
@@ -211,7 +238,7 @@ For a router source change, rebuild and reload the Docker images as well before 
 make build-dev
 make docker-images
 ./tools/hummbwtester/setup-topology.py
-./tools/hummbwtester/run-humm-bwtester.py
+./tools/hummbwtester/run-humm-bwtester-local.py
 ```
 
 After `./scion.sh stop`, Docker removes the bridges and their qdiscs.
@@ -243,7 +270,8 @@ Run the focused Go and orchestration tests from the repository root:
 
 ```bash
 go test ./tools/hummbwtester
-bazel test //tools/hummbwtester:go_default_test //tools/hummbwtester:orchestration_test
+bazel test //tools/hummbwtester:go_default_test //tools/hummbwtester:orchestration_test \\
+  //tools/hummbwtester:ssh_orchestration_test
 ```
 
 Run the no-sleep client send-path benchmark with:

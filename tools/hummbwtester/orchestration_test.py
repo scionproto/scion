@@ -71,7 +71,10 @@ class ConfigTest(unittest.TestCase):
         config = self.base_config()
         config["hummingbird"] = {
             "reservation_source": "marketplace",
-            "marketplace": {"username": "alice", "password": "1234"},
+            "marketplace": {
+                "url": "https://marketplace.invalid", "username": "alice",
+                "password_env": "MARKETPLACE_PASSWORD",
+            },
         }
         config["hummingbird_clients"][0]["hummingbird_reservation"].update({
             "bandwidth": "100kbps", "reverse_bandwidth": "1mbps",
@@ -81,7 +84,10 @@ class ConfigTest(unittest.TestCase):
         args = client_args(hummingbird, server, "172.20.0.21:30255")
         self.assertEqual(args[args.index("-hummingbird") + 1], "100kbps,1m,1mbps")
         self.assertNotIn("-hummKeysDir", args)
-        self.assertEqual(hummingbird.marketplace_username, "alice")
+        assert hummingbird.marketplace is not None
+        self.assertEqual(hummingbird.marketplace.username, "alice")
+        self.assertEqual(hummingbird.marketplace.url, "https://marketplace.invalid")
+        self.assertIsNone(hummingbird.marketplace.sub_account)
 
     def test_requires_global_hummingbird_source(self):
         config = self.base_config()
@@ -89,9 +95,12 @@ class ConfigTest(unittest.TestCase):
         with self.assertRaises(ConfigError):
             load_config(self.write_config(config))
 
-    def test_rejects_marketplace_credentials_in_keys_mode(self):
+    def test_rejects_marketplace_configuration_in_keys_mode(self):
         config = self.base_config()
-        config["hummingbird"]["marketplace"] = {"username": "alice", "password": "1234"}
+        config["hummingbird"]["marketplace"] = {
+            "url": "https://marketplace.invalid", "username": "alice",
+            "password_env": "MARKETPLACE_PASSWORD",
+        }
         with self.assertRaises(ConfigError):
             load_config(self.write_config(config))
 
@@ -101,25 +110,35 @@ class ConfigTest(unittest.TestCase):
             (generated / "ASff00_0_111").mkdir()
             (generated / "ASff00_0_111" / "staticInfoConfig.json").write_text(json.dumps({
                 "note": json.dumps({"hummingbird": [{
-                    "api_protocol": "connectrpc/TLS/QUIC/SCION",
-                    "api_address": "[1-ff00:0:111,172.20.0.27]:31888",
-                }, {
                     "api_protocol": "connectrpc/TLS/TCP",
                     "client_registration_website": "https://172.20.0.27:31888",
                 }]})
             }))
             with mock.patch.object(orchestration, "GEN", generated):
-                self.assertEqual(
-                    marketplace_registration_website(), "https://172.20.0.27:31888")
+                self.assertEqual(marketplace_registration_website(), "https://172.20.0.27:31888")
 
     def test_obtains_marketplace_jwt_without_logging_credentials(self):
         completed = mock.Mock(returncode=0, stdout="jwt-value\n", stderr="")
-        with mock.patch.object(orchestration, "marketplace_registration_website",
-                               return_value="https://market.invalid"), \
+        marketplace = orchestration.MarketplaceConfig(
+            "https://market.invalid", "alice", "MARKETPLACE_PASSWORD", "hummbwtester")
+        with mock.patch.dict(orchestration.os.environ, {"MARKETPLACE_PASSWORD": "secret"}), \
              mock.patch.object(orchestration.subprocess, "run", return_value=completed) as run:
-            self.assertEqual(obtain_marketplace_jwt("alice", "1234"), "jwt-value")
+            self.assertEqual(obtain_marketplace_jwt(marketplace), "jwt-value")
         self.assertEqual(run.call_args.kwargs["capture_output"], True)
-        self.assertEqual(run.call_args.args[0][1:4], ["alice", "1234", "https://market.invalid"])
+        command = run.call_args.args[0]
+        self.assertIn("alice", command)
+        self.assertIn("https://market.invalid", command)
+        self.assertIn("MARKETPLACE_PASSWORD", command)
+        self.assertNotIn("secret", command)
+
+    def test_marketplace_url_and_password_env_are_required(self):
+        config = self.base_config()
+        config["hummingbird"] = {
+            "reservation_source": "marketplace",
+            "marketplace": {"username": "alice", "password_env": "MARKETPLACE_PASSWORD"},
+        }
+        with self.assertRaisesRegex(ConfigError, "url"):
+            load_config(self.write_config(config))
 
     def test_clients_are_sorted_for_metrics_ports(self):
         _, clients, _, _ = load_config(self.write_config(self.base_config()))

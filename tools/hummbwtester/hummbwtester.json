@@ -2,8 +2,9 @@
   "hummingbird": {
     "reservation_source": "marketplace",
     "marketplace": {
+      "url": "https://127.0.0.1:8888",
       "username": "alice",
-      "password": "1234"
+      "password_env": "HUMMBWTESTER_MARKETPLACE_PASSWORD"
     }
   },
   "server": {

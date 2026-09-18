@@ -1,0 +1,32 @@
+{
+  "hosts": {
+    "ufes": {
+      "ssh": "sciera-ufes",
+      "sciond": "127.0.0.1:30255",
+      "run_dir": "/var/tmp/hummbwtester"
+    },
+    "rnp": {
+      "ssh": "sciera-rnp",
+      "sciond": "127.0.0.1:30255",
+      "run_dir": "/var/tmp/hummbwtester"
+    }
+  },
+  "placements": {
+    "server": "ufes",
+    "clients": {
+      "hummingbird-1": "rnp",
+      "best-effort-1": "rnp"
+    }
+  },
+  "metrics": {
+    "local_port_base": 19090,
+    "routers": [
+      {
+        "host": "ufes",
+        "address": "127.0.0.1:30442",
+        "labels": {"as": "71_2_0_152", "br": "br-1"}
+      }
+    ]
+  },
+  "shaping": []
+}

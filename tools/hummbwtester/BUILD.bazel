@@ -60,12 +60,18 @@ go_test(
 
 py_library(
     name = "orchestration",
-    srcs = ["orchestration.py"],
+    srcs = ["orchestration.py", "ssh_orchestration.py"],
     deps = [requirement("pyyaml")],
 )
 
 py_test(
     name = "orchestration_test",
     srcs = ["orchestration_test.py"],
+    deps = [":orchestration"],
+)
+
+py_test(
+    name = "ssh_orchestration_test",
+    srcs = ["ssh_orchestration_test.py"],
     deps = [":orchestration"],
 )

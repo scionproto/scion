@@ -6,7 +6,7 @@ exported by `./tools/hummbwtester`.
 It follows the same basic pattern as `./monitoring-prometheus-grafana/topology`: a local
 Prometheus instance scrapes metrics from the running SCION tooling, and Grafana is provided for
 interactive dashboards. For `hummbwtester`, the scrape targets are taken from
-`tools/hummbwtester/hummbwtester.json` and `tools/hummbwtester/run-humm-bwtester.py`:
+`tools/hummbwtester/hummbwtester.json` and `tools/hummbwtester/run-humm-bwtester-local.py`:
 
 - client metrics, including observations reported by the server: ports derived from sorted
   `client_id` values, beginning at `9090`
@@ -39,7 +39,7 @@ the configured `client_id` as the sole custom label on each client target.
 
    ```bash
    ./tools/hummbwtester/setup-topology.py
-   ./tools/hummbwtester/run-humm-bwtester.py
+   ./tools/hummbwtester/run-humm-bwtester-local.py
    ```
 
 2. In another terminal, start the monitoring stack:
