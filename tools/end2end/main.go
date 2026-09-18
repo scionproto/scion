@@ -532,7 +532,7 @@ func (c *client) buildReservationWithMarketplace(
 }
 
 func (c *client) buildReservationWithSecretValues(
-	ctx context.Context,
+	_ context.Context,
 	path snet.Path,
 	now time.Time,
 ) (*snetpath.Reservation, error) {
@@ -541,16 +541,17 @@ func (c *client) buildReservationWithSecretValues(
 	if !ok {
 		return nil, serrors.New("provided path must be of type scion")
 	}
-	reservation, err := c.buildReservationFromSecretValues(
-		scionPath,
-		path.Destination(),
-		baseHops,
-		uint16(c.hummParams.Bw),
-		now,
+	flyovers, err := c.deriveFlyoversFromSecretValues(baseHops, uint16(c.hummParams.Bw), now)
+	if err != nil {
+		return nil, err
+	}
+	reservation, err := snetpath.NewReservation(
+		snetpath.WithDataplanePath(scionPath, path.Destination(), flyovers),
 	)
 	if err != nil || c.hummParams.ReverseBw == 0 {
 		return reservation, err
 	}
+
 	reverseFlyovers, err := c.deriveFlyoversFromSecretValues(
 		reverseBaseHops(baseHops),
 		uint16(c.hummParams.ReverseBw),
@@ -722,22 +723,6 @@ func marketplaceParametersFromEnv() (marketplaceParameters, error) {
 		return params, serrors.New("missing marketplace token", "env", envMarketplaceJWT)
 	}
 	return params, nil
-}
-
-func (c *client) buildReservationFromSecretValues(
-	scionPath snetpath.SCION,
-	dstIA addr.IA,
-	baseHops []snetpath.BaseHop,
-	bandwidth uint16,
-	now time.Time,
-) (*snetpath.Reservation, error) {
-	flyovers, err := c.deriveFlyoversFromSecretValues(baseHops, bandwidth, now)
-	if err != nil {
-		return nil, err
-	}
-	return snetpath.NewReservation(
-		snetpath.WithDataplanePath(scionPath, dstIA, flyovers),
-	)
 }
 
 func (c *client) deriveFlyoversFromSecretValues(
