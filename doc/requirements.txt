@@ -8,9 +8,9 @@ alabaster==0.7.16 \
     --hash=sha256:75a8b99c28a5dad50dd7f8ccdd447a121ddb3892da9e53d1ca5cca3106d58d65 \
     --hash=sha256:b46733c07dce03ae4e150330b975c75737fa60f0a7c591b6c8bf4928a28e2c92
     # via sphinx
-anyio==4.3.0 \
-    --hash=sha256:048e05d0f6caeed70d731f3db756d35dcc1f35747c8c403364a8332c630441b8 \
-    --hash=sha256:f75253795a87df48568485fd18cdd2a3fa5c4f7c5be8e5e36637733fce06fed6
+anyio==4.14.2 \
+    --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494 \
+    --hash=sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f
     # via
     #   starlette
     #   watchfiles
@@ -152,7 +152,7 @@ idna==3.16 \
     --hash=sha256:cc246e3a3f89580c3a951b5ad298ca4638078b2cdd4f115654332b5c26daded5 \
     --hash=sha256:d7a6da03db833450fca25d2358ac9ff06cd624577a4aea3a596d5c0f77b8e03d
     # via
-    #   -r doc/requirements.in
+    #   -r requirements.in
     #   anyio
     #   requests
 imagesize==1.4.1 \
@@ -237,7 +237,7 @@ mistune==3.3.3 \
     --hash=sha256:99de1585e42dcbd826faa9e11a202727a5e202e4e4722a4c69ac1ff615793dd7 \
     --hash=sha256:c4c6c0c840b8637a2e9b8b6d607eb7c8f00888bf14c754409bcd339e848c2477
     # via
-    #   -r doc/requirements.in
+    #   -r requirements.in
     #   sphinx-mdinclude
 packaging==24.0 \
     --hash=sha256:2ddfb553fdf02fb784c234c7ba6ccc288296ceabec964ad2eae3777778130bc5 \
@@ -315,7 +315,7 @@ pyyaml==6.0.1 \
 recommonmark==0.7.1 \
     --hash=sha256:1b1db69af0231efce3fa21b94ff627ea33dee7079a01dd0a7f8482c3da148b3f \
     --hash=sha256:bdb4db649f2222dcd8d2d844f0006b958d627f732415d399791ee436a3686d67
-    # via -r doc/requirements.in
+    # via -r requirements.in
 referencing==0.34.0 \
     --hash=sha256:5773bd84ef41799a5a8ca72dc34590c041eb01bf9aa02632b4a973fb0181a844 \
     --hash=sha256:d53ae300ceddd3169f1ffa9caf2cb7b769e92657e4fafb23d34b93679116dfd4
@@ -528,10 +528,6 @@ six==1.16.0 \
     --hash=sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926 \
     --hash=sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254
     # via sphinxcontrib-httpdomain
-sniffio==1.3.1 \
-    --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
-    --hash=sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc
-    # via anyio
 snowballstemmer==2.2.0 \
     --hash=sha256:09b16deb8547d3412ad7b590689584cd0fe25ec8db3be37788be3810cbf19cb1 \
     --hash=sha256:c8e1716e83cc398ae16824e5572ae04e0d9fc2c6b985fb0f900f5f0c96ecba1a
@@ -540,7 +536,7 @@ sphinx==7.3.7 \
     --hash=sha256:413f75440be4cacf328f580b4274ada4565fb2187d696a84970c23f77b64d8c3 \
     --hash=sha256:a4a7db75ed37531c05002d56ed6948d4c42f473a36f46e1382b0bd76ca9627bc
     # via
-    #   -r doc/requirements.in
+    #   -r requirements.in
     #   recommonmark
     #   sphinx-autobuild
     #   sphinx-copybutton
@@ -553,19 +549,19 @@ sphinx==7.3.7 \
 sphinx-autobuild==2024.4.16 \
     --hash=sha256:1c0ed37a1970eed197f9c5a66d65759e7c4e4cba7b5a5d77940752bf1a59f2c7 \
     --hash=sha256:f2522779d30fcbf0253e09714f274ce8c608cb6ebcd67922b1c54de59faba702
-    # via -r doc/requirements.in
+    # via -r requirements.in
 sphinx-copybutton==0.5.2 \
     --hash=sha256:4cf17c82fb9646d1bc9ca92ac280813a3b605d8c421225fd9913154103ee1fbd \
     --hash=sha256:fb543fd386d917746c9a2c50360c7905b605726b9355cd26e9974857afeae06e
-    # via -r doc/requirements.in
+    # via -r requirements.in
 sphinx-design==0.6.0 \
     --hash=sha256:e9bd07eecec82eb07ff72cb50fc3624e186b04f5661270bc7b62db86c7546e95 \
     --hash=sha256:ec8e3c5c59fed4049b3a5a2e209360feab31829346b5f6a0c7c342b894082192
-    # via -r doc/requirements.in
+    # via -r requirements.in
 sphinx-lint==0.9.1 \
     --hash=sha256:185cee19ff1129549c45e15a3b25404daeb47c54d15112dda589cedad82957aa \
     --hash=sha256:df34271ab65ce43676cbd90726f4dea5cd200b43b01448b2aee8f06e609edcbb
-    # via -r doc/requirements.in
+    # via -r requirements.in
 sphinx-mdinclude==0.6.0 \
     --hash=sha256:764b6aeee28002b9d02060758266761a2c724805594d264b19e6ceeaa3bad393 \
     --hash=sha256:b1cb4dfa22ce17ca20e90e34d4349d8a97c5052709d9c4eed051cdabb615b20b
@@ -573,7 +569,7 @@ sphinx-mdinclude==0.6.0 \
 sphinx-rtd-theme==2.0.0 \
     --hash=sha256:bd5d7b80622406762073a04ef8fadc5f9151261563d47027de09910ce03afe6b \
     --hash=sha256:ec93d0856dc280cf3aee9a4c9807c60e027c7f7b461b77aeffed682e68f0e586
-    # via -r doc/requirements.in
+    # via -r requirements.in
 sphinxcontrib-applehelp==1.0.8 \
     --hash=sha256:c40a4f96f3776c4393d933412053962fac2b84f4c99a7982ba42e09576a70619 \
     --hash=sha256:cb61eb0ec1b61f349e5cc36b2028e9e7ca765be05e49641c97241274753067b4
@@ -601,11 +597,11 @@ sphinxcontrib-jsmath==1.0.1 \
 sphinxcontrib-mermaid==1.0.0 \
     --hash=sha256:2e8ab67d3e1e2816663f9347d026a8dee4a858acdd4ad32dd1c808893db88146 \
     --hash=sha256:60b72710ea02087f212028feb09711225fbc2e343a10d34822fe787510e1caa3
-    # via -r doc/requirements.in
+    # via -r requirements.in
 sphinxcontrib-openapi==0.8.4 \
     --hash=sha256:50911c18d452d9390ee3a384ef8dc8bde6135f542ba55691f81e1fbc0b71014e \
     --hash=sha256:df883808a5b5e4b4113ad697185c43a3f42df3dce70453af78ba7076907e9a20
-    # via -r doc/requirements.in
+    # via -r requirements.in
 sphinxcontrib-qthelp==1.0.7 \
     --hash=sha256:053dedc38823a80a7209a80860b16b722e9e0209e32fea98c90e4e6624588ed6 \
     --hash=sha256:e2ae3b5c492d58fcbd73281fbd27e34b8393ec34a073c792642cd8e529288182
@@ -618,17 +614,19 @@ starlette==1.3.1 \
     --hash=sha256:05d0213193f2fbaae60e2ecb593b4add4262ad4e46536b54abe36f11a71724e0 \
     --hash=sha256:c7372aae11c3c3f26a42df7bd626cec2f47d03483d261d369516a615a53714c6
     # via
-    #   -r doc/requirements.in
+    #   -r requirements.in
     #   sphinx-autobuild
 typing-extensions==4.14.1 \
     --hash=sha256:38b39f4aeeab64884ce9f74c94263ef78f3c22467c8724005483154c26648d36 \
     --hash=sha256:d1e1e3b58374dc93031d6eda2420a48ea44a36c2b4766a4fdeb3710755731d76
-    # via starlette
+    # via
+    #   anyio
+    #   starlette
 urllib3==2.7.0 \
     --hash=sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c \
     --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
     # via
-    #   -r doc/requirements.in
+    #   -r requirements.in
     #   requests
 uvicorn==0.29.0 \
     --hash=sha256:2c2aac7ff4f4365c206fd773a39bf4ebd1047c238f8b8268ad996829323473de \
