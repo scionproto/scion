@@ -1,0 +1,87 @@
+{
+  "organizations": [
+    "SCION Association",
+    "Anapaya Systems",
+    "ETH Zurich",
+    "OVGU Magdeburg"
+  ],
+  "domains": {
+    "scion.org": "SCION Association",
+    "anapaya.net": "Anapaya Systems",
+    "ethz.ch": "ETH Zurich",
+    "inf.ethz.ch": "ETH Zurich",
+    "student.ethz.ch": "ETH Zurich",
+    "ovgu.de": "OVGU Magdeburg"
+  },
+  "contributors": [
+    {
+      "name": "Dominik Roos",
+      "emails": ["roos@anapaya.net"],
+      "affiliation": "Anapaya Systems"
+    },
+    {
+      "name": "Lukas Vogel",
+      "emails": ["vogel@anapaya.net"],
+      "affiliation": "Anapaya Systems"
+    },
+    {
+      "name": "Samuel Hitz",
+      "emails": ["hitz@anapaya.net"],
+      "affiliation": "Anapaya Systems"
+    },
+    {
+      "name": "Sebastian Leisinger",
+      "emails": ["leisinger@anapaya.net", "bot.sebastian.leisinger@posteo.de"],
+      "affiliation": "Anapaya Systems"
+    },
+    {
+      "name": "Frank Wirz",
+      "emails": ["FR4NK-W@users.noreply.github.com", "wirzf@inf.ethz.ch"],
+      "affiliation": "ETH Zurich"
+    },
+    {
+      "name": "Jelte van Bommel",
+      "emails": ["46663111+jeltevanbommel@users.noreply.github.com"],
+      "affiliation": "ETH Zurich"
+    },
+    {
+      "name": "Juan A. Garcia Pardo",
+      "emails": ["juagargi@gmail.com"],
+      "affiliation": "ETH Zurich"
+    },
+    {
+      "name": "Tilmann Zaeschke",
+      "emails": ["ztilmann@ethz.ch", "tilmann_dev@gmx.de"],
+      "affiliation": "ETH Zurich"
+    },
+    {
+      "name": "Lars-Christian Schulz",
+      "emails": ["lschulz@ovgu.de", "larschristianschulz0@gmail.com"],
+      "affiliation": "OVGU Magdeburg"
+    },
+    {
+      "name": "Katya Titkova",
+      "emails": ["katyatitkova@gmail.com"],
+      "affiliation": "SCION Association"
+    },
+    {
+      "name": "Kevin Meynell",
+      "emails": ["kevin@meynell.com"],
+      "affiliation": "SCION Association"
+    },
+    {
+      "name": "Nicola Rustignoli",
+      "emails": ["nicorusti@users.noreply.github.com"],
+      "affiliation": "SCION Association"
+    },
+    {
+      "name": "Roman Sharkov",
+      "emails": ["roman.scharkov@gmail.com", "rsc@scion.org"],
+      "affiliation": "SCION Association"
+    }
+  ],
+  "ignoreEmails": [
+    "49699333+dependabot[bot]@users.noreply.github.com",
+    "198982749+Copilot@users.noreply.github.com"
+  ]
+}
