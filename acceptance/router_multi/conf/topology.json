@@ -24,7 +24,7 @@
           },
           "isd_as": "1-ff00:0:3",
           "link_to": "PARENT",
-          "mtu": 8000
+          "mtu": 3400
         },
         "141": {
           "underlay": {
@@ -33,7 +33,7 @@
           },
           "isd_as": "1-ff00:0:4",
           "link_to": "CHILD",
-          "mtu": 8000
+          "mtu": 3400
         },
         "151": {
           "underlay": {

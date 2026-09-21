@@ -199,6 +199,8 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPParentToParentXover",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPParentToParentXover"),
@@ -375,6 +377,8 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPParentToChildXover",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPParentToChildXover"),
@@ -553,6 +557,8 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPChildToParentXover",
 		WriteTo:         "veth_141_host",
 		ReadFrom:        "veth_141_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPChildToParentXover"),
@@ -728,6 +734,8 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPInternalXover",
 		WriteTo:         "veth_int_host",
 		ReadFrom:        "veth_int_host",
+		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPInternalXover"),

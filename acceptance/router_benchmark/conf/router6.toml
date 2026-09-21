@@ -1,0 +1,20 @@
+[general]
+id = "br1a"
+config_dir = "/etc/scion"
+
+[metrics]
+prometheus = "[fd00:10:123:a::1]:30442"
+
+[features]
+
+[router]
+preferred_underlays = { udpip = "afxdp" }
+
+[router.bfd]
+disable = true
+
+[api]
+addr = "[fd00:10:123:a::1]:31142"
+
+[log.console]
+level = "debug"

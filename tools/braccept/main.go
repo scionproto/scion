@@ -23,6 +23,8 @@ import (
 	"hash"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/gopacket/gopacket/layers"
 
@@ -36,6 +38,7 @@ import (
 
 var (
 	bfd        = flag.Bool("bfd", false, "Run BFD tests instead of the common ones")
+	skip       = flag.String("skip", "", "Comma-separated list of test case names to skip")
 	logConsole = flag.String("log.console", "debug", "Console logging level: debug|info|error")
 	dir        = flag.String("artifacts", "", "Artifacts directory")
 )
@@ -142,6 +145,13 @@ func realMain() int {
 			cases.ExternalBFD(artifactsDir, hfMAC),
 			cases.InternalBFD(artifactsDir, hfMAC),
 		}
+	}
+
+	if *skip != "" {
+		skipNames := strings.Split(*skip, ",")
+		multi = slices.DeleteFunc(multi, func(c runner.Case) bool {
+			return slices.Contains(skipNames, c.Name)
+		})
 	}
 
 	ret := 0
