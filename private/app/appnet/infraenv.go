@@ -283,7 +283,9 @@ func NewRouter(localIA addr.IA, sd env.Daemon) (snet.Router, error) {
 	// done transparently and pushed to snet.NewNetwork.
 	var router snet.Router
 	for {
-		daemonConn, err := daemon.NewService(sd.Address).Connect(ctx)
+		// XXX(lukedirtwalker): given I didn't really find any usages of this
+		// function I also didn't plug any metrics.
+		daemonConn, err := daemon.NewService(sd.Address, daemon.Metrics{}).Connect(ctx)
 		if err == nil {
 			router = &snet.BaseRouter{
 				Querier: daemon.Querier{

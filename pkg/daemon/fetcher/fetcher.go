@@ -59,6 +59,7 @@ type FetcherConfig struct {
 	Verifier      infra.Verifier
 	RevCache      revcache.RevCache
 	QueryInterval time.Duration
+	Metrics       segfetcher.Metrics
 }
 
 func NewFetcher(cfg FetcherConfig) Fetcher {
@@ -87,7 +88,7 @@ func NewFetcher(cfg FetcherConfig) Fetcher {
 					RPC:         cfg.RPC,
 					DstProvider: &dstProvider{},
 				},
-				Metrics: segfetcher.NewFetcherMetrics("sd"),
+				Metrics: cfg.Metrics,
 			},
 			Splitter: &segfetcher.MultiSegmentSplitter{
 				LocalIA:   cfg.IA,

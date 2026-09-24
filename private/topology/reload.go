@@ -25,7 +25,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/segment/iface"
 )
@@ -40,10 +40,8 @@ type Validator interface {
 // LoaderMetrics are the metrics exposed by the topology loader. Individual
 // values can be nil, which means they will not be exposed.
 type LoaderMetrics struct {
-	// ValidationErrors counts the amount of validation errors.
-	ValidationErrors metrics.Counter
-	// ReadErrors counts the amount of file read or parse errors.
-	ReadErrors metrics.Counter
+	// Errors counts the number of errors during loading.
+	Errors metrics.Counter
 	// LastUpdate indicates the timestamp of the last successful update.
 	LastUpdate metrics.Gauge
 	// Updates counts the amount of successful updates.
@@ -285,7 +283,7 @@ func (l *Loader) notifyAllLocked() {
 func (l *Loader) reload() error {
 	newTopo, err := l.load()
 	if err != nil {
-		metrics.CounterInc(l.cfg.Metrics.ReadErrors)
+		metrics.CounterInc(l.cfg.Metrics.Errors)
 		return serrors.Wrap("loading topology", err)
 	}
 
@@ -298,7 +296,7 @@ func (l *Loader) reload() error {
 	}
 
 	if err := l.validate(newTopo.Writable(), old); err != nil {
-		metrics.CounterInc(l.cfg.Metrics.ValidationErrors)
+		metrics.CounterInc(l.cfg.Metrics.Errors)
 		return serrors.Wrap("validating update", err)
 	}
 	l.topo = newTopo

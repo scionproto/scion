@@ -23,11 +23,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cs "github.com/scionproto/scion/control"
+	cstrust "github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/storage/db"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 )
 
@@ -45,6 +47,8 @@ func TestNewSigner(t *testing.T) {
 		addr.MustParseIA("1-ff00:0:110"),
 		db,
 		filepath.Join(dir, "/ISD1/ASff00_0_110"),
+		trustmetrics.Metrics{},
+		cstrust.SignerGenMetrics{},
 	)
 
 	_, err = signer.Sign(context.Background(), []byte("message"))

@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
-	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/revcache"
@@ -85,7 +84,7 @@ func (s *Daemon) Paths(
 ) ([]snet.Path, error) {
 	start := time.Now()
 	paths, err := s.Engine.Paths(ctx, dst, src, f)
-	s.Metrics.Paths.Observe(err, time.Since(start), prom.LabelDst, dst.ISD().String())
+	s.Metrics.Paths.Observe(err, dst.ISD(), time.Since(start))
 	return paths, err
 }
 

@@ -22,7 +22,7 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/private/storage"
 	storagebeacon "github.com/scionproto/scion/private/storage/beacon"
@@ -32,7 +32,7 @@ import (
 
 type Config struct {
 	Driver       string
-	QueriesTotal metrics.Counter
+	QueriesTotal func(driver, operation, result string) metrics.Counter
 }
 
 // WrapDB wraps the given beacon database into one that also exports metrics.
@@ -62,7 +62,9 @@ func (o Observer) Observe(ctx context.Context, op string, action Observable) {
 		Operation: op,
 		Result:    label,
 	}
-	metrics.CounterInc(metrics.CounterWith(o.Cfg.QueriesTotal, labels.Expand()...))
+	if o.Cfg.QueriesTotal != nil {
+		metrics.CounterInc(o.Cfg.QueriesTotal(labels.Driver, labels.Operation, labels.Result))
+	}
 }
 
 type db struct {
