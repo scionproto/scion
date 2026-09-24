@@ -243,3 +243,80 @@ Learning resources
 
    :doc:`wireshark`
       Install :doc:`wireshark` and the SCION packet dissector plugin to inspect packets on the wire.
+
+
+.. _licensing:
+
+Licensing and Intellectual Property
+===================================
+
+The SCION open-source implementation is released under the `Apache License, Version 2.0 <https://github.com/scionproto/scion/blob/master/LICENSE>`_.
+
+You may use, reproduce, and distribute the software in compliance with the License.
+
+Patent Disclosure Process
+=========================
+
+Anapaya Systems AG holds patents related to certain SCION technologies, for which it has issued an open-source patent pledge.
+For more information see the `NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file.
+
+If you are contributing code that you know or believe implements a technique covered by a
+patent, you are encouraged to follow these disclosure steps
+
+    - If you do not own the patent, your contribution must rely on a patent pledge.
+      Please include a link to the specific third-party patent pledge in the
+      `NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file.
+      Add a header comment to source files known to implement such a technique, like:
+
+      .. code-block:: go
+
+          // PATENT-NOTICE:
+          // This file implements a technique described in the patent(s) <patent n.>,
+          // Use of this implementation relies on an Open Source Patent Pledge. See NOTICE.
+
+    - If you are contributing code that implements a technique covered by a patent that
+      you or your employer own, note that patent rights come from you as the contributor
+      according to the Apache License 2.0.
+      Add a header comment to source files known to implement such a technique, like:
+
+      .. code-block:: go
+
+          // PATENT-NOTICE:
+          // This file implements a technique described in the patent(s) <patent n.>,
+          // owned by <owner>. This implementation is contributed by the patent owner
+          // under the Apache License 2.0, Section 3.
+
+    - Add an entry in the list of patents below, if not listed there yet.
+
+
+Known Patents
+=============
+
+This is a purely informative non-comprehensive list of patents directly
+relating to the SCION technology. Note that these patent are not necessarily
+implemented in the code of this repository. Conversely, there may be implementations
+of patents that are not listed here. 
+
+=======================================  ===================================================
+Patent Numbers                           Description
+=======================================  ===================================================
+EP3756317B1, CN111771359B, US11240140B2  SCION-to-IP Gateway (SIG) including traffic
+                                         classification, path evaluation, high-availability
+                                         deployment.
+
+EP3941006B1, US11362930B2                Hides a SCION network behind a single BGP AS, with
+                                         gateways exchanging routes with legacy networks via
+                                         BGP.
+
+EP3941003B1, US11362932B2                High availability for SCION AS control services via
+                                         sharding into independent shards, so control and
+                                         data planes keep working through failures; also
+                                         covers interoperation between SCION and BGP.
+=======================================  ===================================================
+
+
+
+Please contact the maintainers or submit a PR if you become aware of
+any other patents relating to the SCION technology or to this
+implementation that should be mentioned here or in the
+ `NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file.
