@@ -455,6 +455,10 @@ SCMP Informational Messages
 
 .. _echo-request:
 
+Informational messages have an Identifier field.
+Implementations SHOULD set the Identifier to the source port of the sending
+application to enable proper demultiplexing of replies by the router.
+
 Echo Request
 ------------
 
