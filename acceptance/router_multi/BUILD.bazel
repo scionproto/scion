@@ -43,3 +43,15 @@ raw_test(
     # This test uses sudo and accesses /var/run/netns.
     local = True,
 )
+
+raw_test(
+    name = "test_conndown",
+    src = "test.py",
+    args = args + [
+        "--conndown",
+    ],
+    data = data,
+    homedir = "$(rootpath :conf)",
+    # This test uses sudo and accesses /var/run/netns.
+    local = True,
+)
