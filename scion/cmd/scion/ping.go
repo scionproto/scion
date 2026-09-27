@@ -142,8 +142,12 @@ On other errors, ping will exit with code 2.
 			span.SetTag("dst.host", remote.Host.IP())
 			defer span.Finish()
 
+			daemonAddr, err := envFlags.Daemon()
+			if err != nil {
+				return serrors.Wrap("determining SCION Daemon address", err)
+			}
 			sd, err := daemon.NewAutoConnector(traceCtx,
-				daemon.WithDaemon(envFlags.Daemon()),
+				daemon.WithDaemon(daemonAddr),
 				daemon.WithConfigDir(envFlags.ConfigDir()),
 			)
 			if err != nil {

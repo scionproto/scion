@@ -21,6 +21,7 @@ import (
 	"net/netip"
 	"os"
 	"runtime"
+	"slices"
 	"sync"
 
 	"github.com/spf13/pflag"
@@ -89,7 +90,7 @@ type SCIONEnvironment struct {
 	localFlag     *pflag.Flag
 	configDir     string
 	configDirFlag *pflag.Flag
-	file          env.SCION
+	file          *env.SCION
 	filepath      string
 
 	mtx sync.Mutex
@@ -179,7 +180,11 @@ func (e *SCIONEnvironment) LoadExternalVars() error {
 // from the environment file are not considered.
 func (e *SCIONEnvironment) loadFile() error {
 	if e.filepath == "" {
-		e.filepath = defaultEnvironmentFile
+		file := defaultEnvironmentFile
+		if f := os.Getenv("SCION_ENVIRONMENT_FILE"); f != "" {
+			file = f
+		}
+		e.filepath = file
 	}
 
 	raw, err := os.ReadFile(e.filepath)
@@ -190,9 +195,11 @@ func (e *SCIONEnvironment) loadFile() error {
 	if err != nil {
 		return serrors.Wrap("loading file", err)
 	}
-	if err := json.Unmarshal(raw, &e.file); err != nil {
+	var file env.SCION
+	if err := json.Unmarshal(raw, &file); err != nil {
 		return serrors.Wrap("parsing file", err)
 	}
+	e.file = &file
 	return nil
 }
 
@@ -220,31 +227,81 @@ func (e *SCIONEnvironment) loadEnv() error {
 // The value is loaded from one of the following sources with precedence:
 //  1. Command line flag (--sciond)
 //  2. Environment variable (SCION_DAEMON)
-//  3. Environment configuration file
+//  3. Environment configuration file with defaultIA or --isd-as flag
+//  4. Empty string (only if nothing is set).
 //
-// If none are set, returns empty string (not the default address).
-func (e *SCIONEnvironment) Daemon() string {
+// If no defaultIA is set but there is only one AS in the file, use that AS's daemon address.
+// If no defaultIA is set but there are multiple ASes in the file, return an error.
+// If --isd-as is set but the AS does not exist in the file, return an error.
+func (e *SCIONEnvironment) Daemon() (string, error) {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 
-	if e.sciondFlag != nil && e.sciondFlag.Changed {
-		value := e.sciondFlag.Value.String()
-		if value == "default" {
+	resolveDefault := func(v string) string {
+		if v == "default" {
 			return defaultDaemon
 		}
-		return value
+		return v
 	}
+
+	// Priority 1: Command line flag
+	if e.sciondFlag != nil && e.sciondFlag.Changed {
+		return resolveDefault(e.sciondFlag.Value.String()), nil
+	}
+	// Priority 2: Environment variable
 	if e.sciondEnv != nil {
-		return *e.sciondEnv
+		return resolveDefault(*e.sciondEnv), nil
 	}
-	ia := e.file.General.DefaultIA
-	if e.iaFlag != nil && e.iaFlag.Changed {
-		ia = e.ia
+
+	// Priority 3: Environment configuration file
+	if e.file != nil {
+		// Collect the ASes that are present in the environment file.
+		ases := func() []addr.IA {
+			ases := make([]addr.IA, 0, len(e.file.ASes))
+			for ia := range e.file.ASes {
+				ases = append(ases, ia)
+			}
+			slices.Sort(ases)
+			return ases
+		}
+
+		// Take specific ISD-AS from flag or defaultIA, and look up the daemon for that AS.
+		var ia addr.IA
+		if e.iaFlag != nil && e.iaFlag.Changed {
+			ia = e.ia
+		} else if !e.file.General.DefaultIA.IsZero() {
+			ia = e.file.General.DefaultIA
+		}
+		if !ia.IsZero() {
+			if as, ok := e.file.ASes[ia]; ok {
+				return resolveDefault(as.DaemonAddress), nil
+			}
+			return "", serrors.New("isd-as not found in environment file",
+				"isd-as", ia, "file", e.filepath, "available", ases(),
+			)
+		}
+
+		// No defaultIA set, check how many ASes are in the file
+		switch len(e.file.ASes) {
+		case 0:
+			// No ASes in the file, so no daemon configured.
+			return "", nil
+		case 1:
+			for _, as := range e.file.ASes {
+				return resolveDefault(as.DaemonAddress), nil
+			}
+
+		default:
+			return "", serrors.New("multiple ASes in environment file but no default ISD-AS set",
+				"file", e.filepath,
+				"available", ases(),
+				"hint", "use --isd-as flag to select the local AS")
+		}
+
 	}
-	if as, ok := e.file.ASes[ia]; ok && as.DaemonAddress != "" {
-		return as.DaemonAddress
-	}
-	return ""
+
+	// Priority 4: No daemon configured
+	return "", nil
 }
 
 // Local returns the loca IP to listen on. The value is loaded from one of the
