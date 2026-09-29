@@ -67,7 +67,7 @@ func newSTUNConn(conn sysPacketConn) (*stunConn, error) {
 	}
 	var rcvBufSize int
 	err = sysCallConn.Control(func(fd uintptr) {
-		rcvBufSize, err = syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+		rcvBufSize, err = getsockoptRcvBuf(fd)
 	})
 	if err != nil {
 		return nil, err

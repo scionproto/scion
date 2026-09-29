@@ -10,6 +10,9 @@ def _non_module_deps_impl(ctx):
         sha256 = "a9b2f98aae1fb26e9608be1e975587e6271a3287e424ced28cbc77f32190ec41",
         strip_prefix = "rules_antlr-0.6.1",
         urls = ["https://github.com/bacek/rules_antlr/archive/refs/tags/0.6.1.tar.gz"],
+        # The CcInfo global was removed from Starlark; load it from @rules_cc.
+        patch_args = ["-p1"],
+        patches = ["@//patches:rules_antlr/cc_info.patch"],
     )
 
     # Support cross building and packaging for openwrt_amd64 via the openwrt SDK

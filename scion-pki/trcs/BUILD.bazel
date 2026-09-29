@@ -34,7 +34,7 @@ go_library(
         "@com_github_google_go_cmp//cmp:go_default_library",
         "@com_github_mattn_go_isatty//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
-        "@in_gopkg_yaml_v3//:go_default_library",
+        "@in_yaml_go_yaml_v4//:go_default_library",
     ],
 )
 

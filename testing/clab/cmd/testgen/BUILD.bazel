@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/testing/clab/cmd/testgen",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/private/util:go_default_library",
+        "//testing/clab/testgen:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "testgen",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

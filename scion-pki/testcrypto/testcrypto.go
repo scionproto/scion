@@ -211,7 +211,7 @@ func createCAs(cfg config) error {
 		caDir := cryptoCADir(ia, cfg.out)
 
 		cmd := certs.Cmd(command.StringPather("certificate"))
-		cmd.SetArgs([]string{
+		args := []string{
 			"create",
 			filepath.Join(caDir, "cp-root.tmpl"),
 			filepath.Join(caDir, rootCertName(ia)),
@@ -219,7 +219,11 @@ func createCAs(cfg config) error {
 			"--profile=cp-root",
 			"--not-before=" + strconv.Itoa(int(cfg.now.Unix())),
 			"--not-after=730d",
-		})
+		}
+		if d.EKUAny {
+			args = append(args, "--eku-any")
+		}
+		cmd.SetArgs(args)
 		if err := cmd.Execute(); err != nil {
 			return err
 		}
