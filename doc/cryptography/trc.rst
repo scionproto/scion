@@ -117,10 +117,16 @@ specify their profile.
 TRC Equality
 ============
 
-Two TRCs are equal if and only if their payloads are byte-equal; this is sufficient
-because the payload determines exactly which signatures must be attached. See `TRC
-Equality
+The signer information in a signed TRC is an unordered set ([RFC5652]_) and can
+be reordered without affecting verification. Two signed copies of one TRC can
+therefore differ byte for byte. For this reason, two TRCs are equal if and only
+if their payloads are byte-equal. This is sufficient because the payload
+determines exactly which signatures must be attached. See `TRC Equality
 <https://www.ietf.org/archive/id/draft-dekater-scion-pki-15.html#name-trc-equality>`_.
+
+In the open-source SCION implementation, the trust database compares TRCs by
+the SHA-256 hash of their payload and skips a received TRC whose payload it
+already stores.
 
 .. _trc-selection:
 
