@@ -32,7 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
@@ -147,27 +147,28 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			ctr := metrics.NewTestCounter()
+			errCtr := metrics.NewTestCounter()
+			successCtr := metrics.NewTestCounter()
 			s := &grpc.RenewalServer{
 				CMSHandler: tc.cmsHandler(ctrl),
 				CMSSigner:  tc.cmsSigner(ctrl),
 				Metrics: grpc.RenewalServerMetrics{
-					BackendErrors: ctr.With("test_tag", "err_backend"),
-					Success:       ctr.With("test_tag", "ok_success"),
+					BackendErrors: errCtr,
+					Success:       successCtr,
 				},
 			}
 			_, err := s.ChainRenewal(context.Background(), tc.request(t))
 			tc.assertion(t, err)
-			for _, res := range []string{
-				"err_backend",
-				"ok_success",
-			} {
-				expected := float64(0)
-				if res == tc.metric {
-					expected = 1
-				}
-				assert.Equal(t, expected, metrics.CounterValue(ctr.With("test_tag", res)), res)
+			backendExpected := float64(0)
+			successExpected := float64(0)
+			if tc.metric == "err_backend" {
+				backendExpected = 1
 			}
+			if tc.metric == "ok_success" {
+				successExpected = 1
+			}
+			assert.Equal(t, backendExpected, metrics.CounterValue(errCtr), "err_backend")
+			assert.Equal(t, successExpected, metrics.CounterValue(successCtr), "ok_success")
 		})
 	}
 }

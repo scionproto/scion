@@ -30,18 +30,20 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
+	libmetrics "github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/trust"
-	"github.com/scionproto/scion/private/trust/internal/metrics"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 	"github.com/scionproto/scion/private/trust/mock_trust"
 	"github.com/scionproto/scion/scion-pki/certs"
 )
@@ -417,7 +419,15 @@ func TestSignerGenGenerate(t *testing.T) {
 		},
 	}
 
-	metrics.Signer.Signers.Reset()
+	signerGen := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "trustengine_generated_signers_total",
+		Help: "Number of generated signers backed by the trust engine",
+	}, []string{"result"})
+	metrics := trustmetrics.Metrics{
+		SignerGenerated: func(result string) libmetrics.Counter {
+			return signerGen.With(prometheus.Labels{"result": result})
+		},
+	}
 	t.Run("cases", func(t *testing.T) {
 		for name, tc := range testCases {
 			t.Run(name, func(t *testing.T) {
@@ -428,6 +438,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					IA:      addr.MustParseIA("1-ff00:0:110"),
 					DB:      tc.db(mctrl),
 					KeyRing: tc.keyRing(mctrl),
+					Metrics: metrics,
 				}
 				signers, err := gen.Generate(context.Background())
 				tc.assertFunc(t, err)
@@ -435,6 +446,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			})
 		}
 	})
+	// This runs after the cases and therefore we collected all metrics.
 	t.Run("metrics", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		// Ensure the gauge is set to the expected value.
@@ -449,6 +461,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			IA:      addr.MustParseIA("1-ff00:0:110"),
 			DB:      db,
 			KeyRing: ring,
+			Metrics: metrics,
 		}.Generate(context.Background())
 		require.NoError(t, err)
 
@@ -461,7 +474,7 @@ trustengine_generated_signers_total{result="err_key"} 1
 trustengine_generated_signers_total{result="err_not_found"} 3
 trustengine_generated_signers_total{result="ok_success"} 5
 `, s, s)
-		err = testutil.CollectAndCompare(metrics.Signer.Signers, strings.NewReader(want))
+		err = testutil.CollectAndCompare(signerGen, strings.NewReader(want))
 		require.NoError(t, err)
 	})
 }

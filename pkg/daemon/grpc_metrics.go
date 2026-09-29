@@ -15,7 +15,7 @@
 package daemon
 
 import (
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -23,12 +23,12 @@ import (
 // Metrics can be used to inject metrics counters into the SCION Daemon API. Each
 // counter may be set or unset.
 type Metrics struct {
-	Connects                   metrics.Counter
-	PathsRequests              metrics.Counter
-	ASRequests                 metrics.Counter
-	InterfacesRequests         metrics.Counter
-	ServicesRequests           metrics.Counter
-	InterfaceDownNotifications metrics.Counter
+	Connects                   func(result string) metrics.Counter
+	PathsRequests              func(result string) metrics.Counter
+	ASRequests                 func(result string) metrics.Counter
+	InterfacesRequests         func(result string) metrics.Counter
+	ServicesRequests           func(result string) metrics.Counter
+	InterfaceDownNotifications func(result string) metrics.Counter
 }
 
 func (m Metrics) incConnects(err error)  { incMetric(m.Connects, err) }
@@ -38,11 +38,11 @@ func (m Metrics) incInterface(err error) { incMetric(m.InterfacesRequests, err) 
 func (m Metrics) incServices(err error)  { incMetric(m.ServicesRequests, err) }
 func (m Metrics) incIfDown(err error)    { incMetric(m.InterfaceDownNotifications, err) }
 
-func incMetric(c metrics.Counter, err error) {
-	if c == nil {
+func incMetric(f func(result string) metrics.Counter, err error) {
+	if f == nil {
 		return
 	}
-	c.With(prom.LabelResult, errorToPrometheusLabel(err)).Add(1)
+	metrics.CounterInc(f(errorToPrometheusLabel(err)))
 }
 
 func errorToPrometheusLabel(err error) string {

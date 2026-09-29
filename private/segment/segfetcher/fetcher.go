@@ -21,10 +21,10 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/pathdb"
-	"github.com/scionproto/scion/private/segment/segfetcher/internal/metrics"
 	"github.com/scionproto/scion/private/segment/seghandler"
 )
 
@@ -45,13 +45,6 @@ type ReplyHandler interface {
 		server net.Addr) *seghandler.ProcessedResult
 }
 
-// NewFetcherMetrics exposes the metrics constructor.
-//
-// XXX(roosd): This should be translated to the new metrics approach.
-func NewFetcherMetrics(ns string) metrics.Fetcher {
-	return metrics.NewFetcher(ns)
-}
-
 // Fetcher fetches, verifies and stores segments for a path segment request.
 type Fetcher struct {
 	Resolver     Resolver
@@ -61,7 +54,7 @@ type Fetcher struct {
 	// QueryInterval specifies after how much time segments should be
 	// refetched at the remote server.
 	QueryInterval time.Duration
-	Metrics       metrics.Fetcher
+	Metrics       Metrics
 }
 
 // Fetch loads the requested segments from the path DB or requests them from a remote path server.
@@ -94,25 +87,27 @@ func (f *Fetcher) Request(ctx context.Context, reqs Requests) (Segments, error) 
 func (f *Fetcher) waitOnProcessed(ctx context.Context,
 	replies <-chan ReplyOrErr) (Segments, error) {
 
+	incRequests := func(result error) {
+		if f.Metrics.Requests != nil {
+			metrics.CounterInc(f.Metrics.Requests(result))
+		}
+	}
+
 	var segs Segments
 	logger := log.FromCtx(ctx)
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
-		labels := metrics.RequestLabels{Result: metrics.ErrNotClassified}
 		if reply.Err != nil {
-			if serrors.IsTimeout(reply.Err) {
-				labels.Result = metrics.ErrTimeout
-			}
-			f.Metrics.SegRequests(labels).Inc()
+			incRequests(reply.Err)
 			continue
 		}
 		if len(reply.Segments) == 0 {
-			f.Metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
+			incRequests(nil)
 			continue
 		}
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Segments), reply.Peer)
 		if err := r.Err(); err != nil {
-			f.Metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
+			incRequests(err)
 			return segs, serrors.Wrap("processing reply", err)
 		}
 		if len(r.VerificationErrors()) > 0 {
@@ -127,7 +122,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 		if err != nil {
 			logger.Info("NextQuery insertion failed", "err", err)
 		}
-		f.Metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
+		incRequests(nil)
 	}
 	return segs, nil
 }

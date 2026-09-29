@@ -22,7 +22,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/storage"
@@ -39,7 +39,7 @@ const (
 // Config configures the metrics for the wrapped trust database.
 type Config struct {
 	Driver       string
-	QueriesTotal metrics.Counter
+	QueriesTotal func(driver, operation, result string) metrics.Counter
 }
 
 // WrapDB wraps the given trust database into one that also exports metrics.
@@ -75,7 +75,9 @@ func (o observer) Observe(ctx context.Context, op string, action observable) {
 		Operation: op,
 		Result:    label,
 	}
-	metrics.CounterInc(metrics.CounterWith(o.cfg.QueriesTotal, labels.Expand()...))
+	if o.cfg.QueriesTotal != nil {
+		metrics.CounterInc(o.cfg.QueriesTotal(labels.Driver, labels.Operation, labels.Result))
+	}
 }
 
 var _ (trust.DB) = (*db)(nil)

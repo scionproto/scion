@@ -8,7 +8,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/drkey:go_default_library",
-        "//pkg/metrics:go_default_library",
+        "//pkg/metrics/v2:go_default_library",
         "//private/storage/db:go_default_library",
         "//private/storage/drkey:go_default_library",
         "//private/tracing:go_default_library",
@@ -22,7 +22,7 @@ go_test(
     deps = [
         ":go_default_library",
         "//pkg/drkey:go_default_library",
-        "//pkg/metrics:go_default_library",
+        "//pkg/metrics/v2:go_default_library",
         "//private/storage/drkey/level1/dbtest:go_default_library",
         "//private/storage/drkey/level1/sqlite:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

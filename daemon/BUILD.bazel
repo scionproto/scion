@@ -13,14 +13,11 @@ go_library(
         "//pkg/daemon/asinfo:go_default_library",
         "//pkg/daemon/fetcher:go_default_library",
         "//pkg/daemon/private/engine:go_default_library",
-        "//pkg/metrics:go_default_library",
-        "//pkg/private/prom:go_default_library",
         "//private/drkey:go_default_library",
         "//private/env:go_default_library",
         "//private/revcache:go_default_library",
         "//private/trust:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
-        "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )
 

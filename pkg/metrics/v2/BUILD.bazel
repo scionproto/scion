@@ -6,9 +6,11 @@ go_library(
     srcs = [
         "fakes.go",
         "metrics.go",
+        "options.go",
     ],
     importpath = "github.com/scionproto/scion/pkg/metrics/v2",
     visibility = ["//visibility:public"],
+    deps = ["@com_github_prometheus_client_golang//prometheus:go_default_library"],
 )
 
 go_test(
