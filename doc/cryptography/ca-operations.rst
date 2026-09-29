@@ -12,7 +12,7 @@ Trust within an ISD flows from the TRC: the Root Certificates it contains are us
 to sign CA Certificates, which are in turn used to sign AS Certificates. For the
 architectural procedure of issuing AS certificates, see `Issuing Control Plane AS
 Certificates
-<https://www.ietf.org/archive/id/draft-dekater-scion-pki-13.html#name-issuing-control-plane-as-ce>`_
+<https://www.ietf.org/archive/id/draft-dekater-scion-pki-15.html#name-issuing-control-plane-as-ce>`_
 in the SCION PKI draft. The steps below walk through running a manual CA for
 testing.
 
