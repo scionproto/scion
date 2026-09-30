@@ -1,169 +1,78 @@
 # copyright
 
-See [doc.go](doc.go), or `go doc ./tools/copyright`.
+Gives your organization a copyright claim for the current year in every Go file
+changed on your branch. From the repository root:
 
-By default it reports how many files are out of date, and which identities it could not
-attribute. Under `-v`, every line it adds or moves cites the contribution behind it:
-
-```txt
-private/storage/beacon/sqlite/db.go
-    - // Copyright 2019 Anapaya Systems
-    + // Copyright 2025 Anapaya Systems    (roos@anapaya.net, 2025-09-30 38e79c43f)
-    + // Copyright 2025 SCION Association  (roman.scharkov@gmail.com, 2025-02-12 33de3e514)
+```sh
+go run ./tools/copyright -affiliation "SCION Association"
 ```
 
-## What it will not do
+`make copyright-update` runs the same through Bazel:
 
-It only adds claims and moves years forward, never drops one or moves a year back:
-git history is not the only evidence of authorship.
-`-verify` is the only way to ask it to remove claims.
+```sh
+make copyright-update AFFILIATION="SCION Association"
+```
 
-Files it declines to touch, all listed under `-v`:
+`-affiliation` must be one of the names in [organizations.go](organizations.go).
+If yours is missing, add it there.
+
+## Which files
+
+Every Go file that differs between the working tree and the commit where the branch
+left `upstream/master`, or `origin/master` if there is no `upstream/master`.
+Committed, staged, unstaged and untracked changes all count; deleted files do not.
+
+A fork names the main repository `upstream`, as [doc/dev/git.rst](../../doc/dev/git.rst)
+describes. There `origin/master` is the fork's own and lags behind unless it is synced,
+and every upstream commit it lacks would count as a change of the branch.
+If neither branch exists, the tool stops with an error.
+
+## What changes
+
+The tool makes the smallest edit that gives the organization a claim for the current year:
+
+- A line that already claims this year or later for the organization: nothing changes.
+- A line the organization holds alone, for an earlier year: the year changes in place,
+  and nothing else on the line. Of several such lines, the newest one changes.
+- Otherwise `// Copyright <year> <organization>` is added below the existing claims.
+  A shared line, such as `// Copyright 2018 ETH Zurich, Anapaya Systems`, is never
+  edited: it also states the year of the other holder.
+
+Claims are never reordered, removed or moved back. Every other line stays as it was.
+
+The report lists each edit:
+
+```txt
+control/beaconing/writer.go
+    - // Copyright 2025 SCION Association
+    + // Copyright 2026 SCION Association
+dispatcher/config/config.go
+    + // Copyright 2026 SCION Association
+
+updated 2 of 2 Go files changed since the merge base with upstream/master
+```
+
+## Files it leaves alone
+
+The report lists these with the reason:
 
 - Generated files.
 - Third-party notices: a header claiming copyright in any form other than
-  `// Copyright <year> <configured organization>`. `// MIT License`,
+  `// Copyright <year> <organization>`. `// MIT License`,
   `// Copyright (c) 2016 Max Mustermann` and `//  Copyright 2020 Some Other Labs, Inc.`
   (two spaces) all occur here.
-- A well-formed line held by an undeclared organization,
+- A well-formed line held by a holder not in organizations.go,
   such as `// Copyright 2013 The Prometheus Authors`.
-- Files with no header. Claims go above an Apache license block,
+- Files with no header. A claim goes above an Apache license block,
   and a missing license is not invented; `goheader` flags those.
 - Files whose header does not open with the copyright line, an SPDX tag above it included.
   The parser reads claims from the first line of the leading comment block,
   so a tag belongs below the license block, as in `private/underlay/ebpf`.
-
-An identity with no known affiliation claims nothing, and is reported.
-Leaving an identity out is safe. Guessing its affiliation is not.
-
-Uncommitted work is attributed to `git config user.email` and the current year;
-having no date of its own, the affiliation is read at the end of that year.
-Without a `user.email` the tool stops. `-committed-only` needs no identity.
-
-## affiliations.json
-
-Resolution order for an (email, date) pair:
-
-1. an entry in `contributors` whose `emails` contains the address
-2. the domain of the address in `domains`
-3. otherwise nothing is claimed
-
-```json
-{
-  "name": "Max Mustermann",
-  "emails": ["max.m@example.com", "max@another.org"],
-  "affiliation": "Muster Org"
-}
-```
-
-One organization per person, undated, so it answers for every day that address
-contributed. It lists the people contributing now: an entry whose addresses have
-not appeared for a year is dropped. Earlier spans live in the file below, which
-is neither embedded nor read by default — the repository does not publish when
-someone worked where.
-
-The entries have no dates, so a plain run must skip the old commits. `-base`
-draws the line between old and new: a commit that `-base` already contains is old,
-and the tool reads only the commits that it does not.
-
-```sh
-go run ./tools/copyright # default -base origin/master: this branch only
-go run ./tools/copyright -base upstream/master   # on a fork, name the real upstream
-go run ./tools/copyright -base '' # read every commit, with today's entries
-```
-
-The commits `-base` reaches are done. Their claims are already in the headers.
-Reading them again would use today's entries, and give that old work to the
-organization the author works for now.
-
-If `-base` doesn't exist, the tool stops with an error.
-It doesn't quietly read the whole history instead.
-
-`ignoreEmails` drops bots. There is deliberately no list of excluded paths:
-which files are ours to edit is read from each file's header.
-
-Adding an entry can only add claims, so re-running after an edit is safe.
-`go test ./tools/copyright` validates the embedded configuration.
-
-## affiliation-history.json
-
-People change employer while keeping the same address, and the snapshot has
-dropped others outright. `-history` points at a file of dated spans that
-replaces the contributors of affiliations.json, so it carries its own addresses:
-
-```json
-[
-  {
-    "name": "Some Contributor",
-    "emails": ["some@example.com", "contributor@scion.org"],
-    "affiliations": [
-      {"org": "ETH Zurich", "from": "2018-09-01", "until": "2022-11-30"},
-      {"org": "SCION Association", "from": "2022-12-01"}
-    ]
-  }
-]
-```
-
-```sh
-go run ./tools/copyright -w -history tools/copyright/affiliation-history.json
-```
-
-`.gitignore` reserves that path, but the file may live anywhere. Through `make`,
-give an absolute path: `bazel run` does not start in the repository root.
-
-`from` and `until` are inclusive `YYYY-MM-DD` days. `from` is required,
-so no span reaches further back than meant; `until` may be omitted while an
-affiliation holds. Where the day is unknown, `-01-01` and `-12-31` bound the year.
-A day no span covers claims nothing.
-
-`name` only labels the entry; contributions are matched by address.
-The file answers alone, so everyone whose work is to be claimed belongs in it,
-the people in affiliations.json included; an address it omits is reported as a gap.
-Its organizations must be declared in affiliations.json, but need not be current ones.
-Only `organizations`, `domains` and `ignoreEmails` are still read from there:
-those hold whenever an address was used.
-
-Dating every revision is what puts the whole history in scope, so `-history`
-ignores `-base`. Within a branch's own commits the two agree; over older history
-the snapshot claims more, since someone who left an organization keeps claiming
-for it, and the people it dropped claim nothing.
-
-## Claims nothing accounts for
-
-By default an existing claim is taken as given. `-verify` checks them too,
-and reports every organization no contribution to that file accounts for:
-
-```txt
-pkg/private/util/fs.go
-    - // Copyright 2019 ETH Zurich       (no contribution from ETH Zurich)
-    + // Copyright 2022 Anapaya Systems  (roos@anapaya.net, 2022-03-12 15d455f11)
-```
-
-Read-only without `-w`:
-
-```sh
-make copyright-check COPYRIGHT_FLAGS="-v -verify -history $PWD/tools/copyright/affiliation-history.json" > report.txt 2>/dev/null
-```
-
-A shared line keeps its other holders, and no file loses all its claims: a file
-is only processed when it has contributions, and those get claims of their own.
-
-Two limits:
-
-- It needs `-history`: affiliations.json says where people work today,
-  so a claim for an organization its contributor has left would look unaccounted for.
-- It leaves a file alone when someone who touched it has no known affiliation:
-  that person may be who a claim rests on. `-v` lists those files.
-
-**A claim with nothing behind it is a question, not a verdict.** Code gets copied
-between files by hand, work can predate this repository, and a commit can carry
-someone else's patch. Read the report and decide; don't pipe it into `-w`.
 
 ## Not part of make lint
 
 `goheader` in `.golangci.yml` enforces the shape of the header and the presence
 of the license text. It does not know who worked on the file.
 
-`make copyright-check` reports what is out of date; `make copyright-update` rewrites it.
-Neither is wired into `make lint`, deliberately, to avoid blocking PRs where the author
-deliberately doesn't want to update the claims for any reason.
+The tool is not wired into `make lint` or CI, deliberately, so it does not block PRs
+whose author does not want to update the claims.

@@ -1,4 +1,4 @@
-.PHONY: all build build-dev copyright-check copyright-update dist-check-cgo dist-deb dist-test-release antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
+.PHONY: all build build-dev copyright-update dist-check-cgo dist-deb dist-test-release antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
 
 build-dev:
 	rm -f bin/*
@@ -112,16 +112,11 @@ gazelle: go.mod
 licenses:
 	tools/licenses.sh
 
-# Report how many Go files carry copyright lines that do not match who worked on them,
-# and who could not be attributed. Exits non-zero if any are out of date.
+# Give AFFILIATION a copyright claim for this year in the Go files changed on this branch:
+# make copyright-update AFFILIATION="SCION Association"
 # See tools/copyright/README.md for more info.
-# COPYRIGHT_FLAGS passes extra flags through, such as -base, -history or -verify.
-copyright-check:
-	bazel run //tools/copyright -- -v -dir "${PWD}" $(COPYRIGHT_FLAGS)
-
-# Bring copyright claims up to date.
 copyright-update:
-	bazel run //tools/copyright -- -v -dir "${PWD}" -w $(COPYRIGHT_FLAGS)
+	bazel run --config=quiet //tools/copyright -- -affiliation "$(AFFILIATION)"
 
 antlr:
 	antlr/generate.sh fix

@@ -15,9 +15,7 @@
 package main
 
 import (
-	"cmp"
 	"fmt"
-	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -44,29 +42,26 @@ func (c claim) String() string {
 
 // header is the copyright block at the top of a file.
 type header struct {
+	// claims are the first len(claims) lines of the file, in order.
 	claims []claim
-	// end is the index of the first line below the claims.
-	// Zero means the file has none, and that they belong at the top.
-	end int
 	// separate appends the blank comment line goheader requires between the
 	// claims and the license text.
 	separate bool
 }
 
-// skipReason explains why a file is left alone.
-// The empty value means it can be processed.
+// skipReason is empty when the file is not skipped.
 type skipReason string
 
 const (
 	skipGenerated   skipReason = "generated file"
 	skipNoHeader    skipReason = "no copyright header and no license block"
 	skipForeign     skipReason = "unrecognized copyright notice, possibly third-party"
-	skipUnknownOrgs skipReason = "copyright held by an organization not in the configuration"
+	skipUnknownOrgs skipReason = "copyright held by an organization not in organizations.go"
 )
 
 // parseHeader locates the copyright claims in lines. It refuses any notice it does not
 // fully recognize: mangling a third-party notice is worse than leaving it outdated.
-func parseHeader(lines []string, r *Resolver) (*header, skipReason) {
+func parseHeader(lines []string) (*header, skipReason) {
 	// Only the leading run of "//" lines can hold a notice.
 	// Code below can mention copyright in a string or a comment of its own.
 	block := 0
@@ -77,12 +72,9 @@ func parseHeader(lines []string, r *Resolver) (*header, skipReason) {
 		block++
 	}
 
-	// Claims lead the comment block. Anything below them, an SPDX identifier
-	// included, is left where it is.
 	var claims []claim
-	end := 0
-	for end < block {
-		m := claimLine.FindStringSubmatch(lines[end])
+	for len(claims) < block {
+		m := claimLine.FindStringSubmatch(lines[len(claims)])
 		if m == nil {
 			break
 		}
@@ -90,48 +82,41 @@ func parseHeader(lines []string, r *Resolver) (*header, skipReason) {
 		if err != nil {
 			return nil, skipForeign
 		}
-		holders, ok := splitHolders(m[2], r)
+		holders, ok := splitHolders(m[2])
 		if !ok {
 			return nil, skipUnknownOrgs
 		}
 		claims = append(claims, claim{year: year, holders: holders})
-		end++
 	}
 
 	// Copyright mentioned outside the parsed claims belongs to someone else.
-	for i := range block {
-		if i < end {
-			continue
-		}
-		if mentionsCopyright(lines[i]) {
-			return nil, skipForeign
-		}
+	if slices.ContainsFunc(lines[len(claims):block], mentionsCopyright) {
+		return nil, skipForeign
 	}
 
 	if len(claims) == 0 {
 		// A missing license is not invented here. goheader flags it.
-		for i := range block {
-			if strings.HasPrefix(lines[i], licenseMarker) {
+		for _, line := range lines[:block] {
+			if strings.HasPrefix(line, licenseMarker) {
 				return &header{separate: strings.TrimSpace(lines[0]) != "//"}, ""
 			}
 		}
 		return nil, skipNoHeader
 	}
-	return &header{claims: claims, end: end}, ""
+	return &header{claims: claims}, ""
 }
 
 func mentionsCopyright(line string) bool {
 	return strings.Contains(line, "Copyright") || strings.Contains(line, "copyright")
 }
 
-// splitHolders parses the holder part of a copyright line. Holders may share a
-// line ("SCION Association, Anapaya Systems"), but only if every part is a
-// configured organization.
-func splitHolders(text string, r *Resolver) ([]string, bool) {
+// splitHolders splits "SCION Association, Anapaya Systems" into its holders.
+// It reports false unless every holder is one of [organizations].
+func splitHolders(text string) ([]string, bool) {
 	parts := strings.Split(text, ",")
 	holders := make([]string, 0, len(parts))
 	for _, part := range parts {
-		org, ok := r.KnownOrg(part)
+		org, ok := knownOrg(part)
 		if !ok {
 			return nil, false
 		}
@@ -140,193 +125,44 @@ func splitHolders(text string, r *Resolver) ([]string, bool) {
 	return holders, true
 }
 
-// update folds contributions into the existing claims.
-// It never drops a claim and never moves a year back:
-// git history is not the only evidence of authorship.
-func (h *header) update(contributions map[string]int) []claim {
-	claims := make([]claim, 0, len(h.claims)+len(contributions))
-	for _, c := range h.claims {
-		claims = append(claims, claim{year: c.year, holders: slices.Clone(c.holders)})
-	}
-
-	claimed := claimedYears(claims)
-	for _, org := range slices.Sorted(maps.Keys(contributions)) {
-		year := contributions[org]
-		if claimed[org] >= year {
-			continue
-		}
-		if _, ok := claimed[org]; ok {
-			claims = bumpHolder(claims, org, year)
-			continue
-		}
-		claims = append(claims, claim{year: year, holders: []string{org}})
-	}
-
-	// Newest first, and stable, so claims of equal year keep the order they had
-	// and an untouched header is never reshuffled.
-	slices.SortStableFunc(claims, func(a, b claim) int {
-		return cmp.Compare(b.year, a.year)
-	})
-	return claims
-}
-
-// confirm checks the claims against the contributions behind them.
-// It returns the claims that hold, and the organizations no contribution accounts for.
-// A line that loses all its holders is dropped with them.
+// update returns the claim lines of the header with org claiming year,
+// or nil when org already claims year or later and nothing needs to change.
+// lines is the file the header was parsed from.
 //
-// A claim with nothing behind it in git is not proof of a mistake.
-// Code moves between files by hand, work can predate this repository, and an
-// organization its contributor has since left holds copyright all the same.
-// That is why -verify asks for this, rather than every run doing it,
-// and why it needs the dated affiliation history.
-//
-// The claims cannot all fall away. A file is only processed when it has contributions,
-// and [header.update] gives every contributing organization a claim,
-// which is by definition one that holds.
-func confirm(claims []claim, contributions map[string]attribution) ([]claim, []string) {
-	var unconfirmed []string
-	kept := make([]claim, 0, len(claims))
-	for _, c := range claims {
-		holders := make([]string, 0, len(c.holders))
-		for _, org := range c.holders {
-			if _, ok := contributions[org]; ok {
-				holders = append(holders, org)
-				continue
-			}
-			if !slices.Contains(unconfirmed, org) {
-				unconfirmed = append(unconfirmed, org)
-			}
-		}
-		if len(holders) > 0 {
-			kept = append(kept, claim{year: c.year, holders: holders})
-		}
-	}
-	slices.Sort(unconfirmed)
-	return kept, unconfirmed
-}
-
-// doubts explains each claim line [confirm] took a holder from, keyed by the
-// line as it read before. [reasons] covers the lines an update added instead.
-func doubts(old []claim, unconfirmed []string) map[string]string {
-	out := make(map[string]string, len(old))
-	for _, c := range old {
-		var gone []string
-		for _, org := range c.holders {
-			if slices.Contains(unconfirmed, org) {
-				gone = append(gone, org)
-			}
-		}
-		if len(gone) > 0 {
-			out[c.String()] = "no contribution from " + strings.Join(gone, ", ")
-		}
-	}
-	return out
-}
-
-// claimedYears is the highest year each organization already claims.
-func claimedYears(claims []claim) map[string]int {
-	claimed := make(map[string]int)
-	for _, c := range claims {
-		for _, holder := range c.holders {
-			if c.year > claimed[holder] {
-				claimed[holder] = c.year
-			}
-		}
-	}
-	return claimed
-}
-
-// reasons explains the claim lines an update produced, keyed by the rendered line.
-// Only lines the update moved get an entry: an untouched line needs no justification.
-// A line shared by several organizations names each of them.
-func reasons(old, updated []claim, attr map[string]attribution) map[string]string {
-	was := claimedYears(old)
-	out := make(map[string]string)
-	for _, c := range updated {
-		var parts []string
-		for _, org := range c.holders {
-			a, ok := attr[org]
-			if !ok || a.year != c.year || was[org] >= c.year {
-				// This holder was already claiming the year,
-				// so the line moved for somebody else on it.
-				continue
-			}
-			parts = append(parts, fmt.Sprintf("%s: %s", org, a))
-		}
-		switch len(parts) {
-		case 0:
-		case 1:
-			// Naming the one holder again would only repeat the line.
-			_, evidence, _ := strings.Cut(parts[0], ": ")
-			out[c.String()] = evidence
-		default:
-			out[c.String()] = strings.Join(parts, "; ")
-		}
-	}
-	return out
-}
-
-// bumpHolder moves org's newest claim to year.
-// A shared line splits, which leaves the other holders' year unchanged.
-func bumpHolder(claims []claim, org string, year int) []claim {
-	best := -1
-	for i, c := range claims {
+// A line org holds alone moves to year in place; of several, the newest does.
+// A line org shares is left alone, since it states the other holders' year too.
+// Without a line of its own, org gets one below the existing claims.
+// Either way the claims keep their order, and every other line stays as it was.
+func (h *header) update(lines []string, org string, year int) []string {
+	alone := -1
+	for i, c := range h.claims {
 		if !slices.Contains(c.holders, org) {
 			continue
 		}
-		if best == -1 || c.year > claims[best].year {
-			best = i
+		if c.year >= year {
+			return nil
+		}
+		if len(c.holders) == 1 && (alone == -1 || c.year > h.claims[alone].year) {
+			alone = i
 		}
 	}
-	if best == -1 {
-		return append(claims, claim{year: year, holders: []string{org}})
+	claims := slices.Clone(lines[:len(h.claims)])
+	if alone == -1 {
+		return append(claims, claim{year: year, holders: []string{org}}.String())
 	}
-	if len(claims[best].holders) == 1 {
-		claims[best].year = year
-		return claims
-	}
-	claims[best].holders = remove(claims[best].holders, org)
-	// Join an existing line for the same year rather than adding a second one.
-	for i, c := range claims {
-		if c.year == year && i != best {
-			claims[i].holders = insertHolder(c.holders, org)
-			return claims
-		}
-	}
-	return append(claims, claim{year: year, holders: []string{org}})
-}
-
-// insertHolder appends org to a shared line unless it is already there.
-func insertHolder(holders []string, org string) []string {
-	if slices.Contains(holders, org) {
-		return holders
-	}
-	return append(slices.Clone(holders), org)
-}
-
-// remove returns holders without org. The clone matters:
-// holders is shared with the claim this one was split from.
-func remove(holders []string, org string) []string {
-	return slices.DeleteFunc(slices.Clone(holders), func(h string) bool {
-		return h == org
-	})
+	// The holder keeps the spelling the line gave it.
+	line := claims[alone]
+	m := claimLine.FindStringSubmatchIndex(line)
+	claims[alone] = line[:m[2]] + strconv.Itoa(year) + line[m[3]:]
+	return claims
 }
 
 // render returns lines with the claim block replaced by claims.
-func (h *header) render(lines []string, claims []claim) []string {
-	rendered := make([]string, 0, len(claims))
-	for _, c := range claims {
-		if len(c.holders) == 0 {
-			// All holders moved to a newer line.
-			continue
-		}
-		rendered = append(rendered, c.String())
+func (h *header) render(lines, claims []string) []string {
+	out := make([]string, 0, len(claims)+1+len(lines)-len(h.claims))
+	out = append(out, claims...)
+	if h.separate {
+		out = append(out, "//")
 	}
-	if h.separate && len(rendered) > 0 {
-		rendered = append(rendered, "//")
-	}
-	out := make([]string, 0, len(lines)-h.end+len(rendered))
-	out = append(out, rendered...)
-	out = append(out, lines[h.end:]...)
-	return out
+	return append(out, lines[len(h.claims):]...)
 }

@@ -107,7 +107,3 @@ logger.log
 # Vagrant
 #########
 .vagrant
-
-# copyright tool: the affiliation history is kept out of the repository
-#######################################################################
-/tools/copyright/affiliation-history.json
