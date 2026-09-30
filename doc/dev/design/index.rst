@@ -47,6 +47,7 @@ WIP
    :maxdepth: 1
 
    NAT-address-discovery
+   endhost-api
 
 .. _design-docs-postponed:
 
