@@ -319,4 +319,4 @@ EP3941003B1, US11362932B2                High availability for SCION AS control 
 Please contact the maintainers or submit a PR if you become aware of
 any other patents relating to the SCION technology or to this
 implementation that should be mentioned here or in the
- `NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file.
+`NOTICE <https://github.com/scionproto/scion/blob/master/NOTICE>`_ file.
