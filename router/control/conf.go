@@ -162,9 +162,9 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 		}
 	}
 
-	// Set SVC services, a.k.a. SVC resolution. This must be done last; once all the underlay
-	// providers have been instantiated; which happens when first adding a link that needs a
-	// provider.
+	// Set SVC services, a.k.a. SVC resolution, after AddInternalInterface:
+	// udpip:afxdp starts resolving each service's MAC address over the internal link,
+	// and skips that when the link doesn't exist yet.
 	if err := confServices(dp, cfg); err != nil {
 		return err
 	}

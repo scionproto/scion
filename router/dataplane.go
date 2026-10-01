@@ -122,7 +122,8 @@ func underlayProvider(protocol string, preference map[string]string) (UnderlayPr
 		return u, true
 	}
 
-	// Ok, got to do it the hard way
+	// Fall back to any "<protocol>:" provider.
+	// With several registered, map iteration order picks one at random.
 	prefix := protocol + ":"
 	for k, v := range underlayProviders {
 		if strings.HasPrefix(k, prefix) {
@@ -209,13 +210,13 @@ func (p *Packet) reset(headroom int) {
 }
 
 // WithHeader returns a slice of the underlying packet buffer that represents the same bytes as
-// p.rawPacket[:] plus the n preceding bytes. This slice is meant to be used when receiving a raw
-// packet with an n bytes header, such that the payload is exactly at p.rawPacket[0:]. p.RawPacket
+// p.RawPacket[:] plus the n preceding bytes. This slice is meant to be used when receiving a raw
+// packet with an n bytes header, such that the payload is exactly at p.RawPacket[0:]. p.RawPacket
 // is *not* modified. This method panics if n is greater than the available headroom in the packet
 // buffer.
 func (p *Packet) WithHeader(n int) []byte {
-	start := len(p.buffer) - cap(p.RawPacket) // Where rawPacket starts in the buffer
-	end := start + len(p.RawPacket)           // Where rawPacket ends in the buffer
+	start := len(p.buffer) - cap(p.RawPacket) // Where RawPacket starts in the buffer
+	end := start + len(p.RawPacket)           // Where RawPacket ends in the buffer
 
 	// n>start is a panicable offense.
 	return p.buffer[start-n : end]
@@ -225,8 +226,6 @@ func (p *Packet) WithHeader(n int) []byte {
 // buffer. This space can be used safely by an underlay to store data on ingest and retrieve it on
 // egress; should the same underlay perform both operations. The data is protected against
 // overwrites provided that the value of n is counted in the underlay's headroom requirements.
-//
-// n is the size of the slice to be borrowed from the head of the packet buffer.
 func (p *Packet) HeadBytes(n int) []byte {
 	return p.buffer[0:n]
 }
@@ -288,14 +287,15 @@ type dataPlane struct {
 	ExperimentalSCMPAuthentication bool
 	RunConfig                      RunConfig
 
-	// The pool that stores all the packet buffers as described in the design document. See
-	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst To avoid
+	// The pool that stores all the packet buffers as described in the [design] document. To avoid
 	// garbage collection, most the meta-data that is produced during the processing of a packet is
 	// kept in a data structure (packet struct) that is pooled and recycled along with the
 	// corresponding packet buffer. The packet struct refers permanently to the packet buffer. The
 	// packet structure is fetched from the pool passed-around through the various channels and
 	// returned to the pool. To reduce the cost of copying, the packet structure is passed by
 	// reference.
+	//
+	// [design]: https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
 	packetPool PacketPool
 
 	// underlayHeadRoom is the minimum headroom that must be reserved at the front of every packet
@@ -731,7 +731,7 @@ type RunConfig struct {
 }
 
 // NeighborConfig bounds an underlay's neighbor cache. Zero values mean the
-// underlay picks a default. See the router configuration for what they are.
+// underlay picks a default. [config.Neighbor] documents each field and its default.
 type NeighborConfig struct {
 	QueueLen      int
 	QueueTotal    int
@@ -1351,7 +1351,6 @@ func (p *scionPacketProcessor) validateSrcDstIA() disposition {
 			return p.respInvalidSrcIA()
 		}
 		if p.path.IsLastHop() != dstIsLocal {
-			// How did it get here?
 			return p.respInvalidDstIA()
 		}
 	}
@@ -2236,8 +2235,8 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 
 	// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
 	// the solution is to use BFD's demand-mode. To be considered in a future refactoring.
-	// TODO(jiceatscion): the underlay will still count a dropped packet. We might want to avoid
-	// that.
+	// TODO(jiceatscion): [Link.Send] counts a dropped BFD packet as a busy_forwarder drop.
+	// Exclude BFD packets from that count.
 	fwLink.Send(p)
 	return nil
 }

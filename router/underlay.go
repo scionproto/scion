@@ -146,7 +146,8 @@ type Underlay interface {
 	NewInternalLink(localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error)
 }
 
-// UnderlayProvider allows the instantiation of a provider.
+// UnderlayProvider creates [Underlay] instances.
+// A dataplane calls New once per underlay protocol.
 type UnderlayProvider interface {
 	New(runConfig RunConfig) Underlay
 }

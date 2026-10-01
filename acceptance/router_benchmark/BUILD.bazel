@@ -32,10 +32,10 @@ data = [
     "//tools/mmbm:mmbm",
 ]
 
-# The router benchmarks are excluded from CI. Some underlays require special hardware and
-# driver support that CI agents do not provide. The AF_XDP underlay, for instance, falls back
-# to XDP_COPY without a driver that supports XDP_ZEROCOPY, which does not measure what the
-# benchmark is meant to measure. Performance regression testing is scheduled on baremetal.
+# The router benchmarks are excluded from CI. CI agents are shared, virtualized machines,
+# and the throughput they measure says little about the router. Without a driver that
+# supports XDP_ZEROCOPY, the afxdp underlay also falls back to XDP_COPY.
+# Performance regression testing is scheduled on baremetal.
 raw_test(
     name = "test_afxdp",
     src = "test.py",

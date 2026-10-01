@@ -195,10 +195,9 @@ class RouterBMTest(base.TestBase, RouterBM):
     Pretend traffic is injected by brload's. See the test cases for details.
     """
 
-    # We construct intf_map during setup and we use it later, during _run(). As a result, running
-    # setup, run, and teardown separately is difficult.  During run and teardown, we reconstruct the
-    # map without actually setup the interfaces. This assumes that brload isn't being changed
-    # in-between, since the map is based on the requirements that it outputs.
+    # _run and teardown rebuild intf_map with create_interfaces(False), which lets setup,
+    # run and teardown run as separate invocations. This assumes brload's interface
+    # requirements do not change in between.
 
     debug_run: bool = DEBUG_RUN
     router_cpus: list[int] = [0]
@@ -229,7 +228,9 @@ class RouterBMTest(base.TestBase, RouterBM):
         self.choose_cpus()
 
     def choose_cpus(self):
-        """Chooses MAX_CPUS cpus and assigns 1 to the blaster and the rest to the router.
+        """Chooses up to MAX_CPUS cpus: the last 2 go to brload and the rest to the router.
+
+        With fewer than 3 cpus, brload and the router share them all.
 
         Try various policies in decreasing order of preference. We use fewer than MAX_CPUS cores
         only as a last resort
@@ -268,8 +269,8 @@ class RouterBMTest(base.TestBase, RouterBM):
         if len(chosen) < MAX_CPUS:
             chosen = choose_cpus_from_best_cores(caches, cores)
 
-        # Make the best of what we got. All but the last cpu go to the router. Those are the
-        # best choice.
+        # Make the best of what we got. All but the last two cpus go to the router.
+        # Those are the best choice.
         if len(chosen) < 3:
             # When you have lemons...
             self.router_cpus = chosen
@@ -320,18 +321,17 @@ class RouterBMTest(base.TestBase, RouterBM):
             * The IP address to be assigned to that interface.
             * The IP address of one neighbor.
           ns: The network namespace where that interface must exist.
-          doit: If true, do it for real. Else, assume it is already done and just re-populate the
-                interface map. That is necessary for split operations, where test_setup, test_run,
-                and test_teardown are used. Of course this will only work well if requested
-                interfaces have not changed.
+          doit: If true, create and configure the interfaces. Else only re-populate intf_map,
+                for runs split into the _setup, _run and _teardown targets. This assumes the
+                requested interfaces have not changed.
         """
 
         phys_label = req.label if req.exclusive == "true" else "mx"
         host_intf = f"veth_{phys_label}_host"
         br_intf = f"veth_{phys_label}"
 
-        # We do multiplex most requested router interfaces onto one physical interface pairs, so, we
-        # must check that we haven't already created the physical pair.
+        # We do multiplex most requested router interfaces onto one physical interface
+        # pairs, so, we must check that we haven't already created the physical pair.
         for i in self.intf_map.values():
             if i.name == host_intf:
                 peer_mac = i.peer_mac
@@ -341,11 +341,12 @@ class RouterBMTest(base.TestBase, RouterBM):
             peer_mac = mac_for_ip(req.peer_ip)
             mac = mac_for_ip(req.ip)
             if doit:
-                # Create veth pair with MTU set at creation (like router_multi)
+                # Native XDP on veth (afxdp underlay) limits
+                # the MTU to about 3.5 KB; 3400 fits.
                 sudo("ip", "link", "add", host_intf, "mtu", "3400",
                      "type", "veth", "peer", "name", br_intf, "mtu", "3400")
-                sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure real addr not used
-
+                # Make sure real addr not used
+                sudo("ip", "link", "set", host_intf, "arp", "off")
                 # Do not assign the host addresses but create one link-local addr.
                 # Brload needs some src IP to send arp requests.
                 sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
@@ -413,10 +414,9 @@ class RouterBMTest(base.TestBase, RouterBM):
         except Exception as e:
             logger.info(e)
 
-    # Args:
-    #   doit: If True, the interfaces realy need to be created. Otherwise, this is just to re-
-    #         populate the map (needed if invoked in several phases (setup, run, teardown).
-    #
+    # create_interfaces creates the interfaces that brload show-interfaces requests.
+    # With doit=False, it only re-populates intf_map, for runs split into setup,
+    # run and teardown.
     def create_interfaces(self, doit: bool):
         # Run test brload test with --show-interfaces and set up the veth that it needs.
         # The router uses one end and the test uses the other end to feed it with (and possibly

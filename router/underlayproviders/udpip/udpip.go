@@ -96,9 +96,8 @@ type udpLink interface {
 }
 
 func init() {
-	// Register ourselves as an underlay provider. The registration consists of a factory, not
-	// a provider object, because multiple router instances each must have their own underlay
-	// provider. The provider is not re-entrant.
+	// Register a factory, not an underlay.
+	// Each router instance needs its own underlay because an underlay is not re-entrant.
 	router.AddUnderlayProvider("udpip:inet", underlayProvider{})
 }
 
@@ -569,8 +568,7 @@ func (l *connectedLink) Send(p *router.Packet) bool {
 	return true
 }
 
-// Only tests actually use this method, but since we have to have it, we might as well implement it
-// ~correctly. Doesn't hurt.
+// SendBlocking is called only by tests.
 func (l *connectedLink) SendBlocking(p *router.Packet) {
 	// We use a bound and connected socket so we don't need to specify the destination.
 	l.egressQ <- p
@@ -748,8 +746,7 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 	return true
 }
 
-// Only tests actually use this method, but since we have to have it, we might as well implement it
-// ~correctly. Doesn't hurt.
+// SendBlocking is called only by tests.
 func (l *detachedLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the destination address.
 	p.RemoteAddr = unsafe.Pointer(l.remote)
@@ -993,8 +990,10 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	// Packets that get here must have come from an external or a sibling link; neither of which
 	// attach a RemoteAddr to the packet (besides; it could be a different type).  So, RemoteAddr is
 	// not generally usable. We must allocate a new object. The precautions needed to pool them cost
-	// more than the pool saves (verified experimentally). We should do like the afpacket underlay
-	// and store the bits at the head of the packet buffer instead.
+	// more than the pool saves (verified experimentally).
+	//
+	// TODO: store the address at the head of the packet buffer with [router.Packet.HeadBytes], as
+	// afxdpudpip does.
 	p.RemoteAddr = unsafe.Pointer(&net.UDPAddr{
 		IP:   dstAddr.AsSlice(),
 		Zone: dstAddr.Zone(),
@@ -1016,8 +1015,7 @@ func (l *internalLink) Send(p *router.Packet) bool {
 	return true
 }
 
-// Only tests actually use this method, but since we have to have it, we might as well implement it
-// ~correctly. Doesn't hurt.
+// SendBlocking is called only by tests.
 func (l *internalLink) SendBlocking(p *router.Packet) {
 	// The packet's destination is in the packet's meta-data.
 	l.egressQ <- p

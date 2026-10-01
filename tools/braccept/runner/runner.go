@@ -27,6 +27,9 @@ type NormalizePacketFn func(gopacket.Packet)
 type Case struct {
 	Name              string
 	WriteTo, ReadFrom string
+	// LocalMAC and LocalIP are the addresses braccept claims while it waits for the
+	// case's packets: it answers ARP requests for LocalIP with LocalMAC
+	// ([RunConfig.ExpectPacket]).
 	LocalMAC          net.HardwareAddr
 	LocalIP           net.IP
 	Input, Want       []byte

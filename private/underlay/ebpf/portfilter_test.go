@@ -85,7 +85,7 @@ func makeVethPair(t *testing.T) {
 }
 
 // TestRawSocket verifies raw packet injection and reception over a veth pair using AF_PACKET.
-// This requires capabilities CAP_NET_ADMIN, CAP_NET_RAW and CAP_BPF.
+// It requires CAP_NET_ADMIN and CAP_NET_RAW.
 func TestRawSocket(t *testing.T) {
 
 	makeVethPair(t)
@@ -148,7 +148,8 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(buf[:5]), "hello")
 
-	// Drain any stray packets (ARP/NDP) from the raw socket.
+	// Drain B's AF_PACKET socket. Without a filter it also holds the port-50001 packet,
+	// besides any ARP/NDP.
 	for {
 		_, _, err := afpHandleB.ZeroCopyReadPacketData()
 		if errors.Is(err, afpacket.ErrTimeout) {

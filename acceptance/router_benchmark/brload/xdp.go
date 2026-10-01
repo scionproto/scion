@@ -64,7 +64,8 @@ func (p *pacer) acquire(want int) int {
 	return want
 }
 
-// txWorker drives one AF_XDP socket on one NIC TX queue from one goroutine.
+// txWorker is the state of one goroutine that sends on one AF_XDP socket
+// bound to one NIC TX queue.
 type txWorker struct {
 	sock        *afxdp.Socket
 	cpu         int
@@ -75,9 +76,9 @@ type txWorker struct {
 	pktLen      uint32
 	batchSize   int
 	limiter     *pacer // nil = unlimited
-	// templates holds more than one frame template only in mix mode: the worker
-	// copies the next template into each frame round-robin. nil or len 1: the
-	// prefilled template is reused with no per-frame copy.
+	// templates is nil unless the sender has several frame templates (mix mode).
+	// Then the worker copies the next one into each frame round-robin. With nil,
+	// the worker reuses the prefilled frame.
 	templates [][]byte
 	sent      atomic.Uint64
 }
@@ -111,9 +112,9 @@ func detectTxQueues(dev string) (int, error) {
 }
 
 // newXdpSender opens one TX-only AF_XDP socket per queue on devName and prepares
-// the workers. template is a full Ethernet+IP+UDP+SCION frame whose outer UDP
-// checksum has already been zeroed; workers patch only the SCION flow ID per
-// packet (and, for IPv6, recompute the UDP checksum).
+// the workers. template is a full Ethernet+IP+UDP+SCION frame. For IPv4 the
+// caller must zero the outer UDP checksum. Workers patch only the SCION flow ID
+// per packet and, for IPv6, recompute the UDP checksum.
 func newXdpSender(devName string, template []byte, cfg xdpConfig) (*xdpSender, error) {
 	return newXdpSenderMulti(devName, [][]byte{template}, cfg)
 }
@@ -234,9 +235,9 @@ func newXdpSenderMulti(devName string, templates [][]byte, cfg xdpConfig) (*xdpS
 	return s, nil
 }
 
-// effectiveMaxPPS converts the pps and bitrate caps into a single packets/sec
-// target (0 = unlimited). wireBytes approximates the on-wire size including
-// preamble (8), inter-frame gap (12) and FCS (4).
+// effectiveMaxPPS converts the pps and bitrate caps into one packets/s target
+// (0 = unlimited). The on-wire size is pktLen plus preamble and SFD (8),
+// inter-frame gap (12) and FCS (4) bytes.
 func effectiveMaxPPS(maxPPS, maxMbps uint64, pktLen int) float64 {
 	var pps float64
 	if maxPPS > 0 {
@@ -303,7 +304,7 @@ func (s *xdpSender) closeSockets() {
 }
 
 // runWorker is the per-queue hot loop. It pins itself to a CPU, then transmits
-// batches, patching the outer UDP source port and SCION flow ID of each frame.
+// batches, patching the SCION flow ID of each frame and, for IPv6, the UDP checksum.
 func (s *xdpSender) runWorker(w *txWorker) {
 	defer s.wg.Done()
 	defer log.HandlePanic()

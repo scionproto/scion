@@ -65,7 +65,8 @@ func NewRunConfig() (*RunConfig, error) {
 		}
 		handle, err := afpacket.NewTPacket(
 			afpacket.OptInterface(dev.Name),
-			afpacket.OptBlockTimeout(time.Millisecond), // TPv3 waits for and aggregates packets!
+			// TPACKET_V3 hands over a block when it fills or this timeout expires.
+			afpacket.OptBlockTimeout(time.Millisecond),
 		)
 		if err != nil {
 			return nil, serrors.Wrap("creating TPacket", err)
@@ -108,7 +109,8 @@ type ExpectedPacket struct {
 	Pkt               gopacket.Packet
 }
 
-// Handles arp packets (silently - respond if we can, else just drop).
+// handleArp answers ARP requests and probes for localIP with localMAC on afp.
+// It ignores all other ARP packets.
 func (c *RunConfig) handleArp(
 	ethHdr *layers.Ethernet,
 	localIP net.IP,
@@ -125,9 +127,8 @@ func (c *RunConfig) handleArp(
 		return
 	}
 	if slices.Equal(req.SourceProtAddress, net.IPv4zero.To4()) {
-		// Probe. Respond if we have the target address. Since I'm not sure it's legal to
-		// respond with the unspecified address as the target, use ours. Which is technically
-		// the correct value anyway.
+		// ARP probe (RFC 5227): the sender IP is 0.0.0.0.
+		// Put localIP in the reply's target IP; the prober reads only the sender fields.
 		req.SourceProtAddress = localIP // will become dstProtAddress in the response.
 	}
 	if !slices.Equal(req.DstProtAddress, localIP) {
@@ -237,11 +238,9 @@ func (c *RunConfig) ExpectPacket(
 			continue
 		}
 		udpHdr := got.TransportLayer().(*layers.UDP)
-		// It isn't easy to tell a packet with the wrong dest port apart from a noise packet. We
-		// treat everything outside the normal SCION range as noise. this is a closed veth, so there
-		// can't be completely arbitrary noise either.
+		// Treat UDP destination ports outside [20000, 60000) as noise. Every port in
+		// acceptance/router_multi/conf/topology.json is inside that range.
 		if udpHdr.DstPort < 20000 || udpHdr.DstPort >= 60000 {
-			// treat that as noise
 			log.Debug("Not ours")
 			continue
 		}

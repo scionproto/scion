@@ -108,8 +108,8 @@ var (
 	txBatchSize  uint32
 )
 
-// xdpConfig carries the tunables for the AF_XDP transmit path. It is consumed by
-// [newXdpSender] (see xdp.go / xdp_stub.go).
+// xdpConfig carries the AF_XDP transmit tunables
+// for [newXdpSender] and [newXdpSenderMulti].
 type xdpConfig struct {
 	txQueues        int    // number of TX sockets/queues; 0 = auto-detect
 	firstQueue      int    // base NIC queue id to bind
@@ -135,14 +135,14 @@ func main() {
 		Use:   "show-interfaces",
 		Short: "Provides a terse list of the interfaces that this test requires",
 		Run: func(cmd *cobra.Command, args []string) {
-			os.Exit(showInterfaces(cmd))
+			os.Exit(showInterfaces())
 		},
 	}
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Executes the test",
 		Run: func(cmd *cobra.Command, args []string) {
-			os.Exit(run(cmd))
+			os.Exit(run())
 		},
 	}
 	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15,
@@ -219,8 +219,9 @@ and <IP addr> is the IP address assigned on the side of localAS`)
 	os.Exit(0)
 }
 
-func showInterfaces(cmd *cobra.Command) int {
-	// Process overrides if any, and create the interfaces map
+func showInterfaces() int {
+	// Set the overrides first: [cases.InitIntfMap] and [cases.InitIntfMap6]
+	// read them when they derive the interface addresses.
 	cases.InitIntIPoverrides(internAddrOverrides)
 	cases.InitPubIPoverrides(publicAddrOverrides)
 	if useIPv6 {
@@ -237,10 +238,9 @@ func rttCheck(
 	writePktTo *afpacket.TPacket,
 	packetChan chan gopacket.Packet,
 	rawPkt []byte,
-	payload []byte,
 ) (time.Duration, error) {
 	// IPv4: zero the (optional) UDP checksum. IPv6: leave gopacket's computed
-	// checksum in place — IPv6 mandates a non-zero UDP checksum and a kernel-socket
+	// checksum in place. IPv6 mandates a non-zero UDP checksum and a kernel-socket
 	// underlay (inet) drops zero-checksum datagrams. The AF_XDP sender recomputes
 	// it per packet after patching the flow ID.
 	if !isIPv6(rawPkt) {
@@ -248,16 +248,13 @@ func rttCheck(
 		binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
 	}
 
-	// Prepare a batch of 1 packet.
 	allPkts := make([][]byte, 1)
 	allPkts[0] = make([]byte, len(rawPkt))
 	copy(allPkts[0], rawPkt)
 
-	// Share it with a multi-packets sender.
 	sender := newMpktSender(writePktTo)
 	sender.setPkts(allPkts)
 
-	// Send and receive just one packet. Measure the interval.
 	timeout := time.After(1 * time.Second)
 	begin := time.Now()
 	if _, err := sender.sendAll(); err != nil {
@@ -271,7 +268,7 @@ func rttCheck(
 	return time.Since(begin), nil
 }
 
-func run(cmd *cobra.Command) int {
+func run() int {
 	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
 	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -295,7 +292,8 @@ func run(cmd *cobra.Command) int {
 		return 1
 	}
 
-	// Process overrides if any, and create the interfaces map
+	// Set the overrides first: [cases.InitIntfMap] and [cases.InitIntfMap6]
+	// read them when they derive the interface addresses.
 	cases.InitIntIPoverrides(internAddrOverrides)
 	cases.InitPubIPoverrides(publicAddrOverrides)
 	if useIPv6 {
@@ -315,8 +313,7 @@ func run(cmd *cobra.Command) int {
 
 	log.Info("BRLoad acceptance tests:")
 
-	// Mix cases inject several forwarding patterns across multiple links at once;
-	// dedicated driver in mix.go.
+	// Mix cases inject several forwarding patterns across several links at once.
 	if mixFn, ok := mixCases[string(caseToRun)]; ok {
 		return runMix(mixFn, handles, hfMAC)
 	}
@@ -336,8 +333,8 @@ func run(cmd *cobra.Command) int {
 		return 1
 	}
 
-	// Try and pick-up one packet and check the payload. If that works, we're content
-	// that this test works.
+	// Try and pick-up one packet and check the payload.
+	// If that works, we're content that this test works.
 	packetSource := gopacket.NewPacketSource(readPktFrom, layers.LinkTypeEthernet)
 	packetChan := packetSource.Packets()
 	listenerChan := make(chan int)
@@ -349,8 +346,7 @@ func run(cmd *cobra.Command) int {
 		binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
 	}
 
-	// Measure the rtt with one packet.
-	rtt, err := rttCheck(writePktTo, packetChan, rawPkt, payload)
+	rtt, err := rttCheck(writePktTo, packetChan, rawPkt)
 	if err == nil {
 		fmt.Printf("rtt: %s\n", rtt.String())
 	} else {
@@ -363,10 +359,8 @@ func run(cmd *cobra.Command) int {
 		listenerChan <- receivePackets(packetChan, payload)
 	}()
 
-	// Build the AF_XDP transmit sender on the injection interface. TX fans out
-	// across multiple queues/cores so no single generator core bottlenecks it;
-	// the rttCheck above and the listener below stay on afpacket. Each stream
-	// uses a distinct SCION flow ID.
+	// AF_XDP transmission uses several queues and cores to keep one generator core from
+	// limiting the rate. rttCheck and the listener stay on afpacket.
 	sender, err := newXdpSender(caseDevIn, rawPkt, xdpConfig{
 		txQueues:        txQueues,
 		firstQueue:      firstTxQueue,
@@ -388,8 +382,8 @@ func run(cmd *cobra.Command) int {
 	}
 	defer sender.close()
 
-	// We started everything that could be started. So the best window for perf metrics
-	// opens somewhere around now.
+	// We started everything that could be started.
+	// So the best window for perf metrics opens somewhere around now.
 	metricsBegin := time.Now().Unix()
 
 	sender.start()
@@ -470,8 +464,8 @@ func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) 
 	for _, intf := range interfaceNames {
 		handle, err := afpacket.NewTPacket(
 			afpacket.OptInterface(intf),
-			afpacket.OptBlockTimeout(time.Millisecond), // TPv3 waits for and aggregates packets!
-			// afpacket.OptFrameSize(intf.MTU), // Constrained. default is probably best
+			// TPACKET_V3 hands over a block when it fills or this timeout expires.
+			afpacket.OptBlockTimeout(time.Millisecond),
 		)
 		if err != nil {
 			return nil, serrors.Wrap("creating TPacket", err)
@@ -501,8 +495,9 @@ func loadKey(artifactsDir string) (hash.Hash, error) {
 // version, which is fixed for a whole run, so they are computed once (see
 // underlayOffsetsOf) rather than re-detected per field or per packet.
 //
-// SCION common header layout (Version|TrafficClass|FlowID = 4|8|20 bits):
-// https://scionassociation.github.io/scion-dp_I-D/draft-dekater-scion-dataplane.html#name-common-header
+// The [SCION common header] packs Version, TrafficClass and FlowID into 4, 8 and 20 bits.
+//
+// [SCION common header]: https://scionassociation.github.io/scion-dp_I-D/draft-dekater-scion-dataplane.html#name-common-header
 type underlayOffsets struct {
 	udpCsum int // outer UDP checksum
 	flowID  int // low 16 bits of the 20-bit SCION FlowID (bytes 2-3; common header)

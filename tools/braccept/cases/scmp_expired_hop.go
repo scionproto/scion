@@ -184,8 +184,8 @@ func SCMPExpiredHop(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPExpiredHop",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
-		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC:        ethernet.DstMAC,
+		LocalIP:         ip.DstIP,
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPExpiredHop"),
@@ -365,8 +365,8 @@ func SCMPExpiredHopAfterXover(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPExpiredHopAfterXover",
 		WriteTo:         "veth_151_host",
 		ReadFrom:        "veth_151_host",
-		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC:        ethernet.DstMAC,
+		LocalIP:         ip.DstIP,
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPExpiredHopAfterXover"),
@@ -543,8 +543,8 @@ func SCMPExpiredHopAfterXoverConsDir(artifactsDir string, mac hash.Hash) runner.
 		Name:            "SCMPExpiredHopAfterXoverConsDir",
 		WriteTo:         "veth_151_host",
 		ReadFrom:        "veth_151_host",
-		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC:        ethernet.DstMAC,
+		LocalIP:         ip.DstIP,
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPExpiredHopAfterXoverConsDir"),
@@ -715,8 +715,8 @@ func SCMPExpiredHopAfterXoverInternal(artifactsDir string, mac hash.Hash) runner
 		Name:            "SCMPExpiredHopAfterXoverInternal",
 		WriteTo:         "veth_int_host",
 		ReadFrom:        "veth_int_host",
-		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC:        ethernet.DstMAC,
+		LocalIP:         ip.DstIP,
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPExpiredHopAfterXoverInternal"),
@@ -888,8 +888,8 @@ func SCMPExpiredHopAfterXoverInternalConsDir(
 		Name:     "SCMPExpiredHopAfterXoverInternalConsDir",
 		WriteTo:  "veth_int_host",
 		ReadFrom: "veth_int_host",
-		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC: ethernet.DstMAC,
+		LocalIP:  ip.DstIP,
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(

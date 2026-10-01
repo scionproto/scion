@@ -183,8 +183,8 @@ func SCMPUnknownHop(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPUnknownHop",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
-		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC:        ethernet.DstMAC,
+		LocalIP:         ip.DstIP,
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPUnknownHop"),
@@ -342,8 +342,8 @@ func SCMPUnknownHopEgress(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPUnknownHopEgress",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
-		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC:        ethernet.DstMAC,
+		LocalIP:         ip.DstIP,
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPUnknownHopEgress"),
@@ -496,8 +496,8 @@ func SCMPUnknownHopWrongRouter(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:            "SCMPUnknownHopWrongRouter",
 		WriteTo:         "veth_int_host",
 		ReadFrom:        "veth_int_host",
-		LocalMAC:        ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:         ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC:        ethernet.DstMAC,
+		LocalIP:         ip.DstIP,
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPUnknownHopWrongRouter"),

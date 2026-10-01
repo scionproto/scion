@@ -89,15 +89,12 @@ class Results:
         for tc in self.cases:
             want = expectations.get(tc["case"])
             if want is None:
-                # No expectation set for this case, so there is nothing to check.
                 continue
             slow = tc["rate"] < want
             unsaturated = not tc["full"]
-            # Only a rate below the expectation is a failure. An unsaturated run means
-            # brload, not the router, was the bottleneck, so the rate is under-reported,
-            # never over-reported. That can't turn a slow router into a false pass,
-            # so we don't fail on it; we keep the flag as context for slow results,
-            # where it may mean the measurement is unreliable.
+            # Fail only on a slow rate. An unsaturated run means brload limited the rate,
+            # which under-reports the router and cannot turn a slow router into a pass.
+            # The flag stays in the record to explain slow results.
             if slow:
                 self.failed.append({"case": tc["case"], "expected": want,
                                     "slow": slow, "unsaturated": unsaturated})
@@ -163,6 +160,10 @@ class RouterBM():
     * brload_cpus: [int] cpus where it is acceptable to run brload ([] means any)
     * artifacts: the data directory (passed to docker).
     * prom_address: the address of the prometheus API a string in the form "host:port"
+    * intern_over_args, public_over_args: the --intern-addr-override and
+      --public-addr-override arguments to pass to brload.
+    * log_level: the brload console logging level.
+    * debug_run: if true, cap brload at 1000 packets per case and skip the warmup.
     """
 
     def exec_br_load(self, case: str, map_args: list[str], duration: int) -> str:

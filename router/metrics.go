@@ -312,8 +312,8 @@ func newTrafficMetrics(
 	// Dropped metrics have the extra "Reason" label.
 	reasonMap := map[string]string{}
 
-	// Output metrics have the extra "trafficType" label and so does the dropped metrics with
-	// the reason "busy_forwarder".
+	// Output metrics and busy_forwarder drops carry a "type" label per traffic type.
+	// The other drop reasons use type="other".
 	reasonMap["reason"] = "busy_forwarder"
 	for t := ttOther; t < ttMax; t++ {
 		ttLabels := prometheus.Labels{"type": t.String()}

@@ -143,8 +143,8 @@ func ChildToInternalHost(
 		Name:     "ChildToInternalHost",
 		WriteTo:  "veth_141_host",
 		ReadFrom: "veth_int_host",
-		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC: ethernet.DstMAC,
+		LocalIP:  ip.DstIP,
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "ChildToInternalHost"),
@@ -255,8 +255,8 @@ func ChildToInternalHostShortcut(
 		Name:     "ChildToInternalHostShortcut",
 		WriteTo:  "veth_141_host",
 		ReadFrom: "veth_int_host",
-		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC: ethernet.DstMAC,
+		LocalIP:  ip.DstIP,
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "ChildToInternalHostShortcut"),
@@ -375,8 +375,8 @@ func ChildToInternalParent(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:     "ChildToInternalParent",
 		WriteTo:  "veth_141_host",
 		ReadFrom: "veth_int_host",
-		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC: ethernet.DstMAC,
+		LocalIP:  ip.DstIP,
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "ChildToInternalParent"),

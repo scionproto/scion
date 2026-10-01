@@ -36,21 +36,20 @@ type addrPort struct {
 	port uint16
 }
 
-// fourTuple aggregates src and dst addrPorts.
 type fourTuple struct {
 	src addrPort
 	dst addrPort
 }
 
 // udpConnection manages an AF_XDP socket bound to a specific interface and queue.
-// It handles RX/TX packet processing with zero-copy UMEM frames.
-// The xdpInterface is shared across connections on the same NIC and is NOT
-// owned by this connection (closed by the underlay).
+// It copies received frames out of UMEM and outgoing packets into UMEM.
+// The xdpInterface is shared across connections on the same NIC.
+// The underlay closes it, not the connection.
 type udpConnection struct {
 	localMAC     net.HardwareAddr
 	xdpInterface *afxdp.Interface
 	socket       *afxdp.Socket
-	name         string                // For logs.
+	name         string                // NIC name, for logs and the nic label.
 	ptpLinks     map[fourTuple]udpLink // Link map for specific remote addresses.
 	intLinks     map[addrPort]udpLink  // Link map for unknown remote addresses.
 
@@ -73,14 +72,12 @@ func (u *udpConnection) start(batchSize int, pool router.PacketPool) {
 		return
 	}
 
-	// Receiver task
 	go func() {
 		defer log.HandlePanic()
 		u.receive(pool)
 		close(u.receiverDone)
 	}()
 
-	// Sender task
 	go func() {
 		defer log.HandlePanic()
 		u.send(batchSize, pool)
@@ -105,7 +102,6 @@ func (u *udpConnection) stop() {
 
 // receive processes incoming packets from the AF_XDP socket.
 func (u *udpConnection) receive(pool router.PacketPool) {
-	// Pre-allocate frame buffer for batch receive.
 	frameBuffer := make([]afxdp.Frame, defaultBatchSize)
 
 	// Minimum headroom assuming IPv4 (we adjust for actual headers later).
@@ -115,12 +111,11 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 	p := pool.Get()
 
 	for u.running.Load() {
-		// Wait for packets with a timeout.
+		// The timeout lets the loop re-check u.running.
 		if err := u.socket.Wait(200); err != nil {
 			continue
 		}
 
-		// Receive batch of frames.
 		frames := u.socket.Receive(frameBuffer)
 		if len(frames) == 0 {
 			continue
@@ -131,7 +126,6 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 
 			data := p.WithHeader(minHeadRoom)
 
-			// Copy frame data to packet buffer.
 			if len(frame.Buf) > len(data) {
 				sc := router.ClassOfSize(len(frame.Buf))
 				u.metrics[sc].DroppedPacketsInvalid.Inc()
@@ -144,7 +138,6 @@ func (u *udpConnection) receive(pool router.PacketPool) {
 			// Release frame back to UMEM immediately.
 			u.socket.Release(frame)
 
-			// Parse the packet and dispatch to appropriate link.
 			if u.dispatchPacket(p, data) {
 				p = pool.Get() // Need a fresh packet buffer
 			} else {
@@ -210,7 +203,8 @@ func (u *udpConnection) dispatchPacket(p *router.Packet, data []byte) bool {
 		srcDst.dst.port = binary.BigEndian.Uint16(data[udpStart+2 : udpStart+4])
 
 	default:
-		// ARP/NDP are handled by kernel via XDP_PASS
+		// The XDP program redirects only UDP over IPv4 and IPv6.
+		// ARP and other EtherTypes go to the kernel (XDP_PASS).
 		return false
 	}
 
@@ -323,13 +317,11 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			sent = append(sent, pkts[i])
 		}
 
-		// Flush TX ring.
 		if len(sent) > 0 {
 			if err := u.socket.FlushTx(); err != nil {
 				log.Debug("AF_XDP flush error", "err", err)
 			}
 
-			// Update metrics and return sent packets to pool.
 			router.UpdateOutputMetrics(metrics, sent)
 			for _, p := range sent {
 				pool.Put(p)
@@ -362,7 +354,6 @@ func newUdpConnection(
 	xdpInterface *afxdp.Interface,
 	metrics *router.InterfaceMetrics,
 ) (*udpConnection, error) {
-	// Open AF_XDP socket on the specified queue.
 	socket, err := connOpener.Open(intf.Index, queueID, xdpInterface)
 	if err != nil {
 		return nil, err

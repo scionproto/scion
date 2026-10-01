@@ -31,8 +31,6 @@ var payloadSizes = []struct {
 	{"9000B", 9000},
 }
 
-// ---------------- IPv4 header ----------------
-
 func BenchmarkIPv4Header(b *testing.B) {
 	hdr := make([]byte, 20)
 	_, _ = rand.Read(hdr)
@@ -64,8 +62,6 @@ func BenchmarkIPv4Header(b *testing.B) {
 		}
 	})
 }
-
-// ---------------- IPv6 UDP full checksum (software fallback) ----------------
 
 func BenchmarkUDP6(b *testing.B) {
 	naive := func(srcIP, dstIP [16]byte, udpHdr, payload []byte) uint16 {
@@ -131,8 +127,6 @@ func BenchmarkUDP6(b *testing.B) {
 		})
 	}
 }
-
-// ---------------- IPv6 UDP pseudo-header only (NIC offload path) ----------------
 
 func BenchmarkUDP6Pseudo(b *testing.B) {
 	var srcIP, dstIP [16]byte

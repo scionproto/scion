@@ -15,10 +15,12 @@
 // Package headers builds and sizes the fixed Ethernet / IPv4 / IPv6 / UDP
 // headers used by the afxdpudpip underlay. The implementation is specialized
 // for SCION underlay traffic: no IPv4 options, no IPv6 extension headers,
-// DF=1 on IPv4, hop limit / TTL 64. The header layouts follow RFC:
-//   - (https://www.rfc-editor.org/rfc/rfc791)
-//   - (https://www.rfc-editor.org/rfc/rfc8200)
-//   - (https://www.rfc-editor.org/rfc/rfc768)
+// DF=1 on IPv4, hop limit / TTL 64. The layouts follow [RFC 791] (IPv4),
+// [RFC 8200] (IPv6) and [RFC 768] (UDP).
+//
+// [RFC 791]: https://www.rfc-editor.org/rfc/rfc791
+// [RFC 8200]: https://www.rfc-editor.org/rfc/rfc8200
+// [RFC 768]: https://www.rfc-editor.org/rfc/rfc768
 package headers
 
 import (
@@ -35,27 +37,33 @@ const (
 	LenUDP  = 8
 )
 
-// EtherTypes (See https://standards-oui.ieee.org/ethertype/eth.csv).
+// EtherTypes from the [IEEE EtherType registry].
+//
+// [IEEE EtherType registry]: https://standards-oui.ieee.org/ethertype/eth.csv
 const (
 	EtherTypeIPv4 = 0x0800
 	EtherTypeIPv6 = 0x86DD
 )
 
-// IP protocol number
-// (See https://www.iana.org/assignments/protocol-numbers).
+// IPProtoUDP is the IP protocol number of UDP in the [IANA protocol numbers] registry.
+//
+// [IANA protocol numbers]: https://www.iana.org/assignments/protocol-numbers
 const IPProtoUDP = 17
 
-// defaultTTL is the IPv4 TTL / IPv6 Hop Limit written into outgoing packets.
-// IPv4 requires a configurable fixed TTL
-// (See https://www.rfc-editor.org/rfc/rfc1122#page-34);
-// 64 was the recommended default in Assigned Numbers
-// (See https://www.rfc-editor.org/rfc/rfc1700#page-64).
-// IPv6 Neighbor Discovery uses the Assigned Numbers default for Cur Hop Limit as well:
-// https://www.rfc-editor.org/rfc/rfc4861#section-6.3.2).
+// defaultTTL is the IPv4 TTL and IPv6 Hop Limit of outgoing packets.
+// 64 is the default from Assigned Numbers [RFC 1700],
+// which [RFC 1122] and [RFC 4861] defer to.
+// RFC 1122 requires a fixed TTL to be configurable. This one is not.
+//
+// [RFC 1700]: https://www.rfc-editor.org/rfc/rfc1700#page-64
+// [RFC 1122]: https://www.rfc-editor.org/rfc/rfc1122#page-34
+// [RFC 4861]: https://www.rfc-editor.org/rfc/rfc4861#section-6.3.2
 const defaultTTL = 64
 
-// BuildEth writes a 14-byte Ethernet II header into buf (EtherType framing;
-// RFC 894: https://www.rfc-editor.org/rfc/rfc894).
+// BuildEth writes a 14-byte Ethernet II header into buf, with EtherType framing
+// as in [RFC 894].
+//
+// [RFC 894]: https://www.rfc-editor.org/rfc/rfc894
 func BuildEth(buf []byte, dstMAC, srcMAC [6]byte, etherType uint16) {
 	_ = buf[LenEth-1] // bounds-check elimination
 	copy(buf[0:6], dstMAC[:])
@@ -106,11 +114,12 @@ func BuildIPv6(buf []byte, srcIP, dstIP [16]byte, payloadLen int) {
 	copy(buf[24:40], dstIP[:])
 }
 
-// BuildUDP writes an 8-byte UDP header into buf with the checksum field
-// zeroed. Callers that need a non-zero checksum (mandatory for IPv6;
-// See https://datatracker.ietf.org/doc/html/rfc8200#section-8.1)
-// must recompute it after the payload is in place using
-// checksum.UDP6 or checksum.UDP6Pseudo.
+// BuildUDP writes an 8-byte UDP header into buf with the checksum field zeroed.
+// Callers that need a checksum (mandatory for IPv6 per [RFC 8200] section 8.1)
+// must set it with [checksum.UDP6] once the payload is in place,
+// or seed it with [checksum.UDP6Pseudo] when the NIC completes it.
+//
+// [RFC 8200]: https://www.rfc-editor.org/rfc/rfc8200#section-8.1
 func BuildUDP(buf []byte, srcPort, dstPort uint16, udpTotalLen int) {
 	_ = buf[LenUDP-1]
 	binary.BigEndian.PutUint16(buf[0:2], srcPort)

@@ -58,9 +58,7 @@ func newMpktSender(tp *afpacket.TPacket) *mpktSender {
 		log.Info("Could not bypass queuing discipline", "err", err)
 	}
 
-	// If we're going to send, we need to make sure we're not receiving our own stuff. The default
-	// behaviour is less than clear. The loopback doesn't work with veth, but likely does with
-	// everything else.
+	// Keep frames sent out of this device out of this socket's receive ring.
 	err = unix.SetsockoptInt(sender.fd, unix.SOL_PACKET, unix.PACKET_IGNORE_OUTGOING, 1)
 	if err != nil {
 		panic(err)
@@ -88,15 +86,14 @@ func (sender *mpktSender) sendAll() (int, error) {
 	for {
 		// This will hog a core (as far as the Go scheduler is concerned) for the duration of the
 		// call as the Go run-time has no idea that this is a blocking write. This is perfectly fine
-		// for our use case. This can be made non-blocking if that helps sending faster.
+		// for our use case.
 		n, _, err := unix.Syscall6(unix.SYS_SENDMMSG,
 			uintptr(sender.fd),
 			uintptr(unsafe.Pointer(&sender.msgs[0])),
 			uintptr(len(sender.msgs)),
-			0, // uintptr(unix.MSG_DONTWAIT),
+			0,
 			0, 0)
 		if err == 0 {
-			// we sent some packets.
 			return int(n), nil
 		}
 		if err == unix.EWOULDBLOCK || err == unix.EAGAIN {

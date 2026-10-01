@@ -152,8 +152,8 @@ func ChildToParent(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:     "ChildToParent",
 		WriteTo:  "veth_141_host",
 		ReadFrom: "veth_131_host",
-		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
-		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
+		LocalMAC: ethernet.DstMAC,
+		LocalIP:  ip.DstIP,
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "ChildToParent"),

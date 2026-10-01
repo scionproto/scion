@@ -108,7 +108,7 @@ func TestFinishPacketHoldsWhileUnresolved(t *testing.T) {
 }
 
 // TestNeighborQueueLimits checks both bounds: a neighbor holds QueueLen packets
-// and the newest wins, and the link holds QueueTotal packets in all.
+// and replaces the oldest with the newest, and the link holds QueueTotal packets in all.
 func TestNeighborQueueLimits(t *testing.T) {
 	first := netip.MustParseAddr("192.0.2.2")
 	second := netip.MustParseAddr("192.0.2.3")
@@ -365,8 +365,8 @@ func TestSweepGivesUp(t *testing.T) {
 
 // TestNudStatesUsable checks which kernel states count as a usable address.
 // A neighbor enters DELAY and PROBE when it is used after going stale, and its MAC
-// address is good throughout. Treating those as unknown holds up traffic to every
-// neighbor that goes quiet for a while.
+// address is good throughout. Treating those as unknown makes a lookup in that window
+// fail, which delays the first packets to that host until the kernel confirms it.
 func TestNudStatesUsable(t *testing.T) {
 	for _, tc := range []struct {
 		name  string

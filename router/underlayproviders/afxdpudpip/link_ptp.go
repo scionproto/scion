@@ -54,13 +54,14 @@ type linkPTP struct {
 	ifID            uint16 // 0 for sibling links
 	is4             bool
 
-	// Cached header template. Built once when the remote MAC is resolved,
-	// then patched per-packet for length and checksum fields.
+	// Cached header template, nil until the peer MAC is known and again after each
+	// MAC change. Each packet gets a copy with its length and checksum fields patched.
 	header atomic.Pointer[[]byte]
 }
 
 // buildHeader constructs the Ethernet+IP+UDP header template.
-// It does nothing while the peer MAC is unresolved, which leaves [linkPTP.header] nil.
+// While the peer MAC is unresolved it leaves [linkPTP.header] nil;
+// [neighborCache.get] probes on a miss.
 // Must be called with the neighbor cache locked.
 //
 // It reports whether the caller must send what is queued for the peer once it has
@@ -117,13 +118,14 @@ func (l *linkPTP) buildHeader() bool {
 
 // finishPacket prepends headers to the packet and fixes up length/checksum fields.
 // On success (true), the packet is ready to send and the caller owns it.
-// On failure (false), the packet has already been returned to the pool;
-// the caller must not touch it.
+// On failure (false), the packet was returned to the pool or queued until the
+// peer MAC is known; the caller must not touch it.
 func (l *linkPTP) finishPacket(p *router.Packet, csumOffload bool) bool {
 	hdrp := l.header.Load()
 	if hdrp == nil {
-		// The peer MAC is not resolved yet. [linkPTP.buildHeader] probes on a
-		// miss and the packet waits in the peer's queue.
+		// There is no header: the peer MAC is unresolved or has changed since the
+		// header was built. [linkPTP.buildHeader] probes on a miss and the packet
+		// waits in the peer's queue.
 		peerIP := l.remoteAddr.Addr()
 		l.neighbors.lock.Lock()
 		flush := l.buildHeader()
@@ -215,8 +217,8 @@ func (l *linkPTP) start(
 	l.procQs = procQs
 	l.pool = pool
 
-	// Start the netlink watcher before the first lookup,
-	// so an update that arrives while we probe is not missed.
+	// Start the netlink watcher before the first lookup. It subscribes in its own
+	// goroutine and can still miss an update that arrives before it has subscribed.
 	l.neighbors.start(l.pool)
 
 	peerIP := l.remoteAddr.Addr()
@@ -314,7 +316,7 @@ func (l *linkPTP) sendQueued() {
 }
 
 func (l *linkPTP) Send(p *router.Packet) bool {
-	// Compute connection index from SCION payload BEFORE
+	// Compute the connection index from the SCION payload, before
 	// [linkPTP.finishPacket] prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
@@ -332,7 +334,7 @@ func (l *linkPTP) Send(p *router.Packet) bool {
 }
 
 func (l *linkPTP) SendBlocking(p *router.Packet) {
-	// Compute connection index from SCION payload BEFORE
+	// Compute the connection index from the SCION payload, before
 	// [linkPTP.finishPacket] prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if l.finishPacket(p, l.txConns[connIdx].csumOffload) {

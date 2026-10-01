@@ -116,10 +116,10 @@ func (uo udpOpener) Open(
 	return socket, nil
 }
 
-// underlay implements router.Underlay in AF_XDP sockets for high-performance packet I/O.
+// underlay implements [router.Underlay] with AF_XDP sockets.
 // ARP/NDP is handled by the kernel via XDP_PASS in the sockfilter eBPF program.
 type underlay struct {
-	mu        sync.Mutex // Prevents race between adding connections and Start/Stop.
+	lock      sync.Mutex // Prevents race between adding connections and Start/Stop.
 	batchSize int
 	allLinks  map[netip.AddrPort]udpLink
 
@@ -128,7 +128,7 @@ type underlay struct {
 	// allInterfaces maps one XDP interface per NIC (keyed by ifIndex).
 	// Multiple connections on the same NIC share one XDP interface.
 	allInterfaces map[int]*afxdp.Interface
-	// connOpener is udpOpener{}, except for unit tests
+	// connOpener is a [udpOpener], except in unit tests.
 	connOpener        ConnOpener
 	svc               *router.Services[netip.AddrPort]
 	receiveBufferSize int
@@ -151,16 +151,13 @@ type udpLink interface {
 }
 
 func init() {
-	// Register ourselves as an underlay provider. This implementation uses AF_XDP
-	// for high-performance zero-copy packet I/O on Linux with compatible NICs.
-	// ARP/NDP is delegated to the kernel (XDP_PASS in sockfilter.c).
 	router.AddUnderlayProvider("udpip:afxdp", underlayProvider{})
 }
 
-// underlayProvider implements router.ProviderFactory.
+// underlayProvider implements [router.UnderlayProvider].
 type underlayProvider struct{}
 
-// New instantiates a new instance of the provider for exclusive use by the caller.
+// New returns a new underlay for exclusive use by the caller.
 func (underlayProvider) New(runConfig router.RunConfig) router.Underlay {
 	return &underlay{
 		batchSize:      runConfig.BatchSize,
@@ -188,8 +185,8 @@ func (u *underlay) SetConnOpener(opener any) {
 }
 
 func (u *underlay) NumConnections() int {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.lock.Lock()
+	defer u.lock.Unlock()
 	return len(u.allConnections)
 }
 
@@ -201,7 +198,7 @@ func (u *underlay) Headroom() int {
 }
 
 // applyPreferences updates the connOpener with preferences from the given options.
-// Only affects udpOpener; test openers are left untouched. Caller must hold u.mu.
+// Only affects udpOpener; test openers are left untouched. Caller must hold u.lock.
 func (u *underlay) applyPreferences(opts Options) {
 	opener, ok := u.connOpener.(udpOpener)
 	if !ok {
@@ -261,12 +258,11 @@ func (u *underlay) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	u.svc.AddSvc(svc, addr)
 
 	// Resolve the MAC now. Services are the destination of every beacon the
-	// router delivers locally, and a packet for an unresolved address is dropped.
-	// Losing the first beacon costs a full beacon interval, once per hop,
-	// which is enough to slow a fresh topology to a crawl.
-	u.mu.Lock()
+	// router delivers locally, and the first packet to an unresolved address
+	// waits in the neighbor queue until ARP/NDP completes.
+	u.lock.Lock()
 	internal, _ := u.allLinks[netip.AddrPort{}].(*linkInternal)
-	u.mu.Unlock()
+	u.lock.Unlock()
 	if internal != nil {
 		ip := addr.Addr()
 		internal.neighbors.seekNeighbor(&ip)
@@ -288,14 +284,14 @@ func (u *underlay) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 func (u *underlay) Start(
 	ctx context.Context, pool router.PacketPool, procQs []chan *router.Packet,
 ) {
-	u.mu.Lock()
+	u.lock.Lock()
 	if len(procQs) == 0 {
-		u.mu.Unlock()
+		u.lock.Unlock()
 		return
 	}
 	connSnapshot := slices.Collect(maps.Values(u.allConnections))
 	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
-	u.mu.Unlock()
+	u.lock.Unlock()
 
 	u.metricsRegister.Do(func() {
 		if err := prometheus.Register(newStatsCollector(u)); err != nil {
@@ -303,7 +299,8 @@ func (u *underlay) Start(
 		}
 	})
 
-	// Links MUST be started before connections.
+	// Start links first. A connection hands received packets to its links,
+	// which have no processor queues or pool until they start.
 	for _, l := range linkSnapshot {
 		l.start(ctx, procQs, pool)
 	}
@@ -314,8 +311,8 @@ func (u *underlay) Start(
 
 func (u *underlay) Stop() {
 	// Held through teardown to block the stats collector.
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.lock.Lock()
+	defer u.lock.Unlock()
 
 	for _, c := range u.allConnections {
 		c.stop()
@@ -368,9 +365,9 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 	if len(data) < slayers.CmnHdrLen {
 		return 0, errShortPacket
 	}
-	// SCION common header layout, see
-	// https://docs.scion.org/en/latest/protocols/scion-header.html#common-header
-	// Byte 9 holds DT|DL in bits 7..4 and ST|SL in bits 3..0.
+	// Byte 9 of the SCION [common header] holds DT|DL in bits 7..4 and ST|SL in bits 3..0.
+	//
+	// [common header]: https://docs.scion.org/en/latest/protocols/scion-header.html#common-header
 	const addrTypeByteOff = 9
 	addrTypeByte := data[addrTypeByteOff]
 	dstHostAddrLen := slayers.AddrType((addrTypeByte >> 4) & 0xf).Length()
@@ -459,7 +456,7 @@ func detectQueues(ifName string) (rx, tx []uint32) {
 
 // getOrCreateInterface returns the shared XDP interface for the given NIC,
 // creating and attaching the XDP program if this is the first use.
-// Caller must hold u.mu.
+// Caller must hold u.lock.
 func (u *underlay) getOrCreateInterface(intf net.Interface) (*afxdp.Interface, error) {
 	xi := u.allInterfaces[intf.Index]
 	if xi != nil {
@@ -577,10 +574,8 @@ func (u *underlay) getUdpConnections(
 }
 
 // NewExternalLink returns an external link over the UDP/IP underlay.
-// The options string is a JSON object that may contain "rx_queues", "tx_queues",
-// "prefer_zerocopy", "prefer_hugepages", "num_frames", "frame_size", "rx_size",
-// "tx_size", "cq_size", and "batch_size" fields. If no queues are specified,
-// all available queues are auto-detected from sysfs.
+// The options string is a JSON object that [parseOptions] decodes into [Options].
+// If no queues are specified, all available queues are auto-detected from sysfs.
 func (u *underlay) NewExternalLink(
 	qSize int,
 	bfd *bfd.Session,
@@ -603,8 +598,8 @@ func (u *underlay) NewExternalLink(
 		return nil, serrors.Wrap("parsing options", err)
 	}
 
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.lock.Lock()
+	defer u.lock.Unlock()
 
 	u.applyPreferences(opts)
 
@@ -624,10 +619,8 @@ func (u *underlay) NewExternalLink(
 }
 
 // NewSiblingLink returns a sibling link over the UDP/IP underlay.
-// The options string is a JSON object that may contain "rx_queues", "tx_queues",
-// "prefer_zerocopy", "prefer_hugepages", "num_frames", "frame_size", "rx_size",
-// "tx_size", "cq_size", and "batch_size" fields. If no queues are specified,
-// all available queues are auto-detected from sysfs.
+// The options string is a JSON object that [parseOptions] decodes into [Options].
+// If no queues are specified, all available queues are auto-detected from sysfs.
 func (u *underlay) NewSiblingLink(
 	qSize int,
 	bfd *bfd.Session,
@@ -649,8 +642,8 @@ func (u *underlay) NewSiblingLink(
 		return nil, serrors.Wrap("parsing options", err)
 	}
 
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.lock.Lock()
+	defer u.lock.Unlock()
 
 	u.applyPreferences(opts)
 
@@ -670,12 +663,13 @@ func (u *underlay) NewSiblingLink(
 }
 
 // NewInternalLink returns an internal link over the UDP/IP underlay.
-// Internal links use queue 0 by default as they typically use loopback.
+// Internal links always use queue 0 for RX and TX, which assumes a single-queue
+// interface such as loopback.
 func (u *underlay) NewInternalLink(
 	local string, qSize int, metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.lock.Lock()
+	defer u.lock.Unlock()
 
 	localAddr, err := conn.ResolveAddrPort(local)
 	if err != nil {
