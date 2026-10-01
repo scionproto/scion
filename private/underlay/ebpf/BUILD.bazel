@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_go//go:def.bzl", "go_library")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tools:go.bzl", "go_test")
 
 genrule(

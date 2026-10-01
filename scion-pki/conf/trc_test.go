@@ -90,6 +90,18 @@ func TestLoadTRC(t *testing.T) {
 				assert.Equal(t, int64(1719223994), cfg.Validity.NotBefore.Time().Unix())
 			},
 		},
+		"grace period unset": {
+			file:      "testdata/testcfg.grace_unset.toml",
+			assertErr: assert.Error,
+		},
+		"grace period set to zero": {
+			file:      "testdata/testcfg.grace_zero.toml",
+			assertErr: assert.NoError,
+			check: func(cfg *conf.TRC) {
+				assert.NotNil(t, cfg.GracePeriod)
+				assert.Zero(t, cfg.GracePeriod.Duration)
+			},
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {

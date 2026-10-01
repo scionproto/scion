@@ -15,6 +15,22 @@ const (
 	UpRegistration   BeaconUsage = "up_registration"
 )
 
+// Valid indicates whether the value is a known member of the BeaconUsage enum.
+func (e BeaconUsage) Valid() bool {
+	switch e {
+	case CoreRegistration:
+		return true
+	case DownRegistration:
+		return true
+	case Propagation:
+		return true
+	case UpRegistration:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LogLevelLevel.
 const (
 	Debug LogLevelLevel = "debug"
@@ -22,12 +38,40 @@ const (
 	Info  LogLevelLevel = "info"
 )
 
+// Valid indicates whether the value is a known member of the LogLevelLevel enum.
+func (e LogLevelLevel) Valid() bool {
+	switch e {
+	case Debug:
+		return true
+	case Error:
+		return true
+	case Info:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Status.
 const (
 	Degraded Status = "degraded"
 	Failing  Status = "failing"
 	Passing  Status = "passing"
 )
+
+// Valid indicates whether the value is a known member of the Status enum.
+func (e Status) Valid() bool {
+	switch e {
+	case Degraded:
+		return true
+	case Failing:
+		return true
+	case Passing:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for GetBeaconsParamsSort.
 const (
@@ -37,6 +81,24 @@ const (
 	StartIsdAs       GetBeaconsParamsSort = "start_isd_as"
 	Timestamp        GetBeaconsParamsSort = "timestamp"
 )
+
+// Valid indicates whether the value is a known member of the GetBeaconsParamsSort enum.
+func (e GetBeaconsParamsSort) Valid() bool {
+	switch e {
+	case Expiration:
+		return true
+	case IngressInterface:
+		return true
+	case LastUpdated:
+		return true
+	case StartIsdAs:
+		return true
+	case Timestamp:
+		return true
+	default:
+		return false
+	}
+}
 
 // Beacon defines model for Beacon.
 type Beacon struct {

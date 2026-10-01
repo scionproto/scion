@@ -32,6 +32,10 @@ data = [
     "//tools/mmbm:mmbm",
 ]
 
+# The router benchmarks are excluded from CI. Some underlays require special hardware and
+# driver support that CI agents do not provide. The AF_XDP underlay, for instance, falls back
+# to XDP_COPY without a driver that supports XDP_ZEROCOPY, which does not measure what the
+# benchmark is meant to measure. Performance regression testing is scheduled on baremetal.
 raw_test(
     name = "test_afxdp",
     src = "test.py",
@@ -43,6 +47,7 @@ raw_test(
     homedir = "$(rootpath //docker:router.tarball)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
+    tags = ["manual"],
     deps = ["benchmarklib"],
 )
 
@@ -57,11 +62,13 @@ raw_test(
     homedir = "$(rootpath //docker:router.tarball)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
+    tags = ["manual"],
     deps = ["benchmarklib"],
 )
 
 test_suite(
     name = "test",
+    tags = ["manual"],
     tests = [
         ":test_afxdp",
         ":test_inet",

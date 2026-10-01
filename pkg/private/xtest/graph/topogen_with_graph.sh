@@ -20,32 +20,25 @@ done
 CORRECT_YAML="$ifids"
 WRONG_YAML="$tmpdir/ifids.yml"
 
-MAPPING_FILE=$(mktemp)
+declare -A wrong_local wrong_remote
+# The "|| [[ -n "$br1" ]]" keeps the last line when the file has no trailing newline
+while IFS=' ' read -r br1 num1 br2 num2 || [[ -n "$br1" ]]; do
+  [[ "$br1" == br* ]] || continue
+  wrong_local["$br1 $br2"]="${num1%:}"   # num1 is a YAML key, so it ends with a colon we drop
+  wrong_remote["$br1 $br2"]="$num2"
+done < "$WRONG_YAML"
 
-exec 3< "$WRONG_YAML"
+while IFS=' ' read -r br1 num1 br2 num2 || [[ -n "$br1" ]]; do
+  [[ "$br1" == br* ]] || continue
+  num1="${num1%:}"
+  num1_wrong="${wrong_local["$br1 $br2"]}"
+  num2_wrong="${wrong_remote["$br1 $br2"]}"
 
-mapfile -t lines < "$CORRECT_YAML"
-mapfile -t -u 3 wrong_lines
+  # br1 names the local AS's border router, so rewrite only that AS's file (e.g.
+  # br4-ff00_0_410-1 -> $out/ASff00_0_410.json)
+  ia="${br1#br}"; ia="${ia%-*}"      # 4-ff00_0_410
+  json_file="$out/AS${ia#*-}.json"   # ASff00_0_410.json
 
-for i in "${!lines[@]}"; do
-  IFS=' ' read -r br1 num1 br2 num2 <<< "${lines[i]}"
-  IFS=' ' read -r br1_wrong num1_wrong br2_wrong num2_wrong <<< "${wrong_lines[i]}"
-
-  if [[ -n "$br1" && -n "$num1" && -n "$br2" && -n "$num2" ]]; then
-    # No need to add num1 as it'll create a duplicate: there are entries for both directions.
-    # Also, num1 contains a colon after the number.
-    echo "$num2_wrong $num2" >> "$MAPPING_FILE"
-  fi
-done
-
-exec 3<&-
-
-for json_file in $out/*.json; do
-  while read -r wrong correct; do
-    # This works in our case since topogen -t will generate ifIDs only in 10000-30000 range.
-    # The only other numbers in topology.json files are: AS IDs (3-digit numbers),
-    # dispatched ports (31000-32767), and MTU (topogen sets it to 1472 by default),
-    # so this script will change only ifIDs.
-    sed -i "s/\\b$wrong\\b/$correct/g" "$json_file"
-  done < "$MAPPING_FILE"
-done
+  sed -i "s/\"$num1_wrong\":/\"$num1\":/g" "$json_file"
+  sed -i "s/\"remote_interface_id\": $num2_wrong\b/\"remote_interface_id\": $num2/g" "$json_file"
+done < "$CORRECT_YAML"

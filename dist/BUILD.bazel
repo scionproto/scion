@@ -2,18 +2,44 @@ load(":git_version.bzl", "git_version")
 load(":package.bzl", "scion_pkg_deb", "scion_pkg_ipk", "scion_pkg_rpm")
 load(":platform.bzl", "multiplatform_filegroup")
 
-DEB_PLATFORMS = [
-    "@rules_go//go/toolchain:linux_amd64",
-    "@rules_go//go/toolchain:linux_arm64",
-    "@rules_go//go/toolchain:linux_386",
-    "@rules_go//go/toolchain:linux_arm",
+# Platforms for the distribution packages.
+#
+# Do not use @rules_go//go/toolchain:linux_*: those carry cgo_off and silently produce
+# pure-Go binaries, which turns the sqlite driver into a stub.
+#
+# These ask for cgo_on plus musl, which selects the zig cross compilers from
+# //MODULE.bazel. musl is linked statically, so the binaries still have no libc runtime
+# dependency.
+PACKAGE_PLATFORMS = [
+    "@//dist:linux_amd64",
+    "@//dist:linux_arm64",
+    "@//dist:linux_386",
+    "@//dist:linux_arm",
 ]
 
-RPM_PLATFORMS = [
-    "@rules_go//go/toolchain:linux_amd64",
-    "@rules_go//go/toolchain:linux_arm64",
-    "@rules_go//go/toolchain:linux_386",
-    "@rules_go//go/toolchain:linux_arm",
+DEB_PLATFORMS = PACKAGE_PLATFORMS
+
+RPM_PLATFORMS = PACKAGE_PLATFORMS
+
+[
+    platform(
+        name = "linux_" + goarch,
+        constraint_values = [
+            "@platforms//os:linux",
+            "@platforms//cpu:" + bzlcpu,
+            # Build the sqlite driver for real, not as a stub.
+            "@rules_go//go/toolchain:cgo_on",
+            # Selects the zig cc toolchains from //MODULE.bazel.
+            "@zig_sdk//libc:musl",
+        ],
+        visibility = ["//visibility:public"],
+    )
+    for goarch, bzlcpu in [
+        ("amd64", "x86_64"),
+        ("arm64", "aarch64"),
+        ("386", "x86_32"),
+        ("arm", "armv7"),
+    ]
 ]
 
 # TODO(jice@scion.org):
@@ -155,6 +181,23 @@ multiplatform_filegroup(
         "tools_deb",
     ],
     target_platforms = DEB_PLATFORMS,
+    visibility = ["//dist:__subpackages__"],
+)
+
+# The binaries that go into the deb and rpm packages, for every release architecture.
+# Used by //dist/test:cgo_test.
+multiplatform_filegroup(
+    name = "package_binaries",
+    srcs = [
+        "//control/cmd/control",
+        "//daemon/cmd/daemon",
+        "//dispatcher/cmd/dispatcher",
+        "//gateway/cmd/gateway",
+        "//router/cmd/router",
+        "//scion-pki/cmd/scion-pki",
+        "//scion/cmd/scion",
+    ],
+    target_platforms = PACKAGE_PLATFORMS,
     visibility = ["//dist:__subpackages__"],
 )
 

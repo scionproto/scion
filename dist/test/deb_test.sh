@@ -16,11 +16,29 @@ else
     SCION_DEB_PACKAGES_DIR=${SCION_DEB_PACKAGES_DIR:-${SCION_ROOT}/deb}
 fi
 DEBUG=${DEBUG:-0}
+
+# Architecture of the packages under test. The container runs a userland of this
+# architecture. i386 runs natively on x86_64, no emulation.
+# arm64 and armel would need qemu, see dist/test/README.md.
+#
+# Do not probe the host for this. dpkg is not on PATH in the bazel test sandbox,
+# and the bazel targets pin the packages to one architecture anyway.
+SCION_DEB_ARCH=${SCION_DEB_ARCH:-amd64}
+case "${SCION_DEB_ARCH}" in
+    amd64) platform="linux/amd64" ;;
+    i386)  platform="linux/386" ;;
+    *)
+        echo "deb_test: unsupported architecture '${SCION_DEB_ARCH}'," \
+             "only natively executable architectures are supported, see dist/test/README.md" >&2
+        exit 1
+        ;;
+esac
+image="debian-systemd-${SCION_DEB_ARCH}"
 set +x
 
 function cleanup {
-    docker container rm -f debian-systemd || true
-    docker image rm --no-prune debian-systemd || true
+    docker container rm -f "${image}" || true
+    docker image rm --no-prune "${image}" || true
 }
 cleanup
 
@@ -30,22 +48,24 @@ fi
 
 # Note: specify absolute path to Dockerfile because docker will not follow bazel's symlinks.
 # Luckily we don't need anything else in this directory.
-docker build -t debian-systemd -f $(realpath dist/test/Dockerfile) dist/test
+docker build --platform "${platform}" -t "${image}" -f $(realpath dist/test/Dockerfile) dist/test
 
 # Start container with systemd in PID 1.
 # Note: there are ways to avoid --privileged, but its unreliable and appears to depend on the host system
-docker run -d --rm --name debian-systemd -t \
+docker run -d --rm --name "${image}" -t \
+    --platform "${platform}" \
     --tmpfs /tmp \
     --tmpfs /run \
     --tmpfs /run/lock \
     --tmpfs /run/shm \
     -v $SCION_DEB_PACKAGES_DIR:/deb \
     --privileged \
-    debian-systemd:latest
+    "${image}:latest"
 
-docker exec -i debian-systemd /bin/bash <<'EOF'
+docker exec -e arch="${SCION_DEB_ARCH}" -i "${image}" /bin/bash <<'EOF'
     set -xeuo pipefail
-    arch=$(dpkg --print-architecture)
+    # The container userland must match the packages under test.
+    [ "$(dpkg --print-architecture)" = "${arch}" ]
 
     # check that the deb files are all here (avoid cryptic error from apt-get)
     stat /deb/scion-{router,control,dispatcher,daemon,ip-gateway,tools}_*_${arch}.deb > /dev/null

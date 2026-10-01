@@ -10,6 +10,20 @@ const (
 	Passing  Status = "passing"
 )
 
+// Valid indicates whether the value is a known member of the Status enum.
+func (e Status) Valid() bool {
+	switch e {
+	case Degraded:
+		return true
+	case Failing:
+		return true
+	case Passing:
+		return true
+	default:
+		return false
+	}
+}
+
 // Check defines model for Check.
 type Check struct {
 	Data CheckData `json:"data"`

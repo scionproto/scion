@@ -134,6 +134,7 @@ type underlay struct {
 	svc               *router.Services[netip.AddrPort]
 	receiveBufferSize int
 	sendBufferSize    int
+	neighborConf      NeighborConfig
 	dispatchStart     uint16
 	dispatchEnd       uint16
 	dispatchRedirect  uint16
@@ -165,20 +166,23 @@ func init() {
 type underlayProvider struct{}
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
-func (underlayProvider) New(
-	batchSize int,
-	receiveBufferSize int,
-	sendBufferSize int,
-) router.Underlay {
+func (underlayProvider) New(runConfig router.RunConfig) router.Underlay {
 	return &underlay{
-		batchSize:         batchSize,
-		allLinks:          make(map[netip.AddrPort]udpLink),
-		allConnections:    make(map[connectionKey]*udpConnection),
-		allInterfaces:     make(map[int]*afxdp.Interface),
-		connOpener:        udpOpener{preferZerocopy: true, preferHugepages: true},
-		svc:               router.NewServices[netip.AddrPort](),
-		receiveBufferSize: receiveBufferSize,
-		sendBufferSize:    sendBufferSize,
+		batchSize:      runConfig.BatchSize,
+		allLinks:       make(map[netip.AddrPort]udpLink),
+		allConnections: make(map[connectionKey]*udpConnection),
+		allInterfaces:  make(map[int]*afxdp.Interface),
+		connOpener:     udpOpener{preferZerocopy: true, preferHugepages: true},
+		svc:            router.NewServices[netip.AddrPort](),
+		neighborConf: NeighborConfig{
+			QueueLen:      runConfig.Neighbor.QueueLen,
+			QueueTotal:    runConfig.Neighbor.QueueTotal,
+			CacheMax:      runConfig.Neighbor.CacheMax,
+			ProbeInterval: runConfig.Neighbor.ProbeInterval,
+			ProbeAttempts: runConfig.Neighbor.ProbeAttempts,
+		}.withDefaults(),
+		receiveBufferSize: runConfig.ReceiveBufferSize,
+		sendBufferSize:    runConfig.SendBufferSize,
 	}
 }
 
@@ -260,6 +264,18 @@ func (u *underlay) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 		return errInvalidServiceAddress
 	}
 	u.svc.AddSvc(svc, addr)
+
+	// Resolve the MAC now. Services are the destination of every beacon the
+	// router delivers locally, and a packet for an unresolved address is dropped.
+	// Losing the first beacon costs a full beacon interval, once per hop,
+	// which is enough to slow a fresh topology to a crawl.
+	u.mu.Lock()
+	internal, _ := u.allLinks[netip.AddrPort{}].(*linkInternal)
+	u.mu.Unlock()
+	if internal != nil {
+		ip := addr.Addr()
+		internal.neighbors.seekNeighbor(&ip)
+	}
 	return nil
 }
 
@@ -604,7 +620,8 @@ func (u *underlay) NewExternalLink(
 	if err != nil {
 		return nil, err
 	}
-	l := newPtpLinkExternal(&localAddr, &remoteAddr, rxConns, txConns, bfd, ifID, metrics)
+	l := newPtpLinkExternal(
+		&localAddr, &remoteAddr, rxConns, txConns, bfd, ifID, u.neighborConf, metrics)
 	u.allLinks[remoteAddr] = l
 	return l, nil
 }
@@ -649,7 +666,8 @@ func (u *underlay) NewSiblingLink(
 	if err != nil {
 		return nil, err
 	}
-	l := newPtpLinkSibling(&localAddr, &remoteAddr, rxConns, txConns, bfd, metrics)
+	l := newPtpLinkSibling(
+		&localAddr, &remoteAddr, rxConns, txConns, bfd, u.neighborConf, metrics)
 	u.allLinks[remoteAddr] = l
 	return l, nil
 }
@@ -676,7 +694,7 @@ func (u *underlay) NewInternalLink(
 
 	il := newInternalLink(
 		&localAddr, rxConns, txConns, u.svc,
-		u.dispatchStart, u.dispatchEnd, u.dispatchRedirect, metrics,
+		u.dispatchStart, u.dispatchEnd, u.dispatchRedirect, u.neighborConf, metrics,
 	)
 	u.allLinks[netip.AddrPort{}] = il
 	return il, nil
