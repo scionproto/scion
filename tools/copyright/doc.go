@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// SPDX-License-Identifier: Apache-2.0
-
-// Placeholder for generated code during lint.
-
-//go:build lint
-
-package ebpf
-
-import "github.com/cilium/ebpf"
-
-func loadPortfilter() (*ebpf.CollectionSpec, error) {
-	return nil, nil
-}
+// Command copyright prints a patch that adds a current-year copyright claim to
+// changed Go files. -w also writes it:
+//
+//	go run ./tools/copyright -affiliation "SCION Association"
+//	go run ./tools/copyright -w -affiliation "SCION Association"
+//	# -w through Bazel
+//	make copyright-update AFFILIATION="SCION Association"
+//
+// The comparison starts at the merge base with upstream/master, or origin/master
+// if upstream/master does not exist. It includes untracked files.
+package main

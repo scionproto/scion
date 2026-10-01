@@ -1,4 +1,4 @@
-.PHONY: all build build-dev dist-check-cgo dist-deb dist-test-release antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
+.PHONY: all build build-dev copyright-update dist-check-cgo dist-deb dist-test-release antlr clean docker-images gazelle go.mod licenses mocks mocksdiff protobuf scion-topo test test-integration write_all_source_files git-version
 
 build-dev:
 	rm -f bin/*
@@ -111,6 +111,12 @@ gazelle: go.mod
 
 licenses:
 	tools/licenses.sh
+
+# Give AFFILIATION a copyright claim for this year in the Go files changed on this branch:
+# make copyright-update AFFILIATION="SCION Association"
+# See tools/copyright/README.md for more info.
+copyright-update:
+	bazel run --config=quiet //tools/copyright -- -w -affiliation "$(AFFILIATION)"
 
 antlr:
 	antlr/generate.sh fix
