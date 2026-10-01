@@ -1,0 +1,42 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_binary(
+    name = "packetgolden",
+    embed = [":go_default_library"],
+    importpath = "github.com/scionproto/scion/router/underlayproviders/afxdpudpip/cmd/packetgolden",
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/router/underlayproviders/afxdpudpip/cmd/packetgolden",
+    visibility = ["//visibility:private"],
+    deps = select({
+        "@rules_go//go/platform:android_amd64": [
+            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
+            "@com_github_vishvananda_netlink//:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:android_arm64": [
+            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
+            "@com_github_vishvananda_netlink//:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_amd64": [
+            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
+            "@com_github_vishvananda_netlink//:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "@rules_go//go/platform:linux_arm64": [
+            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
+            "@com_github_vishvananda_netlink//:go_default_library",
+            "@org_golang_x_sys//unix:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
+)

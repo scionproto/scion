@@ -32,6 +32,8 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/stun"
+	"github.com/scionproto/scion/private/queue"
+	"github.com/scionproto/scion/private/queue/chanq"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
@@ -68,11 +70,11 @@ func (uo) UDPCanReuseLocal() bool {
 	return conn.UDPCanReuseLocal()
 }
 
-// provider implements UnderlayProvider by making and returning Udp/Ip links.
+// underlay implements Underlay by making and returning Udp/Ip links.
 //
 // This is currently the only implementation. The goal of splitting out this code from the router
 // is to enable other implementations.
-type provider struct {
+type underlay struct {
 	mu                 sync.Mutex // Prevents race between adding connections and Start/Stop.
 	batchSize          int
 	allLinks           map[netip.AddrPort]udpLink
@@ -90,57 +92,63 @@ type provider struct {
 
 type udpLink interface {
 	router.Link
-	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
+	start(
+		ctx context.Context,
+		procQs []queue.Queue[*router.Packet],
+		pool router.PacketPool,
+	)
 	stop()
 	receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 }
 
 func init() {
-	// Register ourselves as an underlay provider. The registration consists of a constructor, not
+	// Register ourselves as an underlay provider. The registration consists of a factory, not
 	// a provider object, because multiple router instances each must have their own underlay
 	// provider. The provider is not re-entrant.
-	router.AddUnderlay("udpip", newProvider)
+	router.AddUnderlayProvider("udpip:inet", underlayProvider{})
 }
+
+type underlayProvider struct{}
 
 // New instantiates a new instance of the provider for exclusive use by the caller.
 // TODO(multi_underlay): batchSize should be an underlay-specific config.
-func newProvider(batchSize int, receiveBufferSize int, sendBufferSize int) router.UnderlayProvider {
-	return &provider{
-		batchSize:         batchSize,
+func (underlayProvider) New(runConfig router.RunConfig) router.Underlay {
+	return &underlay{
+		batchSize:         runConfig.BatchSize,
 		allLinks:          make(map[netip.AddrPort]udpLink),
 		connOpener:        uo{},
 		svc:               router.NewServices[netip.AddrPort](),
-		receiveBufferSize: receiveBufferSize,
-		sendBufferSize:    sendBufferSize,
+		receiveBufferSize: runConfig.ReceiveBufferSize,
+		sendBufferSize:    runConfig.SendBufferSize,
 	}
 }
 
 // SetConnOpener installs the given opener. opener must be an implementation of ConnOpener or
 // panic will ensue. Only for use in unit tests.
-func (u *provider) SetConnOpener(opener any) {
+func (u *underlay) SetConnOpener(opener any) {
 	u.connOpener = opener.(ConnOpener)
 }
 
-func (u *provider) NumConnections() int {
+func (u *underlay) NumConnections() int {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	return len(u.allLinks)
 }
 
-func (u *provider) Headroom() int {
+func (u *underlay) Headroom() int {
 	// This underlay does not add any header of its own: the UDP socket API manages the header
 	// independently.
 	return 0
 }
 
-func (u *provider) SetDispatchPorts(start, end, redirect uint16) {
+func (u *underlay) SetDispatchPorts(start, end, redirect uint16) {
 	u.dispatchStart = start
 	u.dispatchEnd = end
 	u.dispatchRedirect = redirect
 }
 
 // AddSvc adds the address for the given service.
-func (u *provider) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
+func (u *underlay) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	// We pre-resolve the addresses, which is trivial for this underlay.
 	addr := netip.AddrPortFrom(host.IP(), port)
 	if !addr.IsValid() {
@@ -151,7 +159,7 @@ func (u *provider) AddSvc(svc addr.SVC, host addr.Host, port uint16) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (u *provider) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
+func (u *underlay) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 	addr := netip.AddrPortFrom(host.IP(), port)
 	if !addr.IsValid() {
 		return errInvalidServiceAddress
@@ -162,8 +170,8 @@ func (u *provider) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 
 // The queues to be used by the receiver task are supplied at this point because they must be
 // sized according to the number of connections that will be started.
-func (u *provider) Start(
-	ctx context.Context, pool router.PacketPool, procQs []chan *router.Packet,
+func (u *underlay) Start(
+	ctx context.Context, pool router.PacketPool, procQs []queue.Queue[*router.Packet],
 ) {
 	u.mu.Lock()
 	if len(procQs) == 0 {
@@ -184,7 +192,7 @@ func (u *provider) Start(
 	}
 }
 
-func (u *provider) Stop() {
+func (u *underlay) Stop() {
 	u.mu.Lock()
 	connSnapshot := slices.Clone(u.allConnections)
 	linkSnapshot := slices.Collect(maps.Values(u.allLinks))
@@ -207,7 +215,7 @@ type udpConnection struct {
 	name         string                     // for logs. It's more informative than ifID.
 	link         udpLink                    // Link with exclusive use of the connection.
 	links        map[netip.AddrPort]udpLink // Links that share this connection
-	queue        chan *router.Packet
+	queue        queue.Queue[*router.Packet]
 	metrics      *router.InterfaceMetrics
 	receiverDone chan struct{}
 	senderDone   chan struct{}
@@ -246,8 +254,8 @@ func (u *udpConnection) stop() {
 	wasRunning := u.running.Swap(false)
 
 	if wasRunning {
-		u.conn.Close() // Unblock receiver
-		close(u.queue) // Unblock sender
+		u.conn.Close()  // Unblock receiver
+		u.queue.Close() // Unblock sender
 		<-u.receiverDone
 		<-u.senderDone
 	}
@@ -315,10 +323,12 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 	}
 }
 
-func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*router.Packet) int {
+func readUpTo(
+	queue queue.Reader[*router.Packet], n int, needsBlocking bool, pkts []*router.Packet,
+) int {
 	i := 0
 	if needsBlocking {
-		p, ok := <-queue
+		p, ok := queue.Dequeue()
 		if !ok {
 			return i
 		}
@@ -327,15 +337,11 @@ func readUpTo(queue <-chan *router.Packet, n int, needsBlocking bool, pkts []*ro
 	}
 
 	for ; i < n; i++ {
-		select {
-		case p, ok := <-queue:
-			if !ok {
-				return i
-			}
-			pkts[i] = p
-		default:
+		p, ok := queue.TryDequeue()
+		if !ok {
 			return i
 		}
+		pkts[i] = p
 	}
 	return i
 }
@@ -389,10 +395,11 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 			sc := router.ClassOfSize(len(pkts[written].RawPacket))
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			pool.Put(pkts[written])
-			toWrite -= (written + 1)
+			written++ // Not to-be-written any more
+			toWrite -= written
 			// Shift the leftovers to the head of the buffers.
 			for i := range toWrite {
-				pkts[i] = pkts[i+written+1]
+				pkts[i] = pkts[i+written]
 			}
 		} else {
 			toWrite = 0
@@ -405,13 +412,13 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 // the proc queue where a packet should be delivered. All links that share
 // an underlying connection (therefore a receive loop) use the same hash seed.
 func makeHashSeed() uint32 {
-	hashSeed := fnv1aOffset32
+	hashSeed := router.Fnv1aOffset32
 	randomBytes := make([]byte, 4)
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("Error while generating random value")
 	}
 	for _, c := range randomBytes {
-		hashSeed = hashFNV1a(hashSeed, c)
+		hashSeed = router.HashFNV1a(hashSeed, c)
 	}
 	return hashSeed
 }
@@ -420,9 +427,9 @@ func makeHashSeed() uint32 {
 // need to specify a destination address and receives all the traffic from that connection. Such a
 // link is used as an external link and, under some conditions, as a sibling link.
 type connectedLink struct {
-	procQs     []chan *router.Packet
+	procQs     []queue.Queue[*router.Packet]
 	name       string // For logs
-	egressQ    chan<- *router.Packet
+	egressQ    queue.Writer[*router.Packet]
 	metrics    *router.InterfaceMetrics
 	pool       router.PacketPool
 	bfdSession *bfd.Session
@@ -433,11 +440,12 @@ type connectedLink struct {
 
 // NewExternalLink returns an external link over the UDP/IP underlay. It is always implemented with
 // a connectedLink.
-func (u *provider) NewExternalLink(
+func (u *underlay) NewExternalLink(
 	qSize int,
 	bfd *bfd.Session,
 	local string,
 	remote string,
+	_ string, // this underlay provider doesn't have link options
 	ifID uint16,
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
@@ -461,7 +469,7 @@ func (u *provider) NewExternalLink(
 	return u.newConnectedLink(qSize, bfd, localAddr, remoteAddr, ifID, metrics, router.External)
 }
 
-func (u *provider) newConnectedLink(
+func (u *underlay) newConnectedLink(
 	qSize int,
 	bfd *bfd.Session,
 	localAddr netip.AddrPort,
@@ -475,7 +483,7 @@ func (u *provider) newConnectedLink(
 	if err != nil {
 		return nil, err
 	}
-	queue := make(chan *router.Packet, qSize)
+	queue := chanq.New[*router.Packet](qSize)
 	el := &connectedLink{
 		name:       remoteAddr.String(),
 		egressQ:    queue,
@@ -503,7 +511,7 @@ func (u *provider) newConnectedLink(
 
 func (l *connectedLink) start(
 	ctx context.Context,
-	procQs []chan *router.Packet,
+	procQs []queue.Queue[*router.Packet],
 	pool router.PacketPool,
 ) {
 	// procQs and pool are never known before all configured links have been instantiated.  So we
@@ -554,17 +562,20 @@ func (l *connectedLink) Resolve(p *router.Packet, host addr.Host, port uint16) e
 }
 
 func (l *connectedLink) Send(p *router.Packet) bool {
-	select {
-	case l.egressQ <- p:
-	default:
+	if !l.egressQ.Enqueue(p) {
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 		return false
 	}
 	return true
 }
 
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *connectedLink) SendBlocking(p *router.Packet) {
 	// We use a bound and connected socket so we don't need to specify the destination.
-	l.egressQ <- p
+	l.egressQ.EnqueueBlocking(p)
 }
 
 func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
@@ -583,9 +594,7 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
-	select {
-	case l.procQs[procID] <- p:
-	default:
+	if !l.procQs[procID].Enqueue(p) {
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
@@ -595,9 +604,9 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 // an exclusive underlying point-to-point connection. Instead, it shares the
 // unconnected batchConn that the internal link also uses.
 type detachedLink struct {
-	procQs     []chan *router.Packet
+	procQs     []queue.Queue[*router.Packet]
 	name       string // For logs
-	egressQ    chan<- *router.Packet
+	egressQ    queue.Writer[*router.Packet]
 	metrics    *router.InterfaceMetrics
 	pool       router.PacketPool
 	bfdSession *bfd.Session
@@ -611,11 +620,12 @@ type detachedLink struct {
 // We de-duplicate sibling links. The router gives us a BFDSession in all cases and we might throw
 // it away (there are no persistent resources attached to it). This could be fixed by moving some
 // BFD related code in-here.
-func (u *provider) NewSiblingLink(
+func (u *underlay) NewSiblingLink(
 	qSize int,
 	bfd *bfd.Session,
 	local string,
 	remote string,
+	_ string, // this underlay provider doesn't have link options
 	metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 	localAddr, err := conn.ResolveAddrPortOrPort(local)
@@ -644,7 +654,7 @@ func (u *provider) NewSiblingLink(
 	return u.newDetachedLink(bfd, remoteAddr, metrics)
 }
 
-func (u *provider) newDetachedLink(
+func (u *underlay) newDetachedLink(
 	bfd *bfd.Session,
 	remoteAddr netip.AddrPort,
 	metrics *router.InterfaceMetrics,
@@ -671,7 +681,7 @@ func (u *provider) newDetachedLink(
 
 func (l *detachedLink) start(
 	ctx context.Context,
-	procQs []chan *router.Packet,
+	procQs []queue.Queue[*router.Packet],
 	pool router.PacketPool,
 ) {
 	// procQs and pool are never known before all configured links have been instantiated.  So we
@@ -727,18 +737,21 @@ func (l *detachedLink) Send(p *router.Packet) bool {
 	// is pointless: if we loan l.remote we avoid a copy and still discard at most one address. This
 	// is safe because we treat p.RemoteAddr as immutable and the router main code doesn't touch it.
 	p.RemoteAddr = unsafe.Pointer(l.remote)
-	select {
-	case l.egressQ <- p:
-	default:
+	if !l.egressQ.Enqueue(p) {
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 		return false
 	}
 	return true
 }
 
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *detachedLink) SendBlocking(p *router.Packet) {
 	// Same as Send(). We must supply the destination address.
 	p.RemoteAddr = unsafe.Pointer(l.remote)
-	l.egressQ <- p
+	l.egressQ.EnqueueBlocking(p)
 }
 
 func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
@@ -757,9 +770,7 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
-	select {
-	case l.procQs[procID] <- p:
-	default:
+	if !l.procQs[procID].Enqueue(p) {
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
 	}
@@ -767,8 +778,8 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 
 type internalLink struct {
 	procQ            chan *router.Packet
-	procQs           []chan *router.Packet
-	egressQ          chan *router.Packet
+	procQs           []queue.Queue[*router.Packet]
+	egressQ          queue.Writer[*router.Packet]
 	procStop         chan struct{}
 	procDone         chan struct{}
 	metrics          *router.InterfaceMetrics
@@ -784,7 +795,7 @@ type internalLink struct {
 //
 // TODO(multi_underlay): We still go with the assumption that internal links are always
 // udpip, so we don't expect a string here. That should change.
-func (u *provider) NewInternalLink(
+func (u *underlay) NewInternalLink(
 	local string, qSize int, metrics *router.InterfaceMetrics,
 ) (router.Link, error) {
 	u.mu.Lock()
@@ -805,7 +816,7 @@ func (u *provider) NewInternalLink(
 		return nil, err
 	}
 	u.internalHashSeed = makeHashSeed()
-	queue := make(chan *router.Packet, qSize)
+	queue := chanq.New[*router.Packet](qSize)
 	il := &internalLink{
 		egressQ:          queue,
 		metrics:          metrics,
@@ -841,12 +852,12 @@ func (u *provider) NewInternalLink(
 
 func (l *internalLink) start(
 	ctx context.Context,
-	procQs []chan *router.Packet,
+	procQs []queue.Queue[*router.Packet],
 	pool router.PacketPool,
 ) {
 	maxCap := 0
 	for _, q := range procQs {
-		maxCap = max(maxCap, cap(q))
+		maxCap = max(maxCap, q.Cap())
 	}
 	l.procQ = make(chan *router.Packet, maxCap)
 	l.procStop = make(chan struct{})
@@ -882,12 +893,8 @@ func (l *internalLink) runProcessor() {
 				l.pool.Put(p)
 				continue
 			}
-			if !egressLink.Send(p) {
-				sc := router.ClassOfSize(len(p.RawPacket))
-				l.metrics[sc].DroppedPacketsBusyForwarder.Inc()
-				l.pool.Put(p)
-				continue
-			}
+			// Send always consumes the packet (returns it to pool on drop).
+			egressLink.Send(p)
 		case <-l.procStop:
 			for {
 				select {
@@ -975,14 +982,15 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 		panic(fmt.Sprintf("unexpected address type returned from DstAddr: %s", dst.Type()))
 	}
 	// if port is outside the configured port range we send to the fixed port.
-	if port < l.dispatchStart && port > l.dispatchEnd {
+	if port < l.dispatchStart || port > l.dispatchEnd {
 		port = l.dispatchRedirect
 	}
 
 	// Packets that get here must have come from an external or a sibling link; neither of which
 	// attach a RemoteAddr to the packet (besides; it could be a different type).  So, RemoteAddr is
 	// not generally usable. We must allocate a new object. The precautions needed to pool them cost
-	// more than the pool saves (verified experimentally).
+	// more than the pool saves (verified experimentally). We should do like the afpacket underlay
+	// and store the bits at the head of the packet buffer instead.
 	p.RemoteAddr = unsafe.Pointer(&net.UDPAddr{
 		IP:   dstAddr.AsSlice(),
 		Zone: dstAddr.Zone(),
@@ -991,19 +999,22 @@ func (l *internalLink) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
-// The packet's destination is already in the packet's meta-data.
 func (l *internalLink) Send(p *router.Packet) bool {
-	select {
-	case l.egressQ <- p:
-	default:
+	// The packet's destination is in the packet's meta-data.
+	if !l.egressQ.Enqueue(p) {
+		sc := router.ClassOfSize(len(p.RawPacket))
+		l.metrics[sc].DroppedPacketsBusyForwarder[p.TrafficType].Inc() // Need other drop cause.
+		l.pool.Put(p)
 		return false
 	}
 	return true
 }
 
-// The packet's destination is already in the packet's meta-data.
+// Only tests actually use this method, but since we have to have it, we might as well implement it
+// ~correctly. Doesn't hurt.
 func (l *internalLink) SendBlocking(p *router.Packet) {
-	l.egressQ <- p
+	// The packet's destination is in the packet's meta-data.
+	l.egressQ.EnqueueBlocking(p)
 }
 
 func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
@@ -1017,15 +1028,18 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	// around, e.g., by SCMP.
 	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
-	var q chan *router.Packet
 	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
 	if ok {
-		q = l.procQs[procID]
-	} else {
-		q = l.procQ
+		// Hot path: hand off to the shared lock-free processor queue.
+		if !l.procQs[procID].Enqueue(p) {
+			l.pool.Put(p)
+			metrics[sc].DroppedPacketsBusyProcessor.Inc()
+		}
+		return
 	}
+	// Not a hashable SCION packet (e.g. STUN): use this link's own slow queue.
 	select {
-	case q <- p:
+	case l.procQ <- p:
 	default:
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
@@ -1063,14 +1077,14 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, b
 	s := hashSeed
 
 	// inject the flowID
-	s = hashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
+	s = router.HashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
 	for _, c := range data[2:4] {
-		s = hashFNV1a(s, c)
+		s = router.HashFNV1a(s, c)
 	}
 
 	// Inject the src/dst addresses
 	for _, c := range data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen] {
-		s = hashFNV1a(s, c)
+		s = router.HashFNV1a(s, c)
 	}
 
 	return s % uint32(numProcRoutines), true

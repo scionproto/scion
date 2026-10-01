@@ -6,11 +6,13 @@ build-dev:
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 	tar -kxf bazel-bin/scion-topo.tar -C bin
+	sudo setcap "cap_bpf=ep cap_net_admin=ep cap_net_raw=ep" bin/router
 
 build:
 	rm -f bin/*
 	bazel build //:scion
 	tar -kxf bazel-bin/scion.tar -C bin
+	sudo setcap "cap_bpf=ep cap_net_admin=ep cap_net_raw=ep" bin/router
 
 # BFLAGS is optional. It may contain additional command line flags for CI builds. Currently this is:
 # "--file_name_version=$(tools/git-version)" to include the git version in the artifacts names.

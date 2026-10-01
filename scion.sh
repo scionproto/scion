@@ -86,11 +86,21 @@ cmd_mstart() {
 }
 
 run_setup() {
+    # The raw-socket implementation of the SCION router cannot work on the loopback device if the
+    # kernel isn't willing to ingest packets sent to that device.
+    loopdev=$(ip addr show to 127.0.0.1 | cut -d' ' -f 2 -s | cut -d':' -f 1 -s)
+    sysctl net.ipv4.conf.${loopdev}.accept_local net.ipv4.conf.${loopdev}.route_localnet \
+    > gen/lo.conf
+    (echo "net.ipv4.conf.${loopdev}.accept_local = 1";\
+     echo "net.ipv4.conf.${loopdev}.route_localnet = 1") | sudo sysctl -p-
     tools/set_ipv6_addr.py -a
 }
 
 run_teardown() {
     tools/set_ipv6_addr.py -d
+    if [ -f gen/lo.conf ]; then
+	sudo sysctl -p gen/lo.conf
+    fi
 }
 
 stop_scion() {
@@ -164,7 +174,7 @@ glob_docker() {
     matches=
     for proc in $(./tools/dc scion config --services); do
         for spec in "$@"; do
-            if glob_match $proc "scion_$spec"; then
+            if glob_match $proc "$spec"; then
                 matches="$matches $proc"
                 break
             fi

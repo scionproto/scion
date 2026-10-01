@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/private/queue"
 	"github.com/scionproto/scion/router/bfd"
 )
 
@@ -69,12 +70,7 @@ type Link interface {
 //
 // For any given underlay, there are three kinds of Link implementations to choose from. The
 // difference between them is the intent regarding addressing.
-//
-// TODO(multi_underlay): The local internal address is explicitly a udpip underlay address as the
-// main router code as well as the entire end-host stack still assume that the internal network
-// underlay is always "udp/ip".
-type UnderlayProvider interface {
-
+type Underlay interface {
 	// SetConnOpener is a unit testing device: it allows the replacement of the function
 	// that opens new underlay connections. Underlay implementations can, at their
 	// choice, implement this properly, or panic if it is called. The opener can be anything
@@ -110,7 +106,7 @@ type UnderlayProvider interface {
 	// incoming packets to its output channels and will send packets present on its input
 	// channels. Only connection in existence at the time of calling Start() will be
 	// started. Calling Start has no effect on already running connections.
-	Start(ctx context.Context, pool PacketPool, proQs []chan *Packet)
+	Start(ctx context.Context, pool PacketPool, proQs []queue.Queue[*Packet])
 
 	// Stop puts the provider in the stopped state. In that state, the provider no longer delivers
 	// incoming packets and ignores packets present on its input channels. The provider is fully
@@ -127,6 +123,7 @@ type UnderlayProvider interface {
 		bfd *bfd.Session,
 		local string,
 		remote string,
+		options string,
 		ifID uint16,
 		metrics *InterfaceMetrics,
 	) (Link, error)
@@ -140,6 +137,7 @@ type UnderlayProvider interface {
 		bfd *bfd.Session,
 		local string,
 		remote string,
+		options string,
 		metrics *InterfaceMetrics,
 	) (Link, error)
 
@@ -149,5 +147,7 @@ type UnderlayProvider interface {
 	NewInternalLink(localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error)
 }
 
-// NewProviderFn is a function that instantiates an underlay provider.
-type NewProviderFn func(batchSize, receiveBufferSize, sendBufferSize int) UnderlayProvider
+// UnderlayProvider allows the instantiation of a provider.
+type UnderlayProvider interface {
+	New(runConfig RunConfig) Underlay
+}

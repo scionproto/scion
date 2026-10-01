@@ -25,15 +25,20 @@ import traceback
 
 from benchmarklib import Intf, RouterBM
 from collections import namedtuple
+from plumbum import BG
 from plumbum import cli
 from plumbum import cmd
 from plumbum import local
 from plumbum.cmd import docker
 from plumbum.machines import LocalCommand
-from random import randint
+
 from urllib.request import urlopen
 
 logger = logging.getLogger(__name__)
+
+# Router profiling ON or OFF?
+PROFILING_TRACE = False
+PROFILING_CPU = False
 
 TEST_CASES = [
     "in",
@@ -82,8 +87,7 @@ class RouterBMTool(cli.Application, RouterBM):
     mx_interface: str = None
     to_flush: list[str] = []
     scrape_addr: str = None
-
-    log_level = cli.SwitchAttr(["l", "loglevel"], str, default='warning', help="Logging level")
+    log_level: str = cli.SwitchAttr(["l", "loglevel"], str, default='warning', help="Logging level")
 
     doit = cli.Flag(["r", "run"],
                     help="Run the benchmark, as opposed to seeing the instructions")
@@ -95,23 +99,37 @@ class RouterBMTool(cli.Application, RouterBM):
                               help="The coremark score of the subject machine")
     mmbm = cli.SwitchAttr(["m", "mmbm"], int, default=0,
                           help="The mmbm score of the subject machine")
-    packet_size = cli.SwitchAttr(["s", "size"], int, default=172,
+    packet_size = cli.SwitchAttr(["s", "size"], int, default=1500,
                                  help="Test packet size (includes all headers - floored at 154)")
     brload_path = cli.SwitchAttr(["b", "brload"], str, default="bin/brload",
                                  help="Relative path to the brload tool")
-
+    intern_overrides = cli.SwitchAttr(["i", "intern-addr-override"], str, list=True, default=[],
+                                      help="Override args")
+    public_overrides = cli.SwitchAttr(["p", "public-addr-override"], str, list=True, default=[],
+                                      help="Override args")
+    skip_ifconfig = cli.Flag(["n", "no-ifconfig"],
+                             help="Skip configuring local interfaces (already configured).")
     intf_map: dict[str, Intf] = {}
     brload: LocalCommand = None
     brload_cpus: list[int] = []
     artifacts = f"{os.getcwd()}/acceptance/router_benchmark"
     prom_address: str = "localhost:9090"
+    debug_run: bool = False
+    intern_over_args = []
+    public_over_args = []
 
     def host_interface(self, excl: bool):
         """Returns the next host interface that we should use for a brload links.
 
         If excl is true, we pick one and never pick that one again.
         Else, we pick one the first time it's needed and keep it for reuse.
+
+        If skip_ifconfig is true, we forego multiplexing as it is likely not how things
+        have been configured. We assume one interface per address.
         """
+        if self.skip_ifconfig:
+            return self.avail_interfaces.pop()
+
         if excl:
             return self.avail_interfaces.pop()
 
@@ -148,12 +166,14 @@ class RouterBMTool(cli.Application, RouterBM):
         # the router's subnet that's not otherwise used. This must NOT be "PeerIP".
         # brload requires the internal interface to be "exclusive", that's our clue.
         if exclusive:
-            net = ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False)
-            hostAddr = next(net.hosts()) + 126
             self.scrape_addr = req.ip
-            sudo("ip", "addr", "add", f"{hostAddr}/{req.prefix_len}",
-                 "broadcast", str(net.broadcast_address), "dev", host_intf)
-            self.to_flush.append(host_intf)
+            self.profiling_addr = req.ip
+            if not self.skip_ifconfig:
+                net = ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False)
+                hostAddr = next(net.hosts()) + 126
+                sudo("ip", "addr", "add", f"{hostAddr}/{req.prefix_len}",
+                     "broadcast", str(net.broadcast_address), "dev", host_intf)
+                self.to_flush.append(host_intf)
 
         logger.debug(f"=> Configuring interface {host_intf} for: {req}...")
 
@@ -163,19 +183,23 @@ class RouterBMTool(cli.Application, RouterBM):
             if i.name == host_intf:
                 break
         else:
-            sudo("ip", "link", "set", host_intf, "mtu", "9000")
+            # Do not assign the host addresses but some other addr in the same subnet.
+            # This is because brload needs some src IP to send arp requests but we do not want the
+            # linux kernel to handle our incoming packets and respond with icmp errors.
+            if not self.skip_ifconfig:
+                # We allow for packets as large as they get.
+                sudo("ip", "link", "set", host_intf, "mtu", "9000")
 
-            # Do not assign the host addresses but create one link-local addr.
-            # Brload needs some src IP to send arp requests. (This requires rp_filter
-            # to be off on the router side, else, brload's arp requests are discarded).
-            sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
-                 "broadcast", "169.254.255.255",
-                 "dev", host_intf, "scope", "link")
-            sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
-            self.to_flush.append(host_intf)
+                net = ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False)
+                hostAddr = next(net.hosts()) + 125
+                sudo("ip", "addr", "add", f"{hostAddr}/{req.prefix_len}",
+                     "broadcast", str(net.broadcast_address), "dev", host_intf)
+                sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
+                self.to_flush.append(host_intf)
 
         # Fit for duty.
-        sudo("ip", "link", "set", host_intf, "up")
+        if not self.skip_ifconfig:
+            sudo("ip", "link", "set", host_intf, "up")
 
         # Ship it. Leave mac addresses alone. In this standalone test we use the real one.
         self.intf_map[req.label] = Intf(host_intf, None, None)
@@ -198,16 +222,18 @@ class RouterBMTool(cli.Application, RouterBM):
     def setup(self, avail_interfaces: list[str]):
         logger.info("Preparing...")
 
-        # Check that the given interfaces are safe to use. We will wreck their config.
-        for intf in avail_interfaces:
-            output = sudo("ip", "addr", "show", "dev", intf)
-            if len(output.splitlines()) > 2:
-                logger.error(f"""\
-                Interface {intf} appears to be in some kind of use. Cowardly refusing to modify it.
-                If you have a network manager, tell it to disable or ignore that interface.
-                Else, how about \"sudo ip addr flush dev {intf}\"?
-                """)
-                raise RuntimeError("Interface in use")
+        if not self.skip_ifconfig:
+            # Check that the given interfaces are safe to use. We will wreck their config.
+            for intf in avail_interfaces:
+                output = sudo("ip", "addr", "show", "dev", intf)
+                # The check below is too sloppy. Some systems yield false positives.
+                if False:  # len(output.splitlines()) > 2:
+                    logger.error(f"""\
+                    Interface {intf} appears to be in some kind of use. Cowardly refusing to modify
+                    it. If you have a network manager, tell it to disable or ignore that interface.
+                    Else, how about \"sudo ip addr flush dev {intf}\"?
+                    """)
+                    raise RuntimeError("Interface in use")
 
         # Looks safe.
         self.avail_interfaces = avail_interfaces
@@ -216,7 +242,7 @@ class RouterBMTool(cli.Application, RouterBM):
         # We supply the label->host-side-name mapping to brload when we start it.
         logger.debug("==> Configuring host interfaces...")
 
-        output = self.brload("show-interfaces")
+        output = self.brload("show-interfaces", *self.intern_over_args, *self.public_over_args)
 
         lines = sorted(output.splitlines())
         for line in lines:
@@ -243,6 +269,14 @@ class RouterBMTool(cli.Application, RouterBM):
         # They'll be used to produce a performance index.
         self.fetch_horsepower()
 
+        # Optionally profile the router
+        if PROFILING_CPU:
+            cmd.curl[f"{self.profiling_addr}:30442/debug/pprof/cpu?seconds=70",
+                     "-o", "router_cpu.pprof"] & BG
+
+        if PROFILING_TRACE:
+            cmd.curl[f"{self.profiling_addr}:30442/debug/pprof/trace?seconds=70",
+                     "-o", "router_trace.pprof"] & BG
         logger.info("Prepared")
 
     def cleanup(self, retcode: int):
@@ -252,7 +286,7 @@ class RouterBMTool(cli.Application, RouterBM):
         return retcode
 
     def instructions(self):
-        output = self.brload("show-interfaces")
+        output = self.brload("show-interfaces", *self.intern_over_args, *self.public_over_args)
 
         exclusives = []
         multiplexed = []
@@ -268,6 +302,7 @@ class RouterBMTool(cli.Application, RouterBM):
         for line in lines:
             elems = line.split(",")
             if len(elems) != 5:
+                print("*******", line)
                 continue
             req = IntfReq._make(elems)
             reqs.append(req)
@@ -290,16 +325,17 @@ class RouterBMTool(cli.Application, RouterBM):
         print(f"""
 INSTRUCTIONS:
 
-1 - Configure your subject router according to accept/router_benchmark/conf/router.toml")
-    If using openwrt, an easy way to do that is to install the bmtools.ipk package. In addition,
-    bmtools includes two microbenchmarks: scion-coremark and scion-mmbm. Those will run
-    automatically and the results will be used to improve the benchmark report.
+1 - Configure your subject router according to "acceptance/router_benchmark/conf/*" (copy everything
+    to /etc/scion of the router). If using openwrt, an easy way to do that is to install
+    the bmtools.ipk package. In addition, bmtools includes two microbenchmarks: scion-coremark and
+    scion-mmbm. Those will run automatically and the results will be used to improve the benchmark
+    report.
 
     Optional: If you did not install bmtools.ipk, install and run those microbenchmarks and make a
     note of the results: (scion-coremark; scion-mmbm).
 
 2 - Configure the following interfaces on your router (The procedure depends on your router
-    UI) - All interfaces should have the mtu set to 9000:
+    UI):
     - One physical interface with addresses: {", ".join(multiplexed)}
 {nl.join(['    - One physical interface with address: ' + s for s in exclusives])}
 
@@ -335,6 +371,14 @@ INSTRUCTIONS:
 """)
 
     def main(self, *interfaces: str):
+        for over in self.intern_overrides:
+            self.intern_over_args.append("--intern-addr-override")
+            self.intern_over_args.append(over)
+
+        for over in self.public_overrides:
+            self.public_over_args.append("--public-addr-override")
+            self.public_over_args.append(over)
+
         # brload cannot be set statically. It need the cli arguments to be
         # processed.
         self.brload = local[self.brload_path]

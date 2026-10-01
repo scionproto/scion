@@ -74,12 +74,13 @@ class Results:
 
     def add_case(self, name: str, rate: int, droppage: int, raw_rate: int):
         dropRatio = round(float(droppage) / (rate + droppage), 2)
-        saturated = dropRatio > 0.03
+        saturated = dropRatio >= 0.03
         perf = 0.0
         if self.cores == 3 and self.coremark and self.mmbm:
             perf = round(self.perf_index(rate), 1)
         self.cases.append({"case": name,
                            "perf": perf, "rate": rate, "drop": dropRatio,
+                           "drop_pps": round(droppage),
                            "bit_rate": rate * self.packet_size * 8,
                            "raw_pkt_rate": raw_rate,
                            "full": saturated})
@@ -88,12 +89,19 @@ class Results:
         self.checked = True
         for tc in self.cases:
             want = expectations.get(tc["case"])
-            if want is not None:
-                slow = tc["rate"] < want
-                unsaturated = not tc["full"]
-                if slow or unsaturated:
-                    self.failed.append({"case": tc["case"],
-                                        "expected": want, "slow": slow, "unsaturated": unsaturated})
+            if want is None:
+                # No expectation set for this case, so there is nothing to check.
+                continue
+            slow = tc["rate"] < want
+            unsaturated = not tc["full"]
+            # Only a rate below the expectation is a failure. An unsaturated run means
+            # brload, not the router, was the bottleneck, so the rate is under-reported,
+            # never over-reported. That can't turn a slow router into a false pass,
+            # so we don't fail on it; we keep the flag as context for slow results,
+            # where it may mean the measurement is unreliable.
+            if slow:
+                self.failed.append({"case": tc["case"], "expected": want,
+                                    "slow": slow, "unsaturated": unsaturated})
 
     def as_json(self) -> str:
         return json.dumps({
@@ -166,11 +174,17 @@ class RouterBM():
             "run",
             "--artifacts", self.artifacts,
             *map_args,
+            *self.intern_over_args,
+            *self.public_over_args,
             "--case", case,
             "--duration", f"{duration}s",
             "--num-streams", "840",
             "--packet-size", f"{self.packet_size}",
+            "--log.console", "warn" if self.log_level == "warning" else f"{self.log_level}",
         ]
+        if self.debug_run:
+            brload_args.extend(["--num-packets", 1000])
+
         if self.brload_cpus:
             brload_args = [
                 "taskset", "-c", ",".join(map(str, self.brload_cpus)),
@@ -196,11 +210,19 @@ class RouterBM():
         # We measure the rate over 10s. For best results we only look at the last 10 seconds.
         # "end" reports a time when the transmission was still going on at maximum rate.
         sampleTime = int(end)
+        # "mix" blends several single patterns in one run. The router labels each
+        # packet by its own type. There is no type="mix". Sum the component types.
+        if case == "mix":
+            type_sel = 'type=~"in|out|br_transit|in_transit|out_transit"'
+        elif case == "mix6":
+            type_sel = 'type=~"in6|out6|br_transit6|in_transit6|out_transit6"'
+        else:
+            type_sel = f'type="{case}"'
         prom_query = urlencode({
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job) ('
-                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
+                f'  rate(router_output_pkts_total{{job="BR", {type_sel}}}[10s])'
                 ')'
                 '/ on (instance, job) group_left()'
                 'sum by (instance, job) ('
@@ -230,7 +252,7 @@ class RouterBM():
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job) ('
-                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
+                f'  rate(router_output_pkts_total{{job="BR", {type_sel}}}[10s])'
                 ')'
             )
         })
@@ -319,13 +341,16 @@ class RouterBM():
 
         # Run one test (30% size) as warm-up to trigger any frequency scaling, else the first test
         # can get much lower performance.
-        logger.debug("Warmup")
-        self.exec_br_load(test_cases[0], map_args, 5)
+        if self.debug_run:
+            cores = 3
+        else:
+            logger.debug("Warmup")
+            self.exec_br_load(test_cases[0], map_args, 5)
 
-        # Fetch the core count once. It doesn't change while the router is running.
-        # We cannot get this until the router has been up for a few seconds. If you shorten
-        # the warmup for some reason, make sure to add a delay.
-        cores = self.core_count()
+            # Fetch the core count once. It doesn't change while the router is running.
+            # We cannot get this until the router has been up for a few seconds. If you shorten
+            # the warmup for some reason, make sure to add a delay.
+            cores = self.core_count()
 
         # At long last, run the tests.
         results = Results(cores, self.coremark, self.mmbm, self.packet_size)
