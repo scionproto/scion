@@ -296,8 +296,6 @@ func (l *linkPTP) Resolve(p *router.Packet, host addr.Host, port uint16) error {
 	return errResolveOnNonInternalLink
 }
 
-// sendQueued sends the packets that waited for the peer's MAC address.
-// Callers must not hold [neighborCache.lock].
 // dropPackets counts packets the neighbor cache gave up on and frees them.
 func (l *linkPTP) dropPackets(pkts []*router.Packet) {
 	for _, p := range pkts {
@@ -307,6 +305,8 @@ func (l *linkPTP) dropPackets(pkts []*router.Packet) {
 	}
 }
 
+// sendQueued sends the packets that waited for the peer's MAC address.
+// Callers must not hold [neighborCache.lock].
 func (l *linkPTP) sendQueued() {
 	for _, p := range l.neighbors.takeQueue(l.remoteAddr.Addr()) {
 		l.Send(p)

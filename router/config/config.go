@@ -59,11 +59,12 @@ type RouterConfig struct {
 
 // Neighbor bounds what an underlay's neighbor cache holds while it resolves
 // MAC addresses. It applies to underlays that resolve addresses themselves,
-// which today means udpip:afxdp. Zero values take a default, and CacheMax and
-// StaleTime take theirs from the kernel's own neighbor table settings.
+// which today means udpip:afxdp. Zero values take a default, and CacheMax,
+// ProbeInterval and ProbeAttempts take theirs from the kernel's own neighbor
+// table settings.
 type Neighbor struct {
 	// QueueLen is the number of packets held per unresolved neighbor.
-	// Default 1, which is the minimum RFC 1122 asks for.
+	// Default 3. RFC 1122 section 2.3.2.2 asks for at least one.
 	QueueLen int `toml:"queue_len,omitempty"`
 	// QueueTotal is the number of packets a link holds across
 	// all of its unresolved neighbors. Default 64.

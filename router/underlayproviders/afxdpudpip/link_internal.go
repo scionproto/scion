@@ -287,8 +287,6 @@ func (l *linkInternal) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
-// sendQueued sends the packets that waited for the given neighbor.
-// Callers must not hold [neighborCache.lock].
 // dropPackets counts packets the neighbor cache gave up on and frees them.
 func (l *linkInternal) dropPackets(pkts []*router.Packet) {
 	for _, p := range pkts {
@@ -298,6 +296,8 @@ func (l *linkInternal) dropPackets(pkts []*router.Packet) {
 	}
 }
 
+// sendQueued sends the packets that waited for the given neighbor.
+// Callers must not hold [neighborCache.lock].
 func (l *linkInternal) sendQueued(dstIP netip.Addr) {
 	for _, p := range l.neighbors.takeQueue(dstIP) {
 		l.Send(p)
