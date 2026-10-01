@@ -22,8 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeRefs is a repository holding the given remote branches, each mapped to
-// the commit where HEAD branched off it.
+// fakeRefs maps each remote branch to its merge base with HEAD.
 func fakeRefs(refs map[string]string) gitRunner {
 	return func(args ...string) ([]byte, error) {
 		switch args[0] {

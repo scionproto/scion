@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Tool helps update copyright claims in changed files:
+// Command copyright adds a current-year copyright claim to changed Go files:
 //
 //	go run ./tools/copyright -affiliation "SCION Association"
 //	# the same through Bazel
 //	make copyright-update AFFILIATION="SCION Association"
 //
-// Changed files are Go files that differ from the merge base with upstream/master
-// (or origin/master), untracked ones included.
+// The comparison starts at the merge base with upstream/master, or origin/master
+// if upstream/master does not exist. It includes untracked files.
 package main

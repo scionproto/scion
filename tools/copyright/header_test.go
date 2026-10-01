@@ -40,26 +40,6 @@ const licenseAndSPDX = `//
 package main
 `
 
-// TestOrganizations checks the rules [organizations] states, which its type cannot.
-func TestOrganizations(t *testing.T) {
-	seen := make(map[string]bool)
-	for _, org := range organizations {
-		assert.NotEmpty(t, org)
-		assert.Equal(t, strings.TrimSpace(org), org, "surrounding space")
-		assert.NotContains(t, org, ",", "a shared line would be split inside it")
-		assert.False(t, seen[strings.ToLower(org)], "%q listed twice", org)
-		seen[strings.ToLower(org)] = true
-	}
-}
-
-func TestKnownOrg(t *testing.T) {
-	org, ok := knownOrg(" scion association ")
-	require.True(t, ok)
-	require.Equal(t, "SCION Association", org)
-	_, ok = knownOrg("Some Other Corp")
-	require.False(t, ok)
-}
-
 func TestParseHeaderClaims(t *testing.T) {
 	testCases := map[string]struct {
 		file   string
@@ -83,9 +63,15 @@ func TestParseHeaderClaims(t *testing.T) {
 				{year: 2026, holders: []string{"SCION Association", "Anapaya Systems"}},
 			},
 		},
-		"holder spelled in another case": {
-			file:   "// Copyright 2020 anapaya systems\n" + licenseBlock,
-			claims: []claim{{year: 2020, holders: []string{"Anapaya Systems"}}},
+		"holders spaced unevenly": {
+			file: "// Copyright 2020 ETH Zurich,Anapaya Systems  \n" + licenseBlock,
+			claims: []claim{
+				{year: 2020, holders: []string{"ETH Zurich", "Anapaya Systems"}},
+			},
+		},
+		"a holder from outside this repository": {
+			file:   "// Copyright 2013 The Prometheus Authors\n" + licenseBlock,
+			claims: []claim{{year: 2013, holders: []string{"The Prometheus Authors"}}},
 		},
 		"spdx tag below the header": {
 			file:   "// Copyright 2025 SCION Association\n" + licenseAndSPDX,
@@ -137,10 +123,6 @@ func TestParseHeaderSkips(t *testing.T) {
 				"// Copyright 2025 SCION Association\n" + licenseBlock,
 			reason: skipForeign,
 		},
-		"third-party holder in our own format": {
-			file:   "// Copyright 2013 The Prometheus Authors\n" + licenseBlock,
-			reason: skipUnknownOrgs,
-		},
 		"third-party MIT notice": {
 			file:   "// MIT License\n//\n// Copyright (c) 2017 Ben Toews.\n//\n",
 			reason: skipForeign,
@@ -149,13 +131,9 @@ func TestParseHeaderSkips(t *testing.T) {
 			file:   "//  Copyright 2020 Smallstep Labs, Inc.\n" + licenseBlock,
 			reason: skipForeign,
 		},
-		"unknown organization": {
-			file:   "// Copyright 2015 Some Other Corp\n" + licenseBlock,
-			reason: skipUnknownOrgs,
-		},
-		"one unknown holder among known ones": {
-			file:   "// Copyright 2015 SCION Association, Some Other Corp\n" + licenseBlock,
-			reason: skipUnknownOrgs,
+		"an empty holder": {
+			file:   "// Copyright 2015 SCION Association,\n" + licenseBlock,
+			reason: skipForeign,
 		},
 		"foreign notice below ours": {
 			file: "// Copyright 2020 Anapaya Systems\n" +
@@ -207,26 +185,53 @@ func TestUpdate(t *testing.T) {
 				"// Copyright 2025 SCION Association",
 			},
 		},
-		"the newest of several lines of its own moves": {
+		"several lines of its own become one": {
 			before: []string{
 				"// Copyright 2017 ETH Zurich",
 				"// Copyright 2020 ETH Zurich",
 			},
+			org:   "ETH Zurich",
+			after: []string{"// Copyright 2026 ETH Zurich"},
+		},
+		"an older shared line loses it": {
+			before: []string{
+				"// Copyright 2018 ETH Zurich, Anapaya Systems",
+				"// Copyright 2020 ETH Zurich",
+			},
 			org: "ETH Zurich",
 			after: []string{
-				"// Copyright 2017 ETH Zurich",
+				"// Copyright 2018 Anapaya Systems",
 				"// Copyright 2026 ETH Zurich",
 			},
 		},
-		"a shared line is left alone": {
-			before: []string{"// Copyright 2024 SCION Association, Anapaya Systems"},
+		"a shared line splits in place": {
+			before: []string{"// Copyright 2025 SCION Association, Anapaya Systems"},
 			org:    "SCION Association",
 			after: []string{
-				"// Copyright 2024 SCION Association, Anapaya Systems",
 				"// Copyright 2026 SCION Association",
+				"// Copyright 2025 Anapaya Systems",
 			},
 		},
-		"a line of its own moves, a newer shared one stays": {
+		"a shared line splits around a later holder": {
+			before: []string{"// Copyright 2020 ETH Zurich, Anapaya Systems"},
+			org:    "Anapaya Systems",
+			after: []string{
+				"// Copyright 2020 ETH Zurich",
+				"// Copyright 2026 Anapaya Systems",
+			},
+		},
+		"a shared line splits around a holder in the middle": {
+			before: []string{
+				"// Copyright 2020 SCION Association, ETH Zurich, Anapaya Systems",
+			},
+			org: "ETH Zurich",
+			after: []string{
+				"// Copyright 2020 SCION Association",
+				"// Copyright 2026 ETH Zurich",
+				"// Copyright 2020 Anapaya Systems",
+			},
+		},
+		"the newest line moves also when shared, an older one goes": {
 			before: []string{
 				"// Copyright 2017 ETH Zurich",
 				"// Copyright 2018 ETH Zurich, Anapaya Systems",
@@ -235,7 +240,7 @@ func TestUpdate(t *testing.T) {
 			org: "ETH Zurich",
 			after: []string{
 				"// Copyright 2026 ETH Zurich",
-				"// Copyright 2018 ETH Zurich, Anapaya Systems",
+				"// Copyright 2018 Anapaya Systems",
 				"// Copyright 2025 SCION Association",
 			},
 		},
@@ -249,6 +254,22 @@ func TestUpdate(t *testing.T) {
 				"// Copyright 2025 SCION Association",
 				"// Copyright 2021 Anapaya Systems",
 				"// Copyright 2026 ETH Zurich",
+			},
+		},
+		"a holder spelled otherwise is another holder": {
+			before: []string{"// Copyright 2020 Scion Association"},
+			org:    "SCION Association",
+			after: []string{
+				"// Copyright 2020 Scion Association",
+				"// Copyright 2026 SCION Association",
+			},
+		},
+		"a holder from outside this repository gets a claim below": {
+			before: []string{"// Copyright 2013 The Prometheus Authors"},
+			org:    "SCION Association",
+			after: []string{
+				"// Copyright 2013 The Prometheus Authors",
+				"// Copyright 2026 SCION Association",
 			},
 		},
 		"already claimed": {
@@ -277,13 +298,11 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-// TestUpdateReplacesOnlyTheYear checks that the holder's
-// spelling and trailing space survive.
 func TestUpdateReplacesOnlyTheYear(t *testing.T) {
-	lines, _ := splitLines("// Copyright 2020 anapaya systems  \n" + licenseBlock)
+	lines, _ := splitLines("// Copyright 2020 Anapaya Systems  \n" + licenseBlock)
 	hdr, reason := parseHeader(lines)
 	require.Empty(t, string(reason))
-	assert.Equal(t, []string{"// Copyright 2026 anapaya systems  "},
+	assert.Equal(t, []string{"// Copyright 2026 Anapaya Systems  "},
 		hdr.update(lines, "Anapaya Systems", 2026))
 }
 
@@ -296,6 +315,13 @@ func TestRender(t *testing.T) {
 			before: "// Copyright 2020 Anapaya Systems\n" + licenseBlock,
 			after: "// Copyright 2020 Anapaya Systems\n" +
 				"// Copyright 2026 SCION Association\n" + licenseBlock,
+		},
+		"shared line split in place": {
+			before: "// Copyright 2019 ETH Zurich\n" +
+				"// Copyright 2025 SCION Association, Anapaya Systems\n" + licenseBlock,
+			after: "// Copyright 2019 ETH Zurich\n" +
+				"// Copyright 2026 SCION Association\n" +
+				"// Copyright 2025 Anapaya Systems\n" + licenseBlock,
 		},
 		"spdx tag below the header preserved": {
 			before: "// Copyright 2025 SCION Association\n" + licenseAndSPDX,

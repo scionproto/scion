@@ -39,9 +39,7 @@ func runGit(dir string) gitRunner {
 	}
 }
 
-// mainlines are the branches a change is measured against, the first one present.
-// A fork names the main repository upstream (doc/dev/git.rst). Its origin/master
-// lags unless synced, and every upstream commit it lacks would count as a change.
+// Prefer upstream/master because origin/master in a fork may lag behind upstream.
 var mainlines = []string{"upstream/master", "origin/master"}
 
 func mergeBase(git gitRunner) (mainline, base string, err error) {

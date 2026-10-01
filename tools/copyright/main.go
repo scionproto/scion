@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -33,16 +34,15 @@ func main() {
 	}
 }
 
-// run is main without [os.Exit]. args has the shape of [os.Args].
 func run(args []string, out io.Writer) error {
 	fs := flag.NewFlagSet(args[0], flag.ExitOnError)
 	affiliation := fs.String("affiliation", "",
-		"organization holding copyright on the changes, one of: "+
-			strings.Join(organizations, ", "))
+		"organization holding copyright on the changes, "+
+			"spelled as in the copyright lines")
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(),
 			"usage: copyright -affiliation <organization>\n\n"+
-				"Gives the organization a copyright claim for the current year in every\n"+
+				"Add a current-year copyright claim for the organization to every\n"+
 				"Go file that differs from where the branch left upstream/master, or\n"+
 				"origin/master if there is no upstream/master. Uncommitted and\n"+
 				"untracked files count.\n\n")
@@ -55,14 +55,9 @@ func run(args []string, out io.Writer) error {
 		return fmt.Errorf("unexpected arguments %q: the files are the ones changed "+
 			"on this branch", fs.Args())
 	}
-	org, ok := knownOrg(*affiliation)
-	switch {
-	case *affiliation == "":
-		return fmt.Errorf("-affiliation is required, one of: %s",
-			strings.Join(organizations, ", "))
-	case !ok:
-		return fmt.Errorf("-affiliation %q is not in organizations.go: add it there, "+
-			"or name one of: %s", *affiliation, strings.Join(organizations, ", "))
+	org, err := checkAffiliation(*affiliation)
+	if err != nil {
+		return err
 	}
 
 	// bazel run starts the tool in its runfiles tree, outside the repository, and
@@ -95,7 +90,20 @@ func run(args []string, out io.Writer) error {
 	return nil
 }
 
-// change is one file whose claims were updated.
+func checkAffiliation(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	switch {
+	case name == "":
+		return "", errors.New("-affiliation is required: " +
+			"name the organization holding copyright on the changes")
+	case strings.ContainsAny(name, ",\r\n"):
+		// [splitHolders] splits a shared line on commas.
+		return "", fmt.Errorf("-affiliation %q must not contain a comma or a line break",
+			name)
+	}
+	return name, nil
+}
+
 type change struct {
 	file   string
 	before []string
@@ -108,7 +116,6 @@ type report struct {
 	skipped map[skipReason][]string
 }
 
-// process gives org a claim for year in each of files, which are relative to repo.
 func process(repo string, files []string, org string, year int) (*report, error) {
 	rep := &report{files: len(files), skipped: make(map[skipReason][]string)}
 	for _, file := range files {
@@ -140,8 +147,7 @@ func process(repo string, files []string, org string, year int) (*report, error)
 	return rep, nil
 }
 
-// splitLines returns the lines of text and the line ending it used.
-// A rewrite must not convert CRLF to LF as a side effect.
+// splitLines preserves CRLF because rewriting a header must not change every line.
 func splitLines(text string) ([]string, string) {
 	if strings.Contains(text, "\r\n") {
 		return strings.Split(text, "\r\n"), "\r\n"

@@ -1,44 +1,64 @@
 # copyright
 
-Gives your organization a copyright claim for the current year in every Go file
-changed on your branch. From the repository root:
+`copyright` gives an organization a current-year copyright claim in each Go file
+changed on the current branch. Run it from the repository root:
 
 ```sh
 go run ./tools/copyright -affiliation "SCION Association"
 ```
 
-`make copyright-update` runs the same through Bazel:
+To run the tool through Bazel:
 
 ```sh
 make copyright-update AFFILIATION="SCION Association"
 ```
 
-`-affiliation` must be one of the names in [organizations.go](organizations.go).
-If yours is missing, add it there.
+The tool matches `-affiliation` exactly against existing copyright holders.
+For example, `Scion Association` and `SCION Association` are different holders.
+The value cannot contain a comma because commas separate holders on a shared line.
 
 ## Which files
 
-Every Go file that differs between the working tree and the commit where the branch
-left `upstream/master`, or `origin/master` if there is no `upstream/master`.
-Committed, staged, unstaged and untracked changes all count; deleted files do not.
+The tool processes every Go file that differs between the working tree and the
+branch's merge base with `upstream/master`. If `upstream/master` does not exist,
+it uses `origin/master`. Committed, staged, unstaged, and untracked changes count.
+Deleted files do not.
 
 A fork names the main repository `upstream`, as [doc/dev/git.rst](../../doc/dev/git.rst)
-describes. There `origin/master` is the fork's own and lags behind unless it is synced,
-and every upstream commit it lacks would count as a change of the branch.
-If neither branch exists, the tool stops with an error.
+describes. The fork's `origin/master` may lag behind `upstream/master`, which would
+make upstream changes appear to belong to the current branch. The tool returns an
+error if neither branch exists.
 
 ## What changes
 
-The tool makes the smallest edit that gives the organization a claim for the current year:
+Each updated file contains one current-year claim for the organization:
 
-- A line that already claims this year or later for the organization: nothing changes.
-- A line the organization holds alone, for an earlier year: the year changes in place,
-  and nothing else on the line. Of several such lines, the newest one changes.
-- Otherwise `// Copyright <year> <organization>` is added below the existing claims.
-  A shared line, such as `// Copyright 2018 ETH Zurich, Anapaya Systems`, is never
-  edited: it also states the year of the other holder.
+- If a line already claims the current year or a later year for the organization,
+  the file does not change.
+- Otherwise, the newest line naming the organization moves to the current year.
+  The tool removes the organization from its older claims and deletes any claim
+  left without a holder. A line with one holder keeps its position and only its
+  year changes. A shared line splits, and the other holders retain their original
+  year:
 
-Claims are never reordered, removed or moved back. Every other line stays as it was.
+  ```txt
+  // Copyright 2017 ETH Zurich
+  // Copyright 2018 ETH Zurich, Anapaya Systems
+  // Copyright 2025 SCION Association
+  ```
+
+  becomes, for ETH Zurich:
+
+  ```txt
+  // Copyright 2026 ETH Zurich
+  // Copyright 2018 Anapaya Systems
+  // Copyright 2025 SCION Association
+  ```
+
+- If no line names the organization, the tool adds
+  `// Copyright <year> <organization>` below the existing claims.
+
+Claims retain their order. Years never decrease. Other lines remain unchanged.
 
 The report lists each edit:
 
@@ -54,25 +74,28 @@ updated 2 of 2 Go files changed since the merge base with upstream/master
 
 ## Files it leaves alone
 
-The report lists these with the reason:
+The tool reports and skips:
 
 - Generated files.
-- Third-party notices: a header claiming copyright in any form other than
-  `// Copyright <year> <organization>`. `// MIT License`,
-  `// Copyright (c) 2016 Max Mustermann` and `//  Copyright 2020 Some Other Labs, Inc.`
-  (two spaces) all occur here.
-- A well-formed line held by a holder not in organizations.go,
-  such as `// Copyright 2013 The Prometheus Authors`.
-- Files with no header. A claim goes above an Apache license block,
-  and a missing license is not invented; `goheader` flags those.
-- Files whose header does not open with the copyright line, an SPDX tag above it included.
-  The parser reads claims from the first line of the leading comment block,
-  so a tag belongs below the license block, as in `private/underlay/ebpf`.
+- Headers with a copyright notice in any form other than
+  `// Copyright <year> <organization>[, <organization>...]`. Examples include
+  `// Copyright (c) 2016 Max Mustermann` and
+  `//  Copyright 2020 Some Other Labs, Inc.` (two spaces).
+- Files with no copyright header or Apache license block. The tool can add a
+  claim above an existing license block, but it does not add a missing license.
+  `goheader` reports missing licenses.
+- Files where a copyright claim follows other text in the leading comment block.
+  This includes an SPDX tag above the claim. Put the SPDX tag below the license
+  block, as in `private/underlay/ebpf`.
+
+The tool accepts any holder in a correctly formed claim. For example, it adds
+the requested organization's claim below
+`// Copyright 2013 The Prometheus Authors`.
 
 ## Not part of make lint
 
-`goheader` in `.golangci.yml` enforces the shape of the header and the presence
-of the license text. It does not know who worked on the file.
+`goheader` in `.golangci.yml` checks the header format and license text. It does
+not track who changed the file.
 
-The tool is not wired into `make lint` or CI, deliberately, so it does not block PRs
-whose author does not want to update the claims.
+`make lint` and CI do not run this tool. A missing claim does not block a pull
+request.

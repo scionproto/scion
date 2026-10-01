@@ -8,7 +8,6 @@ go_library(
         "git.go",
         "header.go",
         "main.go",
-        "organizations.go",
     ],
     importpath = "github.com/scionproto/scion/tools/copyright",
     visibility = ["//visibility:private"],

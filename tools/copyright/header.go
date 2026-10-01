@@ -40,12 +40,10 @@ func (c claim) String() string {
 	return fmt.Sprintf("// Copyright %d %s", c.year, strings.Join(c.holders, ", "))
 }
 
-// header is the copyright block at the top of a file.
 type header struct {
-	// claims are the first len(claims) lines of the file, in order.
 	claims []claim
-	// separate appends the blank comment line goheader requires between the
-	// claims and the license text.
+	// separate records whether a new claim needs the blank
+	// comment line required by goheader before the license text.
 	separate bool
 }
 
@@ -53,14 +51,12 @@ type header struct {
 type skipReason string
 
 const (
-	skipGenerated   skipReason = "generated file"
-	skipNoHeader    skipReason = "no copyright header and no license block"
-	skipForeign     skipReason = "unrecognized copyright notice, possibly third-party"
-	skipUnknownOrgs skipReason = "copyright held by an organization not in organizations.go"
+	skipGenerated skipReason = "generated file"
+	skipNoHeader  skipReason = "no copyright header and no license block"
+	skipForeign   skipReason = "unrecognized copyright notice, possibly third-party"
 )
 
-// parseHeader locates the copyright claims in lines. It refuses any notice it does not
-// fully recognize: mangling a third-party notice is worse than leaving it outdated.
+// parseHeader rejects unrecognized notices to avoid changing third-party text.
 func parseHeader(lines []string) (*header, skipReason) {
 	// Only the leading run of "//" lines can hold a notice.
 	// Code below can mention copyright in a string or a comment of its own.
@@ -84,7 +80,7 @@ func parseHeader(lines []string) (*header, skipReason) {
 		}
 		holders, ok := splitHolders(m[2])
 		if !ok {
-			return nil, skipUnknownOrgs
+			return nil, skipForeign
 		}
 		claims = append(claims, claim{year: year, holders: holders})
 	}
@@ -110,31 +106,26 @@ func mentionsCopyright(line string) bool {
 	return strings.Contains(line, "Copyright") || strings.Contains(line, "copyright")
 }
 
-// splitHolders splits "SCION Association, Anapaya Systems" into its holders.
-// It reports false unless every holder is one of [organizations].
 func splitHolders(text string) ([]string, bool) {
 	parts := strings.Split(text, ",")
 	holders := make([]string, 0, len(parts))
 	for _, part := range parts {
-		org, ok := knownOrg(part)
-		if !ok {
+		holder := strings.TrimSpace(part)
+		if holder == "" {
 			return nil, false
 		}
-		holders = append(holders, org)
+		holders = append(holders, holder)
 	}
 	return holders, true
 }
 
-// update returns the claim lines of the header with org claiming year,
-// or nil when org already claims year or later and nothing needs to change.
-// lines is the file the header was parsed from.
+// update returns nil when org already claims year or later.
 //
-// A line org holds alone moves to year in place; of several, the newest does.
-// A line org shares is left alone, since it states the other holders' year too.
-// Without a line of its own, org gets one below the existing claims.
-// Either way the claims keep their order, and every other line stays as it was.
+// Otherwise, org's newest claim moves to year and org is removed from its
+// older claims. A shared line splits so that other holders retain their year.
+// A new claim goes below the existing claims. Claim order and unrelated lines remain.
 func (h *header) update(lines []string, org string, year int) []string {
-	alone := -1
+	newest := -1
 	for i, c := range h.claims {
 		if !slices.Contains(c.holders, org) {
 			continue
@@ -142,22 +133,43 @@ func (h *header) update(lines []string, org string, year int) []string {
 		if c.year >= year {
 			return nil
 		}
-		if len(c.holders) == 1 && (alone == -1 || c.year > h.claims[alone].year) {
-			alone = i
+		if newest == -1 || c.year > h.claims[newest].year {
+			newest = i
 		}
 	}
-	claims := slices.Clone(lines[:len(h.claims)])
-	if alone == -1 {
+	if newest == -1 {
+		claims := slices.Clone(lines[:len(h.claims)])
 		return append(claims, claim{year: year, holders: []string{org}}.String())
 	}
-	// The holder keeps the spelling the line gave it.
-	line := claims[alone]
-	m := claimLine.FindStringSubmatchIndex(line)
-	claims[alone] = line[:m[2]] + strconv.Itoa(year) + line[m[3]:]
+	claims := make([]string, 0, len(h.claims)+2)
+	for i, c := range h.claims {
+		at := slices.Index(c.holders, org)
+		switch {
+		case at == -1:
+			claims = append(claims, lines[i])
+		case i == newest && len(c.holders) == 1:
+			m := claimLine.FindStringSubmatchIndex(lines[i])
+			claims = append(claims, lines[i][:m[2]]+strconv.Itoa(year)+lines[i][m[3]:])
+		case i == newest:
+			for _, part := range []claim{
+				{year: c.year, holders: c.holders[:at]},
+				{year: year, holders: []string{org}},
+				{year: c.year, holders: c.holders[at+1:]},
+			} {
+				if len(part.holders) > 0 {
+					claims = append(claims, part.String())
+				}
+			}
+		case len(c.holders) == 1:
+			// An older line of org's own goes.
+		default:
+			others := slices.Delete(slices.Clone(c.holders), at, at+1)
+			claims = append(claims, claim{year: c.year, holders: others}.String())
+		}
+	}
 	return claims
 }
 
-// render returns lines with the claim block replaced by claims.
 func (h *header) render(lines, claims []string) []string {
 	out := make([]string, 0, len(claims)+1+len(lines)-len(h.claims))
 	out = append(out, claims...)

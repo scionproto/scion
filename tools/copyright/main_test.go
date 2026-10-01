@@ -61,3 +61,14 @@ left alone, generated file (1):
 updated 1 of 3 Go files changed since the merge base with upstream/master
 `, out.String())
 }
+
+func TestCheckAffiliation(t *testing.T) {
+	org, err := checkAffiliation("  SCION Association ")
+	require.NoError(t, err)
+	assert.Equal(t, "SCION Association", org)
+
+	for _, name := range []string{"", "  ", "Some Corp, Inc.", "Some\nCorp"} {
+		_, err := checkAffiliation(name)
+		assert.Error(t, err, "%q", name)
+	}
+}
