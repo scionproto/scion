@@ -1,13 +1,21 @@
 # copyright
 
 `copyright` gives an organization a current-year copyright claim in each Go file
-changed on the current branch. Run it from the repository root:
+changed on the current branch. Run it from the repository root.
+By default it prints the edits as a patch and changes no file:
 
 ```sh
 go run ./tools/copyright -affiliation "SCION Association"
 ```
 
-To run the tool through Bazel:
+`-w` also writes the edits to the files. `git apply` accepts the printed patch too:
+
+```sh
+go run ./tools/copyright -w -affiliation "SCION Association"
+go run ./tools/copyright -affiliation "SCION Association" | git apply
+```
+
+To write the edits through Bazel:
 
 ```sh
 make copyright-update AFFILIATION="SCION Association"
@@ -38,8 +46,7 @@ Each updated file contains one current-year claim for the organization:
 - Otherwise, the newest line naming the organization moves to the current year.
   The tool removes the organization from its older claims and deletes any claim
   left without a holder. A line with one holder keeps its position and only its
-  year changes. A shared line splits, and the other holders retain their original
-  year:
+  year changes. A shared line splits, and the other holders retain their original year:
 
   ```txt
   // Copyright 2017 ETH Zurich
@@ -60,16 +67,26 @@ Each updated file contains one current-year claim for the organization:
 
 Claims retain their order. Years never decrease. Other lines remain unchanged.
 
-The report lists each edit:
+The patch goes to stdout:
+
+```diff
+diff --git a/control/beaconing/writer.go b/control/beaconing/writer.go
+--- a/control/beaconing/writer.go
++++ b/control/beaconing/writer.go
+@@ -1,5 +1,5 @@
+ // Copyright 2019 Anapaya Systems
+-// Copyright 2025 SCION Association
++// Copyright 2026 SCION Association
+ //
+ // Licensed under the Apache License, Version 2.0 (the "License");
+ // you may not use this file except in compliance with the License.
+```
+
+The skipped files and a summary go to stderr:
 
 ```txt
-control/beaconing/writer.go
-    - // Copyright 2025 SCION Association
-    + // Copyright 2026 SCION Association
-dispatcher/config/config.go
-    + // Copyright 2026 SCION Association
-
-updated 2 of 2 Go files changed since the merge base with upstream/master
+would update 1 of 1 Go file changed since the merge base with upstream/master
+run `go run ./tools/copyright -w -affiliation "SCION Association"` to write the patch
 ```
 
 ## Files it leaves alone
@@ -88,14 +105,13 @@ The tool reports and skips:
   This includes an SPDX tag above the claim. Put the SPDX tag below the license
   block, as in `private/underlay/ebpf`.
 
-The tool accepts any holder in a correctly formed claim. For example, it adds
-the requested organization's claim below
+The tool accepts any holder in a correctly formed claim.
+For example, it adds the requested organization's claim below
 `// Copyright 2013 The Prometheus Authors`.
 
 ## Not part of make lint
 
-`goheader` in `.golangci.yml` checks the header format and license text. It does
-not track who changed the file.
+`goheader` in `.golangci.yml` checks the header format and license text.
+It doesn't track who changed the file.
 
-`make lint` and CI do not run this tool. A missing claim does not block a pull
-request.
+`make lint` and CI do not run this tool. A missing claim does not block a pull request.

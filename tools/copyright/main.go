@@ -22,30 +22,34 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"time"
 )
 
 func main() {
-	if err := run(os.Args, os.Stdout); err != nil {
+	if err := run(os.Args, os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintf(os.Stderr, "copyright: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(args []string, out io.Writer) error {
+// run writes the patch to stdout and the report to stderr, which leaves stdout
+// fit for git apply.
+func run(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet(args[0], flag.ExitOnError)
 	affiliation := fs.String("affiliation", "",
 		"organization holding copyright on the changes, "+
 			"spelled as in the copyright lines")
+	write := fs.Bool("w", false, "also write the patch to the files")
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(),
-			"usage: copyright -affiliation <organization>\n\n"+
-				"Add a current-year copyright claim for the organization to every\n"+
-				"Go file that differs from where the branch left upstream/master, or\n"+
-				"origin/master if there is no upstream/master. Uncommitted and\n"+
-				"untracked files count.\n\n")
+			"usage: copyright [-w] -affiliation <organization>\n\n"+
+				"Print a patch that gives the organization a current-year copyright\n"+
+				"claim in every Go file that differs from where the branch left\n"+
+				"upstream/master, or origin/master if there is no upstream/master.\n"+
+				"Uncommitted and untracked files count. -w also applies the patch.\n\n")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args[1:]); err != nil {
@@ -82,12 +86,31 @@ func run(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	rep, err := process(repo, files, org, time.Now().Year())
+	rep, err := process(repo, files, org, time.Now().Year(), *write)
 	if err != nil {
 		return err
 	}
-	rep.print(out, mainline)
+	for _, ch := range rep.changed {
+		writePatch(stdout, ch)
+	}
+	rep.print(stderr, mainline, writeCommand(org))
 	return nil
+}
+
+// writeCommand is the go run command, from the module root, that writes the patch.
+// os.Args[0] cannot give it, since go run starts a binary from a temporary path,
+// but the build info names the main package. It's empty when the binary was
+// built without that information.
+func writeCommand(org string) string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	pkg, ok := strings.CutPrefix(info.Path, info.Main.Path+"/")
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("go run ./%s -w -affiliation %q", pkg, org)
 }
 
 func checkAffiliation(name string) (string, error) {
@@ -104,20 +127,32 @@ func checkAffiliation(name string) (string, error) {
 	return name, nil
 }
 
+// change is the edit of one file. before and after are its claim block, the
+// separator a new claim needs included, and rest is the remainder of the file,
+// all as [splitLines] returns them.
 type change struct {
 	file   string
 	before []string
 	after  []string
+	rest   []string
+	eol    string
 }
 
 type report struct {
 	files   int
 	changed []change
+	written bool
 	skipped map[skipReason][]string
 }
 
-func process(repo string, files []string, org string, year int) (*report, error) {
-	rep := &report{files: len(files), skipped: make(map[skipReason][]string)}
+func process(
+	repo string, files []string, org string, year int, write bool,
+) (*report, error) {
+	rep := &report{
+		files:   len(files),
+		written: write,
+		skipped: make(map[skipReason][]string),
+	}
 	for _, file := range files {
 		full := filepath.Join(repo, file)
 		data, err := os.ReadFile(full)
@@ -134,14 +169,21 @@ func process(repo string, files []string, org string, year int) (*report, error)
 		if claims == nil {
 			continue
 		}
-		out := strings.Join(hdr.render(lines, claims), eol)
-		if err := os.WriteFile(full, []byte(out), 0o644); err != nil {
-			return nil, err
+		out := hdr.render(lines, claims)
+		rest := lines[len(hdr.claims):]
+		if write {
+			if err := os.WriteFile(
+				full, []byte(strings.Join(out, eol)), 0o644,
+			); err != nil {
+				return nil, err
+			}
 		}
 		rep.changed = append(rep.changed, change{
 			file:   file,
 			before: lines[:len(hdr.claims)],
-			after:  claims,
+			after:  out[:len(out)-len(rest)],
+			rest:   rest,
+			eol:    eol,
 		})
 	}
 	return rep, nil
@@ -155,22 +197,15 @@ func splitLines(text string) ([]string, string) {
 	return strings.Split(text, "\n"), "\n"
 }
 
-func (rep *report) print(w io.Writer, mainline string) {
+// print writes the skipped files and a summary. A run that left the files alone
+// ends with writeCmd, the command that writes the patch, or with -w if it is empty.
+func (rep *report) print(w io.Writer, mainline, writeCmd string) {
 	first := true
 	gap := func() {
 		if !first {
 			fmt.Fprintln(w)
 		}
 		first = false
-	}
-	if len(rep.changed) > 0 {
-		gap()
-	}
-	for _, ch := range rep.changed {
-		fmt.Fprintf(w, "%s\n", ch.file)
-		for _, line := range diffLines(ch.before, ch.after) {
-			fmt.Fprintf(w, "    %s\n", line)
-		}
 	}
 	for _, reason := range slices.Sorted(maps.Keys(rep.skipped)) {
 		files := rep.skipped[reason]
@@ -185,8 +220,19 @@ func (rep *report) print(w io.Writer, mainline string) {
 		fmt.Fprintf(w, "no Go files changed since the merge base with %s\n", mainline)
 		return
 	}
-	fmt.Fprintf(w, "updated %d of %s changed since the merge base with %s\n",
-		len(rep.changed), count(rep.files, "Go file", "Go files"), mainline)
+	verb := "would update"
+	if rep.written {
+		verb = "updated"
+	}
+	fmt.Fprintf(w, "%s %d of %s changed since the merge base with %s\n",
+		verb, len(rep.changed), count(rep.files, "Go file", "Go files"), mainline)
+	switch {
+	case rep.written || len(rep.changed) == 0:
+	case writeCmd == "":
+		fmt.Fprintf(w, "rerun with -w to write the patch\n")
+	default:
+		fmt.Fprintf(w, "run `%s` to write the patch\n", writeCmd)
+	}
 }
 
 func count(n int, one, many string) string {
@@ -194,30 +240,4 @@ func count(n int, one, many string) string {
 		return fmt.Sprintf("%d %s", n, one)
 	}
 	return fmt.Sprintf("%d %s", n, many)
-}
-
-// diffLines renders the change to the claim block as a -/+ listing.
-// [header.update] replaces or appends at most one line and never reorders,
-// which makes a set difference enough.
-func diffLines(before, after []string) []string {
-	old := make(map[string]bool, len(before))
-	for _, line := range before {
-		old[line] = true
-	}
-	fresh := make(map[string]bool, len(after))
-	for _, line := range after {
-		fresh[line] = true
-	}
-	var out []string
-	for _, line := range before {
-		if !fresh[line] {
-			out = append(out, "- "+line)
-		}
-	}
-	for _, line := range after {
-		if !old[line] {
-			out = append(out, "+ "+line)
-		}
-	}
-	return out
 }

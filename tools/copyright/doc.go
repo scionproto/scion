@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Command copyright adds a current-year copyright claim to changed Go files:
+// Command copyright prints a patch that adds a current-year copyright claim to
+// changed Go files. -w also writes it:
 //
 //	go run ./tools/copyright -affiliation "SCION Association"
-//	# the same through Bazel
+//	go run ./tools/copyright -w -affiliation "SCION Association"
+//	# -w through Bazel
 //	make copyright-update AFFILIATION="SCION Association"
 //
 // The comparison starts at the merge base with upstream/master, or origin/master

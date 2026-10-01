@@ -116,7 +116,7 @@ licenses:
 # make copyright-update AFFILIATION="SCION Association"
 # See tools/copyright/README.md for more info.
 copyright-update:
-	bazel run --config=quiet //tools/copyright -- -affiliation "$(AFFILIATION)"
+	bazel run --config=quiet //tools/copyright -- -w -affiliation "$(AFFILIATION)"
 
 antlr:
 	antlr/generate.sh fix
