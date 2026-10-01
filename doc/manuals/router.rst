@@ -2,9 +2,24 @@
 Router
 ******
 
-:program:`router` is the SCION router. Due to the encapsulation of SCION packets,
-this can use ordinary UDP sockets for network communication and so can run
-on almost any host system without requiring any special privileges.
+:program:`router` is the SCION border router. It forwards SCION packets between
+interfaces using an underlay network. Two underlay implementations are available
+for the UDP/IP underlay protocol:
+
+* **AF_XDP** (``afxdp``): The default on Linux. Uses
+  `AF_XDP sockets <https://docs.kernel.org/networking/af_xdp.html>`_ to bypass the kernel
+  network stack, delivering packets directly to userspace achieving higher performance.
+  Supports multi-queue NICs for high throughput. Requires Linux 5.9 or later
+  and capabilities ``CAP_NET_ADMIN``, ``CAP_NET_RAW``, and ``CAP_BPF``.
+
+* **Inet** (``inet``): Uses ordinary AF_INET UDP sockets. Portable to all
+  platforms supported by Go and requires no special privileges. Used as
+  a fallback when AF_XDP is unavailable.
+
+The implementation is selected via
+:option:`router.preferred_underlays.udpip <router-conf-toml udpip>`.
+If the preferred implementation is not available, the router falls back
+to any other registered implementation.
 
 .. TODO
    add reference to dataplane section
@@ -223,6 +238,245 @@ considers the following options.
 
          Can be overridden for specific inter-AS BFD sessions with
          :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
+
+   .. object:: neighbor
+
+      Limits for the packets a router keeps while it looks up a neighbor's MAC address.
+      These settings are read only by the "afxdp" underlay.
+      With "inet" the kernel does the lookup and its own settings apply.
+
+      The lookup takes a few milliseconds. Packets sent to unresolved neighbors wait
+      in a queue for that time instead of being dropped. Without the queue, the first
+      packets sent to a neighbor are always lost. That costs a beacon interval at
+      every hop while a topology comes up, and it breaks anything that sends once and
+      waits, such as ``scion ping -c 1``, since nothing sends those packets again.
+
+      The router follows what the Linux neighbor subsystem does, and takes its
+      defaults from the kernel it runs on. It differs in four places:
+
+      * The kernel measures its queue in bytes and allocates memory as it goes.
+        The router counts packets and takes them from a pool it allocated at startup,
+        which is why ``queue_len`` and ``queue_total`` exist.
+      * The kernel ages unused entries out of its table.
+        The router only enforces ``cache_max``.
+      * The router sends no ARP or NDP itself. It sends one UDP packet to the discard
+        port of the address, which makes the kernel do the lookup.
+      * The kernel answers the sender with an ICMP error when it gives up on an address.
+        The router says nothing, it just counts the packets it drops and leaves
+        the sender to time out.
+
+      .. option:: queue_len = <int> (Default: 3)
+
+         How many packets are kept for one neighbor.
+         They are sent in the order they arrived.
+         When the queue is full, the oldest one is dropped to make room for the newest.
+         :rfc:`1122`, section 2.3.2.2 asks for at least one.
+
+      .. option:: queue_total = <int> (Default: 64)
+
+         How many packets a link keeps for all of its neighbors together.
+         This puts a ceiling on the buffers that someone sending to addresses that
+         never answer can tie up.
+
+      .. option:: cache_max = <int> (Default: ``net.ipv4.neigh.default.gc_thresh3``)
+
+         How many neighbors a link remembers. Older entries are dropped to stay under
+         this number. Dropping one costs a single kernel lookup the next time that
+         neighbor is used.
+
+         The default is read once at startup from
+         ``/proc/sys/net/ipv4/neigh/default/gc_thresh3``, or ``1024`` when that file cannot
+         be read. The IPv6 table holds the same values as the IPv4 one, which is why
+         only the latter is read.
+
+      .. option:: probe_interval = <duration> (Default: ``net.ipv4.neigh.default.retrans_time_ms``)
+
+         How long to wait before asking again for an address that has not answered.
+
+         The default is read once at startup from
+         ``/proc/sys/net/ipv4/neigh/default/retrans_time_ms``,
+         or ``1s`` when that file cannot be read.
+
+      .. option:: probe_attempts = <int> (Default: ``net.ipv4.neigh.default.mcast_solicit``)
+
+         How many times an address is asked for before the router gives up and drops the
+         packets waiting for it. With ``probe_interval`` this sets the longest a packet
+         can wait. A packet that arrives after its sender gave up is of no use,
+         and it holds a buffer until then.
+
+         The default is read once at startup from
+         ``/proc/sys/net/ipv4/neigh/default/mcast_solicit``,
+         or ``3`` when that file cannot be read.
+
+   .. object:: preferred_underlays
+
+      .. option:: udpip = <string>, default = "afxdp"
+
+         Selects an implementation for the "udpip" underlay protocol. If the preferred
+         implementation is not available then any other available implementation is selected.
+         As of this writing, two implementations exist for the "udpip" underlay protocol:
+
+         * "inet": An implementation based on AF_INET sockets and portable to many Unix-like
+           platforms.
+         * "afxdp": An implementation based on AF_XDP sockets and eBPF filtering, which
+           is less portable and requires Linux 5.9 or later (for BPF link-based XDP
+           attachment). See :ref:`router-afxdp-prerequisites`.
+
+         In the absence of ``preferred_underlays``, "afxdp" is preferred; falling back to
+         "inet".
+
+      .. option:: <underlay_protocol> = <string>
+
+         Sets the given string as the preferred implementation for the given underlay protocol.
+         The ``preferred_underlays`` section is handled as a map, so any key may be used (to
+         designate future underlay protocols). Entries for nonexistent underlay protocols are
+         silently ignored.
+
+.. _router-afxdp-prerequisites:
+
+AF_XDP Prerequisites
+--------------------
+
+The ``afxdp`` underlay implementation requires:
+
+* **Linux 5.9 or later**: AF_XDP is a Linux-specific API. On non-Linux platforms or older
+  kernels, the router automatically falls back to the ``inet`` implementation.
+
+* **Linux capabilities**: The following capabilities must be granted to the router process:
+
+  - ``CAP_NET_ADMIN`` -- required for attaching the XDP program to network interfaces.
+  - ``CAP_NET_RAW`` -- required for creating AF_XDP sockets.
+  - ``CAP_BPF`` -- required for loading the eBPF program.
+
+  The provided systemd unit file (``scion-router@.service``) already grants these capabilities
+  via ``AmbientCapabilities``. On OpenWrt, the init script grants them via ``setcap``.
+
+* **NIC driver support**: Zero-copy mode (``XDP_ZEROCOPY``) requires driver support.
+  If the driver does not support zero-copy, the implementation silently falls back to
+  copy mode (``XDP_COPY``). Copy mode works with any NIC driver that supports XDP but
+  achieves lower performance due to the additional data copy between kernel and userspace.
+
+* **Hugepages** (optional): For best performance, 2 MB hugepages should be available for UMEM
+  allocation. The underlay automatically falls back to normal pages if hugepages are unavailable.
+
+If the kernel or capability requirements are not met, the router automatically falls back
+to the ``inet`` underlay.
+
+.. _router-afxdp-options:
+
+AF_XDP Per-Link Options
+-----------------------
+
+When using the ``afxdp`` underlay, each interface entry in ``topology.json`` can include
+an ``options`` field containing a JSON object with AF_XDP tuning parameters. All fields
+are optional; defaults are chosen for general-purpose use.
+
+.. code-block:: json
+   :caption: Example ``underlay.options`` for AF_XDP tuning.
+
+   {
+      "rx_queues": [0, 1, 2, 3],
+      "tx_queues": [0, 1],
+      "prefer_zerocopy": true,
+      "prefer_hugepages": true,
+      "num_frames": 4096,
+      "frame_size": 2048,
+      "rx_size": 2048,
+      "tx_size": 2048,
+      "cq_size": 2048,
+      "batch_size": 64
+   }
+
+.. program:: router-afxdp-options
+
+.. option:: rx_queues = [<uint32>, ...]
+
+   Explicit list of NIC queue IDs to use for receiving packets. Each listed
+   queue gets an AF_XDP socket with a receiver goroutine, and incoming packets
+   on that queue are dispatched to the appropriate link.
+
+   Can be combined with ``tx_queues`` to configure RX and TX independently
+   (e.g. when a NIC has more RX queues than TX queues).
+
+   If omitted, RX queues are auto-detected from
+   ``/sys/class/net/<interface>/queues/rx-*``.
+
+.. option:: tx_queues = [<uint32>, ...]
+
+   Explicit list of NIC queue IDs to use for sending packets. Outgoing packets
+   are distributed across these queues via a flow hash to prevent reordering.
+
+   Can be combined with ``rx_queues`` to configure RX and TX independently.
+
+   If omitted, TX queues are auto-detected from
+   ``/sys/class/net/<interface>/queues/tx-*``.
+
+.. option:: prefer_zerocopy = <bool> (Default: true)
+
+   Prefer ``XDP_ZEROCOPY`` mode, which avoids copying packet data between
+   kernel and userspace. Falls back to ``XDP_COPY`` if the NIC driver does
+   not support zero-copy.
+
+   Setting this to ``false`` forces copy mode, which is only useful for
+   debugging or benchmarking.
+
+.. option:: prefer_hugepages = <bool> (Default: true)
+
+   Prefer 2 MB hugepages for UMEM allocation. Falls back to normal pages if
+   hugepages are not available.
+
+.. option:: num_frames = <uint32> (Default: 4096)
+
+   Total number of UMEM frames. Must be a power of two and at least
+   ``rx_size + tx_size``.
+
+   Each frame holds one packet. The total UMEM memory
+   consumed per queue is ``num_frames * frame_size`` bytes. Increasing this
+   value allows more packets to be in-flight simultaneously, which helps
+   absorb traffic bursts at the cost of higher memory usage.
+
+.. option:: frame_size = <uint32> (Default: 2048)
+
+   Size of each UMEM frame in bytes. Must be a power of two, at least 2048,
+   and at most the system page size (typically 4096).
+
+   Each frame must be large enough to hold a full SCION packet including the
+   underlay (Ethernet, IP, and UDP) headers. The default of 2048 is sufficient for
+   standard MTU traffic.
+
+.. option:: rx_size = <uint32> (Default: 2048)
+
+   Number of descriptors in the RX ring. Must be a power of two.
+
+   A larger ring absorbs incoming traffic bursts without dropping packets when the
+   application is temporarily slow to consume them. Requires more UMEM frames
+   to be available (see ``num_frames``).
+
+.. option:: tx_size = <uint32> (Default: 2048)
+
+   Number of descriptors in the TX ring. Must be a power of two.
+
+   A larger ring allows more outgoing packets to be queued before the NIC completes
+   transmission, reducing backpressure to the packet processors under
+   bursty forwarding loads. Requires more UMEM frames to be available (see
+   ``num_frames``).
+
+.. option:: cq_size = <uint32> (Default: 2048)
+
+   Number of descriptors in the completion ring. Must be a power of two.
+
+   The completion ring returns transmitted frame addresses back to userspace.
+   A larger ring prevents TX stalls when the NIC takes longer to complete
+   transmissions, at the cost of additional kernel memory. Should generally
+   match ``tx_size``.
+
+.. option:: batch_size = <uint32> (Default: 64)
+
+   Number of packets batched per TX submission. Must be non-zero.
+   Values above 256 are capped to 256.
+
+   Larger batches amortize per-syscall overhead but increase per-packet latency.
+   Values that are too large can cause latency spikes, especially in copy mode.
 
 .. _router-conf-topo:
 
