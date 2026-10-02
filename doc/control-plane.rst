@@ -26,7 +26,7 @@ control plane.
 It is the main control-plane infrastructure component within each SCION :term:`AS`.
 The control service of an AS has the following tasks:
 
-- Generating, receiving, and propagating :term:`Path Construction Beacons (PCBs) <PCB>`.
+- Generating, receiving, and propagating :term:`Path-Segment Construction Beacons (PCBs) <PCB>`.
 - Selecting and registering the set of path segments via which the AS wants to be reached.
 - Managing certificates and keys to secure inter-AS communication.
 
@@ -83,9 +83,12 @@ In the open source SCION implementation, the origination and propagation interva
 :option:`beaconing.origination_interval <control-conf-toml beaconing.origination_interval>` and
 :option:`beaconing.propagation_interval <control-conf-toml beaconing.propagation_interval>`.
 Received PCBs are stored in the :option:`beacon_db <control-conf-toml beacon_db>`.
-The propagation :ref:`beaconing policy <control-conf-beacon-policies>` controls the selection,
-including the number of PCBs propagated per origin AS
-(:option:`BestSetSize <control-conf-beacon-policy BestSetSize>`).
+The propagation :ref:`beaconing policy <control-conf-beacon-policies>` controls the selection.
+Its :option:`BestSetSize <control-conf-beacon-policy BestSetSize>` limits the number of PCBs
+propagated per origin AS in a core AS, and in total in a non-core AS.
+The draft recommends values for the propagation interval and the best PCBs set size in
+`Propagation Interval and Best PCBs Set Size
+<https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-propagation-interval-and-be>`_.
 
 AS Entries
 ----------
@@ -190,6 +193,10 @@ path-resolution process and returns fully formed end-to-end paths to application
 However, applications could also choose to bypass the daemon and perform the path-resolution
 directly.
 
+The rules for combining path segments are specified in `Path Construction (Segment Combinations)
+<https://www.ietf.org/archive/id/draft-dekater-scion-dataplane-15.html#name-path-construction-segment-c>`_
+in the IETF SCION Data Plane draft.
+
 The figures below illustrate the various ways in which segments can be combined
 to form end-to-end paths.
 See the description of the :ref:`SCION Path<path-type-scion>` for the specifics on how these
@@ -215,7 +222,7 @@ end-to-end paths are encoded in the packet header.
 
    :doc:`data-plane`
       Description of SCION packet header formats and processing rules for packet forwarding based
-      the packed-carried forwarding state.
+      on the packet-carried forwarding state.
 
    `IETF Draft SCION Control Plane <https://datatracker.ietf.org/doc/draft-dekater-scion-controlplane/>`_
       Formal description and specification of the SCION control plane.
