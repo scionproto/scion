@@ -75,7 +75,17 @@ child links.
 
 The origination, propagation, and selection of PCBs, and the PCB message format, are specified in
 `Path Exploration or Beaconing
-<https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-path-exploration-or-beaconi>`_.
+<https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-path-exploration-or-beaconi>`_
+in the draft.
+
+In the open source SCION implementation, the origination and propagation intervals of the
+:doc:`control service <manuals/control>` are set by
+:option:`beaconing.origination_interval <control-conf-toml beaconing.origination_interval>` and
+:option:`beaconing.propagation_interval <control-conf-toml beaconing.propagation_interval>`.
+Received PCBs are stored in the :option:`beacon_db <control-conf-toml beacon_db>`.
+The propagation :ref:`beaconing policy <control-conf-beacon-policies>` controls the selection,
+including the number of PCBs propagated per origin AS
+(:option:`BestSetSize <control-conf-beacon-policy BestSetSize>`).
 
 AS Entries
 ----------
@@ -94,8 +104,9 @@ geographic locations of the AS routers, latencies, etc.
 
 See `AS Entry
 <https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-as-entry>`_
-for the message format and signature inputs, or :file-ref:`proto/control_plane/v1/seg.proto` for the
-raw protocol definitions used in this project.
+in the draft for the message format and signature inputs, or
+:file-ref:`proto/control_plane/v1/seg.proto` for the raw protocol definitions used in the
+open source SCION implementation.
 
 Peering Links
 -------------
@@ -106,7 +117,8 @@ entries of PCBs.
 If both ASes at either end of a peering link have registered path segments that include a specific
 peering link, then it can be used during segment combination to create an end-to-end path.
 See `Peering Links
-<https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-peering-links>`_.
+<https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-peering-links>`_
+in the draft.
 
 .. _control-plane-registration:
 
@@ -121,12 +133,19 @@ lookup process.
 Up-segments are registered in the local path database of the AS.
 Down-segments are registered, via a remote-procedure call, with the control service of the core AS
 that originated the PCB.
-Core-segments are added to the local path database of the core AS that created the segment; there is
+Core-segments are added to the local path database of the core AS that terminates the PCB; there is
 no need to register them with other core ASes, as each core AS receives PCBs originated by every
 other core AS.
 The `intra-ISD <https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-intra-isd-path-segment-regi>`_
 and `core <https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-core-path-segment-registrat>`_
 registration procedures are specified in the draft.
+
+In the open source SCION implementation, the :doc:`control service <manuals/control>` registers
+path segments every
+:option:`beaconing.registration_interval <control-conf-toml beaconing.registration_interval>`.
+The registration :ref:`beaconing policies <control-conf-beacon-policies>` control which PCBs are
+selected for each segment type, and the path database is the
+:option:`path_db <control-conf-toml path_db>`.
 
 Path Lookup
 ===========
@@ -138,12 +157,12 @@ up to three path segments:
 - a core-segment to reach a core AS in the destination ISD (either the source ISD or a remote one), and
 - a down-segment to reach the destination AS.
 
-The source AS's control service serves up-segments from its own path database, fetches core-segments
-from the reachable core ASes in the source ISD, and fetches down-segments from the core ASes in the
-destination ISD; it returns the segments to the endpoint, which combines them into end-to-end paths.
+The endpoint requests the segments from the control service of its own AS, which fetches core- and
+down-segments from the control services listed in the table below.
 All remote path-segment lookups by the control service are cached.
 The lookup sequence and message formats are specified in `Path Lookup
-<https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-path-lookup>`_.
+<https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-18.html#name-path-lookup>`_
+in the draft.
 
 On SCION end hosts, a :doc:`SCION daemon <manuals/daemon>` is usually employed to do the
 path-lookup on behalf of applications. This SCION daemon also caches path-segment lookup results.
