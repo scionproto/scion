@@ -1,3 +1,4 @@
+// Copyright 2026 SCION Association
 // Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,6 +39,20 @@ func TestHopSerializeDecode(t *testing.T) {
 	got := &path.HopField{}
 	assert.NoError(t, got.DecodeFromBytes(b))
 	assert.Equal(t, want, got)
+}
+
+// TestTTLBounds tests that a hop field lives at least 337.5s and at most 24h,
+// the two extremes of the expiration formula in the data plane
+// specification [1]. The minimum is also the tolerance that routers allow for
+// info field timestamps in the future [2].
+//
+// [1] https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-2.4.2.4
+// [2] https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-2.4.2.3
+func TestTTLBounds(t *testing.T) {
+	assert.Equal(t, 24*time.Hour, path.MaxTTL)
+	assert.Equal(t, 337_500*time.Millisecond, path.MinTTL)
+	assert.Equal(t, path.MinTTL, path.ExpTimeToDuration(0))
+	assert.Equal(t, path.MaxTTL, path.ExpTimeToDuration(255))
 }
 
 func TestExpTimeFromDuration(t *testing.T) {
