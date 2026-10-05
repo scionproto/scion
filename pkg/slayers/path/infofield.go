@@ -112,15 +112,16 @@ func (inf *InfoField) SerializeTo(b []byte) (err error) {
 }
 
 // UpdateSegID updates the SegID field by XORing the SegID field with the 2
-// first bytes of the MAC. It is the beta calculation, which the data plane
-// specification calls the accumulator Acc:
-// https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-4.1.1.2
+// first bytes of the MAC. It is the beta calculation, called the accumulator
+// Acc in [draft section 4.1.1.2].
 //
 //	UpdateSegID only accesses and modifies the contents of inf.SegID.
 //
 // @ preserves acc(&inf.SegID)
 // UpdateSegID always terminates.
 // @ decreases
+//
+// [draft section 4.1.1.2]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-4.1.1.2
 func (inf *InfoField) UpdateSegID(hfMac [MacLen]byte) {
 	//@ share hfMac
 	inf.SegID = inf.SegID ^ binary.BigEndian.Uint16(hfMac[:2])

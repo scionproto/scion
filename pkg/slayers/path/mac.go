@@ -22,10 +22,11 @@ import (
 
 const MACBufferSize = 16
 
-// MAC calculates the HopField MAC according to
-// https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-4.1.1.1
-// this method does not modify info or hf.
+// MAC calculates the [HopField] MAC according to [draft section 4.1.1.1].
+// This method does not modify info or hf.
 // Modifying the provided buffer after calling this function may change the returned HopField MAC.
+//
+// [draft section 4.1.1.1]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-4.1.1.1
 func MAC(h hash.Hash, info InfoField, hf HopField, buffer []byte) [MacLen]byte {
 	mac := FullMAC(h, info, hf, buffer)
 	var res [MacLen]byte
@@ -33,11 +34,12 @@ func MAC(h hash.Hash, info InfoField, hf HopField, buffer []byte) [MacLen]byte {
 	return res
 }
 
-// FullMAC calculates the HopField MAC according to
-// https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-4.1.1.1
-// this method does not modify info or hf.
+// FullMAC calculates the [HopField] MAC according to [draft section 4.1.1.1].
+// This method does not modify info or hf.
 // Modifying the provided buffer after calling this function may change the returned HopField MAC.
-// In contrast to MAC(), FullMAC returns all the 16 bytes instead of only 6 bytes of the MAC.
+// In contrast to [MAC], FullMAC returns all the 16 bytes instead of only 6 bytes of the MAC.
+//
+// [draft section 4.1.1.1]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-4.1.1.1
 func FullMAC(h hash.Hash, info InfoField, hf HopField, buffer []byte) []byte {
 	if len(buffer) < MACBufferSize {
 		buffer = make([]byte, MACBufferSize)

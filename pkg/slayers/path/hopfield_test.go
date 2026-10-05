@@ -42,12 +42,12 @@ func TestHopSerializeDecode(t *testing.T) {
 }
 
 // TestTTLBounds tests that a hop field lives at least 337.5s and at most 24h,
-// the two extremes of the expiration formula in the data plane
-// specification [1]. The minimum is also the tolerance that routers allow for
-// info field timestamps in the future [2].
+// the two extremes of the expiration formula in [draft section 2.4.2.4].
+// The minimum is also the tolerance that routers allow for info field
+// timestamps in the future, as defined in [draft section 2.4.2.3].
 //
-// [1] https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-2.4.2.4
-// [2] https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-2.4.2.3
+// [draft section 2.4.2.4]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-2.4.2.4
+// [draft section 2.4.2.3]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-2.4.2.3
 func TestTTLBounds(t *testing.T) {
 	assert.Equal(t, 24*time.Hour, path.MaxTTL)
 	assert.Equal(t, 337_500*time.Millisecond, path.MinTTL)

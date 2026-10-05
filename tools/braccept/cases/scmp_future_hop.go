@@ -33,7 +33,7 @@ import (
 
 // SCMPFutureHop tests a packet whose current info field has a timestamp in the future.
 // Such a path must be rejected: otherwise the validity of its hop fields could be
-// extended beyond path.MaxTTL.
+// extended beyond [path.MaxTTL].
 func SCMPFutureHop(artifactsDir string, mac hash.Hash) runner.Case {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,

@@ -884,7 +884,7 @@ func TestProcessPkt(t *testing.T) {
 			assertFunc: notDiscarded,
 		},
 		// The timestamp of the current info field must not lie in the future: else the
-		// validity of the hop fields could be extended beyond path.MaxTTL. See #4534.
+		// validity of the hop fields could be extended beyond [path.MaxTTL]. See #4534.
 		"inbound_future_timestamp": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
