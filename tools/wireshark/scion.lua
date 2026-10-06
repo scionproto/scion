@@ -1,4 +1,5 @@
 scion_proto = Proto("scion", "SCION Protocol")
+print("SCION dissector loaded @ " .. os.date())
 
 local pathTypes = {
     [0] = "Empty",
@@ -130,7 +131,7 @@ scion_proto.experts = {
 }
 
 -- This function heuristically identifies SCION packets. If the packet looks like it may be
--- a SCION packet, it returns true, which causes the associated scion disector to be invoked.
+-- a SCION packet, it returns true, which causes the associated scion dissector to be invoked.
 -- This doesn't have much data available to weed out non-SCION packets. False positives end-up being
 -- described as broken SCION packets and are not passed to the vanilla UDP parser.
 -- However, with the removal of the dispatcher, we have no narrow set of UDP ports to identify
@@ -142,7 +143,7 @@ local function scion_proto_filter(tvbuf, pktinfo, root)
     local addr_type_dst_valid = (addrTypes[bit.rshift(tvbuf(9, 1):uint(), 4)] ~= nil)
     local addr_type_src_valid = (addrTypes[bit.band(tvbuf(9, 1):uint(), 0xf)] ~= nil)
     local rsv_valid = (tvbuf(10, 2):uint() == 0)
-    
+
     if not (version_valid and next_hdr_valid and path_type_valid and addr_type_dst_valid and addr_type_src_valid and rsv_valid) then
        return false
     end
@@ -458,8 +459,9 @@ function scion_path_info_dissect(tvbuf, pktinfo, root, index)
     tree:add(spath_info_rsv, tvbuf(1, 1))
     tree:add(spath_info_seg_id, tvbuf(2, 2))
     tree:add(spath_info_ts, tvbuf(4, 4))
-
-    return tvbuf(4, 4)
+    -- SCION info timestamp is seconds (uint32)
+    local ts_sec = tvbuf(4, 4):uint()
+    return NSTime.new(ts_sec, 0)
 end
 
 function scion_path_hop_dissect(tvbuf, pktinfo, root, index, ts)
@@ -470,8 +472,12 @@ function scion_path_hop_dissect(tvbuf, pktinfo, root, index, ts)
     tree:add(spath_hop_flag_eg_alert, tvbuf(0, 1))
     tree:add(spath_hop_exp, tvbuf(1, 1))
     local raw_exp_time = (tvbuf(1, 1):uint() + 1) * HOP_EXP_UNIT
-    tree:add(spath_hop_exp_rel, tvbuf(1, 1), NSTime.new(raw_exp_time))
-    tree:add(spath_hop_exp_abs, tvbuf(1, 1), NSTime.new((raw_exp_time) + ts:uint()))
+    -- raw_exp_time can be a floating point number. Divide it into secs and nanosecs as integers.
+    local sec  = math.floor(raw_exp_time)
+    local nsec = math.floor((raw_exp_time - sec) * 1e9)
+    tree:add(spath_hop_exp_rel, tvbuf(1, 1), NSTime.new(sec, nsec))
+    tree:add(spath_hop_exp_abs, tvbuf(1, 1), NSTime.new(sec + ts.secs, nsec + ts.nsecs))
+
     tree:add(spath_hop_cons_ingress, tvbuf(2, 2))
     tree:add(spath_hop_cons_egress, tvbuf(4, 2))
     tree:add(spath_hop_mac, tvbuf(6, 6))
