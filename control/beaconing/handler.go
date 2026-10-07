@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +19,7 @@ import (
 	"context"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -124,6 +126,9 @@ func (h Handler) validateASEntry(b beacon.Beacon, intf *ifstate.Interface) error
 func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 	peer *snet.UDPAddr) error {
 
+	if err := segverifier.VerifyTimestamp(segment, time.Now()); err != nil {
+		return err
+	}
 	peerPath, err := peer.GetPath()
 	if err != nil {
 		return err
