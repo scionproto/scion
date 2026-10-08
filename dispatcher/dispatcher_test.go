@@ -17,6 +17,7 @@ package dispatcher
 import (
 	"net"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -379,6 +380,56 @@ func TestValidateAddr(t *testing.T) {
 		})
 	}
 
+}
+
+func TestValidatePayloadLen(t *testing.T) {
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer conn.Close()
+	server := NewServer(true, nil, conn)
+
+	dstAddr := netip.MustParseAddr("127.0.0.1")
+	raw := MustPack(snet.Packet{
+		PacketInfo: snet.PacketInfo{
+			Source: snet.SCIONAddress{
+				IA:   addr.MustParseIA("1-ff00:0:2"),
+				Host: addr.MustParseHost("127.0.0.2"),
+			},
+			Destination: snet.SCIONAddress{
+				IA:   addr.MustParseIA("1-ff00:0:1"),
+				Host: addr.HostIP(dstAddr),
+			},
+			Payload: snet.UDPPayload{
+				SrcPort: 20001,
+				DstPort: 40001,
+				Payload: []byte("hello packet"),
+			},
+			Path: path.Empty{},
+		},
+	})
+
+	testCases := map[string]struct {
+		input         []byte
+		expectedValue bool
+	}{
+		"exact": {
+			input:         raw,
+			expectedValue: true,
+		},
+		"truncated": {
+			input: raw[:len(raw)-1],
+		},
+		"trailing bytes": {
+			input: append(slices.Clone(raw), 0xff),
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			_, nextHop, err := server.processMsgNextHop(tc.input, dstAddr, netip.AddrPort{})
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedValue, nextHop.IsValid())
+		})
+	}
 }
 
 func MustPack(pkt snet.Packet) []byte {
