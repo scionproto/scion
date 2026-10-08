@@ -44,7 +44,11 @@ func GetMetrics() *Metrics {
 
 type Disposition disposition
 
-const PDiscard = Disposition(pDiscard)
+const (
+	PDiscard  = Disposition(pDiscard)
+	PForward  = Disposition(pForward)
+	PSlowPath = Disposition(pSlowPath)
+)
 
 // Implements the link interface minimally
 type MockLink struct {
