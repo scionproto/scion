@@ -129,6 +129,8 @@ type BFD struct {
 	DetectMult            uint8        `json:"detect_mult,omitempty"`
 	DesiredMinTxInterval  util.DurWrap `json:"desired_min_tx_interval,omitempty"`
 	RequiredMinRxInterval util.DurWrap `json:"required_min_rx_interval,omitempty"`
+	DisableRTT            bool         `json:"disable_rtt,omitempty"`
+	RTTEWMAWeight         float64      `json:"rtt_ewma_weight,omitempty"`
 }
 
 func (i ServerInfo) String() string {

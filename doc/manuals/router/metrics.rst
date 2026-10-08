@@ -117,6 +117,32 @@ router in the local AS.
 
 **Labels**: ``sibling`` and ``isd_as``.
 
+BFD RTT estimate (inter-AS)
+---------------------------
+
+**Name**: ``router_bfd_rtt_estimate_seconds``
+
+**Type**: Gauge
+
+**Description**: Smoothed estimate of the round-trip time to a remote router, in
+seconds, measured with BFD Poll Sequences. The value is 0 if no estimate is
+available, e.g., because the BFD session is down.
+
+**Labels**: ``interface``, ``isd_as`` and ``neighbor_isd_as``.
+
+BFD RTT estimate (intra-AS)
+---------------------------
+
+**Name**: ``router_bfd_sibling_rtt_estimate_seconds``
+
+**Type**: Gauge
+
+**Description**: Smoothed estimate of the round-trip time to a sibling router,
+in seconds, measured with BFD Poll Sequences. The value is 0 if no estimate is
+available, e.g., because the BFD session is down.
+
+**Labels**: ``sibling`` and ``isd_as``.
+
 Service instance count
 ----------------------
 

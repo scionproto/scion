@@ -67,3 +67,23 @@ protocol. The plan is to use UDP/BFD inside in the SCION payload.
 
 Any other BFD packets (e.g. packets with standard SCION path) are invalid and
 must be dropped by the SCION router.
+
+Poll Sequences and RTT Estimation
+---------------------------------
+
+SCION router has limited support for Poll Sequences (:rfc:`5880#section-6.5`). Upon receiving a BFD
+packet with the Poll (P) bit set, it immediately responds with a packet that has the Final (F) bit
+set.
+
+SCION router uses Poll Sequences to estimate round-trip time to its peers. If this feature is
+enabled, the Poll bit is periodically set in one of the scheduled BFD packets. The time between
+sending the Poll packet and receiving Final from the BFD peer is used to estimate the RTT. If no
+Final is received within one transmission interval, the Poll Sequence is aborted an no RTT estimate
+provided. In practice this limits the minimum RTT that can be measured reliably to about 75% of the
+transmission interval as BFD allows up to 25% jitter.
+
+If a Poll Sequence fails, the interval until the next attempt is increased to up to 10 seconds.
+Conversely, if the Poll Sequence succeeds, the poll interval is reduced with a floor at twice the
+transmission interval. Poll Sequences may fail because the RTT is higher than the transmission
+interval, because a BFD packet was lost, or because the remote router does not support Poll
+Sequences.
