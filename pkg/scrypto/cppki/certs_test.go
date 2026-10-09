@@ -131,6 +131,30 @@ var generalCases = map[string]testCase{
 		},
 		assertErr: assert.Error,
 	},
+	"invalid duplicate issuer IA": {
+		modify: func(c *x509.Certificate) *x509.Certificate {
+			for _, name := range c.Issuer.Names {
+				if name.Type.Equal(cppki.OIDNameIA) {
+					c.Issuer.Names = append(c.Issuer.Names, name)
+					break
+				}
+			}
+			return c
+		},
+		assertErr: assert.Error,
+	},
+	"invalid duplicate subject IA": {
+		modify: func(c *x509.Certificate) *x509.Certificate {
+			for _, name := range c.Subject.Names {
+				if name.Type.Equal(cppki.OIDNameIA) {
+					c.Subject.Names = append(c.Subject.Names, name)
+					break
+				}
+			}
+			return c
+		},
+		assertErr: assert.Error,
+	},
 }
 
 var commonCACases = map[string]testCase{

@@ -67,12 +67,8 @@ var (
 	}
 )
 
-var (
-	// ErrInvalidCertType indicates an invalid certificate type.
-	ErrInvalidCertType = serrors.New("invalid certificate type")
-
-	errIANotFound = serrors.New("ISD-AS not found")
-)
+// ErrInvalidCertType indicates an invalid certificate type.
+var ErrInvalidCertType = serrors.New("invalid certificate type")
 
 // CertType describes the type of the SCION certificate.
 type CertType int
@@ -529,26 +525,28 @@ func subjectAndIssuerIASet(c *x509.Certificate) error {
 	return errs.ToError()
 }
 
-// ExtractIA extracts the ISD-AS from the distinguished name. If the ISD-AS
-// number is not present in the distinguished name, an error is returned.
+// ExtractIA extracts the ISD-AS from the distinguished name.
+// Returns an error unless the ISD-AS appears exactly once.
 func ExtractIA(dn pkix.Name) (addr.IA, error) {
 	ia, err := findIA(dn)
 	if err != nil {
 		return 0, err
 	}
 	if ia == nil {
-		return 0, errIANotFound
+		return 0, serrors.New("ISD-AS not found")
 	}
 	return *ia, nil
 }
 
-// findIA extracts the ISD-AS from the distinguished name if it exists. If the
-// ISD-AS number is not present in the distinguished name, it returns nil. If
-// the ISD-AS number is not parsable, an error is returned.
+// findIA is like ExtractIA, but returns nil if the ISD-AS is missing.
 func findIA(dn pkix.Name) (*addr.IA, error) {
+	var found *addr.IA
 	for _, name := range dn.Names {
 		if !name.Type.Equal(OIDNameIA) {
 			continue
+		}
+		if found != nil {
+			return nil, serrors.New("multiple ISD-AS attributes")
 		}
 		rawIA, ok := name.Value.(string)
 		if !ok {
@@ -564,10 +562,9 @@ func findIA(dn pkix.Name) (*addr.IA, error) {
 		if ia.String() != rawIA {
 			return nil, serrors.New("ISD-AS not in canonical form", "isd_as", ia)
 		}
-		return &ia, nil
+		found = &ia
 	}
-	// not found
-	return nil, nil
+	return found, nil
 }
 
 func commonVotingValidation(c *x509.Certificate) error {
