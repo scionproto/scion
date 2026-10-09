@@ -19,9 +19,11 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -133,24 +135,16 @@ var generalCases = map[string]testCase{
 	},
 	"invalid duplicate issuer IA": {
 		modify: func(c *x509.Certificate) *x509.Certificate {
-			for _, name := range c.Issuer.Names {
-				if name.Type.Equal(cppki.OIDNameIA) {
-					c.Issuer.Names = append(c.Issuer.Names, name)
-					break
-				}
-			}
+			i := slices.IndexFunc(c.Issuer.Names, isIA)
+			c.Issuer.Names = append(c.Issuer.Names, c.Issuer.Names[i])
 			return c
 		},
 		assertErr: assert.Error,
 	},
 	"invalid duplicate subject IA": {
 		modify: func(c *x509.Certificate) *x509.Certificate {
-			for _, name := range c.Subject.Names {
-				if name.Type.Equal(cppki.OIDNameIA) {
-					c.Subject.Names = append(c.Subject.Names, name)
-					break
-				}
-			}
+			i := slices.IndexFunc(c.Subject.Names, isIA)
+			c.Subject.Names = append(c.Subject.Names, c.Subject.Names[i])
 			return c
 		},
 		assertErr: assert.Error,
@@ -228,70 +222,46 @@ var commonCACases = map[string]testCase{
 	},
 	"invalid no valid issuer IA": {
 		modify: func(c *x509.Certificate) *x509.Certificate {
-			v := []pkix.AttributeTypeAndValue{
-				{Type: cppki.OIDNameIA},
-			}
-			for _, name := range c.Issuer.Names {
-				if name.Type.Equal(cppki.OIDNameIA) {
-					continue
-				}
-				v = append(v, name)
-			}
-			c.Issuer.Names = v
+			c.Issuer.Names = append([]pkix.AttributeTypeAndValue{{Type: cppki.OIDNameIA}},
+				slices.DeleteFunc(c.Issuer.Names, isIA)...)
 			return c
 		},
 		assertErr: assert.Error,
 	},
 	"invalid missing issuer IA": {
 		modify: func(c *x509.Certificate) *x509.Certificate {
-			for i, name := range c.Issuer.Names {
-				if name.Type.Equal(cppki.OIDNameIA) {
-					c.Issuer.Names = append(c.Issuer.Names[:i], c.Issuer.Names[i+1:]...)
-				}
-			}
+			c.Issuer.Names = slices.DeleteFunc(c.Issuer.Names, isIA)
 			return c
 		},
 		assertErr: assert.Error,
 	},
 	"invalid no valid subject IA": {
 		modify: func(c *x509.Certificate) *x509.Certificate {
-			v := []pkix.AttributeTypeAndValue{
-				{Type: cppki.OIDNameIA},
-			}
-			for _, name := range c.Subject.Names {
-				if name.Type.Equal(cppki.OIDNameIA) {
-					continue
-				}
-				v = append(v, name)
-			}
-			c.Subject.Names = v
+			c.Subject.Names = append([]pkix.AttributeTypeAndValue{{Type: cppki.OIDNameIA}},
+				slices.DeleteFunc(c.Subject.Names, isIA)...)
 			return c
 		},
 		assertErr: assert.Error,
 	},
 	"invalid missing subject IA": {
 		modify: func(c *x509.Certificate) *x509.Certificate {
-			for i, name := range c.Subject.Names {
-				if name.Type.Equal(cppki.OIDNameIA) {
-					c.Subject.Names = append(c.Subject.Names[:i], c.Subject.Names[i+1:]...)
-				}
-			}
+			c.Subject.Names = slices.DeleteFunc(c.Subject.Names, isIA)
 			return c
 		},
 		assertErr: assert.Error,
 	},
 	"invalid invalid subject IA": {
 		modify: func(c *x509.Certificate) *x509.Certificate {
-			for i, name := range c.Subject.Names {
-				if name.Type.Equal(cppki.OIDNameIA) {
-					name.Value = "invalid"
-					c.Subject.Names[i] = name
-				}
-			}
+			i := slices.IndexFunc(c.Subject.Names, isIA)
+			c.Subject.Names[i].Value = "invalid"
 			return c
 		},
 		assertErr: assert.Error,
 	},
+}
+
+func isIA(name pkix.AttributeTypeAndValue) bool {
+	return name.Type.Equal(cppki.OIDNameIA)
 }
 
 func TestValidateRoot(t *testing.T) {
@@ -321,27 +291,16 @@ func TestValidateRoot(t *testing.T) {
 		},
 		"invalid ExtKeyUsage id-kp-root is not set": {
 			modify: func(c *x509.Certificate) *x509.Certificate {
-				m := []asn1.ObjectIdentifier{}
-				for _, v := range c.UnknownExtKeyUsage {
-					if v.Equal(asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55324, 1, 3, 3}) {
-						continue
-					}
-					m = append(m, v)
-				}
-				c.UnknownExtKeyUsage = m
+				c.UnknownExtKeyUsage = slices.DeleteFunc(c.UnknownExtKeyUsage,
+					cppki.OIDExtKeyUsageRoot.Equal)
 				return c
 			},
 			assertErr: assert.Error,
 		},
 	}
 
-	for k, v := range generalCases {
-		testCases[k] = v
-	}
-
-	for k, v := range commonCACases {
-		testCases[k] = v
-	}
+	maps.Copy(testCases, generalCases)
+	maps.Copy(testCases, commonCACases)
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -383,12 +342,8 @@ func TestValidateCA(t *testing.T) {
 		},
 	}
 
-	for k, v := range generalCases {
-		testCases[k] = v
-	}
-	for k, v := range commonCACases {
-		testCases[k] = v
-	}
+	maps.Copy(testCases, generalCases)
+	maps.Copy(testCases, commonCACases)
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -432,14 +387,9 @@ func TestValidateAS(t *testing.T) {
 		},
 		"invalid ExtKeyUsage id-kp-timeStamping is not set": {
 			modify: func(c *x509.Certificate) *x509.Certificate {
-				m := []x509.ExtKeyUsage{}
-				for _, v := range c.ExtKeyUsage {
-					if v == x509.ExtKeyUsageTimeStamping {
-						continue
-					}
-					m = append(m, v)
-				}
-				c.ExtKeyUsage = m
+				c.ExtKeyUsage = slices.DeleteFunc(c.ExtKeyUsage, func(u x509.ExtKeyUsage) bool {
+					return u == x509.ExtKeyUsageTimeStamping
+				})
 				return c
 			},
 			assertErr: assert.Error,
@@ -456,16 +406,8 @@ func TestValidateAS(t *testing.T) {
 		},
 		"invalid no valid IA": {
 			modify: func(c *x509.Certificate) *x509.Certificate {
-				v := []pkix.AttributeTypeAndValue{
-					{Type: cppki.OIDNameIA},
-				}
-				for _, name := range c.Issuer.Names {
-					if name.Type.Equal(cppki.OIDNameIA) {
-						continue
-					}
-					v = append(v, name)
-				}
-				c.Issuer.Names = v
+				c.Issuer.Names = append([]pkix.AttributeTypeAndValue{{Type: cppki.OIDNameIA}},
+					slices.DeleteFunc(c.Issuer.Names, isIA)...)
 				return c
 			},
 			assertErr: assert.Error,
@@ -479,9 +421,7 @@ func TestValidateAS(t *testing.T) {
 		},
 	}
 
-	for k, v := range generalCases {
-		testCases[k] = v
-	}
+	maps.Copy(testCases, generalCases)
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -521,14 +461,9 @@ var commonVotingCases = map[string]testCase{
 	},
 	"invalid ExtKeyUsage id-kp-timeStamping is not set": {
 		modify: func(c *x509.Certificate) *x509.Certificate {
-			m := []x509.ExtKeyUsage{}
-			for _, v := range c.ExtKeyUsage {
-				if v == x509.ExtKeyUsageTimeStamping {
-					continue
-				}
-				m = append(m, v)
-			}
-			c.ExtKeyUsage = m
+			c.ExtKeyUsage = slices.DeleteFunc(c.ExtKeyUsage, func(u x509.ExtKeyUsage) bool {
+				return u == x509.ExtKeyUsageTimeStamping
+			})
 			return c
 		},
 		assertErr: assert.Error,
@@ -570,14 +505,8 @@ func TestValidateRegular(t *testing.T) {
 	testCases := map[string]testCase{
 		"invalid ExtKeyUsage id-kp-regular is not set": {
 			modify: func(c *x509.Certificate) *x509.Certificate {
-				m := []asn1.ObjectIdentifier{}
-				for _, v := range c.UnknownExtKeyUsage {
-					if v.Equal(cppki.OIDExtKeyUsageRegular) {
-						continue
-					}
-					m = append(m, v)
-				}
-				c.UnknownExtKeyUsage = m
+				c.UnknownExtKeyUsage = slices.DeleteFunc(c.UnknownExtKeyUsage,
+					cppki.OIDExtKeyUsageRegular.Equal)
 				return c
 			},
 			assertErr: assert.Error,
@@ -591,13 +520,8 @@ func TestValidateRegular(t *testing.T) {
 		},
 	}
 
-	for k, v := range generalCases {
-		testCases[k] = v
-	}
-
-	for k, v := range commonVotingCases {
-		testCases[k] = v
-	}
+	maps.Copy(testCases, generalCases)
+	maps.Copy(testCases, commonVotingCases)
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -624,14 +548,8 @@ func TestValidateSensitive(t *testing.T) {
 	testCases := map[string]testCase{
 		"invalid ExtKeyUsage id-kp-sensitive is not set": {
 			modify: func(c *x509.Certificate) *x509.Certificate {
-				m := []asn1.ObjectIdentifier{}
-				for _, v := range c.UnknownExtKeyUsage {
-					if v.Equal(cppki.OIDExtKeyUsageSensitive) {
-						continue
-					}
-					m = append(m, v)
-				}
-				c.UnknownExtKeyUsage = m
+				c.UnknownExtKeyUsage = slices.DeleteFunc(c.UnknownExtKeyUsage,
+					cppki.OIDExtKeyUsageSensitive.Equal)
 				return c
 			},
 			assertErr: assert.Error,
@@ -645,13 +563,8 @@ func TestValidateSensitive(t *testing.T) {
 		},
 	}
 
-	for k, v := range generalCases {
-		testCases[k] = v
-	}
-
-	for k, v := range commonVotingCases {
-		testCases[k] = v
-	}
+	maps.Copy(testCases, generalCases)
+	maps.Copy(testCases, commonVotingCases)
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
