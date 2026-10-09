@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -275,13 +276,10 @@ func TestTRCVerifyBase(t *testing.T) {
 		"no digest in signed attributes": {
 			SignedTRC: func(t *testing.T) cppki.SignedTRC {
 				signed := loadSignedTRC(t)
-				attrs := signed.SignerInfos[0].SignedAttrs
-				for i, attr := range attrs {
-					if attr.Type.Equal(oid.AttributeMessageDigest) {
-						signed.SignerInfos[0].SignedAttrs = append(attrs[:i], attrs[i+1:]...)
-						break
-					}
-				}
+				si := &signed.SignerInfos[0]
+				si.SignedAttrs = slices.DeleteFunc(si.SignedAttrs, func(a protocol.Attribute) bool {
+					return a.Type.Equal(oid.AttributeMessageDigest)
+				})
 				return signed
 			},
 			ErrAssertion: assert.Error,

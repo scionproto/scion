@@ -21,6 +21,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -67,12 +68,8 @@ var (
 	}
 )
 
-var (
-	// ErrInvalidCertType indicates an invalid certificate type.
-	ErrInvalidCertType = serrors.New("invalid certificate type")
-
-	errIANotFound = serrors.New("ISD-AS not found")
-)
+// ErrInvalidCertType indicates an invalid certificate type.
+var ErrInvalidCertType = serrors.New("invalid certificate type")
 
 // CertType describes the type of the SCION certificate.
 type CertType int
@@ -309,7 +306,7 @@ func validateRoot(c *x509.Certificate) error {
 	if len(c.AuthorityKeyId) != 0 && !bytes.Equal(c.AuthorityKeyId, c.SubjectKeyId) {
 		errs = append(errs, serrors.New("authorityKeyId is set but does not match subjectKeyID"))
 	}
-	if !containsOID(c.UnknownExtKeyUsage, OIDExtKeyUsageRoot) {
+	if !slices.ContainsFunc(c.UnknownExtKeyUsage, OIDExtKeyUsageRoot.Equal) {
 		errs = append(errs, serrors.New("key usage id-kp-root not set"))
 	}
 
@@ -369,14 +366,7 @@ func validateAS(c *x509.Certificate) error {
 		errs = append(errs, serrors.New("authorityKeyId must be present"))
 	}
 
-	var found bool
-	for _, usage := range c.ExtKeyUsage {
-		if usage == x509.ExtKeyUsageTimeStamping {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(c.ExtKeyUsage, x509.ExtKeyUsageTimeStamping) {
 		errs = append(errs, serrors.New("id-kp-timeStamping not set"))
 	}
 
@@ -397,10 +387,10 @@ func validateSensitive(c *x509.Certificate) error {
 	if err := commonVotingValidation(c); err != nil {
 		errs = append(errs, err)
 	}
-	if !containsOID(c.UnknownExtKeyUsage, OIDExtKeyUsageSensitive) {
+	if !slices.ContainsFunc(c.UnknownExtKeyUsage, OIDExtKeyUsageSensitive.Equal) {
 		errs = append(errs, serrors.New("no id-kp-sensitive"))
 	}
-	if containsOID(c.UnknownExtKeyUsage, OIDExtKeyUsageRegular) {
+	if slices.ContainsFunc(c.UnknownExtKeyUsage, OIDExtKeyUsageRegular.Equal) {
 		errs = append(errs, serrors.New("both id-kp-sensitive id-kp-regular not allowed"))
 	}
 
@@ -421,10 +411,10 @@ func validateRegular(c *x509.Certificate) error {
 	if err := commonVotingValidation(c); err != nil {
 		errs = append(errs, err)
 	}
-	if !containsOID(c.UnknownExtKeyUsage, OIDExtKeyUsageRegular) {
+	if !slices.ContainsFunc(c.UnknownExtKeyUsage, OIDExtKeyUsageRegular.Equal) {
 		errs = append(errs, serrors.New("no id-kp-regular"))
 	}
-	if containsOID(c.UnknownExtKeyUsage, OIDExtKeyUsageSensitive) {
+	if slices.ContainsFunc(c.UnknownExtKeyUsage, OIDExtKeyUsageSensitive.Equal) {
 		errs = append(errs, serrors.New("both id-kp-sensitive id-kp-regular not allowed"))
 	}
 
@@ -440,13 +430,11 @@ func commonCAValidation(c *x509.Certificate, pathLen int) error {
 	if c.KeyUsage&x509.KeyUsageDigitalSignature != 0 {
 		errs = append(errs, serrors.New("key usage DigitalSign set"))
 	}
-	for _, v := range c.ExtKeyUsage {
-		if v == x509.ExtKeyUsageClientAuth {
-			errs = append(errs, serrors.New("cannot have id-kp-clientAuth as ExtKeyUsage"))
-		}
-		if v == x509.ExtKeyUsageServerAuth {
-			errs = append(errs, serrors.New("cannot have id-kp-serverAuth as ExtKeyUsage"))
-		}
+	if slices.Contains(c.ExtKeyUsage, x509.ExtKeyUsageClientAuth) {
+		errs = append(errs, serrors.New("cannot have id-kp-clientAuth as ExtKeyUsage"))
+	}
+	if slices.Contains(c.ExtKeyUsage, x509.ExtKeyUsageServerAuth) {
+		errs = append(errs, serrors.New("cannot have id-kp-serverAuth as ExtKeyUsage"))
 	}
 	if v, ok := oidInExtensions(OIDExtensionBasicConstraints, c.Extensions); ok && !v.Critical {
 		errs = append(errs, serrors.New("basic constraints not critical"))
@@ -500,22 +488,11 @@ func oidInExtensions(oid asn1.ObjectIdentifier,
 }
 
 func validateSignatureAlg(cert *x509.Certificate) error {
-	for _, alg := range ValidSCIONSignatureAlgs {
-		if cert.SignatureAlgorithm == alg {
-			return nil
-		}
+	if slices.Contains(ValidSCIONSignatureAlgs, cert.SignatureAlgorithm) {
+		return nil
 	}
 	return serrors.New("invalid signature algorithm used",
 		"cert_alg", cert.SignatureAlgorithm, "valid_algs", ValidSCIONSignatureAlgs)
-}
-
-func containsOID(oids []asn1.ObjectIdentifier, o asn1.ObjectIdentifier) bool {
-	for _, v := range oids {
-		if v.Equal(o) {
-			return true
-		}
-	}
-	return false
 }
 
 func subjectAndIssuerIASet(c *x509.Certificate) error {
@@ -529,26 +506,28 @@ func subjectAndIssuerIASet(c *x509.Certificate) error {
 	return errs.ToError()
 }
 
-// ExtractIA extracts the ISD-AS from the distinguished name. If the ISD-AS
-// number is not present in the distinguished name, an error is returned.
+// ExtractIA extracts the ISD-AS from the distinguished name.
+// Returns an error unless the ISD-AS appears exactly once.
 func ExtractIA(dn pkix.Name) (addr.IA, error) {
 	ia, err := findIA(dn)
 	if err != nil {
 		return 0, err
 	}
 	if ia == nil {
-		return 0, errIANotFound
+		return 0, serrors.New("ISD-AS not found")
 	}
 	return *ia, nil
 }
 
-// findIA extracts the ISD-AS from the distinguished name if it exists. If the
-// ISD-AS number is not present in the distinguished name, it returns nil. If
-// the ISD-AS number is not parsable, an error is returned.
+// findIA is like ExtractIA, but returns nil if the ISD-AS is missing.
 func findIA(dn pkix.Name) (*addr.IA, error) {
+	var found *addr.IA
 	for _, name := range dn.Names {
 		if !name.Type.Equal(OIDNameIA) {
 			continue
+		}
+		if found != nil {
+			return nil, serrors.New("multiple ISD-AS attributes")
 		}
 		rawIA, ok := name.Value.(string)
 		if !ok {
@@ -564,10 +543,9 @@ func findIA(dn pkix.Name) (*addr.IA, error) {
 		if ia.String() != rawIA {
 			return nil, serrors.New("ISD-AS not in canonical form", "isd_as", ia)
 		}
-		return &ia, nil
+		found = &ia
 	}
-	// not found
-	return nil, nil
+	return found, nil
 }
 
 func commonVotingValidation(c *x509.Certificate) error {
@@ -583,17 +561,13 @@ func commonVotingValidation(c *x509.Certificate) error {
 		errs = append(errs, serrors.New("key usage DigitalSignature set"))
 	}
 
-	usages := make(map[x509.ExtKeyUsage]struct{})
-	for _, usage := range c.ExtKeyUsage {
-		usages[usage] = struct{}{}
-	}
-	if _, ok := usages[x509.ExtKeyUsageTimeStamping]; !ok {
+	if !slices.Contains(c.ExtKeyUsage, x509.ExtKeyUsageTimeStamping) {
 		errs = append(errs, serrors.New("id-kp-timeStamping not set"))
 	}
-	if _, ok := usages[x509.ExtKeyUsageClientAuth]; ok {
+	if slices.Contains(c.ExtKeyUsage, x509.ExtKeyUsageClientAuth) {
 		errs = append(errs, serrors.New("id-kp-clientAuth is set"))
 	}
-	if _, ok := usages[x509.ExtKeyUsageServerAuth]; ok {
+	if slices.Contains(c.ExtKeyUsage, x509.ExtKeyUsageServerAuth) {
 		errs = append(errs, serrors.New("id-kp-serverAuth is set"))
 	}
 	if c.BasicConstraintsValid && c.IsCA {
