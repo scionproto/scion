@@ -391,6 +391,7 @@ func realMain(ctx context.Context) error {
 			Inserter:       beaconStore,
 			Interfaces:     intfs,
 			Verifier:       verifier,
+			Inspector:      inspector,
 			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
 		},
 	}
