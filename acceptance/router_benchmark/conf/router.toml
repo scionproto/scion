@@ -7,6 +7,9 @@ prometheus = "10.123.10.1:30442"
 
 [features]
 
+[router]
+preferred_underlays = { udpip = "afxdp" }
+
 [router.bfd]
 disable = true
 

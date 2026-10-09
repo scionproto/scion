@@ -15,7 +15,11 @@
 
 package runner
 
-import "github.com/gopacket/gopacket"
+import (
+	"net"
+
+	"github.com/gopacket/gopacket"
+)
 
 type NormalizePacketFn func(gopacket.Packet)
 
@@ -23,6 +27,11 @@ type NormalizePacketFn func(gopacket.Packet)
 type Case struct {
 	Name              string
 	WriteTo, ReadFrom string
+	// LocalMAC and LocalIP are the addresses braccept claims while it waits for the
+	// case's packets: it answers ARP requests for LocalIP with LocalMAC
+	// ([RunConfig.ExpectPacket]).
+	LocalMAC          net.HardwareAddr
+	LocalIP           net.IP
 	Input, Want       []byte
 	StoreDir          string
 	IgnoreNonMatching bool

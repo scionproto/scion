@@ -1,6 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-//
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Placeholder for generated code during lint.
-
-//go:build lint
+//go:build (386 || amd64 || arm || arm64 || loong64 || mips64le || mipsle || ppc64le || riscv64 || wasm) && linux
 
 package ebpf
 
-import "github.com/cilium/ebpf"
+import "testing"
 
-func loadPortfilter() (*ebpf.CollectionSpec, error) {
-	return nil, nil
+// Checks DropReasonNames has no empty or duplicate entries.
+func TestDropReasonNames(t *testing.T) {
+	seen := map[string]int{}
+	for i, name := range DropReasonNames {
+		if name == "" {
+			t.Errorf("DropReasonNames[%d] is empty", i)
+		}
+		if prior, dup := seen[name]; dup {
+			t.Errorf("duplicate DropReasonNames entry %q at index %d and %d",
+				name, prior, i)
+		}
+		seen[name] = i
+	}
 }

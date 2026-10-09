@@ -27,3 +27,7 @@ import (
 // in the same test without the router package importing it.
 //
 // Outside of tests, underlay providers are imported by the main or config packages.
+//
+// Tests expect the udpip:inet underlay. Do not also import afxdpudpip: the tests set no
+// PreferredUnderlays and the router would then take whichever "udpip:" provider
+// map iteration yields first.
