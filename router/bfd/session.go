@@ -129,6 +129,10 @@ type Session struct {
 	messagesOnce sync.Once
 	// messages is the channel on which the session receives BFD packets.
 	messages chan bfdMessage
+	// closed is closed by Close. Closing messages instead
+	// would make a concurrent ReceiveMessage panic.
+	closed    chan struct{}
+	closeOnce sync.Once
 
 	// localStateLock protects access to the local state.
 	localStateLock sync.RWMutex
@@ -228,11 +232,9 @@ func (s *Session) Run(ctx context.Context) error {
 MainLoop:
 	for {
 		select {
-		case msg, ok := <-s.messages:
-			if !ok {
-				break MainLoop
-			}
-
+		case <-s.closed:
+			break MainLoop
+		case msg := <-s.messages:
 			// BFD packet is accepted. This means the detection timer can be reset.
 			if !detectionTimer.Stop() {
 				// Empty the channel to ensure a channel we don't get an extra read in the
@@ -318,9 +320,11 @@ MainLoop:
 	return nil
 }
 
+// Close stops the session. It may be called more than once,
+// and while other goroutines call ReceiveMessage.
 func (s *Session) Close() error {
 	s.initMessages()
-	close(s.messages)
+	s.closeOnce.Do(func() { close(s.closed) })
 	return nil
 }
 
@@ -410,7 +414,7 @@ func (s *Session) setRemoteDiscriminator(d layers.BFDDiscriminator) {
 // and the layers.BFD object.
 //
 // The session must be running when calling this function, i.e. Run must have
-// been called.
+// been called. Messages received after Close are discarded.
 func (s *Session) ReceiveMessage(msg *layers.BFD) {
 	s.initMessages()
 
@@ -423,13 +427,16 @@ func (s *Session) ReceiveMessage(msg *layers.BFD) {
 	}
 
 	// The packet will be returning to the pool. We do not keep a reference to any part of it.
-	s.messages <- bfdMessage{
+	select {
+	case s.messages <- bfdMessage{
 		State:                 msg.State,
 		DetectMultiplier:      msg.DetectMultiplier,
 		MyDiscriminator:       msg.MyDiscriminator,
 		YourDiscriminator:     msg.YourDiscriminator,
 		DesiredMinTxInterval:  msg.DesiredMinTxInterval,
 		RequiredMinRxInterval: msg.RequiredMinRxInterval,
+	}:
+	case <-s.closed:
 	}
 }
 
@@ -452,6 +459,7 @@ func (s *Session) initMetrics() {
 func (s *Session) initMessages() {
 	s.messagesOnce.Do(func() {
 		s.messages = make(chan bfdMessage, s.ReceiveQueueSize)
+		s.closed = make(chan struct{})
 	})
 }
 

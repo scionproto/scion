@@ -23,12 +23,15 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
+	"sync/atomic"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/launcher"
@@ -55,7 +58,17 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	controlConfig, err := loadControlConfig()
+	topoMetrics := topologyMetrics()
+	validator := &topology.RouterValidator{ID: globalCfg.General.ID}
+	topo, err := loadTopology(validator, nil, topoMetrics)
+	if err != nil {
+		return serrors.Wrap("loading topology", err)
+	}
+	var currentTopo atomic.Pointer[topology.Topology]
+	currentTopo.Store(&topo)
+	controlConfig, err := control.NewConfig(
+		globalCfg.General.ID, topo, globalCfg.General.ConfigDir,
+	)
 	if err != nil {
 		return err
 	}
@@ -68,11 +81,34 @@ func realMain(ctx context.Context) error {
 	if err := iaCtx.Configure(); err != nil {
 		return serrors.Wrap("configuring dataplane", err)
 	}
+	reload := app.SIGHUPChannel(errCtx)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		for {
+			select {
+			case <-reload:
+				old := (*currentTopo.Load()).Writable()
+				topo, err := loadTopology(validator, old, topoMetrics)
+				if err != nil {
+					log.Error("Failed to reload topology file",
+						"file", globalCfg.General.Topology(), "err", err)
+					continue
+				}
+				log.Info("Reloaded topology")
+				currentTopo.Store(&topo)
+				if err := iaCtx.UpdateTopology(topo); err != nil {
+					log.Error("Failed to apply the reloaded topology", "err", err)
+				}
+			case <-errCtx.Done():
+				return nil
+			}
+		}
+	})
 	statusPages := service.StatusPages{
 		"info":      service.NewInfoStatusPage(),
 		"config":    service.NewConfigStatusPage(globalCfg),
 		"log/level": service.NewLogLevelStatusPage(),
-		"topology":  topologyHandler(iaCtx.Config.Topo),
+		"topology":  topologyHandler(&currentTopo),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return err
@@ -130,19 +166,55 @@ func realMain(ctx context.Context) error {
 	return g.Wait()
 }
 
-func loadControlConfig() (*control.Config, error) {
-	newConf, err := control.LoadConfig(globalCfg.General.ID, globalCfg.General.ConfigDir)
+// loadTopology reads the topology file and validates it against old, the topology in use.
+// old is nil at startup.
+// The router doesn't use [topology.Loader], which offers only parts of the topology.
+func loadTopology(
+	v topology.Validator, old *topology.RWTopology, m topology.LoaderMetrics,
+) (topology.Topology, error) {
+	topo, err := topology.FromJSONFile(globalCfg.General.Topology())
 	if err != nil {
-		return nil, serrors.Wrap("loading topology", err)
+		metrics.CounterInc(m.ReadErrors)
+		return nil, err
 	}
-	return newConf, nil
+	if err := v.Validate(topo.Writable(), old); err != nil {
+		metrics.CounterInc(m.ValidationErrors)
+		return nil, serrors.Wrap("validating topology", err)
+	}
+	metrics.CounterInc(m.Updates)
+	metrics.GaugeSetCurrentTime(m.LastUpdate)
+	return topo, nil
 }
 
-func topologyHandler(topo topology.Topology) service.StatusPage {
+// topologyMetrics returns the metrics that the control service
+// and the daemon have for their topology loaders.
+func topologyMetrics() topology.LoaderMetrics {
+	updates := prom.NewCounterVec("", "",
+		"topology_updates_total",
+		"The total number of updates.",
+		[]string{prom.LabelResult},
+	)
+	return topology.LoaderMetrics{
+		ValidationErrors: metrics.NewPromCounter(updates).
+			With(prom.LabelResult, "err_validate"),
+		ReadErrors: metrics.NewPromCounter(updates).
+			With(prom.LabelResult, "err_read"),
+		LastUpdate: metrics.NewPromGauge(
+			prom.NewGaugeVec("", "",
+				"topology_last_update_time",
+				"Timestamp of the last successful update.",
+				[]string{},
+			),
+		),
+		Updates: metrics.NewPromCounter(updates).With(prom.LabelResult, prom.Success),
+	}
+}
+
+func topologyHandler(topo *atomic.Pointer[topology.Topology]) service.StatusPage {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		bytes, err := json.MarshalIndent(topo, "", "    ")
+		bytes, err := json.MarshalIndent(*topo.Load(), "", "    ")
 		if err != nil {
 			http.Error(w, "Unable to marshal topology", http.StatusInternalServerError)
 			return

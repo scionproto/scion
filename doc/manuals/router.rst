@@ -241,6 +241,19 @@ Additionally, the :program:`router` considers the ``control_service`` and ``disc
 entries. These entries define the underlay addresses that the router uses to resolves
 anycast or multicast service addresses.
 
+The :program:`router` reloads ``topology.json`` when it receives the ``SIGHUP`` signal.
+It adds and removes interfaces, and updates the service addresses.
+An interface whose entry changes is removed and added again, which briefly interrupts it.
+The other interfaces keep forwarding.
+The ISD-AS, the ``core`` attribute, the MTU and the router's own ``internal_addr`` must not change;
+the router rejects such a file and keeps the topology it has.
+Changes to the :ref:`.toml configuration <router-conf-toml>` and to the
+:ref:`keys <router-conf-keys>` need a restart.
+
+.. TODO
+   With the AF_XDP underlay of #4892, interface changes need a restart
+   until it implements router.LinkDeleter. Say so here.
+
 .. _router-conf-keys:
 
 Keys

@@ -129,8 +129,8 @@ func (s *supervisor) run() {
 		case syscall.SIGCHLD:
 			s.reap()
 		case syscall.SIGHUP:
-			// Forward to services that reload topology on SIGHUP (control,
-			// daemon). The router ignores it and reloads only on restart.
+			// Forward to services that reload topology on SIGHUP
+			// (control, daemon, router).
 			s.forward(syscall.SIGHUP)
 		case syscall.SIGTERM, syscall.SIGINT:
 			s.beginShutdown(sig)
