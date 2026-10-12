@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/storage"
 	"github.com/scionproto/scion/private/storage/beacon"
@@ -47,7 +46,7 @@ func (b *TestBackend) Prepare(t *testing.T, _ context.Context) {
 	require.NoError(t, err)
 	b.BeaconDB = metrics.WrapDB(db, metrics.Config{
 		Driver:       "mem-sqlite",
-		QueriesTotal: libmetrics.NewTestCounter(),
+		QueriesTotal: nil,
 	})
 }
 

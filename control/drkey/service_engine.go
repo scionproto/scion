@@ -221,14 +221,14 @@ func (s *ServiceEngine) DeriveHostHost(
 
 // CreateStorageCleaners creates Cleaner tasks that remove
 // SecretValue and Level1 keys respectively.
-func (s *ServiceEngine) CreateStorageCleaners() []*cleaner.Cleaner {
+func (s *ServiceEngine) CreateStorageCleaners(metrics ServiceCleanerMetrics) []*cleaner.Cleaner {
 	cleaners := make([]*cleaner.Cleaner, 2)
 	cleaners[0] = cleaner.New(func(ctx context.Context) (int, error) {
 		return s.SecretBackend.deleteExpiredSV(ctx)
-	}, "drkey_serv_secret_store")
+	}, "drkey_serv_secret_store", metrics.SecretValue)
 	cleaners[1] = cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DB.DeleteExpiredLevel1Keys(ctx, time.Now())
-	}, "drkey_serv_level1_store")
+	}, "drkey_serv_level1_store", metrics.Level1)
 	return cleaners
 }
 

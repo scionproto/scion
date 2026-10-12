@@ -26,11 +26,12 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/tracing"
-	"github.com/scionproto/scion/private/trust/internal/metrics"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 var (
@@ -53,6 +54,9 @@ type FetchingProvider struct {
 	Recurser Recurser
 	Fetcher  Fetcher
 	Router   Router
+	// Requests aggregates all the outgoing requests sent by the provider. If it is
+	// not initialized, nothing is reported.
+	Requests func(reqType, result string) metrics.Counter
 }
 
 // GetChains returns certificate chains that match the chain query. If no chain
@@ -71,7 +75,6 @@ type FetchingProvider struct {
 func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 	opts ...Option) ([][]*x509.Certificate, error) {
 
-	l := metrics.ProviderLabels{Type: metrics.Chain, Trigger: metrics.FromCtx(ctx)}
 	o := applyOptions(opts)
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "trustengine.get_chains")
@@ -95,12 +98,12 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 	if err != nil {
 		logger.Info("Failed to get chain from database",
 			"query", query, "err", err)
-		setProviderMetric(span, l.WithResult(metrics.ErrDB), err)
+		p.setProviderMetric(span, trustmetrics.Chain, trustmetrics.ErrDB, err)
 		return nil, serrors.Wrap("fetching chains from database", err)
 	}
 
 	if o.allowInactive && len(chains) > 0 {
-		setProviderMetric(span, l.WithResult(metrics.Success), nil)
+		p.setProviderMetric(span, trustmetrics.Chain, trustmetrics.Success, nil)
 		return chains, nil
 	}
 
@@ -108,30 +111,30 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 	if err != nil {
 		logger.Info("Failed to get TRC for chain verification",
 			"isd", query.IA.ISD(), "err", err)
-		setProviderMetric(span, l.WithResult(result), err)
+		p.setProviderMetric(span, trustmetrics.Chain, result, err)
 		return nil, serrors.Wrap("fetching active TRCs from database", err)
 	}
 
 	chains = filterVerifiableChains(chains, trcs)
 	if len(chains) > 0 {
-		setProviderMetric(span, l.WithResult(metrics.Success), nil)
+		p.setProviderMetric(span, trustmetrics.Chain, trustmetrics.Success, nil)
 		return chains, nil
 	}
 
 	// No chain is available locally. Start fetching chains over the nework, if
 	// recursion is allowed.
 	if err := p.Recurser.AllowRecursion(o.client); err != nil {
-		setProviderMetric(span, l.WithResult(metrics.ErrNotAllowed), err)
+		p.setProviderMetric(span, trustmetrics.Chain, trustmetrics.ErrNotAllowed, err)
 		return nil, serrors.Wrap("checking whether recursion is allowed", err)
 	}
 	if o.server == nil {
 		if o.server, err = p.Router.ChooseServer(ctx, query.IA.ISD()); err != nil {
-			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
+			p.setProviderMetric(span, trustmetrics.Chain, trustmetrics.ErrInternal, err)
 			return nil, serrors.Wrap("choosing server", err)
 		}
 	}
 	if chains, err = p.Fetcher.Chains(ctx, query, o.server); err != nil {
-		setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
+		p.setProviderMetric(span, trustmetrics.Chain, trustmetrics.ErrInternal, err)
 		return nil, serrors.Wrap("fetching chains from remote", err, "server", o.server)
 	}
 
@@ -141,16 +144,16 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 		// FIXME(roosd): Should probably be a transaction.
 		for _, chain := range chains {
 			if _, err := p.DB.InsertChain(ctx, chain); err != nil {
-				setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
+				p.setProviderMetric(span, trustmetrics.Chain, trustmetrics.ErrInternal, err)
 				return nil, serrors.Wrap("inserting chain into database", err)
 			}
 		}
 	}
 	if len(chains) == 0 {
-		setProviderMetric(span, l.WithResult(metrics.ErrNotFound), nil)
+		p.setProviderMetric(span, trustmetrics.Chain, trustmetrics.ErrNotFound, nil)
 		return nil, nil
 	}
-	setProviderMetric(span, l.WithResult(metrics.Success), nil)
+	p.setProviderMetric(span, trustmetrics.Chain, trustmetrics.Success, nil)
 	return chains, nil
 }
 
@@ -166,7 +169,6 @@ func (p FetchingProvider) GetSignedTRC(ctx context.Context, id cppki.TRCID,
 // NotifyTRC notifies the provider of the existence of a TRC. This method only
 // fails in case of a DB, network or verification error.
 func (p FetchingProvider) NotifyTRC(ctx context.Context, id cppki.TRCID, opts ...Option) error {
-	l := metrics.ProviderLabels{Type: metrics.NotifyTRC, Trigger: metrics.FromCtx(ctx)}
 	o := applyOptions(opts)
 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "trustengine.notify_trc")
@@ -185,29 +187,29 @@ func (p FetchingProvider) NotifyTRC(ctx context.Context, id cppki.TRCID, opts ..
 		Serial: scrypto.LatestVer,
 	})
 	if err != nil {
-		setProviderMetric(span, l.WithResult(metrics.ErrDB), err)
+		p.setProviderMetric(span, trustmetrics.NotifyTRC, trustmetrics.ErrDB, err)
 		return err
 	}
 	if trc.IsZero() {
 		err := serrors.New("no TRC for ISD present", "isd", id.ISD)
-		setProviderMetric(span, l.WithResult(metrics.ErrNotFound), err)
+		p.setProviderMetric(span, trustmetrics.NotifyTRC, trustmetrics.ErrNotFound, err)
 		return err
 	}
 	if trc.TRC.ID.Base != id.Base {
-		setProviderMetric(span, l.WithResult(metrics.ErrValidate), nil)
+		p.setProviderMetric(span, trustmetrics.NotifyTRC, trustmetrics.ErrValidate, nil)
 		return serrors.New("base number mismatch", "expected", trc.TRC.ID.Base, "actual", id.Base)
 	}
 	if id.Serial <= trc.TRC.ID.Serial {
-		setProviderMetric(span, l.WithResult(metrics.Success), nil)
+		p.setProviderMetric(span, trustmetrics.NotifyTRC, trustmetrics.Success, nil)
 		return nil
 	}
 	if err := p.Recurser.AllowRecursion(o.client); err != nil {
-		setProviderMetric(span, l.WithResult(metrics.ErrNotAllowed), err)
+		p.setProviderMetric(span, trustmetrics.NotifyTRC, trustmetrics.ErrNotAllowed, err)
 		return serrors.Wrap("recursion not allowed", err)
 	}
 	if o.server == nil {
 		if o.server, err = p.Router.ChooseServer(ctx, id.ISD); err != nil {
-			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
+			p.setProviderMetric(span, trustmetrics.NotifyTRC, trustmetrics.ErrInternal, err)
 			return serrors.Wrap("choosing server", err)
 		}
 	}
@@ -217,20 +219,29 @@ func (p FetchingProvider) NotifyTRC(ctx context.Context, id cppki.TRCID, opts ..
 		toFetch := cppki.TRCID{ISD: id.ISD, Base: id.Base, Serial: serial}
 		fetched, err := p.Fetcher.TRC(ctx, toFetch, o.server)
 		if err != nil {
-			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
+			p.setProviderMetric(span, trustmetrics.NotifyTRC, trustmetrics.ErrInternal, err)
 			return serrors.Wrap("resolving TRC update", err, "id", toFetch)
 		}
 		if err := fetched.Verify(&trc.TRC); err != nil {
-			setProviderMetric(span, l.WithResult(metrics.ErrVerify), err)
+			p.setProviderMetric(span, trustmetrics.NotifyTRC, trustmetrics.ErrVerify, err)
 			return serrors.Wrap("verifying TRC update", err, "id", toFetch)
 		}
 		if _, err := p.DB.InsertTRC(ctx, fetched); err != nil {
-			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
+			p.setProviderMetric(span, trustmetrics.NotifyTRC, trustmetrics.ErrInternal, err)
 			return serrors.Wrap("inserting TRC update", err, "id", toFetch)
 		}
 		trc = fetched
 	}
 	return nil
+}
+
+func (p FetchingProvider) setProviderMetric(span opentracing.Span,
+	reqType, result string, err error) {
+	if requests := p.Requests; requests != nil {
+		metrics.CounterInc(requests(reqType, result))
+	}
+	tracing.ResultLabel(span, result)
+	tracing.Error(span, err)
 }
 
 func activeTRCs(ctx context.Context, db DB, isd addr.ISD) ([]cppki.SignedTRC, string, error) {
@@ -240,19 +251,19 @@ func activeTRCs(ctx context.Context, db DB, isd addr.ISD) ([]cppki.SignedTRC, st
 		Serial: scrypto.LatestVer,
 	})
 	if err != nil {
-		return nil, metrics.ErrDB, err
+		return nil, trustmetrics.ErrDB, err
 	}
 	if trc.IsZero() {
-		return nil, metrics.ErrNotFound, errNotFound
+		return nil, trustmetrics.ErrNotFound, errNotFound
 	}
 	// XXX(roosd): This could resolve newer TRCs over the network. However,
 	// for every GetChains by the verifier, there should be a NotifyTRC, such
 	// that should never run into this condition in the first place.
 	if !trc.TRC.Validity.Contains(time.Now()) {
-		return nil, metrics.ErrInactive, errInactive
+		return nil, trustmetrics.ErrInactive, errInactive
 	}
 	if !trc.TRC.InGracePeriod(time.Now()) {
-		return []cppki.SignedTRC{trc}, metrics.Success, nil
+		return []cppki.SignedTRC{trc}, trustmetrics.Success, nil
 	}
 	grace, err := db.SignedTRC(ctx, cppki.TRCID{
 		ISD:    isd,
@@ -260,12 +271,12 @@ func activeTRCs(ctx context.Context, db DB, isd addr.ISD) ([]cppki.SignedTRC, st
 		Serial: trc.TRC.ID.Serial - 1,
 	})
 	if err != nil {
-		return nil, metrics.ErrDB, err
+		return nil, trustmetrics.ErrDB, err
 	}
 	if grace.IsZero() {
-		return nil, metrics.ErrNotFound, errNotFound
+		return nil, trustmetrics.ErrNotFound, errNotFound
 	}
-	return []cppki.SignedTRC{trc, grace}, metrics.Success, nil
+	return []cppki.SignedTRC{trc, grace}, trustmetrics.Success, nil
 }
 
 func filterVerifiableChains(chains [][]*x509.Certificate,
@@ -282,10 +293,4 @@ func filterVerifiableChains(chains [][]*x509.Certificate,
 		}
 	}
 	return verified
-}
-
-func setProviderMetric(span opentracing.Span, l metrics.ProviderLabels, err error) {
-	metrics.Provider.Request(l).Inc()
-	tracing.ResultLabel(span, l.Result)
-	tracing.Error(span, err)
 }

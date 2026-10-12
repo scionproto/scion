@@ -20,17 +20,26 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/trust"
 )
+
+type SignerGenMetrics struct {
+	// SignerLastGenerated is the last time a signer for control plane messages was
+	// successfully generated.
+	SignerLastGenerated metrics.Gauge
+	// SignerExpiration is the expiration time of the current signer.
+	SignerExpiration metrics.Gauge
+}
 
 // CachingSignerGen is a SignerGen that can cache the previously
 // generated Signer for some time.
 type CachingSignerGen struct {
 	SignerGen SignerGen
 	Interval  time.Duration
+	Metrics   SignerGenMetrics
 
 	mtx        sync.Mutex
 	lastGen    time.Time
@@ -90,7 +99,7 @@ func (s *CachingSignerGen) Generate(ctx context.Context) ([]trust.Signer, error)
 
 	s.cached, s.cachedLast, s.ok = signers, latestExpiring, true
 
-	metrics.Signer.LastGeneratedAS().SetToCurrentTime()
-	metrics.Signer.ExpirationAS().Set(metrics.Timestamp(latestExpiring.Expiration))
+	metrics.GaugeSetCurrentTime(s.Metrics.SignerLastGenerated)
+	metrics.GaugeSetTimestamp(s.Metrics.SignerExpiration, latestExpiring.Expiration)
 	return s.cached, nil
 }

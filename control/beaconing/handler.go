@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -49,7 +49,7 @@ type Handler struct {
 	Verifier   infra.Verifier
 	Interfaces *ifstate.Interfaces
 
-	BeaconsHandled metrics.Counter
+	BeaconsHandled func(ingressInterface uint16, neighborIA addr.IA, result string) metrics.Counter
 }
 
 // HandleBeacon handles a beacon received from peer.
@@ -150,7 +150,11 @@ func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 
 func (h Handler) updateMetric(span opentracing.Span, l handlerLabels, err error) {
 	if h.BeaconsHandled != nil {
-		h.BeaconsHandled.With(l.Expand()...).Add(1)
+		metrics.CounterInc(h.BeaconsHandled(
+			l.Ingress,
+			l.Neighbor,
+			l.Result,
+		))
 	}
 	if span != nil {
 		tracing.ResultLabel(span, l.Result)
