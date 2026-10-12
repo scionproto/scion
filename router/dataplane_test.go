@@ -134,13 +134,13 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		Remote:   r2,
 		BFD:      nobfd,
 	}
-	t.Run("fails after start", func(t *testing.T) {
+	t.Run("works after start", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		d.MockStart()
-		assert.Error(t, d.AddExternalInterface(42, link1, lh, rh1))
+		assert.NoError(t, d.AddExternalInterface(42, link1, lh, rh1))
 	})
 	t.Run("setting blank src is not allowed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -254,13 +254,13 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 		BFD:      nobfd,
 	}
 
-	t.Run("fails after start", func(t *testing.T) {
+	t.Run("works after start", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)
 		ctrl := gomock.NewController(t)
 		d.SetConnOpener("udpip", router.MockConnOpener{Ctrl: ctrl})
 		assert.NoError(t, d.AddInternalInterface(localHost, "udpip", internal))
 		d.MockStart()
-		assert.Error(t, d.AddNextHop(45, link1, lh, rh1))
+		assert.NoError(t, d.AddNextHop(45, link1, lh, rh1))
 	})
 	t.Run("setting nil src is not allowed", func(t *testing.T) {
 		d := router.NewDPRaw(router.RunConfig{}, false)

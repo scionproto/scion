@@ -17,11 +17,15 @@ package control
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path/filepath"
+	"reflect"
+	"slices"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/keyconf"
 	"github.com/scionproto/scion/private/topology"
 )
@@ -44,6 +48,19 @@ func LoadConfig(id, confDir string) (*Config, error) {
 	conf := &Config{}
 	if err := conf.loadTopo(id, confDir); err != nil {
 		return nil, err
+	}
+	if err := conf.loadMasterKeys(confDir); err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+// NewConfig sets up the configuration for the given topology,
+// loading the keys from the supplied config directory.
+func NewConfig(id string, topo topology.Topology, confDir string) (*Config, error) {
+	conf := &Config{}
+	if err := conf.initTopo(id, topo); err != nil {
+		return nil, serrors.Wrap("initializing topology", err)
 	}
 	if err := conf.loadMasterKeys(confDir); err != nil {
 		return nil, err
@@ -98,6 +115,10 @@ type IACtx struct {
 	Config *Config
 	// DP is the underlying data plane.
 	DP Dataplane
+
+	// ifs and svcs are what DP is configured with.
+	ifs  map[iface.ID]externalInterface
+	svcs map[service]struct{}
 }
 
 // Configure configures the dataplane for the given context.
@@ -116,8 +137,107 @@ func (iac *IACtx) Configure() error {
 		}
 		return serrors.Wrap("config setup", err, "config", brConfDump)
 	}
+	iac.ifs = make(map[iface.ID]externalInterface)
+	if cfg.BR != nil {
+		ifs, err := externalInterfaces(cfg)
+		if err != nil {
+			return err
+		}
+		iac.ifs = ifs
+	}
+	iac.svcs = make(map[service]struct{})
+	for _, s := range services(cfg) {
+		iac.svcs[s] = struct{}{}
+	}
 	log.Debug("Dataplane configured successfully", "config", cfg)
 	return nil
+}
+
+// UpdateTopology reconfigures the dataplane for topo, a new version of the topology.
+// It adds, removes, and replaces interfaces, and updates the service addresses.
+// Interfaces that don't change keep running.
+// The ISD-AS and the internal address of the router must not change.
+//
+// UpdateTopology applies what it can and returns the errors.
+// A later call retries what failed.
+func (iac *IACtx) UpdateTopology(topo topology.Topology) error {
+	cfg := &Config{MasterKeys: iac.Config.MasterKeys}
+	if err := cfg.initTopo(iac.Config.BR.Name, topo); err != nil {
+		return err
+	}
+	if cfg.IA != iac.Config.IA {
+		return serrors.New("ISD-AS must not change", "old", iac.Config.IA, "new", cfg.IA)
+	}
+	if cfg.BR.InternalAddr != iac.Config.BR.InternalAddr {
+		return serrors.New("internal address must not change",
+			"old", iac.Config.BR.InternalAddr, "new", cfg.BR.InternalAddr)
+	}
+	want, err := externalInterfaces(cfg)
+	if err != nil {
+		return err
+	}
+
+	var errs serrors.List
+	// Remove before adding: a changed interface is removed and added again,
+	// and an added interface may take the address of a removed one.
+	for _, ifID := range slices.Sorted(maps.Keys(iac.ifs)) {
+		if x, ok := want[ifID]; ok && reflect.DeepEqual(x, iac.ifs[ifID]) {
+			continue
+		}
+		log.Info("Removing interface", "if_id", ifID)
+		if err := iac.DP.DelExternalInterface(ifID); err != nil {
+			errs = append(errs, serrors.Wrap("removing interface", err, "if_id", ifID))
+			continue
+		}
+		delete(iac.ifs, ifID)
+	}
+	for _, ifID := range slices.Sorted(maps.Keys(want)) {
+		if _, ok := iac.ifs[ifID]; ok {
+			continue
+		}
+		x := want[ifID]
+		log.Info("Adding interface", "if_id", ifID)
+		if err := iac.DP.AddExternalInterface(
+			ifID, x.link, x.localHost, x.remoteHost, x.owned); err != nil {
+			errs = append(errs, serrors.Wrap("adding interface", err, "if_id", ifID))
+			continue
+		}
+		iac.ifs[ifID] = x
+	}
+
+	// Add before removing, so that a service
+	// doesn't lose all its addresses while it moves.
+	wantSvcs := services(cfg)
+	for _, s := range wantSvcs {
+		if _, ok := iac.svcs[s]; ok {
+			continue
+		}
+		log.Info("Adding service address", "svc", s.svc, "addr", s.host, "port", s.port)
+		if err := iac.DP.AddSvc(cfg.IA, s.svc, s.host, s.port); err != nil {
+			errs = append(errs, serrors.Wrap("adding service address", err,
+				"svc", s.svc, "addr", s.host, "port", s.port))
+			continue
+		}
+		iac.svcs[s] = struct{}{}
+	}
+	for s := range iac.svcs {
+		if slices.Contains(wantSvcs, s) {
+			continue
+		}
+		log.Info("Removing service address",
+			"svc", s.svc,
+			"addr", s.host,
+			"port", s.port)
+		if err := iac.DP.DelSvc(cfg.IA, s.svc, s.host, s.port); err != nil {
+			errs = append(errs, serrors.Wrap("removing service address", err,
+				"svc", s.svc, "addr", s.host, "port", s.port))
+			continue
+		}
+		delete(iac.svcs, s)
+	}
+
+	iac.Config = cfg
+	return errs.ToError()
 }
 
 func dumpConfig(cfg *Config) (string, error) {

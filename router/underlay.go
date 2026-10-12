@@ -59,7 +59,10 @@ type Link interface {
 	BFDSession() *bfd.Session
 	// Resolve finds and sets the packet's internal underlay destination for the given dst and port.
 	Resolve(p *Packet, dst addr.Host, port uint16) error
-	// Send queues the packet for sending over this link; discarding if the queue is full.
+	// Send queues the packet for sending over this link; discarding if the queue is full
+	// or the link was deleted. The caller owns p again if Send returns false.
+	//
+	// TODO(multi_underlay): #4892 makes Send free the packets it discards instead.
 	Send(p *Packet) bool
 	// SendBlocking queues the packet for sending over this link; blocking while the queue is full.
 	SendBlocking(p *Packet)
@@ -108,8 +111,9 @@ type UnderlayProvider interface {
 
 	// Start puts the provider in the running state. In that state, the provider can deliver
 	// incoming packets to its output channels and will send packets present on its input
-	// channels. Only connection in existence at the time of calling Start() will be
-	// started. Calling Start has no effect on already running connections.
+	// channels. Only connection in existence at the time of calling Start()
+	// will be started. Calling Start has no effect on already running connections,
+	// so calling it again starts the links created since.
 	Start(ctx context.Context, pool PacketPool, proQs []chan *Packet)
 
 	// Stop puts the provider in the stopped state. In that state, the provider no longer delivers
@@ -147,6 +151,29 @@ type UnderlayProvider interface {
 	// given neither ifID nor remote address. Outgoing packets need to have a destination address as
 	// metadata. Incoming packets have no defined ingress ifID.
 	NewInternalLink(localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error)
+}
+
+// LinkDeleter is implemented by underlay providers whose links can change while they run,
+// as topology reloads need.
+// Such a provider can create links while it runs.
+// A new link gets no packets before Start starts it.
+// Once the router runs, it adds and deletes no links of other providers.
+//
+// TODO(multi_underlay): The AF_XDP underlay of #4892 must implement this to follow reloads:
+//   - A connection, one per NIC queue, serves every link that uses its queue.
+//     It must stop with the last of them.
+//   - The receiver of a connection reads its link maps without locking.
+//     Links must join the maps in start, not at creation,
+//     and joining and leaving must replace the maps, not modify them.
+//   - A stopping connection must not close its send queue:
+//     senders that raced with DelLink may still use it.
+//   - DelLink must remove the address of the link from the XDP filter once no link uses it.
+//   - DelLink must return to the pool the packets that wait for address resolution.
+type LinkDeleter interface {
+	// DelLink stops a link returned by NewExternalLink or NewSiblingLink.
+	// The router calls it once no interface uses the link. Packets in flight may still
+	// refer to the link, so its methods must keep working, but Send refuses packets.
+	DelLink(l Link)
 }
 
 // NewProviderFn is a function that instantiates an underlay provider.

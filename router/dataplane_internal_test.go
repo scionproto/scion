@@ -229,8 +229,8 @@ func TestForwarder(t *testing.T) {
 	dp := prepareDP(ctrl)
 	dp.initPacketPool(64)
 	procQs, _ := dp.initQueues(64)
-	intf := dp.interfaces[0]
-	extf := dp.interfaces[42]
+	intf := dp.table().link(0)
+	extf := dp.table().link(42)
 	initialPoolSize := len(dp.packetPool.pool)
 	dp.setRunning()
 	dp.underlays["udpip"].Start(context.Background(), dp.packetPool, procQs)
@@ -275,7 +275,6 @@ func TestForwarder(t *testing.T) {
 
 func TestSlowPathProcessing(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	payload := []byte("actualpayloadbytes")
 
 	// ProcessPacket assumes some pre-conditions:
 	// * The ingress interface has to exist. This mock map is good for the test cases we have.
@@ -301,7 +300,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, testKey)
 			},
 			mockMsg: func() []byte {
-				spkt := prepBaseMsg(t, payload, 0)
+				spkt := prepBaseMsg(t, 0)
 				assert.NoError(t, spkt.SetDstAddr(addr.MustParseHost("CS")))
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				ret := toMsg(t, spkt)
@@ -324,7 +323,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
-				spkt := prepBaseMsg(t, payload, 0)
+				spkt := prepBaseMsg(t, 0)
 				assert.NoError(t, spkt.SetDstAddr(addr.MustParseHost("CS")))
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				ret := toMsg(t, spkt)
@@ -347,7 +346,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
-				spkt := prepBaseMsg(t, payload, 0)
+				spkt := prepBaseMsg(t, 0)
 				spkt.DstIA = addr.MustParseIA("1-ff00:0:f1")
 				ret := toMsg(t, spkt)
 				return ret
@@ -370,7 +369,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
-				spkt := prepBaseMsg(t, payload, 0)
+				spkt := prepBaseMsg(t, 0)
 				spkt.RawDstAddr = []byte("invalid")
 				spkt.DstAddrType = 1 // invalid address type
 				ret := toMsg(t, spkt)
@@ -393,7 +392,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
-				spkt := prepBaseMsg(t, payload, 0)
+				spkt := prepBaseMsg(t, 0)
 				spkt.DstAddrType = slayers.T16Ip
 				spkt.RawDstAddr = []byte{
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 10, 0, 200, 200,
@@ -418,7 +417,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
-				spkt := prepBaseMsg(t, payload, 0)
+				spkt := prepBaseMsg(t, 0)
 				spkt.DstAddrType = slayers.T4Ip
 				spkt.RawDstAddr = []byte{0, 0, 0, 0}
 				ret := toMsg(t, spkt)
@@ -441,7 +440,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
 			},
 			mockMsg: func() []byte {
-				spkt := prepBaseMsgHop0Out(t, payload, 0)
+				spkt := prepBaseMsgHop0Out(t, 0)
 				assert.NoError(t,
 					spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200}))))
 				spkt.SrcAddrType = slayers.T16Ip
@@ -510,7 +509,7 @@ func computeMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopField)
 }
 
 func serializedBaseMsg(t *testing.T, payload []byte, flowId uint32) []byte {
-	s := prepBaseMsg(t, payload, flowId)
+	s := prepBaseMsg(t, flowId)
 	buffer := gopacket.NewSerializeBuffer()
 	err := gopacket.SerializeLayers(buffer,
 		gopacket.SerializeOptions{FixLengths: true},
@@ -520,7 +519,7 @@ func serializedBaseMsg(t *testing.T, payload []byte, flowId uint32) []byte {
 }
 
 // Prepares a message that is arriving at its last hop, incoming through interface 1.
-func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
+func prepBaseMsg(t *testing.T, flowId uint32) *slayers.SCION {
 	spkt := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
@@ -558,7 +557,7 @@ func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 }
 
 // Prepares a message that is at its first hop and outgoing via interface 1.
-func prepBaseMsgHop0Out(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
+func prepBaseMsgHop0Out(t *testing.T, flowId uint32) *slayers.SCION {
 	spkt := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,

@@ -121,6 +121,20 @@ func (c *Connector) AddExternalInterface(
 	}
 
 	link.BFD = c.applyBFDDefaults(link.BFD)
+	var err error
+	if owned {
+		err = c.DataPlane.AddExternalInterface(intf, link, localHost, remoteHost)
+	} else {
+		err = c.DataPlane.AddNextHop(intf, link, localHost, remoteHost)
+	}
+	if err != nil {
+		// Undo AddNeighborIA, so that adding the interface can be tried again.
+		if delErr := c.DataPlane.DelInterface(intf); delErr != nil {
+			log.Error("Removing neighboring IA", "if_id", localIfID, "err", delErr)
+		}
+		return err
+	}
+
 	if !owned {
 		if len(c.siblingInterfaces) == 0 {
 			c.siblingInterfaces = make(map[uint16]control.SiblingInterface)
@@ -133,7 +147,7 @@ func (c *Connector) AddExternalInterface(
 			NeighborIA:      link.Remote.IA,
 			State:           control.InterfaceDown,
 		}
-		return c.DataPlane.AddNextHop(intf, link, localHost, remoteHost)
+		return nil
 	}
 
 	if len(c.externalInterfaces) == 0 {
@@ -144,7 +158,21 @@ func (c *Connector) AddExternalInterface(
 		Link:  link,
 		State: control.InterfaceDown,
 	}
-	return c.DataPlane.AddExternalInterface(intf, link, localHost, remoteHost)
+	return nil
+}
+
+// DelExternalInterface removes an interface that AddExternalInterface added.
+func (c *Connector) DelExternalInterface(localIfID iface.ID) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	intf := uint16(localIfID)
+	log.Debug("Removing external interface", "interface", localIfID)
+	if err := c.DataPlane.DelInterface(intf); err != nil {
+		return err
+	}
+	delete(c.externalInterfaces, intf)
+	delete(c.siblingInterfaces, intf)
+	return nil
 }
 
 // AddSvc adds the service address for the given ISD-AS.

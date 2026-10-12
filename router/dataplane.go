@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -217,15 +216,74 @@ func makePacketPool(poolSize, headroom int) PacketPool {
 	return PacketPool{pool: make(chan *Packet, poolSize), headroom: headroom}
 }
 
+// fwdEntry is what packet processing needs to know about an interface.
+type fwdEntry struct {
+	link       Link
+	linkType   topology.LinkType
+	neighborIA addr.IA
+}
+
+// fwdTable maps interface IDs to their entries.
+// Packet processors read it without locking, so a published table never changes.
+// Interfaces are added and removed by publishing a new table.
+type fwdTable struct {
+	entries []fwdEntry // Indexed by interface ID.
+}
+
+var emptyFwdTable = &fwdTable{}
+
+func (t *fwdTable) entry(ifID uint16) fwdEntry {
+	if int(ifID) < len(t.entries) {
+		return t.entries[ifID]
+	}
+	return fwdEntry{}
+}
+
+func (t *fwdTable) link(ifID uint16) Link {
+	if int(ifID) < len(t.entries) {
+		return t.entries[ifID].link
+	}
+	return nil
+}
+
+func (t *fwdTable) linkType(ifID uint16) topology.LinkType {
+	if int(ifID) < len(t.entries) {
+		return t.entries[ifID].linkType
+	}
+	return topology.Unset
+}
+
+func (t *fwdTable) neighborIA(ifID uint16) addr.IA {
+	if int(ifID) < len(t.entries) {
+		return t.entries[ifID].neighborIA
+	}
+	return 0
+}
+
+// uses reports whether an interface of t uses lk.
+func (t *fwdTable) uses(lk Link) bool {
+	for _, e := range t.entries {
+		if e.link == lk {
+			return true
+		}
+	}
+	return false
+}
+
+// ifRemoval is what the dataplane needs to remove an interface.
+type ifRemoval struct {
+	underlay UnderlayProvider
+	sibling  string // Name of the sibling router owning the interface, if it isn't ours.
+}
+
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
 type dataPlane struct {
 	underlays           map[string]UnderlayProvider
-	interfaces          [math.MaxUint16 + 1]Link
+	fwd                 atomic.Pointer[fwdTable] // Use table() to read it.
+	removals            map[uint16]ifRemoval
 	numInterfaces       int
-	linkTypes           [math.MaxUint16 + 1]topology.LinkType
-	neighborIAs         [math.MaxUint16 + 1]addr.IA
 	localHost           addr.Host
 	macFactory          func() hash.Hash
 	localIA             addr.IA
@@ -248,6 +306,14 @@ type dataPlane struct {
 	// reference.
 	packetPool PacketPool
 
+	// poolSize is the number of packets allocated for the pool.
+	// The pool grows when interfaces are added, up to the capacity of its channel.
+	// It doesn't shrink.
+	poolSize int
+
+	// poolBase is the part of poolSize that doesn't depend on the number of interfaces.
+	poolBase int
+
 	// underlayHeadRoom is the minimum headroom that must be reserved at the front of every packet
 	// to ensure that every underlay provider can prepend its underlay header without copying. It
 	// is established by collecting the headroom requirement of every underlay provider. Underlay
@@ -255,6 +321,11 @@ type dataPlane struct {
 	// link layer header. Underlay providers may use the preceding part of the packet buffer to
 	// receive the link layer header.
 	underlayHeadroom int
+
+	// runCtx and procQs are what Run started the underlays with.
+	// Links added later need them too. procQs is nil until then.
+	runCtx context.Context
+	procQs []chan *Packet
 }
 
 var (
@@ -263,6 +334,11 @@ var (
 	ErrNoSVCBackend                  = errors.New("cannot find internal IP for the SVC")
 
 	errAlreadySet                    = errors.New("already set")
+	errDelInternal                   = errors.New("the internal interface cannot be removed")
+	errNoSuchInterface               = errors.New("no such interface")
+	errPoolFull                      = errors.New("packet pool is full, restart to add interfaces")
+	errHeadroom                      = errors.New("underlay needs more headroom, restart to add it")
+	errNoReload                      = errors.New("underlay can't change its links without restart")
 	errInvalidSrcIA                  = errors.New("invalid source ISD-AS")
 	errInvalidDstIA                  = errors.New("invalid destination ISD-AS")
 	errInvalidSrcAddrForTransit      = errors.New("invalid source address for transit pkt")
@@ -328,10 +404,28 @@ func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 				runConfig.ReceiveBufferSize,
 			),
 		},
+		removals:                       make(map[uint16]ifRemoval),
 		Metrics:                        metrics,
 		ExperimentalSCMPAuthentication: authSCMP,
 		RunConfig:                      runConfig,
 	}
+}
+
+// table returns the current forwarding table.
+func (d *dataPlane) table() *fwdTable {
+	if t := d.fwd.Load(); t != nil {
+		return t
+	}
+	return emptyFwdTable
+}
+
+// setEntry publishes a forwarding table in which ifID maps to e. Callers must hold d.mtx.
+func (d *dataPlane) setEntry(ifID uint16, e fwdEntry) {
+	old := d.table().entries
+	entries := make([]fwdEntry, max(len(old), int(ifID)+1))
+	copy(entries, old)
+	entries[ifID] = e
+	d.fwd.Store(&fwdTable{entries: entries})
 }
 
 // setRunning() Configures the running state of the data plane to true. setRunning() is called once
@@ -423,7 +517,8 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 	if d.isRunning() {
 		return errModifyExisting
 	}
-	if d.interfaces[0] != nil {
+	e := d.table().entry(0)
+	if e.link != nil {
 		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", 0)
 	}
 
@@ -433,12 +528,13 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 	if internalUnderlay == nil {
 		return serrors.JoinNoStack(errNoSuchUnderlay, nil, "provider", provider)
 	}
-	iMetrics := newInterfaceMetrics(d.Metrics, 0, d.localIA, "", d.neighborIAs[0])
+	iMetrics := newInterfaceMetrics(d.Metrics, 0, d.localIA, "", e.neighborIA)
 	lk, err := internalUnderlay.NewInternalLink(localAddr, d.RunConfig.BatchSize, iMetrics)
 	if err != nil {
 		return err
 	}
-	d.interfaces[0] = lk
+	e.link = lk
+	d.setEntry(0, e)
 	d.numInterfaces++
 	d.localHost = localHost
 
@@ -446,44 +542,35 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 }
 
 // AddExternalInterface adds the inter AS connection for the given interface ID.
-// If a connection for the given ID is already set this method will return an
-// error. This can only be called on a not yet running dataplane.
+// If a connection for the given ID is already set this method will return an error.
+// On a running dataplane, the interface starts right away.
+// The underlay provider must then be a [LinkDeleter].
 func (d *dataPlane) AddExternalInterface(
 	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host,
 ) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	if d.isRunning() {
-		return errModifyExisting
-	}
-	bfd, err := d.newExternalInterfaceBFD(ifID, link, localHost, remoteHost)
-	if err != nil {
-		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
-	}
-	if d.interfaces[ifID] != nil {
+	e := d.table().entry(ifID)
+	if e.link != nil {
 		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", ifID)
 	}
 	if link.Remote.Addr == "" {
 		return errEmptyValue
 	}
-
-	underlay, instantiated := d.underlays[link.Provider]
-	if !instantiated {
-		underlayProvider, exists := underlayProviders[link.Provider]
-		if !exists {
-			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
-		}
-		underlay = underlayProvider(
-			d.RunConfig.BatchSize,
-			d.RunConfig.SendBufferSize,
-			d.RunConfig.ReceiveBufferSize,
-		)
-		d.underlays[link.Provider] = underlay
+	underlay, err := d.underlay(link.Provider)
+	if err != nil {
+		return err
 	}
-	d.linkTypes[ifID] = link.LinkTo
+	if err := d.growPool(d.numInterfaces + 1); err != nil {
+		return err
+	}
+	bfd, sender, err := d.newExternalInterfaceBFD(ifID, link, localHost, remoteHost)
+	if err != nil {
+		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
+	}
 
-	iMetrics := newInterfaceMetrics(d.Metrics, ifID, d.localIA, "", d.neighborIAs[ifID])
+	iMetrics := newInterfaceMetrics(d.Metrics, ifID, d.localIA, "", e.neighborIA)
 	lk, err := underlay.NewExternalLink(
 		d.RunConfig.BatchSize,
 		bfd,
@@ -494,36 +581,121 @@ func (d *dataPlane) AddExternalInterface(
 	if err != nil {
 		return err
 	}
-	d.interfaces[ifID] = lk
+	if sender != nil {
+		sender.link = lk
+	}
+	d.startLinks(underlay)
+	e.link = lk
+	e.linkType = link.LinkTo
+	d.setEntry(ifID, e)
+	d.removals[ifID] = ifRemoval{underlay: underlay}
 	d.numInterfaces++
 	return nil
 }
 
 // AddNeighborIA adds the neighboring IA for a given interface ID. If an IA for
-// the given ID is already set, this method will return an error. This can only
-// be called on a not yet running dataplane.
+// the given ID is already set, this method will return an error.
 func (d *dataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if d.isRunning() {
-		return errModifyExisting
-	}
 	if remote.IsZero() {
 		return errEmptyValue
 	}
-	if !d.neighborIAs[ifID].IsZero() {
+	e := d.table().entry(ifID)
+	if !e.neighborIA.IsZero() {
 		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", ifID)
 	}
-	d.neighborIAs[ifID] = remote
+	e.neighborIA = remote
+	d.setEntry(ifID, e)
 	return nil
 }
 
+// DelInterface removes an interface that AddExternalInterface or AddNextHop added,
+// and its neighbor IA. It also undoes AddNeighborIA alone.
+// The link of the interface stops once no other interface uses it.
+// The underlay provider of the link must be a [LinkDeleter].
+func (d *dataPlane) DelInterface(ifID uint16) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	if ifID == 0 {
+		return errDelInternal
+	}
+	e := d.table().entry(ifID)
+	if e == (fwdEntry{}) {
+		return serrors.JoinNoStack(errNoSuchInterface, nil, "ifID", ifID)
+	}
+	r := d.removals[ifID]
+	deleter, ok := r.underlay.(LinkDeleter)
+	if e.link != nil && !ok {
+		return serrors.JoinNoStack(errNoReload, nil, "ifID", ifID)
+	}
+	d.setEntry(ifID, fwdEntry{})
+	if e.link == nil {
+		return nil
+	}
+	d.numInterfaces--
+	delete(d.removals, ifID)
+	if d.table().uses(e.link) {
+		return nil // A sibling link that serves other interfaces too.
+	}
+	if d.Metrics != nil {
+		// The BFD session stops with the link.
+		// Its last state would otherwise remain visible.
+		if r.sibling == "" {
+			d.Metrics.InterfaceUp.DeletePartialMatch(
+				prometheus.Labels{"interface": fmt.Sprint(ifID)})
+		} else {
+			d.Metrics.SiblingReachable.DeletePartialMatch(
+				prometheus.Labels{"sibling": r.sibling})
+		}
+	}
+	deleter.DelLink(e.link)
+	return nil
+}
+
+// underlay returns the named underlay provider, which it creates the first time.
+// Once the dataplane runs, it refuses providers that can't add links then.
+func (d *dataPlane) underlay(name string) (UnderlayProvider, error) {
+	u, ok := d.underlays[name]
+	if !ok {
+		newProvider, exists := underlayProviders[name]
+		if !exists {
+			return nil, serrors.JoinNoStack(errNoSuchUnderlay, nil, "provider", name)
+		}
+		u = newProvider(
+			d.RunConfig.BatchSize,
+			d.RunConfig.SendBufferSize,
+			d.RunConfig.ReceiveBufferSize,
+		)
+	}
+	if d.procQs != nil {
+		if _, ok := u.(LinkDeleter); !ok {
+			return nil, serrors.JoinNoStack(errNoReload, nil, "provider", name)
+		}
+		// Run sized the packet headroom for the underlays it found.
+		if u.Headroom() > d.underlayHeadroom {
+			return nil, serrors.JoinNoStack(errHeadroom, nil, "provider", name)
+		}
+	}
+	d.underlays[name] = u
+	return u, nil
+}
+
+// startLinks starts the links that u created since Run started it.
+func (d *dataPlane) startLinks(u UnderlayProvider) {
+	if d.procQs != nil {
+		u.Start(d.runCtx, d.packetPool, d.procQs)
+	}
+}
+
 // newExternalInterfaceBFD adds the inter AS connection BFD session.
+// The caller must set the link of the returned sender.
 func (d *dataPlane) newExternalInterfaceBFD(
 	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host,
-) (*bfd.Session, error) {
+) (*bfd.Session, *bfdSend, error) {
 	if *link.BFD.Disable {
-		return nil, nil
+		return nil, nil, nil
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
@@ -541,16 +713,17 @@ func (d *dataPlane) newExternalInterfaceBFD(
 	}
 	s, err := newBFDSend(d, link, localHost, remoteHost, ifID, false, d.macFactory())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return bfd.NewSession(s, link.BFD, m)
+	session, err := bfd.NewSession(s, link.BFD, m)
+	return session, s, err
 }
 
 // getInterfaceState checks if there is a bfd session for the input interfaceID and
 // returns InterfaceUp if the relevant BFDSession state is up, or if there is no BFD
 // session. Otherwise, it returns InterfaceDown.
 func (d *dataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
-	if link := d.interfaces[ifID]; link != nil && !link.IsUp() {
+	if link := d.table().link(ifID); link != nil && !link.IsUp() {
 		return control.InterfaceDown
 	}
 	return control.InterfaceUp
@@ -591,8 +764,9 @@ func (d *dataPlane) DelSvc(svc addr.SVC, host addr.Host, port uint16) error {
 }
 
 // AddNextHop sets the next hop address for the given interface ID. If the
-// interface ID already has an address associated this operation fails. This can
-// only be called on a not yet running dataplane.
+// interface ID already has an address associated this operation fails.
+// On a running dataplane, the interface starts right away.
+// The underlay provider must then be a [LinkDeleter].
 func (d *dataPlane) AddNextHop(
 	ifID uint16,
 	link control.LinkInfo,
@@ -601,57 +775,56 @@ func (d *dataPlane) AddNextHop(
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	if d.isRunning() {
-		return errModifyExisting
-	}
-	bfd, err := d.newNextHopBFD(ifID, link, localHost, remoteHost)
-	if err != nil {
-		return serrors.Wrap("adding next hop BFD", err, "if_id", ifID)
-	}
-	if d.interfaces[ifID] != nil {
+	e := d.table().entry(ifID)
+	if e.link != nil {
 		return serrors.JoinNoStack(errAlreadySet, nil, "ifID", ifID)
 	}
 	if link.Remote.Addr == "" {
 		return errEmptyValue
 	}
-	underlay, instantiated := d.underlays[link.Provider]
-	if !instantiated {
-		underlayProvider, exists := underlayProviders[link.Provider]
-		if !exists {
-			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
-		}
-		underlay = underlayProvider(
-			d.RunConfig.BatchSize,
-			d.RunConfig.SendBufferSize,
-			d.RunConfig.ReceiveBufferSize,
-		)
-		d.underlays[link.Provider] = underlay
+	underlay, err := d.underlay(link.Provider)
+	if err != nil {
+		return err
 	}
-	d.linkTypes[ifID] = link.LinkTo
+	if err := d.growPool(d.numInterfaces + 1); err != nil {
+		return err
+	}
+	bfd, sender, err := d.newNextHopBFD(ifID, link, localHost, remoteHost)
+	if err != nil {
+		return serrors.Wrap("adding next hop BFD", err, "if_id", ifID)
+	}
 
 	// Note that a link to the same sibling router might already exist. If so, it will be
 	// returned instead of creating a new one. As a result, the bfd session and metrics will be
 	// ignored and simply garbage collected.
 	iMetrics := newInterfaceMetrics(
-		d.Metrics, ifID, d.localIA, link.Remote.Addr, d.neighborIAs[ifID])
+		d.Metrics, ifID, d.localIA, link.Remote.Addr, e.neighborIA)
 	lk, err := underlay.NewSiblingLink(
 		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, iMetrics)
 	if err != nil {
 		return err
 	}
-	d.interfaces[ifID] = lk
+	if sender != nil {
+		sender.link = lk
+	}
+	d.startLinks(underlay)
+	e.link = lk
+	e.linkType = link.LinkTo
+	d.setEntry(ifID, e)
+	d.removals[ifID] = ifRemoval{underlay: underlay, sibling: link.Instance}
 	d.numInterfaces++
 	return nil
 }
 
 // AddNextHopBFD adds the BFD session for the next hop address.
+// The caller must set the link of the returned sender.
 func (d *dataPlane) newNextHopBFD(
 	ifID uint16,
 	link control.LinkInfo,
 	localHost, remoteHost addr.Host,
-) (*bfd.Session, error) {
+) (*bfd.Session, *bfdSend, error) {
 	if *link.BFD.Disable {
-		return nil, nil
+		return nil, nil, nil
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
@@ -666,9 +839,10 @@ func (d *dataPlane) newNextHopBFD(
 
 	s, err := newBFDSend(d, link, localHost, remoteHost, ifID, true, d.macFactory())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return bfd.NewSession(s, link.BFD, m)
+	session, err := bfd.NewSession(s, link.BFD, m)
+	return session, s, err
 }
 
 type RunConfig struct {
@@ -684,6 +858,7 @@ func (d *dataPlane) Run(ctx context.Context) error {
 	if d.numInterfaces == 0 {
 		// Not stritcly an error but we really can't do anything; most maps aren't even allocated,
 		// due to lazy initialization.
+		d.mtx.Unlock()
 		return nil
 	}
 
@@ -705,6 +880,8 @@ func (d *dataPlane) Run(ctx context.Context) error {
 	)
 	d.initPacketPool(processorQueueSize)
 	procQs, slowQs := d.initQueues(processorQueueSize)
+	d.runCtx = ctx
+	d.procQs = procQs
 	d.setRunning()
 	for _, u := range d.underlays {
 		u.Start(ctx, d.packetPool, procQs)
@@ -727,13 +904,18 @@ func (d *dataPlane) Run(ctx context.Context) error {
 	return nil
 }
 
+// poolGrowthInterfaces is how many interfaces the packet pool has room for
+// beyond those it starts with. The room costs one channel slot per packet
+// even when unused, but that is little compared to the packets themselves.
+const poolGrowthInterfaces = 256
+
 // initializePacketPool calculates the size of the packet pool based on the
 // current dataplane settings and allocates all the buffers
 func (d *dataPlane) initPacketPool(processorQueueSize int) {
 	// collect pool size and headroom reqs
-	poolSize := d.numInterfaces*d.RunConfig.BatchSize +
-		(d.RunConfig.NumProcessors+d.RunConfig.NumSlowPathProcessors)*(processorQueueSize+1) +
-		d.numInterfaces*2*d.RunConfig.BatchSize
+	d.poolBase = (d.RunConfig.NumProcessors + d.RunConfig.NumSlowPathProcessors) *
+		(processorQueueSize + 1)
+	poolSize := d.poolSizeFor(d.numInterfaces)
 	headroom := 0
 	for _, u := range d.underlays {
 		h := u.Headroom()
@@ -750,12 +932,47 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 		headroom = minHeadroom
 	}
 	log.Debug("Initialize packet pool", "poolSize", poolSize, "headroom", headroom)
-	d.packetPool = makePacketPool(poolSize, headroom)
-	pktBuffers := make([][bufSize]byte, poolSize)
-	pktStructs := make([]Packet, poolSize)
-	for i := range poolSize {
+	d.packetPool = makePacketPool(d.poolSizeFor(d.numInterfaces+poolGrowthInterfaces), headroom)
+	d.addPackets(poolSize)
+}
+
+// poolSizeFor returns the pool size for numInterfaces interfaces.
+// Each interface needs a batch for its receiver, and two for its sender:
+// the queue and the batch being written.
+//
+// TODO(multi_underlay): This assumes a connection per interface, as udpip has.
+// The AF_XDP underlay of #4892 has one per NIC queue, shared by the links of the NIC,
+// so a link on a new NIC can need more, and one on a known NIC less.
+// The underlays should tell how many packets their connections hold.
+func (d *dataPlane) poolSizeFor(numInterfaces int) int {
+	return d.poolBase + numInterfaces*3*d.RunConfig.BatchSize
+}
+
+// addPackets allocates n more packets for the pool.
+func (d *dataPlane) addPackets(n int) {
+	pktBuffers := make([][bufSize]byte, n)
+	pktStructs := make([]Packet, n)
+	for i := range n {
 		d.packetPool.Put(pktStructs[i].init(&pktBuffers[i]))
 	}
+	d.poolSize += n
+}
+
+// growPool makes the pool big enough for numInterfaces interfaces.
+// Before [dataPlane.Run], it does nothing: [dataPlane.Run] sizes the pool.
+func (d *dataPlane) growPool(numInterfaces int) error {
+	if d.procQs == nil {
+		return nil
+	}
+	n := d.poolSizeFor(numInterfaces) - d.poolSize
+	if n <= 0 {
+		return nil
+	}
+	if d.poolSize+n > cap(d.packetPool.pool) {
+		return errPoolFull
+	}
+	d.addPackets(n)
+	return nil
 }
 
 // initializes the processing routines and queues
@@ -809,7 +1026,7 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 			d.packetPool.Put(p)
 			continue
 		}
-		fwLink := d.interfaces[p.egress]
+		fwLink := processor.fwd.link(p.egress)
 		if fwLink == nil {
 			log.Debug("Error determining forwarder. Egress is invalid", "egress", p.egress)
 			d.packetPool.Put(p)
@@ -1005,6 +1222,7 @@ func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
 	}
 	p.pkt = pkt
 	p.ingressFromLink = pkt.Link.IfID()
+	p.fwd = p.d.table()
 
 	// parse SCION header and skip extensions;
 	var err error
@@ -1116,6 +1334,7 @@ func (p *scionPacketProcessor) processEPIC() disposition {
 // mutable state and context information which should be reused.
 type scionPacketProcessor struct {
 	d               *dataPlane    // The dataplane instance that initiated this processor.
+	fwd             *fwdTable     // The forwarding table for the current packet.
 	pkt             *Packet       // Packet currently being processed by this processor.
 	ingressFromLink uint16        // IfID associated with the ingress link, if any.
 	mac             hash.Hash     // hasher for the MAC computation.
@@ -1328,8 +1547,8 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 		// Locally originated traffic, or came in via an external link. Not our concern.
 		return pForward
 	}
-	pktIngressID := p.ingressInterface()        // Where this was *supposed* to enter the AS
-	ingressLink := p.d.interfaces[pktIngressID] // Our own link to *that* sibling router
+	pktIngressID := p.ingressInterface()    // Where this was *supposed* to enter the AS
+	ingressLink := p.fwd.link(pktIngressID) // Our own link to *that* sibling router
 
 	// Is that the link that the packet came through (e.g. not the internal link)? The
 	// comparison should be cheap. Links are implemented by pointers.
@@ -1349,7 +1568,7 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 // to another AS directly, or via a sibling router.
 func (p *scionPacketProcessor) validateEgressID() disposition {
 	egressID := p.pkt.egress
-	egressLink := p.d.interfaces[egressID]
+	egressLink := p.fwd.link(egressID)
 
 	// egress interface must be a known interface
 	// egress is never the internal interface (already checked)
@@ -1369,7 +1588,7 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 		return pSlowPath
 	}
 
-	ingressLT, egressLT := p.d.linkTypes[p.ingressFromLink], p.d.linkTypes[egressID]
+	ingressLT, egressLT := p.fwd.linkType(p.ingressFromLink), p.fwd.linkType(egressID)
 	if !p.effectiveXover {
 		// No check required if the packet is received from an internal interface because that
 		// check was done by the ingress router.
@@ -1566,7 +1785,7 @@ func (p *scionPacketProcessor) egressInterface() uint16 {
 
 func (p *scionPacketProcessor) validateEgressUp() disposition {
 	egressID := p.pkt.egress
-	egressLink := p.d.interfaces[egressID]
+	egressLink := p.fwd.link(egressID)
 	if !egressLink.IsUp() {
 		log.Debug("SCMP response", "cause", errBFDSessionDown)
 		if egressLink.Scope() != External {
@@ -1615,7 +1834,7 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() disposition {
 	if !*alert {
 		return pForward
 	}
-	if p.d.interfaces[p.pkt.egress].Scope() != External {
+	if p.fwd.link(p.pkt.egress).Scope() != External {
 		// the egress router is not this one.
 		return pForward
 	}
@@ -1784,7 +2003,7 @@ func (p *scionPacketProcessor) process() disposition {
 	if disp := p.validateEgressUp(); disp != pForward {
 		return disp
 	}
-	if p.d.interfaces[egressID].Scope() == External {
+	if p.fwd.link(egressID).Scope() == External {
 		// Not ASTransit in
 		if disp := p.processEgress(); disp != pForward {
 			return disp
@@ -1829,7 +2048,7 @@ func (p *scionPacketProcessor) processOHP() disposition {
 			// TODO parameter problem -> invalid path
 			return errorDiscard("error", errCannotRoute)
 		}
-		neighborIA := p.d.neighborIAs[ohp.FirstHop.ConsEgress]
+		neighborIA := p.fwd.neighborIA(ohp.FirstHop.ConsEgress)
 		if neighborIA.IsZero() {
 			// TODO parameter problem invalid interface
 			return errorDiscard("error", errCannotRoute)
@@ -1855,7 +2074,7 @@ func (p *scionPacketProcessor) processOHP() disposition {
 	if !p.d.localIA.Equal(s.DstIA) {
 		return errorDiscard("error", errCannotRoute)
 	}
-	neighborIA := p.d.neighborIAs[p.ingressFromLink]
+	neighborIA := p.fwd.neighborIA(p.ingressFromLink)
 	if !neighborIA.Equal(s.SrcIA) {
 		return errorDiscard("error", errCannotRoute)
 	}
@@ -1905,7 +2124,7 @@ func (d *dataPlane) resolveLocalDst(
 	}
 
 	// Let the internal (it better be) link resolve the destination to an underlay address.
-	return d.interfaces[packet.egress].Resolve(packet, a, p)
+	return d.table().link(packet.egress).Resolve(packet, a, p)
 }
 
 func (d *dataPlane) dstScionPort(
@@ -2069,6 +2288,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
 
 type bfdSend struct {
 	dataPlane *dataPlane
+	link      Link   // Set once the link exists, before the session runs.
 	name      string // for logs
 	ifID      uint16
 	scn       *slayers.SCION
@@ -2169,11 +2389,9 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	// metadata.
 	p.RawPacket = serBuf.Bytes()
 
-	// BfdControllers and fwQs are initialized from the same set of ifIDs. So not finding
-	// the forwarding queue is an serious internal error. Let that panic.
-	fwLink := b.dataPlane.interfaces[b.ifID]
-
-	if !fwLink.Send(p) {
+	// The link, not the ifID: a sibling link outlives the interface that created it,
+	// and a replaced interface gets a new link.
+	if !b.link.Send(p) {
 		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
 		// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
 		b.dataPlane.packetPool.Put(p)
