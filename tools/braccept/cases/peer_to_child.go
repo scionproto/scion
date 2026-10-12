@@ -186,6 +186,8 @@ func PeerToChild(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:     "ChildToChildPeeringTransit",
 		WriteTo:  "veth_121_host", // Where we inject the test packet
 		ReadFrom: "veth_151_host", // Where we capture the forwarded packet
+		LocalMAC: ethernet.DstMAC, // Recipient of the "want packet".
+		LocalIP:  ip.DstIP,        // Recipient of the "want packet".
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "ChildToChildXover"),

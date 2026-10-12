@@ -1,6 +1,6 @@
-load("//acceptance/common:topogen.bzl", "topogen_test")
+load("//acceptance/common:topogen.bzl", "topogen_test_underlays")
 
-topogen_test(
+topogen_test_underlays(
     name = "test",
     src = "test.py",
     args = [
@@ -18,7 +18,7 @@ topogen_test(
 # Validate protocol transition provisions.
 
 # Old, grpc-only clients can talk to transition (bi-compatible) servers.
-topogen_test(
+topogen_test_underlays(
     name = "test_grpc_client",
     src = "test.py",
     args = [
@@ -37,7 +37,7 @@ topogen_test(
 )
 
 # Transition (bi-compatible) clients can talk to old grpc-only servers.
-topogen_test(
+topogen_test_underlays(
     name = "test_grpc_server",
     src = "test.py",
     args = [
@@ -56,7 +56,7 @@ topogen_test(
 )
 
 # clients can still talk with servers after removal of grpc from both sides.
-topogen_test(
+topogen_test_underlays(
     name = "test_connectrpc",
     src = "test.py",
     args = [

@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//tools:go.bzl", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["checksum.go"],
+    importpath = "github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/checksum",
+    visibility = ["//router/underlayproviders/afxdpudpip:__subpackages__"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["checksum_bench_test.go"],
+    embed = [":go_default_library"],
+)

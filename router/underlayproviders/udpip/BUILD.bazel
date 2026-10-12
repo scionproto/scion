@@ -3,10 +3,7 @@ load("//tools:go.bzl", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "fnv1acheap.go",
-        "udpip.go",
-    ],
+    srcs = ["udpip.go"],
     importpath = "github.com/scionproto/scion/router/underlayproviders/udpip",
     visibility = ["//visibility:public"],
     deps = [
@@ -15,6 +12,8 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//pkg/slayers:go_default_library",
         "//pkg/stun:go_default_library",
+        "//private/queue:go_default_library",
+        "//private/queue/chanq:go_default_library",
         "//private/underlay/conn:go_default_library",
         "//router:go_default_library",
         "//router/bfd:go_default_library",
@@ -32,6 +31,7 @@ go_test(
         "//pkg/slayers:go_default_library",
         "//pkg/slayers/path:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
+        "//router:go_default_library",
         "@com_github_gopacket_gopacket//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

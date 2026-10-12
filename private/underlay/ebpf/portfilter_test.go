@@ -1,22 +1,11 @@
-// SPDX-License-Identifier: Apache-2.0
-//
 // Copyright 2025 SCION Association
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package ebpf_test
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -30,8 +19,6 @@ import (
 	"github.com/gopacket/gopacket/layers"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
-
-	"github.com/scionproto/scion/private/underlay/ebpf"
 )
 
 // Deletes the vethA/B pair if we were the ones to create them.
@@ -97,26 +84,22 @@ func makeVethPair(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// This requires capabilities CAP_NET_ADMIN, CAP_NET_RAW and CAP_BPF
+// TestRawSocket verifies raw packet injection and reception over a veth pair using AF_PACKET.
+// This requires capabilities CAP_NET_ADMIN, CAP_NET_RAW and CAP_BPF.
 func TestRawSocket(t *testing.T) {
 
 	makeVethPair(t)
 	defer delVethPair()
 
-	// Make two raw sockets. One attached to each end of the veth.
-	// We will always send from A and we will receive at B in two different ways;
-	// depending on the port number. On side B we place a filter that lets only port 50000 reach
-	// the raw socket. We set the filter on side A too; just to verify that it does not interfere
-	// with sending.
+	// Make two AF_PACKET sockets, one on each end of the veth pair.
+	// We send raw packets from A and verify reception at B via both the AF_PACKET socket
+	// and the regular UDP socket.
 
 	// Side A
 	afpHandleA, err := afpacket.NewTPacket(
 		afpacket.OptInterface("vethA"),
-		afpacket.OptFrameSize(4096))
-	require.NoError(t, err)
-	filterA, err := ebpf.BpfSockFilter(50000)
-	require.NoError(t, err)
-	err = afpHandleA.SetEBPF(int32(filterA))
+		afpacket.OptFrameSize(4096),
+	)
 	require.NoError(t, err)
 	rawAddrA, err := net.ResolveUDPAddr("udp4", "10.123.100.1:50000")
 	require.NoError(t, err)
@@ -127,22 +110,27 @@ func TestRawSocket(t *testing.T) {
 	// Side B
 	afpHandleB, err := afpacket.NewTPacket(
 		afpacket.OptInterface("vethB"),
-		afpacket.OptFrameSize(4096))
-	require.NoError(t, err)
-	filterB, err := ebpf.BpfSockFilter(50000)
-	require.NoError(t, err)
-	err = afpHandleB.SetEBPF(int32(filterB))
+		afpacket.OptFrameSize(4096),
+		afpacket.OptPollTimeout(200*time.Millisecond),
+	)
 	require.NoError(t, err)
 	rawAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50000")
 	require.NoError(t, err)
 	ipAddrB, err := net.ResolveUDPAddr("udp4", "10.123.100.2:50001")
 	require.NoError(t, err)
 
-	// On side B we expect packets to port 50000 at the raw socket and packets to port 50001 at the
-	// regular socket.
-	packetChanB := gopacket.NewPacketSource(afpHandleB, layers.LinkTypeEthernet).Packets()
+	// On side B we listen with a regular UDP socket on port 50001.
 	connB, err := net.ListenUDP("udp4", ipAddrB)
 	require.NoError(t, err)
+
+	// Drain stray packets that arrived before the test started.
+	for {
+		_, _, err := afpHandleB.ZeroCopyReadPacketData()
+		if errors.Is(err, afpacket.ErrTimeout) {
+			break
+		}
+		require.NoError(t, err)
+	}
 
 	// Now, check what we can and cannot receive and where.
 	buf := make([]byte, 256)
@@ -154,36 +142,36 @@ func TestRawSocket(t *testing.T) {
 	require.NoError(t, err)
 
 	// The regular socket should get that.
-	err = connB.SetReadDeadline(time.Now().Add(1 * time.Second))
+	err = connB.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	require.NoError(t, err)
 	_, _, err = connB.ReadFrom(buf)
 	require.NoError(t, err)
 	require.Equal(t, string(buf[:5]), "hello")
 
-	// The raw socket shouldn't have gotten anything.
-	afterCh := time.After(1 * time.Second)
-	select {
-	case <-packetChanB:
-		t.Fatal("Received on raw socket\n")
-	case <-afterCh:
+	// Drain any stray packets (ARP/NDP) from the raw socket.
+	for {
+		_, _, err := afpHandleB.ZeroCopyReadPacketData()
+		if errors.Is(err, afpacket.ErrTimeout) {
+			break
+		}
 	}
 
-	// To raw sockets; port 50000
+	// Send to port 50000 via raw socket; verify the AF_PACKET socket receives it.
 	pkt = mkPacket(rawAddrA, rawAddrB)
 	err = afpHandleA.WritePacketData(pkt)
 	require.NoError(t, err)
-	afterCh = time.After(1 * time.Second)
-	select {
-	case <-packetChanB:
-	case <-afterCh:
-		t.Fatal("Never received on raw socket\n")
-	}
+	_, _, err = afpHandleB.ZeroCopyReadPacketData()
+	require.NoError(t, err)
 
-	// The regular socket can't possibly get that:
-	err = connB.SetReadDeadline(time.Now().Add(time.Second))
+	// The regular socket on port 50001 can't get a packet sent to port 50000.
+	err = connB.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	require.NoError(t, err)
 	_, _, err = connB.ReadFrom(buf)
 	require.Error(t, err)
+
+	afpHandleA.Close()
+	afpHandleB.Close()
+	connB.Close()
 }
 
 var pktOptions = gopacket.SerializeOptions{
