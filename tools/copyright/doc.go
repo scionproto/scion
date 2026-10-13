@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Command copyright prints a patch that adds a current-year copyright claim to
-// changed Go files. -w also writes it:
+// changed Go files. -w also applies the patch:
 //
 //	go run ./tools/copyright -affiliation "SCION Association"
 //	go run ./tools/copyright -w -affiliation "SCION Association"
