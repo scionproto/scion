@@ -11,3 +11,4 @@ jq
 openssl
 rsync
 util-linux-script
+unzip
