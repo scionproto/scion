@@ -537,6 +537,7 @@ func (d *dataPlane) newExternalInterfaceBFD(
 			StateChanges:    d.Metrics.BFDInterfaceStateChanges.With(labels),
 			PacketsSent:     d.Metrics.BFDPacketsSent.With(labels),
 			PacketsReceived: d.Metrics.BFDPacketsReceived.With(labels),
+			RTT:             d.Metrics.BFDRTTEstimate.With(labels),
 		}
 	}
 	s, err := newBFDSend(d, link, localHost, remoteHost, ifID, false, d.macFactory())
@@ -661,6 +662,7 @@ func (d *dataPlane) newNextHopBFD(
 			StateChanges:    d.Metrics.SiblingBFDStateChanges.With(labels),
 			PacketsSent:     d.Metrics.SiblingBFDPacketsSent.With(labels),
 			PacketsReceived: d.Metrics.SiblingBFDPacketsReceived.With(labels),
+			RTT:             d.Metrics.SiblingBFDRTTEstimate.With(labels),
 		}
 	}
 
