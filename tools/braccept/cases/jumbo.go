@@ -156,6 +156,8 @@ func JumboPacket(artifactsDir string, mac hash.Hash) runner.Case {
 		Name:     "JumboPacket",
 		WriteTo:  "veth_131_host",
 		ReadFrom: "veth_141_host",
+		LocalMAC: ethernet.DstMAC,
+		LocalIP:  ip.DstIP,
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "JumboPacket"),
