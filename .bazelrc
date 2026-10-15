@@ -18,13 +18,12 @@ build --incompatible_default_to_explicit_init_py
 # Enable resolution of cc toolchain by go toolchain
 build --incompatible_enable_cc_toolchain_resolution
 build --flag_alias=file_name_version=//:file_name_version
-build  --build_python_zip
 
 build --define gotags=netgo
 build:osx
 
 ### options for test
-test --build_tests_only --print_relative_test_log_paths --test_output=errors --build_python_zip=false --spawn_strategy=remote,worker,processwrapper-sandbox,local --strategy=Genrule=local
+test --build_tests_only --print_relative_test_log_paths --test_output=errors --spawn_strategy=remote,worker,processwrapper-sandbox,local --strategy=Genrule=local
 
 ### predefined configurations (use with --config, eg. `bazel test --config=unit_all`)
 test:race --@rules_go//go/config:race
