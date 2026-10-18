@@ -280,6 +280,7 @@ var (
 	errPeeringNonemptySeg2           = errors.New("non-zero-length segment[2] in peering path")
 	errBFDSessionDown                = errors.New("bfd session down")
 	errExpiredHop                    = errors.New("expired hop")
+	errFutureHop                     = errors.New("hop from the future")
 	errIngressInterfaceInvalid       = errors.New("ingress interface invalid")
 	errMacVerificationFailed         = errors.New("MAC verification failed")
 	errBadPacketSize                 = errors.New("bad packet size")
@@ -1234,13 +1235,21 @@ func (p *scionPacketProcessor) determinePeer() disposition {
 }
 
 func (p *scionPacketProcessor) validateHopExpiry() disposition {
-	expiration := util.SecsToTime(p.infoField.Timestamp).
-		Add(path.ExpTimeToDuration(p.hopField.ExpTime))
-	expired := expiration.Before(time.Now())
-	if !expired {
+	now := time.Now()
+	start := util.SecsToTime(p.infoField.Timestamp)
+
+	// A future timestamp would extend the hop fields beyond [path.MaxTTL].
+	// [path.MinTTL] of tolerance accounts for clock drift.
+	var cause error
+	switch {
+	case start.After(now.Add(path.MinTTL)):
+		cause = errFutureHop
+	case start.Add(path.ExpTimeToDuration(p.hopField.ExpTime)).Before(now):
+		cause = errExpiredHop
+	default:
 		return pForward
 	}
-	log.Debug("SCMP response", "cause", errExpiredHop,
+	log.Debug("SCMP response", "cause", cause, "timestamp", start,
 		"cons_dir", p.infoField.ConsDir, "if_id", p.ingressFromLink,
 		"curr_inf", p.path.PathMeta.CurrINF, "curr_hf", p.path.PathMeta.CurrHF)
 	p.pkt.slowPathRequest = slowPathRequest{
@@ -2148,9 +2157,11 @@ func (b *bfdSend) String() string {
 // safe.
 func (b *bfdSend) Send(bfd *layers.BFD) error {
 	if b.ohp != nil {
-		// Subtract 10 seconds to deal with possible clock drift.
+		// No need to backdate for clock drift: routers don't validate the path of
+		// BFD packets (see [scionPacketProcessor.processPkt]), and
+		// [scionPacketProcessor.validateHopExpiry] tolerates drift on other paths.
 		ohp := b.ohp
-		ohp.Info.Timestamp = uint32(time.Now().Unix() - 10)
+		ohp.Info.Timestamp = util.TimeToSecs(time.Now())
 		ohp.FirstHop.Mac = path.MAC(b.mac, ohp.Info, ohp.FirstHop, b.macBuffer)
 	}
 
