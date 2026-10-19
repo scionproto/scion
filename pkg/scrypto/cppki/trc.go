@@ -18,7 +18,8 @@ import (
 	"bytes"
 	"crypto/x509"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -187,11 +188,7 @@ func (trc *TRC) RootCerts() ([]*x509.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-	roots := make([]*x509.Certificate, 0, len(c.Root))
-	for _, r := range c.Root {
-		roots = append(roots, r)
-	}
-	return roots, nil
+	return slices.Collect(maps.Values(c.Root)), nil
 }
 
 // RootPool extracts all CP root certificates in this TRC as a CertPool.
@@ -402,7 +399,7 @@ func (trc *TRC) validateRegular(predecessor *TRC, predCerts, thisCerts classifie
 		for predIdx := range expectedVotes {
 			names = append(names, predCerts.Regular[predIdx].Subject.CommonName)
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 		return nil, nil, serrors.New("missing votes by modified regular voting certificates",
 			"missing", names)
 	}
@@ -507,26 +504,19 @@ func validateASSequence(ases []addr.AS) error {
 		if as == 0 {
 			return ErrWildcardAS
 		}
-		for j := i + 1; j < len(ases); j++ {
-			if as == ases[j] {
-				return serrors.JoinNoStack(ErrDuplicateAS, nil, "as", as)
-			}
+		if slices.Contains(ases[i+1:], as) {
+			return serrors.JoinNoStack(ErrDuplicateAS, nil, "as", as)
 		}
 	}
 	return nil
 }
 
 func uniqueSubject(certs map[int]*x509.Certificate) error {
-	// idx maps from position in cert list l to the index in the TRC payload.
-	l, idx := make([]*x509.Certificate, 0, len(certs)), make([]int, 0, len(certs))
-	for i, cert := range certs {
-		l, idx = append(l, cert), append(idx, i)
-	}
-	for i, a := range l {
-		for j := i + 1; j < len(l); j++ {
-			b := l[j]
-			if equalName(a.Subject, b.Subject) {
-				return serrors.JoinNoStack(ErrDuplicate, nil, "indices", []int{idx[i], idx[j]})
+	indices := slices.Sorted(maps.Keys(certs))
+	for i, a := range indices {
+		for _, b := range indices[i+1:] {
+			if equalName(certs[a].Subject, certs[b].Subject) {
+				return serrors.JoinNoStack(ErrDuplicate, nil, "indices", []int{a, b})
 			}
 		}
 	}

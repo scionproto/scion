@@ -17,6 +17,7 @@ package cppki
 import (
 	"crypto/x509/pkix"
 	"reflect"
+	"slices"
 )
 
 func equalName(name, other pkix.Name) bool {
@@ -29,18 +30,9 @@ func equalName(name, other pkix.Name) bool {
 }
 
 func equalRDNSequence(rdn1, rdn2 pkix.RDNSequence) bool {
-	if len(rdn1) != len(rdn2) {
-		return false
-	}
-	for i := range rdn1 {
-		if len(rdn1[i]) != len(rdn2[i]) {
-			return false
-		}
-		if !equalRDNSET(rdn1[i], rdn2[i]) {
-			return false
-		}
-	}
-	return true
+	return slices.EqualFunc(rdn1, rdn2, func(a, b pkix.RelativeDistinguishedNameSET) bool {
+		return len(a) == len(b) && equalRDNSET(a, b)
+	})
 }
 
 func equalRDNSET(rdns1, rdns2 pkix.RelativeDistinguishedNameSET) bool {
@@ -50,13 +42,9 @@ func equalRDNSET(rdns1, rdns2 pkix.RelativeDistinguishedNameSET) bool {
 // rdnSETSubset checks that rdns1 is a subset of rdns2.
 func rdnSETSubset(rdns1, rdns2 pkix.RelativeDistinguishedNameSET) bool {
 	for _, av1 := range rdns1 {
-		found := false
-		for _, av2 := range rdns2 {
-			if av1.Type.Equal(av2.Type) && reflect.DeepEqual(av1.Value, av2.Value) {
-				found = true
-				break
-			}
-		}
+		found := slices.ContainsFunc(rdns2, func(av2 pkix.AttributeTypeAndValue) bool {
+			return av1.Type.Equal(av2.Type) && reflect.DeepEqual(av1.Value, av2.Value)
+		})
 		if !found {
 			return false
 		}

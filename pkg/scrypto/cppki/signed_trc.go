@@ -16,9 +16,10 @@ package cppki
 
 import (
 	"bytes"
+	"cmp"
 	"crypto/x509"
 	"errors"
-	"sort"
+	"slices"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cms/protocol"
@@ -161,7 +162,7 @@ func (s *SignedTRC) verifyAll(certs []*x509.Certificate) error {
 				names = append(names, cert.Subject.CommonName)
 			}
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 		return serrors.New("missing signatures", "missing", names)
 	}
 	return nil
@@ -209,19 +210,13 @@ func (t SignedTRCs) Len() int {
 
 // Less returns if SignedTRC[i] is less than SignedTRC[j] based on isd > base > serial
 func (t SignedTRCs) Less(i, j int) bool {
-	isdA, isdB := t[i].TRC.ID.ISD, t[j].TRC.ID.ISD
-	baseA, baseB := t[i].TRC.ID.Base, t[j].TRC.ID.Base
-	serialA, serialB := t[i].TRC.ID.Serial, t[j].TRC.ID.Serial
-	switch {
-	case isdA != isdB:
-		return isdA < isdB
-	case baseA != baseB:
-		return baseA < baseB
-	case serialA != serialB:
-		return serialA < serialB
-	default:
-		return bytes.Compare(t[i].TRC.Raw, t[j].TRC.Raw) == -1
-	}
+	a, b := t[i].TRC, t[j].TRC
+	return cmp.Or(
+		cmp.Compare(a.ID.ISD, b.ID.ISD),
+		cmp.Compare(a.ID.Base, b.ID.Base),
+		cmp.Compare(a.ID.Serial, b.ID.Serial),
+		bytes.Compare(a.Raw, b.Raw),
+	) < 0
 }
 
 // Swap swaps the two elements of SignedTRCs
