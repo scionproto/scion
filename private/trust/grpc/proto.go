@@ -23,7 +23,7 @@ import (
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/trust"
-	trustmetrics "github.com/scionproto/scion/private/trust/internal/metrics"
+	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 func ChainQueryToReq(query trust.ChainQuery) *cppb.ChainsRequest {

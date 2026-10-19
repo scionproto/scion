@@ -119,16 +119,16 @@ func (e *ClientEngine) GetHostHostKey(
 
 // CreateStorageCleaners creates three Cleaner tasks that removes
 // AS-Host, Host-AS and Host-Host keys respectively.
-func (e *ClientEngine) CreateStorageCleaners() []*cleaner.Cleaner {
+func (e *ClientEngine) CreateStorageCleaners(metrics ClientCleanerMetrics) []*cleaner.Cleaner {
 	cleaners := make([]*cleaner.Cleaner, 3)
 	cleaners[0] = cleaner.New(func(ctx context.Context) (int, error) {
 		return e.DB.DeleteExpiredASHostKeys(ctx, time.Now())
-	}, "drkey_client_as_host_store")
+	}, "drkey_client_as_host_store", metrics.ASHost)
 	cleaners[1] = cleaner.New(func(ctx context.Context) (int, error) {
 		return e.DB.DeleteExpiredHostASKeys(ctx, time.Now())
-	}, "drkey_client_host_as_store")
+	}, "drkey_client_host_as_store", metrics.HostAS)
 	cleaners[2] = cleaner.New(func(ctx context.Context) (int, error) {
 		return e.DB.DeleteExpiredHostHostKeys(ctx, time.Now())
-	}, "drkey_client_host_host_store")
+	}, "drkey_client_host_host_store", metrics.HostHost)
 	return cleaners
 }

@@ -18,36 +18,13 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
-type Option func(*option)
-
-// WithRegistry specifies the registerer used to create the metrics.
-func WithRegistry(registry prometheus.Registerer) Option {
-	return func(o *option) {
-		o.registry = registry
-	}
-}
-
-type option struct {
-	registry prometheus.Registerer
-}
-
-func apply(opts []Option) option {
-	o := option{registry: prometheus.DefaultRegisterer}
-	for _, option := range opts {
-		option(&o)
-	}
-	return o
-}
-
-func NewSCIONNetworkMetrics(opts ...Option) snet.SCIONNetworkMetrics {
-	o := apply(opts)
-	auto := promauto.With(o.registry)
+func NewSCIONNetworkMetrics(opts ...metrics.Option) snet.SCIONNetworkMetrics {
+	auto := metrics.ApplyOptions(opts...).Auto()
 
 	return snet.SCIONNetworkMetrics{
 		Dials: auto.NewCounter(prometheus.CounterOpts{
@@ -59,9 +36,8 @@ func NewSCIONNetworkMetrics(opts ...Option) snet.SCIONNetworkMetrics {
 	}
 }
 
-func NewSCIONPacketConnMetrics(opts ...Option) snet.SCIONPacketConnMetrics {
-	o := apply(opts)
-	auto := promauto.With(o.registry)
+func NewSCIONPacketConnMetrics(opts ...metrics.Option) snet.SCIONPacketConnMetrics {
+	auto := metrics.ApplyOptions(opts...).Auto()
 	return snet.SCIONPacketConnMetrics{
 		Closes: auto.NewCounter(prometheus.CounterOpts{
 			Name: "lib_snet_closes_total",
@@ -88,9 +64,8 @@ func NewSCIONPacketConnMetrics(opts ...Option) snet.SCIONPacketConnMetrics {
 	}
 }
 
-func NewSCMPErrors(opts ...Option) metrics.Counter {
-	o := apply(opts)
-	auto := promauto.With(o.registry)
+func NewSCMPErrors(opts ...metrics.Option) metrics.Counter {
+	auto := metrics.ApplyOptions(opts...).Auto()
 
 	return auto.NewCounter(prometheus.CounterOpts{
 		Name: "lib_snet_scmp_error_total",
