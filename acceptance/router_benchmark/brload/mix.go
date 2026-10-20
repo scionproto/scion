@@ -57,10 +57,10 @@ var mixCases = map[string]MixCase{
 	"mix6": cases.Mix6,
 }
 
-// runMix drives a mixed workload: it groups the flows by ingress device, runs
-// one AF_XDP sender per ingress link (each cycling that link's templates), and
-// verifies that every egress link forwards traffic. It preserves the output
-// contract the test harness parses (metricsBegin/metricsEnd, Listener results).
+// runMix groups the flows by ingress device, runs one AF_XDP sender per ingress
+// link (each cycling that link's templates) and checks that every egress link
+// forwards traffic. It prints the metricsBegin/metricsEnd and Listener results
+// lines that the test harness parses.
 func runMix(mixFn MixCase, handles map[string]*afpacket.TPacket, hfMAC hash.Hash) int {
 	flows := mixFn(packetSize, hfMAC)
 	if len(flows) == 0 {

@@ -22,9 +22,9 @@ import "hash"
 type MixFlow struct {
 	// Name identifies the underlying traffic pattern (e.g. "in", "br_transit").
 	Name string
-	// DevIn is the label of the interface the packet is injected on.
+	// DevIn is the host device the packet is injected on.
 	DevIn string
-	// DevOut is the label of the interface the router forwards the packet to.
+	// DevOut is the host device the router forwards the packet out of.
 	DevOut string
 	// Payload is the SCION-layer payload used to recognise the packet on egress.
 	Payload []byte
@@ -52,9 +52,9 @@ func buildMix(packetSize int, mac hash.Hash, builders []struct {
 	return flows
 }
 
-// Mix builds a realistic IPv4 workload that exercises every router forwarding
-// path at once, reusing each case's own packet builder. Ingress spans the
-// internal and external-AS2 links; egress spans the internal and both external links.
+// Mix builds an IPv4 workload from the in, out, br_transit, in_transit and
+// out_transit cases, one template each, injected concurrently. Ingress spans the
+// internal and AS2 links; egress spans the internal, AS2 and AS3 links.
 func Mix(packetSize int, mac hash.Hash) []MixFlow {
 	return buildMix(packetSize, mac, []struct {
 		name string

@@ -12,26 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package checksum implements the Internet ones-complement checksum
-// (RFC 1071, https://www.rfc-editor.org/rfc/rfc1071) for IPv4 headers and
-// IPv6/UDP packets, specialized for the afxdpudpip underlay TX hot path.
+// Package checksum implements the Internet ones-complement checksum of
+// [RFC 1071] for IPv4 headers and IPv6/UDP packets, specialized for the
+// afxdpudpip underlay TX hot path.
 //
 // The ones-complement sum is commutative and associative over 16-bit words in
 // network byte order, so we accumulate wider chunks (uint32 read big-endian)
 // into a uint64 and fold once at the end. Summing a big-endian uint32 is
 // equivalent to summing its two 16-bit halves once the final fold collapses
 // carries from bits 16..31 back into bits 0..15.
+//
+// [RFC 1071]: https://www.rfc-editor.org/rfc/rfc1071
 package checksum
 
 import "encoding/binary"
 
-// udpProto is the UDP Next-Header / Protocol value
-// (See https://www.rfc-editor.org/rfc/rfc768#page-3).
+// udpProto is the UDP Next-Header / Protocol value from [RFC 768].
+//
+// [RFC 768]: https://www.rfc-editor.org/rfc/rfc768#page-3
 const udpProto = 17
 
 // IPv4Header returns the ones-complement checksum of a 20-byte IPv4 header
-// (See https://www.rfc-editor.org/rfc/rfc791#section-3.1). The checksum field
-// in the header must be zeroed by the caller before the call.
+// ([RFC 791] section 3.1). The checksum field in the header must be zeroed by
+// the caller before the call.
+//
+// [RFC 791]: https://www.rfc-editor.org/rfc/rfc791#section-3.1
 func IPv4Header(h []byte) uint16 {
 	_ = h[19] // bounds-check elimination
 	var s uint64
@@ -44,11 +49,12 @@ func IPv4Header(h []byte) uint16 {
 }
 
 // UDP6Pseudo returns the ones-complement partial sum of the IPv6/UDP pseudo
-// header (See https://www.rfc-editor.org/rfc/rfc8200#section-8.1):
+// header of [RFC 8200] section 8.1, laid out as
 // srcIP || dstIP || udpLen || 0x000000 || nextHdr=17.
-// The result is the NON-inverted partial sum — the caller (or NIC, when
-// offloading via AF_XDP XDP_TXMD_FLAGS_CHECKSUM) adds the remaining bytes and
-// finalizes with ones-complement inversion.
+// The result is not inverted. The caller, or the NIC when offloading via AF_XDP
+// XDP_TXMD_FLAGS_CHECKSUM, adds the remaining bytes and inverts the sum.
+//
+// [RFC 8200]: https://www.rfc-editor.org/rfc/rfc8200#section-8.1
 func UDP6Pseudo(srcIP, dstIP [16]byte, udpLen int) uint16 {
 	s := sumFixed16(srcIP) + sumFixed16(dstIP)
 	s += uint64(uint32(udpLen))
@@ -57,10 +63,11 @@ func UDP6Pseudo(srcIP, dstIP [16]byte, udpLen int) uint16 {
 }
 
 // UDP6 returns the UDP checksum over the IPv6 pseudo-header, UDP header, and
-// payload (See https://www.rfc-editor.org/rfc/rfc8200#section-8.1). The UDP
-// checksum field in udpHdr must be zeroed before the call. A computed value
-// of 0x0000 is returned as 0xFFFF per https://www.rfc-editor.org/rfc/rfc8200#section-8.1
-// (0 means "no checksum" only for IPv4 UDP).
+// payload ([RFC 8200] section 8.1). The UDP checksum field in udpHdr must be
+// zeroed before the call. A computed value of 0x0000 is returned as 0xFFFF,
+// as the same section requires (0 means "no checksum" only for IPv4 UDP).
+//
+// [RFC 8200]: https://www.rfc-editor.org/rfc/rfc8200#section-8.1
 func UDP6(srcIP, dstIP [16]byte, udpHdr, payload []byte) uint16 {
 	s := sumFixed16(srcIP) + sumFixed16(dstIP)
 	s += uint64(uint32(len(udpHdr) + len(payload)))
@@ -115,8 +122,9 @@ func sum(data []byte) uint64 {
 }
 
 // fold collapses a 64-bit accumulator of 16-bit-word partial sums into a single
-// 16-bit ones-complement result. Each reduction step adds overflow carries back into
-// the low 16 bits; three steps are sufficient for any uint64 input.
+// 16-bit ones-complement result. Each step adds the carries back into the low bits.
+// Three steps are exact for s < 2^48, which covers sums of up to 2^16 uint32 words
+// (256 KiB).
 func fold(s uint64) uint16 {
 	s = (s & 0xFFFFFFFF) + (s >> 32)
 	s = (s & 0xFFFF) + (s >> 16)

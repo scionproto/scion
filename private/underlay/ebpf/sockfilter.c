@@ -13,9 +13,9 @@
 #include <linux/icmpv6.h>
 #include "bpf_helpers.h"
 
-// sockfilter: XDP program that redirects packets to AF_XDP sockets.
-// The purpose of this program is to redirect packets destined to selected address/port pairs
-// directly to userspace via AF_XDP sockets, bypassing the kernel network stack entirely.
+// sockfilter: XDP program that redirects packets to AF_XDP sockets. The purpose of
+// this program is to redirect packets destined to selected address/port pairs directly
+// to userspace via AF_XDP sockets, bypassing the kernel network stack entirely.
 // This provides zero-copy user-space packet processing with minimal latency.
 
 typedef struct {
@@ -25,12 +25,13 @@ typedef struct {
   __u8 padding; // just to make it clear what the real size of the struct is.
 } addrPort;
 
-// sock_map_flt tells our bpf program which address/port(s) should be redirected to AF_XDP sockets.
-// The ports must be in network byte order.
+// sock_map_flt tells our bpf program which address/port(s) should be redirected
+// to AF_XDP sockets. The ports must be in network byte order.
 //
-// This is the same data used by kfilter to perform the opposite filtering. We may have several
-// pairs to filter for a given AF_XDP socket. We could have several sockets, each with a one-pair
-// filter, but we do not want to be bound by that constraint (and it may be less efficient).
+// This is the same data used by kfilter to perform the opposite filtering.
+// We may have several pairs to filter for a given AF_XDP socket.
+// We could have several sockets, each with a one-pair filter,
+// but we do not want to be bound by that constraint (and it may be less efficient).
 // So we need a map with multiple pairs.
 struct {
   __uint(type, BPF_MAP_TYPE_HASH);

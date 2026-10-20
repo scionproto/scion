@@ -41,9 +41,9 @@ def sudo(command: str) -> str:
     return cmd.sudo("-A", str.split(command))
 
 
-# Can't assign the host-side addresses to the interfaces. If we do that the kernel tries
-# to resolve the ports that aren't there (because brload is using a raw socket) and sends
-# errors back.
+# The host-side ends get no IP address. With one, the kernel would answer router packets
+# to it with ICMP port unreachable, because braccept reads them from a raw socket
+# and binds no UDP port.
 def create_veth(host: str, container: str, ip: str, mac: str, ns: str, neighbors: List[str],
                 mtu: int = 3400):
     sudo("ip link add %s mtu %d type veth peer name %s mtu %d" % (host, mtu, container, mtu))
@@ -144,8 +144,8 @@ class RouterTest(base.TestBase):
         sudo("chown -R %s %s" % (cmd.whoami(), self.artifacts))
 
     def create_veths(self, ns: str):
-        # Set default TTL for outgoing packets to the common value 64, so that packets sent
-        # from router will match the expected value.
+        # Set default TTL for outgoing packets to the common value 64,
+        # so that packets sent from router will match the expected value.
         sudo("ip netns exec %s sysctl -w net.ipv4.ip_default_ttl=64" % ns)
 
         # AF_XDP native mode on veth limits MTU to ~3492; use 9000 for inet.

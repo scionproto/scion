@@ -86,8 +86,8 @@ cmd_mstart() {
 }
 
 run_setup() {
-    # The raw-socket implementation of the SCION router cannot work on the loopback device if the
-    # kernel isn't willing to ingest packets sent to that device.
+    # The AF_XDP underlay (udpip:afxdp) cannot work on the loopback device
+    # if the kernel isn't willing to ingest packets sent to that device.
     loopdev=$(ip addr show to 127.0.0.1 | cut -d' ' -f 2 -s | cut -d':' -f 1 -s)
     sysctl net.ipv4.conf.${loopdev}.accept_local net.ipv4.conf.${loopdev}.route_localnet \
     > gen/lo.conf

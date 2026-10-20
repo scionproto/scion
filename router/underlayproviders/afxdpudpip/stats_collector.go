@@ -64,10 +64,10 @@ func (c *statsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
-	// All eBPF reads happen under u.mu so they cannot race with Stop, which
-	// clears the maps before tearing down the underlying objects. Stop is
-	// infrequent (shutdown only) and the data path does not take u.mu, so
-	// the held duration here does not affect forwarding.
+	// Reads happen under u.lock. [underlay.Stop] holds u.lock while it closes the
+	// sockets and XDP interfaces and clears the maps, which keeps Collect from
+	// reading a closed object. Forwarding does not take u.lock and is not delayed
+	// by holding it here.
 	type dropSample struct {
 		nic    string
 		totals [len(ebpf.DropReasonNames)]uint64
@@ -77,7 +77,7 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 		stats      afxdp.SocketStats
 	}
 
-	c.u.mu.Lock()
+	c.u.lock.Lock()
 	drops := make([]dropSample, 0, len(c.u.allInterfaces))
 	for _, iface := range c.u.allInterfaces {
 		totals, err := iface.ReadDropCounters()
@@ -101,7 +101,7 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 			stats: stats,
 		})
 	}
-	c.u.mu.Unlock()
+	c.u.lock.Unlock()
 
 	for _, d := range drops {
 		for reason, v := range d.totals {

@@ -36,7 +36,8 @@ from urllib.request import urlopen
 
 logger = logging.getLogger(__name__)
 
-# Router profiling ON or OFF?
+# Set PROFILING_CPU or PROFILING_TRACE to True to save a 70 s router CPU profile
+# or execution trace, started at the end of setup.
 PROFILING_TRACE = False
 PROFILING_CPU = False
 
@@ -124,8 +125,8 @@ class RouterBMTool(cli.Application, RouterBM):
         If excl is true, we pick one and never pick that one again.
         Else, we pick one the first time it's needed and keep it for reuse.
 
-        If skip_ifconfig is true, we forego multiplexing as it is likely not how things
-        have been configured. We assume one interface per address.
+        If skip_ifconfig is true, every request gets its own interface: we assume the user
+        configured one interface per address.
         """
         if self.skip_ifconfig:
             return self.avail_interfaces.pop()
@@ -223,10 +224,10 @@ class RouterBMTool(cli.Application, RouterBM):
         logger.info("Preparing...")
 
         if not self.skip_ifconfig:
-            # Check that the given interfaces are safe to use. We will wreck their config.
+            # TODO: refuse interfaces that are in use. Counting `ip addr show` lines gave
+            # false positives on some systems, which is why the check is off.
             for intf in avail_interfaces:
                 output = sudo("ip", "addr", "show", "dev", intf)
-                # The check below is too sloppy. Some systems yield false positives.
                 if False:  # len(output.splitlines()) > 2:
                     logger.error(f"""\
                     Interface {intf} appears to be in some kind of use. Cowardly refusing to modify
@@ -235,7 +236,6 @@ class RouterBMTool(cli.Application, RouterBM):
                     """)
                     raise RuntimeError("Interface in use")
 
-        # Looks safe.
         self.avail_interfaces = avail_interfaces
 
         # Run test brload test with --show-interfaces and set up the interfaces as it says.

@@ -93,7 +93,6 @@ func parseOptions(options string) (Options, error) {
 	if opts.TxQueues != nil && len(opts.TxQueues) == 0 {
 		return Options{}, serrors.New("empty tx_queues list")
 	}
-	// Deduplicate queue IDs while preserving order.
 	opts.RxQueues = deduplicateQueues(opts.RxQueues)
 	opts.TxQueues = deduplicateQueues(opts.TxQueues)
 

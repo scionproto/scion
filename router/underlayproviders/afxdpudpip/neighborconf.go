@@ -41,7 +41,7 @@ const (
 // NeighborConfig bounds what a link's neighbor cache may hold.
 type NeighborConfig struct {
 	// QueueLen is the number of packets held per unresolved neighbor.
-	// Further packets for that neighbor are dropped until the address turns up.
+	// Once it's reached, each new packet replaces the oldest one.
 	// RFC 1122 asks for at least one, and the kernel holds about a hundred.
 	QueueLen int
 	// QueueTotal is the number of packets a link may hold across all of its
@@ -63,8 +63,8 @@ type NeighborConfig struct {
 	ProbeAttempts int
 }
 
-// withDefaults fills in the unset fields. CacheMax comes from the kernel's own neighbor
-// table limit, which is the closest thing to a sane value the system can tell us.
+// withDefaults fills in the unset fields, from the kernel's settings where one exists,
+// and raises QueueTotal to at least QueueLen.
 func (c NeighborConfig) withDefaults() NeighborConfig {
 	if c.QueueLen <= 0 {
 		c.QueueLen = defaultNeighborQueueLen
@@ -89,8 +89,9 @@ func (c NeighborConfig) withDefaults() NeighborConfig {
 }
 
 // kernelNeighborInt reads a value from the kernel's IPv4 neighbor defaults,
-// for example /proc/sys/net/ipv4/neigh/default/gc_thresh3. The IPv6 table carries the
-// same values (both are served by net/core/neighbour.c), so one read covers both.
+// for example /proc/sys/net/ipv4/neigh/default/gc_thresh3. IPv6 links use the same
+// reads: the IPv6 table has the same kernel defaults, but a value set only under
+// /proc/sys/net/ipv6/neigh/default is ignored.
 func kernelNeighborInt(name string, fallback int) int {
 	path := "/proc/sys/net/ipv4/neigh/default/" + name
 	raw, err := os.ReadFile(path)

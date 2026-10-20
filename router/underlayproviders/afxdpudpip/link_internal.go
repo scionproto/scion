@@ -34,8 +34,6 @@ import (
 
 // linkInternal is a link without a fixed remote address.
 // The destination is determined per-packet via [linkInternal.Resolve].
-// Multiple AF_XDP sockets (one per NIC queue) are used for parallel TX/RX.
-// TX packets are routed to sockets via a flow hash to prevent reordering.
 type linkInternal struct {
 	procQs           []queue.Queue[*router.Packet]
 	pool             router.PacketPool
@@ -111,8 +109,8 @@ func (l *linkInternal) packHeader() {
 
 // finishPacket prepends headers and patches destination + lengths + checksums.
 // On success (true), the packet is ready to send and the caller owns it.
-// On failure (false), the packet has already been returned to the pool;
-// the caller must not touch it.
+// On failure (false), the packet was returned to the pool or queued until the
+// destination MAC is known; the caller must not touch it.
 func (l *linkInternal) finishPacket(p *router.Packet, csumOffload bool) bool {
 	dstIPBytes, dstPort := getRemoteAddr(p, l.is4)
 	dstIP, ok := netip.AddrFromSlice(dstIPBytes)
@@ -222,7 +220,6 @@ func (l *linkInternal) start(
 	l.procQs = procQs
 	l.pool = pool
 
-	// Start neighbor cache ticker
 	l.neighbors.start(l.pool)
 
 	// Announce ourselves
@@ -288,8 +285,6 @@ func (l *linkInternal) Resolve(p *router.Packet, dst addr.Host, port uint16) err
 	return nil
 }
 
-// sendQueued sends the packets that waited for the given neighbor.
-// Callers must not hold [neighborCache.lock].
 // dropPackets counts packets the neighbor cache gave up on and frees them.
 func (l *linkInternal) dropPackets(pkts []*router.Packet) {
 	for _, p := range pkts {
@@ -299,6 +294,8 @@ func (l *linkInternal) dropPackets(pkts []*router.Packet) {
 	}
 }
 
+// sendQueued sends the packets that waited for the given neighbor.
+// Callers must not hold [neighborCache.lock].
 func (l *linkInternal) sendQueued(dstIP netip.Addr) {
 	for _, p := range l.neighbors.takeQueue(dstIP) {
 		l.Send(p)
@@ -306,7 +303,7 @@ func (l *linkInternal) sendQueued(dstIP netip.Addr) {
 }
 
 func (l *linkInternal) Send(p *router.Packet) bool {
-	// Compute connection index from SCION payload BEFORE
+	// Compute the connection index from the SCION payload, before
 	// [linkInternal.finishPacket] prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if !l.finishPacket(p, l.txConns[connIdx].csumOffload) {
@@ -322,7 +319,7 @@ func (l *linkInternal) Send(p *router.Packet) bool {
 }
 
 func (l *linkInternal) SendBlocking(p *router.Packet) {
-	// Compute connection index from SCION payload BEFORE
+	// Compute the connection index from the SCION payload, before
 	// [linkInternal.finishPacket] prepends headers.
 	connIdx := computeConnIdx(p.RawPacket, len(l.txConns), l.seed)
 	if l.finishPacket(p, l.txConns[connIdx].csumOffload) {

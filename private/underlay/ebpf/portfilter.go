@@ -17,7 +17,7 @@ func LoadSockfilterSpec() (*ebpf.CollectionSpec, error) {
 }
 
 // DropReasonNames mirrors the DROP_REASON_* constants in sockfilter.c. The order
-// MUST match the C side; userspace reads drop_counters[i] and labels the value
+// must match the C side: userspace reads drop_counters[i] and labels the value
 // with DropReasonNames[i].
 var DropReasonNames = [...]string{
 	"eth_malformed",

@@ -113,9 +113,10 @@ class Test(base.TestTopogen):
         self._server = server
         super().setup_start()
 
-        self.await_connectivity()  # <- not very reliable
-        time.sleep(10)             # <- ...so
-        self._server.shutdown()    # by now configuration must have been downloaded everywhere
+        self.await_connectivity()
+        # await_connectivity checks only core and up segments, not hidden segments.
+        time.sleep(10)
+        self._server.shutdown()  # by now configuration must have been downloaded everywhere
 
     def _run(self):
         # Group 3
