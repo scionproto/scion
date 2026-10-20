@@ -536,6 +536,79 @@ func TestSessionRunInit(t *testing.T) {
 	}
 }
 
+func TestSessionReceiveAfterClose(t *testing.T) {
+	session := &bfd.Session{
+		DetectMult:            1,
+		DesiredMinTxInterval:  time.Microsecond,
+		RequiredMinRxInterval: time.Microsecond,
+		LocalDiscriminator:    1,
+		ReceiveQueueSize:      1,
+		Sender:                &redirectSender{},
+	}
+	logger := testlog.NewLogger(t)
+	session.SetLogger(logger)
+	stopped := make(chan struct{})
+	go func() {
+		assert.NoError(t, session.Run(log.CtxWith(context.Background(), logger)))
+		close(stopped)
+	}()
+	require.NoError(t, session.Close())
+	require.NoError(t, session.Close())
+	<-stopped
+
+	// More messages than the queue holds, and nothing reads them.
+	received := make(chan struct{})
+	go func() {
+		for range 3 {
+			session.ReceiveMessage(validBFDMessage())
+		}
+		close(received)
+	}()
+	select {
+	case <-received:
+	case <-time.After(time.Second):
+		t.Fatal("ReceiveMessage blocked after Close")
+	}
+}
+
+func TestSessionCloseUnblocksReceive(t *testing.T) {
+	session := &bfd.Session{
+		DetectMult:            1,
+		DesiredMinTxInterval:  time.Microsecond,
+		RequiredMinRxInterval: time.Microsecond,
+		LocalDiscriminator:    1,
+		ReceiveQueueSize:      1,
+		Sender:                &redirectSender{},
+	}
+	// The session doesn't run, so the second message blocks until Close.
+	received := make(chan struct{})
+	go func() {
+		session.ReceiveMessage(validBFDMessage())
+		session.ReceiveMessage(validBFDMessage())
+		close(received)
+	}()
+	select {
+	case <-received:
+		t.Fatal("ReceiveMessage did not block on a full queue")
+	case <-time.After(50 * time.Millisecond):
+	}
+	require.NoError(t, session.Close())
+	select {
+	case <-received:
+	case <-time.After(time.Second):
+		t.Fatal("Close did not unblock ReceiveMessage")
+	}
+}
+
+func validBFDMessage() *layers.BFD {
+	return &layers.BFD{
+		Version:          1,
+		State:            layers.BFDStateDown,
+		DetectMultiplier: 1,
+		MyDiscriminator:  2,
+	}
+}
+
 func TestPrintPacket(t *testing.T) {
 	testCases := []*struct {
 		packet         *layers.BFD

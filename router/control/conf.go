@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package control is the configuration API of the router and specifies the management interface
-// expected of the router.
+// Package control is the configuration API of the router and
+// specifies the management interface expected of the router.
 package control
 
 import (
 	"crypto/sha256"
+	"maps"
 	"net/netip"
+	"slices"
 	"sort"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -29,13 +31,15 @@ import (
 	"github.com/scionproto/scion/private/topology"
 )
 
-// Dataplane is the interface that this controller or the http status handler expect from the
-// Dataplane.
+// Dataplane is the interface that this controller or the http status handler
+// expect from the Dataplane.
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, localHost addr.Host, provider, local string) error
 	AddExternalInterface(
-		localIfID iface.ID, info LinkInfo, localHost, remoteHost addr.Host, owned bool) error
+		localIfID iface.ID, info LinkInfo, localHost, remoteHost addr.Host, owned bool,
+	) error
+	DelExternalInterface(localIfID iface.ID) error
 	AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, port uint16) error
 	DelSvc(ia addr.IA, svc addr.SVC, a addr.Host, port uint16) error
 	SetKey(ia addr.IA, index int, key []byte) error
@@ -178,21 +182,36 @@ func DeriveHFMacKey(k []byte) []byte {
 	return pbkdf2.Key(k, hfMacSalt, 1000, 16, sha256.New)
 }
 
+// externalInterface is the configuration of one interface,
+// as given to [Dataplane.AddExternalInterface].
+type externalInterface struct {
+	link       LinkInfo
+	localHost  addr.Host
+	remoteHost addr.Host
+	owned      bool
+}
+
 func confExternalInterfaces(dp Dataplane, cfg *Config) error {
+	ifs, err := externalInterfaces(cfg)
+	if err != nil {
+		return err
+	}
 	// Sort out keys/ifIDs to get deterministic order for unit testing
+	for _, ifID := range slices.Sorted(maps.Keys(ifs)) {
+		x := ifs[ifID]
+		if err := dp.AddExternalInterface(
+			ifID, x.link, x.localHost, x.remoteHost, x.owned); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// externalInterfaces returns the configuration of the interfaces in cfg.
+func externalInterfaces(cfg *Config) (map[iface.ID]externalInterface, error) {
 	infoMap := cfg.Topo.IFInfoMap()
-	if len(infoMap) == 0 {
-		// nothing to do
-		return nil
-	}
-	ifIDs := []iface.ID{}
-	for k := range infoMap {
-		ifIDs = append(ifIDs, k)
-	}
-	sort.Slice(ifIDs, func(i, j int) bool { return ifIDs[i] < ifIDs[j] })
-	// External interfaces
-	for _, ifID := range ifIDs {
-		iface := infoMap[ifID]
+	ifs := make(map[iface.ID]externalInterface, len(infoMap))
+	for ifID, iface := range infoMap {
 		linkInfo := LinkInfo{
 			Provider: iface.Provider,
 			Local: LinkEnd{
@@ -221,13 +240,13 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 
 		localAddr, err := netip.ParseAddrPort(linkInfo.Local.Addr)
 		if err != nil {
-			return serrors.Wrap("unparsable remote address", err)
+			return nil, serrors.Wrap("unparsable remote address", err)
 		}
 		localHost := addr.HostIP(localAddr.Addr())
 
 		remoteAddr, err := netip.ParseAddrPort(linkInfo.Remote.Addr)
 		if err != nil {
-			return serrors.Wrap("unparsable remote address", err)
+			return nil, serrors.Wrap("unparsable remote address", err)
 		}
 		remoteHost := addr.HostIP(remoteAddr.Addr())
 
@@ -252,12 +271,14 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			linkInfo.BFD = BFD{}
 		}
 
-		if err := dp.AddExternalInterface(
-			ifID, linkInfo, localHost, remoteHost, owned); err != nil {
-			return err
+		ifs[ifID] = externalInterface{
+			link:       linkInfo,
+			localHost:  localHost,
+			remoteHost: remoteHost,
+			owned:      owned,
 		}
 	}
-	return nil
+	return ifs, nil
 }
 
 var svcTypes = []addr.SVC{
@@ -265,12 +286,29 @@ var svcTypes = []addr.SVC{
 	addr.SvcCS,
 }
 
-func confServices(dp Dataplane, cfg *Config) error {
+// service is the address of one instance of a service, as given to [Dataplane.AddSvc].
+type service struct {
+	svc  addr.SVC
+	host addr.Host
+	port uint16
+}
 
+func confServices(dp Dataplane, cfg *Config) error {
+	for _, s := range services(cfg) {
+		if err := dp.AddSvc(cfg.IA, s.svc, s.host, s.port); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// services returns the service instances in cfg.
+func services(cfg *Config) []service {
 	if cfg.Topo == nil {
 		// nothing to tdo
 		return nil
 	}
+	var svcs []service
 	for _, svc := range svcTypes {
 		addrs, err := cfg.Topo.Multicast(svc)
 		if err != nil {
@@ -289,11 +327,12 @@ func confServices(dp Dataplane, cfg *Config) error {
 		// router. The underlays are in change of resolving the corresponding underlay address.
 		for _, a := range addrs {
 			addrPort := a.AddrPort()
-			host := addr.HostIP(addrPort.Addr())
-			if err := dp.AddSvc(cfg.IA, svc, host, addrPort.Port()); err != nil {
-				return err
-			}
+			svcs = append(svcs, service{
+				svc:  svc,
+				host: addr.HostIP(addrPort.Addr()),
+				port: addrPort.Port(),
+			})
 		}
 	}
-	return nil
+	return svcs
 }
