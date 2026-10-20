@@ -10,6 +10,7 @@ SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
 start() {
+    setcap "cap_bpf=ep cap_net_admin=ep cap_net_raw=ep" /usr/bin/$APP
     service_start /usr/bin/$APP --config /etc/scion/router.toml
 }
 

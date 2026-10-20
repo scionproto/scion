@@ -35,4 +35,11 @@ num_slow_processors = 1
 # read or write from / to the network socket.
 # (default 256)
 batch_size = 256
+
+# Implementation of the packet processor queues: "auto", "ring" or "chan".
+# "auto" resolves to "ring" for the afxdp underlay and to "chan" for the rest.
+# The ring is only faster at afxdp packet rates.
+# At the slower rates of a kernel socket it costs CPU and adds no throughput.
+# (default "auto")
+processor_queue = "auto"
 `

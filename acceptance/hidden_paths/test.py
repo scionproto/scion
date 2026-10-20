@@ -4,6 +4,7 @@
 
 import http.server
 import threading
+import time
 
 from acceptance.common import base
 from acceptance.common import scion
@@ -110,10 +111,11 @@ class Test(base.TestTopogen):
         server_thread = threading.Thread(target=configuration_server, args=[server])
         server_thread.start()
         self._server = server
-
         super().setup_start()
 
         self.await_connectivity()
+        # await_connectivity checks only core and up segments, not hidden segments.
+        time.sleep(10)
         self._server.shutdown()  # by now configuration must have been downloaded everywhere
 
     def _run(self):
@@ -141,7 +143,7 @@ class Test(base.TestTopogen):
 
     def _showpaths_run(self, source_as: str, destination_as: str):
         print(self.execute_tester(ISD_AS(self._ases[source_as]),
-                                  "scion", "sp", self._ases[destination_as], "--timeout", "2s"))
+                                  "scion", "sp", self._ases[destination_as], "--timeout", "3s"))
 
 
 def configuration_server(server):

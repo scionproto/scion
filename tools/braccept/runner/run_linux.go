@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -62,7 +63,11 @@ func NewRunConfig() (*RunConfig, error) {
 		if !strings.HasPrefix(dev.Name, "veth_") || !strings.HasSuffix(dev.Name, "_host") {
 			continue
 		}
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(dev.Name))
+		handle, err := afpacket.NewTPacket(
+			afpacket.OptInterface(dev.Name),
+			// TPACKET_V3 hands over a block when it fills or this timeout expires.
+			afpacket.OptBlockTimeout(time.Millisecond),
+		)
 		if err != nil {
 			return nil, serrors.Wrap("creating TPacket", err)
 		}
@@ -104,11 +109,72 @@ type ExpectedPacket struct {
 	Pkt               gopacket.Packet
 }
 
+// handleArp answers ARP requests and probes for localIP with localMAC on afp.
+// It ignores all other ARP packets.
+func (c *RunConfig) handleArp(
+	ethHdr *layers.Ethernet,
+	localIP net.IP,
+	localMAC net.HardwareAddr,
+	afp *afpacket.TPacket,
+) {
+	arpData := ethHdr.LayerPayload()
+	var req layers.ARP
+	if req.DecodeFromBytes(arpData, gopacket.NilDecodeFeedback) != nil {
+		return
+	}
+	if req.Operation != layers.ARPRequest {
+		// We don't need an arp cache we know all addresses. So, we only respond to requests.
+		return
+	}
+	if slices.Equal(req.SourceProtAddress, net.IPv4zero.To4()) {
+		// ARP probe (RFC 5227): the sender IP is 0.0.0.0.
+		// Put localIP in the reply's target IP; the prober reads only the sender fields.
+		req.SourceProtAddress = localIP // will become dstProtAddress in the response.
+	}
+	if !slices.Equal(req.DstProtAddress, localIP) {
+		// Gratuitous req or not for us. No response.
+		return
+	}
+	ethernet := layers.Ethernet{
+		SrcMAC:       localMAC,
+		DstMAC:       req.SourceHwAddress,
+		EthernetType: layers.EthernetTypeARP,
+	}
+	arp := layers.ARP{
+		AddrType:          layers.LinkTypeEthernet,
+		HwAddressSize:     6,
+		Protocol:          layers.EthernetTypeIPv4,
+		ProtAddressSize:   4,
+		Operation:         layers.ARPReply,
+		SourceHwAddress:   localMAC,
+		SourceProtAddress: req.DstProtAddress,
+		DstHwAddress:      req.SourceHwAddress,
+		DstProtAddress:    req.SourceProtAddress,
+	}
+	var seropts = gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	serBuf := gopacket.NewSerializeBuffer()
+	if gopacket.SerializeLayers(serBuf, seropts, &ethernet, &arp) != nil {
+		log.Debug("Could not serialize arp response")
+		return
+	}
+	_ = afp.WritePacketData(serBuf.Bytes())
+}
+
 // ExpectPacket expects packet pkt on the device devName. It stores all received
 // packets using the storer. If the received packet in the device is matching
 // the expected packet and no other packet is received nil is returned.
 // Otherwise details of what went wrong are returned in the error.
-func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacketFn) error {
+func (c *RunConfig) ExpectPacket(
+	pkt ExpectedPacket,
+	normalizeFn NormalizePacketFn,
+	localIP net.IP,
+	localMAC net.HardwareAddr,
+	handles map[string]*afpacket.TPacket,
+) error {
+
 	timerCh := time.After(pkt.Timeout)
 	c.packetChans[len(c.deviceNames)] = reflect.SelectCase{
 		Dir:  reflect.SelectRecv,
@@ -134,9 +200,56 @@ func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacket
 				"type", common.TypeOf(pktV.Interface())))
 			continue
 		}
+		// We're only configuring V4 addresses. So, only IPv4 traffic is ours.
+		// Even on veth, there can be other things scooting by; such as ARP. Speaking of
+		// ARP: we have to respond. Neighbor entries that the test harness shoves into the router
+		// won't work: the router can also use a raw socket.
+		if got.LinkLayer() == nil {
+			log.Debug("No link hdr")
+			continue
+		}
+		if got.LinkLayer().LayerType() != layers.LayerTypeEthernet {
+			log.Debug("Not ethernet")
+			continue
+		}
+		ethHdr := got.LinkLayer().(*layers.Ethernet)
+		if ethHdr.EthernetType == layers.EthernetTypeARP {
+			if afp := handles[c.deviceNames[idx]]; afp != nil {
+				c.handleArp(ethHdr, localIP, localMAC, afp)
+			} else {
+				log.Debug("Cannot respond to arp: came in through unknown device")
+			}
+			continue
+		}
+		if ethHdr.EthernetType != layers.EthernetTypeIPv4 {
+			log.Debug("Not IPv4")
+			continue
+		}
+		if got.NetworkLayer() == nil {
+			log.Debug("No netwk hdr")
+			continue
+		}
+		ipHdr := got.NetworkLayer().(*layers.IPv4)
+		if ipHdr.Protocol != layers.IPProtocolUDP {
+			continue
+		}
+		if got.TransportLayer() == nil {
+			log.Debug("No transport hdr")
+			continue
+		}
+		udpHdr := got.TransportLayer().(*layers.UDP)
+		// Treat UDP destination ports outside [20000, 60000) as noise. Every port in
+		// acceptance/router_multi/conf/topology.json is inside that range.
+		if udpHdr.DstPort < 20000 || udpHdr.DstPort >= 60000 {
+			log.Debug("Not ours")
+			continue
+		}
 		pkt.Storer.storePkt(fmt.Sprintf("got-%d", i), got)
 		// Packet received
 		if c.deviceNames[idx] != pkt.DevName {
+			if pkt.IgnoreNonMatching {
+				continue
+			}
 			errors = append(errors, serrors.New("received packet on unexpected interface",
 				"pkt", i, "expected", pkt.DevName, "actual", c.deviceNames[idx], "packet", got))
 			continue
@@ -194,7 +307,7 @@ func (t *Case) Run(cfg *RunConfig) error {
 	ePkt := ExpectedPacket{
 		Storer:            storer,
 		DevName:           t.ReadFrom,
-		Timeout:           350 * time.Millisecond,
+		Timeout:           500 * time.Millisecond,
 		IgnoreNonMatching: t.IgnoreNonMatching,
 		Pkt:               wantPkt,
 	}
@@ -202,7 +315,8 @@ func (t *Case) Run(cfg *RunConfig) error {
 	if normalizePacket == nil {
 		normalizePacket = DefaultNormalizePacket
 	}
-	err := cfg.ExpectPacket(ePkt, normalizePacket)
+
+	err := cfg.ExpectPacket(ePkt, normalizePacket, t.LocalIP, t.LocalMAC, cfg.handles)
 	if err == nil {
 		return nil
 	}

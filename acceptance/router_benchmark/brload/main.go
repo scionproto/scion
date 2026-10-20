@@ -51,6 +51,9 @@ func (c *caseChoice) String() string {
 func (c *caseChoice) Set(v string) error {
 	_, ok := allCases[v]
 	if !ok {
+		_, ok = mixCases[v]
+	}
+	if !ok {
 		return errors.New("no such case")
 	}
 	*c = caseChoice(v)
@@ -62,25 +65,66 @@ func (c *caseChoice) Type() string {
 }
 
 func (c *caseChoice) Allowed() string {
-	return fmt.Sprintf("One of: %v", reflect.ValueOf(allCases).MapKeys())
+	return fmt.Sprintf("One of: %v (or mixed: %v)",
+		reflect.ValueOf(allCases).MapKeys(), reflect.ValueOf(mixCases).MapKeys())
 }
 
 var (
 	allCases = map[string]Case{
-		"in":          cases.In,
-		"out":         cases.Out,
-		"in_transit":  cases.InTransit,
-		"out_transit": cases.OutTransit,
-		"br_transit":  cases.BrTransit,
+		"in":           cases.In,
+		"out":          cases.Out,
+		"in_transit":   cases.InTransit,
+		"out_transit":  cases.OutTransit,
+		"br_transit":   cases.BrTransit,
+		"in6":          cases.In6,
+		"out6":         cases.Out6,
+		"in_transit6":  cases.InTransit6,
+		"out_transit6": cases.OutTransit6,
+		"br_transit6":  cases.BrTransit6,
 	}
-	logConsole   string
-	dir          string
-	testDuration time.Duration
-	packetSize   int
-	numStreams   uint16
-	caseToRun    caseChoice
-	interfaces   []string
+	logConsole          string
+	dir                 string
+	testDuration        time.Duration
+	numPackets          int
+	packetSize          int
+	numStreams          uint16
+	caseToRun           caseChoice
+	interfaces          []string
+	internAddrOverrides []string
+	publicAddrOverrides []string
+	useIPv6             bool
+
+	// AF_XDP transmit tunables.
+	txQueues     int
+	firstTxQueue int
+	cpuOffset    int
+	maxPPS       uint64
+	maxMbps      uint64
+	zerocopy     bool
+	hugepages    bool
+	numFrames    uint32
+	frameSize    uint32
+	txRing       uint32
+	txBatchSize  uint32
 )
+
+// xdpConfig carries the AF_XDP transmit tunables
+// for [newXdpSender] and [newXdpSenderMulti].
+type xdpConfig struct {
+	txQueues        int    // number of TX sockets/queues; 0 = auto-detect
+	firstQueue      int    // base NIC queue id to bind
+	cpuOffset       int    // pin worker i to CPU cpuOffset+i (best effort)
+	numStreams      uint16 // distinct SCION flow IDs
+	maxPPS          uint64 // global max packet rate; 0 = unlimited
+	maxMbps         uint64 // global max wire bitrate (Mbit/s); 0 = unlimited
+	preferZerocopy  bool
+	preferHugepages bool
+	numFrames       uint32
+	frameSize       uint32
+	txRing          uint32
+	batchSize       uint32
+	maxPackets      int // stop after this many packets; <= 0 = unlimited
+}
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -91,18 +135,22 @@ func main() {
 		Use:   "show-interfaces",
 		Short: "Provides a terse list of the interfaces that this test requires",
 		Run: func(cmd *cobra.Command, args []string) {
-			os.Exit(showInterfaces(cmd))
+			os.Exit(showInterfaces())
 		},
 	}
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Executes the test",
 		Run: func(cmd *cobra.Command, args []string) {
-			os.Exit(run(cmd))
+			os.Exit(run())
 		},
 	}
-	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15, "Test duration")
-	runCmd.Flags().IntVar(&packetSize, "packet-size", 172, "Total size of each packet sent")
+	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15,
+		"Test duration")
+	runCmd.Flags().IntVar(&numPackets, "num-packets", -1,
+		"Maximum number of packets")
+	runCmd.Flags().IntVar(&packetSize, "packet-size", 172,
+		"Total size of each packet sent")
 	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
 	runCmd.Flags().StringVar(&logConsole, "log.console", "error",
@@ -110,11 +158,56 @@ func main() {
 	runCmd.Flags().StringVar(&dir, "artifacts", "", "Artifacts directory")
 	runCmd.Flags().Var(&caseToRun, "case", "Case to run. "+caseToRun.Allowed())
 	runCmd.Flags().StringArrayVar(&interfaces, "interface", []string{},
-		`label=<host_interface>[,<MACaddr>] where <host_interface> is the host device that matches
- the <label> requirement from --show-interfaces and <MACaddr> is the local address to assume for it.
- <MACaddr> defaults to the real address assigned to the device`)
+		"label=<host_interface>[,<MACaddr>] where <host_interface> is the host device "+
+			"that matches the <label> requirement from --show-interfaces and "+
+			"<MACaddr> is the local address to assume for it. "+
+			"<MACaddr> defaults to the real address assigned to the device")
+	runCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override",
+		[]string{},
+		"<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of "+
+			"one router of that AS, and <IP addr> is the IP address assigned to the "+
+			"internal interface of that router")
+	runCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override",
+		[]string{},
+		`<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers,
+and <IP addr> is the IP address assigned on the side of localAS`)
+	runCmd.Flags().BoolVar(&useIPv6, "ipv6", false, "Use IPv6 underlay addresses")
+	runCmd.Flags().IntVar(&txQueues, "tx-queues", 0,
+		"Number of AF_XDP TX sockets/queues (generator parallelism). 0 = auto "+
+			"(min of NIC TX queues and GOMAXPROCS)")
+	runCmd.Flags().IntVar(&firstTxQueue, "first-tx-queue", 0,
+		"Base NIC queue id to bind AF_XDP TX sockets to")
+	runCmd.Flags().IntVar(&cpuOffset, "cpu-offset", 0,
+		"Pin TX worker i to CPU (cpu-offset + i); best effort")
+	runCmd.Flags().Uint64Var(&maxPPS, "max-pps", 0,
+		"Global max send rate in packets/s (0 = unlimited)")
+	runCmd.Flags().Uint64Var(&maxMbps, "max-mbps", 0,
+		"Global max send rate in Mbit/s wire rate (0 = unlimited). If both "+
+			"--max-pps and --max-mbps are set, the tighter one applies")
+	runCmd.Flags().BoolVar(&zerocopy, "zerocopy", true,
+		"Prefer AF_XDP zero-copy mode (falls back to copy mode per queue)")
+	runCmd.Flags().BoolVar(&hugepages, "hugepages", true, "Prefer hugepage-backed UMEM")
+	runCmd.Flags().Uint32Var(&numFrames, "num-frames", 0,
+		"UMEM frames per socket (0 = default)")
+	runCmd.Flags().Uint32Var(&frameSize, "frame-size", 0,
+		"UMEM frame size in bytes (0 = default)")
+	runCmd.Flags().Uint32Var(&txRing, "tx-ring", 0,
+		"TX descriptor ring size (0 = default)")
+	runCmd.Flags().Uint32Var(&txBatchSize, "batch-size", 0,
+		"TX batch size (0 = default)")
 	runCmd.MarkFlagRequired("case")
 	runCmd.MarkFlagRequired("interface")
+
+	intfCmd.Flags().BoolVar(&useIPv6, "ipv6", false, "Use IPv6 underlay addresses")
+	intfCmd.Flags().StringArrayVar(&internAddrOverrides, "intern-addr-override",
+		[]string{},
+		"<AS>_<router>=<IP addr> where <AS> is an AS number, <router> is the index of "+
+			"one router of that AS, and <IP addr> is the IP address assigned to the "+
+			"internal interface of that router")
+	intfCmd.Flags().StringArrayVar(&publicAddrOverrides, "public-addr-override",
+		[]string{},
+		"<localAS>_<remoteAS>=<IP addr> where <localAS> and <remoteAS> are AS numbers, "+
+			"and <IP addr> is the IP address assigned on the side of localAS")
 
 	rootCmd.AddCommand(intfCmd)
 	rootCmd.AddCommand(runCmd)
@@ -126,12 +219,56 @@ func main() {
 	os.Exit(0)
 }
 
-func showInterfaces(cmd *cobra.Command) int {
+func showInterfaces() int {
+	// Set the overrides first: [cases.InitIntfMap] and [cases.InitIntfMap6]
+	// read them when they derive the interface addresses.
+	cases.InitIntIPoverrides(internAddrOverrides)
+	cases.InitPubIPoverrides(publicAddrOverrides)
+	if useIPv6 {
+		cases.InitIntfMap6()
+	} else {
+		cases.InitIntfMap()
+	}
+
 	fmt.Println(cases.ListInterfaces())
 	return 0
 }
 
-func run(cmd *cobra.Command) int {
+func rttCheck(
+	writePktTo *afpacket.TPacket,
+	packetChan chan gopacket.Packet,
+	rawPkt []byte,
+) (time.Duration, error) {
+	// IPv4: zero the (optional) UDP checksum. IPv6: leave gopacket's computed
+	// checksum in place. IPv6 mandates a non-zero UDP checksum and a kernel-socket
+	// underlay (inet) drops zero-checksum datagrams. The AF_XDP sender recomputes
+	// it per packet after patching the flow ID.
+	if !isIPv6(rawPkt) {
+		udpCsumOff := underlayOffsetsOf(rawPkt).udpCsum
+		binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
+	}
+
+	allPkts := make([][]byte, 1)
+	allPkts[0] = make([]byte, len(rawPkt))
+	copy(allPkts[0], rawPkt)
+
+	sender := newMpktSender(writePktTo)
+	sender.setPkts(allPkts)
+
+	timeout := time.After(1 * time.Second)
+	begin := time.Now()
+	if _, err := sender.sendAll(); err != nil {
+		return time.Duration(0), err
+	}
+	select {
+	case <-packetChan:
+	case <-timeout:
+		return time.Duration(0), errors.New("listener never saw any packet")
+	}
+	return time.Since(begin), nil
+}
+
+func run() int {
 	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
 	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -155,6 +292,16 @@ func run(cmd *cobra.Command) int {
 		return 1
 	}
 
+	// Set the overrides first: [cases.InitIntfMap] and [cases.InitIntfMap6]
+	// read them when they derive the interface addresses.
+	cases.InitIntIPoverrides(internAddrOverrides)
+	cases.InitPubIPoverrides(publicAddrOverrides)
+	if useIPv6 {
+		cases.InitIntfMap6()
+	} else {
+		cases.InitIntfMap()
+	}
+
 	interfaceNames := cases.InitInterfaces(interfaces)
 	handles, err := openDevices(interfaceNames)
 	if err != nil {
@@ -165,6 +312,12 @@ func run(cmd *cobra.Command) int {
 	registerScionPorts()
 
 	log.Info("BRLoad acceptance tests:")
+
+	// Mix cases inject several forwarding patterns across several links at once.
+	if mixFn, ok := mixCases[string(caseToRun)]; ok {
+		return runMix(mixFn, handles, hfMAC)
+	}
+
 	caseFunc := allCases[string(caseToRun)] // key already checked.
 	caseDevIn, caseDevOut, payload, rawPkt := caseFunc(packetSize, hfMAC)
 
@@ -180,11 +333,25 @@ func run(cmd *cobra.Command) int {
 		return 1
 	}
 
-	// Try and pick-up one packet and check the payload. If that works, we're content
-	// that this test works.
+	// Try and pick-up one packet and check the payload.
+	// If that works, we're content that this test works.
 	packetSource := gopacket.NewPacketSource(readPktFrom, layers.LinkTypeEthernet)
 	packetChan := packetSource.Packets()
 	listenerChan := make(chan int)
+
+	// IPv4: zero the (optional) UDP checksum. IPv6 keeps a valid checksum (see
+	// rttCheck) because a kernel-socket underlay drops zero-checksum datagrams.
+	if !isIPv6(rawPkt) {
+		udpCsumOff := underlayOffsetsOf(rawPkt).udpCsum
+		binary.BigEndian.PutUint16(rawPkt[udpCsumOff:udpCsumOff+2], 0)
+	}
+
+	rtt, err := rttCheck(writePktTo, packetChan, rawPkt)
+	if err == nil {
+		fmt.Printf("rtt: %s\n", rtt.String())
+	} else {
+		fmt.Printf("rtt error: %s\n", err)
+	}
 
 	go func() {
 		defer log.HandlePanic()
@@ -192,49 +359,38 @@ func run(cmd *cobra.Command) int {
 		listenerChan <- receivePackets(packetChan, payload)
 	}()
 
-	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
-	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
-	// we don't need to update it.
-	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
-
-	// Prepare a batch worth of packets.
-	batchSize := int(8)
-	allPkts := make([][]byte, batchSize)
-	for i := range batchSize {
-		allPkts[i] = make([]byte, len(rawPkt))
-		copy(allPkts[i], rawPkt)
+	// AF_XDP transmission uses several queues and cores to keep one generator core from
+	// limiting the rate. rttCheck and the listener stay on afpacket.
+	sender, err := newXdpSender(caseDevIn, rawPkt, xdpConfig{
+		txQueues:        txQueues,
+		firstQueue:      firstTxQueue,
+		cpuOffset:       cpuOffset,
+		numStreams:      numStreams,
+		maxPPS:          maxPPS,
+		maxMbps:         maxMbps,
+		preferZerocopy:  zerocopy,
+		preferHugepages: hugepages,
+		numFrames:       numFrames,
+		frameSize:       frameSize,
+		txRing:          txRing,
+		batchSize:       txBatchSize,
+		maxPackets:      numPackets,
+	})
+	if err != nil {
+		log.Error("Creating AF_XDP sender failed", "err", err)
+		return 1
 	}
+	defer sender.close()
 
-	// Share them with a multi-packets sender. We modify the flowIDs in-place for each batch.
-	sender := newMpktSender(writePktTo)
-	sender.setPkts(allPkts)
+	// We started everything that could be started.
+	// So the best window for perf metrics opens somewhere around now.
+	metricsBegin := time.Now().Unix()
 
-	// We started everything that could be started. So the best window for perf mertics
-	// opens somewhere around now.
-	begin := time.Now()
-	metricsBegin := begin.Unix()
-
-	numPkt := 0
-	for time.Since(begin) < testDuration {
-		// we break every 1000 batches to check the time
-		for range 1000 {
-			// Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
-			// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
-			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
-			// more than 64K flows).
-			for j := range batchSize {
-				binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
-				numPkt++
-			}
-
-			if _, err := sender.sendAll(); err != nil {
-				log.Error("writing input packet", "case", string(caseToRun), "error", err)
-				return 1
-			}
-		}
-	}
+	sender.start()
+	sender.wait(testDuration)
 
 	metricsEnd := time.Now().Unix()
+	log.Info("Transmit complete", "packets", sender.sent())
 
 	// The test harness looks for this output. [metricsBegin, metricsEnd] needs to be fully
 	// contained in the period when we were actually transmitting, but can be a bit smaller.
@@ -248,7 +404,7 @@ func run(cmd *cobra.Command) int {
 		select {
 		case outcome = <-listenerChan:
 			if outcome == 0 {
-				log.Error("Listener never saw a valid packet being forwarded")
+				log.Error("listener never saw a valid packet being forwarded")
 				return 1
 			}
 		case <-timeout:
@@ -306,7 +462,11 @@ func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) 
 	handles := make(map[string]*afpacket.TPacket)
 
 	for _, intf := range interfaceNames {
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf), afpacket.OptFrameSize(4096))
+		handle, err := afpacket.NewTPacket(
+			afpacket.OptInterface(intf),
+			// TPACKET_V3 hands over a block when it fills or this timeout expires.
+			afpacket.OptBlockTimeout(time.Millisecond),
+		)
 		if err != nil {
 			return nil, serrors.Wrap("creating TPacket", err)
 		}
@@ -328,6 +488,37 @@ func loadKey(artifactsDir string) (hash.Hash, error) {
 		return nil, err
 	}
 	return macGen(), nil
+}
+
+// underlayOffsets holds the byte offsets, within a raw Ethernet+IP+UDP+SCION
+// frame, of the fields brload reads or rewrites. They depend only on the IP
+// version, which is fixed for a whole run, so they are computed once (see
+// underlayOffsetsOf) rather than re-detected per field or per packet.
+//
+// The [SCION common header] packs Version, TrafficClass and FlowID into 4, 8 and 20 bits.
+//
+// [SCION common header]: https://scionassociation.github.io/scion-dp_I-D/draft-dekater-scion-dataplane.html#name-common-header
+type underlayOffsets struct {
+	udpCsum int // outer UDP checksum
+	flowID  int // low 16 bits of the 20-bit SCION FlowID (bytes 2-3; common header)
+}
+
+// isIPv6 reports whether the frame's EtherType is IPv6.
+func isIPv6(pkt []byte) bool {
+	return binary.BigEndian.Uint16(pkt[12:14]) == 0x86DD
+}
+
+// underlayOffsetsOf detects IPv4 vs IPv6 via the EtherType and derives every
+// offset from the Ethernet+IP header length.
+func underlayOffsetsOf(pkt []byte) underlayOffsets {
+	base := 14 + 20 // IPv4: Ethernet + IPv4 header
+	if isIPv6(pkt) {
+		base = 14 + 40 // IPv6: Ethernet + IPv6 header
+	}
+	return underlayOffsets{
+		udpCsum: base + 6,  // UDP checksum
+		flowID:  base + 10, // UDP header (8) + 2 into the SCION common header
+	}
 }
 
 // registerScionPorts registers the following UDP ports in gopacket such as SCION is the

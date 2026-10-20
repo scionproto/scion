@@ -1,6 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-//
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Placeholder for generated code during lint.
-
-//go:build lint
-
-package ebpf
-
-import "github.com/cilium/ebpf"
-
-func loadPortfilter() (*ebpf.CollectionSpec, error) {
-	return nil, nil
-}
+// Package queue defines the bounded producer/consumer queue used on
+// the router data path. The implementations live in its subpackages:
+// queue/chanq on a buffered channel, queue/lfring on a lock-free ring.
+// Callers pick one and pass it as a [Queue], [Reader] or [Writer].
+package queue
