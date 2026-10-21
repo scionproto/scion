@@ -5,6 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "afxdpudpip.go",
+        "doc.go",
         "link_internal.go",
         "link_ptp.go",
         "neighborconf.go",

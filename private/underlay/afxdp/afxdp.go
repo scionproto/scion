@@ -14,16 +14,6 @@
 
 //go:build linux && (amd64 || arm64)
 
-// Package afxdp implements AF_XDP zero-copy capable sockets.
-// Interface owns XDP program + eBPF objects.
-// Socket is an AF_XDP socket bound to a specific RX/TX queue.
-//
-// The four AF_XDP rings:
-//
-//   - RX ring: raw packets delivered from NIC to userspace.
-//   - FQ ring: UMEM addresses userspace provides to kernel for RX.
-//   - TX ring: descriptors userspace sends to NIC.
-//   - CQ ring: completed TX buffers returned by kernel.
 package afxdp
 
 import (
@@ -51,21 +41,20 @@ var (
 	ErrNumFramesTooSmall = errors.New("NumFrames must be >= TxSize + RxSize")
 )
 
-// Interface represents a network interface with an attached XDP program.
-// It manages the eBPF program and maps for AF_XDP socket redirection.
+// Interface owns the XDP program and eBPF maps attached to a network interface.
 type Interface struct {
 	ifIndex int
 	iface   *net.Interface
 	spec    *ciliumebpf.CollectionSpec
 	coll    *ciliumebpf.Collection
 	xdpLink link.Link
-	// txProg holds a standalone XDP_PASS program for TX-only interfaces
-	// (see NewTxInterface). nil for interfaces created via NewInterface.
+	// txProg is [NewTxInterface]'s standalone XDP_PASS program;
+	// [NewInterface] leaves it nil.
 	txProg *ciliumebpf.Program
 }
 
-// NewInterface creates and attaches an XDP program to the specified network interface.
-// The XDP program redirects packets matching address/port filters to AF_XDP sockets.
+// NewInterface attaches an XDP program to the named network interface.
+// The program redirects packets matching address/port filters to AF_XDP sockets.
 func NewInterface(ifaceName string) (*Interface, error) {
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
@@ -116,23 +105,20 @@ func NewInterface(ifaceName string) (*Interface, error) {
 	}, nil
 }
 
-// NewTxInterface resolves a netdevice for TX-only AF_XDP use. Unlike
-// [NewInterface] it loads no sockfilter program: the interface has no RX
-// redirection and no drop counters. It attaches a trivial XDP_PASS program
-// because drivers such as mlx5 allocate the XSK queues an AF_XDP socket binds
-// to only once the netdevice is in XDP mode; without an attached program the
-// bind fails with EINVAL. XDP_PASS leaves all RX traffic to the normal stack.
-// It is meant for packet generators such as the router benchmark's brload.
-// Sockets opened against such an interface must set [SocketConfig.TxOnly].
+// NewTxInterface prepares a netdevice for TX-only AF_XDP. It attaches XDP_PASS
+// but no sockfilter, RX redirection, or drop counters. The program is required
+// because drivers such as mlx5 allocate XSK queues only in XDP mode and reject
+// bind with EINVAL otherwise. XDP_PASS leaves RX traffic on the normal stack.
+// This supports packet generators such as the router benchmark's brload.
+// Every socket opened on the returned Interface must set [SocketConfig.TxOnly].
 func NewTxInterface(ifaceName string) (*Interface, error) {
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
 		return nil, fmt.Errorf("fetching interface by name: %w", err)
 	}
 
-	// A minimal XDP program that passes every packet to the kernel stack. Built
-	// in-code so no .o artifact is needed. It uses no helpers, so the "GPL"
-	// license string is a formality.
+	// Build the XDP_PASS program in code to avoid an .o artifact.
+	// It uses no helpers, so the "GPL" license string is a formality.
 	prog, err := ciliumebpf.NewProgram(&ciliumebpf.ProgramSpec{
 		Name:    "afxdp_txpass",
 		Type:    ciliumebpf.XDP,
@@ -185,8 +171,8 @@ func (i *Interface) Close() error {
 	return errors.Join(errs...)
 }
 
-// Name returns the name of the underlying netdevice (e.g. "eth0"). Used as a
-// metric label.
+// Name returns the underlying netdevice name (for example, "eth0")
+// used as a metric label.
 func (i *Interface) Name() string {
 	return i.iface.Name
 }
@@ -214,8 +200,8 @@ func (i *Interface) ReadDropCounters() ([len(ebpf.DropReasonNames)]uint64, error
 	return totals, nil
 }
 
-// AddAddrPort adds an address/port pair to the sockfilter map.
-// Packets destined to this address/port will be redirected to AF_XDP sockets.
+// AddAddrPort adds an address/port filter to the sockfilter map.
+// Packets matching the filter are redirected to AF_XDP sockets.
 func (i *Interface) AddAddrPort(addrPort netip.AddrPort) error {
 	sockMapFlt := i.coll.Maps["sock_map_flt"]
 	if sockMapFlt == nil {
@@ -262,14 +248,12 @@ type SocketConfig struct {
 	TxSize uint32
 	// CqSize sets the number of entries in the completion ring.
 	CqSize uint32
-	// BatchSize controls TX and completion processing batch size.
-	// Very large values do not help and can hurt copy-mode performance,
-	// so we clamp them in ValidateAndSetDefaults.
+	// BatchSize controls TX/completion batches and is clamped because large values
+	// can hurt copy-mode performance.
 	BatchSize uint32
-	// TxOnly binds the socket for transmit only: no RX ring is set up, the fill
-	// ring is registered but never populated, and no XDP redirection is
-	// registered. Requires an [Interface] created with [NewTxInterface].
-	// RxSize is forced to 0.
+	// TxOnly disables RX and XDP redirection. A TX-only socket's fill ring is
+	// registered but left empty, and RxSize is forced to 0. Requires an Interface
+	// from [NewTxInterface].
 	TxOnly bool
 }
 
@@ -281,9 +265,8 @@ func (c *SocketConfig) ValidateAndSetDefaults() error {
 		c.FrameSize = DefaultFrameSize
 	}
 	if c.TxOnly {
-		// A TX-only socket has no RX ring and never populates its fill ring.
-		// RxSize 0 also makes the freelist span all UMEM frames and reduces the
-		// NumFrames check below to NumFrames >= TxSize.
+		// RxSize 0 gives TX the entire UMEM and reduces the minimum to
+		// NumFrames >= TxSize.
 		c.RxSize = 0
 	} else if c.RxSize == 0 {
 		c.RxSize = DefaultRxQueueSize
@@ -320,23 +303,22 @@ const (
 	DefaultBatchSize          = 64 // TX batching
 
 	// TxMetadataLen is the TX metadata headroom [Open] reserves in front of each
-	// TX frame whenever the kernel accepts XDP_UMEM_TX_METADATA_LEN, with or
-	// without checksum offload. It holds the first 16 bytes of struct
-	// xsk_tx_metadata (linux/if_xdp.h): flags, csum_start, csum_offset and reserved,
-	// enough for XDP_TXMD_FLAGS_CHECKSUM.
+	// TX frame when the kernel accepts XDP_UMEM_TX_METADATA_LEN, regardless of
+	// checksum offload. It stores struct xsk_tx_metadata's flags, csum_start,
+	// and csum_offset from linux/if_xdp.h plus four padding bytes, enough for
+	// XDP_TXMD_FLAGS_CHECKSUM.
 	TxMetadataLen = 16
 )
 
 type queuePtrs struct {
-	// cachedProd is userspace's view of the producer index. On the RX and completion
-	// rings it's reloaded from *prod only when the cached entries run out,
-	// which saves atomic loads. On the TX ring userspace is the producer:
-	// cachedProd runs ahead of *prod until [commitTxDescriptors] stores it.
+	// cachedProd caches the producer index. RX and completion rings reload *prod
+	// only after cached entries run out, avoiding atomic loads. On TX it advances
+	// ahead of *prod until [commitTxDescriptors] stores it.
 	cachedProd uint32
 
-	// cachedCons is userspace's view of the consumer index. On the RX and
-	// completion rings userspace advances it per entry and stores it to *cons
-	// once per batch. On the TX ring it holds *cons + size, the bound for cachedProd.
+	// cachedCons caches the consumer index. Userspace advances it per RX/completion
+	// entry and stores it to *cons once per batch. On TX it holds *cons + size,
+	// the bound for cachedProd.
 	cachedCons uint32
 
 	// mask is size-1. AF_XDP requires ring sizes to be powers of two.
@@ -345,41 +327,38 @@ type queuePtrs struct {
 	// size is the number of entries in the ring.
 	size uint32
 
-	// prod points into the shared ring header producer index in the
-	// mmap'ed region. For completion rings, this is updated by the kernel;
-	// for fill rings, it is updated by userspace.
+	// prod points to the shared mmap producer index, updated by the kernel for
+	// completion rings and by userspace for fill rings.
 	prod *uint32
 
-	// cons points into the shared ring header consumer index in the
-	// mmap'ed region. For completion rings, this is advanced by
-	// userspace as entries are reclaimed; for fill rings, by the kernel.
+	// cons points to the shared mmap consumer index, advanced by userspace for
+	// completion rings and by the kernel for fill rings.
 	cons *uint32
 
-	// flags points into the shared ring header flags field.
-	// With XDP_USE_NEED_WAKEUP the kernel sets XDP_RING_NEED_WAKEUP when it needs
-	// a syscall kick (sendto for TX) and clears it while actively polling,
-	// letting the busy TX path skip the sendto.
+	// flags points to the shared ring flags. With XDP_USE_NEED_WAKEUP, the kernel sets
+	// XDP_RING_NEED_WAKEUP when it needs a syscall kick (sendto for TX) and clears
+	// it while polling, letting the busy TX path skip sendto.
 	flags *uint32
 }
 
-// xdpUQueue is an RX or TX ring of unix.XDPDesc descriptors pointing into UMEM.
-// It's indexed like [xdpUMemQueue], whose entries are bare UMEM addresses (uint64).
+// xdpUQueue is an RX/TX ring of unix.XDPDesc entries into UMEM.
+// It's indexed like [xdpUMemQueue], whose entries are bare uint64 UMEM addresses.
 type xdpUQueue struct {
 	queuePtrs
 	descs []unix.XDPDesc
 }
 
-// xdpUMemQueue represents a UMEM address ring (FILL or COMPLETION).
-// Entries are raw UMEM offsets managed by kernel and userspace.
+// xdpUMemQueue is a fill or completion ring of raw UMEM offsets
+// shared by the kernel and userspace.
 //
 // See [AF_XDP rings].
 //
 // [AF_XDP rings]: https://www.kernel.org/doc/html/latest/networking/af_xdp.html#rings
 type xdpUMemQueue struct {
 	queuePtrs
-	// addrs is the ring itself: a power-of-two-sized slice of UMEM offsets into frames.
-	// Completion ring entries are TX descriptor addresses, which point past the metadata
-	// headroom; [Socket.PollCompletions] subtracts it to get the frame base.
+	// addrs is the power-of-two-sized ring of raw UMEM addresses.
+	// Completion entries hold TX descriptor addresses past metadata headroom;
+	// [Socket.PollCompletions] subtracts it to recover the frame base.
 	addrs []uint64
 }
 
@@ -442,9 +421,8 @@ func mmapRegion(fd int, length uintptr, offset uintptr) ([]byte, error) {
 	return *(*[]byte)(unsafe.Pointer(sh)), nil
 }
 
-// mmapUmem maps an anonymous, page-backed region for UMEM.
-// First attempts to use hugepages (2MB) for better TLB performance,
-// falls back to normal pages if hugepages are unavailable.
+// mmapUmem maps anonymous, page-backed UMEM.
+// It prefers 2 MB huge pages for fewer TLB misses and falls back to normal pages.
 func mmapUmem(
 	length uintptr, preferHugepages bool,
 ) (buf []byte, hugepages bool, err error) {
@@ -461,8 +439,7 @@ func mmapUmem(
 	}
 
 	if preferHugepages {
-		// Try hugepages first (MAP_HUGETLB with 2MB pages)
-		// This reduces TLB misses significantly for large UMEM regions.
+		// MAP_HUGETLB reduces TLB misses for large UMEM regions.
 		addr, _, errno = unix.Syscall6(unix.SYS_MMAP,
 			0,
 			length,
@@ -491,7 +468,7 @@ func mmapUmem(
 	return makeSlice(), hugepages, nil
 }
 
-// makeQueue builds RX/TX user queue from mmap + offsets.
+// makeQueue builds an RX/TX descriptor queue from an mmap region and offsets.
 func makeQueue(
 	region []byte, off unix.XDPRingOffset, size uint32, isTx bool,
 ) (*xdpUQueue, error) {
@@ -529,7 +506,7 @@ func makeQueue(
 	}, nil
 }
 
-// makeUMemQueue builds a UMEM fill or completion queue from mmap + offsets.
+// makeUMemQueue builds a UMEM fill/completion queue from an mmap region and offsets.
 func makeUMemQueue(
 	region []byte, off unix.XDPRingOffset, size uint32,
 ) (*xdpUMemQueue, error) {
@@ -587,8 +564,7 @@ func reserveTx(q *xdpUQueue, nDescs uint32, idx *uint32) int {
 	return int(nDescs)
 }
 
-// commitTxDescriptors publishes TX descriptors to the kernel
-// by updating the producer index.
+// commitTxDescriptors publishes TX descriptors to the kernel via the producer index.
 func commitTxDescriptors(queueProd *uint32, queueCachedProd uint32) {
 	atomic.StoreUint32(queueProd, queueCachedProd)
 }
@@ -607,8 +583,8 @@ func umemNbAvail(q *xdpUMemQueue, nb uint32) uint32 {
 	return entries
 }
 
-// umemCompleteFromKernel copies completed UMEM addresses into dst
-// and advances the consumer index.
+// umemCompleteFromKernel copies completed UMEM addresses into
+// dst and advances the consumer index.
 func umemCompleteFromKernel(q *xdpUMemQueue, dst []uint64, nb uint32) uint32 {
 	entries := umemNbAvail(q, nb)
 	for i := range entries {
@@ -624,10 +600,9 @@ func umemCompleteFromKernel(q *xdpUMemQueue, dst []uint64, nb uint32) uint32 {
 
 var zeroBuf []byte
 
-// wakeupTxQueue notifies the kernel/NIC that new TX descriptors are ready.
-// AF_XDP interprets a zero-length sendto() as a doorbell signal to process
-// the TX ring. With XDP_USE_NEED_WAKEUP the kick is needed only while the
-// kernel has set XDP_RING_NEED_WAKEUP on the TX ring.
+// wakeupTxQueue uses zero-length sendto to notify the kernel/NIC of new TX descriptors.
+// [Open] binds with XDP_USE_NEED_WAKEUP, so the kick is needed only while
+// the kernel has set XDP_RING_NEED_WAKEUP on the TX ring.
 func wakeupTxQueue(fd int) error {
 	err := unix.Sendto(fd, zeroBuf, unix.MSG_DONTWAIT, nil)
 	if err == unix.EAGAIN || err == unix.EBUSY {
@@ -637,8 +612,7 @@ func wakeupTxQueue(fd int) error {
 	return err
 }
 
-// registerXSK registers an AF_XDP socket file descriptor in the xsks_map.
-// This allows the XDP program to redirect packets to the socket.
+// registerXSK adds an AF_XDP socket to xsks_map for XDP redirection.
 func registerXSK(iface *Interface, fd int, queueID uint32) error {
 	xsksMap := iface.coll.Maps["xsks_map"]
 	if xsksMap == nil {
@@ -651,29 +625,24 @@ func registerXSK(iface *Interface, fd int, queueID uint32) error {
 	return nil
 }
 
-// Socket is an AF_XDP bidirectional socket.
-//
-// A Socket is not safe for concurrent use.
+// Socket is an AF_XDP bidirectional socket. It's not safe for concurrent use.
 type Socket struct {
 	conf          SocketConfig
 	isZerocopy    bool
 	isHugepages   bool
 	isCsumOffload bool
-	// txMetadataLen is the TX metadata headroom passed to XDP_UMEM_REG:
-	// [TxMetadataLen] if the kernel accepted XDP_UMEM_TX_METADATA_LEN, else 0.
-	// It doesn't depend on whether checksum offload is in use (see isCsumOffload).
+	// txMetadataLen is [TxMetadataLen] if XDP_UMEM_REG accepted TX metadata,
+	// otherwise 0. Its value does not depend on whether checksum offload is used.
 	txMetadataLen uint32
-	// txFrameLen is the packet capacity of a TX frame,
-	// [SocketConfig.FrameSize] minus the metadata headroom. Fixed at [Open].
+	// txFrameLen is [SocketConfig.FrameSize] minus metadata headroom, fixed at [Open].
 	txFrameLen int
 	fd         int
 
-	// umem is the contiguous UMEM region backing all RX/TX frames.
-	// Both RX and TX rings reference offsets into this slice.
+	// umem is the contiguous region backing frames referenced by the RX/TX rings.
 	umem []byte
 
-	// tx is the TX descriptor ring. Userspace produces
-	// descriptors here; the kernel/NIC consumes them to transmit packets.
+	// tx is the TX descriptor ring. Userspace produces descriptors here;
+	// the kernel/NIC consumes them to transmit packets.
 	tx *xdpUQueue
 
 	// cq is the UMEM completion ring. The kernel produces frame addresses
@@ -688,21 +657,17 @@ type Socket struct {
 	// to supply fresh buffers for RX; the kernel consumes them.
 	fq *xdpUMemQueue
 
-	// txRegion is the mmaped memory backing the TX ring metadata and descriptor array.
-	// rxRegion is the mmaped memory backing the RX ring metadata and descriptor array.
+	// txRegion and rxRegion back their ring metadata and descriptor arrays.
 	txRegion, rxRegion []byte
 
-	// cqRegion and fqRegion are the mmaped memory regions backing the
-	// COMPLETION and FILL rings respectively.
+	// cqRegion and fqRegion back the completion and fill rings.
 	cqRegion, fqRegion []byte
 
-	// freeFrames is the freelist (stack) of UMEM frame addresses dedicated to TX.
-	// len(freeFrames) is the number of currently-free frames; cap(freeFrames)
-	// is the total TX frame pool capacity.
+	// freeFrames is the TX UMEM-address stack. Its length is the free count;
+	// its capacity is the total TX frame count.
 	freeFrames []uint64
 
-	// compBuf is a scratch buffer used when draining the completion ring
-	// in PollCompletions().
+	// compBuf is [Socket.PollCompletions]'s scratch buffer.
 	compBuf []uint64
 }
 
@@ -718,27 +683,23 @@ func (s *Socket) FreeFrames() uint32 {
 	return uint32(len(s.freeFrames))
 }
 
-// PrefillTx writes template into the packet region of every TX-pool UMEM frame.
-// Generators that transmit a mostly-fixed packet with a few mutable fields can
-// then patch only those fields in the buffer returned by NextFrame before
-// Submit, avoiding a full per-packet copy on the hot path. The kernel never
-// mutates TX payload, so frames retain the template across completion-ring reuse.
-// Templates longer than [Socket.TxFrameLen] are truncated.
-// This must be called before any Submit.
+// PrefillTx copies template into every TX UMEM frame. Generators can patch only
+// mutable fields in frames returned by [Socket.NextFrame], avoiding hot-path
+// full copies. The kernel leaves TX payloads unchanged, so the template survives
+// completion-ring reuse. Oversized templates are truncated to [Socket.TxFrameLen].
+// Call PrefillTx before any Submit.
 func (s *Socket) PrefillTx(template []byte) {
 	n := min(len(template), s.txFrameLen)
-	// TX-pool frames are indices [RxSize, NumFrames): the same range used to
-	// build s.freeFrames in Open.
+	// This is the same [RxSize, NumFrames) range used for s.freeFrames in Open.
 	for i := s.conf.RxSize; i < s.conf.NumFrames; i++ {
 		base := int(uint64(i)*uint64(s.conf.FrameSize)) + int(s.txMetadataLen)
 		copy(s.umem[base:base+n], template[:n])
 	}
 }
 
-// Open creates and initializes an AF_XDP socket. It allocates UMEM, maps rings,
-// configures kernel structures, binds to the target NIC queue and,
-// unless conf.TxOnly is set, registers the socket in xsks_map. The iface parameter
-// must be a properly initialized Interface with the XDP program attached.
+// Open allocates UMEM, maps and configures rings, and binds an AF_XDP socket to
+// the target NIC queue. Unless conf.TxOnly is set, it also registers the socket
+// in xsks_map. iface must have an attached XDP program.
 func Open(
 	conf SocketConfig, iface *Interface, preferHugepages, preferZerocopy bool,
 ) (*Socket, error) {
@@ -779,7 +740,7 @@ func Open(
 		return nil, fail("opening AF_XDP socket: %w", err)
 	}
 
-	// UMEM registration with hugepages support.
+	// Allocate UMEM, preferring huge pages if requested.
 	umemLen := uintptr(conf.NumFrames) * uintptr(conf.FrameSize)
 	var hugepages bool
 	umem, hugepages, err = mmapUmem(umemLen, preferHugepages)
@@ -787,8 +748,7 @@ func Open(
 		return nil, fail("mmap UMEM: %w", err)
 	}
 
-	// Try to register UMEM with TX metadata support for checksum offloading.
-	// If the kernel/driver doesn't support it, fall back to no metadata.
+	// Request TX metadata for checksum offload; retry without it if unsupported.
 	var hasTxMetadata bool
 	reg := unix.XDPUmemReg{
 		Addr:            uint64(uintptr(unsafe.Pointer(&umem[0]))),
@@ -803,7 +763,7 @@ func Open(
 		unsafe.Pointer(&reg), unsafe.Sizeof(reg),
 	)
 	if err != nil {
-		// Fall back: register without TX metadata support.
+		// Retry without TX metadata.
 		reg.Flags = 0
 		reg.Tx_metadata_len = 0
 		if err := setsockopt(
@@ -816,10 +776,9 @@ func Open(
 		hasTxMetadata = true
 	}
 
-	// UMEM ring sizes. A socket that owns its UMEM must register both a fill and
-	// a completion ring at bind time, even when it only transmits: the kernel
-	// rejects the bind otherwise (EINVAL). RxSize is 0 for a TX-only socket,
-	// which registers a fill ring of CqSize entries instead and never populates it.
+	// The kernel requires UMEM owners to register fill and completion rings
+	// before bind, even for TX-only sockets (otherwise EINVAL).
+	// With RxSize 0, TX-only sockets register an empty CqSize fill ring.
 	fillSize := conf.RxSize
 	if conf.TxOnly {
 		fillSize = conf.CqSize
@@ -838,7 +797,6 @@ func Open(
 		return nil, fail("setsockopt XDP_UMEM_COMPLETION_RING: %w", err)
 	}
 
-	// TX ring size on socket.
 	txSize := conf.TxSize
 	if err := setsockopt(
 		fd, unix.SOL_XDP, unix.XDP_TX_RING,
@@ -847,7 +805,6 @@ func Open(
 		return nil, fail("setsockopt XDP_TX_RING: %w", err)
 	}
 
-	// RX ring size on socket. TX-only sockets have no RX ring.
 	if !conf.TxOnly {
 		rxSize := conf.RxSize
 		if err := setsockopt(
@@ -858,7 +815,6 @@ func Open(
 		}
 	}
 
-	// Query mmap offsets for all rings.
 	var offs unix.XDPMmapOffsets
 	if err := getsockopt(
 		fd, unix.SOL_XDP, unix.XDP_MMAP_OFFSETS,
@@ -867,21 +823,19 @@ func Open(
 		return nil, fail("getsockopt XDP_MMAP_OFFSETS: %w", err)
 	}
 
-	// Map TX ring (descriptors).
-	txRegionLen := uintptr(offs.Tx.Desc) + uintptr(conf.TxSize)*unsafe.Sizeof(unix.XDPDesc{})
+	txRegionLen := uintptr(offs.Tx.Desc) +
+		uintptr(conf.TxSize)*unsafe.Sizeof(unix.XDPDesc{})
 	txRegion, err = mmapRegion(fd, txRegionLen, unix.XDP_PGOFF_TX_RING)
 	if err != nil {
 		return nil, fail("mmap TX ring: %w", err)
 	}
 
-	// Map CQ ring (UMEM completion ring, uint64 addresses).
 	cqRegionLen := uintptr(offs.Cr.Desc) + uintptr(conf.CqSize)*unsafe.Sizeof(uint64(0))
 	cqRegion, err = mmapRegion(fd, cqRegionLen, unix.XDP_UMEM_PGOFF_COMPLETION_RING)
 	if err != nil {
 		return nil, fail("mmap CQ ring: %w", err)
 	}
 
-	// Build TX and completion queues (always needed).
 	txQ, err := makeQueue(txRegion, offs.Tx, conf.TxSize, true)
 	if err != nil {
 		return nil, fail("making TX queue: %w", err)
@@ -891,11 +845,11 @@ func Open(
 		return nil, fail("making CQ queue: %w", err)
 	}
 
-	// The RX ring only exists for sockets that receive. A TX-only socket leaves
-	// rxQ nil (and rxRegion unmapped).
+	// TX-only sockets leave rxQ nil and rxRegion unmapped.
 	var rxQ *xdpUQueue
 	if !conf.TxOnly {
-		rxRegionLen := uintptr(offs.Rx.Desc) + uintptr(conf.RxSize)*unsafe.Sizeof(unix.XDPDesc{})
+		rxRegionLen := uintptr(offs.Rx.Desc) +
+			uintptr(conf.RxSize)*unsafe.Sizeof(unix.XDPDesc{})
 		rxRegion, err = mmapRegion(fd, rxRegionLen, unix.XDP_PGOFF_RX_RING)
 		if err != nil {
 			return nil, fail("mmap RX ring: %w", err)
@@ -906,9 +860,8 @@ func Open(
 		}
 	}
 
-	// The fill ring exists on every UMEM-owning socket (see fillSize above). For
-	// a TX-only socket it is created but never populated, so all UMEM frames
-	// remain available for the TX freelist below.
+	// Every UMEM owner needs a fill ring. TX-only sockets leave it empty, keeping
+	// all frames available to the TX freelist.
 	fqRegionLen := uintptr(offs.Fr.Desc) + uintptr(fillSize)*unsafe.Sizeof(uint64(0))
 	fqRegion, err = mmapRegion(fd, fqRegionLen, unix.XDP_UMEM_PGOFF_FILL_RING)
 	if err != nil {
@@ -932,15 +885,13 @@ func Open(
 		fqQ.cachedCons = atomic.LoadUint32(fqQ.cons)
 	}
 
-	// Bind AF_XDP socket to iface:queue.
 	sa := &unix.RawSockaddrXDP{
 		Family:   unix.AF_XDP,
 		Ifindex:  uint32(iface.ifIndex),
 		Queue_id: conf.QueueID,
 	}
 
-	// XDP_USE_NEED_WAKEUP lets the kernel tell us (via the ring NEED_WAKEUP flag)
-	// when a TX sendto kick is actually needed, so the busy path skips the syscall.
+	// XDP_USE_NEED_WAKEUP avoids sendto kicks while the kernel drains the TX ring.
 	zerocopy := preferZerocopy
 	if zerocopy {
 		sa.Flags = unix.XDP_ZEROCOPY | unix.XDP_USE_NEED_WAKEUP
@@ -950,9 +901,8 @@ func Open(
 
 	err = rawBind(fd, sa)
 	if err != nil && zerocopy {
-		// If zerocopy is not supported for this device/queue, fall back to copy mode.
-		// The kernel returns EPROTONOSUPPORT or EOPNOTSUPP depending on where the
-		// check fails (EOPNOTSUPP on veth, which lacks ndo_xsk_wakeup).
+		// Unsupported zero-copy returns EPROTONOSUPPORT or EOPNOTSUPP; veth returns
+		// EOPNOTSUPP because it lacks ndo_xsk_wakeup.
 		if errno, ok := err.(unix.Errno); ok &&
 			(errno == unix.EPROTONOSUPPORT || errno == unix.EOPNOTSUPP) {
 			sa.Flags = unix.XDP_COPY | unix.XDP_USE_NEED_WAKEUP
@@ -964,37 +914,36 @@ func Open(
 		return nil, fail("binding socket: %w", err)
 	}
 
-	// TX-only sockets receive no redirected packets,
-	// and an [Interface] from [NewTxInterface] has no xsks_map.
+	// TX-only sockets receive no redirected packets.
+	// An Interface from [NewTxInterface] has no xsks_map either.
 	if !conf.TxOnly {
 		if err := registerXSK(iface, fd, conf.QueueID); err != nil {
 			return nil, fail("registering XSK: %w", err)
 		}
 	}
 
-	// Local free-frame pool for TX only: frames [RxSize .. NumFrames-1].
+	// The TX freelist contains frames [RxSize, NumFrames).
 	freeFrames := make([]uint64, conf.NumFrames-conf.RxSize)
 	for i := range freeFrames {
 		frameIdx := conf.RxSize + uint32(i)
 		freeFrames[i] = uint64(frameIdx) * uint64(conf.FrameSize)
 	}
 
-	// txMdLen must match the headroom passed to XDP_UMEM_REG even without checksum
-	// offload: the kernel expects every TX d.Addr to point past the metadata region.
+	// txMdLen must match XDP_UMEM_REG even without offload because TX descriptor
+	// addresses must point past the metadata.
 	var txMdLen uint32
 	if hasTxMetadata {
 		txMdLen = TxMetadataLen
 	}
 
-	// Reserve metadata headroom whenever the kernel accepted the UMEM
-	// registration, but only enable checksum offload when the device explicitly
-	// advertises AF_XDP tx-checksum support and this queue is running zerocopy.
+	// Enable offload only if metadata was accepted, the device advertises AF_XDP
+	// tx-checksum, and this queue uses zero-copy.
 	var deviceTxChecksum bool
 	if hasTxMetadata {
 		deviceTxChecksum, err = queryTxChecksumOffload(iface.ifIndex)
 		if err != nil {
-			// Stay conservative: if we cannot verify support, don't emit partial
-			// checksums that might escape without completion.
+			// If support cannot be verified, disable offload rather than risk sending
+			// partial checksums that the NIC does not complete.
 			deviceTxChecksum = false
 		}
 	}
@@ -1022,24 +971,22 @@ func Open(
 	}, nil
 }
 
-// IsZerocopy reports whether the socket is operating in zero-copy mode.
-// With preferZerocopy, [Open] falls back to XDP_COPY
-// when the queue doesn't support XDP_ZEROCOPY.
+// IsZerocopy reports whether the socket uses zero-copy. When preferZerocopy is true,
+// [Open] falls back to XDP_COPY if the queue lacks XDP_ZEROCOPY.
 func (s *Socket) IsZerocopy() bool { return s.isZerocopy }
 
 // IsHugepages reports whether the socket UMEM was mmapped via hugepages.
 func (s *Socket) IsHugepages() bool { return s.isHugepages }
 
-// IsCsumOffload reports whether the socket supports TX checksum offloading
-// via XDP_TXMD_FLAGS_CHECKSUM. When true, callers should use SubmitCsumOffload
-// instead of Submit to benefit from hardware checksum computation.
+// IsCsumOffload reports XDP_TXMD_FLAGS_CHECKSUM support.
+// When true, use [Socket.SubmitCsumOffload] for hardware checksum computation.
 func (s *Socket) IsCsumOffload() bool { return s.isCsumOffload }
 
 // QueueID returns the NIC RX/TX queue this socket is bound to.
 func (s *Socket) QueueID() uint32 { return s.conf.QueueID }
 
-// SocketStats mirrors the kernel's struct xdp_statistics. All counters are
-// monotonic totals since socket creation.
+// SocketStats mirrors the kernel's struct xdp_statistics.
+// All counters are monotonic totals since socket creation.
 //
 // See the XDP_STATISTICS section of the AF_XDP [docs].
 //
@@ -1117,9 +1064,8 @@ func (s *Socket) Close() error {
 	return errors.Join(errs...)
 }
 
-// Wait blocks until the AF_XDP socket becomes readable or the timeout expires.
-// Returns nil when the socket becomes readable or when the timeout expires.
-// Returns a non-nil error only for real system call failures.
+// Wait blocks until the socket is readable or the timeout expires,
+// returning an error only for system call failures.
 func (s *Socket) Wait(timeoutMS int) error {
 	for {
 		_, err := unix.Poll([]unix.PollFd{{
@@ -1173,8 +1119,8 @@ func (s *Socket) Receive(buffer []Frame) []Frame {
 
 // Release returns a received frame to the fill queue for reuse.
 func (s *Socket) Release(frame Frame) {
-	// The fill ring has one slot per RX frame and every released frame came out of it,
-	// which means it cannot overflow.
+	// Each released frame came from the fill ring,
+	// which has one slot per RX frame and cannot overflow.
 	prod := atomic.LoadUint32(s.fq.prod)
 	idx := prod & s.fq.mask
 
@@ -1195,8 +1141,7 @@ func (s *Socket) ReleaseBatch(frames []Frame) {
 
 // Frame represents a borrowed UMEM frame from an AF_XDP socket.
 type Frame struct {
-	// Buf points directly into the UMEM region and can be written to
-	// without additional copying.
+	// Buf points directly into UMEM and can be modified without an extra copy.
 	Buf []byte
 
 	// Addr is the frame's UMEM address. Return a frame from [Socket.NextFrame] by
@@ -1205,12 +1150,11 @@ type Frame struct {
 	Addr uint64
 }
 
-// NextFrame returns a writable UMEM buffer and its address.
-// A zero-value frame indicates that no frame is currently available and the
-// caller should retry after PollCompletions().
+// NextFrame returns a writable UMEM buffer and address.
+// A zero value means none is available; retry after [Socket.PollCompletions].
 //
-// When the kernel accepted TX metadata headroom, Buf starts after it, whether or not
-// [Socket.IsCsumOffload] is true. [Socket.SubmitCsumOffload] writes the metadata region.
+// If the kernel accepted TX metadata headroom, Buf starts after it regardless of
+// [Socket.IsCsumOffload]. [Socket.SubmitCsumOffload] writes that metadata.
 func (s *Socket) NextFrame() Frame {
 	if len(s.freeFrames) == 0 {
 		s.PollCompletions(uint32(len(s.compBuf)))
@@ -1231,12 +1175,11 @@ func (s *Socket) NextFrame() Frame {
 	}
 }
 
-// ReleaseTxFrame returns a frame from [Socket.NextFrame] to the TX freelist
-// without transmitting it. Call it for every frame not handed to [Socket.Submit],
-// [Socket.SubmitCsumOffload] or [Socket.SubmitBatch]: only kernel completions
-// replenish the freelist, and only submitted frames complete, leaving an
-// unreleased frame lost for the lifetime of the socket. addr is [Frame.Addr], not
-// adjusted for metadata headroom.
+// ReleaseTxFrame returns an unsubmitted [Socket.NextFrame] frame to the TX freelist.
+// Call it for every frame not passed to [Socket.Submit], [Socket.SubmitCsumOffload],
+// or [Socket.SubmitBatch]; only submitted frames produce completions,
+// so unreleased frames remain unavailable for the socket's lifetime.
+// addr is the unadjusted [Frame.Addr].
 func (s *Socket) ReleaseTxFrame(addr uint64) {
 	s.freeFrames = append(s.freeFrames, addr)
 }
@@ -1247,9 +1190,8 @@ func (s *Socket) TxFrameLen() int {
 	return s.txFrameLen
 }
 
-// Submit writes a TX descriptor for the frame at addr; the kernel sees it only
-// after [Socket.FlushTx]. When TX metadata headroom is reserved, the descriptor
-// addr is adjusted to point past the metadata region to the packet data.
+// Submit writes a TX descriptor, visible to the kernel after [Socket.FlushTx].
+// Reserved metadata headroom is skipped in the descriptor address.
 func (s *Socket) Submit(addr uint64, length uint32) error {
 	var idx uint32
 
@@ -1268,15 +1210,14 @@ func (s *Socket) Submit(addr uint64, length uint32) error {
 	return nil
 }
 
-// SubmitCsumOffload writes a TX descriptor with checksum offload metadata for the
-// frame at addr; the kernel sees it only after [Socket.FlushTx]. It writes the
-// xsk_tx_metadata struct into the metadata region preceding the packet data and
-// sets XDP_TX_METADATA in the descriptor options.
+// SubmitCsumOffload writes xsk_tx_metadata before the packet and sets the descriptor's
+// XDP_TX_METADATA option. The kernel sees the descriptor after [Socket.FlushTx].
 //
-// csumStart is the offset from the start of the packet (not the metadata) to where
-// checksumming begins (typically the UDP header offset).
-// csumOffset is the offset from csumStart to the checksum field (6 for UDP).
-func (s *Socket) SubmitCsumOffload(addr uint64, length uint32, csumStart, csumOffset uint16) error {
+// csumStart is the packet-relative checksum start, usually the UDP header;
+// csumOffset locates the checksum field from there (6 for UDP).
+func (s *Socket) SubmitCsumOffload(
+	addr uint64, length uint32, csumStart, csumOffset uint16,
+) error {
 	var idx uint32
 
 	for reserveTx(s.tx, 1, &idx) <= 0 {
@@ -1287,8 +1228,7 @@ func (s *Socket) SubmitCsumOffload(addr uint64, length uint32, csumStart, csumOf
 		}
 	}
 
-	// Write xsk_tx_metadata into the UMEM region preceding the packet data.
-	// Layout (16 bytes): flags(8) + csum_start(2) + csum_offset(2) + pad(4)
+	// xsk_tx_metadata: flags(8) + csum_start(2) + csum_offset(2) + pad(4).
 	mdStart := int(addr)
 	binary.LittleEndian.PutUint64(s.umem[mdStart:], unix.XDP_TXMD_FLAGS_CHECKSUM)
 	binary.LittleEndian.PutUint16(s.umem[mdStart+8:], csumStart)
@@ -1333,14 +1273,12 @@ retry:
 	return n, nil
 }
 
-// FlushTx publishes the descriptors written by [Socket.Submit],
-// [Socket.SubmitCsumOffload] and [Socket.SubmitBatch] to the kernel and kicks the
-// TX queue if the kernel set XDP_RING_NEED_WAKEUP. Call it after submitting.
+// FlushTx publishes submitted descriptors and kicks the TX queue if the kernel
+// set XDP_RING_NEED_WAKEUP. Call it after submitting.
 func (s *Socket) FlushTx() error {
 	commitTxDescriptors(s.tx.prod, s.tx.cachedProd)
-	// With XDP_USE_NEED_WAKEUP the kernel only needs a sendto kick when it has set
-	// NEED_WAKEUP; while it is actively draining the TX ring the flag is clear and
-	// we skip the syscall entirely (the dominant case under load).
+	// A clear NEED_WAKEUP means the kernel is draining TX, so skip sendto.
+	// This is the dominant case under load.
 	if atomic.LoadUint32(s.tx.flags)&unix.XDP_RING_NEED_WAKEUP == 0 {
 		return nil
 	}
@@ -1348,8 +1286,8 @@ func (s *Socket) FlushTx() error {
 }
 
 // PollCompletions moves up to maxFrames completed TX frames from the completion
-// ring to the TX freelist and returns how many it moved. maxFrames is capped at
-// [SocketConfig.BatchSize].
+// ring to the freelist and returns the moved count.
+// maxFrames is capped at [SocketConfig.BatchSize].
 func (s *Socket) PollCompletions(maxFrames uint32) uint32 {
 	if maxFrames == 0 {
 		return 0
@@ -1359,8 +1297,7 @@ func (s *Socket) PollCompletions(maxFrames uint32) uint32 {
 	n := umemCompleteFromKernel(s.cq, s.compBuf, maxFrames)
 	mdOff := uint64(s.txMetadataLen)
 	for i := range n {
-		// The completion ring returns d.Addr which was offset by txMetadataLen
-		// in Submit/SubmitCsumOffload. Subtract it to recover the frame base address.
+		// Completion addresses include txMetadataLen; subtract it for the frame base.
 		s.freeFrames = append(s.freeFrames, s.compBuf[i]-mdOff)
 	}
 	return n

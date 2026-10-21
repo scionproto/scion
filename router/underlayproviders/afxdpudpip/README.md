@@ -1,41 +1,32 @@
 # afxdpudpip — AF_XDP UDP/IP Underlay
 
-AF_XDP-based UDP/IP underlay implementation for the SCION router. Carries SCION traffic over
-raw AF_XDP sockets with Ethernet/IP/UDP encapsulation, binding queues in `XDP_ZEROCOPY` mode
-whenever the driver supports it and falling back to copy mode otherwise. On zerocopy queues,
-IPv6 UDP checksum offload is also enabled automatically when the kernel and driver advertise
-AF_XDP `tx-checksum`.
+This SCION router underlay carries SCION packets wrapped in Ethernet/IP/UDP over raw AF_XDP
+sockets. It uses `XDP_ZEROCOPY` where supported and otherwise falls back to copy mode. On
+zerocopy queues, it also enables IPv6 UDP checksum offload when the kernel and driver
+advertise AF_XDP `tx-checksum`.
 
-This underlay is opt-in. The router uses it only if `router.preferred_underlays.udpip` is set
-to `"afxdp"`, and uses `inet` otherwise. See
-[doc/manuals/router.rst](../../../doc/manuals/router.rst).
+The underlay is opt-in. Set `router.preferred_underlays.udpip` to `"afxdp"`. The default is
+`inet`. See [doc/manuals/router.rst](../../../doc/manuals/router.rst).
 
-## Scope & Limitations
+## Scope and Limitations
 
-This underlay is intentionally specialized to the common
-SCION use case. Specifically:
+This underlay targets the common SCION use case, with these constraints:
 
-- **No IP fragmentation.** Outgoing IPv4 sets the DF flag per
-  [RFC 791 §3.1](https://www.rfc-editor.org/rfc/rfc791#section-3.1)
-  and IPv6 never emits a Fragment extension header per
-  [RFC 8200 §4.5](https://www.rfc-editor.org/rfc/rfc8200#section-4.5).
-  On ingress, IPv4 fragments (MF=1 or nonzero fragment offset)
-  destined to a filtered AF_XDP flow are dropped in the XDP filter
-  (`XDP_DROP`) before reaching userspace; IPv6 fragments are
-  passed to the kernel (their `NextHeader=44` ≠ UDP makes them
-  take the non-UDP branch), where no socket is bound to our ports
-  and the kernel discards them. Either way, fragments never reach
-  the SCION router's userspace RX path. SCION negotiates path MTU
-  end-to-end, so fragmentation here indicates a misconfigured peer
-  or a non-conforming sender.
-- **MTU** is capped by the configured UMEM `frame_size`. The default
-  accommodates standard Ethernet MTU 1500; jumbo frames are not
-  supported. For per-link tuning options see
-  [doc/manuals/router.rst](../../../doc/manuals/router.rst) under
-  *AF_XDP Per-Link Options*.
+- **No IP fragmentation.** On TX, IPv4 sets DF per
+  [RFC 791 §3.1](https://www.rfc-editor.org/rfc/rfc791#section-3.1), and IPv6 emits no Fragment
+  extension header per [RFC 8200 §4.5](https://www.rfc-editor.org/rfc/rfc8200#section-4.5). On
+  RX, only the first IPv4 fragment contains the UDP header, so only it reliably matches an
+  AF_XDP filter. XDP drops a matching first fragment (`MF=1`); later fragments have a nonzero
+  offset, usually pass to the kernel, and are discarded when reassembly times out. IPv6
+  fragments take the non-UDP branch because `NextHeader=44`; the kernel receives and discards
+  them because no socket is bound to the relevant ports. Thus, no fragments reach the SCION
+  router's userspace RX path. The path MTU comes from SCION path metadata, so a fragment
+  indicates a misconfigured peer or non-conforming sender.
+- **MTU is limited by the configured UMEM `frame_size`.** The default supports Ethernet MTU
+  1500; jumbo frames are unsupported. See *AF_XDP Per-Link Options* in
+  [doc/manuals/router.rst](../../../doc/manuals/router.rst) for tuning options.
 
-Any other L2 transport for IP/UDP is out of scope; use the `inet`
-udpip underlay for those.
+For other L2 transports for IP/UDP, use the `inet` udpip underlay.
 
 ## Packet Lifecycle
 
@@ -44,14 +35,14 @@ udpip underlay for those.
 ```mermaid
 flowchart TD
     subgraph NIC
-        A[NIC receives Ethernet frame, DMA to ring buffer]
+        A[NIC receives Ethernet frame — DMA to ring buffer]
     end
 
     subgraph eBPF ["eBPF (kernel, runs per packet)"]
-        B[XDP program: parse Ethernet + IP + UDP]
+        B[Parse Ethernet + IP + UDP when present]
         BF{IPv4 fragment?}
         C{Dest IP:port in sock_map_flt?}
-        D[XDP_PASS — deliver to kernel stack]
+        D[XDP_PASS — kernel stack]
         E[bpf_redirect_map → AF_XDP socket by queue ID]
         F[XDP_PASS — ARP / ICMPv6 to kernel]
         G[XDP_DROP — malformed]
@@ -59,16 +50,16 @@ flowchart TD
     end
 
     subgraph Userspace ["Userspace (Go)"]
-        H[socket.Wait + socket.Receive — batch up to 64 frames]
-        I[For each frame: copy to packet buffer, release frame to UMEM]
-        J{Parse Ethertype — per frame}
-        K[IPv4: extract 4-byte IPs, check protocol=17]
-        L[IPv6: extract 16-byte IPs, check protocol=17]
+        H[socket.Wait + socket.Receive — up to 64 frames]
+        I[Copy each frame to packet buffer — release UMEM frame]
+        J{Parse Ethertype per frame}
+        K[IPv4: extract 4-byte IPs — require protocol 17]
+        L[IPv6: extract 16-byte IPs — require protocol 17]
         M{Lookup link by address}
         N[PTP link: known remote peer]
-        O[Internal link: store remote addr in HeadBytes]
+        O[Internal: store remote address in HeadBytes]
         P[Drop as invalid]
-        Q[receivePacket: hash SCION header — FNV-1a]
+        Q[receivePacket: FNV-1a hash of flow ID + address header]
         R[Enqueue to processor queue]
     end
 
@@ -76,7 +67,7 @@ flowchart TD
     B --> C
     C -->|yes| BF
     C -->|no, ARP/ICMPv6| F
-    C -->|no, other UDP| D
+    C -->|no, other traffic| D
     BF -->|no| E
     BF -->|yes| GF
     B -->|malformed| G
@@ -100,38 +91,38 @@ flowchart TD
 flowchart TD
     subgraph Userspace ["Userspace (Go)"]
         A[Router processor enqueues packet]
-        B[Hash SCION payload to select TX connection / queue]
-        C[finishPacket — link-specific header prep]
+        B[FNV-1a hash of flow ID + address header — select TX connection / queue]
+        C[finishPacket — prepare link-specific header]
         D{Link type?}
-        E[Resolve dest via neighbor cache — ARP/NDP]
-        F[Load cached header — atomic, built once]
+        E[Resolve destination in ARP/NDP cache]
+        F[Atomically load cached header, built once]
         G{MAC resolved?}
-        H[Enqueue to backlog, retry after resolution]
-        I[Prepend header template, patch dest MAC + IP]
+        H[Backlog — retry after resolution]
+        I[Prepend header template — patch destination MAC + IP]
         J{Header built?}
         K[Build header, resolve neighbor, backlog if needed]
         L[Prepend cached header]
         M{IPv4 or IPv6?}
         N[Update total length]
-        O[Recompute IPv4 header checksum — software, ~8 ns]
+        O[Recompute IPv4 header checksum in software — ~8 ns]
         P[Set UDP checksum = 0 — optional per RFC 768]
         Q[Update payload length]
         R{Selected TX conn csumOffload?}
-        S[Compute pseudo-header partial sum only — ~10 ns]
-        T[Compute full UDP checksum — software, ~300 ns]
+        S[Compute only pseudo-header partial sum — ~10 ns]
+        T[Compute full UDP checksum in software — ~300 ns]
         U[Enqueue to selected TX connection queue]
         V[send goroutine: batch dequeue up to batchSize]
-        W[Get free UMEM frame, copy packet data]
+        W[Copy packet into free UMEM frame]
         X{Selected TX conn csumOffload && IPv6?}
-        Y[SubmitCsumOffload — write metadata + XDP_TX_METADATA flag]
+        Y[SubmitCsumOffload — metadata + XDP_TX_METADATA flag]
         Z[Submit — standard descriptor]
-        AA[FlushTx — push batch to kernel]
+        AA[FlushTx — publish batch to kernel]
     end
 
     subgraph Kernel ["Kernel / NIC"]
         AC{Queue is zerocopy?}
-        AD[NIC reads frame from UMEM, completes checksum if requested, transmits]
-        AE[Kernel copies frame to SKB, transmits via normal stack]
+        AD[NIC reads UMEM frame, completes requested checksum, transmits]
+        AE[Kernel copies frame to SKB — normal-stack transmit]
     end
 
     A --> B --> C --> D
@@ -169,16 +160,16 @@ flowchart TD
 flowchart LR
     subgraph Internal Link
         direction TB
-        A1[One per underlay] --> A2[Dynamic remote — resolved per-packet]
+        A1[One per underlay] --> A2[Dynamic remote — per-packet resolution]
         A2 --> A3[ARP/NDP lookup every send]
-        A3 --> A4[Patches dest MAC + IP in header template]
+        A3 --> A4[Patch destination MAC + IP in header template]
         A4 --> A5[Supports SVC address resolution]
     end
 
     subgraph PTP Link
         direction TB
-        B1[One per external/sibling peer] --> B2[Fixed remote — known at creation]
-        B2 --> B3[Neighbor resolved once, header cached atomically]
+        B1[One per external/sibling peer] --> B2[Fixed remote known at creation]
+        B2 --> B3[Resolve neighbor once — cache header atomically]
         B3 --> B4[Header rebuilt only on MAC change]
         B4 --> B5[Optional BFD liveness — external only]
     end
@@ -186,59 +177,54 @@ flowchart LR
 
 ## Checksum Offload
 
-- IPv4 TX never uses AF_XDP checksum offload here. The IPv4 header checksum is always
-  recomputed in software, and the IPv4 UDP checksum is left as zero.
-- IPv6 TX uses checksum offload automatically when the selected TX connection reports
-  `csumOffload=true`. In that case userspace writes only the IPv6 UDP pseudo-header seed (the
-  NIC sums the UDP header + payload but has no visibility into the pseudo-header fields, so the
-  CPU must precompute that part) and submits AF_XDP TX metadata so the NIC finishes the
+- IPv4 TX never uses AF_XDP checksum offload. Software always recomputes the IPv4 header
+  checksum and leaves the UDP checksum zero.
+- IPv6 TX uses checksum offload when the selected TX connection has `csumOffload=true`.
+  Userspace writes the IPv6 UDP pseudo-header seed and submits AF_XDP TX metadata. The NIC,
+  which cannot see the pseudo-header fields, sums the UDP header and payload to finish the
   checksum.
 - `csumOffload=true` requires all of the following:
-  1. The running kernel accepted UMEM TX metadata registration (`XDP_UMEM_TX_METADATA_LEN`).
-  2. The bound AF_XDP queue is operating in zerocopy mode.
-  3. The netdevice advertises AF_XDP `xsk-features: tx-checksum` via the `netdev` generic-netlink family.
-- If any of those checks fail, IPv6 falls back to a full software UDP checksum. This avoids
-  emitting only the pseudo-header seed on queues that would not complete the checksum.
-- The checksum decision is per selected TX connection, not per link. A multi-queue link can
-  mix queues with different capabilities without corrupting packets.
-- TX metadata headroom may still be reserved in UMEM even when checksum offload is disabled.
-  That keeps descriptor addressing consistent; it does not imply checksum offload is active.
+  1. The kernel accepts UMEM TX metadata registration (`XDP_UMEM_TX_METADATA_LEN`).
+  2. The bound AF_XDP queue uses zerocopy mode.
+  3. The netdevice advertises AF_XDP `xsk-features: tx-checksum` through the `netdev`
+     generic-netlink family.
+- If any check fails, IPv6 uses a full software UDP checksum instead of emitting a seed that
+  the queue would not complete.
+- The decision is per selected TX connection, not per link. A multi-queue link can safely mix
+  queues with different capabilities.
+- UMEM may reserve TX metadata headroom even when offload is disabled. This keeps descriptor
+  addressing consistent and does not imply offload is active.
 
 ## Metrics
 
-Packets dropped by the XDP program never reach userspace, so the router's normal RX counters
-cannot account for them. To preserve observability, the XDP program maintains kernel-side
-counters and the AF_XDP socket exposes its own drop/error statistics. Both are surfaced as
-Prometheus metrics: on each scrape, userspace reads the eBPF map and calls
-`getsockopt(XDP_STATISTICS)` once per socket. Nothing is read on the forwarding path.
+XDP-dropped packets bypass userspace and its normal RX counters. The XDP program maintains
+kernel-side counters, while AF_XDP sockets expose drop/error statistics. Separate Prometheus
+metric families publish each source. On every scrape, userspace reads the eBPF map and calls
+`getsockopt(XDP_STATISTICS)` once per socket; the forwarding path reads neither.
 
-- `router_xdp_drops_total{nic, reason}` — XDP_DROP counts from the
-  `drop_counters` PERCPU_ARRAY in
-  [sockfilter.c](../../../private/underlay/ebpf/sockfilter.c).
+- `router_xdp_drops_total{nic, reason}` — `XDP_DROP` counts from the `drop_counters`
+  `PERCPU_ARRAY` in [sockfilter.c](../../../private/underlay/ebpf/sockfilter.c).
   Reasons: `eth_malformed`, `ip_malformed`, `udp_malformed`, `fragment`.
 - `router_afxdp_socket_drops_total{nic, queue, stat}` —
-  `getsockopt(SOL_XDP, XDP_STATISTICS)`. `stat` is one of `rx_dropped`,
-  `rx_invalid_descs`, `tx_invalid_descs`, `rx_ring_full`,
-  `rx_fill_ring_empty_descs`, `tx_ring_empty_descs`.
+  `getsockopt(SOL_XDP, XDP_STATISTICS)`, where `stat` is `rx_dropped`, `rx_invalid_descs`,
+  `tx_invalid_descs`, `rx_ring_full`, `rx_fill_ring_empty_descs`, or `tx_ring_empty_descs`.
 
-`drop_counters` is touched only on the drop path, not on the redirect
-path. The eBPF program increments only the current CPU's slot; userspace
-sums all per-CPU slots into a single value on each scrape.
+Only the drop path touches `drop_counters`. The eBPF program increments the current CPU's
+slot; userspace sums the per-CPU slots into one value on each scrape.
 
-The C `DROP_REASON_*` indices and Go `ebpf.DropReasonNames` must match;
-`NewInterface` fails if `drop_counters.MaxEntries != len(DropReasonNames)`.
+The C `DROP_REASON_*` indices must match Go's `ebpf.DropReasonNames`. `NewInterface` fails if
+`drop_counters.MaxEntries != len(DropReasonNames)`.
 
 ## Test Validation
 
-- `testdata/*.bin` contains golden Ethernet/IP/UDP frames captured from the Linux network
-  stack on a veth pair, with kernel-variable fields normalized before committing them, i.e.
-  rewritten to the fixed canonical values this implementation intentionally emits so the files
-  stay deterministic across runs.
-- The ordinary package tests compare both `finishPacket` output and the lower-level
-  `internal/headers` + `internal/checksum` builders against those golden frames byte-for-byte.
-- IPv6 checksum-offload seeding is covered separately: the golden files validate the finalized
-  software-checksum packets, while a dedicated unit test checks that the AF_XDP offload path
-  writes the expected pseudo-header seed.
-- Golden files are regenerated explicitly with
-  `go run ./router/underlayproviders/afxdpudpip/cmd/packetgolden`; this is a maintainer
-  workflow, not a CI requirement.
+- `testdata/*.bin` contains golden Ethernet/IP/UDP frames captured from the Linux stack on a
+  veth pair. Before commit, kernel-variable fields are normalized to the fixed canonical
+  values emitted by this implementation, keeping the files deterministic across runs.
+- Package tests compare the output of `finishPacket` with those frames byte-for-byte. They
+  also compare output from the lower-level builders in `internal/headers` and
+  `internal/checksum`.
+- The golden files validate finalized software-checksum packets. A separate unit test verifies
+  that the IPv6 checksum-offload path in `finishPacket` writes the expected pseudo-header
+  seed.
+- Maintainers explicitly regenerate golden files with
+  `go run ./router/underlayproviders/afxdpudpip/cmd/packetgolden`; CI does not require this.

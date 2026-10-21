@@ -497,7 +497,7 @@ func loadKey(artifactsDir string) (hash.Hash, error) {
 //
 // The [SCION common header] packs Version, TrafficClass and FlowID into 4, 8 and 20 bits.
 //
-// [SCION common header]: https://scionassociation.github.io/scion-dp_I-D/draft-dekater-scion-dataplane.html#name-common-header
+// [SCION common header]: https://docs.scion.org/en/latest/protocols/scion-header.html#common-header
 type underlayOffsets struct {
 	udpCsum int // outer UDP checksum
 	flowID  int // low 16 bits of the 20-bit SCION FlowID (bytes 2-3; common header)

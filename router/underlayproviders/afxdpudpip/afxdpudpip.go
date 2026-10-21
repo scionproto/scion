@@ -180,7 +180,7 @@ func (underlayProvider) New(runConfig router.RunConfig) router.Underlay {
 }
 
 // SetConnOpener installs the given opener. opener must be an implementation of
-// ConnOpener or panic will ensue. Only for use in unit tests.
+// [ConnOpener] or panic will ensue. Only for use in unit tests.
 func (u *underlay) SetConnOpener(opener any) {
 	u.connOpener = opener.(ConnOpener)
 }
