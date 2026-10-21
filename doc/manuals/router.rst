@@ -12,8 +12,8 @@ for the UDP/IP underlay protocol:
 * **AF_XDP** (``afxdp``): Opt-in, Linux only. Uses
   `AF_XDP sockets <https://docs.kernel.org/networking/af_xdp.html>`_ to bypass the kernel
   network stack, delivering packets directly to userspace achieving higher performance.
-  Supports multi-queue NICs for high throughput. Requires Linux 5.9 or later
-  and capabilities ``CAP_NET_ADMIN``, ``CAP_NET_RAW``, and ``CAP_BPF``.
+  Supports multi-queue NICs, but each link receives on only one queue. Requires Linux 5.9
+  or later and capabilities ``CAP_NET_ADMIN``, ``CAP_NET_RAW``, and ``CAP_BPF``.
   See :ref:`router-afxdp-prerequisites`.
 
 The router uses ``afxdp`` only if
@@ -368,8 +368,17 @@ The ``afxdp`` underlay implementation requires:
   must be on the router's layer-2 network. Packets for other hosts are dropped after
   ``probe_attempts`` probes.
 
-* **NIC queues**: The internal interface uses only queue 0 of its NIC. Internal traffic
-  that arrives on other queues is dropped.
+* **NIC queues**: The NIC picks each packet's RX queue, and the router doesn't configure it.
+  A link's addresses and ports are fixed, so all its incoming traffic arrives on one queue.
+  A link receives on every queue the NIC has at startup, or on those in
+  :option:`rx_queues <router-afxdp-options rx_queues>`. Its packets on other queues are
+  dropped, and if no link uses the queue, no router metric counts them.
+
+  - The internal interface uses only queue 0. Give its NIC a single queue with
+    ``ethtool -L <interface> combined 1``, or steer its traffic to queue 0 with an ntuple
+    rule (``ethtool -N``).
+  - Restart the router after changing the channel count with ``ethtool -L``. Removing
+    channels fails while the router uses them.
 
 * **NIC driver support**: Zero-copy mode (``XDP_ZEROCOPY``) requires driver support.
   If the driver does not support zero-copy, the implementation falls back to
@@ -397,7 +406,7 @@ have an ``options`` field. It's a string that holds an escaped JSON object:
       "underlay": {
          "local": "192.0.2.1:50000",
          "remote": "192.0.2.2:50000",
-         "options": "{\"rx_queues\": [0, 1], \"prefer_hugepages\": false}"
+         "options": "{\"tx_queues\": [0, 1], \"prefer_hugepages\": false}"
       }
    }
 
@@ -432,8 +441,9 @@ interface is configured first, with the defaults.
    queue gets an AF_XDP socket with a receiver goroutine, and incoming packets
    on that queue are dispatched to the appropriate link.
 
-   List every queue that can receive this link's traffic, since packets that arrive on other
-   queues are dropped. Queue IDs must be below 64, including auto-detected ones.
+   Use a subset of the NIC's queues only if the RSS table (``ethtool -X``) or an ntuple rule
+   (``ethtool -N``) keeps this link's traffic on it, since packets on other queues are dropped.
+   Queue IDs must be below 64, including auto-detected ones.
 
    Can be combined with ``tx_queues`` to configure RX and TX independently
    (e.g. when a NIC has more RX queues than TX queues).
