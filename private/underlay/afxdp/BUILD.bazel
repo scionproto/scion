@@ -5,6 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "afxdp.go",
+        "doc.go",
         "netdev.go",
     ],
     importpath = "github.com/scionproto/scion/private/underlay/afxdp",

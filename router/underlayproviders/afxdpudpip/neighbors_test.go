@@ -209,8 +209,7 @@ func TestBuildHeaderHoldsWhileUnresolved(t *testing.T) {
 }
 
 // TestAwaitNeighborWaitsForResolution checks that the BFD gate holds until the
-// peer MAC address is known. A session started earlier would send its first
-// packet into a drop and then wait a full detection interval.
+// peer MAC address is known.
 func TestAwaitNeighborWaitsForResolution(t *testing.T) {
 	remote := netip.MustParseAddrPort("192.0.2.2:30042")
 

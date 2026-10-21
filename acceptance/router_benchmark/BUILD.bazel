@@ -32,9 +32,9 @@ data = [
     "//tools/mmbm:mmbm",
 ]
 
-# The router benchmarks are excluded from CI. CI agents are shared, virtualized machines,
-# and the throughput they measure says little about the router. Without a driver that
-# supports XDP_ZEROCOPY, the afxdp underlay also falls back to XDP_COPY.
+# The router benchmarks are excluded from CI.
+# CI agents are shared VMs, whose throughput says little about the router.
+# The tests use veth pairs, so the afxdp test always runs in XDP_COPY mode.
 # Performance regression testing is scheduled on baremetal.
 raw_test(
     name = "test_afxdp",

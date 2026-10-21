@@ -28,11 +28,11 @@ typedef struct {
 // sock_map_flt tells our bpf program which address/port(s) should be redirected
 // to AF_XDP sockets. The ports must be in network byte order.
 //
-// This is the same data used by kfilter to perform the opposite filtering.
-// We may have several pairs to filter for a given AF_XDP socket.
-// We could have several sockets, each with a one-pair filter,
-// but we do not want to be bound by that constraint (and it may be less efficient).
-// So we need a map with multiple pairs.
+// One map serves the whole interface.
+// It holds every address/port pair the router receives on through that interface.
+// A matching packet goes to the AF_XDP socket of the RX queue it arrived on.
+// The xsks_map below maps queues to sockets.
+// The pair itself does not select a socket.
 struct {
   __uint(type, BPF_MAP_TYPE_HASH);
   __type(key, addrPort); // An IP address and a port number.
@@ -55,7 +55,7 @@ struct {
   __type(value, __u32);    // AF_XDP socket FD
 } xsks_map SEC(".maps");
 
-// Drop reason indices. The Go side mirrors this ordering in dropReasonNames.
+// Drop reason indices. The Go side mirrors this ordering in ebpf.DropReasonNames.
 #define DROP_REASON_ETH_MALFORMED 0
 #define DROP_REASON_IP_MALFORMED  1
 #define DROP_REASON_UDP_MALFORMED 2
@@ -202,8 +202,8 @@ int bpf_sock_filter(struct xdp_md *ctx) {
     return XDP_PASS;
   }
 
-  // Drop fragments: userspace cannot reassemble, and SCION negotiates
-  // path MTU end-to-end so fragments are not expected here.
+  // Drop matching fragments. Userspace cannot reassemble them, and the path MTU
+  // comes from SCION path metadata, so fragments are not expected here.
   if (is_frag) {
     return drop(DROP_REASON_FRAGMENT);
   }
@@ -213,5 +213,5 @@ int bpf_sock_filter(struct xdp_md *ctx) {
   return bpf_redirect_map(&xsks_map, qid, 0);
 }
 
-// GPL license required for bpf_redirect_map helper
+// No helper used here is GPL-only, so "GPL" is a choice, not a requirement.
 char __license[] SEC("license") = "GPL";

@@ -201,9 +201,9 @@ func (c *RunConfig) ExpectPacket(
 			continue
 		}
 		// We're only configuring V4 addresses. So, only IPv4 traffic is ours.
-		// Even on veth, there can be other things scooting by; such as ARP. Speaking of
-		// ARP: we have to respond. Neighbor entries that the test harness shoves into the router
-		// won't work: the router can also use a raw socket.
+		// Even on veth, other frames such as ARP can show up.
+		// Both underlays use the test's static neighbor entries,
+		// and we answer ARP for any address it didn't add.
 		if got.LinkLayer() == nil {
 			log.Debug("No link hdr")
 			continue

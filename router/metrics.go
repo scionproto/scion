@@ -167,12 +167,13 @@ func NewMetrics() *Metrics {
 	}
 }
 
-// trafficType labels traffic as being of either of the following types: in, out, inTransit,
-// outTransit, brTransit. inTransit or outTransit means that traffic is crossing the local AS via
-// two routers. If the router being observed is the one receiving the packet from the outside, then
-// the type is inTransit; else it is outTransit. brTransit means that traffic is crossing only the
-// observed router. Non-scion traffic or somehow malformed traffic has type Other.
-// Do not change this type's length without checking the effect it has on router.packet
+// trafficType labels traffic as [ttIn], [ttOut], [ttInTransit], [ttOutTransit],
+// [ttBrTransit], [ttSlowPath] or [ttOther]. ttInTransit and ttOutTransit cross
+// the local AS via two routers. The router that receives the packet from outside
+// counts it as ttInTransit, the other one as [ttOutTransit]. [ttBrTransit] crosses
+// only the observed router. [ttSlowPath] marks packets the slow path sends back without
+// an SCMP reply. Non-SCION traffic, malformed traffic and SCMP replies are [ttOther].
+// Don't change this type's length without checking the effect it has on [Packet].
 type trafficType uint8
 
 const (

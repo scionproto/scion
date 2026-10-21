@@ -221,7 +221,8 @@ func (l *linkInternal) start(
 
 	l.neighbors.start(l.pool)
 
-	// Announce ourselves
+	// This only adds a cache entry that never resolves.
+	// The kernel has no neighbor entry for its own address.
 	localIP := l.localAddr.Addr()
 	l.neighbors.seekNeighbor(&localIP)
 

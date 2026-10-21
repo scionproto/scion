@@ -148,7 +148,7 @@ of the individual fields below.
       "link_to": <"parent"|"child"|"peer"|"core">,
       "mtu": <int>,
       "underlay": {
-         "protocol": "<udpip|other_underlay_protocol>"
+         "protocol": "<udpip|other_underlay_protocol>",
          "local": "<ip|hostname>:<port>", # or just ":<port>"
          "remote": "<ip|hostname>:<port>",
          "options": "<options>", # optional, defined by protocol
@@ -280,11 +280,10 @@ of the individual fields below.
             address. If the router is behind NAT, this field must be set to the non-public address;
             that is, the address that the router should bind to.
 
-      .. option:: options
+         .. option:: options = <string>, optional
 
-         Arbitrary string. Format and semantics are defined by each underlay
-         protocol. For the ``udpip`` protocol with the ``afxdp`` implementation,
-         see :ref:`router-afxdp-options`.
+            Implementation-specific options, as a string.
+            ``inet`` ignores them. For ``afxdp``, see :ref:`router-afxdp-options`.
 
       .. option:: bfd, optional
 

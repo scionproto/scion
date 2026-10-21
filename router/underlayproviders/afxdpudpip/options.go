@@ -26,7 +26,10 @@ import (
 	"github.com/scionproto/scion/private/underlay/afxdp"
 )
 
-// Options represents the parsed JSON configuration for an AF_XDP underlay link.
+// Options holds the parsed JSON options of one link.
+// Only [Options.RxQueues] and [Options.TxQueues] are per link. The other fields apply
+// to every socket the underlay opens from then on, and a queue's existing socket keeps
+// its settings.
 type Options struct {
 	RxQueues        []uint32 `json:"rx_queues,omitempty"`
 	TxQueues        []uint32 `json:"tx_queues,omitempty"`

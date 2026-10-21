@@ -42,7 +42,8 @@ import (
 	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers"
 )
 
-// AF_XDP specific default for connection receive batch size.
+// defaultBatchSize is the most frames a connection takes from its RX ring at once.
+// Neither router.batch_size nor the batch_size link option changes it.
 const defaultBatchSize = 64
 
 var (
@@ -199,6 +200,7 @@ func (u *underlay) Headroom() int {
 }
 
 // applyPreferences updates the connOpener with preferences from the given options.
+// The changes apply to every connection opened later, for any link.
 // Only affects udpOpener; test openers are left untouched. Caller must hold u.lock.
 func (u *underlay) applyPreferences(opts Options) {
 	opener, ok := u.connOpener.(udpOpener)

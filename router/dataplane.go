@@ -274,7 +274,7 @@ type dataPlane struct {
 	RunConfig                      RunConfig
 
 	// The pool that stores all the packet buffers as described in the [design] document. To avoid
-	// garbage collection, most the meta-data that is produced during the processing of a packet is
+	// garbage collection, most metadata that is produced during the processing of a packet is
 	// kept in a data structure (packet struct) that is pooled and recycled along with the
 	// corresponding packet buffer. The packet struct refers permanently to the packet buffer. The
 	// packet structure is fetched from the pool passed-around through the various channels and
@@ -350,7 +350,7 @@ func newDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
 
 // makeDataPlane returns a zero-valued data plane structure.
 // This is the same as newDataPlane but returns by value to facilitate the
-// initialization of composed structs without an temporary copy.
+// initialization of composed structs without a temporary copy.
 func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 	// So many tests need the udpip underlay provider instantiated early that we do it here rather
 	// than in AddInternalInterface. Currently there can be no dataplane without a udpip provider,
@@ -953,8 +953,8 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 		return err
 	}
 
-	// Difficult to draw a hard line, but let's say that from here on, this packet is no longer
-	// an incoming packet, but is a slowpath packet (i.e. an error response).
+	// From here on, this is a slow-path packet rather than an incoming one.
+	// [slowPathPacketProcessor.packSCMP] relabels the replies it builds as [ttOther].
 	pkt.TrafficType = ttSlowPath
 	pathType := p.scionLayer.PathType
 	switch pathType {

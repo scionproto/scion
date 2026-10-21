@@ -94,9 +94,8 @@ class GoGenerator(object):
                 'addr': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT+700)
             }
         }
-        # AF_XDP is opt-in, and XDP cannot attach to the loopback device.
-        # Opt in unless the topology uses the default loopback network
-        # (no docker, no --network override).
+        # Opt in to AF_XDP for docker topologies and --network overrides.
+        # The default loopback network keeps inet.
         if self.args.docker or self.args.network:
             raw_entry['router'] = {
                 'preferred_underlays': {'udpip': 'afxdp'},

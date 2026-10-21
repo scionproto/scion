@@ -229,9 +229,8 @@ func (l *linkPTP) start(
 	}
 	go func() {
 		defer log.HandlePanic()
-		// A BFD packet sent before the peer MAC is known is dropped,
-		// and the session then waits a full detection interval for the next one.
-		// Nothing else probes while the session is down, hence the wait here.
+		// Start the session once the peer MAC is known. Until then, BFD packets would
+		// only wait in the neighbor queue, and nothing else would re-probe the peer.
 		if !l.awaitNeighbor(peerIP) {
 			return
 		}

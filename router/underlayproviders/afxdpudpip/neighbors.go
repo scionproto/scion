@@ -30,9 +30,8 @@ import (
 	"github.com/scionproto/scion/router"
 )
 
-// neighborRetryInterval is how often a link re-probes a peer whose MAC address
-// is still unknown. Only the BFD startup path waits for a neighbor,
-// and a session that cannot start is already down, so a slow retry is enough.
+// neighborRetryInterval is how often [linkPTP.awaitNeighbor] re-probes the peer
+// before its BFD session starts.
 const neighborRetryInterval = 500 * time.Millisecond
 
 // nudUsable is the set of NUD states in which a neighbor's MAC address is
@@ -63,15 +62,13 @@ type neighbor struct {
 	probing bool // True while a probe is in-flight; prevents probe storms.
 }
 
-// neighborCache manages IP to MAC address mappings scoped to a single
-// network interface (ifIndex). It queries the kernel's neighbor table on
-// first use and subscribes to netlink notifications
-// (RTM_NEWNEIGH / RTM_DELNEIGH) for subsequent updates.
+// neighborCache maps IP to MAC addresses on one network interface (ifIndex).
+// It queries the kernel's neighbor table on each lookup of an unresolved address,
+// and follows RTM_NEWNEIGH / RTM_DELNEIGH notifications for changes.
 //
 // A packet for an unresolved MAC waits in the neighbor's queue while a UDP probe
-// triggers ARP/NDP resolution via the kernel. The [neighborCache.onUpdate]
-// callback tells the owning link that a neighbor's MAC changed,
-// which is when it rebuilds its header and sends what is queued.
+// makes the kernel resolve it. [neighborCache.onUpdate] tells the owning link when
+// a MAC changes, so it can send what is queued.
 //
 // On loopback interfaces ([neighborCache.isLoop]), the cache acts as a stub:
 // [neighborCache.get] always returns a zero MAC.
@@ -417,7 +414,7 @@ func (cache *neighborCache) watchNeighborUpdates() {
 		}
 		cache.lock.Unlock()
 
-		// Notify the link outside the lock so it can rebuild its header.
+		// The callback takes the lock to send what is queued, so call it after unlocking.
 		if changed && cache.onUpdate != nil {
 			cache.onUpdate(ip)
 		}

@@ -2,10 +2,10 @@
 
 ## Cilium vs. libbpf LICENSING
 
-The files bpf_helpers.h and bpf_helper_defs.h were copied here from
-[here](https://github.com/cilium/ebpf/tree/main/examples/headers). These files
-where themselves obviously copied from
-[here](https://github.com/libbpf/libbpf/tree/master/src).
+The files bpf_helpers.h and bpf_helper_defs.h were copied from
+[cilium/ebpf](https://github.com/cilium/ebpf/tree/main/examples/headers).
+These files were themselves copied from
+[libbpf](https://github.com/libbpf/libbpf/tree/master/src).
 
 Whether from Cilium or libbpf, the files do not carry a copyright statement.
 bpf_helper_defs.h does not reference any license. bpf_helpers.h is offered

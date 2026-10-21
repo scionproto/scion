@@ -14,6 +14,7 @@ for the UDP/IP underlay protocol:
   network stack, delivering packets directly to userspace achieving higher performance.
   Supports multi-queue NICs for high throughput. Requires Linux 5.9 or later
   and capabilities ``CAP_NET_ADMIN``, ``CAP_NET_RAW``, and ``CAP_BPF``.
+  See :ref:`router-afxdp-prerequisites`.
 
 The router uses ``afxdp`` only if
 :option:`router.preferred_underlays.udpip <router-conf-toml udpip>` asks for it.
@@ -161,10 +162,12 @@ considers the following options.
    .. option:: router.receive_buffer_size = <int> (Default: 0)
 
       The receive buffer size in bytes. 0 means use system default.
+      Only the ``inet`` underlay uses it.
 
    .. option:: router.send_buffer_size = <int> (Default: 0)
 
       The send buffer size in bytes. 0 means use system default.
+      Only the ``inet`` underlay uses it.
 
    .. option:: router.num_processors = <int> (Default: GOMAXPROCS)
 
@@ -193,6 +196,7 @@ considers the following options.
 
       The batch size used by the receiver and forwarder to
       read or write from / to the network socket.
+      ``afxdp`` uses it only for sending, and receives at most 64 packets at a time.
 
    .. object:: bfd
 
@@ -276,18 +280,17 @@ considers the following options.
          This puts a ceiling on the buffers that someone sending to addresses that
          never answer can tie up.
 
-      .. option:: cache_max = <int> (Default: ``net.ipv4.neigh.default.gc_thresh3``)
+      .. option:: cache_max = <int> (Default: net.ipv4.neigh.default.gc_thresh3)
 
-         How many neighbors a link remembers. Older entries are dropped to stay under
-         this number. Dropping one costs a single kernel lookup the next time that
-         neighbor is used.
+         How many neighbors a link remembers. When the table is full, an arbitrary entry
+         is dropped. Dropping a resolved neighbor costs a kernel lookup on next use, and
+         dropping an unresolved one loses its queued packets.
 
          The default is read once at startup from
          ``/proc/sys/net/ipv4/neigh/default/gc_thresh3``, or ``1024`` when that file cannot
-         be read. The IPv6 table holds the same values as the IPv4 one, which is why
-         only the latter is read.
+         be read. The IPv6 value is ignored, since the kernel's default is the same for both.
 
-      .. option:: probe_interval = <duration> (Default: ``net.ipv4.neigh.default.retrans_time_ms``)
+      .. option:: probe_interval = <duration> (Default: net.ipv4.neigh.default.retrans_time_ms)
 
          How long to wait before asking again for an address that has not answered.
 
@@ -295,7 +298,7 @@ considers the following options.
          ``/proc/sys/net/ipv4/neigh/default/retrans_time_ms``,
          or ``1s`` when that file cannot be read.
 
-      .. option:: probe_attempts = <int> (Default: ``net.ipv4.neigh.default.mcast_solicit``)
+      .. option:: probe_attempts = <int> (Default: net.ipv4.neigh.default.mcast_solicit)
 
          How many times an address is asked for before the router gives up and drops the
          packets waiting for it. With ``probe_interval`` this sets the longest a packet
@@ -354,10 +357,24 @@ The ``afxdp`` underlay implementation requires:
   The provided systemd unit file (``scion-router@.service``) already grants these capabilities
   via ``AmbientCapabilities``. On OpenWrt, the init script grants them via ``setcap``.
 
+* **Locked memory**: Each NIC queue in use gets an AF_XDP socket with
+  ``num_frames * frame_size`` bytes of UMEM, 8 MiB by default. Unless the process has
+  ``CAP_IPC_LOCK``, this counts against ``RLIMIT_MEMLOCK``, and sockets past the limit fail
+  to open with ``ENOBUFS``. Grant ``CAP_IPC_LOCK`` or raise the limit, e.g. with
+  ``LimitMEMLOCK``.
+
+* **Neighbors on the same link**: The ``afxdp`` underlay resolves each destination's MAC
+  address itself and never sends through a gateway. Remote routers and internal end hosts
+  must be on the router's layer-2 network. Packets for other hosts are dropped after
+  ``probe_attempts`` probes.
+
+* **NIC queues**: The internal interface uses only queue 0 of its NIC. Internal traffic
+  that arrives on other queues is dropped.
+
 * **NIC driver support**: Zero-copy mode (``XDP_ZEROCOPY``) requires driver support.
-  If the driver does not support zero-copy, the implementation silently falls back to
-  copy mode (``XDP_COPY``). Copy mode works with any NIC driver that supports XDP but
-  achieves lower performance due to the additional data copy between kernel and userspace.
+  If the driver does not support zero-copy, the implementation falls back to
+  copy mode (``XDP_COPY``) and logs it. Copy mode works with any NIC driver that supports XDP
+  but achieves lower performance due to the additional data copy between kernel and userspace.
 
 * **Hugepages** (optional): For best performance, 2 MB hugepages should be available for UMEM
   allocation. The underlay automatically falls back to normal pages if hugepages are unavailable.
@@ -370,12 +387,24 @@ If the kernel or capability requirements are not met, the router does not fall b
 AF_XDP Per-Link Options
 -----------------------
 
-When using the ``afxdp`` underlay, each interface entry in ``topology.json`` can include
-an ``options`` field containing a JSON object with AF_XDP tuning parameters. All fields
-are optional; defaults are chosen for general-purpose use.
+With the ``afxdp`` underlay, the ``underlay`` object of an interface in ``topology.json`` can
+have an ``options`` field. It's a string that holds an escaped JSON object:
 
 .. code-block:: json
-   :caption: Example ``underlay.options`` for AF_XDP tuning.
+   :caption: Part of an interface entry with AF_XDP options.
+
+   {
+      "underlay": {
+         "local": "192.0.2.1:50000",
+         "remote": "192.0.2.2:50000",
+         "options": "{\"rx_queues\": [0, 1], \"prefer_hugepages\": false}"
+      }
+   }
+
+All fields are optional, and unknown fields are rejected. This example uses every field:
+
+.. code-block:: json
+   :caption: Example AF_XDP options object.
 
    {
       "rx_queues": [0, 1, 2, 3],
@@ -390,6 +419,11 @@ are optional; defaults are chosen for general-purpose use.
       "batch_size": 64
    }
 
+Only ``rx_queues`` and ``tx_queues`` are per link. The other fields apply to every socket
+opened from then on, so later links inherit them unless they set their own. Links that share
+a NIC queue share its socket, which keeps the settings it was opened with. The internal
+interface is configured first, with the defaults.
+
 .. program:: router-afxdp-options
 
 .. option:: rx_queues = [<uint32>, ...]
@@ -397,6 +431,9 @@ are optional; defaults are chosen for general-purpose use.
    Explicit list of NIC queue IDs to use for receiving packets. Each listed
    queue gets an AF_XDP socket with a receiver goroutine, and incoming packets
    on that queue are dispatched to the appropriate link.
+
+   List every queue that can receive this link's traffic, since packets that arrive on other
+   queues are dropped. Queue IDs must be below 64, including auto-detected ones.
 
    Can be combined with ``tx_queues`` to configure RX and TX independently
    (e.g. when a NIC has more RX queues than TX queues).
@@ -408,6 +445,7 @@ are optional; defaults are chosen for general-purpose use.
 
    Explicit list of NIC queue IDs to use for sending packets. Outgoing packets
    are distributed across these queues via a flow hash to prevent reordering.
+   Queue IDs must be below 64, including auto-detected ones.
 
    Can be combined with ``rx_queues`` to configure RX and TX independently.
 
@@ -475,11 +513,9 @@ are optional; defaults are chosen for general-purpose use.
 
 .. option:: batch_size = <uint32> (Default: 64)
 
-   Number of packets batched per TX submission. Must be non-zero.
-   Values above 256 are capped to 256.
-
-   Larger batches amortize per-syscall overhead but increase per-packet latency.
-   Values that are too large can cause latency spikes, especially in copy mode.
+   Maximum number of TX completions reclaimed at a time. Must be non-zero.
+   Values above 256 are capped to 256. Send batches use
+   :option:`router.batch_size <router-conf-toml router.batch_size>` instead.
 
 .. _router-conf-topo:
 

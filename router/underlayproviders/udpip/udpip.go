@@ -70,8 +70,7 @@ func (uo) UDPCanReuseLocal() bool {
 
 // underlay implements Underlay by making and returning Udp/Ip links.
 //
-// This is currently the only implementation. The goal of splitting out this code from the router
-// is to enable other implementations.
+// It's the default udpip implementation, registered as both "udpip" and "udpip:inet".
 type underlay struct {
 	mu                 sync.Mutex // Prevents race between adding connections and Start/Stop.
 	batchSize          int

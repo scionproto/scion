@@ -248,8 +248,8 @@ type SocketConfig struct {
 	TxSize uint32
 	// CqSize sets the number of entries in the completion ring.
 	CqSize uint32
-	// BatchSize controls TX/completion batches and is clamped because large values
-	// can hurt copy-mode performance.
+	// BatchSize caps how many completions one [Socket.PollCompletions] call reclaims.
+	// It's clamped to 256.
 	BatchSize uint32
 	// TxOnly disables RX and XDP redirection. A TX-only socket's fill ring is
 	// registered but left empty, and RxSize is forced to 0. Requires an Interface
@@ -300,7 +300,7 @@ const (
 	DefaultTxQueueSize        = 2048
 	DefaultRxQueueSize        = DefaultTxQueueSize
 	DefaultCompletionRingSize = 2048
-	DefaultBatchSize          = 64 // TX batching
+	DefaultBatchSize          = 64 // Completions reclaimed per poll
 
 	// TxMetadataLen is the TX metadata headroom [Open] reserves in front of each
 	// TX frame when the kernel accepts XDP_UMEM_TX_METADATA_LEN, regardless of
@@ -336,8 +336,8 @@ type queuePtrs struct {
 	cons *uint32
 
 	// flags points to the shared ring flags. With XDP_USE_NEED_WAKEUP, the kernel sets
-	// XDP_RING_NEED_WAKEUP when it needs a syscall kick (sendto for TX) and clears
-	// it while polling, letting the busy TX path skip sendto.
+	// XDP_RING_NEED_WAKEUP when it needs a kick (sendto for TX). Some zero-copy drivers
+	// clear it on TX while they poll, letting the busy TX path skip sendto.
 	flags *uint32
 }
 
@@ -891,7 +891,7 @@ func Open(
 		Queue_id: conf.QueueID,
 	}
 
-	// XDP_USE_NEED_WAKEUP avoids sendto kicks while the kernel drains the TX ring.
+	// XDP_USE_NEED_WAKEUP lets [Socket.FlushTx] skip sendto while the TX flag is clear.
 	zerocopy := preferZerocopy
 	if zerocopy {
 		sa.Flags = unix.XDP_ZEROCOPY | unix.XDP_USE_NEED_WAKEUP
@@ -1277,8 +1277,8 @@ retry:
 // set XDP_RING_NEED_WAKEUP. Call it after submitting.
 func (s *Socket) FlushTx() error {
 	commitTxDescriptors(s.tx.prod, s.tx.cachedProd)
-	// A clear NEED_WAKEUP means the kernel is draining TX, so skip sendto.
-	// This is the dominant case under load.
+	// A clear NEED_WAKEUP means the driver is draining TX, so skip sendto.
+	// Only some zero-copy drivers clear it. In copy mode, every flush calls sendto.
 	if atomic.LoadUint32(s.tx.flags)&unix.XDP_RING_NEED_WAKEUP == 0 {
 		return nil
 	}
