@@ -1,5 +1,6 @@
 # Copyright 2014 ETH Zurich
 # Copyright 2018 ETH Zurich, Anapaya Systems
+# Copyright 2026 SCION Association
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -93,11 +94,12 @@ class GoGenerator(object):
                 'addr': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT+700)
             }
         }
-        # XDP cannot attach to the loopback device. When the topology uses
-        # the default loopback network (no --network override), force inet.
-        if not self.args.docker and not self.args.network:
+        # AF_XDP is opt-in, and XDP cannot attach to the loopback device.
+        # Opt in unless the topology uses the default loopback network
+        # (no docker, no --network override).
+        if self.args.docker or self.args.network:
             raw_entry['router'] = {
-                'preferred_underlays': {'udpip': 'inet'},
+                'preferred_underlays': {'udpip': 'afxdp'},
             }
         return raw_entry
 

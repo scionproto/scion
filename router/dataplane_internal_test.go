@@ -1,5 +1,5 @@
 // Copyright 2023 ETH Zurich
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -486,6 +486,76 @@ func TestSlowPathProcessing(t *testing.T) {
 				tc.expectedSlowPathRequest.code)
 			assert.Equal(t, expectedTypeCode, scmp.TypeCode)
 			assert.NotNil(t, packet.Layer(tc.expectedLayerType))
+		})
+	}
+}
+
+// namedProvider is an UnderlayProvider that tests tell apart by its name.
+type namedProvider string
+
+func (namedProvider) New(RunConfig) Underlay { return nil }
+
+// TestUnderlayProvider checks that the router uses the preferred underlay,
+// or else the default.
+func TestUnderlayProvider(t *testing.T) {
+	inet := namedProvider("inet")
+	afxdp := namedProvider("afxdp")
+	all := map[string]UnderlayProvider{
+		"udpip":       inet, // The default.
+		"udpip:inet":  inet,
+		"udpip:afxdp": afxdp,
+	}
+	optInOnly := map[string]UnderlayProvider{
+		"udpip:afxdp": afxdp,
+	}
+	testCases := map[string]struct {
+		registered map[string]UnderlayProvider
+		preference map[string]string
+		want       UnderlayProvider // nil if none is found.
+	}{
+		"no preference": {
+			registered: all,
+			want:       inet,
+		},
+		"preference for other protocol": {
+			registered: all,
+			preference: map[string]string{"other": "afxdp"},
+			want:       inet,
+		},
+		"default preferred": {
+			registered: all,
+			preference: map[string]string{"udpip": "inet"},
+			want:       inet,
+		},
+		"opt-in preferred": {
+			registered: all,
+			preference: map[string]string{"udpip": "afxdp"},
+			want:       afxdp,
+		},
+		"unavailable preferred": {
+			registered: all,
+			preference: map[string]string{"udpip": "unknown"},
+			want:       inet,
+		},
+		"only opt-in registered": {
+			registered: optInOnly,
+		},
+		"only opt-in registered and preferred": {
+			registered: optInOnly,
+			preference: map[string]string{"udpip": "afxdp"},
+			want:       afxdp,
+		},
+	}
+
+	// Not parallel, since this replaces the registry that all tests share.
+	saved := underlayProviders
+	t.Cleanup(func() { underlayProviders = saved })
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			underlayProviders = tc.registered
+			got, found := underlayProvider("udpip", tc.preference)
+			assert.Equal(t, tc.want != nil, found)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }

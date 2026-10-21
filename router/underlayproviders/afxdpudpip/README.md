@@ -6,6 +6,10 @@ whenever the driver supports it and falling back to copy mode otherwise. On zero
 IPv6 UDP checksum offload is also enabled automatically when the kernel and driver advertise
 AF_XDP `tx-checksum`.
 
+This underlay is opt-in. The router uses it only if `router.preferred_underlays.udpip` is set
+to `"afxdp"`, and uses `inet` otherwise. See
+[doc/manuals/router.rst](../../../doc/manuals/router.rst).
+
 ## Scope & Limitations
 
 This underlay is intentionally specialized to the common

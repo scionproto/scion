@@ -6,20 +6,18 @@ Router
 interfaces using an underlay network. Two underlay implementations are available
 for the UDP/IP underlay protocol:
 
-* **AF_XDP** (``afxdp``): The default on Linux. Uses
+* **Inet** (``inet``): The default. Uses ordinary AF_INET UDP sockets. Portable to all
+  platforms supported by Go and requires no special privileges.
+
+* **AF_XDP** (``afxdp``): Opt-in, Linux only. Uses
   `AF_XDP sockets <https://docs.kernel.org/networking/af_xdp.html>`_ to bypass the kernel
   network stack, delivering packets directly to userspace achieving higher performance.
   Supports multi-queue NICs for high throughput. Requires Linux 5.9 or later
   and capabilities ``CAP_NET_ADMIN``, ``CAP_NET_RAW``, and ``CAP_BPF``.
 
-* **Inet** (``inet``): Uses ordinary AF_INET UDP sockets. Portable to all
-  platforms supported by Go and requires no special privileges. Used as
-  a fallback when AF_XDP is unavailable.
-
-The implementation is selected via
-:option:`router.preferred_underlays.udpip <router-conf-toml udpip>`.
-If the preferred implementation is not available, the router falls back
-to any other registered implementation.
+The router uses ``afxdp`` only if
+:option:`router.preferred_underlays.udpip <router-conf-toml udpip>` asks for it.
+If the preferred implementation is not part of the build, the router uses ``inet``.
 
 .. TODO
    add reference to dataplane section
@@ -310,10 +308,10 @@ considers the following options.
 
    .. object:: preferred_underlays
 
-      .. option:: udpip = <string>, default = "afxdp"
+      .. option:: udpip = <string>, default = "inet"
 
          Selects an implementation for the "udpip" underlay protocol. If the preferred
-         implementation is not available then any other available implementation is selected.
+         implementation is not part of the build then "inet" is selected.
          As of this writing, two implementations exist for the "udpip" underlay protocol:
 
          * "inet": An implementation based on AF_INET sockets and portable to many Unix-like
@@ -322,8 +320,12 @@ considers the following options.
            is less portable and requires Linux 5.9 or later (for BPF link-based XDP
            attachment). See :ref:`router-afxdp-prerequisites`.
 
-         In the absence of ``preferred_underlays``, "afxdp" is preferred; falling back to
-         "inet".
+         "afxdp" is opt-in. The router uses it only if it is preferred here:
+
+         .. code-block:: toml
+
+            [router.preferred_underlays]
+            udpip = "afxdp"
 
       .. option:: <underlay_protocol> = <string>
 
@@ -339,8 +341,9 @@ AF_XDP Prerequisites
 
 The ``afxdp`` underlay implementation requires:
 
-* **Linux 5.9 or later**: AF_XDP is a Linux-specific API. On non-Linux platforms or older
-  kernels, the router automatically falls back to the ``inet`` implementation.
+* **Linux 5.9 or later**: AF_XDP is a Linux-specific API. Only router builds for Linux on
+  amd64 and arm64 include the ``afxdp`` implementation. Other builds use ``inet`` even if
+  ``afxdp`` is preferred.
 
 * **Linux capabilities**: The following capabilities must be granted to the router process:
 
@@ -359,8 +362,8 @@ The ``afxdp`` underlay implementation requires:
 * **Hugepages** (optional): For best performance, 2 MB hugepages should be available for UMEM
   allocation. The underlay automatically falls back to normal pages if hugepages are unavailable.
 
-If the kernel or capability requirements are not met, the router automatically falls back
-to the ``inet`` underlay.
+If the kernel or capability requirements are not met, the router does not fall back to the
+``inet`` underlay. It fails to start instead.
 
 .. _router-afxdp-options:
 

@@ -1,5 +1,5 @@
 // Copyright 2019 ETH Zurich, Anapaya Systems
-// Copyright 2023 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,10 +51,12 @@ type RouterConfig struct {
 	// configured router in the context of acceptance tests.
 	// However, this introduces two sources for the port configuration.
 	// We should remove this and adapt the acceptance tests.
-	DispatchedPortStart *int              `toml:"dispatched_port_start,omitempty"`
-	DispatchedPortEnd   *int              `toml:"dispatched_port_end,omitempty"`
-	PreferredUnderlays  map[string]string `toml:"preferred_underlays,omitempty"`
-	Neighbor            Neighbor          `toml:"neighbor,omitempty"`
+	DispatchedPortStart *int `toml:"dispatched_port_start,omitempty"`
+	DispatchedPortEnd   *int `toml:"dispatched_port_end,omitempty"`
+	// PreferredUnderlays maps an underlay protocol to the implementation to use for it.
+	// A protocol without an entry gets its default implementation, "inet" for "udpip".
+	PreferredUnderlays map[string]string `toml:"preferred_underlays,omitempty"`
+	Neighbor           Neighbor          `toml:"neighbor,omitempty"`
 }
 
 // Neighbor bounds what an underlay's neighbor cache holds while it resolves
@@ -169,9 +171,6 @@ func (cfg *RouterConfig) InitDefaults() {
 	}
 	if cfg.BFD.RequiredMinRxInterval.Duration == 0 {
 		cfg.BFD.RequiredMinRxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
-	}
-	if cfg.PreferredUnderlays == nil {
-		cfg.PreferredUnderlays = map[string]string{"udpip": "afxdp"}
 	}
 }
 

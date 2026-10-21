@@ -1,6 +1,6 @@
 // Copyright 2020 Anapaya Systems
 // Copyright 2023 ETH Zurich
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"hash"
 	"math"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -96,6 +95,10 @@ var underlayProviders map[string]UnderlayProvider
 
 // AddUnderlayProvider registers an underlay implementation.
 // If a provider by the same name is already registered, we keep the new one.
+//
+// Implementations register as "protocol:implementation".
+// The default implementation of a protocol also registers as just "protocol".
+// The router uses other implementations only if the configuration prefers them.
 func AddUnderlayProvider(name string, newProv UnderlayProvider) {
 	if underlayProviders == nil {
 		underlayProviders = make(map[string]UnderlayProvider)
@@ -103,37 +106,20 @@ func AddUnderlayProvider(name string, newProv UnderlayProvider) {
 	underlayProviders[name] = newProv
 }
 
-func underlayProvider(protocol string, preference map[string]string) (UnderlayProvider, bool) {
-	// The preference map gives us an implementation name for a protocol name.
-	// Underlay implementations register with a name of the form "protocol[:implementation]".
-	//
-	wanted := protocol + ":" + preference[protocol]
-	u, found := underlayProviders[wanted]
-	if found {
-		return u, true
-	}
-
-	// The preference is not available or there is no preference (and no "<protocol>:" registered).
-	// See if there's an underlay with no specified implementation that matches the protocol.
-	u, found = underlayProviders[protocol]
-	if found {
-		log.Info("Preferred underlay not available, using fallback",
-			"wanted", wanted, "fallback", protocol)
-		return u, true
-	}
-
-	// Fall back to any "<protocol>:" provider.
-	// With several registered, map iteration order picks one at random.
-	prefix := protocol + ":"
-	for k, v := range underlayProviders {
-		if strings.HasPrefix(k, prefix) {
-			log.Info("Preferred underlay not available, using fallback",
-				"wanted", wanted, "fallback", k)
-			return v, true
+// underlayProvider returns the implementation that preference names for the protocol if
+// it's registered, and the protocol's default implementation otherwise.
+func underlayProvider(
+	protocol string, preference map[string]string,
+) (UnderlayProvider, bool) {
+	if impl, ok := preference[protocol]; ok {
+		wanted := protocol + ":" + impl
+		if u, found := underlayProviders[wanted]; found {
+			return u, true
 		}
+		log.Info("Preferred underlay not available, using default", "wanted", wanted)
 	}
-
-	return nil, false
+	u, found := underlayProviders[protocol]
+	return u, found
 }
 
 type disposition int

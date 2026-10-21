@@ -30,7 +30,8 @@ def topogen_test(
         topo: the topology (.topo) file to use for the test
         gateway: whether gateways should be present in the topology
         debug: if true, debug docker images are used instead of prod images
-        underlay: preferred underlay variant ('afxdp' or 'inet'), or None for default
+        underlay: preferred underlay variant ('afxdp' or 'inet'), or None to keep the one
+            topogen configures
         args: additional arguments to pass to the test
         deps: additional dependencies
         data: additional data files

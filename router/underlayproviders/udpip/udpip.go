@@ -1,4 +1,4 @@
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -99,6 +99,8 @@ func init() {
 	// Register a factory, not an underlay.
 	// Each router instance needs its own underlay because an underlay is not re-entrant.
 	router.AddUnderlayProvider("udpip:inet", underlayProvider{})
+	// The bare protocol name makes this the default udpip implementation.
+	router.AddUnderlayProvider("udpip", underlayProvider{})
 }
 
 type underlayProvider struct{}

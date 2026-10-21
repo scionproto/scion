@@ -151,6 +151,7 @@ type udpLink interface {
 }
 
 func init() {
+	// Not the udpip default, so the router uses it only if the configuration prefers it.
 	router.AddUnderlayProvider("udpip:afxdp", underlayProvider{})
 }
 
