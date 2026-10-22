@@ -354,8 +354,28 @@ The ``afxdp`` underlay implementation requires:
   - ``CAP_NET_RAW`` -- required for creating AF_XDP sockets.
   - ``CAP_BPF`` -- required for loading the eBPF program.
 
-  The provided systemd unit file (``scion-router@.service``) already grants these capabilities
-  via ``AmbientCapabilities``. On OpenWrt, the init script grants them via ``setcap``.
+  The provided systemd unit file doesn't grant these capabilities by default.
+  When using ``afxdp``, grant them to the router instance with a systemd override
+  (replace ``br-1`` with the instance name):
+
+  .. code-block:: console
+
+     $ sudo systemctl edit scion-router@br-1.service
+
+  Add the following override and restart the service:
+
+  .. code-block:: systemd
+
+     [Service]
+     AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_BPF
+
+  On OpenWrt, grant the capabilities to the installed executable before starting the router:
+
+  .. code-block:: console
+
+     # setcap "cap_bpf=ep cap_net_admin=ep cap_net_raw=ep" /usr/bin/scion-router
+
+  Repeat the ``setcap`` command after upgrading or replacing the executable.
 
 * **Locked memory**: Each NIC queue in use gets an AF_XDP socket with
   ``num_frames * frame_size`` bytes of UMEM, 8 MiB by default. Unless the process has
