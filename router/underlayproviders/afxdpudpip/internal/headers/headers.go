@@ -26,7 +26,7 @@ package headers
 import (
 	"encoding/binary"
 
-	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/checksum"
+	"github.com/scionproto/scion/private/underlay/checksum"
 )
 
 // Fixed header lengths (no options / extension headers).

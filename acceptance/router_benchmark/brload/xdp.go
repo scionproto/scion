@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/underlay/afxdp"
+	"github.com/scionproto/scion/private/underlay/checksum"
 )
 
 // pacer is a per-worker, absolute-deadline rate limiter: it advances a virtual
@@ -389,32 +390,16 @@ func writeUDP6Checksum(frame []byte) {
 		return
 	}
 	udpLen := int(binary.BigEndian.Uint16(frame[udpOff+4 : udpOff+6]))
+	if udpLen < 8 || len(frame) < udpOff+udpLen {
+		return
+	}
 	frame[udpOff+6] = 0
 	frame[udpOff+7] = 0
-
-	var sum uint32
-	// Pseudo-header: 16-byte src + 16-byte dst addresses.
-	for i := ipOff + 8; i < ipOff+40; i += 2 {
-		sum += uint32(binary.BigEndian.Uint16(frame[i:]))
-	}
-	sum += uint32(udpLen) // upper-layer packet length
-	sum += 17             // next header = UDP
-
-	// UDP header + payload.
-	end := min(udpOff+udpLen, len(frame))
-	i := udpOff
-	for ; i+1 < end; i += 2 {
-		sum += uint32(binary.BigEndian.Uint16(frame[i:]))
-	}
-	if i < end { // trailing odd byte
-		sum += uint32(frame[i]) << 8
-	}
-	for sum>>16 != 0 {
-		sum = (sum & 0xFFFF) + (sum >> 16)
-	}
-	csum := ^uint16(sum)
-	if csum == 0 {
-		csum = 0xFFFF // a transmitted UDP checksum of 0 is forbidden for IPv6
-	}
+	csum := checksum.UDP6(
+		[16]byte(frame[ipOff+8:ipOff+24]),
+		[16]byte(frame[ipOff+24:ipOff+40]),
+		frame[udpOff:udpOff+8],
+		frame[udpOff+8:udpOff+udpLen],
+	)
 	binary.BigEndian.PutUint16(frame[udpOff+6:], csum)
 }

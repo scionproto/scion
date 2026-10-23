@@ -13,8 +13,8 @@
 // limitations under the License.
 
 // Package checksum implements the Internet ones-complement checksum of
-// [RFC 1071] for IPv4 headers and IPv6/UDP packets, specialized for the
-// afxdpudpip underlay TX hot path.
+// [RFC 1071] for IPv4 headers and IPv6/UDP packets, specialized for per-packet
+// use on TX hot paths such as the afxdpudpip underlay and the brload generator.
 //
 // The ones-complement sum is commutative and associative over 16-bit words in
 // network byte order, so we accumulate wider chunks (uint32 read big-endian)

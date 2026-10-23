@@ -44,6 +44,7 @@ go_library(
             "//pkg/log:go_default_library",
             "//pkg/private/serrors:go_default_library",
             "//private/underlay/afxdp:go_default_library",
+            "//private/underlay/checksum:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
         "@rules_go//go/platform:android_arm": [
@@ -55,6 +56,7 @@ go_library(
             "//pkg/log:go_default_library",
             "//pkg/private/serrors:go_default_library",
             "//private/underlay/afxdp:go_default_library",
+            "//private/underlay/checksum:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
         "@rules_go//go/platform:linux_386": [
@@ -66,6 +68,7 @@ go_library(
             "//pkg/log:go_default_library",
             "//pkg/private/serrors:go_default_library",
             "//private/underlay/afxdp:go_default_library",
+            "//private/underlay/checksum:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
         "@rules_go//go/platform:linux_arm": [
@@ -77,6 +80,7 @@ go_library(
             "//pkg/log:go_default_library",
             "//pkg/private/serrors:go_default_library",
             "//private/underlay/afxdp:go_default_library",
+            "//private/underlay/checksum:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
         "@rules_go//go/platform:linux_mips": [

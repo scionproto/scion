@@ -4,8 +4,8 @@ load("//tools:go.bzl", "go_test")
 go_library(
     name = "go_default_library",
     srcs = ["checksum.go"],
-    importpath = "github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/checksum",
-    visibility = ["//router/underlayproviders/afxdpudpip:__subpackages__"],
+    importpath = "github.com/scionproto/scion/private/underlay/checksum",
+    visibility = ["//visibility:public"],
 )
 
 go_test(

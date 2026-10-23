@@ -222,7 +222,7 @@ The C `DROP_REASON_*` indices must match Go's `ebpf.DropReasonNames`. `NewInterf
   values emitted by this implementation, keeping the files deterministic across runs.
 - Package tests compare the output of `finishPacket` with those frames byte-for-byte. They
   also compare output from the lower-level builders in `internal/headers` and
-  `internal/checksum`.
+  [`private/underlay/checksum`](../../../private/underlay/checksum).
 - The golden files validate finalized software-checksum packets. A separate unit test verifies
   that the IPv6 checksum-offload path in `finishPacket` writes the expected pseudo-header
   seed.

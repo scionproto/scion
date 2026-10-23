@@ -18,7 +18,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/checksum"
+	"github.com/scionproto/scion/private/underlay/checksum"
 )
 
 func TestBuildIPv4_Fields(t *testing.T) {

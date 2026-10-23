@@ -14,25 +14,25 @@ go_library(
     visibility = ["//visibility:private"],
     deps = select({
         "@rules_go//go/platform:android_amd64": [
-            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//private/underlay/checksum:go_default_library",
             "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
             "@com_github_vishvananda_netlink//:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
         "@rules_go//go/platform:android_arm64": [
-            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//private/underlay/checksum:go_default_library",
             "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
             "@com_github_vishvananda_netlink//:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
         "@rules_go//go/platform:linux_amd64": [
-            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//private/underlay/checksum:go_default_library",
             "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
             "@com_github_vishvananda_netlink//:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",
         ],
         "@rules_go//go/platform:linux_arm64": [
-            "//router/underlayproviders/afxdpudpip/internal/checksum:go_default_library",
+            "//private/underlay/checksum:go_default_library",
             "//router/underlayproviders/afxdpudpip/internal/headers:go_default_library",
             "@com_github_vishvananda_netlink//:go_default_library",
             "@org_golang_x_sys//unix:go_default_library",

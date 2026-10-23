@@ -36,7 +36,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/checksum"
+	"github.com/scionproto/scion/private/underlay/checksum"
 	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers"
 )
 
