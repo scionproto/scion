@@ -183,7 +183,7 @@ steps:
         - echo "--- build"
         - make build-dev docker-images
         - echo "--- start topology"
-        - ./scion.sh topology -d
+        - ./scion.sh topology -d --underlay afxdp
         - ./scion.sh run
         - tools/await-connectivity
         - sleep 15
@@ -200,7 +200,7 @@ steps:
         - echo "--- build"
         - make build-dev docker-images
         - echo "--- start topology"
-        - ./scion.sh topology -d -c topology/default-no-peers.topo
+        - ./scion.sh topology -d -c topology/default-no-peers.topo --underlay afxdp
         - ./scion.sh run
         - tools/await-connectivity
         - sleep 15

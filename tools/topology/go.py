@@ -94,11 +94,10 @@ class GoGenerator(object):
                 'addr': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT+700)
             }
         }
-        # Opt in to AF_XDP for docker topologies and --network overrides.
-        # The default loopback network keeps inet.
-        if self.args.docker or self.args.network:
+        # Without --underlay, routers use their default, inet.
+        if self.args.underlay:
             raw_entry['router'] = {
-                'preferred_underlays': {'udpip': 'afxdp'},
+                'preferred_underlays': {'udpip': self.args.underlay},
             }
         return raw_entry
 
