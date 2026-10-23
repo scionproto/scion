@@ -490,6 +490,61 @@ func TestSlowPathProcessing(t *testing.T) {
 	}
 }
 
+// TestDispatchedPorts checks that the internal link delivers packets for ports in the
+// dispatched range to that port, and packets for any other port to the shim dispatcher.
+func TestDispatchedPorts(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	d := newDataPlane(RunConfig{NumProcessors: 1, BatchSize: 64}, false)
+	d.underlays["udpip"].SetConnOpener(MockConnOpener{Ctrl: ctrl})
+	d.SetPortRange(31000, 32767)
+	internalAddr := netip.MustParseAddrPort("198.51.100.1:3333")
+	require.NoError(t, d.AddInternalInterface(
+		addr.HostIP(internalAddr.Addr()), "udpip", internalAddr.String()))
+	require.NoError(t, d.AddSvc(addr.SvcCS, addr.MustParseHost("10.0.200.200"), 30254))
+
+	testCases := map[string]struct {
+		dst  addr.Host
+		port uint16
+		want netip.AddrPort
+	}{
+		"below range": {
+			dst:  addr.MustParseHost("10.0.100.100"),
+			port: 30999,
+			want: netip.MustParseAddrPort("10.0.100.100:30041"),
+		},
+		"range start": {
+			dst:  addr.MustParseHost("10.0.100.100"),
+			port: 31000,
+			want: netip.MustParseAddrPort("10.0.100.100:31000"),
+		},
+		"range end": {
+			dst:  addr.MustParseHost("10.0.100.100"),
+			port: 32767,
+			want: netip.MustParseAddrPort("10.0.100.100:32767"),
+		},
+		"above range": {
+			dst:  addr.MustParseHost("10.0.100.100"),
+			port: 32768,
+			want: netip.MustParseAddrPort("10.0.100.100:30041"),
+		},
+		"svc outside range": {
+			dst:  addr.HostSVC(addr.SvcCS),
+			port: 31000, // Ignored. The port comes from the service record.
+			want: netip.MustParseAddrPort("10.0.200.200:30041"),
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var p Packet
+			require.NoError(t, d.interfaces[0].Resolve(&p, tc.dst, tc.port))
+			got := (*net.UDPAddr)(p.RemoteAddr).AddrPort()
+			assert.Equal(t, tc.want, got)
+		})
+	}
+
+	assert.Panics(t, func() { d.SetPortRange(1, 2) }, "the link already has its range")
+}
+
 // namedProvider is an UnderlayProvider that tests tell apart by its name.
 type namedProvider string
 

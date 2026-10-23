@@ -140,7 +140,7 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 		}
 	}
 
-	// Set Endhost port range. This is needed while adding interfaces.
+	// AddInternalInterface needs the port range, so set it first.
 	dp.SetPortRange(cfg.Topo.PortRange())
 
 	if cfg.BR != nil {
@@ -168,7 +168,6 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	if err := confServices(dp, cfg); err != nil {
 		return err
 	}
-
 	return nil
 }
 
