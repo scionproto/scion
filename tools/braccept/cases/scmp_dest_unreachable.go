@@ -170,6 +170,8 @@ func SCMPDestinationUnreachable(artifactsDir string, mac hash.Hash) runner.Case 
 		Name:            "SCMPDestinationUnreachable",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
+		LocalMAC:        ethernet.DstMAC,
+		LocalIP:         ip.DstIP,
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPDestinationUnreachable"),

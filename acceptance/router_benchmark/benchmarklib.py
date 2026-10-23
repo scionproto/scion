@@ -74,7 +74,7 @@ class Results:
 
     def add_case(self, name: str, rate: int, droppage: int, raw_rate: int):
         dropRatio = round(float(droppage) / (rate + droppage), 2)
-        saturated = dropRatio > 0.03
+        saturated = dropRatio >= 0.03
         perf = 0.0
         if self.cores == 3 and self.coremark and self.mmbm:
             perf = round(self.perf_index(rate), 1)
@@ -88,12 +88,16 @@ class Results:
         self.checked = True
         for tc in self.cases:
             want = expectations.get(tc["case"])
-            if want is not None:
-                slow = tc["rate"] < want
-                unsaturated = not tc["full"]
-                if slow or unsaturated:
-                    self.failed.append({"case": tc["case"],
-                                        "expected": want, "slow": slow, "unsaturated": unsaturated})
+            if want is None:
+                continue
+            slow = tc["rate"] < want
+            unsaturated = not tc["full"]
+            # Fail only on a slow rate. An unsaturated run means brload limited the rate,
+            # which under-reports the router and cannot turn a slow router into a pass.
+            # The flag stays in the record to explain slow results.
+            if slow:
+                self.failed.append({"case": tc["case"], "expected": want,
+                                    "slow": slow, "unsaturated": unsaturated})
 
     def as_json(self) -> str:
         return json.dumps({
@@ -156,6 +160,10 @@ class RouterBM():
     * brload_cpus: [int] cpus where it is acceptable to run brload ([] means any)
     * artifacts: the data directory (passed to docker).
     * prom_address: the address of the prometheus API a string in the form "host:port"
+    * intern_over_args, public_over_args: the --intern-addr-override and
+      --public-addr-override arguments to pass to brload.
+    * log_level: the brload console logging level.
+    * debug_run: if true, cap brload at 1000 packets per case and skip the warmup.
     """
 
     def exec_br_load(self, case: str, map_args: list[str], duration: int) -> str:
@@ -166,11 +174,17 @@ class RouterBM():
             "run",
             "--artifacts", self.artifacts,
             *map_args,
+            *self.intern_over_args,
+            *self.public_over_args,
             "--case", case,
             "--duration", f"{duration}s",
             "--num-streams", "840",
             "--packet-size", f"{self.packet_size}",
+            "--log.console", "warn" if self.log_level == "warning" else f"{self.log_level}",
         ]
+        if self.debug_run:
+            brload_args.extend(["--num-packets", 1000])
+
         if self.brload_cpus:
             brload_args = [
                 "taskset", "-c", ",".join(map(str, self.brload_cpus)),
@@ -319,13 +333,16 @@ class RouterBM():
 
         # Run one test (30% size) as warm-up to trigger any frequency scaling, else the first test
         # can get much lower performance.
-        logger.debug("Warmup")
-        self.exec_br_load(test_cases[0], map_args, 5)
+        if self.debug_run:
+            cores = 3
+        else:
+            logger.debug("Warmup")
+            self.exec_br_load(test_cases[0], map_args, 5)
 
-        # Fetch the core count once. It doesn't change while the router is running.
-        # We cannot get this until the router has been up for a few seconds. If you shorten
-        # the warmup for some reason, make sure to add a delay.
-        cores = self.core_count()
+            # Fetch the core count once. It doesn't change while the router is running.
+            # We cannot get this until the router has been up for a few seconds. If you shorten
+            # the warmup for some reason, make sure to add a delay.
+            cores = self.core_count()
 
         # At long last, run the tests.
         results = Results(cores, self.coremark, self.mmbm, self.packet_size)

@@ -179,7 +179,7 @@ func Happy[R any](ctx context.Context, preferred, fallback Caller[R], cfg Config
 	// Preferred request failed. Return fallback.
 	case errs[idxPreferred] != nil:
 		return reps[idxFallback], errs[idxFallback]
-	// Preferred succeeded. Return fast (even if fallback succeeded too)
+	// Preferred succeeded. Return preferred (even if fallback succeeded too)
 	default:
 		return reps[idxPreferred], errs[idxPreferred]
 	}

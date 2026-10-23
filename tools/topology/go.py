@@ -1,5 +1,6 @@
 # Copyright 2014 ETH Zurich
 # Copyright 2018 ETH Zurich, Anapaya Systems
+# Copyright 2026 SCION Association
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -93,6 +94,11 @@ class GoGenerator(object):
                 'addr': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT+700)
             }
         }
+        # Without --underlay, routers use their default, inet.
+        if self.args.underlay:
+            raw_entry['router'] = {
+                'preferred_underlays': {'udpip': self.args.underlay},
+            }
         return raw_entry
 
     def generate_control_service(self):

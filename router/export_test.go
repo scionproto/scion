@@ -99,8 +99,8 @@ type MockConnOpener struct {
 // returns an instance of MockBatchConn that is just a placeholder; calling any of the methods will
 // cause the test to fail.
 func (m MockConnOpener) Open(
-	l netip.AddrPort, r netip.AddrPort, c *conn.Config) (BatchConn, error) {
-
+	l netip.AddrPort, r netip.AddrPort, c *conn.Config,
+) (BatchConn, error) {
 	var bc BatchConn
 	if m.Conn != nil {
 		return m.Conn, nil
@@ -126,8 +126,8 @@ func mustMakeDP(
 	internalNextHops map[uint16]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
-	key []byte) (dp dataPlane) {
-
+	key []byte,
+) (dp dataPlane) {
 	dp = makeDataPlane(RunConfig{NumProcessors: 1, BatchSize: 64}, false)
 
 	if err := dp.SetIA(local); err != nil {
@@ -165,7 +165,7 @@ func mustMakeDP(
 		}
 		rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 		link := control.LinkInfo{
-			Provider: "udpip",
+			Protocol: "udpip",
 			Local:    l,
 			Remote:   r,
 			BFD:      nobfd,
@@ -188,7 +188,7 @@ func mustMakeDP(
 		}
 		rh := addr.HostIP(netip.MustParseAddrPort(r.Addr).Addr())
 		link := control.LinkInfo{
-			Provider: "udpip",
+			Protocol: "udpip",
 			Local:    l,
 			Remote:   r,
 			BFD:      nobfd,
@@ -222,8 +222,8 @@ func newDP(
 	internalNextHops map[uint16]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
-	key []byte) *dataPlane {
-
+	key []byte,
+) *dataPlane {
 	dp := mustMakeDP(external, linkTypes, connOpener, internalNextHops, local, neighbors, key)
 	return &dp
 }
@@ -243,8 +243,8 @@ func NewDP(
 	internalNextHops map[uint16]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
-	key []byte) *DataPlane {
-
+	key []byte,
+) *DataPlane {
 	return &DataPlane{
 		mustMakeDP(external, linkTypes, connOpener, internalNextHops, local, neighbors, key),
 	}
@@ -254,7 +254,6 @@ func NewDP(
 // to non-internal tests that do not want any dataplane configuration beyond the strictly necessary.
 // This is equivalent to router.newDataPlane, but returns an exported type.
 func NewDPRaw(runConfig RunConfig, authSCMP bool) *DataPlane {
-
 	edp := &DataPlane{
 		makeDataPlane(runConfig, authSCMP),
 	}
@@ -266,11 +265,10 @@ func (d *DataPlane) MockStart() {
 }
 
 func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
-
 	p := newPacketProcessor(&d.dataPlane)
 	disp := p.processPkt(pkt)
 	// Erase trafficType; we don't set it in the expected results.
-	pkt.trafficType = ttOther
+	pkt.TrafficType = ttOther
 	return Disposition(disp)
 }
 
