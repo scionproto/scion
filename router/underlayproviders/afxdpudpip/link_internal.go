@@ -25,9 +25,9 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/private/underlay/checksum"
 	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/bfd"
-	"github.com/scionproto/scion/private/underlay/checksum"
 	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers"
 )
 

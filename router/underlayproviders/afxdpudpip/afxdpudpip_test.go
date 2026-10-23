@@ -30,8 +30,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/private/underlay/checksum"
+	"github.com/scionproto/scion/router"
 	"github.com/scionproto/scion/router/underlayproviders/afxdpudpip/internal/headers"
 )
 
