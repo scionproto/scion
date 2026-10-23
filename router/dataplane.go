@@ -407,7 +407,15 @@ func (d *dataPlane) SetKey(key []byte) error {
 	return nil
 }
 
+// SetPortRange sets the end-host ports that receive packets directly.
+// Other ports go through the shim dispatcher.
+// It panics if called after AddInternalInterface, since the link already has its range.
 func (d *dataPlane) SetPortRange(start, end uint16) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.interfaces[0] != nil {
+		panic("SetPortRange called after AddInternalInterface")
+	}
 	d.dispatchedPortStart = start
 	d.dispatchedPortEnd = end
 }
@@ -433,6 +441,8 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 	if internalUnderlay == nil {
 		return serrors.JoinNoStack(errNoSuchUnderlay, nil, "provider", provider)
 	}
+	internalUnderlay.SetDispatchPorts(
+		d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
 	iMetrics := newInterfaceMetrics(d.Metrics, 0, d.localIA, "", d.neighborIAs[0])
 	lk, err := internalUnderlay.NewInternalLink(localAddr, d.RunConfig.BatchSize, iMetrics)
 	if err != nil {
