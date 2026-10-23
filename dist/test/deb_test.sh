@@ -76,9 +76,6 @@ docker exec -e arch="${SCION_DEB_ARCH}" -i "${image}" /bin/bash <<'EOF'
         [general]
         id = "br-1"
         config_dir = "/etc/scion"
-        # Pin the default, since AF_XDP doesn't work on the loopback device in a container.
-        [router.preferred_underlays]
-        udpip = "inet"
 INNER_EOF
     cat > /etc/scion/topology.json <<INNER_EOF
         {

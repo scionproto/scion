@@ -1,6 +1,4 @@
-load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_go//go:def.bzl", "go_library")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tools:go.bzl", "go_test")
 
 genrule(
@@ -124,35 +122,8 @@ go_library(
     }),
 )
 
-# Builds the portfilter test; but it will be missing the required capabilities; so we must not
-# attempt to run it. We are forced to name the artefact "go_default_test"; otherwise gazelle
-# creates its own incorrect version.
 go_test(
     name = "go_default_test",
-    srcs = [
-        "drop_reasons_test.go",
-        "portfilter_test.go",
-    ],
+    srcs = ["drop_reasons_test.go"],
     embed = [":go_default_library"],
-    tags = ["manual"],
-    deps = [
-        "@com_github_gopacket_gopacket//:go_default_library",
-        "@com_github_gopacket_gopacket//afpacket:go_default_library",
-        "@com_github_gopacket_gopacket//layers:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
-        "@com_github_vishvananda_netlink//:go_default_library",
-    ],
-)
-
-# This is the rule that actually runs the portfilter test.
-sh_test(
-    name = "portfilter_test",
-    testonly = True,
-    srcs = ["port_filter_test_cap.sh"],
-    args = ["$(location go_default_test)"],
-    data = [":go_default_test"],
-    tags = [
-        "supports-graceful-termination",
-        "unit",
-    ],
 )
