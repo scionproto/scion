@@ -31,4 +31,6 @@ type Metrics struct {
 	Up prometheus.Gauge
 	// StateChanges reports the total number of state changes of the session.
 	StateChanges prometheus.Counter
+	// RTT reports the current RTT estimate if available.
+	RTT prometheus.Gauge
 }

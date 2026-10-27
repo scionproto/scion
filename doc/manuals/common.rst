@@ -155,7 +155,9 @@ of the individual fields below.
          "disable": <bool>,
          "detect_mult": <uint8>,
          "desired_min_tx_interval": <duration>,
-         "required_min_rx_interval": <duration>
+         "required_min_rx_interval": <duration>,
+         "disable_rtt": <bool>,
+         "rtt_ewma_weight": <float>
       }
    }
 
@@ -307,6 +309,17 @@ of the individual fields below.
             The effective interval at which the remote router will send control messages is the
             result of negotiating with the remote router during session establishment;
             the value will be ``max(remote.desired_min_tx_interval, required_min_rx_interval)``.
+
+         .. option:: disable_rtt = <bool>, default false
+
+            Disable estimation of the round-trip-time (RTT) to the remote router.
+
+         .. option:: rtt_ewma_weight = <float>, default 0.5
+
+            Weight for new samples in exponentially weighted moving average that estimates the
+            session RTT. This weight is based one a second measurement interval and will be adjusted
+            if the actual measurement interval differs. Larger values make the estimate follow
+            changes in the RTT faster, smaller values prioritize stability.
 
 .. option:: control_service
 
