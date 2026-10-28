@@ -4,6 +4,7 @@ load("@gazelle//:def.bzl", "gazelle")
 load("@npm//private/mgmtapi/tools:@stoplight/spectral-cli/package_json.bzl", spectral_bin = "bin")
 load("@rules_go//go:def.bzl", "nogo")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
 load("//:nogo.bzl", "nogo_deps")
 load("//tools/lint:go_config.bzl", "go_lint_config")
 load("//tools/lint:write_source_files.bzl", "write_source_files")
@@ -145,14 +146,26 @@ pkg_tar(
 # and start a local stack.
 pkg_tar(
     name = "scion-topo",
+    srcs = [":scion-topo-files"],
+)
+
+pkg_files(
+    name = "scion-topo-files",
     srcs = [
-        "//tools:set_ipv6_addr",
-        "//tools:supervisorctl",
-        "//tools:supervisord",
-        "//tools:topodot",
-        "//tools:topogen",
+        "//tools:set_ipv6_addr_zipapp",
+        "//tools:supervisorctl_zipapp",
+        "//tools:supervisord_zipapp",
+        "//tools:topodot_zipapp",
+        "//tools:topogen_zipapp",
     ],
-    mode = "0755",
+    attributes = pkg_attributes(mode = "0755"),
+    renames = {
+        "//tools:set_ipv6_addr_zipapp": "set_ipv6_addr",
+        "//tools:supervisorctl_zipapp": "supervisorctl",
+        "//tools:supervisord_zipapp": "supervisord",
+        "//tools:topodot_zipapp": "topodot",
+        "//tools:topogen_zipapp": "topogen",
+    },
 )
 
 # Nogo - Go code analysis tool
