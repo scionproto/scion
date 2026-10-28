@@ -15,6 +15,7 @@
 package snet_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -228,6 +229,54 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			actual.Bytes = nil
 			assert.NoError(t, actual.Serialize())
 			assert.Equal(t, tc.Bytes, actual.Bytes)
+		})
+	}
+}
+
+func TestPacketDecodePayloadLen(t *testing.T) {
+	pkt := snet.Packet{
+		PacketInfo: snet.PacketInfo{
+			Destination: snet.SCIONAddress{
+				IA:   addr.MustParseIA("1-ff00:0:110"),
+				Host: addr.HostSVC(addr.SvcCS),
+			},
+			Source: snet.SCIONAddress{
+				IA:   addr.MustParseIA("1-ff00:0:112"),
+				Host: addr.MustParseHost("127.0.0.1"),
+			},
+			Path: snetpath.Empty{},
+			Payload: snet.UDPPayload{
+				SrcPort: 25,
+				DstPort: 1925,
+				Payload: []byte("hello packet"),
+			},
+		},
+	}
+	require.NoError(t, pkt.Serialize())
+	raw := pkt.Bytes
+
+	testCases := map[string]struct {
+		input     []byte
+		assertErr assert.ErrorAssertionFunc
+	}{
+		"exact": {
+			input:     raw,
+			assertErr: assert.NoError,
+		},
+		"truncated": {
+			input:     raw[:len(raw)-1],
+			assertErr: assert.Error,
+		},
+		"trailing bytes": {
+			input:     append(slices.Clone(raw), 0xff),
+			assertErr: assert.Error,
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			actual := snet.Packet{Bytes: tc.input}
+			tc.assertErr(t, actual.Decode())
 		})
 	}
 }

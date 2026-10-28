@@ -166,6 +166,11 @@ func (s *Server) processMsgNextHop(
 		log.Error("Decoding layers", "err", err)
 		return nil, netip.AddrPort{}, nil
 	}
+	if int(s.scionLayer.PayloadLen) != len(s.scionLayer.Payload) {
+		log.Error("Bad packet size", "header", s.scionLayer.PayloadLen,
+			"actual", len(s.scionLayer.Payload))
+		return nil, netip.AddrPort{}, nil
+	}
 	if len(s.decoded) < 2 {
 		log.Error("Unexpected packet", "layers decoded", len(s.decoded))
 		return nil, netip.AddrPort{}, nil

@@ -196,10 +196,13 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 	return s.Path.SerializeTo(buf[offset:])
 }
 
-// DecodeFromBytes decodes the SCION layer. DecodeFromBytes resets the internal state of this layer
-// to the state defined by the passed-in bytes. Slices in the SCION layer reference the passed-in
-// data, so care should be taken to copy it first should later modification of data be required
-// before the SCION layer is discarded.
+// DecodeFromBytes decodes the SCION layer. DecodeFromBytes resets the internal state of
+// this layer to the state defined by the passed-in bytes. Slices in the SCION layer
+// reference the passed-in data, so care should be taken to copy it first should
+// later modification of data be required before the SCION layer is discarded.
+//
+// SCMP error messages can quote a cut-off packet, so a truncated payload is not an error.
+// To reject incomplete or padded packets, check that len(Payload) == PayloadLen.
 func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	// Decode common header.
 	if len(data) < CmnHdrLen {
@@ -250,12 +253,15 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	}
 	s.Contents = data[:hdrBytes]
 	s.Payload = data[hdrBytes:]
+	if int(s.PayloadLen) > len(s.Payload) {
+		df.SetTruncated()
+	}
 
 	return nil
 }
 
-// RecyclePaths enables recycling of paths used for DecodeFromBytes. This is
-// only useful if the layer itself is reused.
+// RecyclePaths enables recycling of paths used for DecodeFromBytes.
+// This is only useful if the layer itself is reused.
 // When this is enabled, the Path instance may be overwritten in
 // DecodeFromBytes. No references to Path should be kept in use between
 // invocations of DecodeFromBytes.

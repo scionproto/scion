@@ -18,6 +18,7 @@ package slayers_test
 import (
 	"encoding/binary"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/gopacket/gopacket"
@@ -214,6 +215,44 @@ func TestSCIONSerializeDecode(t *testing.T) {
 	// We need to split the serialize/decode case.
 	want.BaseLayer = got.BaseLayer
 	assert.Equal(t, want, got)
+}
+
+func TestSCIONDecodePayloadLen(t *testing.T) {
+	spkt := prepPacket(t, slayers.L4UDP)
+	payload := []byte("actualpayloadbytes")
+	buffer := gopacket.NewSerializeBuffer()
+	err := gopacket.SerializeLayers(buffer, gopacket.SerializeOptions{FixLengths: true},
+		spkt, gopacket.Payload(payload))
+	require.NoError(t, err)
+	raw := buffer.Bytes()
+	hdrLen := int(spkt.HdrLen) * slayers.LineLen
+
+	testCases := map[string]struct {
+		raw       []byte
+		truncated bool
+	}{
+		"exact": {
+			raw: raw,
+		},
+		"truncated": {
+			raw:       raw[:len(raw)-1],
+			truncated: true,
+		},
+		"trailing bytes": {
+			raw: append(slices.Clone(raw), 0xff),
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var s slayers.SCION
+			parser := gopacket.NewDecodingLayerParser(slayers.LayerTypeSCION, &s)
+			parser.IgnoreUnsupported = true
+			decoded := []gopacket.LayerType{}
+			require.NoError(t, parser.DecodeLayers(tc.raw, &decoded))
+			assert.Equal(t, tc.truncated, parser.Truncated)
+			assert.Equal(t, tc.raw[hdrLen:], s.Payload)
+		})
+	}
 }
 
 func TestSCIONSerializeLengthCheck(t *testing.T) {
