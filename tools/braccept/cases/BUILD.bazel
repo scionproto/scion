@@ -19,6 +19,7 @@ go_library(
         "scmp.go",
         "scmp_dest_unreachable.go",
         "scmp_expired_hop.go",
+        "scmp_future_hop.go",
         "scmp_invalid_hop.go",
         "scmp_invalid_ia.go",
         "scmp_invalid_mac.go",
