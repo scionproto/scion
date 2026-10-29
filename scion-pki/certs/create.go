@@ -26,28 +26,61 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/app/flag"
+	"github.com/scionproto/scion/private/options"
 	scionpki "github.com/scionproto/scion/scion-pki"
 	"github.com/scionproto/scion/scion-pki/file"
 	"github.com/scionproto/scion/scion-pki/key"
 )
 
+type Option = options.Opt[Options]
+
+// WithExtKeyUsageAny sets the ExtKeyUsageAny extended key usage in the
+// certificate or CSR.
+func WithExtKeyUsageAny() Option {
+	return func(o *Options) {
+		o.ExtKeyUsageAny = true
+	}
+}
+
+// WithUnknownExtKeyUsage appends the provided unknown extended key usages to
+// the list of unknown extended key usages that will be part of the certificate
+// or CSR.
+func WithUnknownExtKeyUsage(unknownExtKeyUsage ...asn1.ObjectIdentifier) Option {
+	return func(o *Options) {
+		o.UnknownExtKeyUsage = append(o.UnknownExtKeyUsage, unknownExtKeyUsage...)
+	}
+}
+
+type Options struct {
+	// ExtKeyUsageAny indicates that the certificate should have the
+	// ExtKeyUsageAny extended key usage.
+	ExtKeyUsageAny bool
+	// UnknownExtKeyUsage lists the additional unknown extended key usages that
+	// should be added to the certificate.
+	UnknownExtKeyUsage []asn1.ObjectIdentifier
+}
+
 var (
-	extendedKeyUsagesByType = map[cppki.CertType]pkix.Extension{
+	extendedKeyUsagesByType = map[cppki.CertType]func(o Options) (pkix.Extension, error){
 		cppki.AS: extendedKeyUsages(
 			cppki.OIDExtKeyUsageServerAuth,
 			cppki.OIDExtKeyUsageClientAuth,
 			cppki.OIDExtKeyUsageTimeStamping,
 		),
 		// cppki.CA does not need extended key usage.
+		cppki.CA: extendedKeyUsages(),
 		cppki.Root: extendedKeyUsages(
 			cppki.OIDExtKeyUsageRoot,
 			cppki.OIDExtKeyUsageTimeStamping,
@@ -119,6 +152,7 @@ var (
 func newCreateCmd(pather command.Pather) *cobra.Command {
 	now := time.Now().UTC()
 	var flags struct {
+		extKeyUsageFlags
 		csr         bool
 		profile     string
 		commonName  string
@@ -225,6 +259,11 @@ A valid example for a JSON formatted template::
 				loadCA = !isSelfSigned && !flags.csr
 			}
 
+			opts, err := flags.options()
+			if err != nil {
+				return err
+			}
+
 			cmd.SilenceUsage = true
 
 			var privKey crypto.Signer
@@ -266,7 +305,7 @@ A valid example for a JSON formatted template::
 			}
 
 			if flags.csr {
-				csr, err := CreateCSR(ct, subject, privKey)
+				csr, err := CreateCSR(ct, subject, privKey, opts...)
 				if err != nil {
 					return serrors.Wrap("creating CSR", err)
 				}
@@ -298,7 +337,7 @@ A valid example for a JSON formatted template::
 					NotAfter:  notAfterFromFlags(ct, flags.notBefore, flags.notAfter),
 					CAKey:     caKey,
 					CACert:    caCert,
-				})
+				}, opts...)
 				if err != nil {
 					return serrors.Wrap("creating certificate", err)
 				}
@@ -379,7 +418,38 @@ offset from the current time.`,
 	)
 	scionpki.BindFlagKmsCA(cmd.Flags(), &flags.caKms)
 	scionpki.BindFlagKms(cmd.Flags(), &flags.kms)
+	addExtKeyUsageFlags(cmd.Flags(), &flags.extKeyUsageFlags)
+
 	return cmd
+}
+
+type extKeyUsageFlags struct {
+	Any     bool
+	Unknown []string
+}
+
+func (f extKeyUsageFlags) options() ([]Option, error) {
+	var opts []Option
+	if f.Any {
+		opts = append(opts, WithExtKeyUsageAny())
+	}
+	for _, oid := range f.Unknown {
+		oid, err := parseOID(oid)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, WithUnknownExtKeyUsage(oid))
+	}
+	return opts, nil
+}
+
+func addExtKeyUsageFlags(flags *pflag.FlagSet, eku *extKeyUsageFlags) {
+	flags.BoolVar(&eku.Any, "eku-any", false,
+		"Additionally add ExtKeyUsageAny",
+	)
+	flags.StringSliceVar(&eku.Unknown, "eku", nil,
+		"Additionally add extended key usages (ASN1 Object Identifier)",
+	)
 }
 
 func notAfterFromFlags(ct cppki.CertType, notBefore, notAfter flag.Time) time.Time {
@@ -468,41 +538,69 @@ func parseCertificate(raw []byte) (*x509.Certificate, error) {
 	return nil, serrors.New("no certificate found")
 }
 
-func CreateCSR(certType cppki.CertType, subject pkix.Name, priv key.PrivateKey) ([]byte, error) {
+func CreateCSR(
+	certType cppki.CertType,
+	subject pkix.Name,
+	priv key.PrivateKey,
+	opts ...Option,
+) ([]byte, error) {
 	skid, err := subjectKeyID(priv.Public())
 	if err != nil {
 		return nil, err
 	}
 
+	o := options.Apply(opts)
+
 	var extensions []pkix.Extension
 	switch certType {
 	case cppki.AS:
-		extensions = []pkix.Extension{
-			keyUsage(),
-			extendedKeyUsagesByType[cppki.AS],
-			skid,
+		eku, err := extendedKeyUsagesByType[cppki.AS](o)
+		if err != nil {
+			return nil, serrors.WrapNoStack("creating extended key usage", err)
 		}
+		extensions = []pkix.Extension{keyUsage(), eku, skid}
 	case cppki.CA:
 		extensions = []pkix.Extension{
 			basicConstraintsExt(0),
 			keyUsageCertSign(),
 			skid,
 		}
+
+		if o.ExtKeyUsageAny || len(o.UnknownExtKeyUsage) > 0 {
+			eku, err := extendedKeyUsagesByType[cppki.CA](o)
+			if err != nil {
+				return nil, serrors.WrapNoStack("creating extended key usage", err)
+			}
+			extensions = append(extensions, eku)
+		}
+
 	case cppki.Root:
+		eku, err := extendedKeyUsagesByType[cppki.Root](o)
+		if err != nil {
+			return nil, serrors.WrapNoStack("creating extended key usage", err)
+		}
 		extensions = []pkix.Extension{
 			basicConstraintsExt(1),
 			keyUsageCertSign(),
-			extendedKeyUsagesByType[cppki.Root],
+			eku,
 			skid,
 		}
 	case cppki.Regular:
+		eku, err := extendedKeyUsagesByType[cppki.Regular](o)
+		if err != nil {
+			return nil, serrors.WrapNoStack("creating extended key usage", err)
+		}
 		extensions = []pkix.Extension{
-			extendedKeyUsagesByType[cppki.Regular],
+			eku,
 			skid,
 		}
 	case cppki.Sensitive:
+		eku, err := extendedKeyUsagesByType[cppki.Sensitive](o)
+		if err != nil {
+			return nil, serrors.WrapNoStack("creating extended key usage", err)
+		}
 		extensions = []pkix.Extension{
-			extendedKeyUsagesByType[cppki.Sensitive],
+			eku,
 			skid,
 		}
 	default:
@@ -529,7 +627,9 @@ type CertParams struct {
 	CAKey  key.PrivateKey
 }
 
-func CreateCertificate(params CertParams) ([]byte, error) {
+func CreateCertificate(params CertParams, opts ...Option) ([]byte, error) {
+	o := options.Apply(opts)
+
 	tmpl, ok := certTemplateByType[params.Type]
 	if !ok {
 		return nil, serrors.New("certificate type not supported", "type", params.Type)
@@ -562,6 +662,17 @@ func CreateCertificate(params CertParams) ([]byte, error) {
 	} else {
 		params.CACert = &tmpl
 	}
+
+	if o.ExtKeyUsageAny {
+		tmpl.ExtKeyUsage = append(slices.Clone(tmpl.ExtKeyUsage), x509.ExtKeyUsageAny)
+	}
+	if len(o.UnknownExtKeyUsage) > 0 {
+		tmpl.UnknownExtKeyUsage = append(
+			slices.Clone(tmpl.UnknownExtKeyUsage),
+			o.UnknownExtKeyUsage...,
+		)
+	}
+
 	cert, err := x509.CreateCertificate(
 		rand.Reader,
 		&tmpl,
@@ -617,14 +728,25 @@ func keyUsageCertSign() pkix.Extension {
 	}
 }
 
-func extendedKeyUsages(usages ...asn1.ObjectIdentifier) pkix.Extension {
-	val, err := asn1.Marshal(usages)
-	if err != nil {
-		panic(err)
-	}
-	return pkix.Extension{
-		Id:    cppki.OIDExtensionExtendedKeyUsage,
-		Value: val,
+func extendedKeyUsages(usages ...asn1.ObjectIdentifier) func(o Options) (pkix.Extension, error) {
+	return func(o Options) (pkix.Extension, error) {
+		eku := slices.Clone(usages)
+		if o.ExtKeyUsageAny {
+			eku = append(eku, cppki.OIDExtKeyUsageAny)
+		}
+		eku = append(eku, o.UnknownExtKeyUsage...)
+		if len(eku) == 0 {
+			return pkix.Extension{}, serrors.New("no extended key usages")
+		}
+
+		val, err := asn1.Marshal(eku)
+		if err != nil {
+			return pkix.Extension{}, err
+		}
+		return pkix.Extension{
+			Id:    cppki.OIDExtensionExtendedKeyUsage,
+			Value: val,
+		}, nil
 	}
 }
 
@@ -654,4 +776,45 @@ func keyUsage() pkix.Extension {
 		Critical: true,
 		Value:    val,
 	}
+}
+
+// parseOID parses an OID in dotted decimal notation. It only accepts OIDs that are
+// unambiguous and that Go's x509 library can parse back out of the certificate.
+func parseOID(s string) (asn1.ObjectIdentifier, error) {
+	parts := strings.Split(s, ".")
+	if len(parts) < 2 {
+		return nil, serrors.New("OID must consist of at least two arcs", "input", s)
+	}
+	oid := make(asn1.ObjectIdentifier, len(parts))
+	for i, part := range parts {
+		if !isOIDNumber(part) {
+			return nil, serrors.New("invalid OID arc", "arc", part, "input", s)
+		}
+		val, err := strconv.ParseInt(part, 10, 32)
+		if err != nil {
+			return nil, serrors.Wrap("parsing OID arc", err, "arc", part, "input", s)
+		}
+		oid[i] = int(val)
+	}
+	if oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) {
+		return nil, serrors.New("OID arcs out of range", "input", s)
+	}
+	return oid, nil
+}
+
+// isOIDNumber reports whether s is a single digit, or a non-zero digit followed by
+// further digits. Signs and leading zeros are rejected rather than normalized.
+func isOIDNumber(s string) bool {
+	if s == "" {
+		return false
+	}
+	if len(s) > 1 && s[0] == '0' {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }

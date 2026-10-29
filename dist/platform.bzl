@@ -8,6 +8,8 @@ def multiplatform_filegroup(name, srcs, target_platforms, **kwargs):
             name = name + "_" + platform_name,
             srcs = srcs,
             target_platform = target_platform,
+            # Expose the per-platform groups too, e.g. to test one architecture.
+            visibility = kwargs.get("visibility", None),
         )
         all_platforms.append(name + "_" + platform_name)
 

@@ -13,6 +13,9 @@ def scion_go_binary(name, visibility, *args, **kwargs):
         visibility = visibility,
         # disable automatically setting the build id since Go 1.24
         gc_linkopts = ["-B", "none"],
+        # The sqlite driver needs cgo, or it becomes a stub that fails at runtime.
+        # Without this, a missing C toolchain gives us that stub. With it, the build fails.
+        pure = "off",
         *args,
         **kwargs
     )

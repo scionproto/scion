@@ -66,6 +66,25 @@ steps:
             EOF
     key: dist
     retry: *automatic-retry
+  # Installs the actual release packages and starts the services from them.
+  # The per-PR steps never do that, which is how the broken v0.15.0 packages shipped:
+  # https://github.com/scionproto/scion/issues/4960
+  # This is expensive, hence tagged builds only.
+  - label: "Release Acceptance :debian: :openwrt: :rpm:"
+    if: build.tag != null
+    command:
+      - make dist-test-release BFLAGS="--file_name_version=${SCION_VERSION}"
+    depends_on: dist
+    key: release_acceptance
+    plugins:
+      - scionproto/metahook#v0.3.0:
+          pre-command: .buildkite/cleanup-leftovers.sh
+          pre-artifact: tar -chaf bazel-testlogs.tar.gz bazel-testlogs
+          pre-exit: .buildkite/cleanup-leftovers.sh
+    artifact_paths:
+      - bazel-testlogs.tar.gz
+    retry: *automatic-retry
+    timeout_in_minutes: 30
   - label: "Unit Tests :bazel:"
     command:
       - bazel test --config=race --config=unit_all

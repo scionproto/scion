@@ -1,0 +1,127 @@
+name: dependabot-fixup
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-fixup-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  fixup:
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Fix PR title prefix
+        if: startsWith(github.event.pull_request.title, 'build(deps')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          fixed=$(printf '%s' "$TITLE" | sed -E 's/^build\(deps[^)]*\): */deps: /')
+          gh pr edit "$PR_URL" --title "$fixed"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - uses: bazel-contrib/setup-bazel@0.19.0
+
+      - name: Disable remote cache
+        run: |
+          {
+            echo "build --remote_cache= --experimental_remote_downloader="
+            echo "query --remote_cache= --experimental_remote_downloader="
+            echo "fetch --remote_cache= --experimental_remote_downloader="
+          } >> ~/.bazelrc
+
+      - name: Detect required regeneration
+        id: detect
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          changed=$(git diff --name-only "origin/$BASE_REF...HEAD")
+          printf 'changed files:\n%s\n' "$changed"
+          check() { echo "$changed" | grep -qxE "$1" && echo true || echo false; }
+          {
+            echo "go=$(check 'go\.(mod|sum)')"
+            echo "pip_doc=$(check 'doc/requirements\.(in|txt)')"
+            echo "pip_env=$(check 'tools/env/pip3/requirements\.(in|txt)')"
+            echo "pip_lint=$(check 'tools/lint/python/requirements\.(in|txt)')"
+            echo "js=$(check 'private/mgmtapi/tools/(package\.json|pnpm-lock\.yaml)')"
+          } >> "$GITHUB_OUTPUT"
+
+      # Dependabot only bumps the pin in requirements.txt
+      - name: Sync bumped versions into requirements.in
+        if: >-
+          steps.detect.outputs.pip_doc == 'true' ||
+          steps.detect.outputs.pip_env == 'true' ||
+          steps.detect.outputs.pip_lint == 'true'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          for dir in doc tools/env/pip3 tools/lint/python; do
+            txt="$dir/requirements.txt"
+            in="$dir/requirements.in"
+            git diff "origin/$BASE_REF...HEAD" -- "$txt" \
+              | grep -oE '^\+[A-Za-z0-9._-]+==[A-Za-z0-9.!+-]+' \
+              | sed 's/^+//' \
+              | while read -r pin; do
+                  pkg="${pin%%==*}"
+                  ver="${pin#*==}"
+                  pkg_re=$(printf '%s' "$pkg" | sed 's/[._-]/[._-]/g')
+                  if grep -qiE "^${pkg_re} *==" "$in"; then
+                    sed -i -E "s/^(${pkg_re}) *==.*/\1==${ver}/I" "$in"
+                  elif grep -qiE "^${pkg_re} *>=" "$in"; then
+                    sed -i -E "s/^(${pkg_re}) *>=.*/\1>=${ver}/I" "$in"
+                  else
+                    echo "${pkg}>=${ver}" >> "$in"
+                  fi
+                done
+          done
+          git diff --stat -- doc tools
+
+      - name: Regenerate Go artifacts
+        if: steps.detect.outputs.go == 'true'
+        run: make protobuf mocks gazelle write_all_source_files licenses
+
+      - name: Regenerate doc/requirements.txt
+        if: steps.detect.outputs.pip_doc == 'true'
+        run: bazel run //doc:requirements.update
+
+      - name: Regenerate tools/env/pip3/requirements.txt
+        if: steps.detect.outputs.pip_env == 'true'
+        run: bazel run //tools/env/pip3:requirements.update
+
+      - name: Regenerate tools/lint/python/requirements.txt
+        if: steps.detect.outputs.pip_lint == 'true'
+        run: bazel run //tools/lint/python:requirements.update
+
+      - name: Regenerate pnpm-lock.yaml
+        if: steps.detect.outputs.js == 'true'
+        run: >-
+          bazel run -- @pnpm//:pnpm
+          --dir "$PWD/private/mgmtapi/tools" install --lockfile-only
+
+      - name: Commit and push fixup
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "nothing to regenerate"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "deps: regenerate bazel artifacts after dependabot run"
+          git push origin "HEAD:$HEAD_REF"

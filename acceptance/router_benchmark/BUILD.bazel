@@ -32,6 +32,9 @@ data = [
     "//tools/mmbm:mmbm",
 ]
 
+# The router benchmark is excluded from CI. CI agents are shared, virtualized machines,
+# so the throughput they measure says little about the router.
+# Performance regression testing is scheduled on baremetal instead.
 raw_test(
     name = "test",
     src = "test.py",
@@ -40,6 +43,7 @@ raw_test(
     homedir = "$(rootpath //docker:router.tarball)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
+    tags = ["manual"],
     deps = ["benchmarklib"],
 )
 

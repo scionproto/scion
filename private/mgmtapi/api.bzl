@@ -131,6 +131,6 @@ def _target_platform_independent(func, name, **kwargs):
     platform_transition_filegroup(
         name = name,
         srcs = [name + "-platform-independent"],
-        target_platform = "@local_config_platform//:host",  # reset to default value, to allow reusing this for different target platforms
+        target_platform = "@platforms//host",  # reset to default value, to allow reusing this for different target platforms
         **kwargs_vt
     )

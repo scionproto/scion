@@ -11,11 +11,39 @@ const (
 	PEER   LinkRelationship = "PEER"
 )
 
+// Valid indicates whether the value is a known member of the LinkRelationship enum.
+func (e LinkRelationship) Valid() bool {
+	switch e {
+	case CHILD:
+		return true
+	case CORE:
+		return true
+	case PARENT:
+		return true
+	case PEER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LinkState.
 const (
 	DOWN LinkState = "DOWN"
 	UP   LinkState = "UP"
 )
+
+// Valid indicates whether the value is a known member of the LinkState enum.
+func (e LinkState) Valid() bool {
+	switch e {
+	case DOWN:
+		return true
+	case UP:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for LogLevelLevel.
 const (
@@ -23,6 +51,20 @@ const (
 	Error LogLevelLevel = "error"
 	Info  LogLevelLevel = "info"
 )
+
+// Valid indicates whether the value is a known member of the LogLevelLevel enum.
+func (e LogLevelLevel) Valid() bool {
+	switch e {
+	case Debug:
+		return true
+	case Error:
+		return true
+	case Info:
+		return true
+	default:
+		return false
+	}
+}
 
 // BFD defines model for BFD.
 type BFD struct {

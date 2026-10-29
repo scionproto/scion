@@ -329,6 +329,37 @@ TRC Signing Ceremony - Script Builder
             return signatures
         },
 
+        get dummyVoteSignatures() {
+            let signatures = []
+            if (this.castSensitiveVote) {
+                const form = this.form.signatures.sensitiveVote;
+                signatures.push({
+                    title: 'Sign Dummy Payload with Sensitive Voting Certificate',
+                    crt: form.cert,
+                    key: form.key,
+                    signed: '/tmp/dummy.sensitive.trc',
+                    kms: form.kms,
+                    keyAwsRegion: form.keyAwsRegion,
+                    keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
+                })
+            }
+            if (this.castRegularVote) {
+                const form = this.form.signatures.regularVote;
+                signatures.push({
+                    title: 'Sign Dummy Payload with Regular Voting Certificate',
+                    crt: form.cert,
+                    key: form.key,
+                    signed: '/tmp/dummy.regular.trc',
+                    kms: form.kms,
+                    keyAwsRegion: form.keyAwsRegion,
+                    keyAzureVault: form.keyAzureVault,
+                    keyPkcs11: form.keyPkcs11,
+                })
+            }
+            return signatures
+        },
+
         get subjectTemplate() {
             return JSON.stringify(
                 Object.fromEntries(Object.entries(this.form.certs.subject).filter(([key, value]) => value !== '')),
@@ -507,7 +538,7 @@ TRC Signing Ceremony - Script Builder
                             <input type="text" x-model="form.exchange.sharedDrive" class="block w-full border rounded-lg px-4 py-2">
                         </td>
                     </tr>
-                    <tr x-show="createAny">
+                    <tr x-show="createAny || castVote">
                         <td class="px-4 py-2 border-b">Skip Preparation</td>
                         <td class="px-4 py-2 border-b text-left">
                             <input type="checkbox" x-model="skipPreparation" class="form-checkbox h-5 w-5">
@@ -755,7 +786,7 @@ TRC Signing Ceremony - Script Builder
 
 
     <!-- Preparation Phase -->
-    <template x-if="createAny && !skipPreparation"><div class="bg-white mx-auto border border-gray-300 shadow-md rounded-lg p-8 mb-8 print:p-0 print:border-0 print:shadow-none print:pt-8 print:break-before-page">
+    <template x-if="(createAny || castVote) && !skipPreparation"><div class="bg-white mx-auto border border-gray-300 shadow-md rounded-lg p-8 mb-8 print:p-0 print:border-0 print:shadow-none print:pt-8 print:break-before-page">
         <div class="mb-4">
             <h2 id="preparation" class="text-2xl !mb-2">Preparation</h2>
             <div class="text-slate-500 text-sm">
@@ -770,17 +801,18 @@ TRC Signing Ceremony - Script Builder
 
 
         <template x-if="tool === 'scion-pki'"><div>
-            <!-- Configuration Files -->
-            <div>
-                <h3>1. Create Subject Template<h3>
-                <div class="highlight"><pre><div>cat << EOF > <span x-text="form.paths.workingDir"></span>/subject.tmpl
+            <template x-if="createAny"><div>
+                <!-- Configuration Files -->
+                <div>
+                    <h3>1. Create Subject Template<h3>
+                    <div class="highlight"><pre><div>cat << EOF > <span x-text="form.paths.workingDir"></span>/subject.tmpl
     <span x-text="subjectTemplate"></span>
     EOF</div></pre></div>
-            </div>
+                </div>
 
-            <template x-for="(cert, index) in newCerts"><div>
-                <h3 x-text="(index+2) + '. ' +cert.title"><h3>
-                <div class="highlight"><pre><div>scion-pki certificate create \
+                <template x-for="(cert, index) in newCerts"><div>
+                    <h3 x-text="(index+2) + '. ' +cert.title"><h3>
+                    <div class="highlight"><pre><div>scion-pki certificate create \
         --profile <span x-text="cert.profile"></span> \
         --not-before <span x-text="cert.notBefore"></span> \
         --not-after <span x-text="cert.notAfter"></span> \
@@ -804,13 +836,51 @@ TRC Signing Ceremony - Script Builder
         <span x-text="form.paths.workingDir"></span>/subject.tmpl \
         <span x-text="cert.cert"></span><template x-if="cert.kms === 'file'"><span> \
         <span x-text="cert.key"></span></span></template></div></pre></div>
+                </div></template>
+            </div></template>
+
+            <template x-if="castVote"><div>
+                <div>
+                    <h3 x-text="(createAny ? newCerts.length + 2 : 1) + '. Create Dummy TRC Payload'"><h3>
+                    <div class="text-slate-500 text-sm mb-2">
+                        Verify access to the signing key by creating a test signature on a dummy
+                        TRC payload before the ceremony.
+                    </div>
+                    <div class="highlight"><pre><div>scion-pki trc payload dummy > /tmp/dummy.pld</div></pre></div>
+                </div>
+                <template x-for="(v, index) in dummyVoteSignatures"><div>
+                    <h3 x-text="(createAny ? newCerts.length + 3 : 2) + index + '. ' + v.title"><h3>
+                    <div class="highlight"><pre><div>scion-pki trc sign /tmp/dummy.pld \
+        <span x-text="v.crt"></span> \<template x-if="v.kms === 'awskms'">
+        <span>
+        "awskms:key-id=<span x-text="v.key"></span>" \
+        --kms "awskms:region=<span x-text="v.keyAwsRegion"></span>" \</span>
+        </template><template x-if="v.kms === 'azurekms'">
+        <span>
+        "azurekms:vault=<span x-text="v.keyAzureVault"></span>;name=<span x-text="v.key"></span>" \
+        --kms "azurekms" \</span>
+        </template><template x-if="v.kms === 'cloudkms'">
+        <span>
+        "<span x-text="v.key"></span>" \
+        --kms "cloudkms:" \</span>
+        </template><template x-if="v.kms === 'pkcs11'">
+        <span>
+        "pkcs11:<span x-text="v.key"></span>" \
+        --kms "pkcs11:<span x-text="v.keyPkcs11"></span>" \</span>
+        </template><template x-if="v.kms === 'file'">
+        <span>
+        <span x-text="v.key"></span> \</span>
+        </template>
+        -o <span x-text="v.signed"></span></div></pre></div>
+                </div></template>
             </div></template>
         </div></template>
 
         <template x-if="tool === 'openssl'"><div>
-            <div>
-                <h3>1. Create Basic Openssl Configuration<h3>
-                <div class="highlight"><pre><div>cat << EOF > <span x-text="form.paths.workingDir"></span>/basic.cnf
+            <template x-if="createAny"><div>
+                <div>
+                    <h3>1. Create Basic Openssl Configuration<h3>
+                    <div class="highlight"><pre><div>cat << EOF > <span x-text="form.paths.workingDir"></span>/basic.cnf
     [openssl_init]
     oid_section = oids
 
@@ -850,17 +920,15 @@ TRC Signing Ceremony - Script Builder
 
     EOF</div></pre></div>
 
-            <div>
-                <h3>2. Create x509 Database<h3>
-                <div class="highlight"><pre><div>mkdir -p <span x-text="form.paths.workingDir"></span>/database
+                <div>
+                    <h3>2. Create x509 Database<h3>
+                    <div class="highlight"><pre><div>mkdir -p <span x-text="form.paths.workingDir"></span>/database
     touch <span x-text="form.paths.workingDir"></span>/database/index.txt
     mkdir -p <span x-text="form.paths.workingDir"></span>/certificates</div></pre></div>
 
-
-
-            <template x-for="(cert, index) in newCerts"><div>
-                <h3 x-text="(index+3) + '. ' + cert.title"><h3>
-                <div class="highlight"><pre><div>cat << EOF > <span x-text="form.paths.workingDir"></span>/<span x-text="cert.profile"></span>.cnf
+                <template x-for="(cert, index) in newCerts"><div>
+                    <h3 x-text="(index+3) + '. ' + cert.title"><h3>
+                    <div class="highlight"><pre><div>cat << EOF > <span x-text="form.paths.workingDir"></span>/<span x-text="cert.profile"></span>.cnf
     openssl_conf    = openssl_init
     x509_extensions = x509_ext
 
@@ -877,13 +945,13 @@ TRC Signing Ceremony - Script Builder
     .include basic.cnf
     EOF</div></pre></div>
 
-                <div x-show="cert.kms === 'pkcs11'" class="mb-4 text-slate-500">
-                    The private key is proviced via PKCS#11. The following
-                    command requires that the key has already been created.
-                    Follow the documentation of your KMS to create the key.
-                </div>
+                    <div x-show="cert.kms === 'pkcs11'" class="mb-4 text-slate-500">
+                        The private key is provided via PKCS#11. The following
+                        command requires that the key has already been created.
+                        Follow the documentation of your KMS to create the key.
+                    </div>
 
-                <div class="highlight"><pre><div><template x-if="cert.kms === 'file'"><span>openssl genpkey -algorithm EC \
+                    <div class="highlight"><pre><div><template x-if="cert.kms === 'file'"><span>openssl genpkey -algorithm EC \
         -pkeyopt ec_paramgen_curve:P-256 \
         -pkeyopt ec_param_enc:named_curve \
         -out <span x-text="cert.key"></span>
@@ -904,8 +972,29 @@ TRC Signing Ceremony - Script Builder
         -startdate <span x-text="formatDateForOpenSSL(cert.notBefore)"></span> \
         -enddate <span x-text="formatDateForOpenSSL(cert.notAfter)"></span> \
         -out <span x-text="cert.cert"></span></div></pre></div>
+                </div></template>
             </div></template>
 
+            <template x-if="castVote"><div>
+                <div>
+                    <h3 x-text="(createAny ? newCerts.length + 3 : 1) + '. Create Dummy TRC Payload'"><h3>
+                    <div class="text-slate-500 text-sm mb-2">
+                        Verify access to the signing key by creating a test signature on a dummy
+                        TRC payload before the ceremony.
+                    </div>
+                    <div class="highlight"><pre><div>scion-pki trc payload dummy --format der > /tmp/dummy.pld</div></pre></div>
+                </div>
+                <template x-for="(v, index) in dummyVoteSignatures"><div>
+                    <h3 x-text="(createAny ? newCerts.length + 4 : 2) + index + '. ' + v.title"><h3>
+                    <div class="highlight"><pre><div>openssl cms -sign -in /tmp/dummy.pld -inform der \
+        -signer <span x-text="v.crt"></span> \
+        -inkey <span x-text="v.key"></span> \<template x-if="v.kms === 'pkcs11'"><span>
+        -keyform engine \
+        -engine pkcs11 \</span></template>
+        -nodetach -nocerts -nosmimecap -binary -outform der \
+        > <span x-text="v.signed"></span></div></pre></div>
+                </div></template>
+            </div></template>
         </div></template>
 
     </div></template>
