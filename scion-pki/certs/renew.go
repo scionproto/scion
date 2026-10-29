@@ -694,7 +694,9 @@ func (r *renewer) requestRemote(
 	remote net.Addr,
 	ca addr.IA,
 ) ([]*x509.Certificate, error) {
-	path, err := path.Choose(ctx, r.Daemon, ca, r.PathOptions()...)
+	opts := r.PathOptions()
+	opts = append(opts, path.WithDaemonConnector(r.Daemon))
+	path, err := path.Choose(ctx, ca, opts...)
 	if err != nil {
 		return nil, err
 	}

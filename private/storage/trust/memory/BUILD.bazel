@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["db.go"],
+    importpath = "github.com/scionproto/scion/private/storage/trust/memory",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/scrypto:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
+        "//private/storage/trust:go_default_library",
+        "//private/trust:go_default_library",
+    ],
+)

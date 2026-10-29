@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "anapaya.go",
+        "provider.go",
+    ],
+    importpath = "github.com/scionproto/scion/pkg/endhost/token",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/proto/aa:go_default_library",
+        "@com_connectrpc_connect//:go_default_library",
+        "@com_github_lestrrat_go_jwx_v3//jwt:go_default_library",
+        "@com_github_scionproto_scion//pkg/proto/aa/v1/aaconnect:go_default_library",
+    ],
+)

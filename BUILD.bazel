@@ -16,6 +16,7 @@ load("//tools/lint/python:flake8_config.bzl", "flake8_lint_config")
 # gazelle:exclude doc/**
 # gazelle:exclude rules_openapi/tools/node_modules/**
 # gazelle:exclude tools/lint/**/testdata/src/**
+# gazelle:resolve_regexp go github.com/scionproto/scion/pkg/proto/(control_plane|daemon|discovery|gateway|hidden_segment|endhost|aa)/v1/([a-z_]+connect) @com_github_scionproto_scion//pkg/proto/$1/v1/$2:go_default_library
 
 config_setting(
     name = "netgo",
@@ -193,6 +194,7 @@ write_source_files(
         "//pkg/proto/discovery/v1/discoveryconnect:write_files",
         "//pkg/proto/gateway/v1/gatewayconnect:write_files",
         "//pkg/proto/hidden_segment/v1/hidden_segmentconnect:write_files",
+        "//pkg/proto/endhost/v1/endhostconnect:write_files",
         "//private/ca/api:write_files",
         "//private/mgmtapi/cppki/api:write_files",
         "//private/mgmtapi/health/api:write_files",

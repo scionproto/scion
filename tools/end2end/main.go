@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
+	"github.com/scionproto/scion/pkg/endhost"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -133,24 +134,40 @@ func (s server) run() {
 	log.Info("Starting server", "isd_as", integration.Local.IA)
 	defer log.Info("Finished server", "isd_as", integration.Local.IA)
 
-	sdConn := integration.SDConn()
-	defer sdConn.Close()
-
+	var sn *snet.SCIONNetwork
 	loadCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	topo, err := daemon.LoadTopology(loadCtx, sdConn)
-	if err != nil {
-		integration.LogFatal("Error loading topology", "err", err)
+	if integration.EndhostApiAddr != "" {
+		connector, err := integration.EndhostApiConnector(loadCtx)
+		if err != nil {
+			integration.LogFatal("Error initializing endhost api", "err", err)
+		}
+		defer connector.Close()
+		sn = &snet.SCIONNetwork{
+			SCMPHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: connector.PathService.EndhostRevocationHandler,
+				SCMPErrors:        scmpErrorsCounter,
+			},
+			PacketConnMetrics: scionPacketConnMetrics,
+			Topology:          connector.Topology,
+		}
+	} else {
+		sdConn := integration.SDConn()
+		defer sdConn.Close()
+		topo, err := daemon.LoadTopology(loadCtx, sdConn)
+		if err != nil {
+			integration.LogFatal("Error loading topology", "err", err)
+		}
+		sn = &snet.SCIONNetwork{
+			SCMPHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: daemon.RevHandler{Connector: sdConn},
+				SCMPErrors:        scmpErrorsCounter,
+			},
+			PacketConnMetrics: scionPacketConnMetrics,
+			Topology:          topo,
+		}
 	}
 
-	sn := &snet.SCIONNetwork{
-		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: daemon.RevHandler{Connector: sdConn},
-			SCMPErrors:        scmpErrorsCounter,
-		},
-		PacketConnMetrics: scionPacketConnMetrics,
-		Topology:          topo,
-	}
 	conn, err := sn.Listen(context.Background(), "udp", integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
@@ -228,9 +245,10 @@ func (s server) handlePing(conn *snet.Conn) error {
 }
 
 type client struct {
-	network *snet.SCIONNetwork
-	conn    *snet.Conn
-	sdConn  daemon.Connector
+	network    *snet.SCIONNetwork
+	conn       *snet.Conn
+	sdConn     daemon.Connector
+	endhostAPI *endhost.Connector
 
 	errorPaths map[snet.PathFingerprint]struct{}
 }
@@ -240,24 +258,40 @@ func (c *client) run() int {
 	log.Info("Starting", "pair", pair)
 	defer log.Info("Finished", "pair", pair)
 	defer integration.Done(integration.Local.IA, remote.IA)
-	c.sdConn = integration.SDConn()
-	defer c.sdConn.Close()
 
 	loadCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	topo, err := daemon.LoadTopology(loadCtx, c.sdConn)
-	if err != nil {
-		integration.LogFatal("Error loading topology", "err", err)
+	if integration.EndhostApiAddr != "" {
+		var err error
+		c.endhostAPI, err = integration.EndhostApiConnector(loadCtx)
+		if err != nil {
+			integration.LogFatal("Error initializing endhost api", "err", err)
+		}
+		defer c.endhostAPI.Close()
+		c.network = &snet.SCIONNetwork{
+			SCMPHandler: snet.DefaultSCMPHandler{
+				SCMPErrors: scmpErrorsCounter,
+			},
+			PacketConnMetrics: scionPacketConnMetrics,
+			Topology:          c.endhostAPI.Topology,
+		}
+	} else {
+		c.sdConn = integration.SDConn()
+		defer c.sdConn.Close()
+		topo, err := daemon.LoadTopology(loadCtx, c.sdConn)
+		if err != nil {
+			integration.LogFatal("Error loading topology", "err", err)
+		}
+		c.network = &snet.SCIONNetwork{
+			SCMPHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
+				SCMPErrors:        scmpErrorsCounter,
+			},
+			PacketConnMetrics: scionPacketConnMetrics,
+			Topology:          topo,
+		}
 	}
 
-	c.network = &snet.SCIONNetwork{
-		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
-			SCMPErrors:        scmpErrorsCounter,
-		},
-		PacketConnMetrics: scionPacketConnMetrics,
-		Topology:          topo,
-	}
 	log.Info("Send", "local",
 		fmt.Sprintf("%v,[%v] -> %v,[%v]",
 			integration.Local.IA, integration.Local.Host,
@@ -348,12 +382,18 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 		tracing.Error(span, err)
 		return err
 	}
-
-	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
-		daemontypes.PathReqFlags{Refresh: n != 0})
+	var paths []snet.Path
+	var err error
+	if c.endhostAPI != nil {
+		paths, err = c.endhostAPI.PathService.Paths(ctx, remote.IA)
+	} else {
+		paths, err = c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
+			daemontypes.PathReqFlags{Refresh: n != 0})
+	}
 	if err != nil {
 		return nil, withTag(serrors.Wrap("requesting paths", err))
 	}
+
 	// If all paths had an error, let's try them again.
 	if len(paths) <= len(c.errorPaths) {
 		c.errorPaths = make(map[snet.PathFingerprint]struct{})

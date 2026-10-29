@@ -451,3 +451,22 @@ func GetSCIONDAddress(networksFile string, ia addr.IA) (string, error) {
 	}
 	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], daemon.DefaultAPIPort), nil
 }
+
+func GetEndhostAPIAddress(ia addr.IA) (string, error) {
+	asString := addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithSeparator("_"))
+	topoFile := filepath.Join(outDir, "gen", asString, "topology.json")
+	loader, err := topology.NewLoader(
+		topology.LoaderCfg{
+			File:      topoFile,
+			Reload:    nil,
+			Validator: &topology.DefaultValidator{},
+		},
+	)
+	if err != nil {
+		return "", serrors.Wrap("creating topology loader", err)
+	}
+	for _, v := range loader.EndhostAPI() {
+		return v.Url, nil
+	}
+	return "", serrors.New("endhost api address not found in topology")
+}
