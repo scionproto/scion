@@ -1,6 +1,6 @@
 // Copyright 2020 Anapaya Systems
 // Copyright 2023 ETH Zurich
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -89,16 +89,37 @@ type BatchConn interface {
 }
 
 // underlayProviders is a map of our underlay providers. Each entry associates a name with a
-// NewProviderFn. A new instance of that provider is created by every invocation so multiple
+// descriptor. A new instance of that provider is created by every invocation of New, so multiple
 // dataplane instances can co-exist (as is routinely done by tests).
-var underlayProviders map[string]NewProviderFn
+var underlayProviders map[string]UnderlayProvider
 
-// AddUnderlay registers the named factory function.
-func AddUnderlay(name string, newProvider func(int, int, int) UnderlayProvider) {
+// AddUnderlayProvider registers an underlay implementation.
+// If a provider by the same name is already registered, we keep the new one.
+//
+// Implementations register as "protocol:implementation".
+// The default implementation of a protocol also registers as just "protocol".
+// The router uses other implementations only if the configuration prefers them.
+func AddUnderlayProvider(name string, newProv UnderlayProvider) {
 	if underlayProviders == nil {
-		underlayProviders = make(map[string]NewProviderFn)
+		underlayProviders = make(map[string]UnderlayProvider)
 	}
-	underlayProviders[name] = newProvider
+	underlayProviders[name] = newProv
+}
+
+// underlayProvider returns the implementation that preference names for the protocol if
+// it's registered, and the protocol's default implementation otherwise.
+func underlayProvider(
+	protocol string, preference map[string]string,
+) (UnderlayProvider, bool) {
+	if impl, ok := preference[protocol]; ok {
+		wanted := protocol + ":" + impl
+		if u, found := underlayProviders[wanted]; found {
+			return u, true
+		}
+		log.Info("Preferred underlay not available, using default", "wanted", wanted)
+	}
+	u, found := underlayProviders[protocol]
+	return u, found
 }
 
 type disposition int
@@ -139,7 +160,7 @@ type Packet struct {
 	egress uint16
 	// The type of traffic. This is used for metrics at the forwarding stage, but is most
 	// economically determined at the processing stage. So store it here. It's 2 bytes long.
-	trafficType trafficType
+	TrafficType trafficType
 	// Pad to 64 bytes. For 64bit arch, add 1 byte. For 32bit arch, add 29 bytes.
 	_ [1 + is32bit*28]byte
 }
@@ -174,16 +195,25 @@ func (p *Packet) reset(headroom int) {
 	// Everything else is reset to zero value.
 }
 
-// WithHeader returns the a slice of the underlying packet buffer that represents the same bytes as
-// p.rawPacket[:] plus the n prededing bytes. This slice is meant to be used when receiving a raw
-// packet with an n bytes header, such that the payload is exactly at p.rawPacket[0:]. p.RawPacket
+// WithHeader returns a slice of the underlying packet buffer that represents the same bytes as
+// p.RawPacket[:] plus the n preceding bytes. This slice is meant to be used when receiving a raw
+// packet with an n bytes header, such that the payload is exactly at p.RawPacket[0:]. p.RawPacket
 // is *not* modified. This method panics if n is greater than the available headroom in the packet
 // buffer.
 func (p *Packet) WithHeader(n int) []byte {
-	headroom := len(p.buffer) - cap(p.RawPacket) - n
+	start := len(p.buffer) - cap(p.RawPacket) // Where RawPacket starts in the buffer
+	end := start + len(p.RawPacket)           // Where RawPacket ends in the buffer
 
-	// A negative value is a panicable offense.
-	return p.buffer[headroom:]
+	// n>start is a panicable offense.
+	return p.buffer[start-n : end]
+}
+
+// HeadBytes returns a slice of bytes of the requested size borrowed from the head of the packet
+// buffer. This space can be used safely by an underlay to store data on ingest and retrieve it on
+// egress; should the same underlay perform both operations. The data is protected against
+// overwrites provided that the value of n is counted in the underlay's headroom requirements.
+func (p *Packet) HeadBytes(n int) []byte {
+	return p.buffer[0:n]
 }
 
 // PacketPool allocates and resets packets. There is one packet pool per instance of the dataplane,
@@ -211,6 +241,11 @@ func (p *PacketPool) Put(pkt *Packet) {
 	p.pool <- pkt
 }
 
+// ResetPacket resets the packet as if it had been obtained from Get.
+func (p *PacketPool) ResetPacket(pkt *Packet) {
+	pkt.reset(p.headroom)
+}
+
 // makePacketPool creates a packetpool of size poolSize, that configures packet buffers with the
 // given headroom. The pool is initially empty. Packets must be added separately.
 func makePacketPool(poolSize, headroom int) PacketPool {
@@ -221,7 +256,7 @@ func makePacketPool(poolSize, headroom int) PacketPool {
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
 type dataPlane struct {
-	underlays           map[string]UnderlayProvider
+	underlays           map[string]Underlay
 	interfaces          [math.MaxUint16 + 1]Link
 	numInterfaces       int
 	linkTypes           [math.MaxUint16 + 1]topology.LinkType
@@ -238,14 +273,15 @@ type dataPlane struct {
 	ExperimentalSCMPAuthentication bool
 	RunConfig                      RunConfig
 
-	// The pool that stores all the packet buffers as described in the design document. See
-	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
-	// To avoid garbage collection, most the meta-data that is produced during the processing of a
-	// packet is kept in a data structure (packet struct) that is pooled and recycled along with
+	// The pool that stores all the packet buffers as described in the [design] document. To avoid
+	// garbage collection, most metadata that is produced during the processing of a packet is
+	// kept in a data structure (packet struct) that is pooled and recycled along with the
 	// corresponding packet buffer. The packet struct refers permanently to the packet buffer. The
 	// packet structure is fetched from the pool passed-around through the various channels and
 	// returned to the pool. To reduce the cost of copying, the packet structure is passed by
 	// reference.
+	//
+	// [design]: https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
 	packetPool PacketPool
 
 	// underlayHeadRoom is the minimum headroom that must be reserved at the front of every packet
@@ -312,21 +348,20 @@ func newDataPlane(runConfig RunConfig, authSCMP bool) *dataPlane {
 	return &x
 }
 
-// makeDataPlane returns a zero-valued data plane structure. This is the same as newDataPlane
-// but returns by value to facilitate the initialization of composed structs without an temporary
-// copy.
+// makeDataPlane returns a zero-valued data plane structure.
+// This is the same as newDataPlane but returns by value to facilitate the
+// initialization of composed structs without a temporary copy.
 func makeDataPlane(runConfig RunConfig, authSCMP bool) dataPlane {
 	// So many tests need the udpip underlay provider instantiated early that we do it here rather
-	// than in AddInternalInterface. Currently there can be no dataplane without the udpip provider,
+	// than in AddInternalInterface. Currently there can be no dataplane without a udpip provider,
 	// therefore not having a registered factory for it is a panicable offsense. We have no plan B.
-
+	udpip, exists := underlayProvider("udpip", runConfig.PreferredUnderlays)
+	if !exists {
+		panic("No udpip underlay implementation available")
+	}
 	return dataPlane{
-		underlays: map[string]UnderlayProvider{
-			"udpip": underlayProviders["udpip"](
-				runConfig.BatchSize,
-				runConfig.SendBufferSize,
-				runConfig.ReceiveBufferSize,
-			),
+		underlays: map[string]Underlay{
+			"udpip": udpip.New(runConfig),
 		},
 		Metrics:                        metrics,
 		ExperimentalSCMPAuthentication: authSCMP,
@@ -425,7 +460,7 @@ func (d *dataPlane) SetPortRange(start, end uint16) {
 // called on a not yet running dataplane. Note that localHost is a SCION host address. It currently
 // mirrors localAddr, which is the address on the local underlay network, but that could change
 // in the future. This is not the router's decision.
-func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAddr string) error {
+func (d *dataPlane) AddInternalInterface(localHost addr.Host, protocol, localAddr string) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.isRunning() {
@@ -437,9 +472,9 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 
 	// The internal network underlay is instantiated at construction to simplify some tests. Things
 	// would become a lot more complicated if we ever supported multiple internal underlays.
-	internalUnderlay := d.underlays[provider]
+	internalUnderlay := d.underlays[protocol]
 	if internalUnderlay == nil {
-		return serrors.JoinNoStack(errNoSuchUnderlay, nil, "provider", provider)
+		return serrors.JoinNoStack(errNoSuchUnderlay, nil, "protocol", protocol)
 	}
 	internalUnderlay.SetDispatchPorts(
 		d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
@@ -456,8 +491,8 @@ func (d *dataPlane) AddInternalInterface(localHost addr.Host, provider, localAdd
 }
 
 // AddExternalInterface adds the inter AS connection for the given interface ID.
-// If a connection for the given ID is already set this method will return an
-// error. This can only be called on a not yet running dataplane.
+// If a connection for the given ID is already set this method will return an error.
+// This can only be called on a not yet running dataplane.
 func (d *dataPlane) AddExternalInterface(
 	ifID uint16, link control.LinkInfo, localHost, remoteHost addr.Host,
 ) error {
@@ -478,18 +513,15 @@ func (d *dataPlane) AddExternalInterface(
 		return errEmptyValue
 	}
 
-	underlay, instantiated := d.underlays[link.Provider]
+	underlay, instantiated := d.underlays[link.Protocol]
 	if !instantiated {
-		underlayProvider, exists := underlayProviders[link.Provider]
+		underlayProvider, exists := underlayProvider(link.Protocol, d.RunConfig.PreferredUnderlays)
 		if !exists {
-			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
+			panic(fmt.Sprintf("no provider for underlay protocol: %q", link.Protocol))
 		}
-		underlay = underlayProvider(
-			d.RunConfig.BatchSize,
-			d.RunConfig.SendBufferSize,
-			d.RunConfig.ReceiveBufferSize,
-		)
-		d.underlays[link.Provider] = underlay
+		underlay = underlayProvider.New(d.RunConfig)
+		underlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
+		d.underlays[link.Protocol] = underlay
 	}
 	d.linkTypes[ifID] = link.LinkTo
 
@@ -499,6 +531,7 @@ func (d *dataPlane) AddExternalInterface(
 		bfd,
 		link.Local.Addr,
 		link.Remote.Addr,
+		link.Options,
 		ifID,
 		iMetrics)
 	if err != nil {
@@ -624,28 +657,25 @@ func (d *dataPlane) AddNextHop(
 	if link.Remote.Addr == "" {
 		return errEmptyValue
 	}
-	underlay, instantiated := d.underlays[link.Provider]
+	underlay, instantiated := d.underlays[link.Protocol]
 	if !instantiated {
-		underlayProvider, exists := underlayProviders[link.Provider]
+		underlayProvider, exists := underlayProvider(link.Protocol, d.RunConfig.PreferredUnderlays)
 		if !exists {
-			panic(fmt.Sprintf("no provider for underlay: %q", link.Provider))
+			panic(fmt.Sprintf("no provider for underlay protocol: %q", link.Protocol))
 		}
-		underlay = underlayProvider(
-			d.RunConfig.BatchSize,
-			d.RunConfig.SendBufferSize,
-			d.RunConfig.ReceiveBufferSize,
-		)
-		d.underlays[link.Provider] = underlay
+		underlay = underlayProvider.New(d.RunConfig)
+		underlay.SetDispatchPorts(d.dispatchedPortStart, d.dispatchedPortEnd, topology.EndhostPort)
+		d.underlays[link.Protocol] = underlay
 	}
 	d.linkTypes[ifID] = link.LinkTo
 
 	// Note that a link to the same sibling router might already exist. If so, it will be
-	// returned instead of creating a new one. As a result, the bfd session and metrics will be
-	// ignored and simply garbage collected.
+	// returned instead of creating a new one. As a result,
+	// the bfd session and metrics will be ignored and simply garbage collected.
 	iMetrics := newInterfaceMetrics(
 		d.Metrics, ifID, d.localIA, link.Remote.Addr, d.neighborIAs[ifID])
 	lk, err := underlay.NewSiblingLink(
-		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, iMetrics)
+		d.RunConfig.BatchSize, bfd, link.Local.Addr, link.Remote.Addr, link.Options, iMetrics)
 	if err != nil {
 		return err
 	}
@@ -687,6 +717,20 @@ type RunConfig struct {
 	BatchSize             int
 	ReceiveBufferSize     int
 	SendBufferSize        int
+	PreferredUnderlays    map[string]string
+	// Neighbor bounds what an underlay holds while it resolves MAC addresses.
+	// Only underlays that resolve addresses themselves read it.
+	Neighbor NeighborConfig
+}
+
+// NeighborConfig bounds an underlay's neighbor cache. Zero values mean the
+// underlay picks a default. [config.Neighbor] documents each field and its default.
+type NeighborConfig struct {
+	QueueLen      int
+	QueueTotal    int
+	CacheMax      int
+	ProbeInterval time.Duration
+	ProbeAttempts int
 }
 
 func (d *dataPlane) Run(ctx context.Context) error {
@@ -826,10 +870,7 @@ func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet)
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			continue
 		}
-		if !fwLink.Send(p) {
-			d.packetPool.Put(p)
-			metrics[sc].DroppedPacketsBusyForwarder.Inc()
-		}
+		fwLink.Send(p)
 	}
 }
 
@@ -859,9 +900,7 @@ func (d *dataPlane) runSlowPathProcessor(id int, q <-chan *Packet) {
 			d.packetPool.Put(p)
 			continue
 		}
-		if !egressLink.Send(p) {
-			d.packetPool.Put(p)
-		}
+		egressLink.Send(p)
 	}
 }
 
@@ -920,6 +959,10 @@ func (p *slowPathPacketProcessor) processPacket(pkt *Packet) error {
 	if err != nil {
 		return err
 	}
+
+	// From here on, this is a slow-path packet rather than an incoming one.
+	// [slowPathPacketProcessor.packSCMP] relabels the replies it builds as [ttOther].
+	pkt.TrafficType = ttSlowPath
 	pathType := p.scionLayer.PathType
 	switch pathType {
 	case scion.PathType:
@@ -984,10 +1027,10 @@ func newPacketProcessor(d *dataPlane) *scionPacketProcessor {
 	return p
 }
 
-func (p *scionPacketProcessor) reset() error {
+func (p *scionPacketProcessor) reset() {
 	p.pkt = nil
 	p.ingressFromLink = 0
-	// p.scionLayer // cannot easily be reset
+	// p.scionLayer // cannot easily be reset but no need (so far).
 	p.path = nil
 	p.hopField = path.HopField{}
 	p.infoField = path.InfoField{}
@@ -999,7 +1042,6 @@ func (p *scionPacketProcessor) reset() error {
 	p.hbhLayer = slayers.HopByHopExtnSkipper{}
 	// Reset e2e layer
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
-	return nil
 }
 
 // Convenience function to log an error and return the pDiscard disposition.
@@ -1010,9 +1052,7 @@ func errorDiscard(ctx ...any) disposition {
 }
 
 func (p *scionPacketProcessor) processPkt(pkt *Packet) disposition {
-	if err := p.reset(); err != nil {
-		return errorDiscard("error", err)
-	}
+	p.reset()
 	p.pkt = pkt
 	p.ingressFromLink = pkt.Link.IfID()
 
@@ -1175,7 +1215,7 @@ func (p *slowPathPacketProcessor) packSCMP(
 
 	// We're about to send a packet that has little to do with the one we received.
 	// The original traffic type, if one had been set, no-longer applies.
-	p.pkt.trafficType = ttOther
+	p.pkt.TrafficType = ttOther
 
 	// The packet does not need any addressing: the slowpath processor always sends the packet back
 	// on the link that delivered it (p.pkt.link). In case the link is an unconnected one, it did
@@ -1285,19 +1325,22 @@ func (p *scionPacketProcessor) validateSrcDstIA() disposition {
 	srcIsLocal := (p.scionLayer.SrcIA == p.d.localIA)
 	dstIsLocal := (p.scionLayer.DstIA == p.d.localIA)
 	if p.ingressFromLink == 0 {
-		// Outbound
+		// Ingested via internal or sibling link. Therefore may only go to a different AS.
 		// Only check SrcIA if first hop, for transit this already checked by ingress router.
 		// Note: SCMP error messages triggered by the sibling router may use paths that
 		// don't start with the first hop.
 		if p.path.IsFirstHop() && !srcIsLocal {
+			// This is absurd; gross error or forgery attempt.
 			return p.respInvalidSrcIA()
 		}
 		if dstIsLocal {
+			// That would be hairpin; not allowed.
 			return p.respInvalidDstIA()
 		}
 	} else {
-		// Inbound
+		// In via external Link (may only be local dst or transit).
 		if srcIsLocal {
+			// Absurd: path can't contain its starting point more than once.
 			return p.respInvalidSrcIA()
 		}
 		if p.path.IsLastHop() != dstIsLocal {
@@ -1751,7 +1794,7 @@ func (p *scionPacketProcessor) process() disposition {
 		if disp != pForward {
 			return disp
 		}
-		p.pkt.trafficType = ttIn
+		p.pkt.TrafficType = ttIn
 		return pForward
 	}
 
@@ -1811,13 +1854,13 @@ func (p *scionPacketProcessor) process() disposition {
 			// Therefore it is BRTransit
 			tt = ttBrTransit
 		}
-		p.pkt.trafficType = tt
+		p.pkt.TrafficType = tt
 		return pForward
 	}
 
 	// ASTransit in: pkt leaving this AS through another BR.
 	// We already know the egressID is valid. The packet can go straight to forwarding.
-	p.pkt.trafficType = ttInTransit
+	p.pkt.TrafficType = ttInTransit
 	return pForward
 }
 
@@ -2073,7 +2116,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION) error {
 	payloadOffset := len(rawPkt) - len(s.LayerPayload())
 
 	// Prepends must go just before payload. (and any Append will wreck it)
-	serBuf := newSerializeProxyStart(rawPkt, payloadOffset)
+	serBuf := NewSerializeProxyStart(rawPkt, payloadOffset)
 	return s.SerializeTo(&serBuf, gopacket.SerializeOptions{})
 }
 
@@ -2166,7 +2209,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 
 	p := b.dataPlane.packetPool.Get()
 
-	serBuf := newSerializeProxy(p.RawPacket) // set for prepend-only by default. Perfect here.
+	serBuf := NewSerializeProxy(p.RawPacket) // set for prepend-only by default. Perfect here.
 
 	// serialized bytes lend directly into p.RawPacket (aligned at the end).
 	err := gopacket.SerializeLayers(&serBuf, gopacket.SerializeOptions{FixLengths: true},
@@ -2183,12 +2226,12 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	// the forwarding queue is an serious internal error. Let that panic.
 	fwLink := b.dataPlane.interfaces[b.ifID]
 
-	if !fwLink.Send(p) {
-		// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
-		// the solution is do use BFD's demand-mode. To be considered in a future refactoring.
-		b.dataPlane.packetPool.Put(p)
-	}
-	return err
+	// We do not care if some BFD packets get bounced under high load. If it becomes a problem,
+	// the solution is to use BFD's demand-mode. To be considered in a future refactoring.
+	// TODO(jiceatscion): [Link.Send] counts a dropped BFD packet as a busy_forwarder drop.
+	// Exclude BFD packets from that count.
+	fwLink.Send(p)
+	return nil
 }
 
 func (p *slowPathPacketProcessor) prepareSCMP(
@@ -2326,7 +2369,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		if hdrLen+p.d.underlayHeadroom > headroom {
 			// Not enough headroom. Pack at end.
 			quote := p.pkt.RawPacket[:quoteLen]
-			serBuf = newSerializeProxy(p.pkt.RawPacket)
+			serBuf = NewSerializeProxy(p.pkt.RawPacket)
 			err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 			if err != nil {
 				return serrors.JoinNoStack(
@@ -2334,10 +2377,10 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			}
 		} else {
 			// Serialize in front of the quoted packet. The quoted packet must be included in the
-			// serialize buffer before we pack the SCMP header in from of it. AppendBytes will do
+			// serialize buffer before we pack the SCMP header in front of it. AppendBytes will do
 			// that; it exposes the underlying buffer but doesn't modify it.
 			p.pkt.RawPacket = p.pkt.buffer[0:(quoteLen + headroom)]
-			serBuf = newSerializeProxyStart(p.pkt.RawPacket, headroom)
+			serBuf = NewSerializeProxyStart(p.pkt.RawPacket, headroom)
 			_, _ = serBuf.AppendBytes(quoteLen) // Implementation never fails.
 			err = scmpP.SerializeTo(&serBuf, sopts)
 			if err != nil {
@@ -2353,7 +2396,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	} else {
 		// We do not need to preserve the packet. Just pack our headers at the end of the buffer.
 		// (this is what serializeProxy does by default).
-		serBuf = newSerializeProxy(p.pkt.RawPacket)
+		serBuf = NewSerializeProxy(p.pkt.RawPacket)
 		err = gopacket.SerializeLayers(&serBuf, sopts, &scmpH, scmpP)
 		if err != nil {
 			return serrors.JoinNoStack(errCannotRoute, err, "details", "serializing SCMP message")

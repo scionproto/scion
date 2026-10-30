@@ -178,6 +178,13 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
       Generate a :doc:`/manuals/gateway` for each AS.
       Only available with -d.
 
+   .. option:: --underlay <inet|afxdp>
+
+      Underlay implementation for the routers.
+      Without it, routers use their default, ``inet``.
+      ``afxdp`` needs extra capabilities, see :ref:`router-afxdp-prerequisites`.
+      Without ``-d``, ``scion.sh run`` grants them to ``bin/router`` with ``sudo``.
+
    .. option:: -h, --help
 
       Display help text, list all options

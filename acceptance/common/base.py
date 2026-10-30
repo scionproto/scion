@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import glob
 import logging
 import os
 import re
@@ -22,6 +23,8 @@ from plumbum import cli
 from plumbum import local
 from plumbum import cmd
 from plumbum import LocalPath
+
+import toml
 
 from acceptance.common import docker, log
 from tools.topology.scion_addr import ISD_AS
@@ -82,6 +85,11 @@ class TestBase(ABC):
                                default=LocalPath("/tmp/artifacts-scion"),
                                help="Directory for test artifacts. " +
                                     "Environment variable TEST_UNDECLARED_OUTPUTS_DIR")
+
+    underlay = cli.SwitchAttr(
+        "underlay", str, default=None,
+        help="Preferred underlay variant: 'afxdp' or 'inet'",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -158,6 +166,20 @@ class TestTopogen(TestBase):
     def setup_prepare(self):
         super().setup_prepare()
         self._setup_generate()
+        self._setup_underlay()
+
+    def _setup_underlay(self):
+        """Patch all BR configs to set the preferred underlay, if specified."""
+        if self.underlay is None:
+            return
+        for br_path in glob.glob(str(self.artifacts / "gen/AS*/br*.toml")):
+            with open(br_path, "r") as f:
+                br_config = toml.load(f)
+            br_config.setdefault("router", {})["preferred_underlays"] = {
+                "udpip": self.underlay,
+            }
+            with open(br_path, "w") as f:
+                toml.dump(br_config, f)
 
     def _setup_generate(self):
         """Generate the topology"""

@@ -48,9 +48,9 @@ bazel run //<test-package>:<target>_teardown
 For example:
 
 ```bash
-bazel run //acceptance/router_multi:test_bfd_setup
-bazel run //acceptance/router_multi:test_bfd_run
-bazel run //acceptance/router_multi:test_bfd_teardown
+bazel run //acceptance/router_multi:test_bfd_inet_setup
+bazel run //acceptance/router_multi:test_bfd_inet_run
+bazel run //acceptance/router_multi:test_bfd_inet_teardown
 ```
 
 See [common/README](common/README.md) for more information about the internal

@@ -90,7 +90,7 @@ func NewMetrics() *Metrics {
 				Name: "router_dropped_pkts_total",
 				Help: "Total number of packets dropped by the router.",
 			},
-			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "reason"},
+			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "type", "reason"},
 		),
 		InterfaceUp: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -167,12 +167,13 @@ func NewMetrics() *Metrics {
 	}
 }
 
-// trafficType labels traffic as being of either of the following types: in, out, inTransit,
-// outTransit, brTransit. inTransit or outTransit means that traffic is crossing the local AS via
-// two routers. If the router being observed is the one receiving the packet from the outside, then
-// the type is inTransit; else it is outTransit. brTransit means that traffic is crossing only the
-// observed router. Non-scion traffic or somehow malformed traffic has type Other.
-// Do not change this type's length without checking the effect it has on router.packet
+// trafficType labels traffic as [ttIn], [ttOut], [ttInTransit], [ttOutTransit],
+// [ttBrTransit], [ttSlowPath] or [ttOther]. ttInTransit and ttOutTransit cross
+// the local AS via two routers. The router that receives the packet from outside
+// counts it as ttInTransit, the other one as [ttOutTransit]. [ttBrTransit] crosses
+// only the observed router. [ttSlowPath] marks packets the slow path sends back without
+// an SCMP reply. Non-SCION traffic, malformed traffic and SCMP replies are [ttOther].
+// Don't change this type's length without checking the effect it has on [Packet].
 type trafficType uint8
 
 const (
@@ -182,6 +183,7 @@ const (
 	ttInTransit
 	ttOutTransit
 	ttBrTransit
+	ttSlowPath
 	ttMax
 )
 
@@ -198,6 +200,8 @@ func (t trafficType) String() string {
 		return "out_transit"
 	case ttBrTransit:
 		return "br_transit"
+	case ttSlowPath:
+		return "slow_path"
 	}
 	return "other"
 }
@@ -265,7 +269,7 @@ type trafficMetrics struct {
 	InputPacketsTotal           prometheus.Counter
 	DroppedPacketsInvalid       prometheus.Counter
 	DroppedPacketsBusyProcessor prometheus.Counter
-	DroppedPacketsBusyForwarder prometheus.Counter
+	DroppedPacketsBusyForwarder [ttMax]prometheus.Counter
 	DroppedPacketsBusySlowPath  prometheus.Counter
 	ProcessedPackets            prometheus.Counter
 	Output                      [ttMax]outputMetrics
@@ -306,36 +310,40 @@ func newTrafficMetrics(
 		ProcessedPackets:  metrics.ProcessedPackets.MustCurryWith(ifLabels).With(scLabels),
 	}
 
-	// Output metrics have the extra "trafficType" label.
-	for t := ttOther; t < ttMax; t++ {
-		ttLabels := prometheus.Labels{"type": t.String()}
-		c.Output[t] = newOutputMetrics(metrics, ifLabels, scLabels, ttLabels)
-	}
-
 	// Dropped metrics have the extra "Reason" label.
 	reasonMap := map[string]string{}
 
+	// Output metrics and busy_forwarder drops carry a "type" label per traffic type.
+	// The other drop reasons use type="other".
+	reasonMap["reason"] = "busy_forwarder"
+	for t := ttOther; t < ttMax; t++ {
+		ttLabels := prometheus.Labels{"type": t.String()}
+		c.Output[t] = newOutputMetrics(metrics, ifLabels, scLabels, ttLabels)
+		c.DroppedPacketsBusyForwarder[t] = metrics.DroppedPacketsTotal.MustCurryWith(
+			ifLabels).MustCurryWith(scLabels).MustCurryWith(ttLabels).With(reasonMap)
+		c.DroppedPacketsBusyForwarder[t].Add(0)
+	}
+
+	ttLabels := prometheus.Labels{"type": ttOther.String()}
 	reasonMap["reason"] = "invalid"
 	c.DroppedPacketsInvalid =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(
+			ttLabels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_processor"
 	c.DroppedPacketsBusyProcessor =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).With(reasonMap)
-
-	reasonMap["reason"] = "busy_forwarder"
-	c.DroppedPacketsBusyForwarder =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(
+			ttLabels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_slow_path"
 	c.DroppedPacketsBusySlowPath =
-		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(ifLabels).MustCurryWith(scLabels).MustCurryWith(
+			ttLabels).With(reasonMap)
 
 	c.InputBytesTotal.Add(0)
 	c.InputPacketsTotal.Add(0)
 	c.DroppedPacketsInvalid.Add(0)
 	c.DroppedPacketsBusyProcessor.Add(0)
-	c.DroppedPacketsBusyForwarder.Add(0)
 	c.DroppedPacketsBusySlowPath.Add(0)
 	c.ProcessedPackets.Add(0)
 	return c
@@ -408,7 +416,7 @@ func UpdateOutputMetrics(metrics *InterfaceMetrics, packets []*Packet) {
 	for _, p := range packets {
 		s := len(p.RawPacket)
 		sc := ClassOfSize(s)
-		tt := p.trafficType
+		tt := p.TrafficType
 		writtenPkts[tt][sc]++
 		writtenBytes[tt][sc] += s
 	}
