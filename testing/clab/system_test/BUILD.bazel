@@ -1,0 +1,54 @@
+load("//tools:go.bzl", "go_test")
+
+# System test that drives a containerlab SCION topology end to end (setup,
+# execute, teardown). It runs under bazel only: the node image and all binaries
+# are passed in via the environment below; the only assumed external dependency
+# is the `clab` command, which is not tracked by bazel.
+#
+# Run the whole lifecycle (setup, execute, teardown):
+#   bazel test //testing/clab/system_test:go_default_test --test_output=streamed
+#
+# Run phases separately. Each bazel invocation gets a fresh work dir, so pin a
+# shared -artifacts dir to carry the generated lab across runs:
+#   bazel test //testing/clab/system_test:go_default_test --test_output=streamed \
+#       --test_arg=-setup   --test_arg=-artifacts=/tmp/clab-sys
+#   bazel test //testing/clab/system_test:go_default_test --test_output=streamed \
+#       --test_arg=-execute --test_arg=-artifacts=/tmp/clab-sys
+#   bazel test //testing/clab/system_test:go_default_test --test_output=streamed \
+#       --test_arg=-teardown --test_arg=-artifacts=/tmp/clab-sys
+go_test(
+    name = "go_default_test",
+    size = "large",
+    srcs = ["system_test.go"],
+    data = [
+        "//testing/clab:clab_node.tarball",
+        "//testing/clab/cmd/await_connectivity",
+        "//testing/clab/cmd/e2e_http",
+        "//testing/clab/cmd/e2e_scion",
+        "//testing/clab/cmd/testgen",
+        "//topology:default-no-peers.topo",
+    ],
+    # rootpath gives the runfiles-root-relative path; the test resolves it via
+    # the rules_go runfiles library. (location/execpath give exec-root paths
+    # that do not exist in the runfiles tree the test runs from.)
+    env = {
+        "CLAB_NODE_IMAGE_TAR": "$(rootpath //testing/clab:clab_node.tarball)",
+        "TESTGEN_BIN": "$(rootpath //testing/clab/cmd/testgen)",
+        "AWAIT_CONNECTIVITY_BIN": "$(rootpath //testing/clab/cmd/await_connectivity)",
+        "E2E_SCION_BIN": "$(rootpath //testing/clab/cmd/e2e_scion)",
+        "E2E_HTTP_BIN": "$(rootpath //testing/clab/cmd/e2e_http)",
+        "CLAB_TOPO": "$(rootpath //topology:default-no-peers.topo)",
+    },
+    # Needs docker, the clab command, and host networking; cannot run in the
+    # sandbox and must not run concurrently with other docker/netns tests.
+    local = True,
+    tags = [
+        "exclusive",
+        "integration",
+        "manual",
+    ],
+    deps = [
+        "@com_github_stretchr_testify//require:go_default_library",
+        "@rules_go//go/runfiles:go_default_library",
+    ],
+)
