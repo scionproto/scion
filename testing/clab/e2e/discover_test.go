@@ -40,8 +40,11 @@ Non-core:
 		d := filepath.Join(dir, "AS"+asFile)
 		require.NoError(t, os.MkdirAll(d, 0o755))
 		cfg := config.Config{SCION: config.SCION{ASes: []config.AS{{
-			ISDAS:   addr.MustParseIA(ia),
-			Control: &config.Control{ID: "cs" + asFile + "-1", APIAddr: netip.MustParseAddrPort(apiAddr)},
+			ISDAS: addr.MustParseIA(ia),
+			Control: &config.Control{
+				ID:      "cs" + asFile + "-1",
+				APIAddr: netip.MustParseAddrPort(apiAddr),
+			},
 		}}}}
 		raw, err := cfg.EncodeYAML()
 		require.NoError(t, err)
