@@ -143,11 +143,8 @@ steps:
       plugins:
       - scionproto/metahook#v0.3.0:
             pre-command: .buildkite/cleanup-leftovers.sh
-            post-command: |
-              echo "~~~ Shutting down SCION topology"
-              clab destroy -t gen/scion.clab.yml
             pre-artifact: |
-              tar -chaf test-out.tar.gz $(ls -d bazel-testlogs gen) # ls -d to filter missing directories
+              tar -chaf test-out.tar.gz $(ls -d bazel-testlogs) # ls -d to filter missing directories
             pre-exit: .buildkite/cleanup-leftovers.sh
       artifact_paths:
         - test-out.tar.gz
