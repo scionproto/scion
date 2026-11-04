@@ -43,6 +43,7 @@ func cmd() *cobra.Command {
 		asValidity string
 		isdDir     bool
 		labName    string
+		hostLinks  bool
 	}
 
 	c := &cobra.Command{
@@ -80,6 +81,7 @@ clab and instructions.`,
 				ASValidity: validity,
 				ISDDir:     flags.isdDir,
 				LabName:    flags.labName,
+				HostLinks:  flags.hostLinks,
 				Writer:     c.OutOrStdout(),
 			})
 		},
@@ -89,6 +91,9 @@ clab and instructions.`,
 	c.Flags().StringVar(&flags.asValidity, "as-validity", "1y", "AS certificate validity")
 	c.Flags().BoolVar(&flags.isdDir, "isd-dir", false, "Group ASes in per-ISD directories")
 	c.Flags().StringVar(&flags.labName, "name", "scion", "containerlab lab name")
+	c.Flags().BoolVar(&flags.hostLinks, "host-links", false,
+		"Link every AS's host-1 node to this machine, giving it a dedicated address in each AS",
+	)
 	c.Flags().StringVarP(&flags.out, "out", "o", "gen", "Output directory")
 	c.Flags().StringVar(&flags.topo, "topo", "topology/default.topo",
 		"Topology description file",

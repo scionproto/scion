@@ -54,6 +54,9 @@ type Config struct {
 	ISDDir bool
 	// LabName is the containerlab lab name.
 	LabName string
+	// HostLinks adds a link between every AS's host-1 node and the machine
+	// running the lab, giving that machine a dedicated address in each AS.
+	HostLinks bool
 	// Writer receives progress output.
 	Writer io.Writer
 }
@@ -103,6 +106,16 @@ func Run(cfg Config) error {
 	network, err := hydrate.Hydrate(t, alloc)
 	if err != nil {
 		return serrors.Wrap("hydrating topology", err)
+	}
+	if cfg.HostLinks {
+		if err := hydrate.AddHostLinks(network, alloc); err != nil {
+			return err
+		}
+		for _, as := range network.ASes {
+			hl := as.Hosts[0].HostLink
+			fmt.Fprintf(w, "hydrate: host link %s: bind to %s (host interface %s)\n",
+				as.IA, hl.HostAddr, hl.HostIface)
+		}
 	}
 	dir := out.New(cfg.OutDir, cfg.ISDDir)
 	allocRaw, err := network.Allocations().Marshal()

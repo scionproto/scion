@@ -36,6 +36,10 @@ type Allocator interface {
 	// given index in the topology's link list, together with the two endpoint
 	// addresses (A first, then B).
 	Link(index int, l topo.Link) (LinkAlloc, error)
+	// HostLink returns the point-to-point network between an AS's host-1 node
+	// and the machine running the lab. A is the node side, B the machine side.
+	// The underlay selects the address family.
+	HostLink(ia addr.IA, u topo.UnderlayType) (LinkAlloc, error)
 }
 
 // ASAlloc is the allocation for a single AS.
@@ -53,12 +57,14 @@ type LinkAlloc struct {
 // ClabConfig configures the default containerlab-oriented allocator.
 type ClabConfig struct {
 	// NetworkV4 is the base IPv4 network. AS-internal /24s are carved from its
-	// first half and inter-AS link /30s from its second half. Must be at most a
-	// /16 prefix wide (e.g. 10.0.0.0/8).
+	// first half, inter-AS link /30s from its third quarter and host-link /30s
+	// from its last quarter. Must be at most a /16 prefix wide (e.g.
+	// 10.0.0.0/8).
 	NetworkV4 netip.Prefix
 	// NetworkV6 is the base IPv6 network. AS-internal /120s are carved from its
-	// base /64 (one /64 total, so all host management addresses share it) and
-	// inter-AS link /126s from a separate region (4th hextet 0x8000).
+	// base /64 (one /64 total, so all host management addresses share it),
+	// inter-AS link /126s from a separate region (4th hextet 0x8000) and
+	// host-link /126s from another (4th hextet 0x9000).
 	NetworkV6 netip.Prefix
 }
 
@@ -128,6 +134,30 @@ func (a *clabAllocator) Link(index int, l topo.Link) (LinkAlloc, error) {
 	base := offset(region, uint64(index)*4)
 	return LinkAlloc{
 		Subnet: netip.PrefixFrom(base, 30),
+		A:      offset(base, 1),
+		B:      offset(base, 2),
+	}, nil
+}
+
+func (a *clabAllocator) HostLink(ia addr.IA, u topo.UnderlayType) (LinkAlloc, error) {
+	i, ok := a.asIndex[ia]
+	if !ok {
+		return LinkAlloc{}, serrors.New("AS not known to allocator", "as", ia)
+	}
+	var base netip.Addr
+	var bits int
+	if u.IsIPv6() {
+		// Host-link region of the v6 space (4th hextet 0x9000), one /126 per AS.
+		base = offset(withHextet3(a.cfg.NetworkV6.Addr(), 0x9000), uint64(i)*4)
+		bits = 126
+	} else {
+		// Last quarter of the v4 space (offset 12M ≈ 10.192.0.0 for a /8), one
+		// /30 per AS.
+		base = offset(offset(a.cfg.NetworkV4.Addr(), uint64(12)<<20), uint64(i)*4)
+		bits = 30
+	}
+	return LinkAlloc{
+		Subnet: netip.PrefixFrom(base, bits),
 		A:      offset(base, 1),
 		B:      offset(base, 2),
 	}, nil
