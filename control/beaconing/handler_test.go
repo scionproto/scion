@@ -1,4 +1,5 @@
 // Copyright 2019 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +18,7 @@ package beaconing_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +34,7 @@ import (
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/private/segment/segverifier"
 	mock_infra "github.com/scionproto/scion/private/segment/verifier/mock_verifier"
 	"github.com/scionproto/scion/private/topology"
 )
@@ -250,6 +253,66 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Assertion: assert.Error,
 		},
+		"timestamp in the future": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+				inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
+				return inserter
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				return mock_infra.NewMockVerifier(mctrl)
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				g := graph.NewDefaultGraph(mctrl)
+				b := beacon.Beacon{
+					Segment: testSegment(g, []uint16{
+						graph.If_220_X_120_B, graph.If_120_A_110_X,
+					}),
+					InIfID: localIF,
+				}
+				setTimestamp(t, b.Segment, time.Now().Add(time.Hour))
+				return b
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.MustParseIA("2-ff00:0:220"),
+					Path: path.SCION{},
+				}
+			},
+			Assertion: func(t assert.TestingT, err error, _ ...any) bool {
+				return assert.ErrorIs(t, err, segverifier.ErrFutureTimestamp)
+			},
+		},
+		"expired hop field": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+				inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
+				return inserter
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				return mock_infra.NewMockVerifier(mctrl)
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				g := graph.NewDefaultGraph(mctrl)
+				b := beacon.Beacon{
+					Segment: testSegment(g, []uint16{
+						graph.If_220_X_120_B, graph.If_120_A_110_X,
+					}),
+					InIfID: localIF,
+				}
+				setTimestamp(t, b.Segment, time.Now().Add(-7*time.Hour))
+				return b
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.MustParseIA("2-ff00:0:220"),
+					Path: path.SCION{},
+				}
+			},
+			Assertion: func(t assert.TestingT, err error, _ ...any) bool {
+				return assert.ErrorIs(t, err, segverifier.ErrExpiredHop)
+			},
+		},
 		"insertion error": {
 			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
 				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
@@ -304,6 +367,13 @@ func testSegment(g *graph.Graph, ifIDs []uint16) *seg.PathSegment {
 	pseg := g.Beacon(ifIDs)
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
+}
+
+// setTimestamp invalidates the signatures of pseg.
+func setTimestamp(t *testing.T, pseg *seg.PathSegment, ts time.Time) {
+	info, err := seg.NewInfo(ts, pseg.Info.SegmentID)
+	require.NoError(t, err)
+	pseg.Info = info
 }
 
 func testInterfaces(topo topology.Topology) *ifstate.Interfaces {

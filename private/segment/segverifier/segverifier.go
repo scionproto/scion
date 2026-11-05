@@ -1,5 +1,5 @@
 // Copyright 2018 ETH Zurich, Anapaya Systems
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,9 @@ package segverifier
 
 import (
 	"context"
+	"errors"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -43,6 +45,9 @@ import (
 var (
 	// ErrSegment indicates the segment failed to verify.
 	ErrSegment = serrors.New("segment verification error")
+
+	ErrFutureTimestamp = errors.New("timestamp in the future")
+	ErrExpiredHop      = errors.New("expired hop field")
 )
 
 const (
@@ -134,12 +139,33 @@ type ElemResult struct {
 func verifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr, segment *seg.Meta,
 	ch chan ElemResult,
 ) {
-	err := VerifySegment(ctx, verifier, server, segment.Segment)
+	err := VerifyTimestamp(segment.Segment, time.Now())
+	if err == nil {
+		err = VerifySegment(ctx, verifier, server, segment.Segment)
+	}
 	select {
 	case ch <- ElemResult{Index: segErrIndex, Error: err}:
 	default:
 		panic("would block on channel")
 	}
+}
+
+// VerifyTimestamp checks the segment timestamp and the expiration of its hop fields
+// at time now, as required by [draft section 2.2.4]. It tolerates clock offsets up to
+// the minimum hop field lifetime of 337.5s, as the draft recommends.
+//
+// [draft section 2.2.4]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-18#section-2.2.4
+func VerifyTimestamp(segment *seg.PathSegment, now time.Time) error {
+	allowance := path.ExpTimeToDuration(0)
+	if ts := segment.Info.Timestamp; ts.After(now.Add(allowance)) {
+		return serrors.JoinNoStack(ErrSegment, ErrFutureTimestamp,
+			"seg", segment, "timestamp", ts)
+	}
+	if exp := segment.MinExpiry(); exp.Before(now.Add(-allowance)) {
+		return serrors.JoinNoStack(ErrSegment, ErrExpiredHop,
+			"seg", segment, "expiry", exp)
+	}
+	return nil
 }
 
 func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr,

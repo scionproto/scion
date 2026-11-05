@@ -73,6 +73,10 @@ linters:
       - linters:
           - lll
         source: http[s]://\S{80,}$
+      # Go doc link definitions cannot be wrapped.
+      - linters:
+          - lll
+        source: '^\s*// \[[^\]]+\]: https?://\S+$'
       - linters:
           - lll
         source: '`(yaml|toml|json):"[^`]*`$'
