@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet/multihomed"
 	"github.com/scionproto/scion/private/topology"
 )
 
@@ -85,6 +86,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	if !ok {
 		return 0, serrors.New("invalid listen host IP", "ip", c.local.Host.IP)
 	}
+
 	listenHostPort := uint16(c.local.Host.Port)
 
 	// Rewrite source address if STUN is in use
@@ -97,6 +99,17 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	)
 	if err != nil {
 		return 0, err
+	}
+
+	if listenHostIP.IsUnspecified() {
+		// Sending data to an unbound socket, we need to find the appropriate local address
+		// to write it as host address in the SCION packet. The interface to use in the local
+		// host will be that one routed to reach the next hop.
+		localIP, err := multihomed.OutboundIP(nextHop)
+		if err != nil {
+			return 0, serrors.Wrap("interface IP not bound and cannot find one", err)
+		}
+		listenHostIP, _ = netip.AddrFromSlice(localIP)
 	}
 
 	pkt := &Packet{
