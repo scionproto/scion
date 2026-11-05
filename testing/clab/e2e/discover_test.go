@@ -73,3 +73,43 @@ func TestLoadASesMissingControlConfig(t *testing.T) {
 	_, err := e2e.LoadASes(dir)
 	assert.Error(t, err)
 }
+
+func TestLoadASesISDDir(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "as_list.yml"),
+		[]byte("Core:\n    - 1-ff00:0:110\nNon-core:\n"), 0o644))
+	writeControlConfig(t, filepath.Join(dir, "ISD1", "ASff00_0_110"),
+		"1-ff00:0:110", "10.0.1.1:30452")
+
+	ases, err := e2e.LoadASes(dir)
+	require.NoError(t, err)
+	require.Len(t, ases, 1)
+	assert.Equal(t, "http://10.0.1.1:30452/api/v1/segments", ases[0].SegmentsURL)
+}
+
+func TestLoadASesMismatchedIA(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "as_list.yml"),
+		[]byte("Core:\n    - 1-ff00:0:110\nNon-core:\n"), 0o644))
+	// The config in the AS directory describes a different AS.
+	writeControlConfig(t, filepath.Join(dir, "ASff00_0_110"),
+		"1-ff00:0:111", "10.0.1.1:30452")
+
+	_, err := e2e.LoadASes(dir)
+	assert.Error(t, err)
+}
+
+func writeControlConfig(t *testing.T, asDir, ia, apiAddr string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(asDir, 0o755))
+	cfg := config.Config{SCION: config.SCION{ASes: []config.AS{{
+		ISDAS: addr.MustParseIA(ia),
+		Control: &config.Control{
+			ID:      "cs-1",
+			APIAddr: netip.MustParseAddrPort(apiAddr),
+		},
+	}}}}
+	raw, err := cfg.EncodeYAML()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(asDir, "config.yml"), raw, 0o644))
+}

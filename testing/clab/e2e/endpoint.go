@@ -21,10 +21,11 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 
 	"go.yaml.in/yaml/v4"
@@ -115,11 +116,7 @@ func LoadEndpoints(genDir, lab string) ([]Endpoint, error) {
 		}
 	}
 
-	ias := make([]string, 0, len(sciond))
-	for ia := range sciond {
-		ias = append(ias, ia)
-	}
-	sort.Strings(ias)
+	ias := slices.Sorted(maps.Keys(sciond))
 
 	eps := make([]Endpoint, 0, len(ias))
 	for _, ia := range ias {

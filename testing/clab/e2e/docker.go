@@ -18,7 +18,7 @@ import "strings"
 
 // Docker builds command lines for the docker CLI inside containerlab nodes. Its
 // command is a (possibly multi-word) docker invocation, e.g. "docker" or
-// "sudo docker".
+// "sudo docker". An empty command defaults to "docker".
 type Docker struct {
 	Cmd string
 }
@@ -27,6 +27,9 @@ type Docker struct {
 // then appends args. The result is ready for exec.Command(name, argv...).
 func (d Docker) Argv(args ...string) (name string, argv []string) {
 	fields := strings.Fields(d.Cmd)
+	if len(fields) == 0 {
+		fields = []string{"docker"}
+	}
 	return fields[0], append(fields[1:], args...)
 }
 

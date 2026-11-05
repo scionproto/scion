@@ -30,7 +30,9 @@ func StartProgress(done *int64, total int) func() {
 	}
 	ticker := time.NewTicker(100 * time.Millisecond)
 	finished := make(chan struct{})
+	exited := make(chan struct{})
 	go func() {
+		defer close(exited)
 		for {
 			select {
 			case <-ticker.C:
@@ -45,11 +47,15 @@ func StartProgress(done *int64, total int) func() {
 	return func() {
 		ticker.Stop()
 		close(finished)
+		// Wait for the final render so it does not interleave with output
+		// written after stop returns.
+		<-exited
 	}
 }
 
 func renderBar(done, total int) {
 	const width = 30
+	done = max(0, min(done, total))
 	filled, pct := 0, 0
 	if total > 0 {
 		filled = done * width / total

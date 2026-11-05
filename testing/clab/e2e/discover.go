@@ -15,14 +15,18 @@
 package e2e
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"go.yaml.in/yaml/v4"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
+	"github.com/scionproto/scion/testing/clab/testgen/out"
 )
 
 // AS is one autonomous system: its ISD-AS, whether it is a core AS, and the
@@ -41,7 +45,7 @@ type asList struct {
 
 // LoadASes discovers the ASes from the generated lab: their core/non-core
 // grouping (gen/as_list.yml) and their control service API address
-// (gen/AS<file>/config.yml). The result is the list of ASes with their
+// (gen/[ISD<n>/]AS<file>/config.yml). The result is the list of ASes with their
 // segments-API URL.
 func LoadASes(genDir string) ([]AS, error) {
 	raw, err := os.ReadFile(filepath.Join(genDir, "as_list.yml"))
@@ -53,13 +57,13 @@ func LoadASes(genDir string) ([]AS, error) {
 		return nil, fmt.Errorf("parsing as list: %w", err)
 	}
 
-	var out []AS
+	var ases []AS
 	add := func(ia string, core bool) error {
 		url, err := segmentsURL(genDir, ia)
 		if err != nil {
 			return err
 		}
-		out = append(out, AS{IA: ia, Core: core, SegmentsURL: url})
+		ases = append(ases, AS{IA: ia, Core: core, SegmentsURL: url})
 		return nil
 	}
 	for _, ia := range list.Core {
@@ -72,7 +76,7 @@ func LoadASes(genDir string) ([]AS, error) {
 			return nil, err
 		}
 	}
-	return out, nil
+	return ases, nil
 }
 
 // segmentsURL returns the control service segments-API URL for an AS. It reads
@@ -80,18 +84,21 @@ func LoadASes(genDir string) ([]AS, error) {
 // running the control service) and extracts the control API address, the node's
 // containerlab management address reachable from the host over the management
 // bridge.
-func segmentsURL(genDir, ia string) (string, error) {
-	path := filepath.Join(asDir(genDir, ia), "config.yml")
-	raw, err := os.ReadFile(path)
+func segmentsURL(genDir, iaStr string) (string, error) {
+	ia, err := addr.ParseIA(iaStr)
 	if err != nil {
-		return "", fmt.Errorf("reading config for %s: %w", ia, err)
+		return "", fmt.Errorf("parsing ISD-AS %q: %w", iaStr, err)
+	}
+	raw, err := readASConfig(genDir, ia)
+	if err != nil {
+		return "", err
 	}
 	cfg, err := config.DecodeYAML(raw)
 	if err != nil {
 		return "", fmt.Errorf("parsing config for %s: %w", ia, err)
 	}
 	for _, as := range cfg.SCION.ASes {
-		if as.Control == nil {
+		if as.ISDAS != ia || as.Control == nil {
 			continue
 		}
 		apiAddr := as.Control.APIAddr
@@ -100,11 +107,25 @@ func segmentsURL(genDir, ia string) (string, error) {
 		}
 		return fmt.Sprintf("http://%s/api/v1/segments", apiAddr), nil
 	}
-	return "", fmt.Errorf("no control service in config for %s", ia)
+	return "", fmt.Errorf("no control service for %s in config", ia)
 }
 
-// asDir returns the gen directory of an AS, e.g. gen/ASff00_0_110.
-func asDir(genDir, ia string) string {
-	asPart := ia[strings.IndexByte(ia, '-')+1:]
-	return filepath.Join(genDir, "AS"+strings.ReplaceAll(asPart, ":", "_"))
+// readASConfig reads the control host's prism config mirrored to the AS
+// directory root. testgen lays out the AS directories either flat
+// (gen/ASff00_0_110) or grouped per ISD (gen/ISD1/ASff00_0_110, --isd-dir);
+// both layouts are tried, flat first.
+func readASConfig(genDir string, ia addr.IA) ([]byte, error) {
+	var tried []string
+	for _, isdDir := range []bool{false, true} {
+		path := filepath.Join(out.New(genDir, isdDir).AS(ia), "config.yml")
+		raw, err := os.ReadFile(path)
+		if err == nil {
+			return raw, nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("reading config for %s: %w", ia, err)
+		}
+		tried = append(tried, path)
+	}
+	return nil, fmt.Errorf("no config for %s, tried: %s", ia, strings.Join(tried, ", "))
 }
