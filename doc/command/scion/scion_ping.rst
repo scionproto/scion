@@ -16,6 +16,11 @@ Synopsis
 'ping' test connectivity to a remote SCION host using SCMP echo packets.
 Use 'scion address' on the remote SCION host to determine the ISD-AS and pingable IP address.
 
+You can also ping SCION control plane services in the remote AS by using the SVC address of the
+service, e.g., '1-ff00:0:110,CS' to ping a control service.
+Ping will attempt to take the SVC udp address from the path metadata
+or perform SVC resolution to determine the service IP address.
+
 When the \--count option is set, ping sends the specified number of SCMP echo packets
 and reports back the statistics.
 
