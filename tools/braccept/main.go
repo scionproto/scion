@@ -36,6 +36,7 @@ import (
 
 var (
 	bfd        = flag.Bool("bfd", false, "Run BFD tests instead of the common ones")
+	connDown   = flag.Bool("conndown", false, "Run connectivity down tests (requires BFD enabled)")
 	logConsole = flag.String("log.console", "debug", "Console logging level: debug|info|error")
 	dir        = flag.String("artifacts", "", "Artifacts directory")
 )
@@ -141,6 +142,13 @@ func realMain() int {
 		multi = []runner.Case{
 			cases.ExternalBFD(artifactsDir, hfMAC),
 			cases.InternalBFD(artifactsDir, hfMAC),
+		}
+	}
+
+	if *connDown {
+		multi = []runner.Case{
+			cases.SCMPExternalInterfaceDown(artifactsDir, hfMAC),
+			cases.SCMPInternalConnectivityDown(artifactsDir, hfMAC),
 		}
 	}
 
