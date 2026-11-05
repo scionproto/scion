@@ -101,6 +101,7 @@ func realMain() int {
 		cases.SCMPExpiredHopAfterXoverInternal(artifactsDir, hfMAC),
 		cases.SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir, hfMAC),
 		cases.SCMPExpiredHop(artifactsDir, hfMAC),
+		cases.SCMPFutureHop(artifactsDir, hfMAC),
 		cases.SCMPChildToParentXover(artifactsDir, hfMAC),
 		cases.SCMPParentToChildXover(artifactsDir, hfMAC),
 		cases.SCMPParentToParentXover(artifactsDir, hfMAC),

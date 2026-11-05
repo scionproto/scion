@@ -1,3 +1,4 @@
+// Copyright 2026 SCION Association
 // Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,10 +31,25 @@ const (
 	MacLen = 6
 )
 
-// MaxTTL is the maximum age of a HopField.
+// MaxTTL is the maximum time to live of a [HopField],
+// that is the validity of a HopField with an ExpTime of 255
+// according to [draft section 2.4.2.4].
+//
+// [draft section 2.4.2.4]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-2.4.2.4
 const MaxTTL = 24 * time.Hour
 
-const expTimeUnit = MaxTTL / 256 // ~5m38.5s
+// MinTTL is the minimum time to live of a [HopField],
+// that is the validity of a HopField with an ExpTime of 0
+// according to [draft section 2.4.2.4].
+// It is also the tolerance that routers apply when checking
+// whether the Timestamp of an [InfoField] lies in the future,
+// as defined in [draft section 2.4.2.3].
+//
+// [draft section 2.4.2.4]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-2.4.2.4
+// [draft section 2.4.2.3]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-dataplane-15#section-2.4.2.3
+const MinTTL = MaxTTL / 256 // 337.5s
+
+const expTimeUnit = MinTTL
 
 // HopField is the HopField used in the SCION and OneHop path types.
 //
