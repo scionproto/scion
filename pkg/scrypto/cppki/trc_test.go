@@ -15,7 +15,9 @@
 package cppki_test
 
 import (
+	"bytes"
 	"crypto/x509"
+	"slices"
 	"testing"
 	"time"
 
@@ -516,8 +518,8 @@ func TestTRCValidateUpdate(t *testing.T) {
 			TRCs: func(t *testing.T) (*cppki.TRC, *cppki.TRC) {
 				pred := loadTRC(t, "./testdata/ISD1-B1-S1.trc")
 				succ := loadTRC(t, "./testdata/ISD1-B1-S2.trc")
-				c, err := x509.ParseCertificate(append([]byte{},
-					succ.TRC.Certificates[Sensitive110].Raw...))
+				c, err := x509.ParseCertificate(
+					bytes.Clone(succ.TRC.Certificates[Sensitive110].Raw))
 				require.NoError(t, err)
 				c.Subject.CommonName += "fresh, ya"
 				succ.TRC.Certificates[Sensitive110] = c
@@ -544,8 +546,7 @@ func TestTRCValidateUpdate(t *testing.T) {
 			TRCs: func(t *testing.T) (*cppki.TRC, *cppki.TRC) {
 				pred := loadTRC(t, "./testdata/ISD1-B1-S1.trc")
 				succ := loadTRC(t, "./testdata/ISD1-B1-S2.trc")
-				c, err := x509.ParseCertificate(append([]byte{},
-					succ.TRC.Certificates[Root110].Raw...))
+				c, err := x509.ParseCertificate(bytes.Clone(succ.TRC.Certificates[Root110].Raw))
 				require.NoError(t, err)
 				c.Subject.CommonName += "fresh, ya"
 				succ.TRC.Certificates[Root110] = c
@@ -560,8 +561,7 @@ func TestTRCValidateUpdate(t *testing.T) {
 			TRCs: func(t *testing.T) (*cppki.TRC, *cppki.TRC) {
 				pred := loadTRC(t, "./testdata/ISD1-B1-S1.trc")
 				succ := loadTRC(t, "./testdata/ISD1-B1-S2.trc")
-				succ.TRC.Certificates = append(succ.TRC.Certificates[:2],
-					succ.TRC.Certificates[3:]...)
+				succ.TRC.Certificates = slices.Delete(succ.TRC.Certificates, 2, 3)
 				return &pred.TRC, &succ.TRC
 			},
 			Update: func(t *testing.T) cppki.Update {
@@ -573,8 +573,7 @@ func TestTRCValidateUpdate(t *testing.T) {
 			TRCs: func(t *testing.T) (*cppki.TRC, *cppki.TRC) {
 				pred := loadTRC(t, "./testdata/ISD1-B1-S1.trc")
 				succ := loadTRC(t, "./testdata/ISD1-B1-S2.trc")
-				c, err := x509.ParseCertificate(append([]byte{},
-					succ.TRC.Certificates[Regular110].Raw...))
+				c, err := x509.ParseCertificate(bytes.Clone(succ.TRC.Certificates[Regular110].Raw))
 				require.NoError(t, err)
 				c.Subject.CommonName += "fresh, ya"
 				succ.TRC.Certificates[Regular110] = c
@@ -589,8 +588,7 @@ func TestTRCValidateUpdate(t *testing.T) {
 			TRCs: func(t *testing.T) (*cppki.TRC, *cppki.TRC) {
 				pred := loadTRC(t, "./testdata/ISD1-B1-S1.trc")
 				succ := loadTRC(t, "./testdata/ISD1-B1-S2.trc")
-				succ.TRC.Certificates = append(succ.TRC.Certificates[:1],
-					succ.TRC.Certificates[2:]...)
+				succ.TRC.Certificates = slices.Delete(succ.TRC.Certificates, 1, 2)
 				return &pred.TRC, &succ.TRC
 			},
 			Update: func(t *testing.T) cppki.Update {
