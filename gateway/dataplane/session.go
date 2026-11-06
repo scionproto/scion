@@ -85,7 +85,7 @@ func (s *Session) Write(packet gopacket.Packet) {
 		return
 	}
 	// Choose the path based on the packet's quintuple.
-	hash := crc64.Checksum(extractQuintuple(packet), crcTable)
+	hash := hashQuintuple(packet)
 	index := hash % uint64(len(s.senders))
 	s.senders[index].Write(packet.Data())
 }
@@ -188,18 +188,21 @@ func pathsEqual(x, y snet.Path) bool {
 		x.Metadata().Expiry.Equal(y.Metadata().Expiry)
 }
 
-func extractQuintuple(packet gopacket.Packet) []byte {
+func hashQuintuple(packet gopacket.Packet) uint64 {
+	// Max quintuple size: 1 protocol byte + 2 IPv6 addresses + 4 port bytes.
+	var storage [37]byte
+	// The buffer does not escape: hash the bytes before returning.
+	q := storage[:0]
 	// Protocol number and addresses.
 	var proto layers.IPProtocol
-	var q []byte
 	switch ip := packet.NetworkLayer().(type) {
 	case *layers.IPv4:
-		q = []byte{byte(ip.Protocol)}
+		q = append(q, byte(ip.Protocol))
 		q = append(q, ip.SrcIP...)
 		q = append(q, ip.DstIP...)
 		proto = ip.Protocol
 	case *layers.IPv6:
-		q = []byte{byte(ip.NextHeader)}
+		q = append(q, byte(ip.NextHeader))
 		q = append(q, ip.SrcIP...)
 		q = append(q, ip.DstIP...)
 		proto = ip.NextHeader
@@ -221,5 +224,5 @@ func extractQuintuple(packet gopacket.Packet) []byte {
 		binary.BigEndian.PutUint16(q[pos:pos+2], uint16(udp.SrcPort))
 		binary.BigEndian.PutUint16(q[pos+2:pos+4], uint16(udp.DstPort))
 	}
-	return q
+	return crc64.Checksum(q, crcTable)
 }

@@ -46,6 +46,7 @@ go_test(
         "export_test.go",
         "ipforwarder_test.go",
         "pktring_test.go",
+        "quintuple_test.go",
         "routingtable_test.go",
         "sender_test.go",
         "session_test.go",
