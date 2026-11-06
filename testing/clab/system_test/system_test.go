@@ -36,6 +36,7 @@ package system_test
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -172,23 +173,26 @@ func (h *harness) setup(t *testing.T) {
 }
 
 // execute runs the e2e_scion and e2e_http tests against the deployed lab. The
-// output of each driver is captured as an artifact.
+// output of each driver is captured as an artifact, also (and especially) when
+// the driver fails.
 func (h *harness) execute(t *testing.T) {
 	t.Run("e2e_scion", func(t *testing.T) {
-		out := h.run(t, h.workDir, h.e2eScion,
+		out, err := h.exec(t, h.workDir, h.e2eScion,
 			"--gen", h.genDir,
 			"--lab", *labName,
 			"--docker", *dockerC,
 		)
 		h.collectBytes(t, out, "e2e_scion.log")
+		require.NoError(t, err, "e2e_scion failed")
 	})
 	t.Run("e2e_http", func(t *testing.T) {
-		out := h.run(t, h.workDir, h.e2eHTTP, "run",
+		out, err := h.exec(t, h.workDir, h.e2eHTTP, "run",
 			"--gen", h.genDir,
 			"--lab", *labName,
 			"--docker", *dockerC,
 		)
 		h.collectBytes(t, out, "e2e_http.log")
+		require.NoError(t, err, "e2e_http failed")
 	})
 }
 
@@ -200,6 +204,8 @@ func (h *harness) teardown(t *testing.T) {
 		t.Logf("--- teardown: no clab topology at %s, skipping", h.clabYML)
 		return
 	}
+	h.collectNodeLogs(t)
+
 	t.Log("--- teardown: destroying containerlab topology")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -220,6 +226,15 @@ func (h *harness) teardown(t *testing.T) {
 // persist it as an artifact.
 func (h *harness) run(t *testing.T, dir, command string, args ...string) []byte {
 	t.Helper()
+	out, err := h.exec(t, dir, command, args...)
+	require.NoError(t, err, "command failed: %s %v", command, args)
+	return out
+}
+
+// exec executes a command in dir and logs its combined output. Unlike run, it
+// does not fail the test, so the caller can persist the output first.
+func (h *harness) exec(t *testing.T, dir, command string, args ...string) ([]byte, error) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
@@ -231,8 +246,72 @@ func (h *harness) run(t *testing.T, dir, command string, args ...string) []byte 
 	if len(out) > 0 {
 		t.Logf("%s", out)
 	}
-	require.NoError(t, err, "command failed: %s %v", name, full)
-	return out
+	return out, err
+}
+
+// collectNodeLogs gathers the logs of every container in the lab into
+// <outputs>/logs before the lab is destroyed:
+//
+//   - <container>.log: `docker logs`, the controller's merged stream of all
+//     supervised services (prefixed per service);
+//   - <container>/: the per-service log files from /var/log/scion.
+//
+// It is best-effort: failures are logged, never fatal, so teardown proceeds.
+func (h *harness) collectNodeLogs(t *testing.T) {
+	if h.outputsDir == "" {
+		return
+	}
+	logDir := filepath.Join(h.outputsDir, "logs")
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		t.Logf("collect node logs: %s", err)
+		return
+	}
+	containers, err := h.labContainers()
+	if err != nil {
+		t.Logf("collect node logs: listing containers: %s", err)
+		return
+	}
+	t.Logf("--- teardown: collecting logs of %d containers into %s", len(containers), logDir)
+	for _, c := range containers {
+		out, err := h.docker(time.Minute, "logs", c)
+		if err != nil {
+			t.Logf("collect node logs: docker logs %s: %s", c, err)
+		}
+		h.collectBytes(t, out, filepath.Join("logs", c+".log"))
+
+		if out, err := h.docker(time.Minute, "cp", c+":"+nodeLogDir,
+			filepath.Join(logDir, c)); err != nil {
+			t.Logf("collect node logs: docker cp %s: %s: %s", c, err, out)
+		}
+	}
+}
+
+// nodeLogDir is where the node controller writes the per-service log files
+// (controller --log-dir default).
+const nodeLogDir = "/var/log/scion"
+
+// labContainers returns the names of all containers (running or not) that
+// containerlab created for the lab, identified by its containerlab label.
+func (h *harness) labContainers() ([]string, error) {
+	out, err := h.docker(time.Minute, "ps", "--all",
+		"--filter", "label=containerlab="+*labName,
+		"--format", "{{.Names}}",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", err, out)
+	}
+	return strings.Fields(string(out)), nil
+}
+
+// docker runs a docker command with the given timeout and returns its combined
+// output.
+func (h *harness) docker(timeout time.Duration, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	name, full := splitCmd(*dockerC, args...)
+	cmd := exec.CommandContext(ctx, name, full...)
+	cmd.Dir = h.workDir
+	return cmd.CombinedOutput()
 }
 
 // collect copies a file from the work dir into the outputs dir under name, so
