@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -35,6 +34,7 @@ func runCmd() *cobra.Command {
 		lab      string
 		dockerC  string
 		bin      string
+		scionBin string
 		port     int
 		parallel int
 		startup  time.Duration
@@ -51,7 +51,7 @@ node and report a condensed source×destination result matrix.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			d := driver{
-				docker: e2e.Docker{Cmd: dockerC}, bin: bin, port: port,
+				docker: e2e.Docker{Cmd: dockerC}, bin: bin, scionBin: scionBin, port: port,
 				parallel: parallel, duration: duration, clientTO: timeout, cmdTO: cmdTO,
 			}
 			ok, err := d.run(genDir, lab, startup)
@@ -68,6 +68,9 @@ node and report a condensed source×destination result matrix.`,
 	cmd.Flags().StringVar(&lab, "lab", "scion", "containerlab lab name")
 	cmd.Flags().StringVar(&dockerC, "docker", "docker", "docker command (e.g. \"sudo docker\")")
 	cmd.Flags().StringVar(&bin, "bin", "/app/e2e_http", "path of this binary inside the node")
+	cmd.Flags().StringVar(&scionBin, "scion", "",
+		"path of the scion CLI inside the node, used for path snapshots on failure "+
+			"(empty: use scion from the node's PATH if available, else no snapshots)")
 	cmd.Flags().IntVar(&port, "port", 4443, "SCION/UDP port the servers listen on")
 	cmd.Flags().IntVar(&parallel, "parallel", 64, "maximum concurrent client probes")
 	cmd.Flags().DurationVar(&startup, "startup", 3*time.Second, "wait for servers to come up")
@@ -79,8 +82,12 @@ node and report a condensed source×destination result matrix.`,
 }
 
 type driver struct {
-	docker   e2e.Docker
-	bin      string
+	docker e2e.Docker
+	bin    string
+	// scionBin is the scion CLI inside the node, used for path snapshots on
+	// failure. If empty, run resolves it from the node's PATH; if it is still
+	// empty afterwards, the snapshots are disabled.
+	scionBin string
 	port     int
 	parallel int
 	duration time.Duration
@@ -97,6 +104,16 @@ func (d driver) run(genDir, lab string, startup time.Duration) (bool, error) {
 		return false, fmt.Errorf("need at least 2 ASes, found %d", len(eps))
 	}
 	fmt.Printf("lab %q: %d ASes, port %d, parallelism %d\n", lab, len(eps), d.port, d.parallel)
+
+	if d.scionBin == "" {
+		// All nodes run the same image, so checking one is enough.
+		d.scionBin = d.lookupScion(eps[0].Container)
+	}
+	if d.scionBin == "" {
+		fmt.Println("path snapshots on failure: disabled (scion not on the node's PATH)")
+	} else {
+		fmt.Printf("path snapshots on failure: %s\n", d.scionBin)
+	}
 
 	// Start one server per AS (detached, self-terminating after the duration).
 	fmt.Println("starting servers ...")
@@ -126,6 +143,18 @@ func (d driver) run(genDir, lab string, startup time.Duration) (bool, error) {
 	return report(eps, results), nil
 }
 
+// lookupScion reports whether the scion CLI is on the PATH inside the
+// container: it returns "scion" if `scion version` runs there, and "" otherwise.
+func (d driver) lookupScion(container string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), d.cmdTO)
+	defer cancel()
+	bin, args := d.docker.Exec(container, "scion", "version")
+	if err := exec.CommandContext(ctx, bin, args...).Run(); err != nil {
+		return ""
+	}
+	return "scion"
+}
+
 // job is a single client probe from src to dst.
 type job struct{ src, dst e2e.Endpoint }
 
@@ -134,6 +163,8 @@ type result struct {
 	src, dst e2e.Endpoint
 	err      error
 	output   string
+	// paths is the path snapshot taken right after a failure.
+	paths string
 }
 
 func (d driver) runJobs(jobs []job) []result {
@@ -167,22 +198,30 @@ func (d driver) probe(j job) result {
 		"--remote", j.dst.RemoteAddr(d.port),
 		"--timeout", d.clientTO.String())
 	out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput()
-	return result{src: j.src, dst: j.dst, err: err, output: string(out)}
+	r := result{src: j.src, dst: j.dst, err: err, output: string(out)}
+	if err != nil && d.scionBin != "" {
+		// Snapshot the paths immediately, while the state that caused the
+		// failure is most likely still present.
+		r.paths = e2e.SnapshotPaths(d.docker, d.scionBin, j.src, j.dst, d.clientTO)
+	}
+	return r
 }
 
 // report prints a condensed source×destination matrix, a summary, and the
 // details of any failures. It returns true if every probe succeeded.
 func report(eps []e2e.Endpoint, results []result) bool {
 	byPair := make(map[[2]string]result, len(results))
-	var fails []result
+	var fails []e2e.Failure
 	passed := 0
 	for _, r := range results {
 		byPair[[2]string{r.src.IA, r.dst.IA}] = r
 		if r.err == nil {
 			passed++
-		} else {
-			fails = append(fails, r)
+			continue
 		}
+		fails = append(fails, e2e.Failure{
+			Src: r.src, Dst: r.dst, Err: r.err, Output: r.output, Paths: r.paths,
+		})
 	}
 
 	fmt.Printf("\nhttp3: %d/%d ok\n", passed, len(results))
@@ -190,17 +229,7 @@ func report(eps []e2e.Endpoint, results []result) bool {
 		return byPair[[2]string{src.IA, dst.IA}].err == nil
 	})
 
-	if len(fails) > 0 {
-		sort.Slice(fails, func(i, j int) bool {
-			if fails[i].src.IA != fails[j].src.IA {
-				return fails[i].src.IA < fails[j].src.IA
-			}
-			return fails[i].dst.IA < fails[j].dst.IA
-		})
-		fmt.Printf("  failures:\n")
-		for _, r := range fails {
-			fmt.Printf("    %s -> %s: %s\n", r.src.IA, r.dst.IA, e2e.FirstLine(r.output))
-		}
-	}
+	e2e.SortFailures(fails)
+	e2e.PrintFailures(os.Stdout, fails)
 	return len(fails) == 0
 }
