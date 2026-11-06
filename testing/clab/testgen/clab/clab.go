@@ -19,6 +19,13 @@
 // between the hosts' data-plane interfaces (eth1, eth2, …). The clab-node
 // controller (testing/clab/controller) derives its interface addressing and its
 // services from the per-host prism config.yml bind-mounted into the node.
+//
+// Optional host links (see [hydrate.HostLink]) connect an AS's host-1 node to
+// the machine running the lab via a containerlab "host:" link. The node side is
+// configured by the controller like any other interface; the machine side
+// (address, plus a route to host-1's address over the link) is configured by
+// containerlab itself, with exec commands that target the host after the
+// node's links are created.
 package clab
 
 import (
@@ -95,6 +102,24 @@ type node struct {
 	MgmtIPv6 string            `yaml:"mgmt-ipv6,omitempty"`
 	Env      map[string]string `yaml:"env,omitempty"`
 	Binds    []string          `yaml:"binds,omitempty"`
+	Stages   *stages           `yaml:"stages,omitempty"`
+}
+
+// stages are the containerlab node lifecycle stages we hook into.
+type stages struct {
+	CreateLinks *stage `yaml:"create-links,omitempty"`
+}
+
+type stage struct {
+	Exec []stageExec `yaml:"exec"`
+}
+
+// stageExec is a command containerlab runs when a node enters or exits a stage,
+// either in the node or (target "host") on the machine running the lab.
+type stageExec struct {
+	Command string `yaml:"command"`
+	Target  string `yaml:"target"`
+	Phase   string `yaml:"phase"`
 }
 
 type link struct {
@@ -127,6 +152,20 @@ func buildTopology(network *hydrate.Network, dir out.Dir, opts Options) (*clabTo
 		}
 	}
 	t.Topology.Links = buildLinks(network)
+	for _, as := range network.ASes {
+		for _, host := range as.Hosts {
+			hl := host.HostLink
+			if hl == nil {
+				continue
+			}
+			name := nodeName(as.IA, host.Name)
+			t.Topology.Links = append(t.Topology.Links, link{Endpoints: []string{
+				name + ":" + hl.EthName,
+				"host:" + hl.HostIface,
+			}})
+			t.Topology.Nodes[name].Stages = hostLinkStages(host)
+		}
+	}
 	return t, nil
 }
 
@@ -221,4 +260,30 @@ func buildLinks(network *hydrate.Network) []link {
 // followed by the host name, e.g. "1-ff00_0_110-host-1".
 func nodeName(ia addr.IA, host string) string {
 	return fmt.Sprintf("%s-%s", addr.FormatIA(ia, addr.WithFileSeparator()), host)
+}
+
+// hostLinkStages configures the machine side of a host's host link once
+// containerlab has created the node's links: it assigns the machine-side
+// address and routes the host's AS-internal address over the link. Without
+// that route the machine would reach the host (and thus the AS's daemon and
+// border router) over the management network, and SCION clients on the machine
+// would pick the management address as their source instead of the host-link
+// address.
+func hostLinkStages(h *hydrate.Host) *stages {
+	hl := h.HostLink
+	ip, nodad := "ip", ""
+	if hl.HostAddr.Is6() {
+		ip, nodad = "ip -6", " nodad"
+	}
+	cmds := []string{
+		fmt.Sprintf("%s addr replace %s dev %s%s",
+			ip, netip.PrefixFrom(hl.HostAddr, hl.Net.Bits()), hl.HostIface, nodad),
+		fmt.Sprintf("%s route replace %s via %s dev %s",
+			ip, netip.PrefixFrom(h.Addr, h.Addr.BitLen()), hl.NodeAddr, hl.HostIface),
+	}
+	st := &stage{}
+	for _, c := range cmds {
+		st.Exec = append(st.Exec, stageExec{Command: c, Target: "host", Phase: "on-exit"})
+	}
+	return &stages{CreateLinks: st}
 }
