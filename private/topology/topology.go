@@ -150,6 +150,8 @@ type (
 		DetectMult            uint8
 		DesiredMinTxInterval  time.Duration
 		RequiredMinRxInterval time.Duration
+		DisableRTT            bool
+		RTTEWMAWeight         float64
 	}
 )
 
@@ -309,6 +311,8 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 					DetectMult:            bfd.DetectMult,
 					DesiredMinTxInterval:  bfd.DesiredMinTxInterval.Duration,
 					RequiredMinRxInterval: bfd.RequiredMinRxInterval.Duration,
+					DisableRTT:            bfd.DisableRTT,
+					RTTEWMAWeight:         bfd.RTTEWMAWeight,
 				}
 			}
 

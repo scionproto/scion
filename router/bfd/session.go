@@ -42,6 +42,17 @@ const (
 	// session that is down does not change the state. However, having such a timer
 	// simplifies the Go implementation's timer Stop/Reset code.
 	defaultDetectionTimeout = time.Minute
+	// initialRTTMeasurementInterval is the initial interval between Poll Sequences used to
+	// estimate the RTT. The effective measurement interval is scaled between
+	// 2*desiredMinTXInterval and maxRTTMeasurementInterval. The Poll bit is set on the next
+	// periodic packet after the interval elapsed.
+	initialRTTMeasurementInterval = 500 * time.Millisecond
+	// maxRTTMeasurementInterval is the maximum interval between attempting Poll sequences for RTT
+	// estimation. If the remote session does not respond to Poll packets, the measurement will
+	// settle to this interval.
+	maxRTTMeasurementInterval = 10 * time.Second
+	// defaultRTTEWMAWeight is the default value for RTTEWMAWeight.
+	defaultRTTEWMAWeight = 0.5
 )
 
 // ErrAlreadyRunning is the error returned by session run function when called repeatedly.
@@ -63,6 +74,15 @@ var ErrAlreadyRunning = errors.New("is running")
 //
 // Session does not support the BFD Echo function. Therefore, the Required Min Echo RX field is
 // always set to 0.
+//
+// Poll Sequences are supported. If EnableRTTEstimate is true periodic Poll Sequences are used to
+// estimate the RTT between border routers. As required by RFC 5880 Section 6.5, Poll Sequences are
+// initiated by setting the Poll bit on a scheduled packet; no additional packets are sent. Each
+// Poll Sequence consists of a single Poll packet. If no Final is received before the next periodic
+// transmission, the sequence is abandoned without an RTT sample. Consequently, only RTTs shorter
+// than 75% (BFD allows 25% jitter) of the transmission interval can be measured. The Poll bit is
+// set on at most one consecutive packet to maintain compatibility with old routers that discard all
+// Poll packets without updating the session state.
 type Session struct {
 	// Sender is used by the Session to send BFD messages to the other end of the point to point
 	// link.
@@ -126,6 +146,15 @@ type Session struct {
 	// until the session is ready to read it.
 	ReceiveQueueSize int
 
+	// EnableRTTEstimate enables RTT estimation by Poll Sequences.
+	EnableRTTEstimate bool
+
+	// Weight for new samples in exponentially weighted moving average that estimates the session
+	// RTT. This weight is based one a second measurement interval and will be adjusted if the
+	// actual measurement interval differs. Must be in [0, 1]. If 0, the default value of 0.5 is
+	// used.
+	RTTEWMAWeight float64
+
 	messagesOnce sync.Once
 	// messages is the channel on which the session receives BFD packets.
 	messages chan bfdMessage
@@ -152,6 +181,22 @@ type Session struct {
 	// remoteMinRxInterval is the last value of Required Min RX interval received from the
 	// remote system in a BFD Control packet.
 	remoteMinRxInterval time.Duration
+
+	// pollScheduled is true if the next periodic control packet should start a Poll Sequence.
+	pollScheduled bool
+	// pollInFlight is true if a poll sequence is in progress.
+	pollInFlight bool
+	// pollSendTime is the time at which a packet with the Poll bit was sent.
+	pollSendTime time.Time
+	// lastSuccessfulPoll is the last time the RTT was updated successfully.
+	lastSuccessfulPoll time.Time
+
+	// rttLock protects access to rttEstimate and rttValid
+	rttLock sync.RWMutex
+	// rttEstimate is the current smoothed RTT estimate
+	rttEstimate time.Duration
+	// rttValid indicated whether rttEstimate is valid
+	rttValid bool
 
 	// Metrics is used by the session to report information about internal operation.
 	//
@@ -186,6 +231,8 @@ func NewSession(s Sender, cfg control.BFD, metrics Metrics) (*Session, error) {
 		RequiredMinRxInterval: cfg.RequiredMinRxInterval,
 		LocalDiscriminator:    disc,
 		ReceiveQueueSize:      10,
+		EnableRTTEstimate:     !cfg.DisableRTT,
+		RTTEWMAWeight:         cfg.RTTEWMAWeight,
 		Metrics:               metrics,
 	}, nil
 }
@@ -224,6 +271,15 @@ func (s *Session) Run(ctx context.Context) error {
 
 	s.desiredMinTXInterval = defaultTransmissionInterval
 	sendTimer := time.NewTimer(s.desiredMinTXInterval)
+
+	var pollTimerC <-chan time.Time
+	var pollTimer *time.Timer
+	rttInterval := initialRTTMeasurementInterval
+	if s.EnableRTTEstimate {
+		pollTimer = time.NewTimer(rttInterval)
+		pollTimerC = pollTimer.C
+	}
+
 	pkt := &layers.BFD{}
 MainLoop:
 	for {
@@ -258,6 +314,17 @@ MainLoop:
 				logger.Debug("Bootstrapped")
 			}
 
+			// RFC 5880 Section 6.8.7: Upon receiving a packet with the Poll bit set, must transmit
+			// a packet with Poll clear and Final set as soon as practicable without respect to the
+			// transmission timer.
+			if msg.Poll {
+				s.sendFinal(pkt, logger)
+			} else if msg.Final && s.pollInFlight {
+				s.pollInFlight = false
+				s.updateRTT(msg.ReceivedAt.Sub(s.pollSendTime))
+				rttInterval = max((3*rttInterval)/4, 2*s.desiredMinTXInterval)
+			}
+
 			// If we transitioned out of the down state, we cancel the current send timer
 			// (because it might send too late to keep the session up) and set up a new
 			// send timer based on the remote's preferences.
@@ -271,6 +338,7 @@ MainLoop:
 				}
 				sendTimer.Reset(s.computeNextSendInterval())
 			}
+
 		case <-sendTimer.C:
 			// Send timer guaranteed to be expired, so we can reset.
 			sendTimer.Reset(s.computeNextSendInterval())
@@ -289,6 +357,17 @@ MainLoop:
 				DesiredMinTxInterval:  desiredMinTxInterval,
 				RequiredMinRxInterval: requiredMinRxInterval,
 			}
+			if s.pollInFlight {
+				// No final received within one transmission interval, either because the RTT is
+				// higher than the interval or the poll was dropped.
+				s.pollInFlight = false
+				rttInterval = min(2*rttInterval, maxRTTMeasurementInterval)
+			} else if s.pollScheduled && s.getLocalState() == stateUp {
+				s.pollScheduled = false
+				s.pollInFlight = true
+				s.pollSendTime = time.Now()
+				pkt.Poll = true
+			}
 
 			if err := s.Sender.Send(pkt); err != nil {
 				logger.Debug("error sending message", "err", err)
@@ -301,6 +380,13 @@ MainLoop:
 			if s.Metrics.PacketsSent != nil {
 				s.Metrics.PacketsSent.Add(1)
 			}
+
+		case <-pollTimerC:
+			pollTimer.Reset(rttInterval)
+			if s.getLocalState() == stateUp && !s.pollInFlight {
+				s.pollScheduled = true
+			}
+
 		case <-detectionTimer.C:
 			// detection timer guaranteed to be expired, so we can reset. We reset s.t. if some
 			// other branch wants to stop this timer, it can assume it hasn't been drained.
@@ -312,10 +398,79 @@ MainLoop:
 				// Change the desired interval back to the default transmission interval, to
 				// avoid flooding the network while the session is down.
 				s.desiredMinTXInterval = defaultTransmissionInterval
+				s.pollScheduled = false
+				s.pollInFlight = false
+				s.rttLock.Lock()
+				s.rttEstimate = 0
+				s.rttValid = false
+				s.rttLock.Unlock()
+				if s.Metrics.RTT != nil {
+					s.Metrics.RTT.Set(0)
+				}
+				rttInterval = initialRTTMeasurementInterval
 			}
 		}
 	}
 	return nil
+}
+
+func (s *Session) sendFinal(pkt *layers.BFD, logger log.Logger) {
+	desiredMinTxInterval, _ := durationToBFDInterval(s.desiredMinTXInterval)
+	requiredMinRxInterval, _ := durationToBFDInterval(s.RequiredMinRxInterval)
+	*pkt = layers.BFD{
+		Version:               1,
+		Final:                 true,
+		State:                 layers.BFDState(s.getLocalState()),
+		DetectMultiplier:      s.DetectMult,
+		MyDiscriminator:       s.LocalDiscriminator,
+		YourDiscriminator:     s.remoteDiscriminator,
+		DesiredMinTxInterval:  desiredMinTxInterval,
+		RequiredMinRxInterval: requiredMinRxInterval,
+	}
+	if err := s.Sender.Send(pkt); err != nil {
+		logger.Debug("error sending final", "err", err)
+		return
+	}
+	if s.testLogger != nil {
+		s.testLogger.Debug("final sent", "remoteDiscriminator", pkt.YourDiscriminator)
+	}
+	if s.Metrics.PacketsSent != nil {
+		s.Metrics.PacketsSent.Add(1)
+	}
+}
+
+func (s *Session) updateRTT(sample time.Duration) {
+	w := s.RTTEWMAWeight
+	if w <= 0 {
+		w = defaultRTTEWMAWeight
+	}
+	now := time.Now()
+	s.rttLock.Lock()
+	defer s.rttLock.Unlock()
+	if !s.rttValid {
+		s.rttEstimate = sample
+		s.rttValid = true
+	} else {
+		delta := now.Sub(s.lastSuccessfulPoll)
+		alpha := 1.0 - math.Pow(1.0-w, delta.Seconds())
+		s.rttEstimate = time.Duration(alpha*float64(sample) + (1-alpha)*float64(s.rttEstimate))
+	}
+	s.lastSuccessfulPoll = now
+	if s.testLogger != nil {
+		s.testLogger.Debug("RTT updated", "sample", sample, "estimate", s.rttEstimate)
+	}
+	if s.Metrics.RTT != nil {
+		s.Metrics.RTT.Set(s.rttEstimate.Seconds())
+	}
+}
+
+// RTT return a smoothed estimate for the RTT and a flag whether the estimate is
+// valid. There is no valid estimate while the session is down or if the remote
+// side does not support BFD Poll sequences.
+func (s *Session) RTT() (time.Duration, bool) {
+	s.rttLock.RLock()
+	defer s.rttLock.RUnlock()
+	return s.rttEstimate, s.rttValid
 }
 
 func (s *Session) Close() error {
@@ -357,6 +512,9 @@ func (s *Session) validateParameters() error {
 	}
 	if s.Sender == nil {
 		return serrors.New("sender must not be nil")
+	}
+	if s.RTTEWMAWeight < 0.0 || s.RTTEWMAWeight > 1.0 {
+		return serrors.New("RTTEWMAWeight must be in [0, 1]")
 	}
 	return nil
 }
@@ -424,6 +582,9 @@ func (s *Session) ReceiveMessage(msg *layers.BFD) {
 
 	// The packet will be returning to the pool. We do not keep a reference to any part of it.
 	s.messages <- bfdMessage{
+		ReceivedAt:            time.Now(),
+		Poll:                  msg.Poll,
+		Final:                 msg.Final,
 		State:                 msg.State,
 		DetectMultiplier:      msg.DetectMultiplier,
 		MyDiscriminator:       msg.MyDiscriminator,
@@ -547,12 +708,9 @@ func shouldDiscard(pkt *layers.BFD) (bool, string) {
 				"Packet will be discarded."
 	}
 
-	// Poll/final sequences are not supported (see Anapaya/scion#3281).
-	if pkt.Poll {
-		return true, "Received Poll packet, but poll mechanism is not supported."
-	}
-	if pkt.Final {
-		return true, "Received Final packet, but poll mechanism is not supported."
+	// RFC 5880 Section 6.5: Poll and Final must not both be set.
+	if pkt.Poll && pkt.Final {
+		return true, "Received invalid packet with both Poll and Final bits set."
 	}
 
 	// Echo function is not supported. We discard such packets to ensure that the
@@ -591,7 +749,10 @@ func bfdIntervalToDuration(x layers.BFDTimeInterval) time.Duration {
 // bfdMessage contains the relevant values to (asynchronously) process a BFD message
 // received from the network. This is a subset of the fields of layers.BFD.
 type bfdMessage struct {
+	ReceivedAt            time.Time
 	State                 layers.BFDState
+	Poll                  bool
+	Final                 bool
 	DetectMultiplier      layers.BFDDetectMultiplier
 	MyDiscriminator       layers.BFDDiscriminator
 	YourDiscriminator     layers.BFDDiscriminator
