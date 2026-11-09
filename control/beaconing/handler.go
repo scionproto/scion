@@ -16,6 +16,7 @@ package beaconing
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strconv"
 
@@ -34,6 +35,7 @@ import (
 	infra "github.com/scionproto/scion/private/segment/verifier"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/tracing"
+	"github.com/scionproto/scion/private/trust"
 )
 
 // BeaconInserter inserts beacons into the beacon store.
@@ -47,6 +49,7 @@ type Handler struct {
 	LocalIA    addr.IA
 	Inserter   BeaconInserter
 	Verifier   infra.Verifier
+	Inspector  trust.Inspector
 	Interfaces *ifstate.Interfaces
 
 	BeaconsHandled metrics.Counter
@@ -90,6 +93,16 @@ func (h Handler) HandleBeacon(ctx context.Context, b beacon.Beacon, peer *snet.U
 		h.updateMetric(span, labels.WithResult(prom.ErrVerify), err)
 		return serrors.Wrap("verifying beacon", err)
 	}
+	if err := h.validateCoreASes(ctx, b, intf); err != nil {
+		if !errors.Is(err, errNonCoreAS) {
+			logger.Info("Failed to check core ASes", "err", err)
+			h.updateMetric(span, labels.WithResult(prom.ErrInternal), err)
+			return err
+		}
+		logger.Info("Beacon validation failed", "err", err)
+		h.updateMetric(span, labels.WithResult(prom.ErrValidate), err)
+		return err
+	}
 	stat, err := h.Inserter.InsertBeacon(ctx, b)
 	if err != nil {
 		logger.Debug("Failed to insert beacon", "err", err)
@@ -117,6 +130,35 @@ func (h Handler) validateASEntry(b beacon.Beacon, intf *ifstate.Interface) error
 	if !asEntry.Next.Equal(h.LocalIA) {
 		return serrors.New("next ISD-AS of upstream AS entry does not match local ISD-AS",
 			"expected", h.LocalIA, "actual", asEntry.Next)
+	}
+	return nil
+}
+
+var errNonCoreAS = serrors.New("beacon on core link contains non-core AS")
+
+// validateCoreASes follows the recommendation in [draft section 2.3.1]
+// that core ASes discard beacons propagated by a non-core AS at any point.
+// A core AS receives beacons only on core links, and only core ASes have core links.
+// Call it only after verifying the segment:
+// verification succeeds only if the TRCs that list the core ASes are available.
+//
+// [draft section 2.3.1]: https://datatracker.ietf.org/doc/html/draft-dekater-scion-controlplane-18#section-2.3.1
+func (h Handler) validateCoreASes(
+	ctx context.Context, b beacon.Beacon, intf *ifstate.Interface,
+) error {
+	if intf.TopoInfo().LinkType != topology.Core {
+		return nil
+	}
+	for _, asEntry := range b.Segment.ASEntries {
+		core, err := h.Inspector.HasAttributes(ctx, asEntry.Local, trust.Core)
+		if err != nil {
+			return serrors.Wrap(
+				"checking whether AS is core", err, "isd_as", asEntry.Local,
+			)
+		}
+		if !core {
+			return serrors.JoinNoStack(errNonCoreAS, nil, "isd_as", asEntry.Local)
+		}
 	}
 	return nil
 }
