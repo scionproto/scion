@@ -1,3 +1,4 @@
+load("@rules_go//go:def.bzl", "go_library")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
@@ -49,4 +50,19 @@ filegroup(
     srcs = [":clab_node.load"],
     output_group = "tarball",
     visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "env.go",
+        "phased.go",
+    ],
+    importpath = "github.com/scionproto/scion/testing/clab",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+        "@rules_go//go/runfiles:go_default_library",
+    ],
 )
