@@ -149,6 +149,9 @@ func (s *supervisor) run() {
 // container log stays attributable (see pump).
 func (s *supervisor) startLocked(m *managed) {
 	cmd := exec.Command(m.svc.binary, m.svc.args...)
+	if len(m.svc.env) > 0 {
+		cmd.Env = append(os.Environ(), m.svc.env...)
+	}
 	r, w, err := os.Pipe()
 	if err != nil {
 		s.log.Error("failed to create log pipe", "service", m.svc.name, "err", err)
