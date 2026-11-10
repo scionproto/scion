@@ -342,6 +342,12 @@ stays deployed between the phases::
    bazel run //testing/clab/system_test:go_default_test_run
    bazel run //testing/clab/system_test:go_default_test_teardown
 
+The SCION IP gateways are tested in the same way, in a lab generated with
+:option:`testgen --gateways`. The test pings through the gateways for each combination of RPC
+protocols of the control services and gateways::
+
+   bazel test //gateway/system_test:go_default_test --test_output=streamed
+
 scion.sh
 ========
 
