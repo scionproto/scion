@@ -17,8 +17,9 @@ package asinfo
 import (
 	"net"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/topology"
@@ -70,16 +71,12 @@ func newLoaderMetrics() topology.LoaderMetrics {
 		[]string{prom.LabelResult},
 	)
 	return topology.LoaderMetrics{
-		ValidationErrors: metrics.NewPromCounter(updates).With(prom.LabelResult, "err_validate"),
-		ReadErrors:       metrics.NewPromCounter(updates).With(prom.LabelResult, "err_read"),
-		LastUpdate: metrics.NewPromGauge(
-			prom.NewGaugeVec(
-				"", "",
-				"topology_last_update_time",
-				"Timestamp of the last successful update.",
-				[]string{},
-			),
+		Errors: updates.With(prometheus.Labels{prom.LabelResult: "err"}),
+		LastUpdate: prom.NewGauge(
+			"", "",
+			"topology_last_update_time",
+			"Timestamp of the last successful update.",
 		),
-		Updates: metrics.NewPromCounter(updates).With(prom.LabelResult, prom.Success),
+		Updates: updates.With(prometheus.Labels{prom.LabelResult: prom.Success}),
 	}
 }

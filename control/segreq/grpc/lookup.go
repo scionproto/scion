@@ -21,7 +21,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -42,10 +42,10 @@ type LookupServer struct {
 
 	// Requests aggregates all the incoming requests received by the handler.
 	// If it is not initialized, nothing is reported.
-	Requests metrics.Counter
+	Requests func(segType string, dstISD addr.ISD, result string) metrics.Counter
 	// SegmentsSent aggregates the number of segments that were transmitted in
 	// response to a segment request.
-	SegmentsSent metrics.Counter
+	SegmentsSent func(segType string, dstISD addr.ISD) metrics.Counter
 }
 
 func (s LookupServer) Segments(ctx context.Context,
@@ -91,7 +91,11 @@ func (s LookupServer) Segments(ctx context.Context,
 
 	logger.Debug("Replied with segments", "count", len(segs))
 	s.updateMetric(span, labels.WithResult(prom.Success), nil)
-	s.incSent(s.SegmentsSent, labels.Desc, len(segs))
+	if s.SegmentsSent != nil {
+		metrics.CounterAdd(
+			s.SegmentsSent(labels.Desc.SegType, labels.Desc.DstISD), float64(len(segs)),
+		)
+	}
 	return &cppb.SegmentsResponse{
 		Segments: m,
 	}, nil
@@ -99,17 +103,11 @@ func (s LookupServer) Segments(ctx context.Context,
 
 func (s LookupServer) updateMetric(span opentracing.Span, l requestLabels, err error) {
 	if s.Requests != nil {
-		s.Requests.With(l.Expand()...).Add(1)
+		metrics.CounterInc(s.Requests(l.Desc.SegType, l.Desc.DstISD, l.Result))
 	}
 	if span != nil {
 		tracing.ResultLabel(span, l.Result)
 		tracing.Error(span, err)
-	}
-}
-
-func (s LookupServer) incSent(c metrics.Counter, labels descLabels, inc int) {
-	if c != nil {
-		c.With(labels.Expand()...).Add(float64(inc))
 	}
 }
 
@@ -125,13 +123,6 @@ type requestLabels struct {
 	Result string
 }
 
-func (l requestLabels) Expand() []string {
-	return append(
-		l.Desc.Expand(),
-		prom.LabelResult, l.Result,
-	)
-}
-
 func (l requestLabels) WithResult(result string) requestLabels {
 	l.Result = result
 	return l
@@ -140,13 +131,6 @@ func (l requestLabels) WithResult(result string) requestLabels {
 type descLabels struct {
 	SegType string
 	DstISD  addr.ISD
-}
-
-func (l descLabels) Expand() []string {
-	return []string{
-		"seg_type", l.SegType,
-		"dst_isd", l.DstISD.String(),
-	}
 }
 
 // determineReplyType determines which type of segments is in the reply. The
