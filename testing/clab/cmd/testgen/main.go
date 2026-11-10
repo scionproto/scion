@@ -44,6 +44,8 @@ func cmd() *cobra.Command {
 		isdDir     bool
 		labName    string
 		hostLinks  bool
+		gateways   bool
+		gatewayV4  string
 	}
 
 	c := &cobra.Command{
@@ -69,6 +71,10 @@ clab and instructions.`,
 			if err != nil {
 				return fmt.Errorf("parsing --network-v6: %w", err)
 			}
+			gatewayV4, err := netip.ParsePrefix(flags.gatewayV4)
+			if err != nil {
+				return fmt.Errorf("parsing --gateway-network: %w", err)
+			}
 			validity, err := util.ParseDuration(flags.asValidity)
 			if err != nil {
 				return fmt.Errorf("parsing --as-validity: %w", err)
@@ -82,6 +88,8 @@ clab and instructions.`,
 				ISDDir:     flags.isdDir,
 				LabName:    flags.labName,
 				HostLinks:  flags.hostLinks,
+				Gateways:   flags.gateways,
+				GatewayV4:  gatewayV4,
 				Writer:     c.OutOrStdout(),
 			})
 		},
@@ -93,6 +101,13 @@ clab and instructions.`,
 	c.Flags().StringVar(&flags.labName, "name", "scion", "containerlab lab name")
 	c.Flags().BoolVar(&flags.hostLinks, "host-links", false,
 		"Link every AS's host-1 node to this machine, giving it a dedicated address in each AS",
+	)
+	c.Flags().BoolVar(&flags.gateways, "gateways", false,
+		"Add a SCION IP gateway to every AS's host-1 node, with an IPv4 prefix per AS "+
+			"that the other gateways tunnel to",
+	)
+	c.Flags().StringVar(&flags.gatewayV4, "gateway-network", def.GatewayV4.String(),
+		"IPv4 network the gateway prefixes are allocated from (one /24 per AS)",
 	)
 	c.Flags().StringVarP(&flags.out, "out", "o", "gen", "Output directory")
 	c.Flags().StringVar(&flags.topo, "topo", "topology/default.topo",

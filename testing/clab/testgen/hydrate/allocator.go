@@ -40,6 +40,15 @@ type Allocator interface {
 	// and the machine running the lab. A is the node side, B the machine side.
 	// The underlay selects the address family.
 	HostLink(ia addr.IA, u topo.UnderlayType) (LinkAlloc, error)
+	// Gateway returns the IPv4 prefix behind an AS's gateway, together with
+	// the address of the gateway host within it.
+	Gateway(ia addr.IA) (GatewayAlloc, error)
+}
+
+// GatewayAlloc is the allocation for a single gateway.
+type GatewayAlloc struct {
+	Prefix netip.Prefix
+	Addr   netip.Addr
 }
 
 // ASAlloc is the allocation for a single AS.
@@ -66,6 +75,20 @@ type ClabConfig struct {
 	// inter-AS link /126s from a separate region (4th hextet 0x8000) and
 	// host-link /126s from another (4th hextet 0x9000).
 	NetworkV6 netip.Prefix
+	// GatewayV4 is the IPv4 network the prefixes behind the gateways are carved
+	// from, one /24 per AS. It must be disjoint from NetworkV4, as the gateway
+	// prefixes are only reachable through the gateway tunnels, and from the
+	// default docker and containerlab networks (see reservedV4).
+	GatewayV4 netip.Prefix
+}
+
+// reservedV4 are the default networks of docker (docker0) and containerlab
+// (the management network). The gateways route their prefixes into the
+// tunnels, so a gateway prefix in one of these networks would cut the
+// containers off from it.
+var reservedV4 = []netip.Prefix{
+	netip.MustParsePrefix("172.17.0.0/16"),
+	netip.MustParsePrefix("172.20.20.0/24"),
 }
 
 // DefaultClabConfig returns the default allocator configuration.
@@ -73,6 +96,8 @@ func DefaultClabConfig() ClabConfig {
 	return ClabConfig{
 		NetworkV4: netip.MustParsePrefix("10.0.0.0/8"),
 		NetworkV6: netip.MustParsePrefix("fd00:f00d:cafe::/48"),
+		// Room for 256 ASes, clear of the docker and containerlab defaults.
+		GatewayV4: netip.MustParsePrefix("172.16.0.0/16"),
 	}
 }
 
@@ -161,6 +186,36 @@ func (a *clabAllocator) HostLink(ia addr.IA, u topo.UnderlayType) (LinkAlloc, er
 		A:      offset(base, 1),
 		B:      offset(base, 2),
 	}, nil
+}
+
+func (a *clabAllocator) Gateway(ia addr.IA) (GatewayAlloc, error) {
+	i, ok := a.asIndex[ia]
+	if !ok {
+		return GatewayAlloc{}, serrors.New("AS not known to allocator", "as", ia)
+	}
+	if !a.cfg.GatewayV4.IsValid() || !a.cfg.GatewayV4.Addr().Is4() {
+		return GatewayAlloc{}, serrors.New("no IPv4 gateway network configured")
+	}
+	if a.cfg.GatewayV4.Overlaps(a.cfg.NetworkV4) {
+		return GatewayAlloc{}, serrors.New("gateway network overlaps the base network",
+			"gateway_network", a.cfg.GatewayV4, "network", a.cfg.NetworkV4)
+	}
+	// One /24 per AS: base + i*256.
+	base := offset(a.cfg.GatewayV4.Masked().Addr(), uint64(i)*256)
+	prefix := netip.PrefixFrom(base, 24)
+	last := offset(base, 255)
+	if !a.cfg.GatewayV4.Contains(last) {
+		return GatewayAlloc{}, serrors.New("gateway network too small",
+			"network", a.cfg.GatewayV4, "as", ia)
+	}
+	for _, r := range reservedV4 {
+		if prefix.Overlaps(r) {
+			return GatewayAlloc{}, serrors.New(
+				"gateway prefix overlaps a docker or containerlab network",
+				"prefix", prefix, "reserved", r, "as", ia)
+		}
+	}
+	return GatewayAlloc{Prefix: prefix, Addr: offset(base, 1)}, nil
 }
 
 // withHextet3 returns base (an IPv6 address) with its 4th hextet (bits 64-79)
