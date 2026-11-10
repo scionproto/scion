@@ -60,26 +60,44 @@ func renderServices(cfg config.Config, configDir, binDir string) ([]service, err
 	if err != nil {
 		return nil, fmt.Errorf("rendering service configs: %w", err)
 	}
-	var services []service
 	for _, f := range files {
 		path := filepath.Join(configDir, f.Name)
 		if err := os.WriteFile(path, f.Content, 0o644); err != nil {
 			return nil, fmt.Errorf("writing %q: %w", path, err)
 		}
+	}
+	return servicesOf(files, configDir, binDir), nil
+}
+
+// configuredServices returns the services that renderServices would return,
+// without writing any files. It is for inspecting a node: the configuration
+// files in configDir may have been edited, e.g. by a test, and must be kept.
+func configuredServices(cfg config.Config, configDir, binDir string) ([]service, error) {
+	files, err := prism.Render(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("rendering service configs: %w", err)
+	}
+	return servicesOf(files, configDir, binDir), nil
+}
+
+// servicesOf returns the services that run the rendered files, ordered as
+// described in renderServices.
+func servicesOf(files []prism.ServiceFile, configDir, binDir string) []service {
+	var services []service
+	for _, f := range files {
 		services = append(services, service{
 			name:   strings.TrimSuffix(f.Name, ".toml"),
 			binary: filepath.Join(binDir, f.Binary),
-			args:   []string{"--config", path},
+			args:   []string{"--config", filepath.Join(configDir, f.Name)},
 		})
 	}
-
 	slices.SortFunc(services, func(a, b service) int {
 		return cmp.Or(
 			cmp.Compare(startOrder[filepath.Base(a.binary)], startOrder[filepath.Base(b.binary)]),
 			cmp.Compare(a.name, b.name),
 		)
 	})
-	return services, nil
+	return services
 }
 
 // printServices writes the discovered services as an aligned table: the service
