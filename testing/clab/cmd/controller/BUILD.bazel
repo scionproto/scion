@@ -7,6 +7,7 @@ go_library(
         "main.go",
         "main_unsupported.go",
         "network_linux.go",
+        "restart.go",
         "service.go",
         "status.go",
         "supervisor.go",
@@ -38,6 +39,7 @@ go_test(
     srcs = [
         "controller_test.go",
         "network_test.go",
+        "restart_test.go",
         "status_test.go",
     ],
     embed = [":go_default_library"],
