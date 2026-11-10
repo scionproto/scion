@@ -25,6 +25,8 @@ import (
 	controlconfig "github.com/scionproto/scion/control/config"
 	daemonconfig "github.com/scionproto/scion/daemon/config"
 	dispatcherconfig "github.com/scionproto/scion/dispatcher/config"
+	gatewayconfig "github.com/scionproto/scion/gateway/config"
+	"github.com/scionproto/scion/gateway/control"
 	"github.com/scionproto/scion/pkg/addr"
 	routerconfig "github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/testing/clab/cmd/controller/config"
@@ -116,4 +118,54 @@ func TestRenderOnlyPresentElements(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 	assert.Equal(t, "br1-ff00_0_110-2.toml", files[0].Name)
+}
+
+func TestRenderGateway(t *testing.T) {
+	ap := netip.MustParseAddrPort
+	c := config.Config{SCION: config.SCION{ASes: []config.AS{{
+		ISDAS: addr.MustParseIA("1-ff00:0:110"),
+		Gateway: &config.Gateway{
+			ID:          "gw1-ff00_0_110",
+			CtrlAddr:    ap("10.0.0.1:30256"),
+			DataAddr:    ap("10.0.0.1:30056"),
+			ProbeAddr:   ap("10.0.0.1:30856"),
+			APIAddr:     ap("10.0.0.1:41400"),
+			Daemon:      ap("10.0.0.1:30255"),
+			TunnelSrcV4: netip.MustParseAddr("172.16.0.1"),
+			Remotes: []config.GatewayRemote{{
+				ISDAS:    addr.MustParseIA("1-ff00:0:111"),
+				Prefixes: []netip.Prefix{netip.MustParsePrefix("172.16.1.0/24")},
+			}},
+		},
+	}}}}
+	files, err := prism.Render(c)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	f := files[0]
+	assert.Equal(t, "gw1-ff00_0_110.toml", f.Name)
+	assert.Equal(t, "gateway", f.Binary)
+	assert.Contains(t, f.Env, "SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL=1s")
+
+	var gc gatewayconfig.Config
+	require.NoError(t, toml.Unmarshal(f.Content, &gc))
+	gc.InitDefaults()
+	require.NoError(t, gc.Validate())
+	assert.Equal(t, "gw1-ff00_0_110", gc.Gateway.ID)
+	assert.Equal(t, "10.0.0.1:30256", gc.Gateway.CtrlAddr)
+	assert.Equal(t, "10.0.0.1:30056", gc.Gateway.DataAddr)
+	assert.Equal(t, "10.0.0.1:30856", gc.Gateway.ProbeAddr)
+	assert.Equal(t, "10.0.0.1:41400", gc.API.Addr)
+	assert.Equal(t, "10.0.0.1:30255", gc.Daemon.Address)
+	assert.Equal(t, "172.16.0.1", gc.Tunnel.SrcIPv4.String())
+	assert.Equal(t, "/etc/scion/gw1-ff00_0_110.traffic.json", gc.Gateway.TrafficPolicy)
+
+	// The traffic policy is the legacy format that the gateway parses.
+	require.Len(t, f.Aux, 1)
+	assert.Equal(t, "gw1-ff00_0_110.traffic.json", f.Aux[0].Name)
+	policies, err := control.LegacySessionPolicyAdapter{}.Parse(t.Context(), f.Aux[0].Content)
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, addr.MustParseIA("1-ff00:0:111"), policies[0].IA)
+	require.Len(t, policies[0].Prefixes, 1)
+	assert.Equal(t, "172.16.1.0/24", policies[0].Prefixes[0].String())
 }

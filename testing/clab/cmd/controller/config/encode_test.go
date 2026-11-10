@@ -49,6 +49,19 @@ func sampleConfig() config.Config {
 				Address: ap("10.0.0.1:30255"),
 				APIAddr: ap("10.0.0.1:30455"),
 			},
+			Gateway: &config.Gateway{
+				ID:          "gw1-ff00_0_110-1",
+				CtrlAddr:    ap("10.0.0.1:30256"),
+				DataAddr:    ap("10.0.0.1:30056"),
+				ProbeAddr:   ap("10.0.0.1:30856"),
+				APIAddr:     ap("10.0.0.1:30456"),
+				Daemon:      ap("10.0.0.1:30255"),
+				TunnelSrcV4: netip.MustParseAddr("172.16.0.1"),
+				Remotes: []config.GatewayRemote{{
+					ISDAS:    addr.MustParseIA("1-ff00:0:111"),
+					Prefixes: []netip.Prefix{netip.MustParsePrefix("172.16.1.0/24")},
+				}},
+			},
 			Neighbors: []config.Neighbor{{
 				ISDAS:        addr.MustParseIA("1-ff00:0:111"),
 				Relationship: config.Child,

@@ -2,17 +2,19 @@ load("@rules_go//go:def.bzl", "go_library")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
-# All SCION binaries the controller supervises, plus the controller itself
-# (the image entrypoint / PID 1), the scion CLI for in-node debugging, and the
-# e2e_http server/client used by the HTTP/3 end-to-end test. They are packaged
-# into /app, which is where the controller looks for them by default
-# (--bin-dir, SCION_BIN_DIR).
+# All SCION binaries the controller supervises (the gateway runs only in labs
+# generated with testgen --gateways), plus the controller itself (the image
+# entrypoint / PID 1), the scion CLI for in-node debugging, and the e2e_http
+# server/client used by the HTTP/3 end-to-end test. They are packaged into
+# /app, which is where the controller looks for them by default (--bin-dir,
+# SCION_BIN_DIR).
 pkg_tar(
     name = "clab_node_bins",
     srcs = [
         "//control/cmd/control",
         "//daemon/cmd/daemon",
         "//dispatcher/cmd/dispatcher",
+        "//gateway/cmd/gateway",
         "//router/cmd/router",
         "//scion/cmd/scion",
         "//testing/clab/cmd/controller",
