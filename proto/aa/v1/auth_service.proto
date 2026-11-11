@@ -1,0 +1,52 @@
+// Copyright 2026 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package anapaya.aa.v1;
+
+// AuthService is the public-facing authentication endpoint for clients.
+service AuthService {
+  // AuthenticateByKey verifies an API key + device ID and returns a signed SNAP
+  // token on success.
+  rpc AuthenticateByKey(AuthenticateByKeyRequest) returns (AuthenticateByKeyResponse);
+}
+
+// Request to authenticate a client by API key.
+message AuthenticateByKeyRequest {
+  // The raw API key secret (prefixed with "aakey_").
+  string api_key = 1;
+  // Client-supplied device identifier.
+  string device_id = 2;
+  // Requested token TTL in seconds. 0 means "use the default" (3600).
+  // Values below 900 and above 86400 are clamped to the nearest boundary.
+  int32 requested_validity = 3;
+}
+
+// Metadata returned alongside the authentication response.
+message Metadata {
+  // URL of the endhost API discovery service scoped to the authenticated user.
+  // When present and non-empty, the client should use this URL to discover
+  // authorised endhost APIs instead of the global discovery service at
+  // https://discovery.scion.anapaya.net.
+  optional string endhost_api_discovery_url = 1;
+}
+
+// Response containing the signed SNAP token.
+message AuthenticateByKeyResponse {
+  // The signed JWT SNAP token.
+  string snap_token = 1;
+  // Optional metadata provided by the AA service.
+  optional Metadata metadata = 2;
+}

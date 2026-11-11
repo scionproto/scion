@@ -77,13 +77,18 @@ type Topology struct {
 	MTU              int    `json:"mtu"`
 	EndhostPortRange string `json:"dispatched_ports"`
 	// Attributes specify whether this is a core AS or not.
-	Attributes          Attributes              `json:"attributes"`
-	BorderRouters       map[string]*BRInfo      `json:"border_routers,omitempty"`
-	ControlService      map[string]*ServerInfo  `json:"control_service,omitempty"`
-	DiscoveryService    map[string]*ServerInfo  `json:"discovery_service,omitempty"`
-	HiddenSegmentLookup map[string]*ServerInfo  `json:"hidden_segment_lookup_service,omitempty"`
-	HiddenSegmentReg    map[string]*ServerInfo  `json:"hidden_segment_registration_service,omitempty"`
-	SIG                 map[string]*GatewayInfo `json:"sigs,omitempty"`
+	Attributes          Attributes                 `json:"attributes"`
+	BorderRouters       map[string]*BRInfo         `json:"border_routers,omitempty"`
+	EndhostAPI          map[string]*EndhostAPIInfo `json:"endhost_api,omitempty"`
+	ControlService      map[string]*ServerInfo     `json:"control_service,omitempty"`
+	DiscoveryService    map[string]*ServerInfo     `json:"discovery_service,omitempty"`
+	HiddenSegmentLookup map[string]*ServerInfo     `json:"hidden_segment_lookup_service,omitempty"`
+	HiddenSegmentReg    map[string]*ServerInfo     `json:"hidden_segment_registration_service,omitempty"`
+	SIG                 map[string]*GatewayInfo    `json:"sigs,omitempty"`
+}
+
+type EndhostAPIInfo struct {
+	Url string `json:"url"`
 }
 
 // ServerInfo contains the information for a SCION application running in the local AS.

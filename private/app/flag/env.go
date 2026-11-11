@@ -91,6 +91,8 @@ type SCIONEnvironment struct {
 	configDirFlag *pflag.Flag
 	file          env.SCION
 	filepath      string
+	endhostApi    *pflag.Flag
+	endhostEnv    *string
 
 	mtx sync.Mutex
 }
@@ -114,6 +116,11 @@ func (e *SCIONEnvironment) Register(flagSet *pflag.FlagSet) {
 the local topology.json (IP:Port or "default" for `+defaultDaemon+`).
 If both --sciond and --config-dir are set, --sciond takes priority.`,
 	)
+	endhostApi := ""
+	e.endhostApi = flagSet.VarPF((*stringVal)(&endhostApi),
+		"endhost", "",
+		`Connect to the endhost API at the specified endpoint 
+		([scheme]://[host]:[port]/[PathPrefix])`)
 
 	configDirHelp := `Directory containing topology.json and certs/ for standalone mode.
 If both --sciond and --config-dir are set, --sciond takes priority.
@@ -138,9 +145,15 @@ func (e *SCIONEnvironment) Validate() error {
 
 	sciondSet := e.sciondFlag != nil && e.sciondFlag.Changed
 	configDirSet := e.configDirFlag != nil && e.configDirFlag.Changed
+	endhostSet := e.endhostApi != nil && e.endhostApi.Changed
 
 	// If either flag is explicitly set, we're good
-	if sciondSet || configDirSet {
+	if sciondSet || configDirSet || endhostSet {
+		return nil
+	}
+
+	// Check if an endhost API endpoint is configured via environment
+	if e.endhostEnv != nil {
 		return nil
 	}
 
@@ -155,7 +168,8 @@ func (e *SCIONEnvironment) Validate() error {
 	}
 
 	// On non-Linux platforms with no flags set, we need either --sciond or --config-dir
-	return serrors.New("either --sciond or --config-dir must be specified on this platform")
+	return serrors.New(`either --endhost or --sciond or --config-dir must
+	be specified on this platform`)
 }
 
 // LoadExternalVar loads variables from the SCION environment file and from the
@@ -201,6 +215,9 @@ func (e *SCIONEnvironment) loadFile() error {
 // before accessing the values, otherwise the environment variables are not
 // respected.
 func (e *SCIONEnvironment) loadEnv() error {
+	if d, ok := os.LookupEnv("SCION_ENDHOST_API"); ok {
+		e.endhostEnv = &d
+	}
 	if d, ok := os.LookupEnv("SCION_DAEMON"); ok {
 		e.sciondEnv = &d
 	}
@@ -243,6 +260,20 @@ func (e *SCIONEnvironment) Daemon() string {
 	}
 	if as, ok := e.file.ASes[ia]; ok && as.DaemonAddress != "" {
 		return as.DaemonAddress
+	}
+	return ""
+}
+
+func (e *SCIONEnvironment) EndhostApi() string {
+	e.mtx.Lock()
+	defer e.mtx.Unlock()
+
+	if e.endhostApi != nil && e.endhostApi.Changed {
+		value := e.endhostApi.Value.String()
+		return value
+	}
+	if e.endhostEnv != nil {
+		return *e.endhostEnv
 	}
 	return ""
 }

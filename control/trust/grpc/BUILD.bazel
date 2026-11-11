@@ -4,6 +4,7 @@ load("//tools:go.bzl", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "endhost.go",
         "material.go",
         "proto.go",
     ],
@@ -17,6 +18,7 @@ go_library(
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
+        "//pkg/proto/endhost:go_default_library",
         "//pkg/scrypto:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
         "//private/tracing:go_default_library",

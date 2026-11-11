@@ -34,8 +34,8 @@ import (
 )
 
 const (
-	// Daemon is a placeholder for the Daemon server in the arguments.
-	Daemon = "<SCIOND>"
+	EndhostAPI = "<ENDHOST_API>"
+	Daemon     = "<SCIOND>"
 	// TopoDir is a placeholder for the topology directory in the arguments.
 	TopoDir = "<TOPODIR>"
 	// ServerPortReplace is a placeholder for the server port in the arguments.
@@ -114,6 +114,13 @@ func (bi *binaryIntegration) Name() string {
 func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr) (Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.IA.String(), bi.serverArgs)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
+	if needEndhostAPI(args) {
+		endhostAddr, err := GetEndhostAPIAddress(dst.IA)
+		if err != nil {
+			return nil, serrors.Wrap("unable to determine endhost APIaddress", err)
+		}
+		args = replacePattern(EndhostAPI, endhostAddr, args)
+	}
 	if needSCIOND(args) {
 		daemonAddr, err := GetSCIONDAddress(GenFile(DaemonAddressesFile), dst.IA)
 		if err != nil {
@@ -192,6 +199,13 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	args = replacePattern(ServerPortReplace, serverPorts[dst.IA], args)
+	if needEndhostAPI(args) {
+		endhostAddr, err := GetEndhostAPIAddress(src.IA)
+		if err != nil {
+			return nil, serrors.Wrap("unable to determine endhost APIaddress", err)
+		}
+		args = replacePattern(EndhostAPI, endhostAddr, args)
+	}
 	if needSCIOND(args) {
 		daemonAddr, err := GetSCIONDAddress(GenFile(DaemonAddressesFile), src.IA)
 		if err != nil {
@@ -269,6 +283,15 @@ func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.Reader) 
 	for scanner.Scan() {
 		fmt.Fprintln(w, scanner.Text())
 	}
+}
+
+func needEndhostAPI(args []string) bool {
+	for _, arg := range args {
+		if strings.Contains(arg, EndhostAPI) {
+			return true
+		}
+	}
+	return false
 }
 
 func needSCIOND(args []string) bool {

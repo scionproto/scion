@@ -76,6 +76,9 @@ type Metrics struct {
 	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
 	SegmentRegistrationsTotal              *prometheus.CounterVec
 	SegmentExpirationDeficient             *prometheus.GaugeVec
+	ListSegmentsRequestsTotal              *prometheus.CounterVec
+	ListSegmentsSentSegments               *prometheus.CounterVec
+	UnderlaysRequestsTotal                 *prometheus.CounterVec
 	TrustDBQueriesTotal                    *prometheus.CounterVec
 	TrustLatestTRCNotBefore                prometheus.Gauge
 	TrustLatestTRCNotAfter                 prometheus.Gauge
@@ -251,6 +254,27 @@ func NewMetrics() *Metrics {
 				Help: "Indicates whether the expiration time of the segment is below the " +
 					"configured maximum. This happens when the signer expiration time is lower " +
 					"than the maximum segment expiration time.",
+			},
+			[]string{},
+		),
+		ListSegmentsRequestsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "endhost_segments_requests_total",
+				Help: "Total number list segments requests received.",
+			},
+			[]string{},
+		),
+		ListSegmentsSentSegments: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "endhost_segments_sent_total",
+				Help: "Total number list segments returned.",
+			},
+			[]string{},
+		),
+		UnderlaysRequestsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "endhost_underlay_requests_total",
+				Help: "Total number underlays requests received.",
 			},
 			[]string{},
 		),
