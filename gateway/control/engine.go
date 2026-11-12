@@ -1,5 +1,5 @@
 // Copyright 2020 Anapaya Systems
-// Copyright 2025 SCION Association
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -163,8 +163,9 @@ func (e *Engine) Status(w io.Writer) {
 	defer e.stateMtx.RUnlock()
 
 	type session struct {
-		ID       uint8
-		PolicyID int
+		ID         uint8
+		PolicyID   int
+		PolicyName string
 
 		ProbeAddr *net.UDPAddr
 		Healthy   bool
@@ -212,6 +213,7 @@ func (e *Engine) Status(w io.Writer) {
 			iaSessions[sc.ID] = entry
 		}
 		entry.PolicyID = sc.PolicyID
+		entry.PolicyName = sc.PolicyName
 	}
 	sortedIAs := make([]addr.IA, 0, len(sessions))
 	for ia := range sessions {
@@ -227,8 +229,11 @@ func (e *Engine) Status(w io.Writer) {
 		}
 		sort.Slice(iaSessions, func(i, j int) bool { return iaSessions[i].ID < iaSessions[j].ID })
 		for _, s := range iaSessions {
-			fmt.Fprintf(w, "  SESSION %d, POLICY_ID %d, REMOTE: %s, HEALTHY %t\n",
-				s.ID, s.PolicyID, s.ProbeAddr, s.Healthy)
+			fmt.Fprintf(w, "  SESSION %d, POLICY_ID %d", s.ID, s.PolicyID)
+			if s.PolicyName != "" {
+				fmt.Fprintf(w, ", POLICY_NAME %q", s.PolicyName)
+			}
+			fmt.Fprintf(w, ", REMOTE: %s, HEALTHY %t\n", s.ProbeAddr, s.Healthy)
 			fmt.Fprint(w, "    PATHS:\n")
 			mustRenderPathInfo(s.PathInfo, w, 2)
 			fmt.Fprint(w, "\n")

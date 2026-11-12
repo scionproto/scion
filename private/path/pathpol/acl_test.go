@@ -1,4 +1,5 @@
 // Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,6 +50,10 @@ func TestNewACL(t *testing.T) {
 				{Action: Deny, Rule: mustHopPredicate(t, "0-0#0")},
 			},
 		},
+		"Nil entry": {
+			Entries:     []*ACLEntry{nil, {Action: Allow}},
+			ExpectedErr: ErrNullEntry,
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -87,6 +92,14 @@ func TestUnmarshal(t *testing.T) {
 		"Extra entries (in the middle)": {
 			Input:       `["+ 42", "-", "+ 27", "- 30"]`,
 			ExpectedErr: ErrExtraEntries,
+		},
+		"Null entry": {
+			Input:       `[null, "+"]`,
+			ExpectedErr: ErrNullEntry,
+		},
+		"Null entry after default entry": {
+			Input:       `["+", null]`,
+			ExpectedErr: ErrNullEntry,
 		},
 	}
 	for name, test := range tests {

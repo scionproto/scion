@@ -1,5 +1,6 @@
 // Copyright 2018 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +30,8 @@ var (
 	ErrNoDefault = errors.New("ACL does not have a default")
 	// ErrExtraEntries indicates that there extra entries after the default entry.
 	ErrExtraEntries = errors.New("ACL has unused extra entries after a default entry")
+	// ErrNullEntry indicates that an entry is nil.
+	ErrNullEntry = errors.New("ACL entry must not be null")
 )
 
 type ACL struct {
@@ -101,6 +104,12 @@ func (a *ACL) evalInterface(iface snet.PathInterface, ingress bool) ACLAction {
 func validateACL(entries []*ACLEntry) error {
 	if len(entries) == 0 {
 		return ErrNoDefault
+	}
+
+	for i, e := range entries {
+		if e == nil {
+			return serrors.JoinNoStack(ErrNullEntry, nil, "index", i)
+		}
 	}
 
 	foundAt := -1

@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,13 +17,13 @@ package control
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"os"
 
 	"github.com/scionproto/scion/gateway/pathhealth/policies"
 	"github.com/scionproto/scion/gateway/pktcls"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/path/pathpol"
 )
@@ -38,44 +39,38 @@ var (
 	DefaultPathCount  = 1
 )
 
-// LegacySessionPolicyAdapter parses the legacy gateway JSON configuration and
-// adapts it into the session policies format.
-type LegacySessionPolicyAdapter struct{}
+// TrafficPolicyParser parses the traffic policy file into session policies. The file can use the
+// legacy format or SessionPolicies.
+type TrafficPolicyParser struct{}
 
 // Parse parses the raw JSON into a SessionPolicies struct.
-func (LegacySessionPolicyAdapter) Parse(ctx context.Context, raw []byte) (SessionPolicies, error) {
-	type JSONFormat struct {
-		ASes map[addr.IA]struct {
-			Nets      []string
-			PathCount int
-		}
-		ConfigVersion uint64
+func (TrafficPolicyParser) Parse(ctx context.Context, raw []byte) (SessionPolicies, error) {
+	sessionPolicies, warnings, err := parseTrafficPolicy(raw)
+	logger := log.FromCtx(ctx)
+	for _, w := range warnings {
+		logWarning(logger, w)
 	}
-	cfg := &JSONFormat{}
-	if err := json.Unmarshal(raw, cfg); err != nil {
-		return nil, serrors.Wrap("parsing JSON", err)
+	if err != nil {
+		return nil, err
 	}
-	policies := make(SessionPolicies, 0, len(cfg.ASes))
-	for ia, asEntry := range cfg.ASes {
-		prefixes, err := parsePrefixes(asEntry.Nets)
-		if err != nil {
-			return nil, err
-		}
-		pathCount := DefaultPathCount
-		if asEntry.PathCount != 0 {
-			pathCount = asEntry.PathCount
-		}
-		policies = append(policies, SessionPolicy{
-			ID:             0,
-			IA:             ia,
-			TrafficMatcher: pktcls.CondTrue,
-			PerfPolicy:     DefaultPerfPolicy,
-			PathPolicy:     DefaultPathPolicy,
-			PathCount:      pathCount,
-			Prefixes:       prefixes,
-		})
+	return sessionPolicies, nil
+}
+
+func logWarning(logger log.Logger, w trafficPolicyWarning) {
+	if w.IA != nil {
+		logger = logger.New("isd_as", *w.IA)
 	}
-	return policies, nil
+	if w.PolicyID != nil {
+		logger = logger.New("session_policy_id", *w.PolicyID)
+	}
+	if w.PolicyName != "" {
+		logger = logger.New("session_policy_name", w.PolicyName)
+	}
+	if w.Severe {
+		logger.Error("Traffic policy file warning", "warning", w.Msg)
+		return
+	}
+	logger.Info("Traffic policy file warning", "warning", w.Msg)
 }
 
 func parsePrefixes(rawNets []string) ([]*net.IPNet, error) {
@@ -143,8 +138,9 @@ func (p SessionPolicies) Copy() SessionPolicies {
 // consists of a
 // - remote IA, identifying the remote this policy is for,
 // - policy id, together with the remote IA uniquely identifying the policy,
+// - an optional name,
 // - traffic class, defined by a traffic matcher,
-// - a path class defined by a path policy,
+// - a path policy,
 // - a performance policy,
 // - a path count,
 // - a remote IA,
@@ -154,12 +150,13 @@ type SessionPolicy struct {
 	IA addr.IA
 	// ID identifies a session policy to a remote AS, i.e., the tuple (IA, ID) is unique.
 	ID int
+	// Name is the optional name of the session policy.
+	Name string
 	// TrafficMatcher contains the conditions the IP traffic must satisfy to use
 	// this session.
 	TrafficMatcher pktcls.Cond
 	// PerfPolicy specifies which paths should be preferred (e.g., the path with
-	// the lowest latency). If unset, paths with the lowest latency are
-	// preferred.
+	// the lowest latency). The path selector does not use it yet.
 	PerfPolicy policies.PerfPolicy
 	// PathPolicy specifies the path properties that paths used for this session
 	// must satisfy.
@@ -172,17 +169,18 @@ type SessionPolicy struct {
 	Prefixes []*net.IPNet
 }
 
-// Copy creates a deep copy.
+// Copy returns a copy of the session policy. The copy shares PathPolicy and PerfPolicy,
+// because no code changes them after the parser creates them.
 func (sp SessionPolicy) Copy() SessionPolicy {
 	return SessionPolicy{
 		ID:             sp.ID,
+		Name:           sp.Name,
 		IA:             sp.IA,
 		TrafficMatcher: copyTrafficMatcher(sp.TrafficMatcher),
-		// TODO(lukedirtwalker): find a way to properly copy perf policies.
-		PerfPolicy: sp.PerfPolicy,
-		PathPolicy: copyPathPolicy(sp.PathPolicy),
-		PathCount:  sp.PathCount,
-		Prefixes:   copyPrefixes(sp.Prefixes),
+		PerfPolicy:     sp.PerfPolicy,
+		PathPolicy:     sp.PathPolicy,
+		PathCount:      sp.PathCount,
+		Prefixes:       copyPrefixes(sp.Prefixes),
 	}
 }
 
@@ -192,23 +190,6 @@ func copyTrafficMatcher(m pktcls.Cond) pktcls.Cond {
 		panic(err)
 	}
 	return copy
-}
-
-// FIXME(lukedirtwalker): this is a minefield. If a policy doesn't implement the
-// json marshalling this will fail spectacularly.
-func copyPathPolicy(p policies.PathPolicy) policies.PathPolicy {
-	if p == DefaultPathPolicy {
-		return p
-	}
-	raw, err := json.Marshal(p)
-	if err != nil {
-		panic(err)
-	}
-	pol := pathpol.Policy{}
-	if err = json.Unmarshal(raw, &pol); err != nil {
-		panic(err)
-	}
-	return &pol
 }
 
 func copyPrefixes(prefixes []*net.IPNet) []*net.IPNet {

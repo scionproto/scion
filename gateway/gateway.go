@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -339,7 +340,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// then aggregated, before being pushed to session construction.
 	// *************************************************************************
 
-	legacySessionPolicyAdapter := &control.LegacySessionPolicyAdapter{}
+	trafficPolicyParser := &control.TrafficPolicyParser{}
 
 	// We know we have two subscribers, so we initialize the subscriptions right from the start.
 	// Once subscribed, publish immediately.
@@ -352,7 +353,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		RoutingPolicyFile:   g.RoutingPolicyFile,
 		Publisher:           configPublisher,
 		Trigger:             g.ConfigReloadTrigger,
-		SessionPolicyParser: legacySessionPolicyAdapter,
+		SessionPolicyParser: trafficPolicyParser,
 	}
 
 	go func() {
