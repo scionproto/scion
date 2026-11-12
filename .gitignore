@@ -89,6 +89,7 @@ _build
 #########################
 .idea/
 .ijwb/
+.bazelbsp/
 
 # node modules
 ##############

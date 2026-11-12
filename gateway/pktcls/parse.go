@@ -1,4 +1,5 @@
 // Copyright 2018 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,13 +70,27 @@ func (l *classListener) EnterTrafficClass(ctx *traffic_class.TrafficClassContext
 	l.incCondDep()
 }
 
+const maxDSCP = 0x3f
+
+func parseNet(cidr string) (*net.IPNet, error) {
+	ip, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil, serrors.Wrap("CIDR parsing failed!", err, "cidr", cidr)
+	}
+	if !ip.Equal(ipNet.IP) {
+		return ipNet, serrors.New("CIDR has host bits", "cidr", cidr,
+			"network", ipNet.String())
+	}
+	return ipNet, nil
+}
+
 func (l *classListener) EnterMatchDst(ctx *traffic_class.MatchDstContext) {
 	// Push Selector as Predicate on stack and update the number of Conds on the stack
 	var err error
 	mdst := &IPv4MatchDestination{}
-	_, mdst.Net, err = net.ParseCIDR(ctx.GetStop().GetText())
+	mdst.Net, err = parseNet(ctx.GetStop().GetText())
 	if err != nil {
-		l.err = serrors.Wrap("CIDR parsing failed!", err, "cidr", ctx.GetStop().GetText())
+		l.err = err
 	}
 	l.pushCond(NewCondIPv4(mdst))
 }
@@ -84,9 +99,9 @@ func (l *classListener) EnterMatchSrc(ctx *traffic_class.MatchSrcContext) {
 	// Push Selector as Predicate on stack and update the number of Conds on the stack
 	var err error
 	msrc := &IPv4MatchSource{}
-	_, msrc.Net, err = net.ParseCIDR(ctx.GetStop().GetText())
+	msrc.Net, err = parseNet(ctx.GetStop().GetText())
 	if err != nil {
-		l.err = serrors.Wrap("CIDR parsing failed!", err, "cidr", ctx.GetStop().GetText())
+		l.err = err
 	}
 	l.pushCond(NewCondIPv4(msrc))
 }
@@ -97,6 +112,9 @@ func (l *classListener) EnterMatchDSCP(ctx *traffic_class.MatchDSCPContext) {
 	dscp, err := strconv.ParseUint(ctx.GetStop().GetText(), 16, 8)
 	if err != nil {
 		l.err = serrors.Wrap("DSCP parsing failed!", err, "dscp", ctx.GetStop().GetText())
+	} else if dscp > maxDSCP {
+		l.err = serrors.New("DSCP value above maximum", "dscp", "0x"+ctx.GetStop().GetText(),
+			"max", "0x"+strconv.FormatUint(maxDSCP, 16))
 	}
 	mdscp.DSCP = uint8(dscp)
 	l.pushCond(NewCondIPv4(mdscp))
@@ -145,13 +163,16 @@ func (l *classListener) EnterMatchSrcPortRange(ctx *traffic_class.MatchSrcPortRa
 	src := &PortMatchSource{}
 	min := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 0).GetText()
 	max := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 1).GetText()
-	msrcMin, err := strconv.ParseUint(min, 10, 16)
-	if err != nil {
-		l.err = serrors.Wrap("SRCPORT parsing failed!", err, "srcport", min)
+	msrcMin, errMin := strconv.ParseUint(min, 10, 16)
+	if errMin != nil {
+		l.err = serrors.Wrap("SRCPORT parsing failed!", errMin, "srcport", min)
 	}
-	msrcMax, err := strconv.ParseUint(max, 10, 16)
-	if err != nil {
-		l.err = serrors.Wrap("SRCPORT parsing failed!", err, "srcport", max)
+	msrcMax, errMax := strconv.ParseUint(max, 10, 16)
+	if errMax != nil {
+		l.err = serrors.Wrap("SRCPORT parsing failed!", errMax, "srcport", max)
+	}
+	if errMin == nil && errMax == nil && msrcMin > msrcMax {
+		l.err = emptyPortRangeError("srcport", min, max)
 	}
 	src.MinPort = uint16(msrcMin)
 	src.MaxPort = uint16(msrcMax)
@@ -177,17 +198,24 @@ func (l *classListener) EnterMatchDstPortRange(ctx *traffic_class.MatchDstPortRa
 	dst := &PortMatchDestination{}
 	min := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 0).GetText()
 	max := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 1).GetText()
-	mdstMin, err := strconv.ParseUint(min, 10, 16)
-	if err != nil {
-		l.err = serrors.Wrap("SRCPORT parsing failed!", err, "dstport", min)
+	mdstMin, errMin := strconv.ParseUint(min, 10, 16)
+	if errMin != nil {
+		l.err = serrors.Wrap("DSTPORT parsing failed!", errMin, "dstport", min)
 	}
-	mdstMax, err := strconv.ParseUint(max, 10, 16)
-	if err != nil {
-		l.err = serrors.Wrap("SRCPORT parsing failed!", err, "dstport", max)
+	mdstMax, errMax := strconv.ParseUint(max, 10, 16)
+	if errMax != nil {
+		l.err = serrors.Wrap("DSTPORT parsing failed!", errMax, "dstport", max)
+	}
+	if errMin == nil && errMax == nil && mdstMin > mdstMax {
+		l.err = emptyPortRangeError("dstport", min, max)
 	}
 	dst.MinPort = uint16(mdstMin)
 	dst.MaxPort = uint16(mdstMax)
 	l.pushCond(NewCondPorts(dst))
+}
+
+func emptyPortRangeError(keyword, min, max string) error {
+	return serrors.New("port range is empty", "keyword", keyword, "min", min, "max", max)
 }
 
 func (l *classListener) EnterCondCls(ctx *traffic_class.CondClsContext) {
@@ -239,13 +267,14 @@ func ValidateTrafficClass(class string) error {
 	p.RemoveErrorListeners()
 	errListener := &ErrorListener{errorType: "Parser"}
 	p.AddErrorListener(errListener)
-	// Walk the tree to validate the traffic class
-	listener := &classListener{}
-	antlr.ParseTreeWalkerDefault.Walk(listener, p.TrafficClass())
+	tree := p.TrafficClass()
 	if errListener.msg != "" {
 		return serrors.New("Parsing of traffic class failed:",
 			"err", errListener.msg)
 	}
+	// Walk the tree to validate the traffic class
+	listener := &classListener{}
+	antlr.ParseTreeWalkerDefault.Walk(listener, tree)
 	if listener.err != nil {
 		return listener.err
 	}
@@ -258,13 +287,14 @@ func BuildClassTree(class string) (Cond, error) {
 	p.RemoveErrorListeners()
 	errListener := &ErrorListener{errorType: "Parser"}
 	p.AddErrorListener(errListener)
-	// Walk the tree and build the traffic class
-	listener := &classListener{}
-	antlr.ParseTreeWalkerDefault.Walk(listener, p.TrafficClass())
+	tree := p.TrafficClass()
 	if errListener.msg != "" {
 		return nil, serrors.New("Parsing of traffic class failed:",
 			"err", errListener.msg)
 	}
+	// Walk the tree and build the traffic class
+	listener := &classListener{}
+	antlr.ParseTreeWalkerDefault.Walk(listener, tree)
 	if listener.err != nil {
 		return nil, listener.err
 	}

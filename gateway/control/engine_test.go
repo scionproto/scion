@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +16,7 @@
 package control_test
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -26,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/gateway/control"
 	"github.com/scionproto/scion/gateway/control/mock_control"
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 func TestEngineRun(t *testing.T) {
@@ -123,4 +126,18 @@ func TestEngineRun(t *testing.T) {
 		err = engine.Run(context.Background())
 		assert.NoError(t, err)
 	})
+}
+
+func TestEngineStatusPolicyName(t *testing.T) {
+	ia := addr.MustParseIA("1-ff00:0:110")
+	engine := &control.Engine{
+		SessionConfigs: []*control.SessionConfig{
+			{ID: 0, PolicyID: 1, PolicyName: "voice", IA: ia},
+			{ID: 1, PolicyID: 2, IA: ia},
+		},
+	}
+	var buf bytes.Buffer
+	engine.Status(&buf)
+	assert.Contains(t, buf.String(), `SESSION 0, POLICY_ID 1, POLICY_NAME "voice", REMOTE: `)
+	assert.Contains(t, buf.String(), "SESSION 1, POLICY_ID 2, REMOTE: ")
 }
