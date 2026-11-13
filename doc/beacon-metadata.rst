@@ -75,6 +75,9 @@ to form end-to-end paths:
    dashed orange lines represent core beacons exchanged over core links
    (labeled "c"). All created forwarding paths in cases 1a-1e traverse the ISD
    core(s), whereas the paths in cases 2-4 do not enter the ISD core.
+   Note that peering links from/to a core AS are only allowed if that AS is part
+   of an UP or DOWN segment. CORE segments do not come with peering metadata,
+   see :doc:`metadata <control-plane>`.
 
 Representation in StaticInfoExtension
 -------------------------------------
@@ -89,7 +92,8 @@ Each ``ASEntry`` includes information about:
 - the intra-AS hop between egress and any (other) ``CORE``-link interface,
   for up-core or core-down segment cross-over
 - the intra-AS hop between egress and any ``PEER``-link interface, and
-  the inter-AS hop at any ``PEER``-interface
+  the inter-AS hop at any ``PEER``-interface. Note that core segment do not contain
+  any peering information.
 
 .. list-table:: Illustration of the information included in the individual ``ASEntry``\s in path segments and how this information is used in path segment combinations. The black circles represent ASes, the shaded circles are core ASes. Solid black lines connecting the ASes represent parent-child or core links, the dashed black line is a peering link. Each color represents an ``ASEntry``. Entries in the up segments are **blue**, core segments are **red** and down segments **green**. Dotted lines represent information about links that is included in the PCBs, but not used in this path segment combination.
 
