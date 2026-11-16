@@ -819,6 +819,17 @@ func notDiscarded(t *testing.T, disp router.Disposition) {
 	require.NotEqual(t, disp, router.PDiscard)
 }
 
+// Expects the packet to be forwarded, that is, neither discarded
+// nor handed over to the slow path.
+func forwarded(t *testing.T, disp router.Disposition) {
+	require.Equal(t, router.PForward, disp)
+}
+
+// Expects the router to respond with an SCMP message (slow path).
+func slowPath(t *testing.T, disp router.Disposition) {
+	require.Equal(t, disp, router.PSlowPath)
+}
+
 func TestProcessPkt(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
@@ -871,6 +882,92 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewPacket(toBytes(t, spkt, dpath), nil, dstAddr, ingress, egress)
 			},
 			assertFunc: notDiscarded,
+		},
+		// The timestamp of the current info field must not lie in the future: else the
+		// validity of the hop fields could be extended beyond [path.MaxTTL]. See #4534.
+		"inbound_future_timestamp": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					mockExternalInterfaces,
+					nil,
+					nil, // No special connOpener.
+					mockInternalNextHops,
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func(afterProcessing bool) *router.Packet {
+				// One hour in the future, that is well beyond the tolerated clock drift.
+				spkt, dpath := prepBaseMsg(now.Add(time.Hour))
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
+				dst := addr.MustParseHost("10.0.100.100")
+				assert.NoError(t, spkt.SetDstAddr(dst))
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 1, ConsEgress: 0},
+				}
+				dpath.Base.PathMeta.CurrHF = 2
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+				return router.NewPacket(toBytes(t, spkt, dpath), nil, nil, 1, 0)
+			},
+			assertFunc: slowPath,
+		},
+		// A moderate clock drift between the creator of the segment and
+		// the router must be tolerated.
+		"inbound_future_timestamp_within_tolerance": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					mockExternalInterfaces,
+					nil,
+					nil, // No special connOpener.
+					mockInternalNextHops,
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func(afterProcessing bool) *router.Packet {
+				spkt, dpath := prepBaseMsg(now.Add(path.MinTTL / 2))
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
+				dst := addr.MustParseHost("10.0.100.100")
+				assert.NoError(t, spkt.SetDstAddr(dst))
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 1, ConsEgress: 0},
+				}
+				dpath.Base.PathMeta.CurrHF = 2
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+
+				var dstAddr *net.UDPAddr
+				if afterProcessing {
+					dstAddr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: dstUDPPort}
+				}
+				return router.NewPacket(toBytes(t, spkt, dpath), nil, dstAddr, 1, 0)
+			},
+			assertFunc: forwarded,
+		},
+		// An expired hop field is dropped, whatever the tolerance for future timestamps.
+		"inbound_expired_hop": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					mockExternalInterfaces,
+					nil,
+					nil, // No special connOpener.
+					mockInternalNextHops,
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func(afterProcessing bool) *router.Packet {
+				spkt, dpath := prepBaseMsg(now.Add(-2 * path.MaxTTL))
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
+				dst := addr.MustParseHost("10.0.100.100")
+				assert.NoError(t, spkt.SetDstAddr(dst))
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 1, ConsEgress: 0},
+				}
+				dpath.Base.PathMeta.CurrHF = 2
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+				return router.NewPacket(toBytes(t, spkt, dpath), nil, nil, 1, 0)
+			},
+			assertFunc: slowPath,
 		},
 		"inbound_longpath": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1732,7 +1829,8 @@ func TestProcessPkt(t *testing.T) {
 			pkt, want := tc.mockMsg(false), tc.mockMsg(true)
 			disp := dp.ProcessPkt(pkt)
 			tc.assertFunc(t, disp)
-			if disp == router.PDiscard {
+			if disp == router.PDiscard || disp == router.PSlowPath {
+				// Only forwarded packets are compared.
 				return
 			}
 			assertPktEqual(t, want, pkt)
