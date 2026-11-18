@@ -15,6 +15,7 @@
 package config
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,4 +97,22 @@ func TestTopologyJSON(t *testing.T) {
 	assert.Equal(t, "1-ff00:0:111", intf.IA)
 	assert.Equal(t, "CHILD", intf.LinkTo)
 	assert.EqualValues(t, 41, intf.RemoteIfID)
+}
+
+func TestHostConfigHostLink(t *testing.T) {
+	t.Parallel()
+	n := hydrateTiny(t)
+	a := as(t, n, "1-ff00:0:110")
+	h := a.Hosts[0]
+	h.HostLink = &hydrate.HostLink{
+		EthName:   "eth2",
+		HostIface: "1-ff00_0_110",
+		Net:       netip.MustParsePrefix("10.192.0.0/30"),
+		NodeAddr:  netip.MustParseAddr("10.192.0.1"),
+		HostAddr:  netip.MustParseAddr("10.192.0.2"),
+	}
+	cfg := HostConfig(a, h)
+	require.Len(t, cfg.Interfaces.Ethernets, 2)
+	assert.Equal(t, "eth2", cfg.Interfaces.Ethernets[1].Name)
+	assert.Equal(t, []string{"10.192.0.1/30"}, cfg.Interfaces.Ethernets[1].Addresses)
 }

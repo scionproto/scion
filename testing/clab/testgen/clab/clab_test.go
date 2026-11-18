@@ -108,3 +108,62 @@ links:
 	// Two inter-AS links, no intra-AS links (mgmt network handles that).
 	assert.Len(t, clab.Topology.Links, 2)
 }
+
+func TestGenerateHostLinks(t *testing.T) {
+	t.Parallel()
+	parsed, err := topo.Parse([]byte(`
+ASes:
+  "1-ff00:0:110": {core: true, voting: true, authoritative: true, issuing: true}
+  "1-ff00:0:111": {cert_issuer: 1-ff00:0:110, underlay: UDP/IPv6}
+links:
+  - {a: "1-ff00:0:110#1", b: "1-ff00:0:111#41", linkAtoB: CHILD}
+`))
+	require.NoError(t, err)
+	require.NoError(t, parsed.Validate())
+	alloc := hydrate.NewClabAllocator(parsed, hydrate.DefaultClabConfig())
+	n, err := hydrate.Hydrate(parsed, alloc)
+	require.NoError(t, err)
+	require.NoError(t, hydrate.AddHostLinks(n, alloc))
+
+	dir := out.New(t.TempDir(), false)
+	require.NoError(t, Generate(n, dir, Options{LabName: "hl"}, io.Discard))
+	raw, err := os.ReadFile(dir.Clab("hl"))
+	require.NoError(t, err)
+	var clab clabTopology
+	require.NoError(t, yaml.Unmarshal(raw, &clab))
+
+	// One inter-AS link plus one host link per AS.
+	require.Len(t, clab.Topology.Links, 3)
+	assert.Contains(t, clab.Topology.Links,
+		link{Endpoints: []string{"1-ff00_0_110-host-1:eth2", "host:1-ff00_0_110"}})
+	assert.Contains(t, clab.Topology.Links,
+		link{Endpoints: []string{"1-ff00_0_111-host-1:eth2", "host:1-ff00_0_111"}})
+
+	n110 := clab.Topology.Nodes["1-ff00_0_110-host-1"]
+	require.NotNil(t, n110.Stages)
+	require.NotNil(t, n110.Stages.CreateLinks)
+	assert.Equal(t, []stageExec{
+		{
+			Command: "ip addr replace 10.192.0.2/30 dev 1-ff00_0_110",
+			Target:  "host", Phase: "on-exit",
+		},
+		{
+			Command: "ip route replace 10.0.1.2/32 via 10.192.0.1 dev 1-ff00_0_110",
+			Target:  "host", Phase: "on-exit",
+		},
+	}, n110.Stages.CreateLinks.Exec)
+
+	n111 := clab.Topology.Nodes["1-ff00_0_111-host-1"]
+	require.NotNil(t, n111.Stages)
+	assert.Equal(t, []stageExec{
+		{
+			Command: "ip -6 addr replace fd00:f00d:cafe:9000::6/126 dev 1-ff00_0_111 nodad",
+			Target:  "host", Phase: "on-exit",
+		},
+		{
+			Command: "ip -6 route replace fd00:f00d:cafe::202/128 via fd00:f00d:cafe:9000::5" +
+				" dev 1-ff00_0_111",
+			Target: "host", Phase: "on-exit",
+		},
+	}, n111.Stages.CreateLinks.Exec)
+}

@@ -1,0 +1,32 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "client.go",
+        "main.go",
+        "run.go",
+        "scion.go",
+        "server.go",
+    ],
+    importpath = "github.com/scionproto/scion/testing/clab/cmd/e2e_http",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/daemon:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/snet:go_default_library",
+        "//pkg/snet/addrutil:go_default_library",
+        "//private/app/path:go_default_library",
+        "//testing/clab/e2e:go_default_library",
+        "@com_github_quic_go_quic_go//:go_default_library",
+        "@com_github_quic_go_quic_go//http3:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "e2e_http",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

@@ -122,6 +122,12 @@ Prerequisites
    ``docker compose`` based test topology setup instead of the default setup based on ``supervisord``.
    Please follow the instructions for
    `Install Compose Plugin <https://docs.docker.com/compose/install/linux/#install-using-the-repository>`_.
+#. Install the ``containerlab`` CLI (``clab``). This is needed to run the recommended
+   :doc:`local topology <run>`.
+   Please follow the instructions for `containerlab installation <https://containerlab.dev/install/>`_.
+   Then, add your user to the ``clab_admins`` group, so that ``clab`` can be run without ``sudo``:
+   ``sudo usermod -a -G clab_admins ${LOGNAME}``. Log out and log back in for the group membership
+   to take effect.
 
 Setup
 -----

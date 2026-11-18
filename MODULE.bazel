@@ -266,6 +266,14 @@ register_toolchains(
     "@zig_sdk//libc_aware/toolchain:linux_arm_musl",
 )
 
+# Hermetic jq, for the genrules that edit JSON files.
+bazel_dep(name = "jq.bzl", version = "0.6.1")
+
+jq_toolchains = use_extension("@jq.bzl//jq:extensions.bzl", "toolchains")
+use_repo(jq_toolchains, "jq_toolchains")
+
+register_toolchains("@jq_toolchains//:all")
+
 # Antlr
 bazel_dep(name = "rules_java", version = "9.6.1")
 

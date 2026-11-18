@@ -1,3 +1,5 @@
+load("@jq.bzl", "jq")
+
 filegroup(
     name = "topology",
     srcs = ["topology.json"],
@@ -14,23 +16,23 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-genrule(
+jq(
     name = "topology_invalid_ia",
     srcs = ["topology.json"],
-    outs = ["topology_invalid_ia.json"],
-    cmd = "jq '.isd_as = \"1-ff00:0:111\"' $(location :topology.json) > $@",
+    out = "topology_invalid_ia.json",
+    filter = '.isd_as = "1-ff00:0:111"',
 )
 
-genrule(
+jq(
     name = "topology_invalid_attributes",
     srcs = ["topology.json"],
-    outs = ["topology_invalid_attributes.json"],
-    cmd = "jq '.attributes = [\"core\"]' $(location :topology.json) > $@",
+    out = "topology_invalid_attributes.json",
+    filter = '.attributes = ["core"]',
 )
 
-genrule(
+jq(
     name = "topology_invalid_mtu",
     srcs = ["topology.json"],
-    outs = ["topology_invalid_mtu.json"],
-    cmd = "jq '.mtu = 42' $(location :topology.json) > $@",
+    out = "topology_invalid_mtu.json",
+    filter = ".mtu = 42",
 )

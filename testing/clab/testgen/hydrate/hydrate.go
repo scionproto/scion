@@ -71,6 +71,7 @@ type Host struct {
 	BorderRouter *BorderRouter // border router on this host, if any
 	Control      bool          // host runs the control service (host-1)
 	Daemon       bool          // host runs the daemon (host-1)
+	HostLink     *HostLink     // link to the machine running the lab, if any
 }
 
 // Service is a control/daemon service endpoint.

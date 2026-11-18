@@ -23,8 +23,9 @@ import (
 // Allocations is the audit record of which AS and link got which subnet. It is
 // serialized to network-allocations.yml.
 type Allocations struct {
-	ASes  []ASRecord   `yaml:"ases"`
-	Links []LinkRecord `yaml:"links"`
+	ASes      []ASRecord       `yaml:"ases"`
+	Links     []LinkRecord     `yaml:"links"`
+	HostLinks []HostLinkRecord `yaml:"host_links,omitempty"`
 }
 
 // ASRecord records the network and host addresses of one AS.
@@ -50,6 +51,17 @@ type LinkRecord struct {
 	AddrB  string `yaml:"addr_b"`
 }
 
+// HostLinkRecord records the link between an AS's host and the machine running
+// the lab.
+type HostLinkRecord struct {
+	ISDAS     string `yaml:"isd_as"`
+	Host      string `yaml:"host"`
+	HostIface string `yaml:"host_iface"`
+	Subnet    string `yaml:"subnet"`
+	NodeAddr  string `yaml:"node_addr"`
+	HostAddr  string `yaml:"host_addr"`
+}
+
 // Allocations derives the audit record from the resolved network.
 func (n *Network) Allocations() Allocations {
 	var out Allocations
@@ -73,6 +85,20 @@ func (n *Network) Allocations() Allocations {
 			})
 		}
 		out.ASes = append(out.ASes, rec)
+	}
+	for _, a := range n.ASes {
+		for _, h := range a.Hosts {
+			if hl := h.HostLink; hl != nil {
+				out.HostLinks = append(out.HostLinks, HostLinkRecord{
+					ISDAS:     a.IA.String(),
+					Host:      h.Name,
+					HostIface: hl.HostIface,
+					Subnet:    hl.Net.String(),
+					NodeAddr:  hl.NodeAddr.String(),
+					HostAddr:  hl.HostAddr.String(),
+				})
+			}
+		}
 	}
 	for _, a := range n.ASes {
 		for _, br := range a.BorderRouters {

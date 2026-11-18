@@ -143,6 +143,9 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 		}
 	}
 
+	// AddInternalInterface needs the port range, so set it first.
+	dp.SetPortRange(cfg.Topo.PortRange())
+
 	// Add internal interfaces
 	if cfg.BR != nil {
 		if cfg.BR.InternalAddr != (netip.AddrPort{}) {
@@ -165,8 +168,6 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	if err := confServices(dp, cfg); err != nil {
 		return err
 	}
-	// Set Endhost port range
-	dp.SetPortRange(cfg.Topo.PortRange())
 	return nil
 }
 

@@ -15,8 +15,7 @@ pkg_tar(
         "//router/cmd/router",
         "//scion/cmd/scion",
         "//testing/clab/cmd/controller",
-        # FIXME: Will be introduced in a follow up.
-        # "//testing/clab/cmd/e2e_http",
+        "//testing/clab/cmd/e2e_http",
     ],
     mode = "0755",
     package_dir = "/app",

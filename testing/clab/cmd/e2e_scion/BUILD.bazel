@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/testing/clab/cmd/e2e_scion",
+    visibility = ["//visibility:private"],
+    deps = ["//testing/clab/e2e:go_default_library"],
+)
+
+scion_go_binary(
+    name = "e2e_scion",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

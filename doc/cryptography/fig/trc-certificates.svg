@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="605" viewBox="0 0 760 605" role="img" aria-labelledby="title description">
+  <title id="title">Contents of a base TRC and its certificate chain</title>
+  <desc id="description">A base TRC contains policy fields, regular and sensitive voting certificates, CP root certificates, and signatures from sensitive and regular voters. The CP root certificates anchor issuing CA certificates, which in turn authenticate CP AS certificates.</desc>
+  <!-- Simplified from Figure 2 of draft-dekater-scion-pki-15:
+       https://datatracker.ietf.org/doc/html/draft-dekater-scion-pki-15#figure-2
+       Copyright (c) 2026 IETF Trust and the persons identified as the draft authors. -->
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; fill: #172b4d; }
+    .heading { font-size: 20px; font-weight: 700; }
+    .section { font-size: 16px; font-weight: 700; }
+    .label { font-size: 14px; font-weight: 700; }
+    .body { font-size: 13px; }
+    .note { font-size: 12px; fill: #46566d; }
+  </style>
+
+  <rect x="1" y="1" width="758" height="603" fill="#ffffff"/>
+  <rect x="16" y="16" width="728" height="390" rx="12" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+  <path d="M28 16h704a12 12 0 0 1 12 12v44H16V28a12 12 0 0 1 12-12z" fill="#24456b"/>
+  <text x="38" y="48" class="heading" fill="#ffffff" style="fill: #ffffff">Base TRC</text>
+  <text x="165" y="47" font-size="13" fill="#ffffff" style="fill: #ffffff">Signed trust policy for one ISD</text>
+
+  <rect x="38" y="91" width="310" height="216" rx="8" fill="#eef4fb" stroke="#9bb3ce"/>
+  <text x="56" y="119" class="section">Policy</text>
+  <text x="56" y="148" class="body">ISD ID, base and serial numbers</text>
+  <text x="56" y="175" class="body">Validity and grace period</text>
+  <text x="56" y="202" class="body">Core and authoritative ASes</text>
+  <text x="56" y="229" class="body">Voting quorum and no-trust-reset flag</text>
+  <text x="56" y="256" class="body">ISD description</text>
+  <text x="56" y="284" class="note">Votes are empty in a base TRC.</text>
+
+  <rect x="368" y="91" width="354" height="216" rx="8" fill="#edf7f4" stroke="#8bb8a9"/>
+  <text x="386" y="119" class="section">Certificates bundled in the TRC</text>
+  <rect x="384" y="132" width="322" height="45" rx="5" fill="#ffffff" stroke="#bad6cb"/>
+  <text x="398" y="151" class="label">Regular voting certificates</text>
+  <text x="398" y="167" class="note">Keys for regular TRC updates</text>
+  <rect x="384" y="187" width="322" height="45" rx="5" fill="#ffffff" stroke="#bad6cb"/>
+  <text x="398" y="206" class="label">Sensitive voting certificates</text>
+  <text x="398" y="222" class="note">Keys for sensitive TRC updates</text>
+  <rect x="384" y="242" width="322" height="48" rx="5" fill="#ffffff" stroke="#bad6cb"/>
+  <text x="398" y="261" class="label">CP root certificates</text>
+  <text x="398" y="278" class="note">Trust anchors for CP AS certificates</text>
+
+  <rect x="38" y="314" width="310" height="76" rx="8" fill="#fff4df" stroke="#d6b87d"/>
+  <text x="56" y="340" class="section">TRC signatures</text>
+  <text x="56" y="361" class="body">Sensitive and regular voters sign it.</text>
+  <text x="56" y="380" class="note">Their certificates verify the signatures.</text>
+
+  <path d="M545 290v145" fill="none" stroke="#37785f" stroke-width="2.5"/>
+  <path d="m538 427 7 10 7-10" fill="none" stroke="#37785f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="38" y="458" class="section">CP certificate chain</text>
+  <text x="38" y="480" class="body">Only the root certificate is in the TRC.</text>
+  <text x="38" y="501" class="note">The root signs an issuing CA certificate,</text>
+  <text x="38" y="518" class="note">which signs an AS certificate.</text>
+
+  <rect x="368" y="439" width="354" height="56" rx="8" fill="#eef4fb" stroke="#9bb3ce"/>
+  <text x="386" y="463" class="label">CP issuing CA certificate</text>
+  <text x="386" y="481" class="note">Signed by a CP root</text>
+  <path d="M545 495v37" fill="none" stroke="#37785f" stroke-width="2.5"/>
+  <path d="m538 524 7 10 7-10" fill="none" stroke="#37785f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="368" y="536" width="354" height="54" rx="8" fill="#eef4fb" stroke="#9bb3ce"/>
+  <text x="386" y="559" class="label">CP AS certificate</text>
+  <text x="386" y="577" class="note">Signed by an issuing CA</text>
+</svg>

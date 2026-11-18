@@ -38,7 +38,7 @@ func HostConfig(a *hydrate.AS, h *hydrate.Host) clabconfig.Config {
 	}
 	// eth0 is the containerlab management interface (carries the host's
 	// AS-internal address); only the inter-AS data-plane links (eth1, eth2, …)
-	// are modeled here.
+	// and the optional host link are modeled here.
 	var ifs clabconfig.Interfaces
 
 	if br := h.BorderRouter; br != nil {
@@ -56,6 +56,12 @@ func HostConfig(a *hydrate.AS, h *hydrate.Host) clabconfig.Config {
 				MTU:       intf.MTU,
 			})
 		}
+	}
+	if hl := h.HostLink; hl != nil {
+		ifs.Ethernets = append(ifs.Ethernets, clabconfig.Ethernet{
+			Name:      hl.EthName,
+			Addresses: []string{cidr(hl.NodeAddr, hl.Net.Bits())},
+		})
 	}
 	if h.Control {
 		as.Control = &clabconfig.Control{
