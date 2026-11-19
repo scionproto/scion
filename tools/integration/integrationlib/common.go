@@ -30,12 +30,14 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/endhost"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app/feature"
 	scionflag "github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/env"
+	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/tools/integration"
 	"github.com/scionproto/scion/tools/integration/progress"
 )
@@ -47,15 +49,16 @@ const (
 )
 
 var (
-	envFlags   scionflag.SCIONEnvironment
-	Local      snet.UDPAddr
-	Mode       string
-	Progress   string
-	daemonAddr string
-	topoDir    string
-	Attempts   int
-	logConsole string
-	features   string
+	envFlags       scionflag.SCIONEnvironment
+	Local          snet.UDPAddr
+	Mode           string
+	Progress       string
+	daemonAddr     string
+	EndhostApiAddr string
+	topoDir        string
+	Attempts       int
+	logConsole     string
+	features       string
 )
 
 func Setup() error {
@@ -81,6 +84,7 @@ func addFlags() error {
 		&daemonAddr, "sciond", "",
 		"SCION Daemon address. If set, uses remote daemon instead of standalone daemon.",
 	)
+	flag.StringVar(&EndhostApiAddr, "endhost_api", "", "SCION endhost API address")
 	flag.StringVar(
 		&topoDir, "topoDir", "",
 		"Directory containing topology files. Used for standalone daemon (default mode).",
@@ -137,6 +141,36 @@ func validateFlags() {
 	if Local.Host == nil {
 		LogFatal("Missing local address")
 	}
+}
+
+func EndhostApiConnector(ctx context.Context) (*endhost.Connector, error) {
+	if EndhostApiAddr == "" {
+		if topoDir == "" {
+			return nil, serrors.New("Either endhost api url or topo dir has to be specified")
+		}
+		asDir := addr.FormatAS(Local.IA.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator())
+		asPath := filepath.Join(topoDir, asDir)
+		topoFile := filepath.Join(asPath, "topology.json")
+		loader, err := topology.NewLoader(
+			topology.LoaderCfg{
+				File:      topoFile,
+				Reload:    nil,
+				Validator: &topology.DefaultValidator{},
+			},
+		)
+		if err != nil {
+			return nil, serrors.Wrap("creating topology loader", err)
+		}
+		for _, v := range loader.EndhostAPI() {
+			EndhostApiAddr = v.Url
+			break
+		}
+	}
+	connector, err := endhost.NewConnector(ctx, EndhostApiAddr)
+	if err != nil {
+		return nil, serrors.Wrap("error initializing endhost api connector", err)
+	}
+	return connector, nil
 }
 
 // SDConn returns a daemon connector.

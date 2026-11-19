@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
+	"github.com/scionproto/scion/pkg/endhost"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -74,19 +75,33 @@ func Filter(seq string, paths []snet.Path) ([]snet.Path, error) {
 // Choose selects a path to the remote.
 func Choose(
 	ctx context.Context,
-	conn daemon.Connector,
 	remote addr.IA,
 	opts ...Option,
 ) (snet.Path, error) {
 	o := applyOption(opts)
-	paths, err := fetchPaths(ctx, conn, remote, o.refresh, o.seq)
-	if err != nil {
-		return nil, serrors.Wrap("fetching paths", err)
+
+	var paths []snet.Path
+	var topo snet.Topology
+	var err error
+	if o.endhostConnector != nil {
+		paths, err = fetchPathsFromEndhostApi(ctx, o.endhostConnector, remote, o.seq)
+		if err != nil {
+			return nil, serrors.Wrap("fetching paths", err)
+		}
+		topo = o.endhostConnector.Topology
+	} else if o.daemonConnector != nil {
+		paths, err = fetchPathsFromDaemon(ctx, o.daemonConnector, remote, o.refresh, o.seq)
+		if err != nil {
+			return nil, serrors.Wrap("fetching paths", err)
+		}
+		topo, err = daemon.LoadTopology(ctx, o.daemonConnector)
+		if err != nil {
+			return nil, serrors.Wrap("loading topology", err)
+		}
+	} else {
+		return nil, serrors.New("neither endhost api connector nor daemon connector provided")
 	}
-	topo, err := daemon.LoadTopology(ctx, conn)
-	if err != nil {
-		return nil, serrors.Wrap("loading topology", err)
-	}
+
 	if o.epic {
 		// Only use paths that support EPIC and intra-AS (empty) paths.
 		epicPaths := []snet.Path{}
@@ -167,7 +182,7 @@ func filterUnhealthy(
 	return healthyPaths, nil
 }
 
-func fetchPaths(
+func fetchPathsFromDaemon(
 	ctx context.Context,
 	conn daemon.Connector,
 	remote addr.IA,
@@ -178,8 +193,28 @@ func fetchPaths(
 	if err != nil {
 		return nil, serrors.Wrap("retrieving paths", err)
 	}
-
 	paths, err := Filter(seq, allPaths)
+	if err != nil {
+		return nil, err
+	}
+	if len(paths) == 0 {
+		return nil, serrors.New("no path available")
+	}
+	return paths, nil
+}
+
+func fetchPathsFromEndhostApi(
+	ctx context.Context,
+	conn *endhost.Connector,
+	remote addr.IA,
+	seq string,
+) ([]snet.Path, error) {
+	paths, err := conn.PathService.Paths(ctx, remote,
+		endhost.WithSkipSegmentVerificationIfUnsupportedByAS())
+	if err != nil {
+		return nil, serrors.Wrap("retrieving paths", err)
+	}
+	paths, err = Filter(seq, paths)
 	if err != nil {
 		return nil, err
 	}
@@ -314,12 +349,14 @@ type ProbeConfig struct {
 }
 
 type options struct {
-	interactive bool
-	refresh     bool
-	seq         string
-	colorScheme ColorScheme
-	probeCfg    *ProbeConfig
-	epic        bool
+	interactive      bool
+	refresh          bool
+	seq              string
+	colorScheme      ColorScheme
+	probeCfg         *ProbeConfig
+	epic             bool
+	daemonConnector  daemon.Connector
+	endhostConnector *endhost.Connector
 }
 
 type Option func(o *options)
@@ -365,5 +402,17 @@ func WithProbing(cfg *ProbeConfig) Option {
 func WithEPIC(epic bool) Option {
 	return func(o *options) {
 		o.epic = epic
+	}
+}
+
+func WithDaemonConnector(conn daemon.Connector) Option {
+	return func(o *options) {
+		o.daemonConnector = conn
+	}
+}
+
+func WithEndhostConnector(conn *endhost.Connector) Option {
+	return func(o *options) {
+		o.endhostConnector = conn
 	}
 }

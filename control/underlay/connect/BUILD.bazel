@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["endhost.go"],
+    importpath = "github.com/scionproto/scion/control/underlay/connect",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/log:go_default_library",
+        "//pkg/metrics:go_default_library",
+        "//pkg/proto/endhost:go_default_library",
+        "//private/topology:go_default_library",
+        "@com_connectrpc_connect//:go_default_library",
+    ],
+)

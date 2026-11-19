@@ -33,8 +33,9 @@ const (
 
 // Request types
 const (
-	TRCReq   = "trc_request"
-	ChainReq = "chain_request"
+	TRCReq    = "trc_request"
+	ChainReq  = "chain_request"
+	ChainsReq = "chains_request"
 )
 
 // Result types

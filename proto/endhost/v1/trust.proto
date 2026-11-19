@@ -1,0 +1,80 @@
+// Copyright 2026 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/pkg/proto/endhost";
+package scion.endhost.v1;
+
+service TrustService {
+    rpc ListChains(ListChainsRequest) returns (ListChainsResponse) {}
+    rpc GetTrc(TRCRequest) returns (TRCResponse) {}
+}
+
+// Request to fetch certificate chains for a given AS certificate subject.
+message ListChainsRequest {
+    // The subjects for which the chains should be returned.
+    repeated Subject subjects = 1;
+
+    // Point in time at which the AS certificate must still be valid. In seconds
+    // since UNIX epoch.
+    uint32 at_least_valid_until = 2;
+
+    // Point in time at which the AS certificate must be or must have been
+    // valid. In seconds since UNIX epoch.
+    uint32 at_least_valid_since = 3;
+}
+
+message Subject {
+    // ISD-AS of subject in the AS certificate.
+    uint64 isd_as = 1;
+
+    // SubjectKeyID in the AS certificate.
+    bytes subject_key_id = 2;
+}
+
+message ListChainsResponse {
+  // List of chains that match the request.
+  repeated Chain chains = 1;
+}
+
+message Chain {
+  // The subject corresponding to this chain.
+  Subject subject = 1;
+
+  // AS certificate in the chain.
+  bytes as_cert = 2;
+
+  // CA certificate in the chain.
+  bytes ca_cert = 3;
+}
+
+// Request to fetch the TRC for a given ISD.
+message TRCRequest {
+    // ISD of the TRC.
+    uint32 isd = 1;
+
+    // BaseNumber of the TRC identifying the version of the TRC
+    // that forms the trust root of the TRC update chain. 0 means
+    // use the highest known base version.
+    uint64 base = 2;
+
+    // SerialNumber of the TRC. Must be >= base. 0 means use the highest
+    // known serial for a given base version.
+    uint64 serial = 3;
+}
+message TRCResponse {
+    // Raw TRC.
+    bytes trc = 1;
+}

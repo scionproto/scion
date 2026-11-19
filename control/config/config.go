@@ -65,6 +65,7 @@ type Config struct {
 	CA          CA                 `toml:"ca,omitempty"`
 	TrustEngine trustengine.Config `toml:"trustengine,omitempty"`
 	DRKey       DRKeyConfig        `toml:"drkey,omitempty"`
+	EndhostApi  EndhostAPIConfig   `toml:"endhost_api,omitempty"`
 }
 
 // InitDefaults initializes the default values for all parts of the config.
@@ -262,6 +263,12 @@ func (cfg *Policies) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
 // ConfigName is the toml key for the beacon server specific configuration.
 func (cfg *Policies) ConfigName() string {
 	return "policies"
+}
+
+type EndhostAPIConfig struct {
+	config.NoDefaulter
+	config.NoValidator
+	JwtVerifierKeyFile string `toml:"verifier_key,omitempty"`
 }
 
 // CA is the CA configuration.

@@ -128,11 +128,12 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	if err != nil {
 		return serrors.Wrap("determining local ISD-AS", err)
 	}
-	path, err := path.Choose(ctx, sdConn, dst.IA,
+	path, err := path.Choose(ctx, dst.IA,
 		path.WithInteractive(cfg.interactive),
 		path.WithRefresh(cfg.refresh),
 		path.WithSequence(cfg.sequence),
 		path.WithColorScheme(path.DefaultColorScheme(cfg.noColor)),
+		path.WithDaemonConnector(sdConn),
 	)
 	if err != nil {
 		return serrors.Wrap("fetching paths", err)

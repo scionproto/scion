@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/endhost"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
@@ -115,36 +117,64 @@ On other errors, traceroute will exit with code 2.
 			span.SetTag("dst.host", remote.Host.IP())
 			defer span.Finish()
 
-			sd, err := daemon.NewAutoConnector(traceCtx,
-				daemon.WithDaemon(envFlags.Daemon()),
-				daemon.WithConfigDir(envFlags.ConfigDir()),
-			)
-			if err != nil {
-				return serrors.Wrap("getting daemon connector", err)
-			}
-
-			defer func(sd daemon.Connector) {
-				err := sd.Close()
-				if err != nil {
-					log.Error("Closing SCION Daemon connection", "err", err)
-				}
-			}(sd)
-
-			localIP := net.IP(envFlags.Local().AsSlice())
-			log.Debug("Using local IP", "local", localIP)
-
-			topo, err := daemon.LoadTopology(traceCtx, sd)
-			if err != nil {
-				return serrors.Wrap("loading topology", err)
-			}
-			span.SetTag("src.isd_as", topo.LocalIA)
-			path, err := path.Choose(traceCtx, sd, remote.IA,
+			var topo snet.Topology
+			opts := []path.Option{
 				path.WithInteractive(flags.interactive),
 				path.WithRefresh(flags.refresh),
 				path.WithSequence(flags.sequence),
 				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
 				path.WithEPIC(flags.epic),
-			)
+			}
+			if envFlags.EndhostApi() != "" {
+				endhostOpts := []endhost.ConnectOption{}
+				if envFlags.ConfigDir() != "" {
+					trcDir := filepath.Join(envFlags.ConfigDir(), "certs")
+					if stat, err := os.Stat(trcDir); err == nil && stat.IsDir() {
+						endhostOpts = append(endhostOpts, endhost.WithCertsDir(trcDir))
+					}
+				}
+				connector, err := endhost.NewConnector(traceCtx, envFlags.EndhostApi(),
+					endhostOpts...)
+				if err != nil {
+					return serrors.Wrap("init endhost api connector", err)
+				}
+				topo = connector.Topology
+				opts = append(opts, path.WithEndhostConnector(connector))
+				defer func(c *endhost.Connector) {
+					err := c.Close()
+					if err != nil {
+						log.Error("Closing SCION endhost API connector", "err", err)
+					}
+				}(connector)
+			} else if envFlags.Daemon() != "" || envFlags.ConfigDir() != "" {
+				sd, err := daemon.NewAutoConnector(traceCtx,
+					daemon.WithDaemon(envFlags.Daemon()),
+					daemon.WithConfigDir(envFlags.ConfigDir()),
+				)
+				if err != nil {
+					return serrors.Wrap("getting daemon connector", err)
+				}
+				topo, err = daemon.LoadTopology(traceCtx, sd)
+				if err != nil {
+					return serrors.Wrap("loading topology from daemon", err)
+				}
+				opts = append(opts, path.WithDaemonConnector(sd))
+
+				defer func(sd daemon.Connector) {
+					err := sd.Close()
+					if err != nil {
+						log.Error("Closing SCION Daemon connection", "err", err)
+					}
+				}(sd)
+			} else {
+				return serrors.New("Neither endhost API address nor SCION daemon address specified")
+			}
+
+			localIP := net.IP(envFlags.Local().AsSlice())
+			log.Debug("Using local IP", "local", localIP)
+
+			span.SetTag("src.isd_as", topo.LocalIA)
+			path, err := path.Choose(traceCtx, remote.IA, opts...)
 			if err != nil {
 				return err
 			}

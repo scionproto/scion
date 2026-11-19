@@ -262,6 +262,8 @@ class TopoGenerator(object):
         if self.args.sig:
             self.topo_dicts[topo_id]['sigs'] = {}
             self._gen_sig_entries(topo_id, as_conf)
+        self.topo_dicts[topo_id]['endhost_api'] = {}
+        self._gen_endhostapi_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
         srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs", "control_service")]
@@ -342,6 +344,21 @@ class TopoGenerator(object):
         if link_to == 'peer':
             intf['remote_interface_id'] = r_ifid
         return intf
+
+    def _gen_endhostapi_entries(self, topo_id, as_conf):
+        # Generate endhost API entries keyed by control server ID
+        for elem_id, cs_info in self.topo_dicts[topo_id]['control_service'].items():
+            cs_addr = cs_info['addr']
+            ip_part = cs_addr.rsplit(':', 1)[0]
+            ip = ip_part.strip('[]')
+            port = 31022
+            if not self.args.docker:
+                port = self.args.port_gen.register(elem_id+"_endhost")
+            d = {
+                'url': "https://[%s]:%d" % (ip, port) if ':' in ip else
+                "https://%s:%d" % (ip, port),
+            }
+            self.topo_dicts[topo_id]['endhost_api'][elem_id] = d
 
     def _gen_sig_entries(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))

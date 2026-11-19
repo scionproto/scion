@@ -40,6 +40,15 @@ func (c Cmd) Template(src, dst *snet.UDPAddr) (Cmd, error) {
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	args = replacePattern(ServerPortReplace, serverPorts[dst.IA], args)
+	if needEndhostAPI(args) {
+		if needEndhostAPI(args) {
+			endhostAddr, err := GetEndhostAPIAddress(src.IA)
+			if err != nil {
+				return Cmd{}, serrors.Wrap("unable to determine endhost API address", err)
+			}
+			args = replacePattern(EndhostAPI, endhostAddr, args)
+		}
+	}
 	if needSCIOND(args) {
 		daemonAddr, err := GetSCIONDAddress(GenFile(DaemonAddressesFile), src.IA)
 		if err != nil {

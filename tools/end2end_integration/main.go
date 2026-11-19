@@ -36,15 +36,16 @@ import (
 )
 
 var (
-	subset      string
-	attempts    int
-	timeout     = &util.DurWrap{Duration: 10 * time.Second}
-	parallelism int
-	name        string
-	cmd         string
-	features    string
-	epic        bool
-	useSciond   bool
+	subset        string
+	attempts      int
+	timeout       = &util.DurWrap{Duration: 10 * time.Second}
+	parallelism   int
+	name          string
+	cmd           string
+	features      string
+	epic          bool
+	useSciond     bool
+	useEndhostAPI bool
 )
 
 func getCmd() (string, bool) {
@@ -86,12 +87,14 @@ func realMain() int {
 		clientArgs = append(clientArgs, "--features", features)
 		serverArgs = append(serverArgs, "--features", features)
 	}
-	if useSciond {
+	if useEndhostAPI {
+		clientArgs = append(clientArgs, "-endhost_api", integration.EndhostAPI)
+		serverArgs = append(serverArgs, "-endhost_api", integration.EndhostAPI)
+	} else if useSciond {
 		// Use remote daemon (connect to sciond via gRPC)
 		clientArgs = append(clientArgs, "-sciond", integration.Daemon)
 		serverArgs = append(serverArgs, "-sciond", integration.Daemon)
 	} else {
-		// Use standalone daemon by default (with topology file)
 		clientArgs = append(clientArgs, "-topoDir", integration.TopoDir)
 		serverArgs = append(serverArgs, "-topoDir", integration.TopoDir)
 	}
@@ -128,6 +131,8 @@ func addFlags() {
 	flag.BoolVar(&useSciond, "sciond", false,
 		"Use remote SCION daemon instead of standalone daemon. "+
 			"By default, standalone daemon with topology file is used.")
+	flag.BoolVar(&useEndhostAPI, "endhost", false,
+		"Use the endhost api instead of the SCION daemon")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -313,7 +318,9 @@ func clientTemplate(progressSock string) integration.Cmd {
 	if progress {
 		cmd.Args = append(cmd.Args, "-progress", progressSock)
 	}
-	if useSciond {
+	if useEndhostAPI {
+		cmd.Args = append(cmd.Args, "-endhost_api", integration.EndhostAPI)
+	} else if useSciond {
 		// Use remote daemon (connect to sciond via gRPC)
 		cmd.Args = append(cmd.Args, "-sciond", integration.Daemon)
 	} else {
