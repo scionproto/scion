@@ -3,7 +3,7 @@ SCION Endhost API
 *******************
 
 - Author(s): Samuel Hitz (main), Jordi Subirà-Nieto
-- Last updated: 2026-02-11
+- Last updated: 2026-11-19
 - Discussion at: :issue:`4834`
 - Status: **WIP**
 
@@ -14,7 +14,8 @@ This document proposes a new SCION Endhost API that replaces the current SCION
 daemon gRPC API. The new API provides underlay discovery for multiple transport
 types, segment-based path retrieval with pagination, cryptographic material for
 client-side path verification, and optional DRKey key retrieval. It uses
-`ConnectRPC <https://connectrpc.com/>`_ over HTTP with mandatory TLS server authentication.
+`ConnectRPC <https://connectrpc.com/>`_ over HTTP with mandatory TLS server authentication
+on network transports.
 
 Background
 ----------
@@ -80,8 +81,11 @@ The API is specified in Protocol Buffers version 3 (proto3). It is served using
 Authentication
 ^^^^^^^^^^^^^^
 
-- **Server authentication** via TLS is mandatory. The server certificate may
-  be issued by a WebPKI CA or a private TLS PKI operated by the AS.
+- **Server authentication** via TLS is mandatory on network transports. The
+  server certificate may be issued by a WebPKI CA or a private TLS PKI operated
+  by the AS.
+- On a local transport, for example a Unix domain socket, TLS is not required.
+  The file system permissions of the socket authenticate the server.
 - **Client authentication** is optional. Any HTTP-based authentication scheme
   (e.g., mTLS, bearer tokens) may be used. Client authentication is, for
   instance, relevant for DRKey retrieval, where the server must authorize
@@ -139,35 +143,69 @@ Examples
 
 RPC path: ``/scion.endhost.v1.UnderlayService/ListUnderlays``
 Response Header: ``Endhost-API-Server-Version: xyz-1.0.1``
-Comment: This is a stable implementation ``1.0.1`` the API specification ``v1`` by the vendor ``xyz``.
+Comment: This is a stable implementation ``1.0.1`` of the API specification ``v1`` by the vendor ``xyz``.
 
 RPC path: ``/scion.endhost.v2.UnderlayService/ListUnderlays``
 Response Header: ``Endhost-API-Server-Version: abc-0.3.1``
-Comment: This is a unstable implementation ``1.0.1`` the API specification ``v2`` by the vendor ``abc``.
+Comment: This is an unstable implementation ``0.3.1`` of the API specification ``v2`` by the vendor ``abc``.
+
+Error Handling
+^^^^^^^^^^^^^^
+
+The server reports errors with the
+`ConnectRPC error codes <https://connectrpc.com/docs/protocol#error-codes>`_. The
+response body is a ConnectRPC error. A request that is valid, but that has no
+match, is not an error: the server returns an empty response.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Condition
+     - Response
+   * - The request is malformed, for example a wildcard ISD-AS where the RPC
+       does not allow it.
+     - ``invalid_argument``
+   * - The server does not serve the source AS of a ``ListSegments`` request.
+     - ``invalid_argument``
+   * - The page token is not valid or is expired.
+     - ``invalid_argument``. The client starts again at the first page.
+   * - The request is valid, but nothing matches, for example an unknown
+       destination AS.
+     - OK, with an empty response.
+   * - The server cannot get the data from its backend, for example from the
+       control service.
+     - ``unavailable``. The client can retry the request.
+   * - The client authentication fails.
+     - ``unauthenticated``
+   * - The client is not authorized for the request.
+     - ``permission_denied``
+   * - The server does not implement an optional service.
+     - ``unimplemented``
 
 Underlay Discovery
 ^^^^^^^^^^^^^^^^^^
 
 The ``UnderlayService`` allows endhosts to discover available transport
 underlays in the local AS, including relevant information for them, such as,
-border router addresses, interface identifiers, and dispatched port ranges.
+border router addresses, interface identifiers, and direct port ranges.
 
 RPC path: ``/scion.endhost.v1.UnderlayService/ListUnderlays``
 
-This replaces the daemon ``Interfaces`` and ``PortRange`` RPCs. The ``AS``
-RPC is also removed: if ``isd_as`` is left empty or set to 0,
-it indicates that the requester wants the underlay information for all possible local SCION ASes
+This replaces the daemon ``AS``, ``Interfaces`` and ``PortRange`` RPCs. One
+endhost API endpoint can serve more than one local AS. If ``isd_as`` is left
+empty or set to 0, the requester wants the underlay information for all local
+SCION ASes. If ``isd_as`` is set, the filter applies to all underlays.
 
 .. code-block:: protobuf
 
-   // ListUnderlaysRequest is used to discover available transport underlays.
+  // ListUnderlaysRequest is used to discover available transport underlays.
   message ListUnderlaysRequest {
     // Include the underlays for the provided ISD-AS. This can be left empty or set to 0 which
     // indicates that the requester wants the underlay information for all possible local SCION ASes.
     optional uint64 isd_as = 1;
   }
 
-   // ListUnderlaysResponse contains information about available underlays. At least one underlay
+  // ListUnderlaysResponse contains information about available underlays. At least one underlay
   // must be present for endhosts to use.
   message ListUnderlaysResponse {
     // The UDP/IP underlay of the AS.
@@ -182,6 +220,20 @@ it indicates that the requester wants the underlay information for all possible 
   // The UDP/IP underlay consisting of the available SCION routers.
   message UdpUnderlay {
     repeated Router routers = 1;
+
+    // The local ASes that this UDP/IP underlay serves. The list contains an AS
+    // also if no router of the AS is available.
+    repeated LocalAs local_ases = 2;
+  }
+
+  // LocalAs represents a local SCION AS of the UDP/IP underlay.
+  message LocalAs {
+    // The ISD-AS identifier.
+    uint64 isd_as = 1;
+
+    // The maximum size in bytes of a SCION packet (SCION headers and payload)
+    // inside the AS.
+    uint32 mtu = 2;
   }
 
   // Router represents a SCION routers internal interface and the associated SCION interface IDs.
@@ -195,18 +247,19 @@ it indicates that the requester wants the underlay information for all possible 
     // The list of external SCION interface IDs on that router.
     repeated uint32 interfaces = 3;
 
-    message PortRange{
-        // The lowest port in the SCION/UDP dispatched port range.
-        uint32 dispatched_port_start = 1;
-        // The highest port in the SCION/UDP dispatched port range.
-        uint32 dispatched_port_end = 2;
+    // PortRange is an inclusive range of ports. A range with start > end is empty.
+    message PortRange {
+      // The lowest port in the range.
+      uint32 start = 1;
+      // The highest port in the range.
+      uint32 end = 2;
     }
 
-    // The dispatched port range supported by the router. UDP/SCION packets with a destination
-    // port within this range will be sent to the same UDP destination port on the destination host.
-    // For other ports, the router will use the well-known dispatcher port (30041). If not set,
-    // the entire port range is assumed to be dispatched.
-    PortRange dispatched_range = 4;
+    // The direct ports of the router. For a UDP/SCION packet with a destination port in
+    // this range, the router uses the destination port as the UDP underlay port. For all
+    // other ports, the router uses the well-known port 30041. If not set, all ports are
+    // direct.
+    PortRange direct_ports = 4;
   }
 
   // The SNAP underlay consisting of possibly multiple SNAPs.
@@ -223,27 +276,45 @@ it indicates that the requester wants the underlay information for all possible 
     repeated uint64 isd_ases = 2;
   }
 
+Each ``Router`` contains its ISD-AS, because interface IDs are unique only
+inside one AS. The client finds the next hop of a path by the pair (ISD-AS,
+interface ID). If one router serves more than one local AS, the response
+contains one ``Router`` entry for each AS, with the same address.
 
-The ``Router`` message includes the ``dispatched_range`` field to indicate
-which port range the router supports for direct port dispatching. If absent,
-the client should assume all ports are dispatched. See :doc:`router-port-dispatch`
-for background on dispatched port ranges.
+The ``local_ases`` field lists the local ASes of the UDP/IP underlay and their
+MTU. The client uses the MTU for AS-local communication, because no path
+segment exists for it. For paths to other ASes, the AS entries of the path
+segments contain the MTU of each AS.
+
+The ``Router`` message includes the ``direct_ports`` field to indicate
+which port range the router supports for direct port dispatching. See
+:doc:`router-port-dispatch` for background. The field has a new name, because
+the default is the opposite of the default of ``dispatched_ports`` in
+``topology.json``:
+
+- If ``direct_ports`` is absent, all ports are direct.
+- If ``dispatched_ports`` is absent in ``topology.json``, the range is empty.
+
+The server translates ``dispatched_ports`` from ``topology.json`` into
+``direct_ports``. If ``topology.json`` has no ``dispatched_ports``, the server
+sends an explicit empty range. With this rule, the field can be removed when
+all routers send all ports directly.
 
 Path Segment Retrieval
 ^^^^^^^^^^^^^^^^^^^^^^
 
-The ``PathService`` provides paginated access to path segments (up, core, down)
+The ``SegmentsService`` provides paginated access to path segments (up, core, down)
 that the client can combine to construct end-to-end paths. Returning segments
 instead of pre-built paths enables client-side verification against the CP-PKI
 and composability with segments from other sources.
 
-RPC path: ``/scion.endhost.v1.PathService/ListSegments``
+RPC path: ``/scion.endhost.v1.SegmentsService/ListSegments``
 
 This replaces the daemon ``Paths`` RPC.
 
 .. code-block:: protobuf
 
-   message ListSegmentsRequest {
+  message ListSegmentsRequest {
     // The source ISD-AS of the final end-to-end path. This is most likely
     // the requester's own ISD-AS.
     uint64 src_isd_as = 1;
@@ -251,10 +322,12 @@ This replaces the daemon ``Paths`` RPC.
     // The destination ISD-AS the final end-to-end path.
     uint64 dst_isd_as = 2;
 
-    // The maximum total number of segments to return.
+    // The maximum total number of segments to return, for up, core and
+    // down segments together.
     // The service may return fewer than this value.
     // If unspecified, the maximum number of segments
-    // per page is returned, which is 64.
+    // per page is returned, which is 64. The service
+    // uses 64 for a value above 64.
     int32 page_size = 3;
 
     // A page token, received from a previous
@@ -266,7 +339,8 @@ This replaces the daemon ``Paths`` RPC.
     // the page token.
     string page_token = 4;
   }
-  // ListSegmentsReponse includes up, down, and core path segments that
+
+  // ListSegmentsResponse includes up, down, and core path segments that
   // can be combined to end-to-end paths.
   message ListSegmentsResponse {
       // The list of returned up path segments.
@@ -278,22 +352,31 @@ This replaces the daemon ``Paths`` RPC.
       // The list of returned core path segments.
       repeated proto.control_plane.v1.PathSegment core_segments = 3;
 
-      // The token for the next page of results.
+      // The token for the next page of results. Empty on the last page.
       string next_page_token = 4;
   }
+
+The response is empty, with an empty ``next_page_token``, in these cases:
+
+- No path to the destination AS exists, or the destination AS is unknown.
+- The source AS and the destination AS are the same. AS-local communication
+  does not need path segments.
 
 Pagination
 """"""""""
 
-- The **default page size** is 64 segments.
+- The **default page size** is 64 segments. The page size counts all segments
+  together. The server selects the mix of up, core and down segments.
 - Each page is **self-sufficient**: it contains enough segments to construct
   complete end-to-end paths without requiring segments from previous pages.
   This means **some segments may be repeated across pages**.
 - Clients may discard segments from previous pages after processing them.
 - **Pagination tokens** are short-lived references to server-side snapshots.
   Tokens have a limited lifetime (on the order of minutes). An expired token
-  results in an error response, and the client should restart pagination from
-  the beginning.
+  results in an ``invalid_argument`` error, and the client should restart
+  pagination from the beginning.
+- An empty ``next_page_token`` marks the last page. A request with an empty
+  ``page_token`` returns the first page.
 
 Ordering
 """"""""
@@ -312,8 +395,10 @@ end-to-end paths (for that client population).
 Stitchability Guarantee
 """""""""""""""""""""""
 
-The server ensures that the segments returned on each page can be stitched
-into at least one complete end-to-end path. This guarantee applies per page, not across
+If a path to the destination exists, the server ensures that the segments
+returned on each page can be stitched into at least one complete end-to-end
+path. This also applies if ``page_size`` is smaller than the number of segments
+that this path needs. This guarantee applies per page, not across
 pages. Nonetheless, clients can still stitch segments across pages to construct
 alternative paths, but they may need to fetch multiple pages to obtain all the necessary segments.
 
@@ -323,6 +408,10 @@ TRC and Certificate Retrieval
 The ``TrustService`` provides access to TRCs and certificate chains, enabling
 clients to verify path segments against the SCION CP-PKI.
 
+The ``TrustService`` is an optional part of the endhost API. A server that does
+not implement it returns ``unimplemented``. Certificates and TRCs are DER
+encoded.
+
 ListChains
 """"""""""
 
@@ -330,7 +419,7 @@ RPC path: ``/scion.endhost.v1.TrustService/ListChains``
 
 .. code-block:: protobuf
 
-   // Request to fetch certificate chains for a given AS certificate subject.
+  // Request to fetch certificate chains for a given AS certificate subject.
   message ListChainsRequest {
     // The subjects for which the chains should be returned.
     repeated Subject subjects = 1;
@@ -342,6 +431,21 @@ RPC path: ``/scion.endhost.v1.TrustService/ListChains``
     // Point in time at which the AS certificate must be or must have been
     // valid. In seconds since UNIX epoch.
     uint32 at_least_valid_since = 3;
+
+    // The maximum total number of chains to return.
+    // The service may return fewer than this value.
+    // If unspecified, the maximum number of chains
+    // per page is returned, which is 64.
+    int32 page_size = 4;
+
+    // A page token, received from a previous
+    // ListChainsRequest call.
+    // Provide this to retrieve the subsequent page.
+    //
+    // When paginating, all other parameters provided in
+    // ListChainsRequest must match the call that provided
+    // the page token.
+    string page_token = 5;
   }
 
   message Subject {
@@ -352,6 +456,25 @@ RPC path: ``/scion.endhost.v1.TrustService/ListChains``
     bytes subject_key_id = 2;
   }
 
+  message ListChainsResponse {
+    // List of chains that match the request.
+    repeated Chain chains = 1;
+
+    // The token for the next page of results. Empty on the last page.
+    string next_page_token = 2;
+  }
+
+  message Chain {
+    // The subject corresponding to this chain.
+    Subject subject = 1;
+
+    // AS certificate in the chain.
+    bytes as_cert = 2;
+
+    // CA certificate in the chain.
+    bytes ca_cert = 3;
+  }
+
 GetTrc
 """"""
 
@@ -360,7 +483,7 @@ RPC path: ``/scion.endhost.v1.TrustService/GetTrc``
 .. code-block:: protobuf
 
   // Request to fetch the TRC for a given ISD.
-  message TRCRequest {
+  message GetTrcRequest {
     // ISD of the TRC.
     uint32 isd = 1;
 
@@ -373,7 +496,8 @@ RPC path: ``/scion.endhost.v1.TrustService/GetTrc``
     // known serial for a given base version.
     uint64 serial = 3;
   }
-  message TRCResponse {
+
+  message GetTrcResponse {
     // Raw TRC.
     bytes trc = 1;
   }
@@ -396,13 +520,17 @@ Obsoleted Daemon RPCs
 
 The following daemon RPCs are obsoleted by the endhost API:
 
-- ``AS`` -- The local ISD-AS identifier, core flag, and MTU is omitted from the endhost API.
+- ``AS`` -- Replaced by underlay discovery (``ListUnderlays``). The
+  ``local_ases`` field of the UDP/IP underlay contains the local ISD-AS
+  identifiers and the AS MTU. The core flag is not needed: the server splits a
+  segment request into up, core and down segments, and the client combines the
+  segments by their type and their end points.
 - ``Interfaces`` -- Replaced by underlay discovery (``ListUnderlays``).
 - ``Services`` -- Not needed. Endhosts interact exclusively with the endhost
   API endpoint; they do not need to discover individual infrastructure services.
 - ``NotifyInterfaceDown`` -- Not needed. Endhosts perform their own path
   management and failover.
-- ``PortRange`` -- Replaced by the ``dispatched_range`` field in the
+- ``PortRange`` -- Replaced by the ``direct_ports`` field in the
   ``Router`` message of the underlay discovery response.
 
 Rationale
@@ -461,6 +589,12 @@ Compatibility
 API Supporting Strategy (Incremental Deployment)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+The transition from the daemon API to the endhost API happens in the
+infrastructure, not in the client libraries. An AS that wants to support old
+and new clients offers both APIs. An old client uses the daemon API, and a new
+client uses the endhost API. Thus a client library does not need to support
+both APIs.
+
 Server-side
 """""""""""
 
@@ -473,8 +607,8 @@ Eventually, the daemon API is deprecated and removed.
 Client-side
 """""""""""
 
-Each client library defines its own backward-compatibility policy. Existing
-libraries and their current status:
+A client library can support only the endhost API. Existing libraries and
+their current status:
 
 - **jpan** (Java) -- supports daemon and daemon-less operation.
 - **snet** (Go) -- supports daemon and daemon-less operation.
@@ -485,10 +619,13 @@ libraries and their current status:
 API Versioning Strategy
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-**[OPEN]** API versioning is related to :issue:`4832`. The expectation is that
-an explicit versioning strategy extends the API but does not modify the core
-design described here. Defining the versioning strategy is not a blocker for
-this design document.
+The API uses two levels of versions (see also :issue:`4832`):
+
+- The proto package name contains the version of the API specification, for
+  example ``scion.endhost.v1``. A breaking change to the specification uses a
+  new package, for example ``scion.endhost.v2``.
+- The ``Endhost-API-Server-Version`` header contains the version of the server
+  implementation. See `Endhost API Implementation Versioning`_.
 
 SCION Daemon Transition
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -518,11 +655,9 @@ Client-side
 ^^^^^^^^^^^
 
 Client libraries are updated to support the endhost API. Applications adopt the
-new API by upgrading their library dependency.
-
-**[OPEN]** Whether libraries maintain backward compatibility with the old
-daemon API or only support the new endhost API is left to each library's
-policy.
+new API by upgrading their library dependency. A library does not need to
+support the daemon API, because an AS offers both APIs during the transition
+(see `API Supporting Strategy (Incremental Deployment)`_).
 
 Phased Roadmap
 """"""""""""""
