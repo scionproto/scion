@@ -83,7 +83,14 @@ Authentication
 
 - **Server authentication** via TLS is mandatory on network transports. The
   server certificate may be issued by a WebPKI CA or a private TLS PKI operated
-  by the AS.
+  by the AS. The server may also use its AS certificate of the SCION CP-PKI.
+- If the server uses its AS certificate, the client verifies the certificate
+  chain against the TRC of the ISD. The client must have this TRC before it
+  connects, for example from the bootstrap process (see
+  :doc:`endhost-bootstrap`). The client must not take the trust anchor for this
+  verification from the same server. The AS certificate identifies an ISD-AS,
+  not a host name. Thus the client also checks that the ISD-AS in the
+  certificate is the local AS that it expects.
 - On a local transport, for example a Unix domain socket, TLS is not required.
   The file system permissions of the socket authenticate the server.
 - **Client authentication** is optional. Any HTTP-based authentication scheme
