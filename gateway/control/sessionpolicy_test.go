@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +19,8 @@ import (
 	"context"
 	"net"
 	"os"
+	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -28,12 +31,12 @@ import (
 	"github.com/scionproto/scion/gateway/control/mock_control"
 	"github.com/scionproto/scion/gateway/pktcls"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
-	"github.com/scionproto/scion/private/path/pathpol"
 )
 
-func TestLegacySessionPolicyAdapterParse(t *testing.T) {
+func TestTrafficPolicyParserParse(t *testing.T) {
 	testCases := map[string]struct {
 		Input     []byte
 		Expected  control.SessionPolicies
@@ -107,15 +110,124 @@ func TestLegacySessionPolicyAdapterParse(t *testing.T) {
 			},
 			AssertErr: assert.NoError,
 		},
+		"session policies": {
+			Input: []byte(`
+			{
+				"ASes": {
+				  "1-ff00:0:110": {
+					"Nets": [
+					  "172.20.4.0/24"
+					],
+					"SessionPolicies": [
+					  {"ID": 2, "Name": "voice", "TrafficClass": "dscp=0x2e"},
+					  {"ID": 1}
+					]
+				  }
+				},
+				"ConfigVersion": 300
+			}
+			`),
+			Expected: control.SessionPolicies{
+				control.SessionPolicy{
+					ID:             2,
+					Name:           "voice",
+					IA:             addr.MustParseIA("1-ff00:0:110"),
+					TrafficMatcher: mustCond(t, "dscp=0x2e"),
+					PerfPolicy:     control.DefaultPerfPolicy,
+					PathPolicy:     control.DefaultPathPolicy,
+					PathCount:      1,
+					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "172.20.4.0/24")},
+				},
+				control.SessionPolicy{
+					ID:             1,
+					IA:             addr.MustParseIA("1-ff00:0:110"),
+					TrafficMatcher: pktcls.CondTrue,
+					PerfPolicy:     control.DefaultPerfPolicy,
+					PathPolicy:     control.DefaultPathPolicy,
+					PathCount:      1,
+					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "172.20.4.0/24")},
+				},
+			},
+			AssertErr: assert.NoError,
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			parser := control.LegacySessionPolicyAdapter{}
+			parser := control.TrafficPolicyParser{}
 			p, err := parser.Parse(context.Background(), tc.Input)
 			assert.Equal(t, tc.Expected, p)
 			tc.AssertErr(t, err)
 		})
 	}
+}
+
+type logEntry struct {
+	Level  string
+	Msg    string
+	Fields []any
+}
+
+type fakeLogger struct {
+	fields  []any
+	entries *[]logEntry
+}
+
+func (l fakeLogger) New(ctx ...any) log.Logger {
+	return fakeLogger{fields: append(slices.Clone(l.fields), ctx...), entries: l.entries}
+}
+
+func (l fakeLogger) Debug(msg string, ctx ...any) { l.add("debug", msg, ctx) }
+func (l fakeLogger) Info(msg string, ctx ...any)  { l.add("info", msg, ctx) }
+func (l fakeLogger) Error(msg string, ctx ...any) { l.add("error", msg, ctx) }
+func (l fakeLogger) Enabled(log.Level) bool       { return true }
+
+func (l fakeLogger) add(level, msg string, ctx []any) {
+	*l.entries = append(*l.entries, logEntry{Level: level, Msg: msg,
+		Fields: append(slices.Clone(l.fields), ctx...)})
+}
+
+func TestTrafficPolicyParserParseLogsWarnings(t *testing.T) {
+	const msg = "Traffic policy file warning"
+
+	t.Run("each warning", func(t *testing.T) {
+		var entries []logEntry
+		_, err := control.TrafficPolicyParser{}.Parse(
+			log.CtxWith(context.Background(), fakeLogger{entries: &entries}),
+			[]byte(`{"Routes": {}, "ASes": {
+				"1-ff00:0:111": {"Nets": ["10.1.0.0/16"], "Sigs": {}},
+				"1-ff00:0:112": null,
+				"1-ff00:0:113": {"SessionPolicies": [{"ID": 1},
+					{"ID": 2, "TrafficClass": "dscp=0x2e"},
+					{"ID": 3, "Name": "voice", "TrafficClass": "dscp=0x0"}]}
+			}}`))
+		require.NoError(t, err)
+		assert.Equal(t, []logEntry{
+			{Level: "error", Msg: msg, Fields: []any{"warning", unknownKeyMsg("Routes")}},
+			{Level: "error", Msg: msg,
+				Fields: []any{"isd_as", ia111, "warning", unknownKeyMsg("Sigs")}},
+			{Level: "info", Msg: msg, Fields: []any{"isd_as", ia112, "warning", nullASEntryMsg}},
+			{Level: "error", Msg: msg, Fields: []any{"isd_as", ia113,
+				"session_policy_id", 2, "warning", afterCatchAllMsg(1)}},
+			{Level: "error", Msg: msg, Fields: []any{"isd_as", ia113,
+				"session_policy_id", 3, "session_policy_name", "voice",
+				"warning", afterCatchAllMsg(1)}},
+		}, entries)
+	})
+
+	t.Run("warning before an error", func(t *testing.T) {
+		var entries []logEntry
+		_, err := control.TrafficPolicyParser{}.Parse(
+			log.CtxWith(context.Background(), fakeLogger{entries: &entries}),
+			[]byte(`{"ASes": {
+				"1-ff00:0:111": {"Nets": ["10.0.0.0/8"]},
+				"1-FF00:0:111": {"Nets": ["10.0.0.1/8"]}
+			}}`))
+		assert.ErrorContains(t, err, "network must be canonical")
+		assert.Equal(t, []logEntry{
+			{Level: "error", Msg: msg,
+				Fields: []any{"isd_as", ia111, "warning", duplicateASEntryMsg}},
+		}, entries)
+	})
 }
 
 func TestLoadSessionPolicies(t *testing.T) {
@@ -210,15 +322,23 @@ func TestSessionPoliciesRemoteIAs(t *testing.T) {
 	}
 }
 
-func TestCopyPathPolicy(t *testing.T) {
-	input := &pathpol.Policy{
-		ACL: &pathpol.ACL{
-			Entries: []*pathpol.ACLEntry{
-				{Action: pathpol.Allow},
-			},
-		},
+func TestSessionPolicyCopy(t *testing.T) {
+	sp := control.SessionPolicy{
+		IA:             addr.MustParseIA("1-ff00:0:110"),
+		ID:             7,
+		Name:           "voice",
+		TrafficMatcher: mustCond(t, "dscp=0x2e"),
+		PerfPolicy:     control.DefaultPerfPolicy,
+		PathPolicy:     control.DefaultPathPolicy,
+		PathCount:      2,
+		Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/16"),
 	}
-	p := control.CopyPathPolicy(input)
-	assert.Equal(t, input, p)
-	assert.NotSame(t, input, p)
+	v := reflect.ValueOf(sp)
+	for field := range v.Type().Fields() {
+		assert.False(t, v.FieldByIndex(field.Index).IsZero(),
+			"set a value for the field %s", field.Name)
+	}
+	cp := sp.Copy()
+	assert.Equal(t, sp, cp)
+	assert.NotSame(t, sp.Prefixes[0], cp.Prefixes[0])
 }

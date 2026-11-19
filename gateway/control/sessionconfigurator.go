@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +17,14 @@ package control
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -35,6 +39,8 @@ import (
 	"github.com/scionproto/scion/private/worker"
 )
 
+const maxSessions = math.MaxUint8 + 1
+
 // SessionConfig contains the data that describes a control-plane session.
 type SessionConfig struct {
 	// ID is the 1-byte session identifier that will be used to identify packets
@@ -42,14 +48,15 @@ type SessionConfig struct {
 	ID uint8
 	// PolicyID is the ID of the SessionPolicy that lead to the creation of the SessionConfig.
 	PolicyID int
+	// PolicyName is the optional name of the SessionPolicy.
+	PolicyName string
 	// IA is the ISD-AS number of the remote AS.
 	IA addr.IA
 	// TrafficMatcher contains the conditions the IP traffic must satisfy to use
 	// this session.
 	TrafficMatcher pktcls.Cond
 	// PerfPolicy specifies which paths should be preferred (e.g., the path with
-	// the lowest latency). If unset, paths with the lowest latency are
-	// preferred.
+	// the lowest latency). The path selector does not use it yet.
 	PerfPolicy policies.PerfPolicy
 	// PathPolicy specifies the path properties that paths used for this session
 	// must satisfy.
@@ -177,42 +184,21 @@ func (sc *SessionConfigurator) validate(ctx context.Context) error {
 }
 
 // diffSessionPolicies tries to determine whether the 2 session policies lists
-// differ. It ignores the ordering of the list and ignores duplicates
-// (uniqueness on <IA, ID> pair). It returns true on differences and if it can't
-// be clearly determined whether they differ.
+// differ. It compares the lists in order, because the order gives the priority
+// of the traffic classes. It returns true on differences and if it can't be
+// clearly determined whether they differ.
 func diffSessionPolicies(a, b SessionPolicies) bool {
-	makeKey := func(sessPol SessionPolicy) string {
-		return fmt.Sprintf("%s.%d", sessPol.IA, sessPol.ID)
-	}
-	mapA := make(map[string]SessionPolicy, len(a))
-	mapB := make(map[string]SessionPolicy, len(b))
-	fillMap := func(m map[string]SessionPolicy, policies SessionPolicies) {
-		for _, sp := range policies {
-			m[makeKey(sp)] = sp
-		}
-	}
-	fillMap(mapA, a)
-	fillMap(mapB, b)
-	if len(mapA) != len(mapB) {
-		return true
-	}
-	for key, entryA := range mapA {
-		entryB, ok := mapB[key]
-		if !ok {
-			return true
-		}
-		if diffSessionPolicy(entryA, entryB) {
-			return true
-		}
-	}
-	return false
+	return !slices.EqualFunc(a, b, func(x, y SessionPolicy) bool {
+		return x.IA == y.IA && x.ID == y.ID && !diffSessionPolicy(x, y)
+	})
 }
 
 // diffSessionPolicy attempts to determine whether the 2 session policies
 // differ. It returns true if they differ or if it can't be clearly determined
 // if they differ.
 func diffSessionPolicy(a, b SessionPolicy) bool {
-	if a.TrafficMatcher.String() != b.TrafficMatcher.String() ||
+	if a.Name != b.Name ||
+		a.TrafficMatcher.String() != b.TrafficMatcher.String() ||
 		a.PathCount != b.PathCount ||
 		// no better way than comparing pointers here:
 		a.PerfPolicy != b.PerfPolicy ||
@@ -291,11 +277,14 @@ func buildSessionConfigs(sessionPolicies SessionPolicies,
 	if sessionPolicies == nil {
 		return nil, nil
 	}
+	if err := checkSessionCount(sessionPolicies, remoteGateways); err != nil {
+		return nil, err
+	}
 
 	var sessID uint8 = 0
 	var result []*SessionConfig
-	// iterate over IAs in sorted manner, this is not strictly required but it
-	// facilitates testing and should create more stable session IDs.
+	// The session IDs follow the order of the session policies, which the parser
+	// sorts by IA.
 	for _, sessionPolicy := range sessionPolicies {
 		gateways, ok := remoteGateways.Gateways[sessionPolicy.IA]
 		// It might be that dynamic updates for this IA haven't come in yet, so
@@ -303,6 +292,8 @@ func buildSessionConfigs(sessionPolicies SessionPolicies,
 		if !ok {
 			continue
 		}
+		// Sort a copy for stable session IDs. The slice belongs to the caller.
+		gateways = slices.SortedStableFunc(slices.Values(gateways), compareRemoteGateways)
 		for _, entry := range gateways {
 			pathPol := PathPolicyWithAllowedInterfaces(
 				sessionPolicy.PathPolicy,
@@ -312,6 +303,7 @@ func buildSessionConfigs(sessionPolicies SessionPolicies,
 			result = append(result, &SessionConfig{
 				ID:             sessID,
 				PolicyID:       sessionPolicy.ID,
+				PolicyName:     sessionPolicy.Name,
 				IA:             sessionPolicy.IA,
 				TrafficMatcher: sessionPolicy.TrafficMatcher,
 				PerfPolicy:     sessionPolicy.PerfPolicy,
@@ -324,6 +316,37 @@ func buildSessionConfigs(sessionPolicies SessionPolicies,
 		}
 	}
 	return result, nil
+}
+
+func checkSessionCount(sessionPolicies SessionPolicies, remoteGateways RemoteGateways) error {
+	count := 0
+	first := -1
+	for i, sp := range sessionPolicies {
+		count += len(remoteGateways.Gateways[sp.IA])
+		if count > maxSessions && first < 0 {
+			first = i
+		}
+	}
+	if first < 0 {
+		return nil
+	}
+	return serrors.New("too many sessions", "sessions", count, "max", maxSessions,
+		"isd_as", sessionPolicies[first].IA, "session_policy_id", sessionPolicies[first].ID)
+}
+
+func compareRemoteGateways(a, b RemoteGateway) int {
+	if c := cmp.Or(
+		strings.Compare(a.Gateway.Control.String(), b.Gateway.Control.String()),
+		strings.Compare(a.Gateway.Probe.String(), b.Gateway.Probe.String()),
+		strings.Compare(a.Gateway.Data.String(), b.Gateway.Data.String()),
+	); c != 0 {
+		return c
+	}
+	// Sort copies, because the slices belong to the caller.
+	return slices.Compare(
+		slices.Sorted(slices.Values(a.Gateway.Interfaces)),
+		slices.Sorted(slices.Values(b.Gateway.Interfaces)),
+	)
 }
 
 // PathPolicyWithAllowedInterfaces constructs a path policy that only accepts
