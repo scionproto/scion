@@ -266,3 +266,45 @@ func TestUpdateTopologyRejects(t *testing.T) {
 		})
 	}
 }
+
+func TestValidator(t *testing.T) {
+	tests := map[string]struct {
+		edit func(*jsontopo.Topology)
+		ok   bool
+	}{
+		"control service moved": {
+			edit: func(raw *jsontopo.Topology) {
+				raw.ControlService["cs1"].Addr = "127.0.0.1:31001"
+			},
+			ok: true,
+		},
+		"ISD-AS changed": {
+			edit: func(raw *jsontopo.Topology) {
+				raw.IA = "1-ff00:0:120"
+			},
+		},
+		"bad local address": {
+			edit: func(raw *jsontopo.Topology) {
+				raw.BorderRouters["br1"].Interfaces[1].Underlay.Local = "127.0.0.1:5000O"
+			},
+		},
+		// This router doesn't use the address, but UpdateTopology parses it.
+		"bad address of sibling interface": {
+			edit: func(raw *jsontopo.Topology) {
+				raw.BorderRouters["br2"].Interfaces[4] = newInterface("127.0.0.2:5000O")
+			},
+		},
+	}
+	v := control.NewValidator("br1")
+	old := topo(t, nil).Writable()
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := v.Validate(topo(t, tc.edit).Writable(), old)
+			if tc.ok {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}

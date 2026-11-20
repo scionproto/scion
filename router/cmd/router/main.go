@@ -59,7 +59,7 @@ func main() {
 
 func realMain(ctx context.Context) error {
 	topoMetrics := topologyMetrics()
-	validator := &topology.RouterValidator{ID: globalCfg.General.ID}
+	validator := control.NewValidator(globalCfg.General.ID)
 	topo, err := loadTopology(validator, nil, topoMetrics)
 	if err != nil {
 		return serrors.Wrap("loading topology", err)

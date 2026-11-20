@@ -153,12 +153,37 @@ func (iac *IACtx) Configure() error {
 	return nil
 }
 
+// NewValidator returns a validator for the topology of router id.
+// Besides the checks of [topology.RouterValidator],
+// it rejects topologies whose interface addresses don't parse.
+// [IACtx.UpdateTopology] would apply nothing of such a topology.
+func NewValidator(id string) topology.Validator {
+	return &validator{RouterValidator: topology.RouterValidator{ID: id}}
+}
+
+type validator struct {
+	topology.RouterValidator
+}
+
+func (v *validator) Validate(topo, old *topology.RWTopology) error {
+	if err := v.RouterValidator.Validate(topo, old); err != nil {
+		return err
+	}
+	cfg := &Config{}
+	if err := cfg.initTopo(v.ID, topology.FromRWTopology(topo)); err != nil {
+		return err
+	}
+	_, err := externalInterfaces(cfg)
+	return err
+}
+
 // UpdateTopology reconfigures the dataplane for topo, a new version of the topology.
 // It adds, removes, and replaces interfaces, and updates the service addresses.
 // Interfaces that don't change keep running.
-// The ISD-AS and the internal address of the router must not change.
 //
-// UpdateTopology applies what it can and returns the errors.
+// Check topo with [NewValidator] first.
+// UpdateTopology applies nothing of a topology that the validator rejects.
+// Of one that it accepts, it applies what it can and returns the errors.
 // A later call retries what failed.
 func (iac *IACtx) UpdateTopology(topo topology.Topology) error {
 	cfg := &Config{MasterKeys: iac.Config.MasterKeys}
