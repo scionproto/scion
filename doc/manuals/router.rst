@@ -255,7 +255,8 @@ The router rejects a file and keeps the topology it has if any of these holds:
 - An underlay address doesn't parse.
 - Two interfaces of the router have the same ``remote`` address.
 - An underlay ``provider`` is unknown.
-- The file has more interfaces than the router can hold: 256 more than it started with.
+- The file has more than 256 interfaces beyond those the router started with.
+  Interfaces of sibling routers count too. A restart makes room for another 256.
 
 It logs the reason, and counts the reload in ``topology_updates_total``
 with ``result="err_validate"``.
