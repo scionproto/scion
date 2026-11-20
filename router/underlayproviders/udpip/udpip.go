@@ -22,6 +22,7 @@ import (
 	"maps"
 	"net"
 	"net/netip"
+	"runtime"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -86,6 +87,10 @@ type provider struct {
 	dispatchStart      uint16
 	dispatchEnd        uint16
 	dispatchRedirect   uint16
+
+	// procQs are the processor queues. The connections load them for each batch
+	// they receive, so that SetProcQueues can replace them.
+	procQs atomic.Pointer[[]chan *router.Packet]
 }
 
 // udpLink is implemented by all the links of this provider.
@@ -95,7 +100,8 @@ type udpLink interface {
 	router.Link
 	start(ctx context.Context, procQs []chan *router.Packet, pool router.PacketPool)
 	stop()
-	receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
+	// receive delivers p to one of procQs.
+	receive(size int, srcAddr *net.UDPAddr, p *router.Packet, procQs []chan *router.Packet)
 }
 
 func init() {
@@ -177,6 +183,7 @@ func (u *provider) Start(
 		// Pointless to run without any processor of incoming traffic
 		return
 	}
+	u.procQs.Store(&procQs)
 
 	// Links MUST be started before connections. Given that this is an internal mater, we don't pay
 	// the price of checking at use time.
@@ -197,6 +204,15 @@ func (u *provider) Stop() {
 	}
 	for _, l := range u.allLinks {
 		l.stop()
+	}
+}
+
+func (u *provider) SetProcQueues(procQs []chan *router.Packet) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.procQs.Store(&procQs)
+	for _, c := range u.allConnections {
+		c.waitBatch()
 	}
 }
 
@@ -244,6 +260,15 @@ type udpConnection struct {
 	// the receiver runs, so the map is replaced rather than modified.
 	links atomic.Pointer[map[netip.AddrPort]udpLink]
 
+	// procQs are the processor queues of the provider.
+	procQs *atomic.Pointer[[]chan *router.Packet]
+
+	// batches is odd while the receiver delivers a batch.
+	// The padding keeps the receiver's writes off the cache lines that the sender reads.
+	_       [64]byte
+	batches atomic.Uint64
+	_       [64]byte
+
 	// done is closed by stop.
 	// The queue is never closed because links may still send to it.
 	done         chan struct{}
@@ -255,7 +280,7 @@ type udpConnection struct {
 	connected    bool // If true, the underlying UDP socket is connected
 }
 
-func newUDPConnection(
+func (u *provider) newUDPConnection(
 	conn router.BatchConn,
 	name string,
 	link udpLink,
@@ -269,10 +294,20 @@ func newUDPConnection(
 		link:         link,
 		queue:        queue,
 		metrics:      metrics, // send() needs them :-(
+		procQs:       &u.procQs,
 		done:         make(chan struct{}),
 		receiverDone: make(chan struct{}),
 		senderDone:   make(chan struct{}),
 		connected:    connected,
+	}
+}
+
+// waitBatch waits until the receiver has delivered the batch it is delivering, if any.
+// It may have loaded the processor queues before SetProcQueues replaced them.
+func (u *udpConnection) waitBatch() {
+	b := u.batches.Load()
+	for b%2 == 1 && u.batches.Load() == b {
+		runtime.Gosched()
 	}
 }
 
@@ -380,6 +415,8 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 			continue
 		}
 		numReusable -= numPkts
+		u.batches.Add(1) // Odd: waitBatch waits until the batch is delivered.
+		procQs := *u.procQs.Load()
 		links := u.links.Load()
 		for i, msg := range msgs[:numPkts] {
 
@@ -394,7 +431,7 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 				srcAddr := msg.Addr.(*net.UDPAddr).AddrPort()
 				l, found := (*links)[srcAddr]
 				if found {
-					l.receive(size, msg.Addr.(*net.UDPAddr), p)
+					l.receive(size, msg.Addr.(*net.UDPAddr), p, procQs)
 					continue
 				}
 			}
@@ -402,8 +439,9 @@ func (u *udpConnection) receive(batchSize int, pool router.PacketPool) {
 			// Either there is no map, or the address isn't in it. In both cases
 			// hand the packet to our distinguished link. That's either the internal link, or a
 			// connected link. There's always one or the other, else it's a panicable offense.
-			u.link.receive(size, msg.Addr.(*net.UDPAddr), p)
+			u.link.receive(size, msg.Addr.(*net.UDPAddr), p, procQs)
 		}
+		u.batches.Add(1)
 	}
 
 	// We have to stop receiving. Return the unused packets to the pool to avoid creating
@@ -456,6 +494,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 	}
 
 	queue := u.queue
+	done := u.done
 	conn := u.conn
 	metrics := u.metrics
 	toWrite := 0
@@ -471,7 +510,7 @@ func (u *udpConnection) send(batchSize int, pool router.PacketPool) {
 		// Top-up our batch.
 		toWrite += readUpTo(
 			queue,
-			u.done,
+			done,
 			batchSize-toWrite,
 			toWrite == 0, pkts[toWrite:],
 		)
@@ -537,7 +576,6 @@ func makeHashSeed() uint32 {
 // need to specify a destination address and receives all the traffic from that connection. Such a
 // link is used as an external link and, under some conditions, as a sibling link.
 type connectedLink struct {
-	procQs     []chan *router.Packet
 	name       string // For logs
 	egressQ    chan *router.Packet
 	done       <-chan struct{} // Closed when the connection stops.
@@ -606,7 +644,7 @@ func (u *provider) newConnectedLink(
 		scope:      scope,
 	}
 	// No demux lookup ever for this connection.
-	c := newUDPConnection(conn, el.name, el, queue, metrics, true)
+	c := u.newUDPConnection(conn, el.name, el, queue, metrics, true)
 	el.done = c.done
 	u.allConnections = append(u.allConnections, c)
 	u.allLinks[remoteAddr] = el
@@ -615,16 +653,16 @@ func (u *provider) newConnectedLink(
 
 func (l *connectedLink) start(
 	ctx context.Context,
-	procQs []chan *router.Packet,
+	_ []chan *router.Packet, // The connection passes them to receive.
 	pool router.PacketPool,
 ) {
 	if l.started {
 		return
 	}
 	l.started = true
-	// procQs and pool are never known before all configured links have been instantiated.  So we
-	// get them only now. We didn't need it earlier since the connections have not been started yet.
-	l.procQs = procQs
+	// The pool is never known before all configured links have been instantiated.
+	// So we get it only now. We didn't need it earlier since the connections
+	// have not been started yet.
 	l.pool = pool
 	if l.bfdSession == nil {
 		return
@@ -705,7 +743,9 @@ func (l *connectedLink) drainIfClosed() {
 	}
 }
 
-func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
+func (l *connectedLink) receive(
+	size int, srcAddr *net.UDPAddr, p *router.Packet, procQs []chan *router.Packet,
+) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
@@ -715,14 +755,14 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 	// The src address does not need to be recorded in the packet. The link has all the relevant
 	// information.
 
-	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
+	procID, ok := computeProcID(p.RawPacket, len(procQs), l.seed)
 	if !ok {
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
 	select {
-	case l.procQs[procID] <- p:
+	case procQs[procID] <- p:
 	default:
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
@@ -733,7 +773,6 @@ func (l *connectedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet
 // an exclusive underlying point-to-point connection. Instead, it shares the
 // unconnected batchConn that the internal link also uses.
 type detachedLink struct {
-	procQs     []chan *router.Packet
 	name       string // For logs
 	conn       *udpConnection
 	egressQ    chan<- *router.Packet
@@ -812,16 +851,16 @@ func (u *provider) newDetachedLink(
 
 func (l *detachedLink) start(
 	ctx context.Context,
-	procQs []chan *router.Packet,
+	_ []chan *router.Packet, // The connection passes them to receive.
 	pool router.PacketPool,
 ) {
 	if l.started {
 		return
 	}
 	l.started = true
-	// procQs and pool are never known before all configured links have been instantiated.  So we
-	// get them only now. We didn't need it earlier since the connections have not been started yet.
-	l.procQs = procQs
+	// The pool is never known before all configured links have been instantiated.
+	// So we get it only now. We didn't need it earlier since the connections
+	// have not been started yet.
 	l.pool = pool
 	// The shared connection may be running already. It must not deliver to us before now.
 	l.conn.setLink(l.remote.AddrPort(), l)
@@ -895,7 +934,9 @@ func (l *detachedLink) SendBlocking(p *router.Packet) {
 	l.egressQ <- p
 }
 
-func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
+func (l *detachedLink) receive(
+	size int, srcAddr *net.UDPAddr, p *router.Packet, procQs []chan *router.Packet,
+) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
@@ -905,14 +946,14 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	// The src address does not need to be recorded in the packet. The link has all the relevant
 	// information.
 
-	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
+	procID, ok := computeProcID(p.RawPacket, len(procQs), l.seed)
 	if !ok {
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsInvalid.Inc()
 		return
 	}
 	select {
-	case l.procQs[procID] <- p:
+	case procQs[procID] <- p:
 	default:
 		l.pool.Put(p)
 		metrics[sc].DroppedPacketsBusyProcessor.Inc()
@@ -921,7 +962,6 @@ func (l *detachedLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 
 type internalLink struct {
 	procQ            chan *router.Packet
-	procQs           []chan *router.Packet
 	egressQ          chan *router.Packet
 	procStop         chan struct{}
 	procDone         chan struct{}
@@ -971,7 +1011,7 @@ func (u *provider) NewInternalLink(
 		dispatchRedirect: u.dispatchRedirect,
 	}
 	// Might be exclusive to internal links, but still not connected.
-	c := newUDPConnection(conn, "internal", il, queue, metrics, false)
+	c := u.newUDPConnection(conn, "internal", il, queue, metrics, false)
 
 	if !u.connOpener.UDPCanReuseLocal() {
 		// In this case we will share this connection with sibling links, so the connection has a
@@ -1002,9 +1042,9 @@ func (l *internalLink) start(
 	l.procStop = make(chan struct{})
 	l.procDone = make(chan struct{})
 
-	// procQs and pool are never known before all configured links have been instantiated. So we
-	// get them only now. We didn't need it earlier since the connections have not been started yet.
-	l.procQs = procQs
+	// The pool is never known before all configured links have been instantiated.
+	// So we get it only now. We didn't need it earlier since the connections
+	// have not been started yet.
 	l.pool = pool
 
 	go func() {
@@ -1159,7 +1199,9 @@ func (l *internalLink) SendBlocking(p *router.Packet) {
 	l.egressQ <- p
 }
 
-func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet) {
+func (l *internalLink) receive(
+	size int, srcAddr *net.UDPAddr, p *router.Packet, procQs []chan *router.Packet,
+) {
 	metrics := l.metrics
 	sc := router.ClassOfSize(size)
 	metrics[sc].InputPacketsTotal.Inc()
@@ -1171,9 +1213,9 @@ func (l *internalLink) receive(size int, srcAddr *net.UDPAddr, p *router.Packet)
 	p.RemoteAddr = unsafe.Pointer(srcAddr)
 
 	var q chan *router.Packet
-	procID, ok := computeProcID(p.RawPacket, len(l.procQs), l.seed)
+	procID, ok := computeProcID(p.RawPacket, len(procQs), l.seed)
 	if ok {
-		q = l.procQs[procID]
+		q = procQs[procID]
 	} else {
 		q = l.procQ
 	}

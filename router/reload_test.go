@@ -45,6 +45,7 @@ import (
 // TestReloadTopology runs a router on loopback sockets.
 // While packets keep coming in through interface 1, interface 2 moves to
 // another neighbor address, then makes room for interface 3.
+// Then interfaces 4 to 6 join, and the processor queues grow.
 func TestReloadTopology(t *testing.T) {
 	neighbor1, neighbor2, moved2, neighbor3 := listen(t), listen(t), listen(t), listen(t)
 	local1, local2, local3, internal := freeAddr(t), freeAddr(t), freeAddr(t), freeAddr(t)
@@ -134,6 +135,22 @@ func TestReloadTopology(t *testing.T) {
 	require.True(t, ok, "no SCMP reply")
 	assert.Equal(t, slayers.SCMPTypeParameterProblem, scmp.TypeCode.Type())
 	assert.Equal(t, slayers.SCMPCodeUnknownHopFieldEgress, scmp.TypeCode.Code())
+
+	// More interfaces than at the start need bigger processor queues.
+	ifs := map[iface.ID]*jsontopo.BRInterface{
+		1: interface1,
+		3: loopbackInterface(local3, neighbor3, "child"),
+	}
+	more := map[iface.ID]*net.UDPConn{}
+	for ifID := iface.ID(4); ifID <= 6; ifID++ {
+		more[ifID] = listen(t)
+		ifs[ifID] = loopbackInterface(freeAddr(t), more[ifID], "child")
+	}
+	require.NoError(t, iaCtx.UpdateTopology(writeTopology(ifs)))
+	for ifID, neighbor := range more {
+		assert.True(t, isTransit(forward(uint16(ifID), neighbor)))
+	}
+	assert.True(t, isTransit(forward(3, neighbor3)))
 }
 
 func listen(t *testing.T) *net.UDPConn {

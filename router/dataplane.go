@@ -322,10 +322,22 @@ type dataPlane struct {
 	// receive the link layer header.
 	underlayHeadroom int
 
-	// runCtx and procQs are what Run started the underlays with.
-	// Links added later need them too. procQs is nil until then.
+	// runCtx and queues are what Run started the underlays with.
+	// Links added later need them too. queues is nil until then.
 	runCtx context.Context
-	procQs []chan *Packet
+	queues *procQueues
+
+	// maxInterfaces is how many interfaces the packet pool has room for.
+	maxInterfaces int
+}
+
+// procQueues are the queues of the processors, one per processor.
+// When the queues grow, a new set replaces this one: see [dataPlane.growQueues].
+type procQueues struct {
+	qs []chan *Packet
+	// next is the set that replaced this one. It is set before each queue
+	// of this set gets nil as its last element.
+	next atomic.Pointer[procQueues]
 }
 
 var (
@@ -595,6 +607,7 @@ func (d *dataPlane) AddExternalInterface(
 		sender.link = lk
 	}
 	d.startLinks(underlay)
+	d.growQueues()
 	e.link = lk
 	e.linkType = link.LinkTo
 	d.setEntry(ifID, e)
@@ -679,7 +692,7 @@ func (d *dataPlane) underlay(name string) (UnderlayProvider, error) {
 			d.RunConfig.ReceiveBufferSize,
 		)
 	}
-	if d.procQs != nil {
+	if d.queues != nil {
 		if _, ok := u.(LinkDeleter); !ok {
 			return nil, serrors.JoinNoStack(errNoReload, nil, "provider", name)
 		}
@@ -694,9 +707,76 @@ func (d *dataPlane) underlay(name string) (UnderlayProvider, error) {
 
 // startLinks starts the links that u created since Run started it.
 func (d *dataPlane) startLinks(u UnderlayProvider) {
-	if d.procQs != nil {
-		u.Start(d.runCtx, d.packetPool, d.procQs)
+	if d.queues != nil {
+		u.Start(d.runCtx, d.packetPool, d.queues.qs)
 	}
+}
+
+// numConnections returns the number of connections of the underlays.
+// Callers must hold [d.mtx].
+func (d *dataPlane) numConnections() int {
+	n := 0
+	for _, u := range d.underlays {
+		n += u.NumConnections()
+	}
+	return n
+}
+
+// queueSize returns the size of the processor queues for numConnections connections.
+// Each connection may deliver a batch at once.
+func (d *dataPlane) queueSize(numConnections int) int {
+	return max(
+		numConnections*d.RunConfig.BatchSize/d.RunConfig.NumProcessors,
+		d.RunConfig.BatchSize,
+	)
+}
+
+// growQueues replaces the processor queues with bigger ones if the connections need them.
+// Callers must hold d.mtx.
+func (d *dataPlane) growQueues() {
+	if d.queues == nil {
+		return // Run sizes the queues.
+	}
+	old := d.queues
+	size := d.queueSize(d.numConnections())
+	grow := size - cap(old.qs[0])
+	if grow <= 0 {
+		return
+	}
+	// The pool must hold enough packets to fill the queues.
+	// Otherwise, receivers and BFD senders would wait for packets under load.
+	n := len(old.qs) * grow
+	if d.poolSize+n > cap(d.packetPool.pool) {
+		log.Error("Processor queues keep their size: no room in the packet pool",
+			"size", cap(old.qs[0]), "wanted", size)
+		return
+	}
+	var deleters []LinkDeleter
+	for name, u := range d.underlays {
+		ld, ok := u.(LinkDeleter)
+		if !ok {
+			log.Info("Processor queues keep their size: the underlay can't change them",
+				"provider", name)
+			return
+		}
+		deleters = append(deleters, ld)
+	}
+	gen := &procQueues{qs: make([]chan *Packet, len(old.qs))}
+	for i := range gen.qs {
+		gen.qs[i] = make(chan *Packet, size)
+	}
+	d.addPackets(n)
+	d.poolBase += n
+	for _, ld := range deleters {
+		ld.SetProcQueues(gen.qs)
+	}
+	// Nothing more arrives on old. Each processor finds nil
+	// after the last packet of its queue, and moves on to gen.
+	old.next.Store(gen)
+	for _, q := range old.qs {
+		q <- nil
+	}
+	d.queues = gen
 }
 
 // newExternalInterfaceBFD adds the inter AS connection BFD session.
@@ -818,6 +898,7 @@ func (d *dataPlane) AddNextHop(
 		sender.link = lk
 	}
 	d.startLinks(underlay)
+	d.growQueues()
 	e.link = lk
 	e.linkType = link.LinkTo
 	d.setEntry(ifID, e)
@@ -880,18 +961,12 @@ func (d *dataPlane) Run(ctx context.Context) error {
 		log.Error("Could not initialize processmetrics", "err", err)
 	}
 
-	numConnections := 0
-	for _, u := range d.underlays {
-		numConnections += u.NumConnections()
-	}
-	processorQueueSize := max(
-		numConnections*d.RunConfig.BatchSize/d.RunConfig.NumProcessors,
-		d.RunConfig.BatchSize,
-	)
+	processorQueueSize := d.queueSize(d.numConnections())
 	d.initPacketPool(processorQueueSize)
 	procQs, slowQs := d.initQueues(processorQueueSize)
+	queues := &procQueues{qs: procQs}
 	d.runCtx = ctx
-	d.procQs = procQs
+	d.queues = queues
 	d.setRunning()
 	for _, u := range d.underlays {
 		u.Start(ctx, d.packetPool, procQs)
@@ -899,7 +974,7 @@ func (d *dataPlane) Run(ctx context.Context) error {
 	for i := range d.RunConfig.NumProcessors {
 		go func(i int) {
 			defer log.HandlePanic()
-			d.runProcessor(i, procQs[i], slowQs[i%d.RunConfig.NumSlowPathProcessors])
+			d.runProcessor(i, queues, slowQs[i%d.RunConfig.NumSlowPathProcessors])
 		}(i)
 	}
 	for i := range d.RunConfig.NumSlowPathProcessors {
@@ -942,7 +1017,12 @@ func (d *dataPlane) initPacketPool(processorQueueSize int) {
 		headroom = minHeadroom
 	}
 	log.Debug("Initialize packet pool", "poolSize", poolSize, "headroom", headroom)
-	d.packetPool = makePacketPool(d.poolSizeFor(d.numInterfaces+poolGrowthInterfaces), headroom)
+	d.maxInterfaces = d.numInterfaces + poolGrowthInterfaces
+	// Room for the processor queues to grow with the connections of the interfaces,
+	// which have at most one each.
+	queueGrowth := d.RunConfig.NumProcessors *
+		max(d.queueSize(d.maxInterfaces)-processorQueueSize, 0)
+	d.packetPool = makePacketPool(d.poolSizeFor(d.maxInterfaces)+queueGrowth, headroom)
 	d.addPackets(poolSize)
 }
 
@@ -971,8 +1051,11 @@ func (d *dataPlane) addPackets(n int) {
 // growPool makes the pool big enough for numInterfaces interfaces.
 // Before [dataPlane.Run], it does nothing: [dataPlane.Run] sizes the pool.
 func (d *dataPlane) growPool(numInterfaces int) error {
-	if d.procQs == nil {
+	if d.queues == nil {
 		return nil
+	}
+	if numInterfaces > d.maxInterfaces {
+		return errPoolFull
 	}
 	n := d.poolSizeFor(numInterfaces) - d.poolSize
 	if n <= 0 {
@@ -998,9 +1081,9 @@ func (d *dataPlane) checkInterfaces(providers []string) error {
 			return serrors.JoinNoStack(errNoSuchUnderlay, nil, "provider", name)
 		}
 	}
-	// Interfaces are removed before others are added, so the pool must
-	// hold the new ones only. Plus one for the internal interface.
-	if d.procQs != nil && d.poolSizeFor(len(providers)+1) > cap(d.packetPool.pool) {
+	// Interfaces are removed before others are added, so only the new ones count.
+	// Plus one for the internal interface.
+	if d.queues != nil && len(providers)+1 > d.maxInterfaces {
 		return errPoolFull
 	}
 	return nil
@@ -1019,12 +1102,19 @@ func (d *dataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *
 	return procQs, slowQs
 }
 
-func (d *dataPlane) runProcessor(id int, q <-chan *Packet, slowQ chan<- *Packet) {
+func (d *dataPlane) runProcessor(id int, queues *procQueues, slowQ chan<- *Packet) {
 	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
+	q := queues.qs[id]
 	for d.isRunning() {
 		p, ok := <-q
 		if !ok {
+			continue
+		}
+		if p == nil {
+			// growQueues replaced the queues, and q stays empty.
+			queues = queues.next.Load()
+			q = queues.qs[id]
 			continue
 		}
 		disp := processor.processPkt(p)

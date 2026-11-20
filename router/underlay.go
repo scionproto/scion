@@ -153,11 +153,12 @@ type UnderlayProvider interface {
 	NewInternalLink(localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error)
 }
 
-// LinkDeleter is implemented by underlay providers whose links can change while they run,
-// as topology reloads need.
+// LinkDeleter is implemented by underlay providers whose links and processor queues
+// can change while they run, as topology reloads need.
 // Such a provider can create links while it runs.
 // A new link gets no packets before Start starts it.
-// Once the router runs, it adds and deletes no links of other providers.
+// Once the router runs, it adds and deletes no links of other providers,
+// and it grows the processor queues only if all providers are LinkDeleters.
 //
 // TODO(multi_underlay): The AF_XDP underlay of #4892 must implement this to follow reloads:
 //   - A connection, one per NIC queue, serves every link that uses its queue.
@@ -169,11 +170,17 @@ type UnderlayProvider interface {
 //     senders that raced with DelLink may still use it.
 //   - DelLink must remove the address of the link from the XDP filter once no link uses it.
 //   - DelLink must return to the pool the packets that wait for address resolution.
+//   - SetProcQueues must wait for the receivers that may still deliver to the old queues.
 type LinkDeleter interface {
 	// DelLink stops a link returned by NewExternalLink or NewSiblingLink.
 	// The router calls it once no interface uses the link. Packets in flight may still
 	// refer to the link, so its methods must keep working, but Send refuses packets.
 	DelLink(l Link)
+
+	// SetProcQueues replaces the processor queues that Start gave the links.
+	// Once it returns, the links deliver nothing more to the old queues:
+	// the router then hands the processors over to procQs.
+	SetProcQueues(procQs []chan *Packet)
 }
 
 // NewProviderFn is a function that instantiates an underlay provider.

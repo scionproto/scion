@@ -154,19 +154,27 @@ func newTestDP(t *testing.T, opener *fakeOpener) *dataPlane {
 }
 
 // startUnderlays starts d like Run does, but it runs no processors.
-// The test reads the processor queue instead.
-func startUnderlays(t *testing.T, d *dataPlane) chan *Packet {
+// The test reads the processor queues instead, and gets the slow path queues.
+func startUnderlays(t *testing.T, d *dataPlane) []chan *Packet {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	d.initPacketPool(d.RunConfig.BatchSize)
-	procQs, _ := d.initQueues(d.RunConfig.BatchSize)
+	size := d.queueSize(d.numConnections())
+	d.initPacketPool(size)
+	procQs, slowQs := d.initQueues(size)
 	d.runCtx = ctx
-	d.procQs = procQs
+	d.queues = &procQueues{qs: procQs}
 	d.setRunning()
 	for _, u := range d.underlays {
 		u.Start(ctx, d.packetPool, procQs)
 	}
-	return procQs[0]
+	return slowQs
+}
+
+// queue returns the current queue of the first processor.
+func queue(d *dataPlane) chan *Packet {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	return d.queues.qs[0]
 }
 
 // stopAndCheckPool stops d and checks that every packet went back to the pool.
@@ -219,16 +227,14 @@ func addSibling(t *testing.T, d *dataPlane, ifID uint16, sibling string) {
 
 // receive makes c receive a packet from src,
 // and returns the link that the packet got to the processors through.
-func receive(
-	t *testing.T, c *fakeConn, src string, procQ chan *Packet, d *dataPlane,
-) Link {
+func receive(t *testing.T, c *fakeConn, src string, d *dataPlane) Link {
 	t.Helper()
 	c.in <- fakePacket{
 		src:  netip.MustParseAddrPort(src),
 		data: serializedBaseMsg(t, nil, 0),
 	}
 	select {
-	case p := <-procQ:
+	case p := <-queue(d):
 		defer d.packetPool.Put(p)
 		return p.Link
 	case <-time.After(time.Second):
@@ -241,16 +247,22 @@ func TestInterfacesChangeWhileRunning(t *testing.T) {
 	opener := newFakeOpener(true)
 	d := newTestDP(t, opener)
 	addExternal(t, d, 1, "203.0.113.1:50000")
-	procQ := startUnderlays(t, d)
+	startUnderlays(t, d)
 	poolSize := d.poolSize
+	queueSize := cap(queue(d))
 
 	// A new interface receives, and the pool grows for it.
+	// It has a connection more, so the queue grows too.
 	addExternal(t, d, 2, "203.0.113.2:50000")
-	assert.Equal(t, poolSize+3*d.RunConfig.BatchSize, d.poolSize)
+	grown := d.queueSize(3) - queueSize
+	require.Positive(t, grown)
+	assert.Equal(t, queueSize+grown, cap(queue(d)))
+	poolSize += 3*d.RunConfig.BatchSize + grown
+	assert.Equal(t, poolSize, d.poolSize)
 	link2 := d.table().link(2)
 	require.NotNil(t, link2)
 	assert.Equal(t, link2,
-		receive(t, opener.conn(t, "203.0.113.2:50000"), "203.0.113.2:50000", procQ, d))
+		receive(t, opener.conn(t, "203.0.113.2:50000"), "203.0.113.2:50000", d))
 
 	// A removed interface stops, and its link refuses packets.
 	link1 := d.table().link(1)
@@ -263,10 +275,62 @@ func TestInterfacesChangeWhileRunning(t *testing.T) {
 
 	// The neighbor moves. The packets of the removed link are enough for the new one.
 	addExternal(t, d, 1, "203.0.113.11:50000")
-	assert.Equal(t, poolSize+3*d.RunConfig.BatchSize, d.poolSize)
+	assert.Equal(t, poolSize, d.poolSize)
 	assert.Equal(t, d.table().link(1),
-		receive(t, opener.conn(t, "203.0.113.11:50000"), "203.0.113.11:50000", procQ, d))
+		receive(t, opener.conn(t, "203.0.113.11:50000"), "203.0.113.11:50000", d))
 
+	stopAndCheckPool(t, d)
+}
+
+// TestQueuesGrowWhileReceiving adds interfaces, and so grows the processor queues,
+// while packets come in. Every packet must go back to the pool,
+// also those in the queues that bigger ones replaced.
+func TestQueuesGrowWhileReceiving(t *testing.T) {
+	const remote = "203.0.113.1:50000"
+	opener := newFakeOpener(true)
+	d := newTestDP(t, opener)
+	addExternal(t, d, 1, remote)
+	slowQs := startUnderlays(t, d)
+	for i := range d.RunConfig.NumProcessors {
+		go d.runProcessor(i, d.queues, slowQs[i%d.RunConfig.NumSlowPathProcessors])
+	}
+	for i := range d.RunConfig.NumSlowPathProcessors {
+		go d.runSlowPathProcessor(i, slowQs[i])
+	}
+	queueSize := cap(queue(d))
+
+	in := opener.conn(t, remote).in
+	stop := make(chan struct{})
+	sent := make(chan int)
+	go func() {
+		n := 0
+		pkt := fakePacket{
+			src:  netip.MustParseAddrPort(remote),
+			data: serializedBaseMsg(t, nil, 0),
+		}
+		for {
+			select {
+			case <-stop:
+				sent <- n
+				return
+			case in <- pkt:
+				n++
+			}
+		}
+	}()
+	const added = 20
+	for i := range added {
+		addExternal(t, d, uint16(2+i), fmt.Sprintf("203.0.113.%d:50000", 2+i))
+	}
+	close(stop)
+	t.Logf("%d packets sent", <-sent)
+	assert.Equal(t, d.queueSize(added+2), cap(queue(d)))
+	assert.Greater(t, cap(queue(d)), queueSize)
+
+	// Once idle, each receiver holds a batch of packets, and the pool has the others.
+	idle := d.poolSize - (added+2)*d.RunConfig.BatchSize
+	assert.Eventually(t, func() bool { return len(d.packetPool.pool) == idle },
+		time.Second, time.Millisecond, "packets missing from the pool")
 	stopAndCheckPool(t, d)
 }
 
@@ -317,7 +381,7 @@ func TestSiblingLinkStopsWithLastInterface(t *testing.T) {
 			d := newTestDP(t, opener)
 			addSibling(t, d, 2, sibling)
 			addSibling(t, d, 3, sibling)
-			procQ := startUnderlays(t, d)
+			startUnderlays(t, d)
 			lk := d.table().link(2)
 			require.NotNil(t, lk)
 			assert.Equal(t, lk, d.table().link(3))
@@ -329,13 +393,13 @@ func TestSiblingLinkStopsWithLastInterface(t *testing.T) {
 			}
 
 			require.NoError(t, d.DelInterface(2))
-			assert.Equal(t, lk, receive(t, c, sibling, procQ, d))
+			assert.Equal(t, lk, receive(t, c, sibling, d))
 
 			require.NoError(t, d.DelInterface(3))
 			if reuseLocal {
 				assert.True(t, c.isClosed())
 			} else {
-				assert.Equal(t, Internal, receive(t, c, sibling, procQ, d).Scope())
+				assert.Equal(t, Internal, receive(t, c, sibling, d).Scope())
 			}
 			p := d.packetPool.Get()
 			assert.False(t, lk.Send(p))
@@ -372,10 +436,10 @@ func TestDelInterfaceBeforeRun(t *testing.T) {
 
 	// The same addresses work again.
 	addExternal(t, d, 1, remote)
-	procQ := startUnderlays(t, d)
+	startUnderlays(t, d)
 	assert.Equal(t,
 		d.table().link(1),
-		receive(t, opener.conn(t, remote), remote, procQ, d))
+		receive(t, opener.conn(t, remote), remote, d))
 	stopAndCheckPool(t, d)
 }
 
@@ -448,6 +512,77 @@ func (staticProvider) NewInternalLink(
 	localAddr string, qSize int, metrics *InterfaceMetrics) (Link, error) {
 
 	return &MockLink{}, nil
+}
+
+// switchingProvider is a LinkDeleter whose receiver delivers a last packet
+// to each of the old queues while SetProcQueues waits for it.
+type switchingProvider struct {
+	staticProvider
+	links    int
+	pool     PacketPool
+	procQs   []chan *Packet
+	switches int
+}
+
+func init() {
+	AddUnderlay("switching", func(int, int, int) UnderlayProvider {
+		return &switchingProvider{}
+	})
+}
+
+func (p *switchingProvider) NumConnections() int {
+	return p.links
+}
+
+func (p *switchingProvider) Start(
+	ctx context.Context, pool PacketPool, qs []chan *Packet,
+) {
+	p.pool = pool
+	p.procQs = qs
+}
+
+func (p *switchingProvider) NewExternalLink(
+	qSize int, bfd *bfd.Session, local, remote string,
+	ifID uint16, metrics *InterfaceMetrics,
+) (Link, error) {
+
+	p.links++
+	return &MockLink{ifID: ifID}, nil
+}
+
+func (p *switchingProvider) DelLink(l Link) {}
+
+func (p *switchingProvider) SetProcQueues(qs []chan *Packet) {
+	for _, q := range p.procQs {
+		q <- p.pool.Get()
+	}
+	p.procQs = qs
+	p.switches++
+}
+
+// TestGrowQueuesKeepsOrder checks that the processors find the end of the old queues
+// after the last packet that the receivers deliver to them.
+func TestGrowQueuesKeepsOrder(t *testing.T) {
+	const remote = "203.0.113.1:50000"
+	d := newTestDP(t, newFakeOpener(true))
+	startUnderlays(t, d)
+	old := d.queues
+	link := externalLink(remote, false)
+	link.Provider = "switching"
+	require.NoError(t, d.AddNeighborIA(1, testNeighbor))
+	require.NoError(t, d.AddExternalInterface(1, link, hostOf(testLocalAddr), hostOf(remote)))
+
+	p := d.underlays["switching"].(*switchingProvider)
+	require.Equal(t, 1, p.switches, "queues didn't grow")
+	assert.Equal(t, d.queues.qs, p.procQs)
+	assert.Equal(t, d.queues, old.next.Load())
+	for _, q := range old.qs {
+		pkt := <-q
+		require.NotNil(t, pkt, "end of queue before the last packet")
+		d.packetPool.Put(pkt)
+		assert.Nil(t, <-q)
+	}
+	stopAndCheckPool(t, d)
 }
 
 func TestLinksOfStaticProvider(t *testing.T) {
