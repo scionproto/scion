@@ -129,6 +129,20 @@ func TestRenderServices(t *testing.T) {
 		_, err := os.Stat(s.args[1])
 		assert.NoErrorf(t, err, "expected rendered config %q", s.args[1])
 	}
+
+	// configuredServices returns the same services, but writes nothing.
+	emptyDir := t.TempDir()
+	listed, err := configuredServices(cfg, emptyDir, "/app")
+	require.NoError(t, err)
+	require.Len(t, listed, len(want))
+	for i, s := range listed {
+		assert.Equal(t, want[i].name, s.name)
+		assert.Equal(t, want[i].binary, s.binary)
+		assert.Equal(t, filepath.Join(emptyDir, filepath.Base(want[i].args[1])), s.args[1])
+	}
+	entries, err := os.ReadDir(emptyDir)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "configuredServices must not write files")
 }
 
 // TestPrintServices checks the rendered table lists each service with its
@@ -306,4 +320,102 @@ func TestSupervise(t *testing.T) {
 	cs := byName["cs-test"]
 	assert.NotZerof(t, cs.Restarts, "crash-looping control should show restarts; got %+v", cs)
 	assert.NotEmptyf(t, cs.LastExit, "crash-looping control should show a last exit; got %+v", cs)
+}
+
+// TestRestartService runs the real controller against fake binaries and
+// restarts a service through the `services restart` CLI. A requested restart
+// is immediate and does not count as a crash, so repeated restarts do not
+// build up crash backoff.
+func TestRestartService(t *testing.T) {
+	exe, err := os.Executable()
+	require.NoError(t, err)
+
+	binDir := t.TempDir()
+	require.NoError(t, os.Symlink(exe, filepath.Join(binDir, "router")))
+
+	cfgDir := t.TempDir()
+	cfg := config.Config{SCION: config.SCION{ASes: []config.AS{{
+		ISDAS: addr.MustParseIA("1-ff00:0:110"),
+		Router: &config.Router{
+			ID:      "br-test",
+			APIAddr: netip.MustParseAddrPort("127.0.0.1:30442"),
+		},
+	}}}}
+	cfgRaw, err := cfg.EncodeYAML()
+	require.NoError(t, err)
+	configFile := filepath.Join(cfgDir, "config.yml")
+	require.NoError(t, os.WriteFile(configFile, cfgRaw, 0o644))
+	statusFile := filepath.Join(t.TempDir(), "status.json")
+
+	var out bytes.Buffer
+	controller := exec.Command(exe,
+		"--config-dir", cfgDir,
+		"--config-file", configFile,
+		"--bin-dir", binDir,
+		"--log-dir", t.TempDir(),
+		"--data-dir", t.TempDir(),
+		"--status-file", statusFile,
+		"--shutdown-timeout", "2s",
+	)
+	controller.Env = append(os.Environ(), "CLAB_TEST_ROLE=controller")
+	controller.Stdout = &out
+	controller.Stderr = &out
+	require.NoError(t, controller.Start())
+	t.Cleanup(func() {
+		_ = controller.Process.Signal(syscall.SIGTERM)
+		_ = controller.Wait()
+		t.Logf("controller output:\n%s", out.String())
+	})
+
+	// cli runs the controller CLI against the running controller.
+	cli := func(args ...string) (string, error) {
+		c := exec.Command(exe, append(args, "--status-file", statusFile)...)
+		c.Env = append(os.Environ(), "CLAB_TEST_ROLE=controller")
+		raw, err := c.CombinedOutput()
+		return string(raw), err
+	}
+	routerPID := func() int {
+		statuses, err := readStatusFile(statusFile)
+		if err != nil {
+			return 0
+		}
+		for _, s := range statuses {
+			if s.Name == "br-test" && s.Running {
+				return s.PID
+			}
+		}
+		return 0
+	}
+	require.Eventually(t, func() bool { return routerPID() != 0 },
+		5*time.Second, 50*time.Millisecond, "router never started")
+
+	// Restart more often than the crash backoff would allow in the time
+	// limit: each restart must be immediate.
+	start := time.Now()
+	for i := range 3 {
+		before := routerPID()
+		raw, err := cli("services", "restart", "--settle", "0s", "br-test")
+		require.NoErrorf(t, err, "restart %d: %s", i, raw)
+		after := routerPID()
+		assert.NotZero(t, after)
+		assert.NotEqual(t, before, after, "restart %d did not start a new process", i)
+	}
+	assert.Less(t, time.Since(start), 3*time.Second, "requested restarts were delayed")
+
+	statuses, err := readStatusFile(statusFile)
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+	assert.Zero(t, statuses[0].Restarts, "requested restarts must not count as crashes")
+
+	// The services commands are reachable.
+	raw, err := cli("services", "list")
+	require.NoError(t, err, raw)
+	assert.Contains(t, raw, "br-test")
+
+	// Unknown services are rejected without restarting anything.
+	pid := routerPID()
+	raw, err = cli("services", "restart", "br-test", "nope")
+	assert.Error(t, err)
+	assert.Contains(t, raw, `unknown service "nope"`)
+	assert.Equal(t, pid, routerPID())
 }
