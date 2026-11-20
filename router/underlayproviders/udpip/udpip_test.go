@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/router"
 )
 
 var testKey = []byte("testkey_xxxxxxxx")
@@ -315,4 +316,32 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 			assert.Equal(t, tc.expectedSuccess, ok)
 		})
 	}
+}
+
+// TestSetProcQueuesWaitsForBatch checks that SetProcQueues
+// returns only once no receiver can deliver to the old queues.
+func TestSetProcQueuesWaitsForBatch(t *testing.T) {
+	u := newProvider(4, 0, 0).(*provider)
+	c := u.newUDPConnection(nil, "test", nil, nil, nil, false)
+	u.allConnections = append(u.allConnections, c)
+	c.batches.Add(1) // The receiver delivers a batch.
+
+	qs := []chan *router.Packet{make(chan *router.Packet, 1)}
+	done := make(chan struct{})
+	go func() {
+		u.SetProcQueues(qs)
+		close(done)
+	}()
+	select {
+	case <-done:
+		t.Fatal("SetProcQueues returned during a batch")
+	case <-time.After(50 * time.Millisecond):
+	}
+	c.batches.Add(1) // The batch is delivered.
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("SetProcQueues didn't return after the batch")
+	}
+	assert.Equal(t, qs, *u.procQs.Load())
 }
