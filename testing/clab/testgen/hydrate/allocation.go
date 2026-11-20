@@ -26,6 +26,7 @@ type Allocations struct {
 	ASes      []ASRecord       `yaml:"ases"`
 	Links     []LinkRecord     `yaml:"links"`
 	HostLinks []HostLinkRecord `yaml:"host_links,omitempty"`
+	Gateways  []GatewayRecord  `yaml:"gateways,omitempty"`
 }
 
 // ASRecord records the network and host addresses of one AS.
@@ -62,6 +63,16 @@ type HostLinkRecord struct {
 	HostAddr  string `yaml:"host_addr"`
 }
 
+// GatewayRecord records an AS's gateway: the host it runs on, the IPv4 prefix
+// behind it and the gateway host's address within that prefix.
+type GatewayRecord struct {
+	ISDAS  string `yaml:"isd_as"`
+	ID     string `yaml:"id"`
+	Host   string `yaml:"host"`
+	Prefix string `yaml:"prefix"`
+	Addr   string `yaml:"addr"`
+}
+
 // Allocations derives the audit record from the resolved network.
 func (n *Network) Allocations() Allocations {
 	var out Allocations
@@ -77,6 +88,9 @@ func (n *Network) Allocations() Allocations {
 			}
 			if h.Daemon {
 				elems = append(elems, a.Daemon.ID)
+			}
+			if h.Gateway {
+				elems = append(elems, a.Gateway.ID)
 			}
 			rec.Hosts = append(rec.Hosts, HostRecord{
 				Name:     h.Name,
@@ -98,6 +112,17 @@ func (n *Network) Allocations() Allocations {
 					HostAddr:  hl.HostAddr.String(),
 				})
 			}
+		}
+	}
+	for _, a := range n.ASes {
+		if gw := a.Gateway; gw != nil {
+			out.Gateways = append(out.Gateways, GatewayRecord{
+				ISDAS:  a.IA.String(),
+				ID:     gw.ID,
+				Host:   gw.Host,
+				Prefix: gw.Prefix.String(),
+				Addr:   gw.Addr.String(),
+			})
 		}
 	}
 	for _, a := range n.ASes {

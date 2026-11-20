@@ -78,10 +78,42 @@ func HostConfig(a *hydrate.AS, h *hydrate.Host) clabconfig.Config {
 			APIAddr: a.Daemon.API,
 		}
 	}
+	if h.Gateway {
+		as.Gateway = gateway(a)
+		// The gateway host's address within the gateway prefix: the source of
+		// the traffic the host sends through the tunnel, and the destination of
+		// the traffic other ASes tunnel to this AS.
+		ifs.Loopbacks = append(ifs.Loopbacks, clabconfig.Loopback{
+			Name:      "lo",
+			Addresses: []string{cidr(a.Gateway.Addr, a.Gateway.Addr.BitLen())},
+		})
+	}
 	return clabconfig.Config{
 		SCION:      clabconfig.SCION{ASes: []clabconfig.AS{as}},
 		Interfaces: ifs,
 	}
+}
+
+// gateway builds the gateway element of an AS. It routes the prefix of every
+// other AS's gateway through the tunnel to that AS.
+func gateway(a *hydrate.AS) *clabconfig.Gateway {
+	gw := a.Gateway
+	out := &clabconfig.Gateway{
+		ID:          gw.ID,
+		CtrlAddr:    gw.CtrlAddr,
+		DataAddr:    gw.DataAddr,
+		ProbeAddr:   gw.ProbeAddr,
+		APIAddr:     gw.APIAddr,
+		Daemon:      a.Daemon.Addr,
+		TunnelSrcV4: gw.Addr,
+	}
+	for _, r := range gw.Remotes {
+		out.Remotes = append(out.Remotes, clabconfig.GatewayRemote{
+			ISDAS:    r.IA,
+			Prefixes: []netip.Prefix{r.Prefix},
+		})
+	}
+	return out
 }
 
 // neighbors groups a border router's interfaces by neighboring AS.
@@ -149,6 +181,17 @@ func Topology(a *hydrate.AS) *topojson.Topology {
 	}
 	t.ControlService[a.Control.ID] = &topojson.ServerInfo{Addr: a.Control.Addr.String()}
 	t.DiscoveryService[a.Control.ID] = &topojson.ServerInfo{Addr: a.Control.Addr.String()}
+	// The control service answers gateway discovery requests of remote
+	// gateways from this list.
+	if gw := a.Gateway; gw != nil {
+		t.SIG = map[string]*topojson.GatewayInfo{
+			gw.ID: {
+				CtrlAddr:  gw.CtrlAddr.String(),
+				DataAddr:  gw.DataAddr.String(),
+				ProbeAddr: gw.ProbeAddr.String(),
+			},
+		}
+	}
 	return t
 }
 

@@ -6,6 +6,7 @@ go_library(
     srcs = [
         "allocation.go",
         "allocator.go",
+        "gateway.go",
         "hostlink.go",
         "hydrate.go",
     ],
@@ -23,6 +24,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "gateway_test.go",
         "hostlink_test.go",
         "hydrate_test.go",
     ],
