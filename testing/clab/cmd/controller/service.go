@@ -38,6 +38,9 @@ type service struct {
 	binary string
 	// args is the full argument vector passed to the binary.
 	args []string
+	// env holds additional environment variables ("KEY=value") for the
+	// process, on top of the controller's environment.
+	env []string
 }
 
 // startOrder ranks the service binaries so dispatchers start before the
@@ -48,6 +51,8 @@ var startOrder = map[string]int{
 	"router":     1,
 	"control":    2,
 	"daemon":     3,
+	// The gateway connects to the daemon at startup.
+	"gateway": 4,
 }
 
 // renderServices renders the prism configuration into the per-service TOML
@@ -64,6 +69,12 @@ func renderServices(cfg config.Config, configDir, binDir string) ([]service, err
 		path := filepath.Join(configDir, f.Name)
 		if err := os.WriteFile(path, f.Content, 0o644); err != nil {
 			return nil, fmt.Errorf("writing %q: %w", path, err)
+		}
+		for _, aux := range f.Aux {
+			auxPath := filepath.Join(configDir, aux.Name)
+			if err := os.WriteFile(auxPath, aux.Content, 0o644); err != nil {
+				return nil, fmt.Errorf("writing %q: %w", auxPath, err)
+			}
 		}
 	}
 	return servicesOf(files, configDir, binDir), nil
@@ -89,6 +100,7 @@ func servicesOf(files []prism.ServiceFile, configDir, binDir string) []service {
 			name:   strings.TrimSuffix(f.Name, ".toml"),
 			binary: filepath.Join(binDir, f.Binary),
 			args:   []string{"--config", filepath.Join(configDir, f.Name)},
+			env:    f.Env,
 		})
 	}
 	slices.SortFunc(services, func(a, b service) int {

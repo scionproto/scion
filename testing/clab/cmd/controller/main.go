@@ -214,6 +214,12 @@ func run(configDir, configFile, binDir, logDir, dataDir, statusFile string,
 		applyNetworkConfig(eths, log)
 		log.Info("applied network configuration", "config", configFile)
 	}
+	// Loopback addresses, e.g. the address behind a gateway's tunnel, must be
+	// present before the services that use them start.
+	if lbs := cfg.Interfaces.Loopbacks; len(lbs) > 0 {
+		applyLoopbacks(lbs, log)
+		log.Info("applied loopback configuration", "config", configFile)
+	}
 
 	// Create the data directory before starting services: SCION services open
 	// their SQLite databases there but do not create the parent directory. This

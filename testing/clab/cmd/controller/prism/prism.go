@@ -13,11 +13,13 @@
 // limitations under the License.
 
 // Package prism renders the generalized SCION configuration model into the
-// service-specific files (router, control, daemon).
+// service-specific files (router, control, daemon, gateway).
 package prism
 
 import (
+	"encoding/json"
 	"fmt"
+	"net"
 	"net/netip"
 
 	"github.com/pelletier/go-toml/v2"
@@ -25,6 +27,7 @@ import (
 	controlconfig "github.com/scionproto/scion/control/config"
 	daemonconfig "github.com/scionproto/scion/daemon/config"
 	dispatcherconfig "github.com/scionproto/scion/dispatcher/config"
+	gatewayconfig "github.com/scionproto/scion/gateway/config"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -46,11 +49,23 @@ const logLevel = "debug"
 
 // ServiceFile is a single generated service configuration file. Binary is the
 // name of the SCION service executable that consumes it (e.g. "router",
-// "control", "dispatcher", "daemon"), so a caller can both write the file and
-// launch the process that runs it.
+// "control", "dispatcher", "daemon", "gateway"), so a caller can both write the
+// file and launch the process that runs it.
 type ServiceFile struct {
 	Name    string
 	Binary  string
+	Content []byte
+	// Env holds additional environment variables ("KEY=value") for the service
+	// process.
+	Env []string
+	// Aux are additional files the service reads (e.g. the gateway's traffic
+	// policy). They are written next to the service file, into configDir.
+	Aux []AuxFile
+}
+
+// AuxFile is an additional file referenced by a service configuration.
+type AuxFile struct {
+	Name    string
 	Content []byte
 }
 
@@ -60,7 +75,12 @@ const (
 	binControl    = "control"
 	binDispatcher = "dispatcher"
 	binDaemon     = "daemon"
+	binGateway    = "gateway"
 )
+
+// gatewayPathUpdateInterval speeds up the gateway's path updates (default:
+// minutes), so that a freshly started gateway establishes its sessions quickly.
+const gatewayPathUpdateInterval = "SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL=1s"
 
 // Render produces the service configuration file(s) for the elements present
 // in cfg (the host's local elements). It does not produce topology.json, which
@@ -94,6 +114,13 @@ func Render(cfg clabconfig.Config) ([]ServiceFile, error) {
 			f, err := renderDaemon(as.Daemon)
 			if err != nil {
 				return nil, serrors.Wrap("rendering daemon", err, "id", as.Daemon.ID)
+			}
+			files = append(files, f)
+		}
+		if as.Gateway != nil {
+			f, err := renderGateway(as.Gateway)
+			if err != nil {
+				return nil, serrors.Wrap("rendering gateway", err, "id", as.Gateway.ID)
 			}
 			files = append(files, f)
 		}
@@ -156,6 +183,54 @@ func renderDaemon(d *clabconfig.Daemon) (ServiceFile, error) {
 		SD:      daemonconfig.SDConfig{Address: addrString(d.Address)},
 	}
 	return marshal(d.ID+".toml", binDaemon, cfg)
+}
+
+// renderGateway renders the gateway configuration and its traffic policy. The
+// traffic policy uses the legacy format, which maps each remote AS to the IP
+// prefixes routed to it.
+func renderGateway(g *clabconfig.Gateway) (ServiceFile, error) {
+	policyName := g.ID + ".traffic.json"
+	cfg := gatewayconfig.Config{
+		Logging: consoleLog(),
+		API:     mgmtapi.Config{Addr: addrString(g.APIAddr)},
+		Daemon:  env.Daemon{Address: addrString(g.Daemon)},
+		Gateway: gatewayconfig.Gateway{
+			ID:            g.ID,
+			TrafficPolicy: configDir + "/" + policyName,
+			CtrlAddr:      addrString(g.CtrlAddr),
+			DataAddr:      addrString(g.DataAddr),
+			ProbeAddr:     addrString(g.ProbeAddr),
+		},
+	}
+	if g.TunnelSrcV4.IsValid() {
+		cfg.Tunnel.SrcIPv4 = net.IP(g.TunnelSrcV4.AsSlice())
+	}
+	f, err := marshal(g.ID+".toml", binGateway, cfg)
+	if err != nil {
+		return ServiceFile{}, err
+	}
+
+	type remoteAS struct {
+		Nets []string `json:"Nets"`
+	}
+	policy := struct {
+		ConfigVersion int                 `json:"ConfigVersion"`
+		ASes          map[string]remoteAS `json:"ASes"`
+	}{ConfigVersion: 1, ASes: map[string]remoteAS{}}
+	for _, r := range g.Remotes {
+		nets := make([]string, 0, len(r.Prefixes))
+		for _, p := range r.Prefixes {
+			nets = append(nets, p.String())
+		}
+		policy.ASes[r.ISDAS.String()] = remoteAS{Nets: nets}
+	}
+	raw, err := json.MarshalIndent(policy, "", "  ")
+	if err != nil {
+		return ServiceFile{}, serrors.Wrap("marshaling traffic policy", err)
+	}
+	f.Env = []string{gatewayPathUpdateInterval}
+	f.Aux = []AuxFile{{Name: policyName, Content: append(raw, '\n')}}
+	return f, nil
 }
 
 func consoleLog() log.Config {
