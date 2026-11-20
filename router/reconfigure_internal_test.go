@@ -472,6 +472,50 @@ func TestLinksOfStaticProvider(t *testing.T) {
 	stopAndCheckPool(t, d)
 }
 
+func TestConnectorUpdatesInterfaceInfo(t *testing.T) {
+	const remote, sibling = "203.0.113.5:50000", "198.51.100.2:30042"
+	c := &Connector{DataPlane: makeDataPlane(RunConfig{
+		NumProcessors: 1,
+		BatchSize:     4}, false),
+	}
+	// Like the topology, the links leave BFD to the defaults.
+	c.BFD.Disable = true
+	c.DataPlane.underlays["udpip"].SetConnOpener(newFakeOpener(true))
+	require.NoError(t, c.CreateIACtx(testIA))
+	require.NoError(t, c.AddInternalInterface(
+		testIA, hostOf(testInternalAddr), "udpip", testInternalAddr))
+	link := externalLink(remote, false)
+	link.BFD = control.BFD{}
+	link.MTU = 1472
+	require.NoError(t,
+		c.AddExternalInterface(5, link, hostOf(testLocalAddr), hostOf(remote), true))
+	sib := siblingLink(sibling)
+	sib.BFD = control.BFD{}
+	sib.MTU = 1472
+	require.NoError(t,
+		c.AddExternalInterface(6, sib, hostOf(testInternalAddr), hostOf(sibling), false))
+	links := []Link{c.DataPlane.table().link(5), c.DataPlane.table().link(6)}
+
+	link.MTU = 1400
+	require.NoError(t, c.UpdateExternalInterface(5, link))
+	sib.MTU = 1400
+	require.NoError(t, c.UpdateExternalInterface(6, sib))
+	assert.ErrorIs(t, c.UpdateExternalInterface(7, link), errNoSuchInterface)
+
+	ifs, err := c.ListExternalInterfaces()
+	require.NoError(t, err)
+	require.Len(t, ifs, 1)
+	assert.Equal(t, 1400, ifs[0].Link.MTU)
+	require.NotNil(t, ifs[0].Link.BFD.Disable, "BFD defaults not applied")
+	assert.True(t, *ifs[0].Link.BFD.Disable)
+	sibs, err := c.ListSiblingInterfaces()
+	require.NoError(t, err)
+	require.Len(t, sibs, 1)
+	assert.Equal(t, 1400, sibs[0].MTU)
+	assert.Equal(t, links, []Link{c.DataPlane.table().link(5), c.DataPlane.table().link(6)},
+		"links replaced")
+}
+
 func TestConnectorRetriesFailedAdd(t *testing.T) {
 	const remote = "203.0.113.5:50000"
 	opener := newFakeOpener(true)

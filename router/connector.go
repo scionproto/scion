@@ -139,26 +139,54 @@ func (c *Connector) AddExternalInterface(
 		if len(c.siblingInterfaces) == 0 {
 			c.siblingInterfaces = make(map[uint16]control.SiblingInterface)
 		}
-		c.siblingInterfaces[intf] = control.SiblingInterface{
-			IfID:            intf,
-			InternalAddress: link.Remote.Addr, // address of the sibling router
-			Relationship:    link.LinkTo,
-			MTU:             link.MTU,
-			NeighborIA:      link.Remote.IA,
-			State:           control.InterfaceDown,
-		}
+		c.siblingInterfaces[intf] = siblingRecord(intf, link)
 		return nil
 	}
 
 	if len(c.externalInterfaces) == 0 {
 		c.externalInterfaces = make(map[uint16]control.ExternalInterface)
 	}
-	c.externalInterfaces[intf] = control.ExternalInterface{
+	c.externalInterfaces[intf] = externalRecord(intf, link)
+	return nil
+}
+
+// UpdateExternalInterface replaces the information about an interface
+// that AddExternalInterface added, and keeps its links.
+// link may differ only in the MTU and the remote interface ID, which links don't use.
+func (c *Connector) UpdateExternalInterface(localIfID iface.ID, link control.LinkInfo) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	intf := uint16(localIfID)
+	log.Debug("Updating external interface", "interface", localIfID)
+	link.BFD = c.applyBFDDefaults(link.BFD)
+	if _, ok := c.externalInterfaces[intf]; ok {
+		c.externalInterfaces[intf] = externalRecord(intf, link)
+		return nil
+	}
+	if _, ok := c.siblingInterfaces[intf]; ok {
+		c.siblingInterfaces[intf] = siblingRecord(intf, link)
+		return nil
+	}
+	return serrors.JoinNoStack(errNoSuchInterface, nil, "ifID", intf)
+}
+
+func externalRecord(intf uint16, link control.LinkInfo) control.ExternalInterface {
+	return control.ExternalInterface{
 		IfID:  intf,
 		Link:  link,
 		State: control.InterfaceDown,
 	}
-	return nil
+}
+
+func siblingRecord(intf uint16, link control.LinkInfo) control.SiblingInterface {
+	return control.SiblingInterface{
+		IfID:            intf,
+		InternalAddress: link.Remote.Addr, // address of the sibling router
+		Relationship:    link.LinkTo,
+		MTU:             link.MTU,
+		NeighborIA:      link.Remote.IA,
+		State:           control.InterfaceDown,
+	}
 }
 
 // DelExternalInterface removes an interface that AddExternalInterface added.

@@ -100,6 +100,10 @@ func (r *recorder) DelExternalInterface(ifID iface.ID) error {
 	return r.record(fmt.Sprintf("del %d", ifID))
 }
 
+func (r *recorder) UpdateExternalInterface(ifID iface.ID, info control.LinkInfo) error {
+	return r.record(fmt.Sprintf("update %d mtu=%d", ifID, info.MTU))
+}
+
 func (r *recorder) CheckExternalInterfaces(links []control.LinkInfo) error {
 	return r.checkErr
 }
@@ -175,6 +179,18 @@ func TestUpdateTopology(t *testing.T) {
 			},
 			calls: []string{"del 1", "add 1 127.0.0.3:50001 owned=true"},
 		},
+		"MTU changed": {
+			edit: func(raw *jsontopo.Topology) {
+				raw.BorderRouters["br1"].Interfaces[1].MTU = 1400
+			},
+			calls: []string{"update 1 mtu=1400"},
+		},
+		"MTU of sibling interface changed": {
+			edit: func(raw *jsontopo.Topology) {
+				raw.BorderRouters["br2"].Interfaces[2].MTU = 1400
+			},
+			calls: []string{"update 2 mtu=1400"},
+		},
 		"BFD changed": {
 			edit: func(raw *jsontopo.Topology) {
 				raw.BorderRouters["br1"].Interfaces[1].BFD = &jsontopo.BFD{
@@ -233,22 +249,36 @@ func TestUpdateTopologyRetries(t *testing.T) {
 	iac := configured(t, dp)
 	changed := topo(t, func(raw *jsontopo.Topology) {
 		raw.BorderRouters["br1"].Interfaces[1].Underlay.Remote = "127.0.0.3:50001"
+		raw.BorderRouters["br2"].Interfaces[2].MTU = 1400
 		raw.BorderRouters["br1"].Interfaces[3] = newInterface("127.0.0.2:50003")
 	})
 
-	// Interface 1 stays as it is, and interface 3 is not added.
-	dp.fail = map[string]bool{"del 1": true, "add 3 127.0.0.2:50003 owned=true": true}
+	// Interfaces 1 and 2 stay as they are, and interface 3 is not added.
+	dp.fail = map[string]bool{
+		"del 1":                            true,
+		"update 2 mtu=1400":                true,
+		"add 3 127.0.0.2:50003 owned=true": true,
+	}
 	assert.Error(t, iac.UpdateTopology(changed))
-	assert.Equal(t, []string{"del 1", "add 3 127.0.0.2:50003 owned=true"}, dp.calls)
+	assert.Equal(t, []string{
+		"del 1",
+		"update 2 mtu=1400",
+		"add 3 127.0.0.2:50003 owned=true",
+	}, dp.calls)
 
 	dp.fail = nil
 	dp.calls = nil
 	require.NoError(t, iac.UpdateTopology(changed))
 	assert.Equal(t, []string{
 		"del 1",
+		"update 2 mtu=1400",
 		"add 1 127.0.0.3:50001 owned=true",
 		"add 3 127.0.0.2:50003 owned=true",
 	}, dp.calls)
+
+	dp.calls = nil
+	require.NoError(t, iac.UpdateTopology(changed))
+	assert.Empty(t, dp.calls)
 }
 
 func TestUpdateTopologyRejects(t *testing.T) {

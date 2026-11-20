@@ -244,6 +244,7 @@ anycast or multicast service addresses.
 The :program:`router` reloads ``topology.json`` when it receives the ``SIGHUP`` signal.
 It adds and removes interfaces, and updates the service addresses.
 An interface whose entry changes is removed and added again, which briefly interrupts it.
+A change to only the ``mtu`` or ``remote_interface_id`` of an interface doesn't interrupt it.
 The other interfaces keep forwarding.
 A change to the ``internal_addr`` of a sibling router counts as a change of all its interfaces.
 A change to the ``underlay`` or ``bfd`` of a sibling's interface doesn't count.

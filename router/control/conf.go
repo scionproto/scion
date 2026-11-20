@@ -40,6 +40,11 @@ type Dataplane interface {
 		localIfID iface.ID, info LinkInfo, localHost, remoteHost addr.Host, owned bool,
 	) error
 	DelExternalInterface(localIfID iface.ID) error
+	// UpdateExternalInterface replaces the information about an interface
+	// that AddExternalInterface added, and keeps its links.
+	// info may differ only in the MTU and the remote interface ID,
+	// which links don't use.
+	UpdateExternalInterface(localIfID iface.ID, info LinkInfo) error
 	// CheckExternalInterfaces returns an error if the dataplane
 	// can't have links in place of the external interfaces it has.
 	CheckExternalInterfaces(links []LinkInfo) error

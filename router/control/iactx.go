@@ -217,6 +217,14 @@ func checkRemotes(ifs map[iface.ID]externalInterface) error {
 	return nil
 }
 
+// sameLinks reports whether a and b differ at most in what links don't use.
+// A new link would interrupt the interface, and a new BFD session starts down.
+func sameLinks(a, b externalInterface) bool {
+	a.link.MTU, b.link.MTU = 0, 0
+	a.link.Remote.IfID, b.link.Remote.IfID = 0, 0
+	return reflect.DeepEqual(a, b)
+}
+
 // UpdateTopology reconfigures the dataplane for topo, a new version of the topology.
 // It adds, removes, and replaces interfaces, and updates the service addresses.
 // Interfaces that don't change keep running.
@@ -245,7 +253,18 @@ func (iac *IACtx) UpdateTopology(topo topology.Topology) error {
 	// Remove before adding: a changed interface is removed and added again,
 	// and an added interface may take the address of a removed one.
 	for _, ifID := range slices.Sorted(maps.Keys(iac.ifs)) {
-		if x, ok := want[ifID]; ok && reflect.DeepEqual(x, iac.ifs[ifID]) {
+		cur := iac.ifs[ifID]
+		x, ok := want[ifID]
+		if ok && reflect.DeepEqual(x, cur) {
+			continue
+		}
+		if ok && sameLinks(x, cur) {
+			log.Info("Updating interface", "if_id", ifID)
+			if err := iac.DP.UpdateExternalInterface(ifID, x.link); err != nil {
+				errs = append(errs, serrors.Wrap("updating interface", err, "if_id", ifID))
+				continue
+			}
+			iac.ifs[ifID] = x
 			continue
 		}
 		log.Info("Removing interface", "if_id", ifID)
