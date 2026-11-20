@@ -58,8 +58,9 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
+	dp := router.NewConnector(globalCfg.Router, globalCfg.Features)
 	topoMetrics := topologyMetrics()
-	validator := control.NewValidator(globalCfg.General.ID)
+	validator := control.NewValidator(globalCfg.General.ID, dp)
 	topo, err := loadTopology(validator, nil, topoMetrics)
 	if err != nil {
 		return serrors.Wrap("loading topology", err)
@@ -73,7 +74,6 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 	g, errCtx := errgroup.WithContext(ctx)
-	dp := router.NewConnector(globalCfg.Router, globalCfg.Features)
 	iaCtx := &control.IACtx{
 		Config: controlConfig,
 		DP:     dp,

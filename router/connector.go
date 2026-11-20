@@ -175,6 +175,16 @@ func (c *Connector) DelExternalInterface(localIfID iface.ID) error {
 	return nil
 }
 
+// CheckExternalInterfaces returns an error if the dataplane
+// can't have links in place of the external interfaces it has.
+func (c *Connector) CheckExternalInterfaces(links []control.LinkInfo) error {
+	providers := make([]string, len(links))
+	for i, l := range links {
+		providers[i] = l.Provider
+	}
+	return c.DataPlane.checkInterfaces(providers)
+}
+
 // AddSvc adds the service address for the given ISD-AS.
 func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, p uint16) error {
 	c.mtx.Lock()

@@ -68,6 +68,8 @@ const baseTopology = `{
 type recorder struct {
 	calls []string
 	fail  map[string]bool
+	// checkErr is what CheckExternalInterfaces returns.
+	checkErr error
 }
 
 func (r *recorder) record(call string) error {
@@ -96,6 +98,10 @@ func (r *recorder) AddExternalInterface(ifID iface.ID, info control.LinkInfo,
 
 func (r *recorder) DelExternalInterface(ifID iface.ID) error {
 	return r.record(fmt.Sprintf("del %d", ifID))
+}
+
+func (r *recorder) CheckExternalInterfaces(links []control.LinkInfo) error {
+	return r.checkErr
 }
 
 func (r *recorder) AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, port uint16) error {
@@ -269,12 +275,27 @@ func TestUpdateTopologyRejects(t *testing.T) {
 
 func TestValidator(t *testing.T) {
 	tests := map[string]struct {
-		edit func(*jsontopo.Topology)
-		ok   bool
+		edit     func(*jsontopo.Topology)
+		checkErr error
+		ok       bool
 	}{
 		"control service moved": {
 			edit: func(raw *jsontopo.Topology) {
 				raw.ControlService["cs1"].Addr = "127.0.0.1:31001"
+			},
+			ok: true,
+		},
+		"dataplane refuses the interfaces": {
+			checkErr: errors.New("refused"),
+		},
+		"same remote address": {
+			edit: func(raw *jsontopo.Topology) {
+				raw.BorderRouters["br1"].Interfaces[3] = newInterface("127.0.0.2:50001")
+			},
+		},
+		"same remote address as a sibling's interface": {
+			edit: func(raw *jsontopo.Topology) {
+				raw.BorderRouters["br1"].Interfaces[3] = newInterface("127.0.0.2:50002")
 			},
 			ok: true,
 		},
@@ -295,10 +316,10 @@ func TestValidator(t *testing.T) {
 			},
 		},
 	}
-	v := control.NewValidator("br1")
 	old := topo(t, nil).Writable()
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			v := control.NewValidator("br1", &recorder{checkErr: tc.checkErr})
 			err := v.Validate(topo(t, tc.edit).Writable(), old)
 			if tc.ok {
 				assert.NoError(t, err)

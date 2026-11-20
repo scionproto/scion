@@ -40,6 +40,9 @@ type Dataplane interface {
 		localIfID iface.ID, info LinkInfo, localHost, remoteHost addr.Host, owned bool,
 	) error
 	DelExternalInterface(localIfID iface.ID) error
+	// CheckExternalInterfaces returns an error if the dataplane
+	// can't have links in place of the external interfaces it has.
+	CheckExternalInterfaces(links []LinkInfo) error
 	AddSvc(ia addr.IA, svc addr.SVC, a addr.Host, port uint16) error
 	DelSvc(ia addr.IA, svc addr.SVC, a addr.Host, port uint16) error
 	SetKey(ia addr.IA, index int, key []byte) error

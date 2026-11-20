@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/netip"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -153,16 +154,17 @@ func (iac *IACtx) Configure() error {
 	return nil
 }
 
-// NewValidator returns a validator for the topology of router id.
-// Besides the checks of [topology.RouterValidator],
-// it rejects topologies whose interface addresses don't parse.
-// [IACtx.UpdateTopology] would apply nothing of such a topology.
-func NewValidator(id string) topology.Validator {
-	return &validator{RouterValidator: topology.RouterValidator{ID: id}}
+// NewValidator returns a validator for the topology of router id, configured on dp.
+// Besides the checks of [topology.RouterValidator], it rejects topologies
+// whose interfaces dp can't have. [IACtx.UpdateTopology] would remove
+// a changed interface and then fail to add it again.
+func NewValidator(id string, dp Dataplane) topology.Validator {
+	return &validator{RouterValidator: topology.RouterValidator{ID: id}, dp: dp}
 }
 
 type validator struct {
 	topology.RouterValidator
+	dp Dataplane
 }
 
 func (v *validator) Validate(topo, old *topology.RWTopology) error {
@@ -173,8 +175,46 @@ func (v *validator) Validate(topo, old *topology.RWTopology) error {
 	if err := cfg.initTopo(v.ID, topology.FromRWTopology(topo)); err != nil {
 		return err
 	}
-	_, err := externalInterfaces(cfg)
-	return err
+	ifs, err := externalInterfaces(cfg)
+	if err != nil {
+		return err
+	}
+	if err := checkRemotes(ifs); err != nil {
+		return err
+	}
+	links := make([]LinkInfo, 0, len(ifs))
+	for _, x := range ifs {
+		links = append(links, x.link)
+	}
+	return v.dp.CheckExternalInterfaces(links)
+}
+
+// checkRemotes returns an error if two interfaces of this router have the same underlay
+// and remote address. The underlay couldn't tell their links apart.
+func checkRemotes(ifs map[iface.ID]externalInterface) error {
+	type key struct {
+		provider string
+		remote   netip.AddrPort
+	}
+	seen := make(map[key]iface.ID)
+	for _, ifID := range slices.Sorted(maps.Keys(ifs)) {
+		x := ifs[ifID]
+		if !x.owned {
+			// Links to a sibling router are shared by design.
+			continue
+		}
+		remote, err := netip.ParseAddrPort(x.link.Remote.Addr)
+		if err != nil {
+			return serrors.Wrap("unparsable remote address", err)
+		}
+		k := key{provider: x.link.Provider, remote: remote}
+		if other, ok := seen[k]; ok {
+			return serrors.New("interfaces have the same remote address",
+				"if_id", other, "other_if_id", ifID, "remote", remote)
+		}
+		seen[k] = ifID
+	}
+	return nil
 }
 
 // UpdateTopology reconfigures the dataplane for topo, a new version of the topology.
@@ -182,8 +222,7 @@ func (v *validator) Validate(topo, old *topology.RWTopology) error {
 // Interfaces that don't change keep running.
 //
 // Check topo with [NewValidator] first.
-// UpdateTopology applies nothing of a topology that the validator rejects.
-// Of one that it accepts, it applies what it can and returns the errors.
+// UpdateTopology applies what it can and returns the errors.
 // A later call retries what failed.
 func (iac *IACtx) UpdateTopology(topo topology.Topology) error {
 	cfg := &Config{MasterKeys: iac.Config.MasterKeys}

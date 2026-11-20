@@ -245,10 +245,27 @@ The :program:`router` reloads ``topology.json`` when it receives the ``SIGHUP`` 
 It adds and removes interfaces, and updates the service addresses.
 An interface whose entry changes is removed and added again, which briefly interrupts it.
 The other interfaces keep forwarding.
-The ISD-AS, the ``core`` attribute, the MTU and the router's own ``internal_addr`` must not change;
-the router rejects such a file and keeps the topology it has.
-Changes to the :ref:`.toml configuration <router-conf-toml>` and to the
-:ref:`keys <router-conf-keys>` need a restart.
+A change to the ``internal_addr`` of a sibling router counts as a change of all its interfaces.
+A change to the ``underlay`` or ``bfd`` of a sibling's interface doesn't count.
+
+The router rejects a file and keeps the topology it has if any of these holds:
+
+- The ISD-AS, the ``core`` attribute, the MTU or the router's own ``internal_addr`` changes.
+- An underlay address doesn't parse.
+- Two interfaces of the router have the same ``remote`` address.
+- An underlay ``provider`` is unknown.
+- The file has more interfaces than the router can hold: 256 more than it started with.
+
+It logs the reason, and counts the reload in ``topology_updates_total``
+with ``result="err_validate"``.
+
+A change can still fail while the router applies it,
+for example if the new ``local`` address of an interface can't be bound.
+The router then logs the error, and the interface is down.
+The next ``SIGHUP`` tries the change again. Nothing retries it in between.
+
+Changes to the :ref:`.toml configuration <router-conf-toml>`, to the
+:ref:`keys <router-conf-keys>` and to ``dispatched_ports`` need a restart.
 
 .. TODO
    With the AF_XDP underlay of #4892, interface changes need a restart

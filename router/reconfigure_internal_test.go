@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -375,6 +376,22 @@ func TestDelInterfaceBeforeRun(t *testing.T) {
 	assert.Equal(t,
 		d.table().link(1),
 		receive(t, opener.conn(t, remote), remote, procQ, d))
+	stopAndCheckPool(t, d)
+}
+
+func TestCheckInterfaces(t *testing.T) {
+	d := newTestDP(t, newFakeOpener(true))
+	assert.NoError(t, d.checkInterfaces([]string{"udpip", "static"}))
+	assert.ErrorIs(t, d.checkInterfaces([]string{"udpip", "bogus"}), errNoSuchUnderlay)
+
+	// Once the dataplane runs, the packet pool limits the number of interfaces.
+	addExternal(t, d, 1, "203.0.113.1:50000")
+	startUnderlays(t, d)
+	room := d.numInterfaces - 1 + poolGrowthInterfaces // Without the internal interface.
+	assert.NoError(t, d.checkInterfaces(slices.Repeat([]string{"udpip"}, room)))
+	assert.ErrorIs(t,
+		d.checkInterfaces(slices.Repeat([]string{"udpip"}, room+1)), errPoolFull)
+
 	stopAndCheckPool(t, d)
 }
 

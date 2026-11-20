@@ -985,6 +985,27 @@ func (d *dataPlane) growPool(numInterfaces int) error {
 	return nil
 }
 
+// checkInterfaces returns an error if the dataplane can't have
+// one external interface over each of providers in place of those it has.
+func (d *dataPlane) checkInterfaces(providers []string) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	for _, name := range providers {
+		if _, ok := d.underlays[name]; ok {
+			continue
+		}
+		if _, ok := underlayProviders[name]; !ok {
+			return serrors.JoinNoStack(errNoSuchUnderlay, nil, "provider", name)
+		}
+	}
+	// Interfaces are removed before others are added, so the pool must
+	// hold the new ones only. Plus one for the internal interface.
+	if d.procQs != nil && d.poolSizeFor(len(providers)+1) > cap(d.packetPool.pool) {
+		return errPoolFull
+	}
+	return nil
+}
+
 // initializes the processing routines and queues
 func (d *dataPlane) initQueues(processorQueueSize int) ([]chan *Packet, []chan *Packet) {
 	procQs := make([]chan *Packet, d.RunConfig.NumProcessors)
