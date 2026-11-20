@@ -4,6 +4,7 @@ load("//tools:go.bzl", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "diagnose.go",
         "discover.go",
         "docker.go",
         "endpoint.go",
@@ -23,6 +24,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "diagnose_test.go",
         "discover_test.go",
         "endpoint_test.go",
     ],

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -90,6 +89,8 @@ type result struct {
 	ok     bool
 	err    error
 	output string
+	// paths is the path snapshot taken right after a failure.
+	paths string
 }
 
 func run() int {
@@ -180,6 +181,11 @@ func probe(j job) result {
 		r.err = j.kind.check(string(out))
 	}
 	r.ok = r.err == nil
+	if !r.ok {
+		// Snapshot the paths immediately, while the state that caused the
+		// failure is most likely still present.
+		r.paths = e2e.SnapshotPaths(docker, *scionBin, j.src, j.dst, *pingTO)
+	}
 	return r
 }
 
@@ -200,14 +206,16 @@ func report(eps []e2e.Endpoint, results []result) {
 
 	for _, name := range order {
 		m := byKind[name]
-		var fails []result
+		var fails []e2e.Failure
 		passed := 0
 		for _, r := range m {
 			if r.ok {
 				passed++
-			} else {
-				fails = append(fails, r)
+				continue
 			}
+			fails = append(fails, e2e.Failure{
+				Src: r.job.src, Dst: r.job.dst, Err: r.err, Output: r.output, Paths: r.paths,
+			})
 		}
 
 		fmt.Printf("\n%s: %d/%d ok\n", name, passed, len(m))
@@ -215,17 +223,7 @@ func report(eps []e2e.Endpoint, results []result) {
 			return m[[2]string{src.IA, dst.IA}].ok
 		})
 
-		if len(fails) > 0 {
-			sort.Slice(fails, func(i, j int) bool {
-				if fails[i].job.src.IA != fails[j].job.src.IA {
-					return fails[i].job.src.IA < fails[j].job.src.IA
-				}
-				return fails[i].job.dst.IA < fails[j].job.dst.IA
-			})
-			fmt.Printf("  failures:\n")
-			for _, r := range fails {
-				fmt.Printf("    %s -> %s: %s\n", r.job.src.IA, r.job.dst.IA, r.err)
-			}
-		}
+		e2e.SortFailures(fails)
+		e2e.PrintFailures(os.Stdout, fails)
 	}
 }

@@ -55,12 +55,3 @@ func PrintMatrix(eps []Endpoint, cell func(src, dst Endpoint) bool) {
 	}
 	tw.Flush()
 }
-
-// FirstLine returns the first non-empty line of s, trimmed.
-func FirstLine(s string) string {
-	s = strings.TrimSpace(s)
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
-	}
-	return s
-}
