@@ -320,6 +320,15 @@ bazel test::
 
    bazel test //testing/clab/system_test:go_default_test --test_output=streamed
 
+The system tests are defined with the ``clab_system_test`` macro from
+``//testing/clab:system_test.bzl``. Besides the test itself, it creates a target for each phase of
+the test, so that the lab can be set up once and the tests run against it repeatedly. The lab
+stays deployed between the phases::
+
+   bazel run //testing/clab/system_test:go_default_test_setup
+   bazel run //testing/clab/system_test:go_default_test_run
+   bazel run //testing/clab/system_test:go_default_test_teardown
+
 scion.sh
 ========
 
