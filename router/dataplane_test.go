@@ -947,6 +947,43 @@ func TestProcessPkt(t *testing.T) {
 			},
 			assertFunc: notDiscarded,
 		},
+		"outbound svc src": {
+			// Regression test: validateSrcHost used to panic on SVC source addresses.
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					[]uint16{1},
+					map[uint16]topology.LinkType{
+						1: topology.Child,
+					},
+					nil, // No special connOpener.
+					mockInternalNextHops,
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func(afterProcessing bool) *router.Packet {
+				spkt, dpath := prepBaseMsg(now)
+				spkt.SrcIA = addr.MustParseIA("1-ff00:0:110")
+				assert.NoError(t, spkt.SetSrcAddr(addr.HostSVC(addr.SvcCS)))
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 0, ConsEgress: 1},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 41, ConsEgress: 40},
+				}
+				dpath.Base.PathMeta.CurrHF = 0
+				dpath.HopFields[0].Mac = computeMAC(t,
+					key, dpath.InfoFields[0], dpath.HopFields[0])
+				ingress := uint16(0)
+				egress := uint16(0)
+				if afterProcessing {
+					assert.NoError(t, dpath.IncPath())
+					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[0].Mac)
+					egress = 1
+				}
+				return router.NewPacket(
+					toBytes(t, spkt, dpath), nil, nil, ingress, egress,
+				)
+			},
+			assertFunc: notDiscarded,
+		},
 		"brtransit": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(

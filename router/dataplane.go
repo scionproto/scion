@@ -1696,7 +1696,9 @@ func (p *scionPacketProcessor) validateSrcHost() disposition {
 		return pForward
 	}
 	src, err := p.scionLayer.SrcAddr()
-	if err == nil && src.IP().Is4In6() {
+	// Only IP host addresses can be v4-mapped.
+	// SrcAddr() may also return SVC addresses, for which src.IP() panics.
+	if err == nil && src.Type() == addr.HostTypeIP && src.IP().Is4In6() {
 		err = ErrUnsupportedV4MappedV6Address
 	}
 	if err == nil {
