@@ -151,6 +151,13 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 	}
 }
 
+func TestFromPBNil(t *testing.T) {
+	_, err := BeaconFromPB(nil)
+	assert.ErrorContains(t, err, "nil path segment")
+	_, err = SegmentFromPB(nil)
+	assert.ErrorContains(t, err, "nil path segment")
+}
+
 type keyPair struct {
 	pubKey  crypto.PublicKey
 	privKey crypto.Signer

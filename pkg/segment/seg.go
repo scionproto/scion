@@ -110,6 +110,9 @@ func BeaconFromPB(pb *cppb.PathSegment) (*PathSegment, error) {
 }
 
 func segmentFromPB(pb *cppb.PathSegment) (*PathSegment, error) {
+	if pb == nil {
+		return nil, serrors.New("nil path segment")
+	}
 	info, err := infoFromRaw(pb.SegmentInfo)
 	if err != nil {
 		return nil, serrors.Wrap("parsing segment info", err)
