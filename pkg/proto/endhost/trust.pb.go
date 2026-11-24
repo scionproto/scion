@@ -396,11 +396,11 @@ const file_proto_endhost_v1_trust_proto_rawDesc = "" +
 	"\x04base\x18\x02 \x01(\x04R\x04base\x12\x16\n" +
 	"\x06serial\x18\x03 \x01(\x04R\x06serial\"\"\n" +
 	"\x0eGetTrcResponse\x12\x10\n" +
-	"\x03trc\x18\x01 \x01(\fR\x03trc2\xb7\x01\n" +
+	"\x03trc\x18\x01 \x01(\fR\x03trc2\xb8\x01\n" +
 	"\fTrustService\x12Y\n" +
 	"\n" +
-	"ListChains\x12#.scion.endhost.v1.ListChainsRequest\x1a$.scion.endhost.v1.ListChainsResponse\"\x00\x12L\n" +
-	"\x06GetTrc\x12\x1f.scion.endhost.v1.GetTrcRequest\x1a\x1f.scion.endhost.v1.GetTrcRequest\"\x00B/Z-github.com/scionproto/scion/pkg/proto/endhostb\x06proto3"
+	"ListChains\x12#.scion.endhost.v1.ListChainsRequest\x1a$.scion.endhost.v1.ListChainsResponse\"\x00\x12M\n" +
+	"\x06GetTrc\x12\x1f.scion.endhost.v1.GetTrcRequest\x1a .scion.endhost.v1.GetTrcResponse\"\x00B/Z-github.com/scionproto/scion/pkg/proto/endhostb\x06proto3"
 
 var (
 	file_proto_endhost_v1_trust_proto_rawDescOnce sync.Once
@@ -430,7 +430,7 @@ var file_proto_endhost_v1_trust_proto_depIdxs = []int32{
 	0, // 3: scion.endhost.v1.TrustService.ListChains:input_type -> scion.endhost.v1.ListChainsRequest
 	4, // 4: scion.endhost.v1.TrustService.GetTrc:input_type -> scion.endhost.v1.GetTrcRequest
 	2, // 5: scion.endhost.v1.TrustService.ListChains:output_type -> scion.endhost.v1.ListChainsResponse
-	4, // 6: scion.endhost.v1.TrustService.GetTrc:output_type -> scion.endhost.v1.GetTrcRequest
+	5, // 6: scion.endhost.v1.TrustService.GetTrc:output_type -> scion.endhost.v1.GetTrcResponse
 	5, // [5:7] is the sub-list for method output_type
 	3, // [3:5] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
@@ -475,7 +475,7 @@ const _ = grpc.SupportPackageIsVersion6
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type TrustServiceClient interface {
 	ListChains(ctx context.Context, in *ListChainsRequest, opts ...grpc.CallOption) (*ListChainsResponse, error)
-	GetTrc(ctx context.Context, in *GetTrcRequest, opts ...grpc.CallOption) (*GetTrcRequest, error)
+	GetTrc(ctx context.Context, in *GetTrcRequest, opts ...grpc.CallOption) (*GetTrcResponse, error)
 }
 
 type trustServiceClient struct {
@@ -495,8 +495,8 @@ func (c *trustServiceClient) ListChains(ctx context.Context, in *ListChainsReque
 	return out, nil
 }
 
-func (c *trustServiceClient) GetTrc(ctx context.Context, in *GetTrcRequest, opts ...grpc.CallOption) (*GetTrcRequest, error) {
-	out := new(GetTrcRequest)
+func (c *trustServiceClient) GetTrc(ctx context.Context, in *GetTrcRequest, opts ...grpc.CallOption) (*GetTrcResponse, error) {
+	out := new(GetTrcResponse)
 	err := c.cc.Invoke(ctx, "/scion.endhost.v1.TrustService/GetTrc", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -507,7 +507,7 @@ func (c *trustServiceClient) GetTrc(ctx context.Context, in *GetTrcRequest, opts
 // TrustServiceServer is the server API for TrustService service.
 type TrustServiceServer interface {
 	ListChains(context.Context, *ListChainsRequest) (*ListChainsResponse, error)
-	GetTrc(context.Context, *GetTrcRequest) (*GetTrcRequest, error)
+	GetTrc(context.Context, *GetTrcRequest) (*GetTrcResponse, error)
 }
 
 // UnimplementedTrustServiceServer can be embedded to have forward compatible implementations.
@@ -517,7 +517,7 @@ type UnimplementedTrustServiceServer struct {
 func (*UnimplementedTrustServiceServer) ListChains(context.Context, *ListChainsRequest) (*ListChainsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListChains not implemented")
 }
-func (*UnimplementedTrustServiceServer) GetTrc(context.Context, *GetTrcRequest) (*GetTrcRequest, error) {
+func (*UnimplementedTrustServiceServer) GetTrc(context.Context, *GetTrcRequest) (*GetTrcResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTrc not implemented")
 }
 

@@ -19,7 +19,7 @@ package scion.endhost.v1;
 
 service TrustService {
     rpc ListChains(ListChainsRequest) returns (ListChainsResponse) {}
-    rpc GetTrc(GetTrcRequest) returns (GetTrcRequest) {}
+    rpc GetTrc(GetTrcRequest) returns (GetTrcResponse) {}
 }
 
 // Request to fetch certificate chains for a given AS certificate subject.

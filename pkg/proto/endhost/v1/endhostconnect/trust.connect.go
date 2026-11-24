@@ -42,7 +42,7 @@ const (
 // TrustServiceClient is a client for the scion.endhost.v1.TrustService service.
 type TrustServiceClient interface {
 	ListChains(context.Context, *connect.Request[endhost.ListChainsRequest]) (*connect.Response[endhost.ListChainsResponse], error)
-	GetTrc(context.Context, *connect.Request[endhost.GetTrcRequest]) (*connect.Response[endhost.GetTrcRequest], error)
+	GetTrc(context.Context, *connect.Request[endhost.GetTrcRequest]) (*connect.Response[endhost.GetTrcResponse], error)
 }
 
 // NewTrustServiceClient constructs a client for the scion.endhost.v1.TrustService service. By
@@ -62,7 +62,7 @@ func NewTrustServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(trustServiceMethods.ByName("ListChains")),
 			connect.WithClientOptions(opts...),
 		),
-		getTrc: connect.NewClient[endhost.GetTrcRequest, endhost.GetTrcRequest](
+		getTrc: connect.NewClient[endhost.GetTrcRequest, endhost.GetTrcResponse](
 			httpClient,
 			baseURL+TrustServiceGetTrcProcedure,
 			connect.WithSchema(trustServiceMethods.ByName("GetTrc")),
@@ -74,7 +74,7 @@ func NewTrustServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 // trustServiceClient implements TrustServiceClient.
 type trustServiceClient struct {
 	listChains *connect.Client[endhost.ListChainsRequest, endhost.ListChainsResponse]
-	getTrc     *connect.Client[endhost.GetTrcRequest, endhost.GetTrcRequest]
+	getTrc     *connect.Client[endhost.GetTrcRequest, endhost.GetTrcResponse]
 }
 
 // ListChains calls scion.endhost.v1.TrustService.ListChains.
@@ -83,14 +83,14 @@ func (c *trustServiceClient) ListChains(ctx context.Context, req *connect.Reques
 }
 
 // GetTrc calls scion.endhost.v1.TrustService.GetTrc.
-func (c *trustServiceClient) GetTrc(ctx context.Context, req *connect.Request[endhost.GetTrcRequest]) (*connect.Response[endhost.GetTrcRequest], error) {
+func (c *trustServiceClient) GetTrc(ctx context.Context, req *connect.Request[endhost.GetTrcRequest]) (*connect.Response[endhost.GetTrcResponse], error) {
 	return c.getTrc.CallUnary(ctx, req)
 }
 
 // TrustServiceHandler is an implementation of the scion.endhost.v1.TrustService service.
 type TrustServiceHandler interface {
 	ListChains(context.Context, *connect.Request[endhost.ListChainsRequest]) (*connect.Response[endhost.ListChainsResponse], error)
-	GetTrc(context.Context, *connect.Request[endhost.GetTrcRequest]) (*connect.Response[endhost.GetTrcRequest], error)
+	GetTrc(context.Context, *connect.Request[endhost.GetTrcRequest]) (*connect.Response[endhost.GetTrcResponse], error)
 }
 
 // NewTrustServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -131,6 +131,6 @@ func (UnimplementedTrustServiceHandler) ListChains(context.Context, *connect.Req
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scion.endhost.v1.TrustService.ListChains is not implemented"))
 }
 
-func (UnimplementedTrustServiceHandler) GetTrc(context.Context, *connect.Request[endhost.GetTrcRequest]) (*connect.Response[endhost.GetTrcRequest], error) {
+func (UnimplementedTrustServiceHandler) GetTrc(context.Context, *connect.Request[endhost.GetTrcRequest]) (*connect.Response[endhost.GetTrcResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scion.endhost.v1.TrustService.GetTrc is not implemented"))
 }
