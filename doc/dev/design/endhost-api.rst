@@ -285,8 +285,12 @@ SCION ASes. If ``isd_as`` is set, the filter applies to all underlays.
 
 Each ``Router`` contains its ISD-AS, because interface IDs are unique only
 inside one AS. The client finds the next hop of a path by the pair (ISD-AS,
-interface ID). If one router serves more than one local AS, the response
-contains one ``Router`` entry for each AS, with the same address.
+interface ID).
+
+The API does not require that a router serves more than one local AS. If an
+implementation does this, the response contains one ``Router`` entry for each
+AS, with the same address. How a router keeps the ASes apart is out of scope
+for this document.
 
 The ``local_ases`` field lists the local ASes of the UDP/IP underlay and their
 MTU. The client uses the MTU for AS-local communication, because no path
@@ -340,6 +344,7 @@ This replaces the daemon ``Paths`` RPC.
     // A page token, received from a previous
     // ListSegmentsRequest call.
     // Provide this to retrieve the subsequent page.
+    // An empty token requests the first page.
     //
     // When paginating, all other parameters provided in
     // ListSegmentsRequest must match the call that provided
@@ -448,6 +453,7 @@ RPC path: ``/scion.endhost.v1.TrustService/ListChains``
     // A page token, received from a previous
     // ListChainsRequest call.
     // Provide this to retrieve the subsequent page.
+    // An empty token requests the first page.
     //
     // When paginating, all other parameters provided in
     // ListChainsRequest must match the call that provided
