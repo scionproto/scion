@@ -109,52 +109,118 @@ See :doc:`endhost-bootstrap` for the general bootstrapping framework. How the
 endhost API URL is integrated into the bootstrap process is left for a
 dedicated design.
 
-Endhost API Implementation Versioning
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+API Versioning
+^^^^^^^^^^^^^^
 
-To allow a client to check compatibility with a particular implementation of the
-endhost API, a server SHOULD report the implementation version of the API
-specification requested by the client. The API version requested by the client
-is specified as part of the RPC path of the request (see below).
+The endhost API uses two version identifiers:
 
-The version is reported as an HTTP response header. The name of the response
-header is ``Endhost-API-Server-Version``. The value is a SemVer-compatible
-version identifier that is prefixed with a string that uniquely identifies the
-implementor of the API:
+- The **API version** identifies a version of this specification. It does not
+  depend on the vendor of the server. Clients use it to find the features that
+  a server supports.
+- The **server implementation version** identifies the software of one vendor.
+  It is only for diagnostics.
+
+See also :issue:`4832`.
+
+API Version
+"""""""""""
+
+The API version has the format ``<major>.<minor>``:
+
+- The **major version** is the version in the proto package name. For example,
+  the package ``scion.endhost.v1`` has the major version 1. The RPC path of each
+  request contains the package name, and thus the major version.
+- The **minor version** starts at 0 for each major version. The specification
+  increments it for each additive change, for example a new field, a new RPC,
+  or a new mandatory service. Each additive change in this specification
+  states the minor version that adds it. This document specifies version 1.0.
+
+The server MUST report the API version in the HTTP response header
+``Endhost-API-Version`` of each response. The major version in the header is
+the major version of the request path. The minor version is the highest minor
+version whose mandatory parts the server implements completely. The value
+MUST match the following regular expression:
+
+``(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)``
+
+If the header is absent, the client assumes the minor version 0.
+
+The minor version solves a problem that protobuf compatibility does not solve.
+A server ignores a request field that it does not know, and it does not report
+an error. Without the minor version, a client cannot know if the server used
+a new request field, for example a filter. A client MUST NOT depend on a
+request field that the reported minor version does not contain.
+
+The header costs no additional round trip. A client usually calls
+``ListUnderlays`` first, and thus it gets the API version with its first
+response.
+
+Breaking Changes
+""""""""""""""""
+
+A breaking change, for example the removal of a field or an RPC, requires a new
+major version and thus a new proto package, for example ``scion.endhost.v2``.
+Because the RPC path contains the package name, a server can serve more than
+one major version at the same time.
+
+A client sends its first request with the highest major version that it
+supports. If the server returns ``unimplemented``, the client uses the next
+lower major version. The client can keep the result for each server.
+
+A removal always requires a new major version. Thus the API does not need a
+minimum version.
+
+Optional Services
+"""""""""""""""""
+
+The ``TrustService`` and the DRKey service are optional. The API version does
+not tell if a server implements an optional service. A server that does not
+implement an optional service returns ``unimplemented``. A client that needs an
+optional service must handle this case. The client can keep the result for each
+server.
+
+Server Implementation Version
+"""""""""""""""""""""""""""""
+
+A server SHOULD report its implementation version in the HTTP response header
+``Endhost-API-Server-Version``. The value contains a string that identifies
+the vendor, and the SemVer version of the server software:
 
 ``<vendor>-<major>.<minor>.<patch>``
 
-The version follows SemVer-semantics, with special rules for major version 0 vs. 1:
-
-* Major version 0 (pre-stable): Any difference in minor or patch version between
-  two 0.x.y versions signifies a potential breaking change. Clients SHOULD NOT
-  assume compatibility between any two 0.x.y versions unless they share the exact
-  same minor and patch version.
-* Major version 1 (stable): Any two versions sharing major version 1 are
-  guaranteed to be backwards compatible. A client built against ``1.x.y`` can
-  safely interact with a server reporting any ``1.x'.y'``, provided ``x' >= x``.
-  The sole exception are security bugfixes that require a breaking change: in
-  this case, an implementation MUST increment the major version beyond 1.
-
-In other words, the stable compatibility guarantee only applies once the major
-version reaches 1. During the 0.x.y phase, every release should be treated as
-potentially breaking. In general, there is no need for a major version greater
-than 1, unless a breaking change is required for security reasons.
-
-The version reported by the server MUST match the following regular expression:
+The value MUST match the following regular expression:
 
 ``[a-zA-Z][a-zA-Z0-9]{0,254}-(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)``
+
+Clients MUST NOT use the implementation version to select features. Clients
+use the API version for this. The implementation version is for logs and bug
+reports.
 
 Examples
 """"""""
 
-RPC path: ``/scion.endhost.v1.UnderlayService/ListUnderlays``
-Response Header: ``Endhost-API-Server-Version: xyz-1.0.1``
-Comment: This is a stable implementation ``1.0.1`` of the API specification ``v1`` by the vendor ``xyz``.
+- RPC path: ``/scion.endhost.v1.UnderlayService/ListUnderlays``
 
-RPC path: ``/scion.endhost.v2.UnderlayService/ListUnderlays``
-Response Header: ``Endhost-API-Server-Version: abc-0.3.1``
-Comment: This is an unstable implementation ``0.3.1`` of the API specification ``v2`` by the vendor ``abc``.
+  Response headers: ``Endhost-API-Version: 1.2`` and
+  ``Endhost-API-Server-Version: xyz-3.4.1``
+
+  The server implements version 1.2 of the API specification. The server
+  software is version 3.4.1 of the vendor ``xyz``.
+
+- RPC path: ``/scion.endhost.v2.UnderlayService/ListUnderlays``
+
+  Response headers: ``Endhost-API-Version: 2.0`` and
+  ``Endhost-API-Server-Version: abc-0.3.1``
+
+  The server implements version 2.0 of the API specification. The server
+  software is version 0.3.1 of the vendor ``abc``.
+
+- RPC path: ``/scion.endhost.v2.UnderlayService/ListUnderlays``
+
+  Response: ``unimplemented``
+
+  The server does not support the major version 2. The client sends the
+  request again with the path ``/scion.endhost.v1.UnderlayService/ListUnderlays``.
 
 Error Handling
 ^^^^^^^^^^^^^^
@@ -628,17 +694,6 @@ their current status:
 - **scion-sdk (Rust)** -- supports new endhost API only.
 - **csnet (C)** -- uses a direct control service interface.
 
-
-API Versioning Strategy
-^^^^^^^^^^^^^^^^^^^^^^^
-
-The API uses two levels of versions (see also :issue:`4832`):
-
-- The proto package name contains the version of the API specification, for
-  example ``scion.endhost.v1``. A breaking change to the specification uses a
-  new package, for example ``scion.endhost.v2``.
-- The ``Endhost-API-Server-Version`` header contains the version of the server
-  implementation. See `Endhost API Implementation Versioning`_.
 
 SCION Daemon Transition
 ^^^^^^^^^^^^^^^^^^^^^^^
