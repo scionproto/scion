@@ -82,9 +82,16 @@ type SessionConfigurator struct {
 	// published.
 	SessionConfigurations chan<- []*SessionConfig
 
-	stateMtx               sync.RWMutex
+	stateMtx sync.RWMutex
+	// currentSessionPolicies and currentRemotes are the latest values from
+	// SessionPolicies and RoutingUpdates. They can hold values that
+	// buildSessionConfigs rejected.
 	currentSessionPolicies SessionPolicies
 	currentRemotes         RemoteGateways
+	// appliedSessionPolicies and appliedRemotes are the values that
+	// buildSessionConfigs used to make configs.
+	appliedSessionPolicies SessionPolicies
+	appliedRemotes         RemoteGateways
 	configs                []*SessionConfig
 
 	workerBase worker.Base
@@ -102,7 +109,9 @@ func (sc *SessionConfigurator) Close(ctx context.Context) error {
 	return sc.workerBase.CloseWrapper(ctx, nil)
 }
 
-// DiagnosticsWrite writes diagnostics to the writer.
+// DiagnosticsWrite writes diagnostics to the writer. It writes the applied
+// session policies and remote gateways. A rejected update does not show in the
+// output.
 func (sc *SessionConfigurator) DiagnosticsWrite(w io.Writer) {
 	type sessionConfigDiagnostics struct {
 		SessionPolicies SessionPolicies
@@ -112,8 +121,8 @@ func (sc *SessionConfigurator) DiagnosticsWrite(w io.Writer) {
 	sc.stateMtx.RLock()
 	defer sc.stateMtx.RUnlock()
 	d := sessionConfigDiagnostics{
-		SessionPolicies: sc.currentSessionPolicies,
-		RemoteGateways:  sc.currentRemotes,
+		SessionPolicies: sc.appliedSessionPolicies,
+		RemoteGateways:  sc.appliedRemotes,
 		SessionConfigs:  sc.configs,
 	}
 	raw, err := json.MarshalIndent(d, "", "    ")
@@ -157,6 +166,8 @@ func (sc *SessionConfigurator) run(ctx context.Context) error {
 		doLocked(&sc.stateMtx, func() {
 			configs, err = buildSessionConfigs(sc.currentSessionPolicies, sc.currentRemotes)
 			if err == nil {
+				sc.appliedSessionPolicies = sc.currentSessionPolicies
+				sc.appliedRemotes = sc.currentRemotes
 				sc.configs = configs
 			}
 		})
@@ -320,18 +331,14 @@ func buildSessionConfigs(sessionPolicies SessionPolicies,
 
 func checkSessionCount(sessionPolicies SessionPolicies, remoteGateways RemoteGateways) error {
 	count := 0
-	first := -1
-	for i, sp := range sessionPolicies {
+	for _, sp := range sessionPolicies {
 		count += len(remoteGateways.Gateways[sp.IA])
-		if count > maxSessions && first < 0 {
-			first = i
+		if count > maxSessions {
+			return serrors.New("too many sessions", "sessions", count, "max", maxSessions,
+				"isd_as", sp.IA, "session_policy_id", sp.ID)
 		}
 	}
-	if first < 0 {
-		return nil
-	}
-	return serrors.New("too many sessions", "sessions", count, "max", maxSessions,
-		"isd_as", sessionPolicies[first].IA, "session_policy_id", sessionPolicies[first].ID)
+	return nil
 }
 
 func compareRemoteGateways(a, b RemoteGateway) int {

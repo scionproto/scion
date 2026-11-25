@@ -16,7 +16,9 @@
 package control_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"slices"
@@ -192,6 +194,83 @@ func TestSessionConfigurator(t *testing.T) {
 
 		assert.NoError(t, sc.Close(context.Background()))
 	})
+	t.Run("a rejected update keeps the applied configs", func(t *testing.T) {
+		tpChan := make(chan control.SessionPolicies)
+		ruChan := make(chan control.RemoteGateways)
+		cfgChan := make(chan []*control.SessionConfig)
+		sc := control.SessionConfigurator{
+			SessionPolicies:       tpChan,
+			RoutingUpdates:        ruChan,
+			SessionConfigurations: cfgChan,
+		}
+		go func() {
+			assert.NoError(t, sc.Run(context.Background()))
+		}()
+
+		ia := addr.MustParseIA("1-ff00:0:110")
+		sessionPolicies := control.SessionPolicies{voicePolicy(ia)}
+		sendOrFail(t, tpChan, sessionPolicies)
+		assert.Empty(t, receiveOrFail(t, cfgChan))
+		sendOrFail(t, ruChan, remoteGateways(ia, testGateways(t, 2)))
+		require.Len(t, receiveOrFail(t, cfgChan), 2)
+
+		sendOrFail(t, ruChan, remoteGateways(ia, testGateways(t, control.MaxSessions+1)))
+		// This send returns only after run finishes the rejected update. If run
+		// sends configs for that update, it blocks on cfgChan, and this send
+		// times out.
+		sendOrFail(t, tpChan, sessionPolicies)
+		gateways, configs := appliedState(t, &sc)
+		assert.Equal(t, map[string]int{"1-ff00:0:110": 2}, gateways)
+		assert.Equal(t, 2, configs)
+
+		sendOrFail(t, ruChan, remoteGateways(ia, testGateways(t, 3)))
+		require.Len(t, receiveOrFail(t, cfgChan), 3)
+		gateways, configs = appliedState(t, &sc)
+		assert.Equal(t, map[string]int{"1-ff00:0:110": 3}, gateways)
+		assert.Equal(t, 3, configs)
+
+		assert.NoError(t, sc.Close(context.Background()))
+	})
+}
+
+func sendOrFail[T any](t *testing.T, ch chan<- T, v T) {
+	t.Helper()
+	select {
+	case ch <- v:
+	case <-time.After(time.Second):
+		t.Fatalf("write timed out")
+	}
+}
+
+func receiveOrFail(t *testing.T, ch <-chan []*control.SessionConfig) []*control.SessionConfig {
+	t.Helper()
+	select {
+	case cfg := <-ch:
+		return cfg
+	case <-time.After(time.Second):
+		t.Fatalf("config update not received")
+		return nil
+	}
+}
+
+// appliedState reads the diagnostics of sc. It returns the number of remote
+// gateways for each ISD-AS and the number of session configs.
+func appliedState(t *testing.T, sc *control.SessionConfigurator) (map[string]int, int) {
+	t.Helper()
+	var buf bytes.Buffer
+	sc.DiagnosticsWrite(&buf)
+	var d struct {
+		RemoteGateways struct {
+			Gateways map[string][]json.RawMessage
+		}
+		SessionConfigs []json.RawMessage
+	}
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &d), buf.String())
+	gateways := make(map[string]int)
+	for ia, entries := range d.RemoteGateways.Gateways {
+		gateways[ia] = len(entries)
+	}
+	return gateways, len(d.SessionConfigs)
 }
 
 func TestBuildSessionConfigs(t *testing.T) {
@@ -913,7 +992,7 @@ func TestBuildSessionConfigsStableIDs(t *testing.T) {
 				policy.IA: testGateways(t, 200),
 				other:     testGateways(t, 100),
 			}})
-		assert.ErrorContains(t, err, "sessions=500")
+		assert.ErrorContains(t, err, "sessions=400")
 		assert.ErrorContains(t, err, "isd_as=1-ff00:0:110")
 		assert.ErrorContains(t, err, "session_policy_id=2")
 		assert.Nil(t, cfgs)
