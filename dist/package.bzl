@@ -59,11 +59,14 @@ def scion_pkg_rpm(name, package, executables = {}, systemds = [], configs = [], 
     kwargs.setdefault("license", SCION_PKG_LICENSE)
 
     if "architecture" not in kwargs:
+        # rpm won't install packages with Debian architecture names.
         kwargs["architecture"] = select({
             "@platforms//cpu:x86_64": "x86_64",
             "@platforms//cpu:x86_32": "i386",
-            "@platforms//cpu:aarch64": "arm64",
-            "@platforms//cpu:armv7": "armel",
+            "@platforms//cpu:aarch64": "aarch64",
+            # "hl" stands for hard-float, which our build isn't, but the binaries
+            # are static, so only the CPU (ARMv7) matters.
+            "@platforms//cpu:armv7": "armv7hl",
             "@platforms//cpu:s390x": "s390x",
             # Note: some rules_go toolchains don't (currently) seem to map (cleanly) to @platforms//cpu.
             # "@platforms//cpu:ppc": "ppc64",
