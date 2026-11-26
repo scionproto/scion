@@ -36,6 +36,9 @@ jobs:
           # is injected via javaXss because the action has no dedicated input
           # for arbitrary JVM flags.
           javaXss: '128m -XX:-UseContainerSupport'
+          # Pin the Gobra image. The action defaults to "latest", and newer
+          # Gobra versions do not accept options that the action passes.
+          imageVersion: 'v26.09'
           statsFile: ${{ env.statsFile }}
       - name: Upload the verification report
         uses: actions/upload-artifact@v6
