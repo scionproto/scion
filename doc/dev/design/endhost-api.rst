@@ -114,11 +114,11 @@ API Versioning
 
 The endhost API uses two version identifiers:
 
-- The **API version** identifies a version of this specification. It does not
-  depend on the vendor of the server. Clients use it to find the features that
-  a server supports.
-- The **server implementation version** identifies the software of one vendor.
-  It is only for diagnostics.
+- The **API version** (``Endhost-API-Version``) identifies a version of this
+  specification. It does not depend on the vendor of the server. Clients use
+  it to find the features that a server supports.
+- The **server implementation version** (``Endhost-API-Server-Version``)
+  identifies the software of one vendor. It is only for diagnostics.
 
 See also :issue:`4832`.
 
