@@ -1,0 +1,103 @@
+// Copyright 2026 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/pkg/proto/endhost";
+package scion.endhost.v1;
+
+service UnderlayService {
+    // ListUnderlays returns the UDP and SNAP underlays.
+    rpc ListUnderlays(ListUnderlaysRequest) returns (ListUnderlaysResponse) {}
+}
+
+// ListUnderlaysRequest is used to discover available transport underlays.
+message ListUnderlaysRequest {
+    // Include the underlays for the provided ISD-AS. This can be left empty or set to 0 which
+    // indicates that the requester wants the underlay information for all possible local SCION ASes.
+    optional uint64 isd_as = 1;
+}
+
+// ListUnderlaysResponse contains information about available underlays. At least one underlay
+// must be present for endhosts to use.
+message ListUnderlaysResponse {
+    // The UDP/IP underlay of the AS.
+    optional UdpUnderlay udp = 1;
+
+    // The SNAP underlay of the AS.
+    optional SnapUnderlay snap = 2;
+
+    // Any future underlay goes here.
+}
+
+// The UDP/IP underlay consisting of the available SCION routers.
+message UdpUnderlay {
+    // The local ASes routers.
+    repeated Router routers = 1;
+
+    // The local ASes that this UDP/IP underlay serves. The list contains an AS
+    // also if no router of the AS is available.
+    repeated LocalAs local_ases = 2;
+}
+
+// LocalAs represents a local SCION AS of the UDP/IP underlay.
+message LocalAs {
+    // The ISD-AS identifier.
+    uint64 isd_as = 1;
+
+    // The maximum size in bytes of a SCION packet (SCION headers and payload)
+    // inside the AS.
+    uint32 mtu = 2;
+  }
+
+// Router represents a SCION routers internal interface and the associated SCION interface IDs.
+message Router {
+    // The ISD-AS identifier
+    uint64 isd_as = 1;
+
+    // The UDP endpoint (host:port) of the internal interface.
+    string address = 2;
+
+    // The list of external SCION interface IDs on that router.
+    repeated uint32 interfaces = 3;
+
+    // PortRange is an inclusive range of ports. A range with start > end is empty.
+    message PortRange {
+      // The lowest port in the range.
+      uint32 start = 1;
+      // The highest port in the range.
+      uint32 end = 2;
+    }
+
+    // The direct ports of the router. For a UDP/SCION packet with a destination port in
+    // this range, the router uses the destination port as the UDP underlay port. For all
+    // other ports, the router uses the well-known port 30041. If not set, all ports are
+    // direct.
+    PortRange direct_ports = 4;
+}
+
+// The SNAP underlay consisting of possibly multiple SNAPs.
+message SnapUnderlay {
+    // The SNAPs of the SnapUnderlay.
+    repeated Snap snaps = 1;
+}
+
+message Snap {
+    // The address (host:port) of the SNAP control plane API. This can be the same
+    // as the SCION endhost API endpoint.
+    string address = 1;
+
+    // The ISD-ASes of the SNAP.
+    repeated uint64 isd_ases = 2;
+}

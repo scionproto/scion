@@ -1,0 +1,12 @@
+load("//tools/proto:connect.bzl", "go_connect_library")
+
+go_connect_library(
+    name = "go_default_library",
+    files = [
+        "drkey.connect.go",
+        "path.connect.go",
+        "trust.connect.go",
+        "underlay.connect.go",
+    ],
+    proto = "endhost",
+)
