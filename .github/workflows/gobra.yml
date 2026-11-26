@@ -22,6 +22,10 @@ jobs:
       - name: Verify the specified files
         uses: viperproject/gobra-action@v25.09.1
         with:
+          # Pin the Gobra image to a release. The default tag "latest" follows
+          # the Gobra master branch. A master build removed the option
+          # respectFunctionPrePermAmounts, but the action always passes it.
+          imageVersion: 'v26.09'
           # Prefix used to resolve SCION packages
           module: 'github.com/scionproto/scion/'
           # Gobra only verifies files annotated with the header "// +gobra"
