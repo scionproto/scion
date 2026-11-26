@@ -18,6 +18,7 @@ option go_package = "github.com/scionproto/scion/pkg/proto/endhost";
 package scion.endhost.v1;
 
 service UnderlayService {
+    // ListUnderlays returns the UDP and SNAP underlays.
     rpc ListUnderlays(ListUnderlaysRequest) returns (ListUnderlaysResponse) {}
 }
 
@@ -42,6 +43,7 @@ message ListUnderlaysResponse {
 
 // The UDP/IP underlay consisting of the available SCION routers.
 message UdpUnderlay {
+    // The local ASes routers.
     repeated Router routers = 1;
 
     // The local ASes that this UDP/IP underlay serves. The list contains an AS
@@ -87,6 +89,7 @@ message Router {
 
 // The SNAP underlay consisting of possibly multiple SNAPs.
 message SnapUnderlay {
+    // The SNAPs of the SnapUnderlay.
     repeated Snap snaps = 1;
 }
 

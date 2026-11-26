@@ -20,6 +20,7 @@ package scion.endhost.v1;
 import "proto/control_plane/v1/seg.proto";
 
 service SegmentsService {
+    // ListSegments returns a page of path segments.
     rpc ListSegments(ListSegmentsRequest) returns (ListSegmentsResponse) {}
 }
 

@@ -18,7 +18,9 @@ option go_package = "github.com/scionproto/scion/pkg/proto/endhost";
 package scion.endhost.v1;
 
 service TrustService {
+    // ListChains returns a page of certificate chains.
     rpc ListChains(ListChainsRequest) returns (ListChainsResponse) {}
+    // GetTrc returns a matching TRC.
     rpc GetTrc(GetTrcRequest) returns (GetTrcResponse) {}
 }
 
