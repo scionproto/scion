@@ -118,6 +118,10 @@ func (s *supervisor) run() {
 	sigs := make(chan os.Signal, 16)
 	signal.Notify(sigs, syscall.SIGCHLD, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
 
+	if err := clearRestartRequests(s.statusPath); err != nil {
+		s.log.Warn("failed to clear restart requests", "err", err)
+	}
+
 	s.mu.Lock()
 	for _, m := range s.services {
 		s.startLocked(m)
@@ -260,6 +264,11 @@ func (s *supervisor) reap() {
 				s.pumps.Wait()
 				os.Exit(0)
 			}
+		case consumeRestartRequest(s.statusPath, m.svc.name, pid):
+			// Requested by `services restart`: not a crash.
+			m.restarts = 0
+			s.log.Info("restarting on request", "service", m.svc.name)
+			s.startLocked(m)
 		default:
 			s.scheduleRestartLocked(m)
 		}

@@ -128,13 +128,39 @@ to the static set of services rendered from configuration.`,
 			if err != nil {
 				return err
 			}
-			services, err := renderServices(cfg, flags.configDir, flags.binDir)
+			// Do not write the service configs: they may have been edited
+			// since the controller rendered them.
+			services, err := configuredServices(cfg, flags.configDir, flags.binDir)
 			if err != nil {
 				return err
 			}
 			return printServices(out, services)
 		},
 	})
+
+	var restartTimeout, restartSettle time.Duration
+	restartCmd := &cobra.Command{
+		Use:   "restart <service>...",
+		Short: "Restart SCION services, e.g. after changing their configuration",
+		Long: `Restart SCION services of the running controller and wait until they run
+again. The services re-read their configuration files on start, so a changed
+configuration file takes effect.
+
+Unlike a crash, a requested restart happens immediately and resets the
+service's crash backoff.`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+			return restartServices(flags.statusFile, args, restartTimeout, restartSettle)
+		},
+	}
+	restartCmd.Flags().DurationVar(&restartTimeout, "timeout", 30*time.Second,
+		"how long to wait for the services to run again",
+	)
+	restartCmd.Flags().DurationVar(&restartSettle, "settle", 2*time.Second,
+		"how long the restarted services must keep running for the restart to succeed",
+	)
+	servicesCmd.AddCommand(restartCmd)
 
 	networkCmd := &cobra.Command{
 		Use:   "network",
@@ -154,6 +180,7 @@ to the static set of services rendered from configuration.`,
 			return printNetworkStatus(cmd.OutOrStdout(), networkStatus(cfg.Interfaces.Ethernets))
 		},
 	})
+	cmd.AddCommand(servicesCmd, networkCmd)
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
