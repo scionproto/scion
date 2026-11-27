@@ -36,8 +36,9 @@ import (
 type redirectSender struct {
 	Destination *bfd.Session
 
-	mtx        sync.Mutex
-	shouldSend bool
+	mtx         sync.Mutex
+	shouldSend  bool
+	discardPoll bool
 }
 
 func (r *redirectSender) Send(bfd *layers.BFD) error {
@@ -46,6 +47,9 @@ func (r *redirectSender) Send(bfd *layers.BFD) error {
 
 	// silent discard
 	if !r.shouldSend {
+		return nil
+	}
+	if r.discardPoll && bfd.Poll {
 		return nil
 	}
 
@@ -57,6 +61,13 @@ func (r *redirectSender) Sending(shouldSend bool) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	r.shouldSend = shouldSend
+}
+
+// DiscardPoll causes Poll packet to be ignored (old router behavior)
+func (r *redirectSender) DiscardPoll(discard bool) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	r.discardPoll = discard
 }
 
 func (r *redirectSender) SetDestination(dst *bfd.Session) {
@@ -721,16 +732,9 @@ func TestShouldDiscard(t *testing.T) {
 			shouldDiscard: true,
 			hasReason:     assert.Empty,
 		},
-		"poll bit set": {
+		"poll and final bit set": {
 			packetEdit: func(pkt layers.BFD) layers.BFD {
 				pkt.Poll = true
-				return pkt
-			},
-			shouldDiscard: true,
-			hasReason:     assert.NotEmpty,
-		},
-		"final bit set": {
-			packetEdit: func(pkt layers.BFD) layers.BFD {
 				pkt.Final = true
 				return pkt
 			},
@@ -843,5 +847,159 @@ func TestBFDIntervalToDuration(t *testing.T) {
 	for i, tc := range testCases {
 		assert.Equal(t, tc.expectedDuration, bfd.BFDIntervalToDuration(tc.bfdInterval),
 			"test case %d (%+v)", i, tc)
+	}
+}
+
+func TestRTTEstimation(t *testing.T) {
+	testCases := map[string]*sessionTestCase{
+		"RTT estimate on both sides": {
+			sessionA: &bfd.Session{
+				DetectMult:            1,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
+				LocalDiscriminator:    1,
+				RemoteDiscriminator:   2,
+				ReceiveQueueSize:      10,
+				EnableRTTEstimate:     true,
+			},
+			sessionB: &bfd.Session{
+				DetectMult:            1,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
+				LocalDiscriminator:    2,
+				RemoteDiscriminator:   1,
+				ReceiveQueueSize:      10,
+				EnableRTTEstimate:     true,
+			},
+			expectedUpA: true,
+			expectedUpB: true,
+			testBehavior: func(linkAToB, linkBToA *redirectSender) {
+				linkAToB.Sending(true)
+				linkBToA.Sending(true)
+				require.Eventually(t, func() bool {
+					_, validA := linkBToA.Destination.RTT()
+					_, validB := linkAToB.Destination.RTT()
+					return validA && validB
+				}, 2*time.Second, 200*time.Millisecond,
+					"both session should have valid RTT estimates")
+				rttA, validA := linkBToA.Destination.RTT()
+				rttB, validB := linkAToB.Destination.RTT()
+				assert.True(t, validA)
+				assert.Greater(t, rttA.Seconds(), .0, "RTT estimate must be greater than zero")
+				assert.True(t, validB)
+				assert.Greater(t, rttB.Seconds(), .0, "RTT estimate must be greater than zero")
+			},
+		},
+		"RTT on one side": {
+			sessionA: &bfd.Session{
+				DetectMult:            1,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
+				LocalDiscriminator:    1,
+				RemoteDiscriminator:   2,
+				ReceiveQueueSize:      10,
+				EnableRTTEstimate:     true,
+			},
+			sessionB: &bfd.Session{
+				DetectMult:            1,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
+				LocalDiscriminator:    2,
+				RemoteDiscriminator:   1,
+				ReceiveQueueSize:      10,
+				EnableRTTEstimate:     false,
+			},
+			expectedUpA: true,
+			expectedUpB: true,
+			testBehavior: func(linkAToB, linkBToA *redirectSender) {
+				linkAToB.Sending(true)
+				linkBToA.Sending(true)
+				require.Eventually(t, func() bool {
+					_, validA := linkBToA.Destination.RTT()
+					return validA
+				}, 2*time.Second, 200*time.Millisecond,
+					"sessionA should have a valid RTT estimate")
+				_, validB := linkAToB.Destination.RTT()
+				assert.False(t, validB, "sessionB should not have a valid RTT estimate")
+			},
+		},
+		"poll sequence not supported": {
+			sessionA: &bfd.Session{
+				DetectMult:            3,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
+				LocalDiscriminator:    1,
+				RemoteDiscriminator:   2,
+				ReceiveQueueSize:      10,
+				EnableRTTEstimate:     true,
+			},
+			sessionB: &bfd.Session{
+				DetectMult:            3,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
+				LocalDiscriminator:    2,
+				RemoteDiscriminator:   1,
+				ReceiveQueueSize:      10,
+				EnableRTTEstimate:     false,
+			},
+			expectedUpA: true,
+			expectedUpB: true,
+			// Since Poll bits for RTT estimation are set on periodic packets, sessionB misses a
+			// packet every time sessionA attempts a Poll Sequence. sessionA should abandon the Poll
+			// Sequence after missing a Final, so this should not take down the session.
+			testBehavior: func(linkAToB, linkBToA *redirectSender) {
+				linkAToB.DiscardPoll(true) // sessionB does not support poll sequences
+				linkAToB.Sending(true)
+				linkBToA.Sending(true)
+				time.Sleep(5 * time.Second)
+				_, validA := linkBToA.Destination.RTT()
+				_, validB := linkAToB.Destination.RTT()
+				assert.False(t, validA)
+				assert.False(t, validB)
+			},
+		},
+		"link goes down, estimate no longer valid": {
+			sessionA: &bfd.Session{
+				DetectMult:            3,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
+				LocalDiscriminator:    1,
+				RemoteDiscriminator:   2,
+				ReceiveQueueSize:      10,
+				EnableRTTEstimate:     true,
+			},
+			sessionB: &bfd.Session{
+				DetectMult:            3,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
+				LocalDiscriminator:    2,
+				RemoteDiscriminator:   1,
+				ReceiveQueueSize:      10,
+				EnableRTTEstimate:     true,
+			},
+			expectedUpA: false,
+			expectedUpB: false,
+			testBehavior: func(linkAToB, linkBToA *redirectSender) {
+				linkAToB.Sending(true)
+				linkBToA.Sending(true)
+				require.Eventually(t, func() bool {
+					_, validA := linkBToA.Destination.RTT()
+					_, validB := linkAToB.Destination.RTT()
+					return validA && validB
+				}, 2*time.Second, 200*time.Millisecond,
+					"both session should have valid RTT estimates")
+				linkAToB.Sending(false)
+				linkBToA.Sending(false)
+				require.Eventually(t, func() bool {
+					_, validA := linkBToA.Destination.RTT()
+					_, validB := linkAToB.Destination.RTT()
+					return !validA && !validB
+				}, 2*time.Second, 200*time.Millisecond,
+					"both RTT estimates should become invalid")
+			},
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, sessionSubtest(name, tc))
 	}
 }

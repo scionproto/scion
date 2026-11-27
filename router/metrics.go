@@ -38,6 +38,8 @@ type Metrics struct {
 	BFDInterfaceStateChanges  *prometheus.CounterVec
 	BFDPacketsSent            *prometheus.CounterVec
 	BFDPacketsReceived        *prometheus.CounterVec
+	BFDRTTEstimate            *prometheus.GaugeVec
+	SiblingBFDRTTEstimate     *prometheus.GaugeVec
 	ServiceInstanceCount      *prometheus.GaugeVec
 	ServiceInstanceChanges    *prometheus.CounterVec
 	SiblingReachable          *prometheus.GaugeVec
@@ -119,6 +121,20 @@ func NewMetrics() *Metrics {
 				Help: "Number of BFD packets received.",
 			},
 			[]string{"interface", "isd_as", "neighbor_isd_as"},
+		),
+		BFDRTTEstimate: promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "router_bfd_rtt_estimate_seconds",
+				Help: "RTT estimate to the remote border router, in seconds.",
+			},
+			[]string{"interface", "isd_as", "neighbor_isd_as"},
+		),
+		SiblingBFDRTTEstimate: promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "router_bfd_sibling_rtt_estimate_seconds",
+				Help: "RTT estimate to the sibling border router, in seconds.",
+			},
+			[]string{"sibling", "isd_as"},
 		),
 		ServiceInstanceCount: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
