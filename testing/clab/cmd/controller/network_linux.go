@@ -153,10 +153,46 @@ func configureInterface(eth config.Ethernet, timeout, interval time.Duration, lo
 			"iface", eth.Name, "timeout", timeout)
 		return
 	}
-	for _, a := range eth.Addresses {
+	addAddresses(link, eth.Name, eth.Addresses, log)
+	if err := netlink.LinkSetUp(link); err != nil {
+		log.Error("failed to bring link up", "iface", eth.Name, "err", err)
+	}
+}
+
+// applyLoopbacks assigns the configured addresses to each loopback interface
+// and brings it up. An interface that does not exist yet (anything but "lo")
+// is created as a dummy interface. Like applyNetworkConfig, it is best-effort
+// and idempotent.
+func applyLoopbacks(lbs []config.Loopback, log *slog.Logger) {
+	for _, lb := range lbs {
+		link, err := netlink.LinkByName(lb.Name)
+		if err != nil {
+			dummy := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: lb.Name}}
+			if err := netlink.LinkAdd(dummy); err != nil {
+				log.Error("failed to create loopback interface", "iface", lb.Name, "err", err)
+				continue
+			}
+			if link, err = netlink.LinkByName(lb.Name); err != nil {
+				log.Error("failed to look up loopback interface", "iface", lb.Name, "err", err)
+				continue
+			}
+			log.Info("created loopback interface", "iface", lb.Name)
+		}
+		addAddresses(link, lb.Name, lb.Addresses, log)
+		if err := netlink.LinkSetUp(link); err != nil {
+			log.Error("failed to bring link up", "iface", lb.Name, "err", err)
+		}
+	}
+}
+
+// addAddresses assigns addrs to the link named name. Failures are logged and
+// skipped. An address that is already present counts as success, so the
+// controller can be restarted against a live node.
+func addAddresses(link netlink.Link, name string, addrs []string, log *slog.Logger) {
+	for _, a := range addrs {
 		addr, err := netlink.ParseAddr(a)
 		if err != nil {
-			log.Error("invalid address; skipping", "iface", eth.Name, "addr", a, "err", err)
+			log.Error("invalid address; skipping", "iface", name, "addr", a, "err", err)
 			continue
 		}
 		// Skip Duplicate Address Detection for IPv6 addresses. DAD leaves a
@@ -171,16 +207,13 @@ func configureInterface(eth config.Ethernet, timeout, interval time.Duration, lo
 			// EEXIST means the address is already assigned; treat as success so
 			// the controller can be restarted against a live node.
 			if errors.Is(err, syscall.EEXIST) {
-				log.Debug("address already present", "iface", eth.Name, "addr", a)
+				log.Debug("address already present", "iface", name, "addr", a)
 				continue
 			}
-			log.Error("failed to add address", "iface", eth.Name, "addr", a, "err", err)
+			log.Error("failed to add address", "iface", name, "addr", a, "err", err)
 			continue
 		}
-		log.Info("assigned address", "iface", eth.Name, "addr", a)
-	}
-	if err := netlink.LinkSetUp(link); err != nil {
-		log.Error("failed to bring link up", "iface", eth.Name, "err", err)
+		log.Info("assigned address", "iface", name, "addr", a)
 	}
 }
 
