@@ -40,6 +40,7 @@ go_library(
         "//pkg/slayers/path/epic:go_default_library",
         "//pkg/slayers/path/onehop:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
+        "//pkg/snet/multihomed:go_default_library",
         "//pkg/stun:go_default_library",
         "//private/topology:go_default_library",
         "//private/topology/underlay:go_default_library",

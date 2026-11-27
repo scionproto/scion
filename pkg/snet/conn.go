@@ -22,7 +22,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 )
 
@@ -58,7 +57,12 @@ type Conn struct {
 // NewCookedConn returns a "cooked" Conn. The Conn object can be used to
 // send/receive SCION traffic with the usual methods.
 // It takes as arguments a non-nil PacketConn and a non-nil Topology parameter.
-// Nil or unspecified addresses for the PacketConn object are not supported.
+// The local address of the PacketConn can be nil or unspecified, leaving the socket not bound
+// to any particular interface; however it has its limitations, namely a created Conn not
+// being able to properly react to a routing change in the OS unless the routing change is
+// accompanied by a change in the local network interfaces, in the form of changing their
+// local IP addresses, or adding/removing one or more local network interfaces.
+//
 // This is an advanced API, that allows fine-tuning of the Conn underlay functionality.
 // The general methods for obtaining a Conn object are still SCIONNetwork.Listen and
 // SCIONNetwork.Dial.
@@ -72,10 +76,8 @@ func NewCookedConn(
 		IA:   topo.LocalIA,
 		Host: pconn.LocalAddr().(*net.UDPAddr),
 	}
-	if local.Host == nil || local.Host.IP.IsUnspecified() {
-		return nil, serrors.New("nil or unspecified address is not supported.")
-	}
 	hasSTUN := hasSTUNConn(pconn)
+
 	return &Conn{
 		conn:   pconn,
 		local:  local,
