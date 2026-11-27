@@ -21,6 +21,7 @@ software-properties-common
 sqlite3
 sudo
 tzdata
+unzip
 rsync
 zlib1g-dev
 zip

@@ -1,10 +1,9 @@
 #!/bin/bash
 
 topogen="$1"
-# $2 and $3 are other files passed by topogen's py_binary to the Bazel rule running this script.
-topology="$4"
-ifids="$5"
-out="$6"
+topology="$2"
+ifids="$3"
+out="$4"
 
 tmpdir=$(mktemp -d)
 
