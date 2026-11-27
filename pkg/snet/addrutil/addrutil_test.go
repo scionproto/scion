@@ -49,7 +49,7 @@ func TestExtractServiceAddress(t *testing.T) {
 
 			path.EXPECT().Metadata().Return(metadata)
 			path.EXPECT().Dataplane().Return(snetpath.SCION{})
-			path.EXPECT().Destination().Return(dummyIA)
+			path.EXPECT().Destination().Times(2).Return(dummyIA)
 			path.EXPECT().UnderlayNextHop().Return(
 				&net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
 			)
@@ -88,7 +88,7 @@ func TestExtractServiceAddress(t *testing.T) {
 
 			path.EXPECT().Metadata().Return(metadata)
 			path.EXPECT().Dataplane().Return(snetpath.SCION{})
-			path.EXPECT().Destination().Return(dummyIA)
+			path.EXPECT().Destination().Times(2).Return(dummyIA)
 			path.EXPECT().UnderlayNextHop().Return(
 				&net.UDPAddr{IP: netip.MustParseAddr("10.1.1.1").AsSlice()},
 			)
