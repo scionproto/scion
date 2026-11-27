@@ -17,7 +17,6 @@ package cppki
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/x509"
@@ -131,9 +130,11 @@ func (ca CAPolicy) Equal(o CAPolicy) bool {
 func SubjectKeyID(pub crypto.PublicKey) ([]byte, error) {
 	switch k := pub.(type) {
 	case *ecdsa.PublicKey:
-		// SA1019: fix later (https://github.com/scionproto/scion/issues/4777).
-		//nolint:staticcheck
-		skid := sha1.Sum(elliptic.Marshal(k.Curve, k.X, k.Y))
+		raw, err := k.Bytes()
+		if err != nil {
+			return nil, err
+		}
+		skid := sha1.Sum(raw)
 		return skid[:], nil
 	default:
 		return nil, serrors.New("not supported")

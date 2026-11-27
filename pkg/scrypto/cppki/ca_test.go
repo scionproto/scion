@@ -21,6 +21,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"slices"
 	"testing"
 	"time"
 
@@ -97,6 +99,20 @@ func TestCAPolicyCreateChain(t *testing.T) {
 				pub, _, err := ed25519.GenerateKey(rand.Reader)
 				require.NoError(t, err)
 				c.PublicKey = pub
+				return &c
+			},
+			Signer:       func(t *testing.T) crypto.Signer { return p256 },
+			Validity:     chain[0].NotAfter.Sub(chain[0].NotBefore),
+			ErrAssertion: assert.Error,
+		},
+		"duplicate subject IA": {
+			CSR: func(t *testing.T) *x509.CertificateRequest {
+				c := csr
+				c.Subject.Names = append(slices.Clone(c.Subject.Names),
+					pkix.AttributeTypeAndValue{
+						Type:  cppki.OIDNameIA,
+						Value: "1-ff00:0:111",
+					})
 				return &c
 			},
 			Signer:       func(t *testing.T) crypto.Signer { return p256 },
