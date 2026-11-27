@@ -57,6 +57,12 @@ type Config struct {
 	// HostLinks adds a link between every AS's host-1 node and the machine
 	// running the lab, giving that machine a dedicated address in each AS.
 	HostLinks bool
+	// Gateways adds a SCION IP gateway to the host-1 node of every AS. Each
+	// gateway owns an IPv4 prefix from GatewayV4 and routes the prefixes of
+	// all other ASes through its tunnel.
+	Gateways bool
+	// GatewayV4 is the network the gateway prefixes are carved from.
+	GatewayV4 netip.Prefix
 	// Writer receives progress output.
 	Writer io.Writer
 }
@@ -69,6 +75,7 @@ func DefaultConfig() Config {
 		OutDir:     "gen",
 		NetworkV4:  def.NetworkV4,
 		NetworkV6:  def.NetworkV6,
+		GatewayV4:  def.GatewayV4,
 		ASValidity: 365 * 24 * time.Hour,
 		LabName:    "scion",
 	}
@@ -102,6 +109,7 @@ func Run(cfg Config) error {
 	alloc := hydrate.NewClabAllocator(t, hydrate.ClabConfig{
 		NetworkV4: cfg.NetworkV4,
 		NetworkV6: cfg.NetworkV6,
+		GatewayV4: cfg.GatewayV4,
 	})
 	network, err := hydrate.Hydrate(t, alloc)
 	if err != nil {
@@ -115,6 +123,14 @@ func Run(cfg Config) error {
 			hl := as.Hosts[0].HostLink
 			fmt.Fprintf(w, "hydrate: host link %s: bind to %s (host interface %s)\n",
 				as.IA, hl.HostAddr, hl.HostIface)
+		}
+	}
+	if cfg.Gateways {
+		if err := hydrate.AddGateways(network, alloc); err != nil {
+			return err
+		}
+		for _, as := range network.ASes {
+			fmt.Fprintf(w, "hydrate: gateway %s: prefix %s\n", as.IA, as.Gateway.Prefix)
 		}
 	}
 	dir := out.New(cfg.OutDir, cfg.ISDDir)

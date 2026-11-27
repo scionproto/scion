@@ -22,11 +22,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
+	clabconfig "github.com/scionproto/scion/testing/clab/cmd/controller/config"
 	"github.com/scionproto/scion/testing/clab/testgen/hydrate"
 	"github.com/scionproto/scion/testing/clab/testgen/topo"
 )
 
 func hydrateTiny(t *testing.T) *hydrate.Network {
+	t.Helper()
+	parsed := tinyTopo(t)
+	n, err := hydrate.Hydrate(parsed, hydrate.NewClabAllocator(parsed, hydrate.DefaultClabConfig()))
+	require.NoError(t, err)
+	return n
+}
+
+func tinyTopo(t *testing.T) *topo.Topo {
 	t.Helper()
 	parsed, err := topo.Parse([]byte(`
 ASes:
@@ -37,9 +46,7 @@ links:
 `))
 	require.NoError(t, err)
 	require.NoError(t, parsed.Validate())
-	n, err := hydrate.Hydrate(parsed, hydrate.NewClabAllocator(parsed, hydrate.DefaultClabConfig()))
-	require.NoError(t, err)
-	return n
+	return parsed
 }
 
 func as(t *testing.T, n *hydrate.Network, ia string) *hydrate.AS {
@@ -115,4 +122,35 @@ func TestHostConfigHostLink(t *testing.T) {
 	require.Len(t, cfg.Interfaces.Ethernets, 2)
 	assert.Equal(t, "eth2", cfg.Interfaces.Ethernets[1].Name)
 	assert.Equal(t, []string{"10.192.0.1/30"}, cfg.Interfaces.Ethernets[1].Addresses)
+}
+
+func TestHostConfigGateway(t *testing.T) {
+	t.Parallel()
+	parsed := tinyTopo(t)
+	alloc := hydrate.NewClabAllocator(parsed, hydrate.DefaultClabConfig())
+	n, err := hydrate.Hydrate(parsed, alloc)
+	require.NoError(t, err)
+	require.NoError(t, hydrate.AddGateways(n, alloc))
+	a := as(t, n, "1-ff00:0:110")
+
+	cfg := HostConfig(a, a.Hosts[0])
+	gw := cfg.SCION.ASes[0].Gateway
+	require.NotNil(t, gw)
+	assert.Equal(t, "gw1-ff00_0_110-1", gw.ID)
+	assert.Equal(t, a.Daemon.Addr, gw.Daemon)
+	assert.Equal(t, netip.MustParseAddr("172.16.0.1"), gw.TunnelSrcV4)
+	// The prefix of the other AS is routed through the tunnel.
+	require.Len(t, gw.Remotes, 1)
+	assert.Equal(t, "1-ff00:0:111", gw.Remotes[0].ISDAS.String())
+	assert.Equal(t, []netip.Prefix{netip.MustParsePrefix("172.16.1.0/24")}, gw.Remotes[0].Prefixes)
+	// Remote gateways discover this gateway through topology.json.
+	top := Topology(a)
+	require.Contains(t, top.SIG, "gw1-ff00_0_110-1")
+	assert.Equal(t, a.Gateway.CtrlAddr.String(), top.SIG["gw1-ff00_0_110-1"].CtrlAddr)
+	assert.Equal(t, a.Gateway.DataAddr.String(), top.SIG["gw1-ff00_0_110-1"].DataAddr)
+	assert.Equal(t, a.Gateway.ProbeAddr.String(), top.SIG["gw1-ff00_0_110-1"].ProbeAddr)
+
+	// The gateway host holds its address within the gateway prefix.
+	assert.Equal(t, []clabconfig.Loopback{{Name: "lo", Addresses: []string{"172.16.0.1/32"}}},
+		cfg.Interfaces.Loopbacks)
 }

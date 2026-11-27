@@ -62,6 +62,8 @@ type AS struct {
 	BorderRouters []*BorderRouter
 	Control       Service
 	Daemon        Service
+	// Gateway is the AS's SCION IP gateway, if any (see AddGateways).
+	Gateway *Gateway
 }
 
 // Host is one containerlab host (container) of an AS.
@@ -72,6 +74,7 @@ type Host struct {
 	Control      bool          // host runs the control service (host-1)
 	Daemon       bool          // host runs the daemon (host-1)
 	HostLink     *HostLink     // link to the machine running the lab, if any
+	Gateway      bool          // host runs the AS's gateway (host-1), if any
 }
 
 // Service is a control/daemon service endpoint.

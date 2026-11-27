@@ -307,6 +307,19 @@ testgen
    Connect ``host-1`` of every AS to the machine running the lab with a dedicated link. This gives
    the machine an address in each AS, which applications running on the machine can bind to.
 
+.. option:: --gateways
+
+   Run a :doc:`/manuals/gateway` on ``host-1`` of every AS. Each gateway owns an IPv4 ``/24``
+   prefix and holds its first address on the loopback interface of the host. The gateways route
+   the prefixes of all other ASes through their tunnels. The prefixes are recorded in
+   ``network-allocations.yml``.
+
+.. option:: --gateway-network <PREFIX>
+
+   IPv4 network from which the gateway prefixes are allocated, one ``/24`` per AS. Default:
+   ``172.16.0.0/16``. It must not overlap with the base IPv4 network, nor with the default
+   networks of docker (``172.17.0.0/16``) and containerlab (``172.20.20.0/24``).
+
 .. option:: --isd-dir
 
    Group the AS directories in per-ISD directories.
