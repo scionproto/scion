@@ -86,6 +86,7 @@ go_test(
         "//pkg/snet/addrutil:go_default_library",
         "//pkg/snet/path:go_default_library",
         "//private/segment/seghandler:go_default_library",
+        "//private/segment/segverifier:go_default_library",
         "//private/segment/verifier/mock_verifier:go_default_library",
         "//private/topology:go_default_library",
         "//private/trust:go_default_library",
