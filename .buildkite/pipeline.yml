@@ -154,3 +154,18 @@ steps:
         automatic:
         - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
+    - label: "E2E: gateway (clab)"
+      command:
+        - bash -c "$(curl -sL https://get.containerlab.dev)"
+        - bazel test //gateway/system_test:go_default_test --test_output=streamed --test_arg=-test.v --test_arg=--artifacts=$PWD || ( echo "^^^ +++" && false )
+      plugins:
+      - scionproto/metahook#v0.3.0:
+            pre-command: .buildkite/cleanup-leftovers.sh
+            pre-artifact: |
+              tar -chaf test-out.tar.gz $(ls -d bazel-testlogs) # ls -d to filter missing directories
+            pre-exit: .buildkite/cleanup-leftovers.sh
+      artifact_paths:
+        - test-out.tar.gz
+      timeout_in_minutes: 15
+      key: clab_integration_gateway
+      retry: *automatic-retry

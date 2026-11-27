@@ -16,6 +16,7 @@ package e2e
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -27,12 +28,17 @@ import (
 // probe; same-source-and-destination cells are rendered as "·" without calling
 // it.
 func PrintMatrix(eps []Endpoint, cell func(src, dst Endpoint) bool) {
+	FprintMatrix(os.Stdout, eps, cell)
+}
+
+// FprintMatrix is like PrintMatrix, but writes the grid to w.
+func FprintMatrix(w io.Writer, eps []Endpoint, cell func(src, dst Endpoint) bool) {
 	idx := make(map[string]int, len(eps))
 	for i, e := range eps {
 		idx[e.IA] = i + 1
 	}
 
-	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
 	header := []string{"  src \\ dst"}
 	for i := range eps {
 		header = append(header, fmt.Sprint(i+1))
