@@ -1,4 +1,5 @@
 // Copyright 2018 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -264,6 +265,90 @@ func TestTrafficClassTree(t *testing.T) {
 			tree, err := pktcls.BuildClassTree(tc.Class)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.Tree, tree)
+		})
+	}
+}
+
+func TestTrafficClassValueChecks(t *testing.T) {
+	testCases := []struct {
+		Name        string
+		Class       string
+		ErrContains []string
+	}{
+		{Name: "large DSCP", Class: "dscp=0x3f"},
+		{
+			Name:        "DSCP above maximum",
+			Class:       "dscp=0x40",
+			ErrContains: []string{"DSCP value above maximum", "dscp=0x40", "max=0x3f"},
+		},
+		{Name: "source port range of one port", Class: "srcport=80-80"},
+		{Name: "destination port range of one port", Class: "dstport=80-80"},
+		{
+			Name:        "empty source port range",
+			Class:       "srcport=90-80",
+			ErrContains: []string{"port range is empty", "keyword=srcport", "min=90", "max=80"},
+		},
+		{
+			Name:        "empty destination port range",
+			Class:       "dstport=90-80",
+			ErrContains: []string{"port range is empty", "keyword=dstport", "min=90", "max=80"},
+		},
+		{
+			Name:        "source port out of range with min>max",
+			Class:       "srcport=99999-80",
+			ErrContains: []string{"SRCPORT parsing failed!", "srcport=99999"},
+		},
+		{
+			Name:        "destination port out of range with min>max",
+			Class:       "dstport=99999-80",
+			ErrContains: []string{"DSTPORT parsing failed!", "dstport=99999"},
+		},
+		{Name: "destination network", Class: "dst=10.1.2.0/24"},
+		{Name: "destination host", Class: "dst=10.1.2.3/32"},
+		{
+			Name:  "destination CIDR with host bits",
+			Class: "dst=10.1.2.3/24",
+			ErrContains: []string{"CIDR has host bits", "cidr=10.1.2.3/24",
+				"network=10.1.2.0/24"},
+		},
+		{
+			Name:  "source CIDR with host bits",
+			Class: "src=10.1.2.3/24",
+			ErrContains: []string{"CIDR has host bits", "cidr=10.1.2.3/24",
+				"network=10.1.2.0/24"},
+		},
+		{
+			Name:        "nested value error",
+			Class:       "ALL(dscp=0x2e, NOT(dscp=0x40))",
+			ErrContains: []string{"DSCP value above maximum", "dscp=0x40"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, treeErr := pktcls.BuildClassTree(tc.Class)
+			validateErr := pktcls.ValidateTrafficClass(tc.Class)
+			for _, err := range []error{treeErr, validateErr} {
+				if len(tc.ErrContains) == 0 {
+					assert.NoError(t, err)
+					continue
+				}
+				for _, text := range tc.ErrContains {
+					assert.ErrorContains(t, err, text)
+				}
+			}
+		})
+	}
+}
+
+func TestMalformedClassNoPanic(t *testing.T) {
+	for _, class := range []string{"not()", "not(", "any(not())"} {
+		t.Run(class, func(t *testing.T) {
+			var err error
+			assert.NotPanics(t, func() { _, err = pktcls.BuildClassTree(class) })
+			assert.Error(t, err)
+			assert.NotPanics(t, func() { err = pktcls.ValidateTrafficClass(class) })
+			assert.Error(t, err)
 		})
 	}
 }

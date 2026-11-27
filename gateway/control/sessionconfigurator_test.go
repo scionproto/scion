@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2026 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +16,12 @@
 package control_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -189,6 +194,83 @@ func TestSessionConfigurator(t *testing.T) {
 
 		assert.NoError(t, sc.Close(context.Background()))
 	})
+	t.Run("a rejected update keeps the applied configs", func(t *testing.T) {
+		tpChan := make(chan control.SessionPolicies)
+		ruChan := make(chan control.RemoteGateways)
+		cfgChan := make(chan []*control.SessionConfig)
+		sc := control.SessionConfigurator{
+			SessionPolicies:       tpChan,
+			RoutingUpdates:        ruChan,
+			SessionConfigurations: cfgChan,
+		}
+		go func() {
+			assert.NoError(t, sc.Run(context.Background()))
+		}()
+
+		ia := addr.MustParseIA("1-ff00:0:110")
+		sessionPolicies := control.SessionPolicies{voicePolicy(ia)}
+		sendOrFail(t, tpChan, sessionPolicies)
+		assert.Empty(t, receiveOrFail(t, cfgChan))
+		sendOrFail(t, ruChan, remoteGateways(ia, testGateways(t, 2)))
+		require.Len(t, receiveOrFail(t, cfgChan), 2)
+
+		sendOrFail(t, ruChan, remoteGateways(ia, testGateways(t, control.MaxSessions+1)))
+		// This send returns only after run finishes the rejected update. If run
+		// sends configs for that update, it blocks on cfgChan, and this send
+		// times out.
+		sendOrFail(t, tpChan, sessionPolicies)
+		gateways, configs := appliedState(t, &sc)
+		assert.Equal(t, map[string]int{"1-ff00:0:110": 2}, gateways)
+		assert.Equal(t, 2, configs)
+
+		sendOrFail(t, ruChan, remoteGateways(ia, testGateways(t, 3)))
+		require.Len(t, receiveOrFail(t, cfgChan), 3)
+		gateways, configs = appliedState(t, &sc)
+		assert.Equal(t, map[string]int{"1-ff00:0:110": 3}, gateways)
+		assert.Equal(t, 3, configs)
+
+		assert.NoError(t, sc.Close(context.Background()))
+	})
+}
+
+func sendOrFail[T any](t *testing.T, ch chan<- T, v T) {
+	t.Helper()
+	select {
+	case ch <- v:
+	case <-time.After(time.Second):
+		t.Fatalf("write timed out")
+	}
+}
+
+func receiveOrFail(t *testing.T, ch <-chan []*control.SessionConfig) []*control.SessionConfig {
+	t.Helper()
+	select {
+	case cfg := <-ch:
+		return cfg
+	case <-time.After(time.Second):
+		t.Fatalf("config update not received")
+		return nil
+	}
+}
+
+// appliedState reads the diagnostics of sc. It returns the number of remote
+// gateways for each ISD-AS and the number of session configs.
+func appliedState(t *testing.T, sc *control.SessionConfigurator) (map[string]int, int) {
+	t.Helper()
+	var buf bytes.Buffer
+	sc.DiagnosticsWrite(&buf)
+	var d struct {
+		RemoteGateways struct {
+			Gateways map[string][]json.RawMessage
+		}
+		SessionConfigs []json.RawMessage
+	}
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &d), buf.String())
+	gateways := make(map[string]int)
+	for ia, entries := range d.RemoteGateways.Gateways {
+		gateways[ia] = len(entries)
+	}
+	return gateways, len(d.SessionConfigs)
 }
 
 func TestBuildSessionConfigs(t *testing.T) {
@@ -803,4 +885,199 @@ type dummyPerfPolicy struct{}
 
 func (dummyPerfPolicy) Better(_, _ *policies.Stats) bool {
 	return false
+}
+
+func voicePolicy(ia addr.IA) control.SessionPolicy {
+	return control.SessionPolicy{
+		IA:             ia,
+		ID:             1,
+		Name:           "voice",
+		TrafficMatcher: pktcls.CondTrue,
+		PerfPolicy:     dummyPerfPolicy{},
+		PathPolicy:     control.DefaultPathPolicy,
+		PathCount:      1,
+	}
+}
+
+func testGateways(t *testing.T, n int) []control.RemoteGateway {
+	t.Helper()
+	result := make([]control.RemoteGateway, 0, n)
+	for i := range n {
+		result = append(result, control.RemoteGateway{Gateway: control.Gateway{
+			Control: mustParseUDPAddr(t, fmt.Sprintf("10.0.%d.%d:30256", i/256, i%256)),
+		}})
+	}
+	return result
+}
+
+func buildConfigs(policy control.SessionPolicy,
+	gateways []control.RemoteGateway) ([]*control.SessionConfig, error) {
+
+	return control.BuildSessionConfigs(control.SessionPolicies{policy},
+		remoteGateways(policy.IA, gateways))
+}
+
+func TestBuildSessionConfigsStableIDs(t *testing.T) {
+	policy := voicePolicy(addr.MustParseIA("1-ff00:0:110"))
+
+	t.Run("gateway order does not change the IDs", func(t *testing.T) {
+		forward := testGateways(t, 3)
+		reverse := slices.Clone(forward)
+		slices.Reverse(reverse)
+		reverseCopy := slices.Clone(reverse)
+
+		a, err := buildConfigs(policy, forward)
+		require.NoError(t, err)
+		b, err := buildConfigs(policy, reverse)
+		require.NoError(t, err)
+		require.Len(t, a, 3)
+		assert.Equal(t, a, b)
+		for i, cfg := range a {
+			assert.Equal(t, uint8(i), cfg.ID)
+		}
+		assert.Equal(t, "voice", a[0].PolicyName)
+		assert.Equal(t, reverseCopy, reverse)
+	})
+
+	t.Run("256 sessions", func(t *testing.T) {
+		cfgs, err := buildConfigs(policy, testGateways(t, 256))
+		require.NoError(t, err)
+		require.Len(t, cfgs, 256)
+		assert.Equal(t, uint8(255), cfgs[255].ID)
+	})
+
+	t.Run("257 sessions", func(t *testing.T) {
+		cfgs, err := buildConfigs(policy, testGateways(t, 257))
+		assert.ErrorContains(t, err, "too many sessions")
+		assert.ErrorContains(t, err, "sessions=257")
+		assert.ErrorContains(t, err, "isd_as=1-ff00:0:110")
+		assert.ErrorContains(t, err, "session_policy_id=1")
+		assert.Nil(t, cfgs)
+	})
+
+	second := policy
+	second.ID = 2
+	other := addr.MustParseIA("1-ff00:0:111")
+	twoPolicies := control.SessionPolicies{policy, second}
+
+	t.Run("two session policies give 256 sessions", func(t *testing.T) {
+		cfgs, err := control.BuildSessionConfigs(twoPolicies, control.RemoteGateways{
+			Gateways: map[addr.IA][]control.RemoteGateway{
+				policy.IA: testGateways(t, 128),
+				other:     testGateways(t, 300),
+			},
+		})
+		require.NoError(t, err)
+		require.Len(t, cfgs, 256)
+		assert.Equal(t, 1, cfgs[127].PolicyID)
+		assert.Equal(t, 2, cfgs[128].PolicyID)
+		assert.Equal(t, uint8(255), cfgs[255].ID)
+	})
+
+	t.Run("two session policies give 258 sessions", func(t *testing.T) {
+		cfgs, err := control.BuildSessionConfigs(twoPolicies,
+			remoteGateways(policy.IA, testGateways(t, 129)))
+		assert.ErrorContains(t, err, "sessions=258")
+		assert.ErrorContains(t, err, "session_policy_id=2")
+		assert.Nil(t, cfgs)
+	})
+
+	t.Run("the error names the first session policy above the limit", func(t *testing.T) {
+		third := policy
+		third.IA = other
+		third.ID = 3
+		cfgs, err := control.BuildSessionConfigs(
+			control.SessionPolicies{policy, second, third},
+			control.RemoteGateways{Gateways: map[addr.IA][]control.RemoteGateway{
+				policy.IA: testGateways(t, 200),
+				other:     testGateways(t, 100),
+			}})
+		assert.ErrorContains(t, err, "sessions=400")
+		assert.ErrorContains(t, err, "isd_as=1-ff00:0:110")
+		assert.ErrorContains(t, err, "session_policy_id=2")
+		assert.Nil(t, cfgs)
+	})
+
+	ctrl := mustParseUDPAddr(t, "10.0.0.1:30256")
+	probe1 := mustParseUDPAddr(t, "10.0.1.1:25")
+	probe2 := mustParseUDPAddr(t, "10.0.1.2:25")
+	data1 := mustParseUDPAddr(t, "10.0.2.1:30056")
+	data2 := mustParseUDPAddr(t, "10.0.2.2:30056")
+	orderCases := map[string][2]control.Gateway{
+		"same control address, the probe address decides": {
+			{Control: ctrl, Probe: probe1},
+			{Control: ctrl, Probe: probe2},
+		},
+		"nil control address, the probe address decides": {
+			{Probe: probe1},
+			{Probe: probe2},
+		},
+		"same control and probe address, the data address decides": {
+			{Control: ctrl, Probe: probe1, Data: data1},
+			{Control: ctrl, Probe: probe1, Data: data2},
+		},
+	}
+	for name, gws := range orderCases {
+		t.Run(name, func(t *testing.T) { assertGatewayOrder(t, policy, gws[0], gws[1]) })
+	}
+
+	t.Run("same addresses, the sorted interfaces decide", func(t *testing.T) {
+		first := control.Gateway{Control: ctrl, Probe: probe1, Data: data1,
+			Interfaces: []uint64{5, 1}}
+		second := control.Gateway{Control: ctrl, Probe: probe1, Data: data1,
+			Interfaces: []uint64{3, 2}}
+		assertGatewayOrder(t, policy, first, second)
+		assert.Equal(t, []uint64{5, 1}, first.Interfaces)
+		assert.Equal(t, []uint64{3, 2}, second.Interfaces)
+	})
+}
+
+func assertGatewayOrder(t *testing.T, policy control.SessionPolicy,
+	first, second control.Gateway) {
+
+	t.Helper()
+	a := control.RemoteGateway{Gateway: first}
+	b := control.RemoteGateway{Gateway: second}
+	for _, in := range [][]control.RemoteGateway{{a, b}, {b, a}} {
+		cfgs, err := buildConfigs(policy, in)
+		require.NoError(t, err)
+		require.Len(t, cfgs, 2)
+		assert.Equal(t, first, cfgs[0].Gateway)
+		assert.Equal(t, second, cfgs[1].Gateway)
+	}
+}
+
+func TestDiffSessionPoliciesOrder(t *testing.T) {
+	ia := addr.MustParseIA("1-ff00:0:110")
+	voice := control.SessionPolicy{
+		IA:             ia,
+		ID:             1,
+		TrafficMatcher: mustCond(t, "dscp=0x2e"),
+		PerfPolicy:     control.DefaultPerfPolicy,
+		PathPolicy:     control.DefaultPathPolicy,
+		PathCount:      1,
+	}
+	rest := voice
+	rest.ID = 2
+	rest.TrafficMatcher = pktcls.CondTrue
+
+	a := control.SessionPolicies{voice, rest}
+	assert.True(t, control.DiffSessionPolicies(a, control.SessionPolicies{rest, voice}))
+	assert.False(t, control.DiffSessionPolicies(a, control.SessionPolicies{voice, rest}))
+
+	renamed := voice
+	renamed.Name = "voip"
+	assert.True(t, control.DiffSessionPolicies(a, control.SessionPolicies{renamed, rest}))
+
+	moved := voice
+	moved.IA = addr.MustParseIA("1-ff00:0:111")
+	assert.True(t, control.DiffSessionPolicies(control.SessionPolicies{voice},
+		control.SessionPolicies{moved}))
+
+	assert.True(t, control.DiffSessionPolicies(control.SessionPolicies{voice}, a))
+	assert.True(t, control.DiffSessionPolicies(a, control.SessionPolicies{voice}))
+}
+
+func remoteGateways(ia addr.IA, gateways []control.RemoteGateway) control.RemoteGateways {
+	return control.RemoteGateways{Gateways: map[addr.IA][]control.RemoteGateway{ia: gateways}}
 }
