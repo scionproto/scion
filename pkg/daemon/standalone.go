@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
-	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -30,7 +29,6 @@ import (
 	"github.com/scionproto/scion/pkg/daemon/private/trust"
 	"github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
-	pkgmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/periodic"
@@ -42,7 +40,6 @@ import (
 	truststoragemetrics "github.com/scionproto/scion/private/storage/trust/metrics"
 	privtrust "github.com/scionproto/scion/private/trust"
 	"github.com/scionproto/scion/private/trust/compat"
-	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
 // StandaloneConnectorOption is a functional option for NewStandaloneConnector.
@@ -52,7 +49,7 @@ type standaloneConnectorOptions struct {
 	certsDir               string
 	disableSegVerification bool
 	enablePeriodicCleanup  bool
-	enableMetrics          bool
+	metrics                StandaloneMetrics
 }
 
 // WithCertsDir sets the directory containing TRC certificates for trust material.
@@ -78,10 +75,9 @@ func WithPeriodicCleanup() StandaloneConnectorOption {
 	}
 }
 
-// WithMetrics enables metrics collection for the standalone daemon.
-func WithMetrics() StandaloneConnectorOption {
+func WithStandaloneMetrics(metrics StandaloneMetrics) StandaloneConnectorOption {
 	return func(o *standaloneConnectorOptions) {
-		o.enableMetrics = true
+		o.metrics = metrics
 	}
 }
 
@@ -104,7 +100,7 @@ func LoadASInfoFromFile(topoFile string) (asinfo.LocalASInfo, error) {
 //	if err != nil { ... }
 //	conn, err := daemon.NewStandaloneConnector(ctx, localASInfo,
 //	    daemon.WithCertsDir("/path/to/certs"),
-//	    daemon.WithMetrics(),
+//	    daemon.WithStandaloneMetrics(...),
 //	)
 func NewStandaloneConnector(
 	ctx context.Context, localASInfo asinfo.LocalASInfo, opts ...StandaloneConnectorOption,
@@ -114,6 +110,7 @@ func NewStandaloneConnector(
 	for _, opt := range opts {
 		opt(options)
 	}
+	metrics := options.metrics
 
 	// Validate that certsDir is set unless segment verification is disabled
 	if options.certsDir == "" && !options.disableSegVerification {
@@ -140,8 +137,9 @@ func NewStandaloneConnector(
 		Dialer: dialer,
 	}
 
+	cleanerMetrics := NewCleanerMetrics()
 	// Initialize in-memory path storage
-	pathDB, err := storage.NewInMemoryPathStorage()
+	pathDB, err := storage.NewInMemoryPathStorage(cleanerMetrics.PathStorage)
 	if err != nil {
 		return nil, serrors.Wrap("initializing path storage", err)
 	}
@@ -154,11 +152,13 @@ func NewStandaloneConnector(
 	var rcCleaner *periodic.Runner
 	if options.enablePeriodicCleanup {
 		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
-		cleaner = periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
+		cleaner = periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments",
+			cleanerMetrics.SDSegments),
 			300*time.Second, 295*time.Second)
 
 		//nolint:staticcheck // SA1019: fix later (https://github.com/scionproto/scion/issues/4776).
-		rcCleaner = periodic.Start(revcache.NewCleaner(revCache, "sd_revocation"),
+		rcCleaner = periodic.Start(revcache.NewCleaner(revCache, "sd_revocation",
+			cleanerMetrics.SDRevocation),
 			10*time.Second, 10*time.Second)
 	}
 
@@ -178,17 +178,11 @@ func NewStandaloneConnector(
 			return nil, serrors.Wrap("initializing trust database", err)
 		}
 		trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
-			Driver: string(storage.BackendSqlite),
-			QueriesTotal: pkgmetrics.NewPromCounterFrom(
-				prometheus.CounterOpts{
-					Name: "trustengine_db_queries_total",
-					Help: "Total queries to the database",
-				},
-				[]string{"driver", "operation", "result"},
-			),
+			Driver:       string(storage.BackendSqlite),
+			QueriesTotal: metrics.TrustStorageQueries,
 		})
 		trustEngine, err := trust.NewEngine(
-			ctx, options.certsDir, localASInfo.IA(), trustDB, dialer,
+			ctx, options.certsDir, localASInfo.IA(), trustDB, dialer, metrics.Trust,
 		)
 		if err != nil {
 			return nil, serrors.Wrap("creating trust engine", err)
@@ -196,7 +190,7 @@ func NewStandaloneConnector(
 		trustEngine.Inspector = privtrust.CachingInspector{
 			Inspector:          trustEngine.Inspector,
 			Cache:              cache.New(time.Minute, time.Minute),
-			CacheHits:          pkgmetrics.NewPromCounter(trustmetrics.CacheHitsTotal),
+			CacheHits:          metrics.Trust.CacheHits,
 			MaxCacheExpiration: time.Minute,
 		}
 		trcLoader := privtrust.TRCLoader{
@@ -226,8 +220,9 @@ func NewStandaloneConnector(
 			Verifier: privtrust.Verifier{
 				Engine:             trustEngine,
 				Cache:              cache.New(time.Minute, time.Minute),
-				CacheHits:          pkgmetrics.NewPromCounter(trustmetrics.CacheHitsTotal),
+				CacheHits:          metrics.Trust.CacheHits,
 				MaxCacheExpiration: time.Minute,
+				Verifications:      metrics.Trust.VerifierSignatures,
 			},
 		}
 		inspector = trustEngine.Inspector
@@ -261,14 +256,9 @@ func NewStandaloneConnector(
 		DRKeyClient: nil,
 	}
 
-	var standaloneMetrics standalone.Metrics
-	if options.enableMetrics {
-		standaloneMetrics = standalone.NewStandaloneMetrics()
-	}
-
 	standaloneDaemon := &standalone.Daemon{
 		Engine:        daemonEngine,
-		Metrics:       standaloneMetrics,
+		Metrics:       metrics.Standalone,
 		LocalASInfo:   localASInfo,
 		PathDBCleaner: cleaner,
 		PathDB:        pathDB,

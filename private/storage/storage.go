@@ -155,7 +155,7 @@ func (cfg *DBConfig) ConfigName() string {
 	return "db"
 }
 
-func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
+func NewBeaconStorage(c DBConfig, ia addr.IA, metrics cleaner.Metrics) (BeaconDB, error) {
 	log.Info("Connecting BeaconDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := sqlitebeacondb.New(
 		c.Connection,
@@ -178,6 +178,7 @@ func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
 				return db.DeleteExpiredBeacons(ctx, time.Now())
 			},
 			"control_beaconstorage_cleaner",
+			metrics,
 		),
 		30*time.Second,
 		30*time.Second,
@@ -200,7 +201,7 @@ func (b beaconDBWithCleaner) Close() error {
 	return b.BeaconDB.Close()
 }
 
-func NewPathStorage(c DBConfig) (PathDB, error) {
+func NewPathStorage(c DBConfig, metrics cleaner.Metrics) (PathDB, error) {
 	log.Info("Connecting PathDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := sqlitepathdb.New(c.Connection,
 		&db.SqliteConfig{
@@ -221,6 +222,7 @@ func NewPathStorage(c DBConfig) (PathDB, error) {
 				return db.DeleteExpired(ctx, time.Now())
 			},
 			"control_pathstorage_cleaner",
+			metrics,
 		),
 		30*time.Second,
 		30*time.Second,
@@ -232,7 +234,7 @@ func NewPathStorage(c DBConfig) (PathDB, error) {
 	}, nil
 }
 
-func NewInMemoryPathStorage() (PathDB, error) {
+func NewInMemoryPathStorage(metrics cleaner.Metrics) (PathDB, error) {
 	log.Info("Creating in-memory PathDB", "backend", BackendSqlite)
 	// Use timestamp to create unique database name for each instance
 	dbName := fmt.Sprintf("in_memory_path_db_%d", time.Now().UnixNano())
@@ -255,6 +257,7 @@ func NewInMemoryPathStorage() (PathDB, error) {
 				return db.DeleteExpired(ctx, time.Now())
 			},
 			"control_pathstorage_cleaner",
+			metrics,
 		),
 		30*time.Second,
 		30*time.Second,

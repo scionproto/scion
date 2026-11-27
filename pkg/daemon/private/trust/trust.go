@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/trust"
 	trustgrpc "github.com/scionproto/scion/private/trust/grpc"
@@ -35,6 +34,7 @@ func NewEngine(
 	ia addr.IA,
 	db trust.DB,
 	dialer grpc.Dialer,
+	metrics trustmetrics.Metrics,
 ) (trust.Engine, error) {
 	loaded, err := trust.LoadTRCs(ctx, certsDir, db)
 	if err != nil {
@@ -72,10 +72,11 @@ func NewEngine(
 			Fetcher: trustgrpc.Fetcher{
 				IA:       ia,
 				Dialer:   dialer,
-				Requests: metrics.NewPromCounter(trustmetrics.RPC.Fetches),
+				Requests: metrics.RPCFetches,
 			},
 			Recurser: trust.LocalOnlyRecurser{},
 			Router:   trust.LocalRouter{IA: ia},
+			Requests: metrics.ProviderRequests,
 		},
 		DB: db,
 	}, nil

@@ -91,7 +91,7 @@ func (s *DaemonServer) Paths(
 	dstI := addr.IA(req.DestinationIsdAs).ISD()
 	response, err := s.paths(ctx, req)
 	s.Metrics.PathsRequests.inc(
-		pathReqLabels{Result: errToMetricResult(err), Dst: dstI},
+		errToMetricResult(err), dstI,
 		time.Since(start).Seconds(),
 	)
 	return response, unwrapMetricsError(err)
@@ -122,7 +122,7 @@ func (s *DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 	start := time.Now()
 	response, err := s.as(ctx, req)
 	s.Metrics.ASRequests.inc(
-		reqLabels{Result: errToMetricResult(err)},
+		errToMetricResult(err),
 		time.Since(start).Seconds(),
 	)
 	return response, unwrapMetricsError(err)
@@ -158,7 +158,7 @@ func (s *DaemonServer) Interfaces(
 	start := time.Now()
 	response, err := s.interfaces(ctx, req)
 	s.Metrics.InterfacesRequests.inc(
-		reqLabels{Result: errToMetricResult(err)},
+		errToMetricResult(err),
 		time.Since(start).Seconds(),
 	)
 	return response, unwrapMetricsError(err)
@@ -193,7 +193,7 @@ func (s *DaemonServer) Services(
 	start := time.Now()
 	response, err := s.services(ctx, req)
 	s.Metrics.ServicesRequests.inc(
-		reqLabels{Result: errToMetricResult(err)},
+		errToMetricResult(err),
 		time.Since(start).Seconds(),
 	)
 	return response, unwrapMetricsError(err)
@@ -226,7 +226,7 @@ func (s *DaemonServer) NotifyInterfaceDown(
 	start := time.Now()
 	response, err := s.notifyInterfaceDown(ctx, req)
 	s.Metrics.InterfaceDownNotifications.inc(
-		ifDownLabels{Result: errToMetricResult(err), Src: "notification"},
+		errToMetricResult(err), "notification",
 		time.Since(start).Seconds(),
 	)
 	return response, unwrapMetricsError(err)
