@@ -121,30 +121,96 @@ func (c *Connector) AddExternalInterface(
 	}
 
 	link.BFD = c.applyBFDDefaults(link.BFD)
+	var err error
+	if owned {
+		err = c.DataPlane.AddExternalInterface(intf, link, localHost, remoteHost)
+	} else {
+		err = c.DataPlane.AddNextHop(intf, link, localHost, remoteHost)
+	}
+	if err != nil {
+		// Undo AddNeighborIA, so that adding the interface can be tried again.
+		if delErr := c.DataPlane.DelInterface(intf); delErr != nil {
+			log.Error("Removing neighboring IA", "if_id", localIfID, "err", delErr)
+		}
+		return err
+	}
+
 	if !owned {
 		if len(c.siblingInterfaces) == 0 {
 			c.siblingInterfaces = make(map[uint16]control.SiblingInterface)
 		}
-		c.siblingInterfaces[intf] = control.SiblingInterface{
-			IfID:            intf,
-			InternalAddress: link.Remote.Addr, // address of the sibling router
-			Relationship:    link.LinkTo,
-			MTU:             link.MTU,
-			NeighborIA:      link.Remote.IA,
-			State:           control.InterfaceDown,
-		}
-		return c.DataPlane.AddNextHop(intf, link, localHost, remoteHost)
+		c.siblingInterfaces[intf] = siblingRecord(intf, link)
+		return nil
 	}
 
 	if len(c.externalInterfaces) == 0 {
 		c.externalInterfaces = make(map[uint16]control.ExternalInterface)
 	}
-	c.externalInterfaces[intf] = control.ExternalInterface{
+	c.externalInterfaces[intf] = externalRecord(intf, link)
+	return nil
+}
+
+// UpdateExternalInterface replaces the information about an interface
+// that AddExternalInterface added, and keeps its links.
+// link may differ only in the MTU and the remote interface ID, which links don't use.
+func (c *Connector) UpdateExternalInterface(localIfID iface.ID, link control.LinkInfo) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	intf := uint16(localIfID)
+	log.Debug("Updating external interface", "interface", localIfID)
+	link.BFD = c.applyBFDDefaults(link.BFD)
+	if _, ok := c.externalInterfaces[intf]; ok {
+		c.externalInterfaces[intf] = externalRecord(intf, link)
+		return nil
+	}
+	if _, ok := c.siblingInterfaces[intf]; ok {
+		c.siblingInterfaces[intf] = siblingRecord(intf, link)
+		return nil
+	}
+	return serrors.JoinNoStack(errNoSuchInterface, nil, "ifID", intf)
+}
+
+func externalRecord(intf uint16, link control.LinkInfo) control.ExternalInterface {
+	return control.ExternalInterface{
 		IfID:  intf,
 		Link:  link,
 		State: control.InterfaceDown,
 	}
-	return c.DataPlane.AddExternalInterface(intf, link, localHost, remoteHost)
+}
+
+func siblingRecord(intf uint16, link control.LinkInfo) control.SiblingInterface {
+	return control.SiblingInterface{
+		IfID:            intf,
+		InternalAddress: link.Remote.Addr, // address of the sibling router
+		Relationship:    link.LinkTo,
+		MTU:             link.MTU,
+		NeighborIA:      link.Remote.IA,
+		State:           control.InterfaceDown,
+	}
+}
+
+// DelExternalInterface removes an interface that AddExternalInterface added.
+func (c *Connector) DelExternalInterface(localIfID iface.ID) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	intf := uint16(localIfID)
+	log.Debug("Removing external interface", "interface", localIfID)
+	if err := c.DataPlane.DelInterface(intf); err != nil {
+		return err
+	}
+	delete(c.externalInterfaces, intf)
+	delete(c.siblingInterfaces, intf)
+	return nil
+}
+
+// CheckExternalInterfaces returns an error if the dataplane
+// can't have links in place of the external interfaces it has.
+func (c *Connector) CheckExternalInterfaces(links []control.LinkInfo) error {
+	providers := make([]string, len(links))
+	for i, l := range links {
+		providers[i] = l.Provider
+	}
+	return c.DataPlane.checkInterfaces(providers)
 }
 
 // AddSvc adds the service address for the given ISD-AS.
