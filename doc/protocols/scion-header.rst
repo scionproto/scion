@@ -204,11 +204,22 @@ RSV
     Unused and reserved for future use.
 SegID
     SegID is an updatable field that is required for the MAC-chaining mechanism.
+
+.. _scion-path-info-timestamp:
+
 Timestamp
     Timestamp created by the initiator of the corresponding beacon. The
     timestamp is expressed in Unix time, and is encoded as an unsigned integer
     within 4 bytes with 1-second time granularity.  This timestamp enables
     validation of the hop field by verification of the expiration time and MAC.
+
+    Routers drop packets whose current info field has a timestamp in the future.
+    For the purpose of this validation, a timestamp is considered to be
+    in the future if it's later than the local current time plus 337.5 seconds,
+    that is the minimum time to live of a hop (see :ref:`ExpTime <scion-path-exptime>`);
+    this tolerance accommodates clock drift. Without the check, an attacker could
+    extend the validity of a hop field arbitrarily beyond the maximum time
+    to live of 24 hours, and with it the time available to attack the hop field MAC.
 
 Hop Field
 ---------
@@ -257,6 +268,11 @@ ExpTime
 
     .. math::
         Timestamp + (1 + ExpTime) \cdot \frac{24\cdot60\cdot60}{256}
+
+    The resulting time to live of a hop field therefore ranges from 337.5
+    seconds to 24 hours. Because it is relative to the timestamp of the info
+    field, routers additionally reject info fields whose timestamp lies in the
+    future (see :ref:`Timestamp <scion-path-info-timestamp>`).
 
 ConsIngress, ConsEgress
     The 16-bits ingress/egress interface IDs in construction direction.
