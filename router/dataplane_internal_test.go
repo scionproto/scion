@@ -458,6 +458,49 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
+		"invalid size truncated": {
+			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
+				return newDP(
+					mockExternalInterfaces,
+					nil,
+					MockConnOpener{Ctrl: ctrl},
+					mockInternalNextHops,
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				assert.NoError(t, spkt.SetDstAddr(addr.MustParseHost("10.0.200.200")))
+				ret := toMsg(t, spkt)
+				return ret[:len(ret)-1]
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidPacketSize,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
+		"invalid size trailing bytes": {
+			prepareDP: func(ctrl *gomock.Controller) *dataPlane {
+				return newDP(
+					mockExternalInterfaces,
+					nil,
+					MockConnOpener{Ctrl: ctrl},
+					mockInternalNextHops,
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				assert.NoError(t, spkt.SetDstAddr(addr.MustParseHost("10.0.200.200")))
+				return append(toMsg(t, spkt), 0xff)
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				spType: slowPathType(slayers.SCMPTypeParameterProblem),
+				code:   slayers.SCMPCodeInvalidPacketSize,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
 	}
 
 	for name, tc := range testCases {

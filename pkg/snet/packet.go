@@ -383,6 +383,10 @@ func (p *Packet) Decode() error {
 	if err := parser.DecodeLayers(p.Bytes, &decoded); err != nil {
 		return err
 	}
+	if int(scionLayer.PayloadLen) != len(scionLayer.Payload) {
+		return serrors.New("bad packet size",
+			"header", scionLayer.PayloadLen, "actual", len(scionLayer.Payload))
+	}
 	if len(decoded) < 2 {
 		return serrors.New("L4 not decoded")
 	}
